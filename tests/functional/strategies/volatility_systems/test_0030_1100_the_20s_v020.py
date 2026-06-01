@@ -38,9 +38,9 @@ Strategy Logic:
     migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import json
 from backtrader.dataseries import TimeFrame
@@ -53,6 +53,7 @@ import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -91,60 +92,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional minute offset added to each timestamp so the
-            bar is stamped at its close.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """PandasData feed exposing the standard M15 OHLCV columns."""
 
@@ -152,76 +99,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class The20sV020Signal(Indicator):
-    """Reversal signal from prior-bar 20% zones with an ATR-offset entry."""
-
-    lines = ('sell', 'buy')
-    params = dict(
-        alg='MODE_1',
-        level=100,
-        ratio=0.2,
-        direct=False,
-        atr_period=15,
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Build the ATR sub-indicator and set the warm-up minimum period."""
-        self.atr = btind.ATR(self.data, period=max(int(self.p.atr_period), 1))
-        self.addminperiod(max(int(self.p.atr_period), 5) + 6)
-
-    def next(self):
-        """Emit buy/sell signal levels from the prior-bar 20% zone logic.
-
-        Resets both lines to zero, and once enough bars exist computes the
-        prior-bar range, its upper/lower 20% zones, and the ATR. Under MODE_1 it
-        flags a reversal when the previous bar spans the band and the current bar
-        breaks beyond it by the level threshold; under MODE_2 it uses a three-bar
-        expansion-then-inside pattern. The ``direct`` flag optionally swaps the
-        buy and sell outputs.
-        """
-        self.lines.buy[0] = 0.0
-        self.lines.sell[0] = 0.0
-
-        if len(self.data) < 6:
-            return
-
-        dlevel = float(self.p.level) * float(self.p.point)
-        last_range = float(self.data.high[-1]) - float(self.data.low[-1])
-        top20 = float(self.data.high[-1]) - last_range * float(self.p.ratio)
-        bottom20 = float(self.data.low[-1]) + last_range * float(self.p.ratio)
-        atr = float(self.atr[0])
-
-        raw_buy = 0.0
-        raw_sell = 0.0
-
-        if str(self.p.alg) == 'MODE_1':
-            if float(self.data.open[-1]) >= top20 and float(self.data.close[-1]) <= bottom20 and float(self.data.low[0]) <= float(self.data.low[-1]) - dlevel:
-                raw_buy = float(self.data.low[0]) - atr * 3.0 / 8.0
-            elif float(self.data.open[-1]) <= bottom20 and float(self.data.close[-1]) >= top20 and float(self.data.high[0]) >= float(self.data.high[-1]) + dlevel:
-                raw_sell = float(self.data.high[0]) + atr * 3.0 / 8.0
-        else:
-            cond = (
-                (float(self.data.high[-4]) - float(self.data.low[-4]) > last_range)
-                and (float(self.data.high[-3]) - float(self.data.low[-3]) > last_range)
-                and (float(self.data.high[-2]) - float(self.data.low[-2]) > last_range)
-                and float(self.data.high[-2]) > float(self.data.high[-1])
-                and float(self.data.low[-2]) < float(self.data.low[-1])
-            )
-            if cond:
-                if float(self.data.open[0]) <= bottom20:
-                    raw_buy = float(self.data.low[0]) - atr * 3.0 / 8.0
-                if float(self.data.open[0]) >= top20:
-                    raw_sell = float(self.data.high[0]) + atr * 3.0 / 8.0
-
-        if bool(self.p.direct):
-            self.lines.buy[0] = raw_buy
-            self.lines.sell[0] = raw_sell
-        else:
-            self.lines.buy[0] = raw_sell
-            self.lines.sell[0] = raw_buy
 
 
 class The20sV020Strategy(Strategy):
@@ -241,7 +118,7 @@ class The20sV020Strategy(Strategy):
 
     def __init__(self):
         """Build the signal indicator and reset order/trade counters and state."""
-        self.indicator = The20sV020Signal(
+        self.indicator = bt.indicators.The20sV020Signal(
             self.data,
             alg=self.p.alg,
             level=self.p.level,
@@ -406,12 +283,7 @@ class The20sV020Strategy(Strategy):
             self.loss_count += 1
 
 
-
-
-
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
-
 
 
 def prepare_frame(config, base_dir):
@@ -548,7 +420,7 @@ def run(plot=False):
     """
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / 'config.yaml').resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()
@@ -572,7 +444,7 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / args.config).resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()

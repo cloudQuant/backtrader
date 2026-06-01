@@ -36,14 +36,13 @@ Strategy Logic:
     module's run(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,89 +81,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to every timestamp so that the index
-            marks the close of each bar.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping the MT5 OHLCV columns by position."""
 
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class T3Indicator(bt.Indicator):
-    """Tillson T3 moving average — six cascaded EMAs with volume factor."""
-    lines = ('t3',)
-    params = (('period', 4), ('vfactor', 0.7),)
-
-    def __init__(self):
-        """Build the six cascaded EMAs and the T3 weighted combination line."""
-        e1 = bt.indicators.EMA(self.data, period=self.p.period)
-        e2 = bt.indicators.EMA(e1, period=self.p.period)
-        e3 = bt.indicators.EMA(e2, period=self.p.period)
-        e4 = bt.indicators.EMA(e3, period=self.p.period)
-        e5 = bt.indicators.EMA(e4, period=self.p.period)
-        e6 = bt.indicators.EMA(e5, period=self.p.period)
-        v = self.p.vfactor
-        c1 = -(v * v * v)
-        c2 = 3 * v * v + 3 * v * v * v
-        c3 = -6 * v * v - 3 * v - 3 * v * v * v
-        c4 = 1 + 3 * v + v * v * v + 3 * v * v
-        self.lines.t3 = c1 * e6 + c2 * e5 + c3 * e4 + c4 * e3
 
 
 class T3MAStrategy(bt.Strategy):
@@ -194,7 +116,7 @@ class T3MAStrategy(bt.Strategy):
         Returns:
             None.
         """
-        self.t3 = T3Indicator(self.data.close, period=self.p.t3_period, vfactor=self.p.t3_vfactor)
+        self.t3 = bt.indicators.T3Indicator(self.data.close, period=self.p.t3_period, vfactor=self.p.t3_vfactor)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -330,7 +252,6 @@ class T3MAStrategy(bt.Strategy):
         else: self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -441,7 +362,7 @@ def run(plot=False):
     Returns:
         Tuple ``(results, metrics, cerebro)`` from a normal backtest run.
     """
-    config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
+    config = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)
     if plot: cerebro.plot()

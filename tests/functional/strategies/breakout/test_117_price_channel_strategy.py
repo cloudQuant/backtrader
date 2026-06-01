@@ -13,10 +13,10 @@ annual return, and maximum drawdown.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent

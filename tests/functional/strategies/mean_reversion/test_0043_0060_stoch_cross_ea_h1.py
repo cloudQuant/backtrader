@@ -26,13 +26,12 @@ Strategy Logic:
     then collect analyzer metrics for assertion checks.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,62 +74,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load and normalize MT5 CSV data into a Backtrader-friendly dataframe.
-
-    Args:
-        filepath: Path to the source MT5 CSV.
-        fromdate: Optional lower bound datetime.
-        todate: Optional upper bound datetime.
-        bar_shift_minutes: Optional minute offset for datetime index.
-
-    Returns:
-        DataFrame indexed by datetime containing OHLCV + openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -319,13 +262,9 @@ class StochCrossEAH1Strategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -452,7 +391,6 @@ def finite_or_none(value):
     if isinstance(value, (int, float)) and not math.isfinite(value):
         return None
     return value
-
 
 
 def extract_metrics(strat, cerebro, frame, config):
@@ -594,7 +532,7 @@ def test_43_0043_0060_stoch_cross_ea_h1() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0043_0060_stoch_cross_ea_h1.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

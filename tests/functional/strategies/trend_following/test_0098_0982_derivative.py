@@ -38,16 +38,31 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -89,26 +104,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
 APPLIED_PRICE_MAP = {
     'PRICE_CLOSE': 0,
     'PRICE_OPEN': 1,
@@ -122,46 +117,6 @@ APPLIED_PRICE_MAP = {
     'PRICE_DEMARK': 10,
     'PRICE_AVERAGE_DEMARK': 11,
 }
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV frame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound used to clip the frame.
-        todate: Optional inclusive upper bound used to clip the frame.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of its open.
-
-    Returns:
-        pandas.DataFrame: A datetime-indexed frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume``, ``openinterest`` and ``spread`` columns
-        sorted in ascending time order.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -178,71 +133,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class DerivativeIndicator(bt.Indicator):
-    """Derivative indicator derived from a selected applied price.
-
-    The computed `value` line is a momentum-like slope:
-    ``100 * (price[0] - price[-i_slowing]) / i_slowing``.
-    """
-
-    lines = ('value',)
-    params = dict(i_slowing=34, applied_price='PRICE_WEIGHTED')
-
-    def __init__(self):
-        """Require at least ``i_slowing + 1`` bars before emitting values."""
-        self.addminperiod(int(self.p.i_slowing) + 1)
-
-    def _mode_value(self, value, default_value):
-        if isinstance(value, str):
-            return APPLIED_PRICE_MAP.get(value, default_value)
-        return int(value)
-
-    def _price(self, ago=0):
-        mode = self._mode_value(self.p.applied_price, 0)
-        open_ = float(self.data.open[ago])
-        high = float(self.data.high[ago])
-        low = float(self.data.low[ago])
-        close = float(self.data.close[ago])
-        if mode == 0:
-            return close
-        if mode == 1:
-            return open_
-        if mode == 2:
-            return high
-        if mode == 3:
-            return low
-        if mode == 4:
-            return (high + low) / 2.0
-        if mode == 5:
-            return (close + high + low) / 3.0
-        if mode == 6:
-            return (2.0 * close + high + low) / 4.0
-        if mode == 8:
-            return (open_ + close) / 2.0
-        if mode == 9:
-            return (open_ + close + high + low) / 4.0
-        if mode == 10:
-            if close > open_:
-                return high
-            if close < open_:
-                return low
-            return close
-        if mode == 11:
-            if close > open_:
-                return (high + close) / 2.0
-            if close < open_:
-                return (low + close) / 2.0
-            return close
-        return close
-
-    def next(self):
-        """Update the derivative value for the current bar."""
-        lag = int(self.p.i_slowing)
-        current = self._price(0)
-        past = self._price(-lag)
-        self.lines.value[0] = 100.0 * (current - past) / float(lag)
 
 
 class DerivativeStrategy(bt.Strategy):
@@ -276,7 +166,7 @@ class DerivativeStrategy(bt.Strategy):
         """Initialize data wiring, indicator and state/counter fields."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = DerivativeIndicator(self.signal_feed, i_slowing=self.p.i_slowing, applied_price=self.p.applied_price)
+        self.indicator = bt.indicators.DerivativeIndicator(self.signal_feed, i_slowing=self.p.i_slowing, applied_price=self.p.applied_price)
         self.bar_num = 0
         self.buy_signal_count = 0
         self.sell_signal_count = 0
@@ -482,7 +372,6 @@ class DerivativeStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -491,9 +380,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -610,10 +497,9 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run backtest once and return results, metrics, and cerebro instance."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

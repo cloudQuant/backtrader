@@ -112,7 +112,7 @@ class CheatOnOpenStrategy(bt.Strategy):
 
     Attributes:
         signal (bt.ind.CrossOver): Crossover indicator detecting when fast SMA
-            crosses above/below slow SMA. Returns positive on bullish crossover,
+            crosses above/below slow bt.indicators.SMA. Returns positive on bullish crossover,
             negative on bearish crossover.
         order (bt.Order): Reference to the currently pending order, or None.
         bar_num (int): Counter tracking total bars processed during backtest.

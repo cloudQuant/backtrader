@@ -9,15 +9,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -63,61 +62,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated export and normalize to a Backtrader OHLCV frame.
-
-    Args:
-        filepath: Path to the MT5 CSV export.
-        fromdate: Optional lower datetime bound for filtering.
-        todate: Optional upper datetime bound for filtering.
-        bar_shift_minutes: Minutes to shift each timestamp.
-
-    Returns:
-        pandas.DataFrame: normalized frame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -150,91 +98,6 @@ def _price_series(ipc, data, ago=0):
     return c
 
 
-class BezierStDevIndicator(bt.Indicator):
-    """Reconstructs Bezier_StDev indicator.
-
-    Bezier curve interpolation of price over BPeriod, then StDev filter
-    on the first derivative to generate Bulls/Bears signals.
-    Buffers: 0=BezierLine, 1=ColorIndex, 2=BearsBuffer(sell), 3=BullsBuffer(buy).
-    """
-    lines = ('bezier', 'color', 'bears', 'bulls')
-    params = dict(bperiod=8, t_param=0.5, ipc=6, dk=2.0, std_period=9)
-
-    def __init__(self):
-        """Cache parameters and precompute coefficients for Bezier interpolation."""
-        self._bp = int(self.p.bperiod)
-        self._t = float(self.p.t_param)
-        self._ipc = int(self.p.ipc)
-        self._dk = float(self.p.dk)
-        self._sp = int(self.p.std_period)
-        # Precompute binomial coefficients
-        n = self._bp
-        self._binom = [_factorial(n) / (_factorial(i) * _factorial(n - i))
-                       for i in range(n + 1)]
-        self.addminperiod(self._bp + self._sp + 3)
-
-    def next(self):
-        """Compute Bezier line, color, and bullish/bearish derivative filters."""
-        bp = self._bp
-        t = self._t
-        ipc = self._ipc
-        dk = self._dk
-        sp = self._sp
-
-        # Compute Bezier for current and previous sp+1 bars
-        bezier_vals = []
-        needed = sp + 2
-        for k in range(needed):
-            r = 0.0
-            for i in range(bp + 1):
-                ago = k + i
-                if ago >= len(self.data):
-                    break
-                price = _price_series(ipc, self.data, ago)
-                r += price * self._binom[i] * (t ** i) * ((1 - t) ** (bp - i))
-            bezier_vals.append(r)
-
-        bz_cur = bezier_vals[0]
-        self.lines.bezier[0] = bz_cur
-
-        # Color
-        if len(bezier_vals) > 1:
-            bz_prev = bezier_vals[1]
-            if bz_cur > bz_prev:
-                self.lines.color[0] = 1.0
-            elif bz_cur < bz_prev:
-                self.lines.color[0] = 2.0
-            else:
-                self.lines.color[0] = 0.0
-        else:
-            self.lines.color[0] = 0.0
-
-        # StDev filter on derivatives
-        d_bezier = []
-        for i in range(sp):
-            if i + 1 < len(bezier_vals):
-                d_bezier.append(bezier_vals[i] - bezier_vals[i + 1])
-            else:
-                d_bezier.append(0.0)
-
-        mean_d = sum(d_bezier) / sp if sp > 0 else 0
-        var_sum = sum((d - mean_d) ** 2 for d in d_bezier)
-        std_dev = math.sqrt(var_sum / sp) if sp > 0 else 0
-
-        dstd = d_bezier[0] if d_bezier else 0
-        filt = dk * std_dev
-
-        bulls = 0.0
-        bears = 0.0
-        if dstd > filt:
-            bulls = bz_cur
-        if dstd < -filt:
-            bears = bz_cur
-
-        self.lines.bulls[0] = bulls
-        self.lines.bears[0] = bears
-
-
 class ExpBezierStDevStrategy(bt.Strategy):
     """EA uses SignalMode for open/close: POINT reads arrow buffers, DIRECT reads Bezier line direction.
     Default: BuyOpen=POINT, SellOpen=POINT, BuyClose=DIRECT, SellClose=DIRECT."""
@@ -260,7 +123,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
         """Wire base/signal feeds, instantiate indicator, and reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = BezierStDevIndicator(
+        self.indicator = bt.indicators.BezierStDevIndicator(
             self.signal_data,
             bperiod=self.p.bperiod, t_param=self.p.t_param,
             ipc=self.p.ipc, dk=self.p.dk, std_period=self.p.std_period,
@@ -505,7 +368,7 @@ def extract_metrics(strat, cerebro, frame, cfg):
 
 def run(plot=False):
     """Execute backtest and return strategy results, metrics, and engine."""
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

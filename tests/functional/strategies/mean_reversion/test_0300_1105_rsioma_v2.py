@@ -35,9 +35,9 @@ Strategy Logic:
     values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import json
 from backtrader.dataseries import TimeFrame
@@ -51,6 +51,7 @@ import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -92,60 +93,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume and openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Backtrader PandasData feed mapping the MT5 OHLCV column layout.
 
@@ -157,30 +104,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class RsiomaV2(Indicator):
-    """RSIOMA V2 indicator: an RSI of smoothed price with an EMA signal line.
-
-    The price close is smoothed with an EMA (optionally transformed by a
-    Momentum step), an RSI is computed on that series to form the rsioma line,
-    and the rsioma is smoothed again with an EMA to form the signal line.
-    """
-
-    lines = ('rsioma', 'signal')
-    params = dict(
-        rsioma_period=14,
-        ma_rsioma_period=21,
-        mom_period=1,
-    )
-
-    def __init__(self):
-        """Build the EMA/Momentum/RSI/EMA chain for the rsioma and signal lines."""
-        base = btind.EMA(self.data.close, period=max(int(self.p.rsioma_period), 1))
-        if int(self.p.mom_period) > 1:
-            base = btind.Momentum(base, period=int(self.p.mom_period))
-        self.l.rsioma = btind.RSI(base, period=max(int(self.p.rsioma_period), 1), safediv=True)
-        self.l.signal = btind.EMA(self.l.rsioma, period=max(int(self.p.ma_rsioma_period), 1))
 
 
 class RsiomaV2Strategy(Strategy):
@@ -209,7 +132,7 @@ class RsiomaV2Strategy(Strategy):
 
     def __init__(self):
         """Build the RSIOMA V2 indicator, reset counters and warmup length."""
-        self.indicator = RsiomaV2(
+        self.indicator = bt.indicators.RsiomaV2(
             self.data,
             rsioma_period=self.p.rsioma_period,
             ma_rsioma_period=self.p.ma_rsioma_period,
@@ -408,12 +331,7 @@ class RsiomaV2Strategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
-
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
-
 
 
 def prepare_frame(config, base_dir):
@@ -552,7 +470,7 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / args.config).resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run(runonce=False)

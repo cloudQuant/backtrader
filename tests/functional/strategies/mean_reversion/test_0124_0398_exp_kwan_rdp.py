@@ -28,15 +28,30 @@ Strategy Logic:
     7. Runs on XAUUSD M15 with H1 signal; SL=1000 pts, TP=2000 pts.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
 import os
 import sys
 import datetime as dt
-import io
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -92,199 +107,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Load the inlined strategy and backtest configuration dict.
-
-    Args:
-        *args: Variable length argument list for compatibility.
-        **kwargs: Arbitrary keyword arguments for compatibility.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-class KwanRdpIndicator(bt.Indicator):
-    """Custom Kwan RDP technical indicator.
-
-    Lines:
-        kwan (bt.LineSeries): Smoothed combination of DeMarker, MFI, and Momentum.
-        direction (bt.LineSeries): Directional momentum flag (0 = bullish, 1 = flat, 2 = bearish).
-    """
-    lines = ('kwan', 'direction',)
-
-    params = dict(
-        demarker_period=14,
-        mfi_period=14,
-        volume_type='TICK',
-        momentum_period=14,
-        momentum_price='CLOSE',
-        xma_method='JJMA',
-        x_length=7,
-        x_phase=100,
-    )
-
-    def __init__(self):
-        """Initialize indicator state: rolling buffers and minperiod."""
-        self.addminperiod(max(self.p.demarker_period, self.p.mfi_period, self.p.momentum_period) + self.p.x_length + 5)
-        self._high_buf = []
-        self._low_buf = []
-        self._close_buf = []
-        self._typical_buf = []
-        self._money_flow_buf = []
-        self._raw_buf = []
-        self._smooth_prev = None
-        self._smooth_buf = []
-
-    def _select_price(self, mode):
-        """Return the selected price value (open/high/low/median/typical/weighted/close)."""
-        mode = str(mode).upper()
-        if mode == 'OPEN':
-            return float(self.data.open[0])
-        if mode == 'HIGH':
-            return float(self.data.high[0])
-        if mode == 'LOW':
-            return float(self.data.low[0])
-        if mode == 'MEDIAN':
-            return (float(self.data.high[0]) + float(self.data.low[0])) / 2.0
-        if mode == 'TYPICAL':
-            return (float(self.data.high[0]) + float(self.data.low[0]) + float(self.data.close[0])) / 3.0
-        if mode == 'WEIGHTED':
-            return (float(self.data.high[0]) + float(self.data.low[0]) + 2.0 * float(self.data.close[0])) / 4.0
-        return float(self.data.close[0])
-
-    def _calc_demarker(self):
-        """Compute DeMarker oscillator from rolling high/low buffers."""
-        p = int(self.p.demarker_period)
-        if len(self._high_buf) <= p or len(self._low_buf) <= p:
-            return None
-        demax = []
-        demin = []
-        for i in range(len(self._high_buf) - p, len(self._high_buf)):
-            high_diff = self._high_buf[i] - self._high_buf[i - 1]
-            low_diff = self._low_buf[i - 1] - self._low_buf[i]
-            demax.append(max(high_diff, 0.0))
-            demin.append(max(low_diff, 0.0))
-        smax = sum(demax)
-        smin = sum(demin)
-        denom = smax + smin
-        if denom == 0:
-            return 0.5
-        return smax / denom
-
-    def _calc_mfi(self):
-        """Compute Money Flow Index from typical price and volume buffers."""
-        p = int(self.p.mfi_period)
-        if len(self._typical_buf) <= p or len(self._money_flow_buf) <= p:
-            return None
-        pos_flow = 0.0
-        neg_flow = 0.0
-        start = len(self._typical_buf) - p
-        for i in range(start, len(self._typical_buf)):
-            prev_tp = self._typical_buf[i - 1]
-            curr_tp = self._typical_buf[i]
-            curr_flow = self._money_flow_buf[i]
-            if curr_tp > prev_tp:
-                pos_flow += curr_flow
-            elif curr_tp < prev_tp:
-                neg_flow += curr_flow
-        if neg_flow == 0:
-            return 100.0
-        money_ratio = pos_flow / neg_flow
-        return 100.0 - (100.0 / (1.0 + money_ratio))
-
-    def _calc_momentum(self):
-        """Compute momentum as percentage change of selected price over period."""
-        p = int(self.p.momentum_period)
-        if len(self._close_buf) <= p:
-            return None
-        prev_price = self._close_buf[-(p + 1)]
-        curr_price = self._select_price(self.p.momentum_price)
-        if prev_price == 0:
-            return None
-        return 100.0 * curr_price / prev_price
-
-    def _smooth_value(self, raw_value):
-        """Smooth raw_value using SMA or phase-adjusted exponential (JJMA-like)."""
-        method = str(self.p.xma_method).upper()
-        if method in ('MODE_SMA_', 'SMA'):
-            period = max(1, int(self.p.x_length))
-            if len(self._raw_buf) < period:
-                return raw_value
-            return sum(self._raw_buf[-period:]) / float(period)
-
-        length = max(1, int(self.p.x_length))
-        phase = max(-100, min(100, int(self.p.x_phase)))
-        alpha = 2.0 / (length + 1.0)
-        alpha *= 1.0 + 0.35 * (phase / 100.0)
-        alpha = max(0.01, min(0.99, alpha))
-        if self._smooth_prev is None or not math.isfinite(self._smooth_prev):
-            smooth = raw_value
-        else:
-            smooth = self._smooth_prev + alpha * (raw_value - self._smooth_prev)
-        self._smooth_prev = smooth
-        return smooth
-
-    def next(self):
-        """Compute Kwan RDP indicator: composite of DeMarker * MFI / momentum, smoothed."""
-        high = float(self.data.high[0])
-        low = float(self.data.low[0])
-        close = float(self.data.close[0])
-        volume = float(self.data.volume[0]) if math.isfinite(float(self.data.volume[0])) else 0.0
-
-        self._high_buf.append(high)
-        self._low_buf.append(low)
-        self._close_buf.append(close)
-        typical = (high + low + close) / 3.0
-        self._typical_buf.append(typical)
-        self._money_flow_buf.append(typical * volume)
-
-        demarker = self._calc_demarker()
-        mfi = self._calc_mfi()
-        momentum = self._calc_momentum()
-        if demarker is None or mfi is None or momentum is None:
-            self.lines.kwan[0] = 0.0
-            self.lines.direction[0] = 1.0
-            return
-
-        if momentum == 0 or not math.isfinite(momentum):
-            raw_value = 100.0
-        else:
-            raw_value = 100.0 * demarker * mfi / momentum
-        self._raw_buf.append(raw_value)
-
-        smooth = self._smooth_value(raw_value)
-        self._smooth_buf.append(smooth)
-        self.lines.kwan[0] = smooth
-
-        if len(self._smooth_buf) < 2:
-            self.lines.direction[0] = 1.0
-            return
-
-        prev_smooth = self._smooth_buf[-2]
-        if smooth > prev_smooth:
-            self.lines.direction[0] = 0.0
-        elif smooth < prev_smooth:
-            self.lines.direction[0] = 2.0
-        else:
-            self.lines.direction[0] = 1.0
-
-
 class ExpKwanRdpStrategy(bt.Strategy):
     """Strategy class implementing the Kwan RDP indicator logic.
 
@@ -318,7 +140,7 @@ class ExpKwanRdpStrategy(bt.Strategy):
         """Initialize strategy: set up data feeds, KwanRdpIndicator, and trade counters."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.kwan = KwanRdpIndicator(
+        self.kwan = bt.indicators.KwanRdpIndicator(
             self.data1,
             demarker_period=self.p.demarker_period,
             mfi_period=self.p.mfi_period,
@@ -519,16 +341,12 @@ class ExpKwanRdpStrategy(bt.Strategy):
         print('=============================================')
 
 
-
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -544,43 +362,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, minutes):
@@ -607,7 +388,6 @@ def resample_frame(df, minutes):
     out['openinterest'] = out['openinterest'].fillna(0)
     out['spread'] = out['spread'].fillna(0)
     return out
-
 
 
 def load_backtest_frame(config: dict) -> dict:
@@ -722,7 +502,7 @@ def run(cfg_path: str | None = None):
     """
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
-    cfg = load_config(cfg_path)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO)
 
     data_cfg = cfg['data']
     params_cfg = cfg.get('params', {})

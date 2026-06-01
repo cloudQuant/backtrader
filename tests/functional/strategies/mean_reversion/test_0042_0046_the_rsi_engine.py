@@ -27,14 +27,15 @@ Strategy Logic:
     structured metrics, and asserts expected result values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
 import datetime as dt
 import datetime
 import io
-import backtrader as bt
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -102,26 +103,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 
 
 class TheRSIEngineStrategy(bt.Strategy):
@@ -452,9 +433,6 @@ class TheRSIEngineStrategy(bt.Strategy):
         self.limit_order = orders[2]
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -495,7 +473,6 @@ def load_mt5_data(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
     if todate is not None:
         df = df[df.index <= todate]
     return df
-
 
 
 def resolve_data_path(filename):
@@ -701,7 +678,7 @@ def test_42_0042_0046_the_rsi_engine() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0042_0046_the_rsi_engine.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

@@ -24,15 +24,30 @@ Strategy Logic:
     targets, and validates trade/analyzer-derived metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,68 +90,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data and normalize schema for Backtrader ingestion.
-
-    Args:
-        filepath: Source file path.
-        fromdate: Optional start datetime boundary.
-        todate: Optional end datetime boundary.
-        bar_shift_minutes: Optional timestamp shift in minutes.
-
-    Returns:
-        Time-indexed OHLCV dataframe.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
 
 
 def resample_ohlcv(df, rule):
@@ -171,48 +128,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
     )
 
 
-class SpearmanRankCorrelationHistogram(bt.Indicator):
-    """Compute a Spearman-rank-style correlation histogram and regime color."""
-    lines = ('value', 'color')
-    params = dict(range_n=14, direction=True, in_high_level=0.5, in_low_level=-0.5)
-
-    def __init__(self):
-        """Set the indicator minimum period."""
-        self.addminperiod(int(self.p.range_n) + 2)
-
-    def _ranks(self, values):
-        indexed = list(enumerate(values))
-        sorted_values = sorted(indexed, key=lambda item: item[1], reverse=bool(self.p.direction))
-        ranks = [0.0] * len(values)
-        i = 0
-        while i < len(sorted_values):
-            j = i + 1
-            while j < len(sorted_values) and sorted_values[j][1] == sorted_values[i][1]:
-                j += 1
-            avg_rank = (i + 1 + j) / 2.0
-            for k in range(i, j):
-                ranks[sorted_values[k][0]] = avg_rank
-            i = j
-        return ranks
-
-    def next(self):
-        """Compute one step of correlation value and color code."""
-        n = int(self.p.range_n)
-        values = [int(round(float(self.data.close[-i]) * 100.0)) for i in range(n)]
-        ranks = self._ranks(values)
-        z2 = 0.0
-        for i, rank in enumerate(ranks):
-            z2 += (rank - (i + 1)) ** 2
-        res = 1.0 - 6.0 * z2 / (n ** 3 - n)
-        self.lines.value[0] = res
-        clr = 2
-        if res > 0:
-            clr = 4 if res > float(self.p.in_high_level) else 3
-        elif res < 0:
-            clr = 0 if res < float(self.p.in_low_level) else 1
-        self.lines.color[0] = clr
-
-
 class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
     """Histogram-driven regime strategy for Spearman rank transitions."""
     params = dict(
@@ -230,7 +145,7 @@ class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator, state, and counters."""
-        self.signal = SpearmanRankCorrelationHistogram(
+        self.signal = bt.indicators.SpearmanRankCorrelationHistogram(
             self.data,
             range_n=self.p.range_n,
             direction=self.p.direction,
@@ -439,13 +354,9 @@ if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
-
-
 
 
 def resolve_data_path(filename):
@@ -463,7 +374,6 @@ def resolve_data_path(filename):
     return path
 
 
-
 def parse_dt(value):
     """Parse datetime string from config into :class:`datetime`.
 
@@ -476,7 +386,6 @@ def parse_dt(value):
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
-
 
 
 def load_backtest_frame(config):
@@ -502,7 +411,6 @@ def load_backtest_frame(config):
         raise ValueError('Loaded data frame is empty')
     print(f'Loaded {len(df)} bars: {df.index[0]} -> {df.index[-1]}')
     return {'data': df}
-
 
 
 def build_cerebro(config, frame):
@@ -538,7 +446,6 @@ def build_cerebro(config, frame):
     return cerebro
 
 
-
 def finite_or_none(value):
     """Normalize non-finite analyzer values to ``None``.
 
@@ -553,7 +460,6 @@ def finite_or_none(value):
     if isinstance(value, (int, float)) and not math.isfinite(value):
         return None
     return value
-
 
 
 def extract_metrics(results, start_value):
@@ -599,9 +505,6 @@ def extract_metrics(results, start_value):
     }
 
 
-
-
-
 def run(plot=False):
     """Run strategy and return results, metrics, and engine.
 
@@ -611,7 +514,7 @@ def run(plot=False):
     Returns:
         Tuple ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

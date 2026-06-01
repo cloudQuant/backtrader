@@ -39,15 +39,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -89,68 +88,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV frame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound used to clip the frame.
-        todate: Optional inclusive upper bound used to clip the frame.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of its open.
-
-    Returns:
-        pandas.DataFrame: A datetime-indexed frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume`` and ``openinterest`` columns sorted in
-        ascending time order.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -177,127 +118,6 @@ def _wpr(highs, lows, close, period):
     if hh == ll:
         return 0.0
     return -100.0 * (hh - close) / (hh - ll)
-
-
-class ASCtrendIndicator(bt.Indicator):
-    """Reconstructs ASCtrend from its MQ5 source.
-
-    Outputs:
-      - buy_arrow : non-zero price level when a buy arrow fires
-      - sell_arrow: non-zero price level when a sell arrow fires
-    """
-    lines = ('buy_arrow', 'sell_arrow')
-    params = dict(risk=4)
-
-    def __init__(self):
-        """Derive %R thresholds/periods from ``risk`` and reserve warm-up bars."""
-        self._x1 = 67 + int(self.p.risk)
-        self._x2 = 33 - int(self.p.risk)
-        self._wpr_periods = [3, 4, 3 + int(self.p.risk) * 2]
-        self._value10 = 2   # default WPR index
-        min_period = max(3 + int(self.p.risk) * 2, 4) + 1
-        # need enough history for ATR-style range calc (10 bars) + WPR look-back
-        self.addminperiod(max(min_period, 12))
-
-    # -- helpers operating on self.data (signal-timeframe feed) --
-    def _get_wpr_val(self, period_idx, ago):
-        """Compute WPR(period) at bar shifted by -ago from current."""
-        period = self._wpr_periods[period_idx]
-        n = len(self.data)
-        idx = n - 1 - ago
-        if idx < period:
-            return 0.0
-        highs = [float(self.data.high.array[i]) for i in range(idx - period + 1, idx + 1)]
-        lows = [float(self.data.low.array[i]) for i in range(idx - period + 1, idx + 1)]
-        close_val = float(self.data.close.array[idx])
-        return _wpr(highs, lows, close_val, period)
-
-    def next(self):
-        """Emit ASCtrend buy/sell arrows from the %R band transitions per bar."""
-        risk = int(self.p.risk)
-        x1 = self._x1
-        x2 = self._x2
-
-        # --- ATR-style average range (10 bars) ---
-        total_range = 0.0
-        for i in range(1, 11):
-            hi = float(self.data.high[-i])
-            lo = float(self.data.low[-i])
-            prev_close = float(self.data.close[-(i + 1)]) if len(self.data) > i + 1 else lo
-            true_range = max(hi - lo, abs(hi - prev_close), abs(prev_close - lo))
-            total_range += true_range
-        avg_range = total_range / 10.0
-        half_range = avg_range * 0.5
-
-        # --- MRO1 / MRO2: look back for WPR threshold breach ---
-        value10 = self._value10
-        value11 = value10
-
-        # MRO1: check if WPR(3) crossed > x1 recently
-        mro1 = -1
-        for k in range(1, risk * 2 + 1):
-            if len(self.data) <= k:
-                break
-            w = 100.0 - abs(self._get_wpr_val(0, k))  # WPR_Handle[0] period=3
-            if w > x1:
-                mro1 = k
-                break
-
-        # MRO2: check if WPR(4) crossed < x2 recently
-        mro2 = -1
-        for k in range(1, risk * 2 + 1):
-            if len(self.data) <= k:
-                break
-            w = 100.0 - abs(self._get_wpr_val(1, k))  # WPR_Handle[1] period=4
-            if w < x2:
-                mro2 = k
-                break
-
-        if mro1 > -1:
-            value11 = 0
-        else:
-            value11 = value10
-        if mro2 > -1:
-            value11 = 1
-        else:
-            value11 = value10
-
-        # Current WPR value with the selected period
-        wpr_raw = self._get_wpr_val(value11, 0)
-        value2 = 100.0 - abs(wpr_raw)
-
-        buy_val = 0.0
-        sell_val = 0.0
-        cur_high = float(self.data.high[0])
-        cur_low = float(self.data.low[0])
-
-        if value2 < x2:
-            # look back for transition from neutral zone to >x1
-            iii = 1
-            vel = 0.0
-            while len(self.data) > iii:
-                vel = 100.0 - abs(self._get_wpr_val(value11, iii))
-                if x2 <= vel <= x1:
-                    iii += 1
-                else:
-                    break
-            if vel > x1:
-                sell_val = cur_high + half_range
-
-        if value2 > x1:
-            iii = 1
-            vel = 0.0
-            while len(self.data) > iii:
-                vel = 100.0 - abs(self._get_wpr_val(value11, iii))
-                if x2 <= vel <= x1:
-                    iii += 1
-                else:
-                    break
-            if vel < x2:
-                buy_val = cur_low - half_range
-
-        self.lines.buy_arrow[0] = buy_val
-        self.lines.sell_arrow[0] = sell_val
 
 
 class ExpASCtrendStrategy(bt.Strategy):
@@ -335,7 +155,7 @@ class ExpASCtrendStrategy(bt.Strategy):
         """Wire the base/signal feeds, the ASCtrend indicator and trade counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = ASCtrendIndicator(self.signal_data, risk=self.p.risk)
+        self.indicator = bt.indicators.ASCtrendIndicator(self.signal_data, risk=self.p.risk)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -498,18 +318,15 @@ class ExpASCtrendStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -682,7 +499,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the full backtest and return results, metrics and the engine.
 
@@ -692,7 +508,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)`` from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

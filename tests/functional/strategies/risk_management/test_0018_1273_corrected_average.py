@@ -39,15 +39,14 @@ Strategy Logic:
        against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,60 +82,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export CSV file.
-        fromdate: Optional lower datetime bound (inclusive) for filtering.
-        todate: Optional upper datetime bound (inclusive) for filtering.
-        bar_shift_minutes: Minutes to add to each bar timestamp.
-
-    Returns:
-        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -194,64 +142,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class CorrectedAverageIndicator(bt.Indicator):
-    """Ehlers-style adaptive Corrected Average with event and vectorized modes."""
-
-    lines = ('corrected',)
-    params = dict(ma_method='sma', length=12, applied_price='price_close')
-
-    def __init__(self):
-        """Build the base MA and standard deviation and set the min period."""
-        price_line = resolve_price_line(self.data, self.p.applied_price)
-        self._ma = resolve_ma_class(self.p.ma_method)(price_line, period=self.p.length)
-        self._std = bt.indicators.StandardDeviation(price_line, period=self.p.length)
-        self.addminperiod(int(self.p.length) + 3)
-
-    def next(self):
-        """Compute the corrected average for the current bar."""
-        ma = float(self._ma[0])
-        std = float(self._std[0])
-        prev = float(self.lines.corrected[-1]) if len(self) > 0 else ma
-        if prev != prev:
-            prev = ma
-        v1 = std ** 2
-        v2 = (prev - ma) ** 2
-        if v2 < v1 or v2 == 0:
-            k = 0.0
-        else:
-            k = 1.0 - v1 / v2
-        self.lines.corrected[0] = prev + k * (ma - prev)
-
-    def once(self, start, end):
-        """Vectorized corrected-average computation over the array index range.
-
-        Args:
-            start: Start index (inclusive) of the range to compute.
-            end: End index (exclusive) of the range to compute.
-        """
-        ma_array = self._ma.array
-        std_array = self._std.array
-        corrected_line = self.lines.corrected.array
-        while len(corrected_line) < end:
-            corrected_line.append(float('nan'))
-
-        prev = None
-        actual_end = min(end, len(ma_array), len(std_array))
-        for i in range(start, actual_end):
-            ma = float(ma_array[i])
-            std = float(std_array[i])
-            previous = ma if prev is None else prev
-            v1 = std ** 2
-            v2 = (previous - ma) ** 2
-            if v2 < v1 or v2 == 0:
-                k = 0.0
-            else:
-                k = 1.0 - v1 / v2
-            value = previous + k * (ma - previous)
-            corrected_line[i] = value
-            prev = value
-
-
 class CorrectedAverageStrategy(bt.Strategy):
     """Corrected-average band reversion strategy ported from the EA.
 
@@ -270,7 +160,7 @@ class CorrectedAverageStrategy(bt.Strategy):
 
     def __init__(self):
         """Instantiate the corrected-average indicator and reset counters."""
-        self.indicator = CorrectedAverageIndicator(
+        self.indicator = bt.indicators.CorrectedAverageIndicator(
             self.data,
             ma_method=self.p.ma_method,
             length=self.p.length,
@@ -382,17 +272,14 @@ class CorrectedAverageStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -522,7 +409,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest end to end and optionally plot the result.
 
@@ -532,7 +418,7 @@ def run(plot=False):
     Returns:
         Tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

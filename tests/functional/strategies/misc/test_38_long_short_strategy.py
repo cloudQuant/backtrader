@@ -49,7 +49,7 @@ class LongShortStrategy(bt.Strategy):
     """Long Short Strategy.
 
     This strategy goes long when price crosses above SMA, and goes short
-    when price crosses below SMA.
+    when price crosses below bt.indicators.SMA.
 
     Attributes:
         orderid: ID of the current pending order.
@@ -71,7 +71,7 @@ class LongShortStrategy(bt.Strategy):
         """Initialize the Long Short Strategy.
 
         Sets up the Simple Moving Average (SMA) indicator and crossover
-        signal to detect when price crosses above or below the SMA.
+        signal to detect when price crosses above or below the bt.indicators.SMA.
         Initializes all tracking variables for trade statistics.
         """
         self.orderid = None

@@ -39,15 +39,14 @@ Strategy Logic:
     profit factor) against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -91,61 +90,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated OHLCV export into a backtrader-ready frame.
-
-    Args:
-        filepath: Path to the MT5 CSV file (tab-separated, ``<DATE>``/``<TIME>``
-            headers, optionally wrapped in double quotes per line).
-        fromdate: Optional inclusive lower datetime bound; earlier rows are dropped.
-        todate: Optional inclusive upper datetime bound; later rows are dropped.
-        bar_shift_minutes: Minutes added to each bar timestamp so the index marks
-            bar-close time rather than bar-open time.
-
-    Returns:
-        pandas.DataFrame: Datetime-indexed, sorted frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume`` and ``openinterest`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -176,68 +124,6 @@ def _applied_price(data, price_type, ago=0):
     return c
 
 
-class FRASMAv2Indicator(bt.Indicator):
-    """Fractal-adaptive moving average exposing the ``frasma`` line and slope ``color``."""
-
-    lines = ('frasma', 'color')
-    params = dict(e_period=30, normal_speed=20, ipc=0)
-
-    def __init__(self):
-        """Set the minimum warmup period from the estimation and speed windows."""
-        self.addminperiod(max(int(self.p.e_period), int(self.p.normal_speed)) + 3)
-
-    def next(self):
-        """Compute the fractal dimension, adapt the averaging speed, and set color.
-
-        Estimates the fractal dimension of the recent price window, derives an
-        adaptive averaging length, writes the resulting value to ``frasma``, and
-        encodes its slope into ``color`` (0 rising, 1 flat, 2 falling).
-        """
-        self.lines.color[0] = 1.0
-        need = max(int(self.p.e_period), int(self.p.normal_speed))
-        prices = [_applied_price(self.data, int(self.p.ipc), i) for i in range(min(need, len(self.data)))]
-        e_period = int(self.p.e_period)
-        normal_speed = int(self.p.normal_speed)
-        g_period_minus_1 = e_period - 1
-        if len(prices) < e_period:
-            self.lines.frasma[0] = prices[0]
-            return
-        sample = prices[:e_period]
-        price_max = max(sample)
-        price_min = min(sample)
-        price_range = price_max - price_min
-        length = 0.0
-        prior_diff = 0.0
-        for k in range(g_period_minus_1 + 1):
-            if price_range > 0.0:
-                diff = (sample[k] - price_min) / price_range
-                if k > 0:
-                    length += math.sqrt((diff - prior_diff) ** 2 + (1.0 / (e_period ** 2)))
-                prior_diff = diff
-        if length > 0.0 and g_period_minus_1 > 0:
-            fdi = 1.0 + (math.log(length) + math.log(2.0)) / math.log(2.0 * g_period_minus_1)
-        else:
-            fdi = 0.0
-        res = 2.0 - fdi
-        if res == 0.0:
-            res = 2.0
-        trail_dim = 1.0 / res
-        alpha = trail_dim / 2.0
-        speed = int(min(max(round(normal_speed * alpha), 1), 10000))
-        speed = min(speed, len(prices))
-        value = sum(prices[:speed]) / float(speed)
-        self.lines.frasma[0] = value
-        if len(self) < 2:
-            return
-        prev = float(self.lines.frasma[-1])
-        color = 1.0
-        if prev < value:
-            color = 0.0
-        if prev > value:
-            color = 2.0
-        self.lines.color[0] = color
-
-
 class ExpFRASMAv2Strategy(bt.Strategy):
     """Trade FRASMAv2 slope-color turns on H12 signals, executing on M15 bars."""
 
@@ -266,7 +152,7 @@ class ExpFRASMAv2Strategy(bt.Strategy):
         """
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = FRASMAv2Indicator(self.signal_data, e_period=self.p.e_period, normal_speed=self.p.normal_speed, ipc=self.p.ipc)
+        self.indicator = bt.indicators.FRASMAv2Indicator(self.signal_data, e_period=self.p.e_period, normal_speed=self.p.normal_speed, ipc=self.p.ipc)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -400,18 +286,15 @@ class ExpFRASMAv2Strategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -537,7 +420,6 @@ def extract_metrics(strategy, cerebro, frame, config):
     return {'fromdate': frame['fromdate'], 'todate': frame['todate'], 'bars': len(frame['data']), 'bar_num': strategy.bar_num, 'signal_count': strategy.signal_count, 'buy_count': strategy.buy_count, 'sell_count': strategy.sell_count, 'trade_count': strategy.trade_count, 'win_count': strategy.win_count, 'loss_count': strategy.loss_count, 'initial_cash': initial_cash, 'final_value': final_value, 'net_pnl': final_value - initial_cash, 'total_return_pct': (final_value / initial_cash - 1.0) * 100.0, 'total_trades': total_trades, 'won': won, 'lost': lost, 'win_rate': (won / total_trades * 100.0) if total_trades else 0.0, 'profit_factor': (gross_won / gross_lost) if gross_lost else None, 'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sharpe_ratio': sharpe.get('sharperatio'), 'annual_return_pct': (returns.get('rnorm') or 0) * 100.0, 'sqn': sqn.get('sqn')}
 
 
-
 def run(plot=False):
     """Run the full backtest pipeline and return results, metrics, and engine.
 
@@ -549,7 +431,7 @@ def run(plot=False):
         list, ``metrics`` is the ``extract_metrics`` dict, and ``cerebro`` is the
         engine instance.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

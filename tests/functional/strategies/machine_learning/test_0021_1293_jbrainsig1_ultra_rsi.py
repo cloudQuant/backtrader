@@ -31,15 +31,14 @@ Strategy Logic:
     checks.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -91,60 +90,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated price file into a cleaned pandas DataFrame.
-
-    Args:
-        filepath: Absolute or relative path to the MT5 source CSV file.
-        fromdate: Optional lower-bound datetime filter (inclusive).
-        todate: Optional upper-bound datetime filter (inclusive).
-        bar_shift_minutes: Minute offset applied to all bar timestamps.
-
-    Returns:
-        DataFrame indexed by ``datetime`` containing OHLCV-like columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -223,132 +171,6 @@ class CountSmoother:
         return self.state
 
 
-class JBrainTrend1SigIndicator(bt.Indicator):
-    """Generate directional trend-signal levels from ATR, stochastic, and MAs.
-
-    The indicator emits ``buy_signal`` and ``sell_signal`` pulses used by the
-    main strategy.
-    """
-    lines = ('sell_signal', 'buy_signal',)
-    params = dict(
-        atr_period=7,
-        sto_period=9,
-        ma_method='sma',
-        xlength=7,
-    )
-
-    def __init__(self):
-        """Build ATR, highest/lowest price extremes, and smoothing primitives."""
-        ma_cls = resolve_ma_class(self.p.ma_method)
-        self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-        self.highest = bt.indicators.Highest(self.data.high, period=self.p.sto_period)
-        self.lowest = bt.indicators.Lowest(self.data.low, period=self.p.sto_period)
-        self.jh = ma_cls(self.data.high, period=self.p.xlength)
-        self.jl = ma_cls(self.data.low, period=self.p.xlength)
-        self.jc = ma_cls(self.data.close, period=self.p.xlength)
-        self._d = 2.3
-        self._s = 1.5
-        self._x1 = 53.0
-        self._x2 = 47.0
-        self._p_state = 0
-        self._old_trend = 0
-        self.addminperiod(max(self.p.atr_period, self.p.sto_period, self.p.xlength) + 3)
-
-    def next(self):
-        """Evaluate one bar and update ``buy_signal``/``sell_signal`` outputs."""
-        self.lines.sell_signal[0] = 0.0
-        self.lines.buy_signal[0] = 0.0
-        highest = float(self.highest[0])
-        lowest = float(self.lowest[0])
-        close = float(self.data.close[0])
-        denom = highest - lowest
-        stochastic = 50.0 if denom == 0 else 100.0 * (close - lowest) / denom
-        atr_value = float(self.atr[0])
-        range_value = atr_value / self._d
-        range_shift = atr_value * self._s / 4.0
-        val3 = abs(float(self.jc[0]) - float(self.jc[-2]))
-
-        if stochastic < self._x2 and val3 > range_value:
-            self._p_state = 1
-        if stochastic > self._x1 and val3 > range_value:
-            self._p_state = 2
-        if val3 <= range_value:
-            return
-
-        if stochastic < self._x2 and self._p_state in (0, 1):
-            if self._old_trend > 0:
-                self.lines.sell_signal[0] = float(self.jh[0]) + range_shift
-            if len(self.data) > 1:
-                self._old_trend = -1
-        if stochastic > self._x1 and self._p_state in (0, 2):
-            if self._old_trend < 0:
-                self.lines.buy_signal[0] = float(self.jl[0]) - range_shift
-            if len(self.data) > 1:
-                self._old_trend = 1
-
-
-class UltraRSIIndicator(bt.Indicator):
-    """Smooth RSI slope-count indicator with configurable averaging stages.
-
-    Counts bullish versus bearish RSI directional changes across multiple moving
-    average steps and smooths both counters for a stable signal.
-    """
-    lines = ('bulls', 'bears',)
-    params = dict(
-        rsi_period=13,
-        applied_price='close',
-        w_method='jjma',
-        start_length=3,
-        nstep=5,
-        nsteps_total=10,
-        smooth_method='jjma',
-        smooth_length=3,
-    )
-
-    def __init__(self):
-        """Initialize RSI series and helper smoothing state."""
-        price_line = self._price_line()
-        ma_cls = resolve_ma_class(self.p.w_method)
-        self.rsi = bt.indicators.RSI(price_line, period=self.p.rsi_period, safediv=True)
-        self._series = [
-            ma_cls(self.rsi, period=max(1, int(self.p.start_length + step * self.p.nstep)))
-            for step in range(int(self.p.nsteps_total) + 1)
-        ]
-        self._bull_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
-        self._bear_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
-        self.addminperiod(self.p.rsi_period + self.p.start_length + self.p.nstep * self.p.nsteps_total + self.p.smooth_length + 5)
-
-    def _price_line(self):
-        mode = str(self.p.applied_price).lower()
-        if mode == 'open':
-            return self.data.open
-        if mode == 'high':
-            return self.data.high
-        if mode == 'low':
-            return self.data.low
-        if mode == 'median':
-            return (self.data.high + self.data.low) / 2.0
-        if mode == 'typical':
-            return (self.data.high + self.data.low + self.data.close) / 3.0
-        if mode == 'weighted':
-            return (self.data.high + self.data.low + self.data.close + self.data.close) / 4.0
-        return self.data.close
-
-    def next(self):
-        """Update bullish and bearish counters and write smoothed values."""
-        up_count = 0
-        down_count = 0
-        for series in self._series:
-            current = float(series[0])
-            previous = float(series[-1])
-            if current > previous:
-                up_count += 1
-            elif current < previous:
-                down_count += 1
-        self.lines.bulls[0] = self._bull_smoother.update(up_count)
-        self.lines.bears[0] = self._bear_smoother.update(down_count)
-
-
 class JBrainSig1UltraRSIStrategy(bt.Strategy):
     """Composite strategy combining trend pulse and ultra RSI confidence signals."""
     params = dict(
@@ -378,14 +200,14 @@ class JBrainSig1UltraRSIStrategy(bt.Strategy):
 
     def __init__(self):
         """Create indicator instances and initialize all internal counters."""
-        self.jbrain = JBrainTrend1SigIndicator(
+        self.jbrain = bt.indicators.JBrainTrend1SigIndicator(
             self.data,
             atr_period=self.p.atr_period,
             sto_period=self.p.sto_period,
             ma_method=self.p.ma_method,
             xlength=self.p.xlength,
         )
-        self.ultra_rsi = UltraRSIIndicator(
+        self.ultra_rsi = bt.indicators.UltraRSIIndicator(
             self.data,
             rsi_period=self.p.rsi_period,
             applied_price=self.p.applied_price,
@@ -545,17 +367,14 @@ class JBrainSig1UltraRSIStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -731,7 +550,7 @@ def test_21_0021_1293_jbrainsig1_ultra_rsi() -> None:
 
     Originally located at tests/functional/strategies_regression/machine_learning/0021_1293_jbrainsig1_ultra_rsi.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

@@ -9,14 +9,29 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -64,53 +79,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
@@ -124,39 +92,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class CandleStopColor(bt.Indicator):
-    """Indicator computing highest-high/ lowest-low trailing stop channels with color breakout signal."""
-    lines = ('color_idx', 'upper', 'lower')
-    params = dict(
-        up_trail_periods=5,
-        up_trail_shift=5,
-        dn_trail_periods=5,
-        dn_trail_shift=5,
-    )
-
-    def next(self):
-        """Compute trailing high/low range and set color index based on close position."""
-        hh_indices = range(self.p.up_trail_shift, self.p.up_trail_shift + self.p.up_trail_periods)
-        ll_indices = range(self.p.dn_trail_shift, self.p.dn_trail_shift + self.p.dn_trail_periods)
-        highs = [float(self.data.high[-idx]) for idx in hh_indices if len(self.data) > idx]
-        lows = [float(self.data.low[-idx]) for idx in ll_indices if len(self.data) > idx]
-        if not highs or not lows:
-            self.lines.color_idx[0] = 4.0
-            return
-        upper = max(highs)
-        lower = min(lows)
-        close = float(self.data.close[0])
-        open_ = float(self.data.open[0])
-        self.lines.upper[0] = upper
-        self.lines.lower[0] = lower
-        color = 4.0
-        if close > upper:
-            color = 3.0 if close >= open_ else 2.0
-        elif close < lower:
-            color = 0.0 if close <= open_ else 1.0
-        self.lines.color_idx[0] = color
 
 
 class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
@@ -183,7 +118,7 @@ class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
         """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
-        self.channel = CandleStopColor(
+        self.channel = bt.indicators.CandleStopColor(
             self.signal_feed,
             up_trail_periods=self.p.up_trail_periods,
             up_trail_shift=self.p.up_trail_shift,
@@ -323,13 +258,9 @@ class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
             self.entry_datetime = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -426,7 +357,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp CandleStop System Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

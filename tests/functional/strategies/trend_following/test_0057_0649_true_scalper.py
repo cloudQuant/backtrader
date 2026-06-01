@@ -30,14 +30,13 @@ Strategy Principle:
         - Abandon Expiry: Force-closes active positions if trade duration reaches `abandon` (101 bars), with optional reverse reentry sides.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,67 +79,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Load the inlined strategy and backtest configuration dict.
-
-    Args:
-        *args: Variable length argument list for compatibility.
-        **kwargs: Arbitrary keyword arguments for compatibility.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -378,7 +316,6 @@ class TrueScalperStrategy(bt.Strategy):
         else: self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -488,7 +425,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro) instances.
     """
-    config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
+    config = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)
     if plot: cerebro.plot()

@@ -39,16 +39,31 @@ Strategy Logic:
     asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import os
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,65 +110,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional minute offset added to each timestamp so the
-            bar is stamped at its close.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume,
-        openinterest, and spread columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed exposing the standard OHLCV columns plus a spread line."""
 
@@ -168,63 +124,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class ColorMetroWprIndicator(bt.Indicator):
-    """ColorMETRO step lines (fast/slow NRTR) computed over Williams %R."""
-
-    lines = ('fast_line', 'slow_line', 'wpr_shifted')
-    params = dict(period_wpr=7, step_size_fast=5, step_size_slow=15)
-
-    def __init__(self):
-        """Build the Highest/Lowest sub-indicators and reset NRTR step state."""
-        period = int(self.p.period_wpr)
-        self.highest = bt.indicators.Highest(self.data.high, period=period)
-        self.lowest = bt.indicators.Lowest(self.data.low, period=period)
-        self.addminperiod(period + 3)
-        self._fmin1 = 999999.0
-        self._fmax1 = -999999.0
-        self._smin1 = 999999.0
-        self._smax1 = -999999.0
-        self._ftrend = 0
-        self._strend = 0
-
-    def next(self):
-        """Update the fast and slow NRTR step lines from the current %R value."""
-        highest = float(self.highest[0])
-        lowest = float(self.lowest[0])
-        close = float(self.data.close[0])
-        span = highest - lowest
-        wpr0 = 50.0 if span == 0 else 100.0 * (close - lowest) / span
-        fmax0 = wpr0 + 2.0 * float(self.p.step_size_fast)
-        fmin0 = wpr0 - 2.0 * float(self.p.step_size_fast)
-        if wpr0 > self._fmax1:
-            self._ftrend = 1
-        if wpr0 < self._fmin1:
-            self._ftrend = -1
-        if self._ftrend > 0 and fmin0 < self._fmin1:
-            fmin0 = self._fmin1
-        if self._ftrend < 0 and fmax0 > self._fmax1:
-            fmax0 = self._fmax1
-        smax0 = wpr0 + 2.0 * float(self.p.step_size_slow)
-        smin0 = wpr0 - 2.0 * float(self.p.step_size_slow)
-        if wpr0 > self._smax1:
-            self._strend = 1
-        if wpr0 < self._smin1:
-            self._strend = -1
-        if self._strend > 0 and smin0 < self._smin1:
-            smin0 = self._smin1
-        if self._strend < 0 and smax0 > self._smax1:
-            smax0 = self._smax1
-        fast_line = fmin0 + float(self.p.step_size_fast) if self._ftrend > 0 else fmax0 - float(self.p.step_size_fast)
-        slow_line = smin0 + float(self.p.step_size_slow) if self._strend > 0 else smax0 - float(self.p.step_size_slow)
-        self.lines.fast_line[0] = fast_line
-        self.lines.slow_line[0] = slow_line
-        self.lines.wpr_shifted[0] = wpr0
-        self._fmin1 = fmin0
-        self._fmax1 = fmax0
-        self._smin1 = smin0
-        self._smax1 = smax0
 
 
 class ColorMetroWprStrategy(bt.Strategy):
@@ -254,7 +153,7 @@ class ColorMetroWprStrategy(bt.Strategy):
         """Bind the execution/signal feeds, build the indicator, reset state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = ColorMetroWprIndicator(
+        self.indicator = bt.indicators.ColorMetroWprIndicator(
             self.signal_feed,
             period_wpr=self.p.period_wpr,
             step_size_fast=self.p.step_size_fast,
@@ -464,7 +363,6 @@ class ColorMetroWprStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -473,9 +371,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -651,7 +547,7 @@ def test_182_0181_0943_colormetro_wpr() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0181_0943_colormetro_wpr.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

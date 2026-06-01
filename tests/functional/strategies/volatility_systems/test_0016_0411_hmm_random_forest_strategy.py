@@ -36,7 +36,6 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import warnings
 import csv
 import json
@@ -46,6 +45,7 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 # Optional ML dependencies: skip the whole module when hmmlearn/scikit-learn are
 # absent (e.g. minimal CI images) instead of failing at import/collection time.
@@ -104,67 +104,7 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
 warnings.filterwarnings('ignore')
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export (tab or comma separated) into an OHLCV frame.
-
-    Args:
-        filepath: Path to the MT5 CSV export file.
-        fromdate: Optional inclusive lower bound on the datetime index.
-        todate: Optional inclusive upper bound on the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to mark bar
-            close rather than bar open).
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    if bar_shift_minutes:
-        parsed = parsed + pd.to_timedelta(int(bar_shift_minutes), unit='m')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.dropna(subset=['datetime']).set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def _standardize(train_values, predict_values):
@@ -516,9 +456,6 @@ class HMMRandomForestStrategy(bt.Strategy):
 # -*- coding: utf-8 -*-
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 def get_sharpe_analyzer_kwargs(config):
@@ -577,7 +514,6 @@ def calculate_ulcer_index(values):
         drawdown = (peak - value) / peak * 100.0 if peak > 0 else 0.0
         squared += drawdown ** 2
     return math.sqrt(squared / len(values))
-
 
 
 def resolve_data_file(file_value):
@@ -816,9 +752,6 @@ def normalize(value):
     return str(value)
 
 
-
-
-
 def run(plot=False):
     """Run the full HMM Random Forest backtest end to end.
 
@@ -828,7 +761,7 @@ def run(plot=False):
     Returns:
         A tuple of ``(results, metrics, cerebro)`` from the completed run.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()

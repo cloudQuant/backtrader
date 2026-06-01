@@ -19,15 +19,14 @@ Strategy Logic:
     extracted trading metrics in the regression test.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -63,60 +62,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated OHLCV CSV into a normalized DataFrame.
-
-    Args:
-        filepath: Source path.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Optional timestamp shift in minutes.
-
-    Returns:
-        OHLCV DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -139,28 +87,6 @@ def resolve_ma_class(name):
     return bt.indicators.WeightedMovingAverage
 
 
-class ColorJVariationIndicator(bt.Indicator):
-    """Indicator deriving a custom color variation series from MA residuals."""
-    lines = ('value',)
-    params = dict(
-        period_=12,
-        ma_method_='sma',
-        jlength_=3,
-        jphase_=100,
-    )
-
-    def __init__(self):
-        """Build nested moving averages and assign EMA-smoothed output line."""
-        ma_cls = resolve_ma_class(self.p.ma_method_)
-        ma1 = ma_cls(self.data.close, period=self.p.period_)
-        residual1 = self.data.close - ma1
-        ma2 = ma_cls(residual1, period=self.p.period_)
-        residual2 = self.data.close - ma1 - ma2
-        ma3 = ma_cls(residual2, period=self.p.period_)
-        self.lines.value = bt.indicators.EMA(ma3, period=max(1, int(self.p.jlength_)))
-        self.addminperiod(self.p.period_ * 3 + self.p.jlength_ + 5)
-
-
 class ColorJVariationStrategy(bt.Strategy):
     """Counter-cyclical strategy driven by color variation trend transitions."""
     params = dict(
@@ -174,7 +100,7 @@ class ColorJVariationStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator, counters, and internal state."""
-        self.indicator = ColorJVariationIndicator(
+        self.indicator = bt.indicators.ColorJVariationIndicator(
             self.data,
             period_=self.p.period_,
             ma_method_=self.p.ma_method_,
@@ -272,17 +198,14 @@ class ColorJVariationStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -374,7 +297,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the strategy once and return ``results``, ``metrics``, and ``cerebro``.
 
@@ -384,7 +306,7 @@ def run(plot=False):
     Returns:
         Tuple ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

@@ -32,16 +32,31 @@ Strategy Logic:
     asserts expected metric snapshots.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import os
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -91,70 +106,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Recursively resolve `{repo}` placeholders inside nested config values.
-
-    Args:
-        node: A dictionary, list, string, or scalar from config structure.
-
-    Returns:
-        The same structure with placeholders replaced by repository absolute path.
-    """
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Return a deep-copied, path-resolved inline configuration object."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated market data and normalize for stochastic processing.
-
-    Args:
-        filepath: MT5 export path.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Minutes to shift bar timestamps.
-
-    Returns:
-        DataFrame indexed by datetime with OHLCV columns and spread.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Base OHLC feed adapter with spread field."""
 
@@ -169,63 +120,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class ColorMetroStochasticIndicator(bt.Indicator):
-    """Indicator producing adaptive fast/slow ColorMETRO stochastic levels."""
-
-    lines = ('fast_line', 'slow_line', 'stochastic')
-    params = dict(k_period=5, d_period=3, slowing=3, ma_method='simple', step_size_fast=5, step_size_slow=15)
-
-    def __init__(self):
-        """Initialize Stochastic source and internal trend tracking state."""
-        self.stoch = bt.indicators.Stochastic(
-            self.data,
-            period=int(self.p.k_period),
-            period_dfast=int(self.p.slowing),
-            period_dslow=int(self.p.d_period),
-            movav=bt.indicators.SimpleMovingAverage if str(self.p.ma_method).lower() == 'simple' else bt.indicators.ExponentialMovingAverage,
-        )
-        self.addminperiod(int(self.p.k_period) + int(self.p.d_period) + int(self.p.slowing) + 3)
-        self._fmin1 = 999999.0
-        self._fmax1 = -999999.0
-        self._smin1 = 999999.0
-        self._smax1 = -999999.0
-        self._ftrend = 0
-        self._strend = 0
-
-    def next(self):
-        """Update fast/slow adaptive lines and push current values."""
-        stoch0 = float(self.stoch.percD[0])
-        fmax0 = stoch0 + 2.0 * float(self.p.step_size_fast)
-        fmin0 = stoch0 - 2.0 * float(self.p.step_size_fast)
-        if stoch0 > self._fmax1:
-            self._ftrend = 1
-        if stoch0 < self._fmin1:
-            self._ftrend = -1
-        if self._ftrend > 0 and fmin0 < self._fmin1:
-            fmin0 = self._fmin1
-        if self._ftrend < 0 and fmax0 > self._fmax1:
-            fmax0 = self._fmax1
-        smax0 = stoch0 + 2.0 * float(self.p.step_size_slow)
-        smin0 = stoch0 - 2.0 * float(self.p.step_size_slow)
-        if stoch0 > self._smax1:
-            self._strend = 1
-        if stoch0 < self._smin1:
-            self._strend = -1
-        if self._strend > 0 and smin0 < self._smin1:
-            smin0 = self._smin1
-        if self._strend < 0 and smax0 > self._smax1:
-            smax0 = self._smax1
-        fast_line = fmin0 + float(self.p.step_size_fast) if self._ftrend > 0 else fmax0 - float(self.p.step_size_fast)
-        slow_line = smin0 + float(self.p.step_size_slow) if self._strend > 0 else smax0 - float(self.p.step_size_slow)
-        self.lines.fast_line[0] = fast_line
-        self.lines.slow_line[0] = slow_line
-        self.lines.stochastic[0] = stoch0
-        self._fmin1 = fmin0
-        self._fmax1 = fmax0
-        self._smin1 = smin0
-        self._smax1 = smax0
 
 
 class ColorMetroStochasticStrategy(bt.Strategy):
@@ -258,7 +152,7 @@ class ColorMetroStochasticStrategy(bt.Strategy):
         """Initialize feed handles, indicator, counters, and execution state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = ColorMetroStochasticIndicator(
+        self.indicator = bt.indicators.ColorMetroStochasticIndicator(
             self.signal_feed,
             k_period=self.p.k_period,
             d_period=self.p.d_period,
@@ -483,7 +377,6 @@ class ColorMetroStochasticStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -492,9 +385,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -672,7 +563,7 @@ def test_183_0182_0946_colormetro_stochastic() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0182_0946_colormetro_stochastic.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

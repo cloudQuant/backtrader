@@ -27,8 +27,7 @@ Strategy Principle:
 
 Strategy Logic:
     load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
-    strategy and the default analyzers, building the SmoothedADXIndicator
-    (helper resolve_ma_class selects the smoothing MA). Each bar the strategy
+    strategy and the default analyzers, building the bt.indicators.SmoothedADXIndicator(helper resolve_ma_class selects the smoothing MA). Each bar the strategy
     reads the smoothed +DI/-DI and ADX at the configured signal bar to derive
     open/close signals, then opens, closes, or reverses a fixed-lot position.
     notify_trade counts entries on open and win/loss on close. extract_metrics
@@ -37,15 +36,14 @@ Strategy Logic:
     expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -81,62 +79,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -153,7 +98,7 @@ def resolve_ma_class(name):
 
     Args:
         name: MA type name (e.g. ``t3``, ``ema``, ``sma``, ``smma`` or MT5-style
-            ``mode_*`` variants); several smoothing variants map to EMA.
+            ``mode_*`` variants); several smoothing variants map to bt.indicators.EMA.
 
     Returns:
         The matching backtrader moving-average indicator class, defaulting to
@@ -167,31 +112,6 @@ def resolve_ma_class(name):
     if mode in {'mode_smma', 'smma'}:
         return bt.indicators.SmoothedMovingAverage
     return bt.indicators.WeightedMovingAverage
-
-
-class SmoothedADXIndicator(bt.Indicator):
-    """ADX/DI system with each line smoothed by a configurable moving average.
-
-    Computes raw +DI, -DI and ADX over ``adx_period`` and exposes moving-average
-    smoothed versions on the ``plus_di``, ``minus_di`` and ``adx`` lines.
-    """
-
-    lines = ('plus_di', 'minus_di', 'adx')
-    params = dict(xma_method='t3', adx_period=14, adx_phase=100)
-
-    def __init__(self):
-        """Build the raw +DI/-DI/ADX indicators and their smoothed lines."""
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        self._plus = bt.indicators.PlusDirectionalIndicator(self.data, period=max(1, int(self.p.adx_period)))
-        self._minus = bt.indicators.MinusDirectionalIndicator(self.data, period=max(1, int(self.p.adx_period)))
-        self._adx_raw = bt.indicators.ADX(self.data, period=max(1, int(self.p.adx_period)))
-        self._plus_smooth = ma_cls(self._plus, period=max(1, int(self.p.adx_period)))
-        self._minus_smooth = ma_cls(self._minus, period=max(1, int(self.p.adx_period)))
-        self._adx_smooth = ma_cls(self._adx_raw, period=max(1, int(self.p.adx_period)))
-        self.lines.plus_di = self._plus_smooth
-        self.lines.minus_di = self._minus_smooth
-        self.lines.adx = self._adx_smooth
-        self.addminperiod(int(self.p.adx_period) * 3)
 
 
 class ColorXADXStrategy(bt.Strategy):
@@ -222,7 +142,7 @@ class ColorXADXStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the SmoothedADXIndicator and reset bar/trade counters."""
-        self.indicator = SmoothedADXIndicator(
+        self.indicator = bt.indicators.SmoothedADXIndicator(
             self.data,
             xma_method=self.p.xma_method,
             adx_period=self.p.adx_period,
@@ -337,17 +257,14 @@ class ColorXADXStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -479,7 +396,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the ColorXADX backtest and optionally plot the result.
 
@@ -489,7 +405,7 @@ def run(plot=False):
     Returns:
         A tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

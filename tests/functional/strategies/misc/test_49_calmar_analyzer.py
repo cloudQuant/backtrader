@@ -94,8 +94,8 @@ class CalmarTestStrategy(bt.Strategy):
             Used for validation in test assertions.
 
     params:
-        p1 (int): Period for the fast SMA. Defaults to 15 periods.
-        p2 (int): Period for the slow SMA. Defaults to 50 periods.
+        p1 (int): Period for the fast bt.indicators.SMA. Defaults to 15 periods.
+        p2 (int): Period for the slow bt.indicators.SMA. Defaults to 50 periods.
 
     Note:
         The strategy closes any existing position before opening a new one in

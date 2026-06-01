@@ -37,15 +37,14 @@ Strategy Logic:
     metric against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,62 +79,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -145,70 +91,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class BrakeExpIndicator(bt.Indicator):
-    """Exponential trailing-stop indicator with trend and flip lines.
-
-    Maintains an exponential-curve stop that rises while long (and falls while
-    short) from a begin price; when price breaks the stop the direction flips.
-    Exposes the active stop on ``up_trend``/``down_trend`` lines and
-    direction-flip cues on ``buy_signal``/``sell_signal`` lines.
-    """
-
-    lines = ('up_trend', 'down_trend', 'buy_signal', 'sell_signal')
-    params = dict(a=3.0, b=1.0)
-
-    def __init__(self):
-        """Set the minimum period and initialize the exponential-stop state."""
-        self.addminperiod(5)
-        self._is_long = True
-        self._max_price = float('-inf')
-        self._min_price = float('inf')
-        self._begin_bar = 0
-        self._begin_price = None
-
-    def next(self):
-        """Advance the exponential stop and emit trend and flip lines.
-
-        Extends the stop along the exponential curve, flips direction (resetting
-        the begin price and extremes) when price breaks the stop, and sets the
-        ``up_trend``/``down_trend`` lines plus ``buy_signal``/``sell_signal`` flip
-        cues for the bar.
-        """
-        if self._begin_price is None:
-            self._begin_price = float(self.data.low[0])
-        self._max_price = max(self._max_price, float(self.data.high[0]))
-        self._min_price = min(self._min_price, float(self.data.low[0]))
-        bars_since_begin = max(0, len(self.data) - 1 - self._begin_bar)
-        a = float(self.p.a) * 0.1
-        b = float(self.p.b) * 0.00001
-        exp_val = (math.exp(bars_since_begin * a) - 1.0) * b
-        value = self._begin_price + exp_val if self._is_long else self._begin_price - exp_val
-        if self._is_long and value > float(self.data.low[0]):
-            self._is_long = False
-            self._begin_price = self._max_price
-            self._begin_bar = len(self.data) - 1
-            value = self._begin_price
-            self._max_price = float('-inf')
-            self._min_price = float('inf')
-        elif (not self._is_long) and value < float(self.data.high[0]):
-            self._is_long = True
-            self._begin_price = self._min_price
-            self._begin_bar = len(self.data) - 1
-            value = self._begin_price
-            self._max_price = float('-inf')
-            self._min_price = float('inf')
-        prev_up = float(self.lines.up_trend[-1]) if len(self) > 0 else 0.0
-        prev_dn = float(self.lines.down_trend[-1]) if len(self) > 0 else 0.0
-        if self._is_long:
-            self.lines.up_trend[0] = value
-            self.lines.down_trend[0] = 0.0
-        else:
-            self.lines.up_trend[0] = 0.0
-            self.lines.down_trend[0] = value
-        self.lines.buy_signal[0] = self.lines.down_trend[0] if prev_up > 0.0 and float(self.lines.down_trend[0]) > 0.0 else 0.0
-        self.lines.sell_signal[0] = self.lines.up_trend[0] if prev_dn > 0.0 and float(self.lines.up_trend[0]) > 0.0 else 0.0
 
 
 class BrakeMAStrategy(bt.Strategy):
@@ -229,7 +111,7 @@ class BrakeMAStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the BrakeExp indicator and reset bar/trade counters."""
-        self.indicator = BrakeExpIndicator(self.data, a=self.p.a, b=self.p.b)
+        self.indicator = bt.indicators.BrakeExpIndicator(self.data, a=self.p.a, b=self.p.b)
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -329,17 +211,14 @@ class BrakeMAStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -471,7 +350,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the BrakeMA backtest and optionally plot the result.
 
@@ -481,7 +359,7 @@ def run(plot=False):
     Returns:
         A tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

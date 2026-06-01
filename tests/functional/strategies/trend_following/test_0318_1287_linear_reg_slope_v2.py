@@ -29,16 +29,16 @@ Strategy Logic:
     regression test.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
 import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,61 +75,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated file into a normalized OHLCV DataFrame.
-
-    Args:
-        filepath: CSV file path.
-        fromdate: Optional start datetime for range filtering.
-        todate: Optional end datetime for range filtering.
-        bar_shift_minutes: Minutes to shift the timestamp index.
-
-    Returns:
-        A DataFrame indexed by ``datetime`` with canonical columns:
-        ``open, high, low, close, volume, openinterest``.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -193,53 +141,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class LinearRegSlopeV2Indicator(bt.Indicator):
-    """Indicator that computes a linear-regression slope proxy and trigger line."""
-    lines = ('reg_slope', 'trigger',)
-    params = dict(
-        sl_method='sma',
-        sl_length=12,
-        sl_phase=15,
-        ipc='price_close',
-        trigger_shift=1,
-    )
-
-    def __init__(self):
-        """Initialize smoothing, regression buffers, and phase-shift settings."""
-        ma_cls = resolve_ma_class(self.p.sl_method)
-        price_line = resolve_price_line(self.data, self.p.ipc)
-        self.smooth = ma_cls(price_line, period=self.p.sl_length)
-        self._window = deque(maxlen=self.p.sl_length)
-        self._sum_x = self.p.sl_length * (self.p.sl_length - 1) * 0.5
-        sum_x_sqr = (self.p.sl_length - 1.0) * self.p.sl_length * (2.0 * self.p.sl_length - 1.0) / 6.0
-        self._divisor = self._sum_x * self._sum_x - self.p.sl_length * sum_x_sqr
-        if self.p.trigger_shift > self.p.sl_length - 2:
-            self._trig_shift = 1
-            self._trig_shift_back = self.p.sl_length - 2
-        else:
-            self._trig_shift = self.p.sl_length - 1 - self.p.trigger_shift
-            self._trig_shift_back = self.p.trigger_shift
-        self.addminperiod(self.p.sl_length + self.p.trigger_shift + 3)
-
-    def next(self):
-        """Update one bar of regression slope and trigger calculations."""
-        self._window.appendleft(float(self.smooth[0]))
-        if len(self._window) < self.p.sl_length:
-            self.lines.reg_slope[0] = float('nan')
-            self.lines.trigger[0] = float('nan')
-            return
-        sum_y = sum(self._window[i] for i in range(self.p.sl_length))
-        sum_xy = sum(i * self._window[i] for i in range(self.p.sl_length))
-        slope = (self.p.sl_length * sum_xy - self._sum_x * sum_y) / self._divisor if self._divisor else float('nan')
-        intercept = (sum_y - slope * self._sum_x) / self.p.sl_length
-        reg_value = intercept + slope * self._trig_shift
-        self.lines.reg_slope[0] = reg_value
-        if len(self) > self._trig_shift_back and not pd.isna(self.lines.reg_slope[-self._trig_shift_back]):
-            self.lines.trigger[0] = 2.0 * reg_value - float(self.lines.reg_slope[-self._trig_shift_back])
-        else:
-            self.lines.trigger[0] = float('nan')
-
-
 class LinearRegSlopeV2Strategy(bt.Strategy):
     """Trend strategy that trades crossovers of regression slope and trigger lines."""
     params = dict(
@@ -254,7 +155,7 @@ class LinearRegSlopeV2Strategy(bt.Strategy):
 
     def __init__(self):
         """Create the strategy indicator and initialize trade counters."""
-        self.indicator = LinearRegSlopeV2Indicator(
+        self.indicator = bt.indicators.LinearRegSlopeV2Indicator(
             self.data,
             sl_method=self.p.sl_method,
             sl_length=self.p.sl_length,
@@ -359,17 +260,14 @@ class LinearRegSlopeV2Strategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -496,7 +394,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the regression run and return execution artifacts.
 
@@ -506,7 +403,7 @@ def run(plot=False):
     Returns:
         Tuple of ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

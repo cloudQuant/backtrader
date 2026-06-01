@@ -33,16 +33,31 @@ Strategy Logic:
     and reverse-entry state for downstream test assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -93,64 +108,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-style TSV export into an indexed OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to shift timestamps (commonly to bar close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume,
-        openinterest, and spread columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData extension exposing spread as a custom line."""
 
@@ -165,102 +122,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class DeMarkerIndicator(bt.Indicator):
-    """Compute the DeMarker oscillator from rolling high/low move sums."""
-
-    lines = ('demarker',)
-    params = dict(period=14)
-
-    def __init__(self):
-        """Set the minimum period and initialize rolling move buffers."""
-        self.addminperiod(int(self.p.period) + 1)
-        self._up_moves = []
-        self._down_moves = []
-
-    def next(self):
-        """Update rolling up/down move windows and emit the DeMarker value."""
-        up_move = max(float(self.data.high[0]) - float(self.data.high[-1]), 0.0)
-        down_move = max(float(self.data.low[-1]) - float(self.data.low[0]), 0.0)
-        self._up_moves.append(up_move)
-        self._down_moves.append(down_move)
-        period = int(self.p.period)
-        if len(self._up_moves) > period:
-            self._up_moves.pop(0)
-            self._down_moves.pop(0)
-        if len(self._up_moves) < period:
-            self.lines.demarker[0] = float('nan')
-            return
-        up_sum = sum(self._up_moves)
-        down_sum = sum(self._down_moves)
-        denom = up_sum + down_sum
-        self.lines.demarker[0] = 0.5 if denom == 0.0 else up_sum / denom
-
-
-class ColorZerolagDeMarker(bt.Indicator):
-    """Blend five weighted DeMarker oscillators into fast and slow trend lines."""
-
-    lines = ('fast', 'slow')
-    params = dict(
-        smoothing=15,
-        factor1=0.05,
-        demarker_period1=8,
-        factor2=0.10,
-        demarker_period2=21,
-        factor3=0.16,
-        demarker_period3=34,
-        factor4=0.26,
-        demarker_period4=55,
-        factor5=0.43,
-        demarker_period5=89,
-    )
-
-    def __init__(self):
-        """Build the five DeMarker sub-indicators and smoothing constants."""
-        periods = [
-            int(self.p.demarker_period1),
-            int(self.p.demarker_period2),
-            int(self.p.demarker_period3),
-            int(self.p.demarker_period4),
-            int(self.p.demarker_period5),
-        ]
-        self.addminperiod(3 * max(periods) + 5)
-        self.dem1 = DeMarkerIndicator(self.data, period=int(self.p.demarker_period1))
-        self.dem2 = DeMarkerIndicator(self.data, period=int(self.p.demarker_period2))
-        self.dem3 = DeMarkerIndicator(self.data, period=int(self.p.demarker_period3))
-        self.dem4 = DeMarkerIndicator(self.data, period=int(self.p.demarker_period4))
-        self.dem5 = DeMarkerIndicator(self.data, period=int(self.p.demarker_period5))
-        self.smooth_const = (float(self.p.smoothing) - 1.0) / float(self.p.smoothing)
-        self._initialized = False
-
-    def next(self):
-        """Weight DeMarker values into a fast trend and smoothed slow trend."""
-        values = [
-            float(self.dem1[0]),
-            float(self.dem2[0]),
-            float(self.dem3[0]),
-            float(self.dem4[0]),
-            float(self.dem5[0]),
-        ]
-        if any(not math.isfinite(value) for value in values):
-            self.lines.fast[0] = float('nan')
-            self.lines.slow[0] = float('nan')
-            return
-        osc1 = float(self.p.factor1) * values[0]
-        osc2 = float(self.p.factor2) * values[1]
-        osc3 = float(self.p.factor3) * values[2]
-        osc4 = float(self.p.factor4) * values[3]
-        osc5 = float(self.p.factor5) * values[4]
-        fast_trend = osc1 + osc2 + osc3 + osc4 + osc5
-        if not self._initialized:
-            slow_trend = fast_trend / float(self.p.smoothing)
-            self._initialized = True
-        else:
-            slow_trend = fast_trend / float(self.p.smoothing) + float(self.lines.slow[-1]) * self.smooth_const
-        self.lines.fast[0] = fast_trend
-        self.lines.slow[0] = slow_trend
-
 
 class ColorZerolagDeMarkerStrategy(bt.Strategy):
     """Trade fast/slow zero-lag DeMarker crossovers with fixed risk levels."""
@@ -297,7 +158,7 @@ class ColorZerolagDeMarkerStrategy(bt.Strategy):
         """Bind feeds, build the zero-lag DeMarker indicator, and reset state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = ColorZerolagDeMarker(
+        self.indicator = bt.indicators.ColorZerolagDeMarker(
             self.signal_feed,
             smoothing=self.p.smoothing,
             factor1=self.p.factor1,
@@ -525,7 +386,6 @@ class ColorZerolagDeMarkerStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -534,9 +394,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -653,7 +511,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest end to end and return results, metrics, and cerebro.
 
@@ -663,7 +520,7 @@ def run(plot=False):
     Returns:
         A tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

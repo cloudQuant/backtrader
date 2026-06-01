@@ -356,7 +356,7 @@ def _extract_symbol_and_date(zip_path: Path) -> tuple[str, str]:
 def _default_bt_symbol(symbol: str) -> str:
     for quote in ("USDT", "USDC", "BUSD", "FDUSD", "BTC", "ETH", "BNB"):
         if symbol.endswith(quote) and len(symbol) > len(quote):
-            return f"{symbol[:-len(quote)]}/{quote}"
+            return f"{symbol[: -len(quote)]}/{quote}"
     return symbol
 
 

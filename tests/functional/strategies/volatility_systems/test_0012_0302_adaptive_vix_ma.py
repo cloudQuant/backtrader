@@ -10,13 +10,13 @@ Data Used:
 
 Strategy Principle:
     Adaptive VIX MA builds an adaptive EMA from volatility-based inverse SMA ranking
-    and trades when close moves above/below that EMA. Position size is computed from
+    and trades when close moves above/below that bt.indicators.EMA. Position size is computed from
     current portfolio value (notional allocation), and each completed position is
     counted via trade analyzers.
 
 Strategy Logic:
     ``prepare_adaptive_vix_ma_features`` computes volatility, percent-rank and alpha-
-    weighted adaptive EMA. ``load_data`` loads data and enriches features, ``build_cerebro``
+    weighted adaptive bt.indicators.EMA. ``load_data`` loads data and enriches features, ``build_cerebro``
     assembles commission, data feed and analyzers, and strategy callbacks update signal
     and trade counters. ``extract_metrics`` synthesizes return/risk outputs for test
     assertions.
@@ -28,7 +28,6 @@ migration time.
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import json
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
@@ -36,6 +35,7 @@ import backtrader as bt
 import pandas as pd
 import numpy as np
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -72,67 +72,6 @@ _CONFIG = {
         'global_summary_csv': '../../strategy_backtest_results.csv',
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load MT5-style CSV/TSV data into a cleaned OHLCV dataframe.
-
-    Args:
-        filepath: Absolute or relative file path.
-        fromdate: Optional datetime lower bound (inclusive).
-        todate: Optional datetime upper bound (inclusive).
-
-    Returns:
-        pandas.DataFrame: Sorted frame with datetime index and OHLCV columns.
-    """
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = "\n".join(lines)
-    sep = "\t" if "\t" in lines[0] else ","
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df["<DATE>"].astype(str) + " " + df["<TIME>"].astype(str)
-    parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M", errors="coerce")
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M:%S", errors="coerce")
-    df["datetime"] = parsed
-    df = df.rename(
-        columns={
-            "<OPEN>": "open",
-            "<HIGH>": "high",
-            "<LOW>": "low",
-            "<CLOSE>": "close",
-            "<TICKVOL>": "tick_volume",
-            "<VOL>": "real_volume",
-        }
-    )
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"] if "tick_volume" in df.columns else 0
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def prepare_adaptive_vix_ma_features(df, params):
@@ -284,11 +223,7 @@ class AdaptiveVixMaStrategy(bt.Strategy):
 """Adaptive VIX MA backtest helper definitions."""
 
 
-
-
-
 BASE_DIR = Path(__file__).parent.resolve()
-
 
 
 def get_sharpe_analyzer_kwargs(config):
@@ -321,7 +256,6 @@ def calculate_ulcer_index(values):
         drawdown = (max_value - v) / max_value * 100.0 if max_value > 0 else 0.0
         sum_squared += drawdown ** 2
     return math.sqrt(sum_squared / len(values))
-
 
 
 def load_data(config):
@@ -404,12 +338,9 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
     """Run a single migration-style backtest pass and return metrics."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
     cerebro = build_cerebro(frame, config)

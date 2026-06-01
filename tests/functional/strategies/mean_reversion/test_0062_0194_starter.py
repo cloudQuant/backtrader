@@ -43,12 +43,12 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
 import backtrader as bt
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -93,66 +93,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 LOCAL_BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(LOCAL_BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
-    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export CSV file.
-        fromdate: Optional lower datetime bound (inclusive) for filtering.
-        todate: Optional upper datetime bound (inclusive) for filtering.
-        bar_shift_minutes: Minutes to add to each bar timestamp.
-
-    Returns:
-        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def signal_ma_from_open_and_prev_closes(frame, period):
@@ -503,8 +447,6 @@ class StarterStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -514,7 +456,6 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
 
 
 def resolve_data_path(filename):
@@ -720,7 +661,7 @@ def test_62_0062_0194_starter() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0062_0194_starter.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

@@ -5,11 +5,26 @@ Self-contained single-file test (manually authored). Runs with runonce=True only
 from __future__ import annotations
 
 import datetime as dt
-import io
 from pathlib import Path
 
 import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M1.csv"
@@ -24,29 +39,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("close", 3), ("volume", 4),
         ("openinterest", 5), ("spread", 6),
     )
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated bars and return a sorted DataFrame index by datetime."""
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume",
-        "<VOL>": "openinterest", "<SPREAD>": "spread",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest", "spread"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Ais2TradingRobotStrategy(bt.Strategy):

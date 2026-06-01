@@ -23,10 +23,10 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -104,8 +104,8 @@ class RsiMtfStrategy(bt.Strategy):
 
     Parameters:
         stake (int): Number of shares/contracts per trade. Default is 10.
-        period_long (int): Period for long-term RSI. Default is 14.
-        period_short (int): Period for short-term RSI. Default is 3.
+        period_long (int): Period for long-term bt.indicators.RSI. Default is 14.
+        period_short (int): Period for short-term bt.indicators.RSI. Default is 3.
         buy_rsi_long (float): RSI level for long-term trend confirmation.
             Default is 50.
         buy_rsi_short (float): RSI level for short-term momentum trigger.

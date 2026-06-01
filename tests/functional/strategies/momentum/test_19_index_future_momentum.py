@@ -6,13 +6,13 @@ Test MACD strategy using CFFEX futures contract data
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
 import pytest
 
@@ -50,8 +50,8 @@ class TreasuryFuturesMacdStrategy(bt.Strategy):
 
     The strategy enters long positions when the shorter EMA crosses above the longer
     EMA with positive MACD, and enters short positions when the shorter EMA crosses
-    below the longer EMA with negative MACD. Positions are closed when price crosses
-    back over the shorter EMA.
+    below the longer EMA with negative bt.indicators.MACD. Positions are closed when price crosses
+    back over the shorter bt.indicators.EMA.
 
     Attributes:
         author: Strategy author identifier.

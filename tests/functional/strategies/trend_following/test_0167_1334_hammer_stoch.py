@@ -9,12 +9,12 @@ Data Used:
 Strategy Principle:
     - **Market Hypothesis**: Candlestick patterns with extreme shadows (like Hammer and Hanging Man) signify potential local trend exhaustion and reversal, which are highly effective when confirmed by Slow Stochastic overbought/oversold levels.
     - **Hammer Pattern (Bullish Reversal)**:
-        - Midpoint of the bar is below the prior SMA.
+        - Midpoint of the bar is below the prior bt.indicators.SMA.
         - The real body is small and situated in the upper 1/3 of the bar range.
         - Current close and open prices are lower than prior close and open prices.
         - Trigger long if oversold (Stochastic %D < 30).
     - **Hanging Man Pattern (Bearish Reversal)**:
-        - Midpoint of the bar is above the prior SMA.
+        - Midpoint of the bar is above the prior bt.indicators.SMA.
         - The real body is small and situated in the upper 1/3 of the bar range.
         - Current close and open prices are higher than prior close and open prices.
         - Trigger short if overbought (Stochastic %D > 70).
@@ -22,21 +22,20 @@ Strategy Principle:
 Strategy Logic:
     1. **Initialization**: Instantiates Slow Stochastic (`period=stoch_k`, `period_dfast=stoch_d`, `period_dslow=stoch_slow`) and a Simple Moving Average (SMA) of close prices over `ma_period` as trend baseline. Sets metrics tracking variables.
     2. **Pattern Verification**:
-        - `_hammer()` checks for small bodies in the top 1/3, falling closes/opens, and midpoint below SMA.
-        - `_hanging_man()` checks for small bodies in the top 1/3, rising closes/opens, and midpoint above SMA.
+        - `_hammer()` checks for small bodies in the top 1/3, falling closes/opens, and midpoint below bt.indicators.SMA.
+        - `_hanging_man()` checks for small bodies in the top 1/3, rising closes/opens, and midpoint above bt.indicators.SMA.
     3. **Execution**:
         - *Entry*: Enters long on a Hammer signal with oversold Stochastic (%D < 30). Enters short on a Hanging Man signal with overbought Stochastic (%D > 70).
         - *Exit*: Closes long position if Stochastic %D crosses 20 or 80 upwards, or a Hanging Man signal occurs. Closes short position if Stochastic %D crosses 80 or 20 downwards, or a Hammer signal occurs.
     4. **Reporting**: Extracts portfolio performance stats (Sharpe ratio, returns, net cash value, drawdowns).
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -71,61 +70,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Loads MT5 CSV data and parses it into a Pandas DataFrame.
-
-    Cleans double quotes, strips whitespaces, and aligns the datetime index. Optionally shifts K-line datetime
-    and filters by date range.
-
-    Args:
-        filepath (str or Path): Path to the CSV data file.
-        fromdate (datetime, optional): Start date filter. Defaults to None.
-        todate (datetime, optional): End date filter. Defaults to None.
-        bar_shift_minutes (int, optional): Number of minutes to shift datetime index. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Processed OHLCV DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -280,7 +224,6 @@ class HammerStochStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -390,12 +333,11 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro) containing strategy results, metrics dict, and engine.
     """
-    config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
+    config=_bt_load_config(_CONFIG, repo=_REPO); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)
     if plot: cerebro.plot()
     return results,metrics,cerebro
-
 
 
 if __name__=='__main__':

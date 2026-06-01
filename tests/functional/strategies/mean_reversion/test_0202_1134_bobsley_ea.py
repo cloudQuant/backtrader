@@ -41,15 +41,14 @@ Strategy Logic:
        migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -85,62 +84,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export CSV file.
-        fromdate: Optional lower datetime bound (inclusive) for filtering.
-        todate: Optional upper datetime bound (inclusive) for filtering.
-        bar_shift_minutes: Minutes to add to each bar timestamp.
-
-    Returns:
-        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """PandasData feed mapping the standard MT5 OHLCV column layout."""
 
@@ -148,60 +91,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class RawCloseCloseStochastic(bt.Indicator):
-    """Raw close-based Stochastic (%K numerator) over a close-only window."""
-
-    lines = ('raw',)
-    params = dict(period=5)
-
-    def __init__(self):
-        """Set the minimum period required before emitting values."""
-        self.addminperiod(int(self.p.period))
-
-    def next(self):
-        """Compute the raw close-based Stochastic value for the current bar."""
-        period = int(self.p.period)
-        closes = [float(self.data.close[-i]) for i in range(period)]
-        highest = max(closes)
-        lowest = min(closes)
-        denom = highest - lowest
-        if denom == 0:
-            self.lines.raw[0] = 0.0
-            return
-        self.lines.raw[0] = 100.0 * (float(self.data.close[0]) - lowest) / denom
-
-    def once(self, start, end):
-        """Vectorized raw close-based Stochastic over the array index range.
-
-        Args:
-            start: Start index (inclusive) of the range to compute.
-            end: End index (exclusive) of the range to compute.
-        """
-        period = int(self.p.period)
-        closes = self.data.close.array
-        raw = self.lines.raw.array
-        for i in range(start, end):
-            window_start = max(0, i - period + 1)
-            window = closes[window_start:i + 1]
-            highest = max(window)
-            lowest = min(window)
-            denom = highest - lowest
-            raw[i] = 0.0 if denom == 0 else 100.0 * (closes[i] - lowest) / denom
-
-
-class CloseCloseEmaStochastic(bt.Indicator):
-    """EMA-smoothed close-based Stochastic exposing ``percK`` and ``percD``."""
-
-    lines = ('percK', 'percD')
-    params = dict(period=5, slowing=3, dperiod=3)
-
-    def __init__(self):
-        """Build the EMA-smoothed %K and %D lines from the raw Stochastic."""
-        raw = RawCloseCloseStochastic(self.data, period=int(self.p.period))
-        self.lines.percK = bt.indicators.ExponentialMovingAverage(raw, period=int(self.p.slowing))
-        self.lines.percD = bt.indicators.ExponentialMovingAverage(self.lines.percK, period=int(self.p.dperiod))
 
 
 class BobsleyEaStrategy(bt.Strategy):
@@ -365,18 +254,15 @@ class BobsleyEaStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -556,7 +442,7 @@ def test_203_0202_1134_bobsley_ea() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0202_1134_bobsley_ea.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

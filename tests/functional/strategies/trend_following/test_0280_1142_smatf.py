@@ -21,16 +21,15 @@ Strategy Logic:
     against pinned regression expectations through ``test_279_0280_1142_smatf``.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -78,80 +77,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated OHLCV exports into a datetime-indexed DataFrame.
-
-    Args:
-        filepath: Source MT5 CSV file path.
-        fromdate: Optional datetime lower bound.
-        todate: Optional datetime upper bound.
-        bar_shift_minutes: Optional minute shift for all timestamps.
-
-    Returns:
-        Cleaned DataFrame with renamed OHLCV columns and datetime index.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Backtrader pandas feed for MT5-derived OHLCV columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class AcceleratorOscillator(bt.Indicator):
-    """Compute accelerator oscillator using short and long SMA of median price."""
-    lines = ('ac',)
-    params = dict()
-
-    def __init__(self):
-        """Build the oscillator line from medians and SMA smoothing."""
-        median = (self.data.high + self.data.low) / 2.0
-        ao = bt.indicators.SimpleMovingAverage(median, period=5) - bt.indicators.SimpleMovingAverage(median, period=34)
-        self.lines.ac = ao - bt.indicators.SimpleMovingAverage(ao, period=5)
 
 
 class SmatfStrategy(bt.Strategy):
@@ -178,8 +109,8 @@ class SmatfStrategy(bt.Strategy):
         self.ma_tf2 = [bt.indicators.SimpleMovingAverage(self.tf2.close, period=p) for p in self.p.ma_periods]
         self.ma_tf3 = [bt.indicators.SimpleMovingAverage(self.tf3.close, period=p) for p in self.p.ma_periods]
 
-        self.ac_tf1 = AcceleratorOscillator(self.tf1)
-        self.ac_tf3 = AcceleratorOscillator(self.tf3)
+        self.ac_tf1 = bt.indicators.AcceleratorOscillator(self.tf1)
+        self.ac_tf3 = bt.indicators.AcceleratorOscillator(self.tf3)
 
         self.bar_num = 0
         self.buy_count = 0
@@ -390,18 +321,15 @@ class SmatfStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -514,7 +442,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run one complete backtest pass and return ``results``, ``metrics`` and ``cerebro``.
 
@@ -524,7 +451,7 @@ def run(plot=False):
     Returns:
         Tuple of ``results``, ``metrics`` and ``cerebro`` object.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

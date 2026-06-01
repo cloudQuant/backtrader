@@ -35,15 +35,14 @@ Strategy Logic:
     value against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -85,114 +84,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV export and normalize it into a Backtrader-ready DataFrame.
-
-    Args:
-        filepath: Path to MT5 CSV file.
-        fromdate: Optional datetime start filter.
-        todate: Optional datetime end filter.
-        bar_shift_minutes: Optional minute offset for all bars.
-
-    Returns:
-        DataFrame indexed by datetime with OHLCV columns expected by feeds.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Standard OHLCV Backtrader feed for MT5-normalized input data."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class LeManSignalIndicator(bt.Indicator):
-    """Reconstructs LeManSignal from its MQ5 source.
-
-    Compares two consecutive LPeriod-window high/low ranges shifted by 1 bar
-    and by LPeriod bars to detect breakouts.
-    buy_arrow: H3<=H4 && H1>H2  (high range expansion upward)
-    sell_arrow: L3>=L4 && L1<L2  (low range expansion downward)
-    """
-    lines = ('buy_arrow', 'sell_arrow')
-    params = dict(lperiod=12, point=0.0001)
-
-    def __init__(self):
-        """Store LPeriod/rules and initialize lookback requirements."""
-        self._lp = int(self.p.lperiod)
-        self.addminperiod(self._lp * 2 + 3)
-
-    def next(self):
-        """Compute LeManSignal buy/sell arrows from rolling high-low ranges."""
-        lp = self._lp
-        # MQ5 as-series indexing: bar=0 is current, bar+1 is 1 ago, etc.
-        # H1 = max high over [bar+1, bar+1+LPeriod)  => [-1 .. -(lp)]
-        # H2 = max high over [bar+1+LPeriod, bar+1+2*LPeriod) => [-(lp+1) .. -(2*lp)]
-        # H3 = max high over [bar+2, bar+2+LPeriod)  => [-2 .. -(lp+1)]
-        # H4 = max high over [bar+2+LPeriod, bar+2+2*LPeriod) => [-(lp+2) .. -(2*lp+1)]
-        H1 = max(float(self.data.high[-i]) for i in range(1, lp + 1))
-        H2 = max(float(self.data.high[-i]) for i in range(lp + 1, 2 * lp + 1))
-        H3 = max(float(self.data.high[-i]) for i in range(2, lp + 2))
-        H4 = max(float(self.data.high[-i]) for i in range(lp + 2, 2 * lp + 2))
-
-        L1 = min(float(self.data.low[-i]) for i in range(1, lp + 1))
-        L2 = min(float(self.data.low[-i]) for i in range(lp + 1, 2 * lp + 1))
-        L3 = min(float(self.data.low[-i]) for i in range(2, lp + 2))
-        L4 = min(float(self.data.low[-i]) for i in range(lp + 2, 2 * lp + 2))
-
-        buy_val = 0.0
-        sell_val = 0.0
-        pt = float(self.p.point)
-
-        if H3 <= H4 and H1 > H2:
-            buy_val = float(self.data.high[-1]) + pt
-        if L3 >= L4 and L1 < L2:
-            sell_val = float(self.data.low[-1]) - pt
-
-        self.lines.buy_arrow[0] = buy_val
-        self.lines.sell_arrow[0] = sell_val
 
 
 class ExpLeManSignalStrategy(bt.Strategy):
@@ -215,7 +116,7 @@ class ExpLeManSignalStrategy(bt.Strategy):
         """Initialize data handles, indicator instance, and bookkeeping counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = LeManSignalIndicator(
+        self.indicator = bt.indicators.LeManSignalIndicator(
             self.signal_data, lperiod=self.p.lperiod, point=self.p.point,
         )
         self.bar_num = 0
@@ -452,7 +353,7 @@ def run(plot=False):
     Returns:
         ``(results, metrics, cerebro)``
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

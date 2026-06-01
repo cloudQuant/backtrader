@@ -30,14 +30,13 @@ strategy's own extract_metrics() output captured at migration time.
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import json
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
-import pandas as pd
 import numpy as np
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -74,62 +73,6 @@ _CONFIG = {
         'global_summary_csv': '../strategy_backtest_results.csv',
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load MT5 data and convert to sorted OHLCV frame for backtesting.
-
-    Args:
-        filepath: Input data path.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-
-    Returns:
-        Normalized dataframe indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
 
 
 def prepare_exit_rules_testing_features(df, params):
@@ -242,11 +185,7 @@ class ExitRulesTestingStrategy(bt.Strategy):
 """Exit Rules Testing strategy backtest."""
 
 
-
-
-
 BASE_DIR = Path(__file__).parent.resolve()
-
 
 
 def get_sharpe_analyzer_kwargs(config):
@@ -293,7 +232,6 @@ def calculate_ulcer_index(values):
         drawdown = (max_value - v) / max_value * 100.0 if max_value > 0 else 0.0
         sum_squared += drawdown ** 2
     return math.sqrt(sum_squared / len(values))
-
 
 
 def load_data(config):
@@ -401,12 +339,9 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
     """Run the inlined regression backtest and return extracted metrics."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
     cerebro = build_cerebro(frame, config)

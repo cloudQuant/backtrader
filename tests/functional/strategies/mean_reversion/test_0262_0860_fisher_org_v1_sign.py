@@ -24,56 +24,16 @@ Strategy Logic:
   fixed point distances, configurable buy/sell open/close gating
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported CSV data into a datetime-indexed DataFrame.
-
-    Parameters
-    ----------
-    filepath : str or Path
-        Path to the MT5 CSV file.
-    fromdate : datetime or None
-        Earliest date to include.
-    todate : datetime or None
-        Latest date to include.
-    bar_shift_minutes : int
-        Minutes to shift the datetime index forward.
-
-    Returns
-    -------
-    pd.DataFrame
-        Columns: datetime, open, high, low, close, volume, openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def _build_signal_frame(df, minutes):
@@ -136,59 +96,6 @@ def _price(data, mode, ago=0):
     return c
 
 
-class FisherOrgV1Sign(bt.Indicator):
-    """Fisher Transform Org V1 Sign indicator.
-
-    Normalises price within a highest-high/lowest-low window over `length`
-    bars, smooths the normalised position via recursive formula, then applies
-    the Fisher Transform (atanh) to produce a near-Gaussian signal. Buy/sell
-    trigger lines are set at ATR-scaled price levels on threshold crossovers.
-
-    Lines
-    -----
-    sell : float
-        Price level for sell signals (high + 3/8 ATR), set on up-cross.
-    buy : float
-        Price level for buy signals (low - 3/8 ATR), set on down-cross.
-    """
-    lines = ("sell", "buy")
-    params = dict(atr_period=14, length=7, ipc=1, up_level=1.5, dn_level=-1.5)
-
-    def __init__(self):
-        """Initialise indicator state: ATR sub-indicator and Fisher smoothing values."""
-        self.addminperiod(max(int(self.p.atr_period), int(self.p.length)) + 3)
-        self.atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
-        self._value1 = 0.0
-        self._fish1 = 0.0
-
-    def next(self):
-        """Compute Fisher Transform values and set buy/sell signal lines."""
-        length = int(self.p.length)
-        highs = [float(self.data.high[-i]) for i in range(length)]
-        lows = [float(self.data.low[-i]) for i in range(length)]
-        smax = max(highs)
-        smin = min(lows)
-        if smax == smin:
-            smax += 1e-12
-        price = _price(self.data, int(self.p.ipc), 0)
-        wpr = (price - smin) / (smax - smin)
-        value0 = (wpr - 0.5) + 0.67 * self._value1
-        value0 = min(max(value0, -0.999), 0.999)
-        res2 = (1.0 + value0) / (1.0 - value0)
-        if res2 < 1e-7:
-            res2 = 1.0
-        fish0 = 0.5 * math.log(res2) + 0.5 * self._fish1
-        self.lines.buy[0] = float("nan")
-        self.lines.sell[0] = float("nan")
-        atr = float(self.atr[0])
-        if fish0 > float(self.p.dn_level) and self._fish1 <= float(self.p.dn_level):
-            self.lines.buy[0] = float(self.data.low[0]) - atr * 3.0 / 8.0
-        if fish0 < float(self.p.up_level) and self._fish1 >= float(self.p.up_level):
-            self.lines.sell[0] = float(self.data.high[0]) + atr * 3.0 / 8.0
-        self._value1 = value0
-        self._fish1 = fish0
-
-
 class ExpFisherOrgV1SignStrategy(bt.Strategy):
     """Dual-timeframe strategy trading FisherOrgV1Sign signals on H4 data."""
     params = dict(
@@ -210,7 +117,7 @@ class ExpFisherOrgV1SignStrategy(bt.Strategy):
         """
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = FisherOrgV1Sign(
+        self.ind = bt.indicators.FisherOrgV1Sign(
             self.signal_data,
             atr_period=self.p.atr_period, length=self.p.length, ipc=self.p.ipc,
             up_level=self.p.up_level, dn_level=self.p.dn_level,

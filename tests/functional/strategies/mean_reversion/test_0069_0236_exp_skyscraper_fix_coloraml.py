@@ -26,14 +26,29 @@ Strategy Logic:
     analyzer summary.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,63 +110,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Parse an MT5 CSV file to a normalized Backtrader-friendly DataFrame.
-
-    Args:
-        filepath: Path to the MT5 source file.
-        fromdate: Optional lower datetime bound.
-        todate: Optional upper datetime bound.
-        bar_shift_minutes: Optional minute shift applied to timestamp index.
-
-    Returns:
-        DataFrame indexed by datetime with OHLCV/spread columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom feed mapping MT5 columns including spread.
 
@@ -168,151 +126,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class SkyscraperFixIndicator(bt.Indicator):
-    """Skyscraper fix channel indicator producing buy/sell buffers and color state."""
-    lines = ('up_buffer', 'dn_buffer', 'buy_buffer', 'sell_buffer', 'color_state')
-    params = dict(length=10, kv=0.9, percentage=0.0, use_high_low=True, atr_period=15, point_size=0.01)
-
-    def __init__(self):
-        """Initialize ATR-derived channel state and lookback counters."""
-        self.addminperiod(max(self.p.length, self.p.atr_period) + 3)
-        self.atr = bt.indicators.AverageTrueRange(self.data, period=self.p.atr_period)
-        self.atr_high = bt.indicators.Highest(self.atr, period=self.p.length)
-        self.atr_low = bt.indicators.Lowest(self.atr, period=self.p.length)
-        self._prev_smin = None
-        self._prev_smax = None
-        self._prev_trend = 0
-
-    @staticmethod
-    def _nan():
-        return float('nan')
-
-    @staticmethod
-    def _valid(value):
-        return value is not None and math.isfinite(value)
-
-    def next(self):
-        """Compute current channel extrema and potential reversal buffers."""
-        up = self._nan()
-        dn = self._nan()
-        buy = self._nan()
-        sell = self._nan()
-        color = self.lines.color_state[-1] if len(self) > 1 and math.isfinite(self.lines.color_state[-1]) else 1.0
-        if self._prev_smin is None:
-            close = float(self.data.close[0])
-            self._prev_smin = close
-            self._prev_smax = close
-            self._prev_trend = 0
-            self.lines.up_buffer[0] = up
-            self.lines.dn_buffer[0] = dn
-            self.lines.buy_buffer[0] = buy
-            self.lines.sell_buffer[0] = sell
-            self.lines.color_state[0] = color
-            return
-        atrmax = float(self.atr_high[0])
-        atrmin = float(self.atr_low[0])
-        if not math.isfinite(atrmax) or not math.isfinite(atrmin):
-            self.lines.up_buffer[0] = up
-            self.lines.dn_buffer[0] = dn
-            self.lines.buy_buffer[0] = buy
-            self.lines.sell_buffer[0] = sell
-            self.lines.color_state[0] = color
-            return
-        step = int(0.5 * self.p.kv * (atrmax + atrmin) / self.p.point_size)
-        x2step = 2.0 * step * self.p.point_size
-        close = float(self.data.close[0])
-        high = float(self.data.high[0])
-        low = float(self.data.low[0])
-        if self.p.use_high_low:
-            smax0 = low + x2step
-            smin0 = high - x2step
-        else:
-            smax0 = close + x2step
-            smin0 = close - x2step
-        trend0 = self._prev_trend
-        if close > self._prev_smax:
-            trend0 = 1
-        if close < self._prev_smin:
-            trend0 = -1
-        if trend0 > 0:
-            smin0 = max(smin0, self._prev_smin)
-            up = smin0
-            color = 0.0
-        else:
-            smax0 = min(smax0, self._prev_smax)
-            dn = smax0
-            color = 1.0
-        prev_up = self.lines.up_buffer[-1] if len(self) > 1 else self._nan()
-        prev_dn = self.lines.dn_buffer[-1] if len(self) > 1 else self._nan()
-        if self._valid(prev_dn) and self._valid(up):
-            buy = up
-        if self._valid(prev_up) and self._valid(dn):
-            sell = dn
-        self.lines.up_buffer[0] = up
-        self.lines.dn_buffer[0] = dn
-        self.lines.buy_buffer[0] = buy
-        self.lines.sell_buffer[0] = sell
-        self.lines.color_state[0] = color
-        self._prev_smin = smin0
-        self._prev_smax = smax0
-        self._prev_trend = trend0
-
-
-class ColorAMLIndicator(bt.Indicator):
-    """Adaptive moving-lowpass indicator for color-state trend capture."""
-    lines = ('aml', 'color_state')
-    params = dict(fractal=6, lag=7, shift=0, point_size=0.01)
-
-    def __init__(self):
-        """Prepare smoothing buffers and history for AML color-state generation."""
-        self.addminperiod(2 * self.p.fractal + self.p.lag + 5)
-        self._smooth_history = []
-        self._prev_aml = None
-        self._prev_color = 1.0
-
-    @staticmethod
-    def _window_max(line, start_ago, size):
-        values = [float(line[-(start_ago + idx)]) for idx in range(size)]
-        return max(values)
-
-    @staticmethod
-    def _window_min(line, start_ago, size):
-        values = [float(line[-(start_ago + idx)]) for idx in range(size)]
-        return min(values)
-
-    def next(self):
-        """Update smooth and color values for the active bar."""
-        if len(self.data) < 2 * self.p.fractal + self.p.lag + 2:
-            self.lines.aml[0] = float('nan')
-            self.lines.color_state[0] = self._prev_color
-            return
-        r1 = (self._window_max(self.data.high, 0, self.p.fractal) - self._window_min(self.data.low, 0, self.p.fractal)) / float(self.p.fractal)
-        r2 = (self._window_max(self.data.high, self.p.fractal, self.p.fractal) - self._window_min(self.data.low, self.p.fractal, self.p.fractal)) / float(self.p.fractal)
-        r3 = (self._window_max(self.data.high, 0, 2 * self.p.fractal) - self._window_min(self.data.low, 0, 2 * self.p.fractal)) / float(2 * self.p.fractal)
-        dim = 0.0
-        if r1 + r2 > 0 and r3 > 0:
-            dim = (math.log(r1 + r2) - math.log(r3)) * 1.44269504088896
-        alpha = math.exp(-self.p.lag * (dim - 1.0))
-        alpha = min(alpha, 1.0)
-        alpha = max(alpha, 0.01)
-        price = (float(self.data.high[0]) + float(self.data.low[0]) + 2.0 * float(self.data.open[0]) + 2.0 * float(self.data.close[0])) / 6.0
-        prev_smooth = self._smooth_history[-1] if self._smooth_history else price
-        smooth = alpha * price + (1.0 - alpha) * prev_smooth
-        self._smooth_history.append(smooth)
-        prev_aml = self._prev_aml if self._prev_aml is not None else smooth
-        lag_smooth = self._smooth_history[-(self.p.lag + 1)] if len(self._smooth_history) > self.p.lag else smooth
-        aml = smooth if abs(smooth - lag_smooth) >= self.p.lag * self.p.lag * self.p.point_size else prev_aml
-        color = self._prev_color
-        if aml > prev_aml:
-            color = 2.0
-        if aml < prev_aml:
-            color = 0.0
-        self.lines.aml[0] = aml
-        self.lines.color_state[0] = color
-        self._prev_aml = aml
-        self._prev_color = color
 
 
 class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
@@ -352,8 +165,8 @@ class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
         """Initialize data feeds, indicators, and order tracking state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.a_indicator = SkyscraperFixIndicator(self.signal_data, length=self.p.a_length, kv=self.p.a_kv, percentage=self.p.a_percentage, use_high_low=self.p.a_use_high_low, point_size=self.p.point_size)
-        self.b_indicator = ColorAMLIndicator(self.signal_data, fractal=self.p.b_fractal, lag=self.p.b_lag, shift=self.p.b_shift, point_size=self.p.point_size)
+        self.a_indicator = bt.indicators.SkyscraperFixColorAMLIndicator(self.signal_data, length=self.p.a_length, kv=self.p.a_kv, percentage=self.p.a_percentage, use_high_low=self.p.a_use_high_low, point_size=self.p.point_size)
+        self.b_indicator = bt.indicators.ColorAMLMeanReversionIndicator(self.signal_data, fractal=self.p.b_fractal, lag=self.p.b_lag, shift=self.p.b_shift, point_size=self.p.point_size)
         self.entry_order = None
         self.close_order = None
         self.stop_order = None
@@ -569,13 +382,9 @@ class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
             self.active_side = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -724,7 +533,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp_Skyscraper_Fix_ColorAML backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

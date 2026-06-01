@@ -29,15 +29,14 @@ Strategy Logic:
     - extract_metrics() returns deterministic counters and analyzer outputs.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,61 +79,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-formatted TSV data and normalize to backtrader dataframe format.
-
-    Args:
-        filepath: Source data path.
-        fromdate: Optional start datetime (inclusive).
-        todate: Optional end datetime (inclusive).
-        bar_shift_minutes: Optional minute offset on timestamps.
-
-    Returns:
-        DataFrame indexed by datetime with standardized OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -142,85 +90,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class NRTRExtrIndicator(bt.Indicator):
-    """Reconstructs NRTR_extr indicator from its MQ5 source.
-
-    Same as NRTR but uses high/low extremes instead of close for price tracking.
-    In uptrend: price = max(price, high[bar]); check close < value.
-    In downtrend: price = min(price, low[bar]); check close > value.
-    On flip up: price = low[bar], value = price*(1-dK).
-    On flip down: price = high[bar], value = price*(1+dK).
-    """
-    lines = ('trend_up', 'trend_down', 'sign_up', 'sign_down')
-    params = dict(iperiod=10, idig=0)
-
-    def __init__(self):
-        """Initialize internal NRTR state and warm-up period."""
-        self._period = int(self.p.iperiod)
-        self._idig = int(self.p.idig)
-        self._trend = 0
-        self._trend_prev = 0
-        self._price = 0.0
-        self._value = 0.0
-        self._first = True
-        self.addminperiod(self._period + 2)
-
-    def next(self):
-        """Update trend state, channel values, and signal lines."""
-        period = self._period
-
-        if self._first:
-            self._trend_prev = 0
-            self._price = float(self.data.close[0])
-            self._value = self._price
-            self._first = False
-
-        self._trend = self._trend_prev
-        price = self._price
-        value = self._value
-
-        avg_range = 0.0
-        for i in range(period):
-            avg_range += abs(float(self.data.high[-i]) - float(self.data.low[-i]))
-        avg_range /= period
-
-        digits_diff = 5 - self._idig
-        dK = avg_range / pow(10, digits_diff) if pow(10, digits_diff) != 0 else avg_range
-
-        cur_close = float(self.data.close[0])
-        cur_high = float(self.data.high[0])
-        cur_low = float(self.data.low[0])
-
-        if self._trend >= 0:
-            price = max(price, cur_high)  # uses high instead of close
-            value = max(value, price * (1.0 - dK))
-            if cur_close < value:
-                price = cur_high  # uses high
-                value = price * (1.0 + dK)
-                self._trend = -1
-        elif self._trend <= 0:
-            price = min(price, cur_low)  # uses low instead of close
-            value = min(value, price * (1.0 + dK))
-            if cur_close > value:
-                price = cur_low  # uses low
-                value = price * (1.0 - dK)
-                self._trend = 1
-
-        tu = value if self._trend > 0 else 0.0
-        td = value if self._trend < 0 else 0.0
-        su = tu if self._trend_prev < 0 and self._trend > 0 else 0.0
-        sd = td if self._trend_prev > 0 and self._trend < 0 else 0.0
-
-        self._trend_prev = self._trend
-        self._price = price
-        self._value = value
-
-        self.lines.trend_up[0] = tu
-        self.lines.trend_down[0] = td
-        self.lines.sign_up[0] = su
-        self.lines.sign_down[0] = sd
 
 
 class ExpNRTRExtrStrategy(bt.Strategy):
@@ -245,7 +114,7 @@ class ExpNRTRExtrStrategy(bt.Strategy):
         """Initialize strategy feeds, indicators, and trade accounting fields."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = NRTRExtrIndicator(
+        self.indicator = bt.indicators.NRTRExtrIndicator(
             self.signal_data, iperiod=self.p.iperiod, idig=self.p.idig,
         )
         self.bar_num = 0
@@ -460,7 +329,7 @@ def extract_metrics(strat, cerebro, frame, cfg):
 
 def run(plot=False):
     """Run the backtest and return execution artifacts."""
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

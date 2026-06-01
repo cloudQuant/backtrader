@@ -24,16 +24,16 @@ Strategy Logic:
     Metrics are asserted against fixed golden values to verify behavior.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.feeds as btfeeds
-import backtrader as bt
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -72,81 +72,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated output as a sorted pandas OHLCV DataFrame.
-
-    Args:
-        filepath: Source CSV path.
-        fromdate: Optional lower datetime bound.
-        todate: Optional upper datetime bound.
-        bar_shift_minutes: Minutes to shift bar timestamps for migration alignment.
-
-    Returns:
-        ``pandas.DataFrame`` indexed by datetime with OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Backtrader data feed mapping MT5 column order to pandas OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class EnvelopesJpAlonso(bt.Indicator):
-    """Compute static upper/lower envelope bands around a simple moving average."""
-    lines = ('mid', 'upper', 'lower')
-    params = dict(period=200, deviation=0.35)
-
-    def __init__(self):
-        """Initialize envelope lines from the configured SMA period and deviation."""
-        self.lines.mid = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.period)
-        ratio = float(self.p.deviation) / 100.0
-        self.lines.upper = self.lines.mid * (1.0 + ratio)
-        self.lines.lower = self.lines.mid * (1.0 - ratio)
 
 
 class JpAlonsoModokiStrategy(bt.Strategy):
@@ -165,7 +96,7 @@ class JpAlonsoModokiStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicators, state tracking fields, and trade counters."""
-        self.envs = EnvelopesJpAlonso(self.data, period=self.p.envelopes_period, deviation=self.p.envelopes_deviation)
+        self.envs = bt.indicators.EnvelopesJpAlonso(self.data, period=self.p.envelopes_period, deviation=self.p.envelopes_deviation)
         self.order = None
         self.stop_price = None
         self.take_price = None
@@ -289,18 +220,15 @@ class JpAlonsoModokiStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -396,7 +324,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest and return ``results``, ``metrics`` and ``cerebro``.
 
@@ -406,7 +333,7 @@ def run(plot=False):
     Returns:
         Tuple ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

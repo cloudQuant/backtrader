@@ -36,15 +36,14 @@ Strategy Logic:
     against migration-time expectations under ``runonce=True``.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -94,62 +93,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated CSV into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional number of minutes to shift each bar's
-            timestamp forward.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -210,100 +156,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class LRMAIndicator(bt.Indicator):
-    """Linear regression moving average projected to the latest bar."""
-
-    lines = ('lrma',)
-    params = dict(period=13)
-
-    def __init__(self):
-        """Set the minimum period required before the LRMA can be computed."""
-        self.addminperiod(int(self.p.period))
-
-    def next(self):
-        """Fit a least-squares line over the window and emit its endpoint."""
-        period = int(self.p.period)
-        xs = list(range(period))
-        ys = [float(self.data[-period + 1 + i]) for i in range(period)]
-        mean_x = sum(xs) / period
-        mean_y = sum(ys) / period
-        num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
-        den = sum((x - mean_x) ** 2 for x in xs)
-        slope = num / den if den else 0.0
-        intercept = mean_y - slope * mean_x
-        self.lines.lrma[0] = intercept + slope * (period - 1)
-
-
-class ChangeOfVolatilityIndicator(bt.Indicator):
-    """Ratio of short- to long-window momentum dispersion (as a percentage)."""
-
-    lines = ('trend',)
-    params = dict(mperiod=1, short=6, long=100)
-
-    def __init__(self):
-        """Build short/long momentum SMAs and standard deviations."""
-        period = int(self.p.mperiod)
-        momentum = self.data.close - self.data.close(-period)
-        self._sma_long = bt.indicators.SimpleMovingAverage(momentum, period=max(1, int(self.p.long)))
-        self._sma_short = bt.indicators.SimpleMovingAverage(momentum, period=max(1, int(self.p.short)))
-        self._std_long = bt.indicators.StandardDeviation(momentum, period=max(1, int(self.p.long)))
-        self._std_short = bt.indicators.StandardDeviation(momentum, period=max(1, int(self.p.short)))
-        self.addminperiod(int(self.p.mperiod) + max(int(self.p.short), int(self.p.long)) + 3)
-
-    def next(self):
-        """Emit the short/long volatility ratio scaled to a percentage."""
-        long_std = float(self._std_long[0])
-        short_std = float(self._std_short[0])
-        self.lines.trend[0] = 100.0 * short_std / long_std if long_std else 0.0
-
-
-class VininITrendLRMAIndicator(bt.Indicator):
-    """Trend oscillator scoring LRMA against a fan of moving averages."""
-
-    lines = ('trend',)
-    params = dict(
-        lrma_period=13,
-        ma_method1='sma',
-        length1=3,
-        phase1=15,
-        ma_step=10,
-        ma_count=10,
-        ma_method2='jjma',
-        length2=20,
-        phase2=100,
-        ipc='price_close',
-    )
-
-    def __init__(self):
-        """Construct the LRMA, the MA fan, and the output smoother."""
-        price_line = resolve_price_line(self.data, self.p.ipc)
-        self._lrma = LRMAIndicator(price_line, period=self.p.lrma_period)
-        periods = [int(self.p.length1 + idx * self.p.ma_step) for idx in range(int(self.p.ma_count))]
-        ma_cls = resolve_ma_class(self.p.ma_method1)
-        self._ma_lines = [ma_cls(self._lrma.lrma, period=max(1, p)) for p in periods]
-        smooth_cls = resolve_ma_class(self.p.ma_method2)
-        self._smooth = smooth_cls(self.lines.trend, period=max(1, int(self.p.length2)))
-        self.addminperiod(int(self.p.lrma_period) + max(periods) + int(self.p.length2) + 5)
-
-    def next(self):
-        """Score LRMA versus the MA fan and exponentially smooth the result."""
-        lrma_value = float(self._lrma.lrma[0])
-        score = 0
-        for ma_line in self._ma_lines:
-            if lrma_value > float(ma_line[0]):
-                score += 1
-            else:
-                score -= 1
-        raw = 100.0 * score / max(1, len(self._ma_lines))
-        period = max(1, int(self.p.length2))
-        alpha = 2.0 / (period + 1.0)
-        prev = float(self.lines.trend[-1]) if len(self) > 0 else raw
-        if len(self) == 0:
-            self.lines.trend[0] = raw
-        else:
-            self.lines.trend[0] = alpha * raw + (1.0 - alpha) * prev
-
-
 class VininITrendLRMAStrategy(bt.Strategy):
     """Trend-following strategy driven by the VininI LRMA oscillator."""
 
@@ -332,7 +184,7 @@ class VininITrendLRMAStrategy(bt.Strategy):
 
     def __init__(self):
         """Wire up the trend/volatility indicators and counters."""
-        self.indicator = VininITrendLRMAIndicator(
+        self.indicator = bt.indicators.VininITrendLRMAIndicator(
             self.data,
             lrma_period=self.p.lrma_period,
             ma_method1=self.p.ma_method1,
@@ -345,7 +197,7 @@ class VininITrendLRMAStrategy(bt.Strategy):
             phase2=self.p.phase2,
             ipc=self.p.ipc,
         )
-        self.volatility = ChangeOfVolatilityIndicator(
+        self.volatility = bt.indicators.ChangeOfVolatilityIndicator(
             self.data,
             mperiod=self.p.mperiod,
             short=self.p.short,
@@ -482,17 +334,14 @@ class VininITrendLRMAStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -625,7 +474,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the full backtest end-to-end and return its outputs.
 
@@ -637,7 +485,7 @@ def run(plot=False):
         strategy instances, metrics is the extracted metrics dict, and cerebro
         is the executed engine.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

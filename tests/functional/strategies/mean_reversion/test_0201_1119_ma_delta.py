@@ -29,15 +29,14 @@ Strategy Principle:
         - Reverse Trend Exit: Active positions are closed immediately and reversed if an opposing crossover signal occurs.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -73,98 +72,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Load the inlined strategy and backtest configuration dict.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class WeightedPrice(bt.Indicator):
-    """Indicator class calculating weighted price index.
-
-    Lines:
-        value (Line): Output weighted price value.
-    """
-    lines = ('value',)
-
-    def next(self):
-        """Calculate weighted price value on each new bar."""
-        self.lines.value[0] = (float(self.data.high[0]) + float(self.data.low[0]) + 2.0 * float(self.data.close[0])) / 4.0
-
-
-class MedianPrice(bt.Indicator):
-    """Indicator class calculating median price index.
-
-    Lines:
-        value (Line): Output median price value.
-    """
-    lines = ('value',)
-
-    def next(self):
-        """Calculate median price value on each new bar."""
-        self.lines.value[0] = (float(self.data.high[0]) + float(self.data.low[0])) / 2.0
-
 
 class MaDeltaStrategy(bt.Strategy):
     """Strategy class implementing moving average delta crossover logic.
@@ -183,8 +96,8 @@ class MaDeltaStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicators, backtest tracking metrics, and state variables."""
-        self.fast_source = WeightedPrice(self.data)
-        self.slow_source = MedianPrice(self.data)
+        self.fast_source = bt.indicators.WeightedPrice(self.data)
+        self.slow_source = bt.indicators.MedianPrice(self.data)
         self.fast_ma = bt.indicators.SimpleMovingAverage(self.fast_source.value, period=self.p.fast_period)
         self.slow_ma = bt.indicators.ExponentialMovingAverage(self.slow_source.value, period=self.p.slow_period)
 
@@ -353,18 +266,15 @@ class MaDeltaStrategy(bt.Strategy):
         self.log(f'trade closed pnl={pnl:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -579,7 +489,7 @@ def test_202_0201_1119_ma_delta() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0201_1119_ma_delta.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

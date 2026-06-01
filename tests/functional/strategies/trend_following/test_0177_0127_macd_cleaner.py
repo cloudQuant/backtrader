@@ -37,15 +37,30 @@ Strategy Logic:
     factor) against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -84,71 +99,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated OHLCV export into a backtrader-ready frame.
-
-    Args:
-        filepath: Path to the MT5 CSV file (tab-separated, ``<DATE>``/``<TIME>``
-            headers, optionally wrapped in double quotes per line).
-        fromdate: Optional inclusive lower datetime bound; earlier rows are dropped.
-        todate: Optional inclusive upper datetime bound; later rows are dropped.
-        bar_shift_minutes: Minutes added to each bar timestamp so the index marks
-            bar-close time rather than bar-open time.
-
-    Returns:
-        pandas.DataFrame: Datetime-indexed, sorted frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume``, ``openinterest`` and ``spread`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
 
 
 def resample_ohlcv(df, rule):
@@ -411,13 +365,9 @@ if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
-
-
 
 
 def resolve_data_path(filename):
@@ -438,7 +388,6 @@ def resolve_data_path(filename):
     return path
 
 
-
 def parse_dt(value):
     """Parse an ISO-format datetime string, returning None for empty input.
 
@@ -451,7 +400,6 @@ def parse_dt(value):
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
-
 
 
 def load_backtest_frame(config):
@@ -480,7 +428,6 @@ def load_backtest_frame(config):
         raise ValueError('Loaded data frame is empty')
     print(f'Loaded {len(df)} bars: {df.index[0]} -> {df.index[-1]}')
     return {'data': df}
-
 
 
 def build_cerebro(config, frame):
@@ -518,7 +465,6 @@ def build_cerebro(config, frame):
     return cerebro
 
 
-
 def finite_or_none(value):
     """Return the value unless it is a non-finite number, in which case None.
 
@@ -533,7 +479,6 @@ def finite_or_none(value):
     if isinstance(value, (int, float)) and not math.isfinite(value):
         return None
     return value
-
 
 
 def extract_metrics(results, start_value):
@@ -581,9 +526,6 @@ def extract_metrics(results, start_value):
     }
 
 
-
-
-
 def run(plot=False):
     """Run the full backtest pipeline and return results, metrics, and engine.
 
@@ -595,7 +537,7 @@ def run(plot=False):
         list, ``metrics`` is the ``extract_metrics`` dict, and ``cerebro`` is the
         engine instance.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

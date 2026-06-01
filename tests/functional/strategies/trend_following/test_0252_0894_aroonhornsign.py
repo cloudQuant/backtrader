@@ -30,15 +30,14 @@ Strategy Logic:
       regression assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -81,61 +80,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style TSV data and return a normalized minute-bar DataFrame.
-
-    Args:
-        filepath: Source data file path.
-        fromdate: Optional earliest datetime (inclusive) filter.
-        todate: Optional latest datetime (inclusive) filter.
-        bar_shift_minutes: Optional minute shift applied to each bar timestamp.
-
-    Returns:
-        DataFrame indexed by datetime with standardized OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -143,86 +91,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class AroonHornSignIndicator(bt.Indicator):
-    """Reconstructs AroonHornSign indicator.
-
-    BULLS = 100 - (bars_since_highest_high + 0.5) * 100 / AroonPeriod
-    BEARS = 100 - (bars_since_lowest_low + 0.5) * 100 / AroonPeriod
-    trend = +1 if BULLS > BEARS and BULLS >= 50
-    trend = -1 if BULLS < BEARS and BEARS >= 50
-    BullsAroon (buy arrow) when trend flips from -1 to +1: low - ATR*3/8
-    BearsAroon (sell arrow) when trend flips from +1 to -1: high + ATR*3/8
-    Buffers: 0=BearsAroon(sell), 1=BullsAroon(buy).
-    """
-    lines = ('bears_aroon', 'bulls_aroon')
-    params = dict(aroon_period=9, atr_period=10)
-
-    def __init__(self):
-        """Initialize Aroon window, ATR window, and trend tracking state."""
-        self._ap = int(self.p.aroon_period)
-        self._atr_p = int(self.p.atr_period)
-        self._trend_prev = 0
-        self.addminperiod(max(self._ap, self._atr_p) + 3)
-
-    def _calc_atr(self):
-        period = self._atr_p
-        total = 0.0
-        for i in range(period):
-            h = float(self.data.high[-i])
-            l = float(self.data.low[-i])
-            if i + 1 < len(self.data):
-                pc = float(self.data.close[-(i + 1)])
-                tr = max(h - l, abs(h - pc), abs(l - pc))
-            else:
-                tr = h - l
-            total += tr
-        return total / period
-
-    def next(self):
-        """Compute bear/bull arrow levels based on trend flips and ATR displacement."""
-        ap = self._ap
-
-        # Find bars since highest high and lowest low within AroonPeriod
-        max_idx = 0
-        max_val = float(self.data.high[0])
-        min_idx = 0
-        min_val = float(self.data.low[0])
-        for i in range(ap):
-            h = float(self.data.high[-i])
-            l = float(self.data.low[-i])
-            if h > max_val:
-                max_val = h
-                max_idx = i
-            if l < min_val:
-                min_val = l
-                min_idx = i
-
-        bulls = 100.0 - (max_idx + 0.5) * 100.0 / ap
-        bears = 100.0 - (min_idx + 0.5) * 100.0 / ap
-
-        trend = self._trend_prev
-        if bulls > bears and bulls >= 50:
-            trend = 1
-        if bulls < bears and bears >= 50:
-            trend = -1
-
-        bu = 0.0
-        be = 0.0
-
-        if self._trend_prev < 0 and trend > 0:
-            atr = self._calc_atr()
-            bu = float(self.data.low[0]) - atr * 3.0 / 8.0
-
-        if self._trend_prev > 0 and trend < 0:
-            atr = self._calc_atr()
-            be = float(self.data.high[0]) + atr * 3.0 / 8.0
-
-        self._trend_prev = trend
-
-        self.lines.bears_aroon[0] = be
-        self.lines.bulls_aroon[0] = bu
 
 
 class ExpAroonHornSignStrategy(bt.Strategy):
@@ -247,7 +115,7 @@ class ExpAroonHornSignStrategy(bt.Strategy):
         """Initialize signal feed, strategy indicators, and statistics counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = AroonHornSignIndicator(
+        self.indicator = bt.indicators.AroonHornSignIndicator(
             self.signal_data,
             aroon_period=self.p.aroon_period,
             atr_period=self.p.atr_period,
@@ -476,7 +344,7 @@ def extract_metrics(strat, cerebro, frame, cfg):
 
 def run(plot=False):
     """Run the backtest and return results, metrics, and engine."""
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

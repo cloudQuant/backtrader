@@ -13,7 +13,7 @@ principles using multiple technical indicators:
 
 The strategy enters long positions when RSI crosses above 50 while price is
 above the 200-period SMA, and enters short positions when RSI crosses below
-50 while price is below the 200-period SMA.
+50 while price is below the 200-period bt.indicators.SMA.
 
 Reference source: https://github.com/papodetrader/backtest
 
@@ -28,13 +28,13 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent

@@ -3,48 +3,15 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data into a minute OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Minutes to shift bar timestamps (close alignment).
-
-    Returns:
-        DataFrame indexed by datetime containing open/high/low/close/volume/openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -53,47 +20,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class TriggerLine(bt.Indicator):
-    """Trigger-line indicator tracking momentum-driven main and signal lines."""
-    lines = ("main", "signal")
-    params = dict(rperiod=24, lsma_period=6, price="close")
-
-    def __init__(self):
-        """Initialize indicator coefficients and warmup."""
-        self.addminperiod(int(self.p.rperiod) + 3)
-        self.lengthvar = (int(self.p.rperiod) + 1) / 3.0
-        self.kr = 6.0 / (float(self.p.rperiod) * (float(self.p.rperiod) + 1.0))
-        self.klsma = 2.0 / (float(self.p.lsma_period) + 1.0)
-
-    def _price(self, index=0):
-        p = str(self.p.price).lower()
-        if p == "open":
-            return float(self.data.open[index])
-        if p == "high":
-            return float(self.data.high[index])
-        if p == "low":
-            return float(self.data.low[index])
-        if p == "median":
-            return (float(self.data.high[index]) + float(self.data.low[index])) / 2.0
-        if p == "typical":
-            return (float(self.data.high[index]) + float(self.data.low[index]) + float(self.data.close[index])) / 3.0
-        if p == "weighted":
-            return (float(self.data.high[index]) + float(self.data.low[index]) + 2.0 * float(self.data.close[index])) / 4.0
-        return float(self.data.close[index])
-
-    def next(self):
-        """Compute main and signal values for current bar."""
-        total = 0.0
-        rp = int(self.p.rperiod)
-        for iii in range(rp, 0, -1):
-            idx = -(rp - iii)
-            total += (iii - self.lengthvar) * self._price(idx)
-        main = total * self.kr
-        prev_main = float(self.lines.main[-1]) if len(self) > 1 else main
-        self.lines.main[0] = main
-        self.lines.signal[0] = prev_main + (main - prev_main) * self.klsma
 
 
 class ExpTriggerLineStrategy(bt.Strategy):
@@ -111,7 +37,7 @@ class ExpTriggerLineStrategy(bt.Strategy):
         """Attach signal indicator, initialize per-bar counters and state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = TriggerLine(
+        self.ind = bt.indicators.TriggerLine(
             self.signal_data,
             rperiod=self.p.rperiod, lsma_period=self.p.lsma_period, price=self.p.price,
         )

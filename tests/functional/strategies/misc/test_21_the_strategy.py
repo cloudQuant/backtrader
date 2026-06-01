@@ -49,12 +49,12 @@ Strategy Logic:
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -117,8 +117,8 @@ class EmaCrossStrategy(bt.Strategy):
     EMA and a slow EMA, while using daily data for date synchronization filtering.
 
     Strategy Parameters:
-        fast_period (int): Period for the fast EMA. Default is 80.
-        slow_period (int): Period for the slow EMA. Default is 200.
+        fast_period (int): Period for the fast bt.indicators.EMA. Default is 80.
+        slow_period (int): Period for the slow bt.indicators.EMA. Default is 200.
         short_size (int): Position size for short trades. Default is 2.
         long_size (int): Position size for long trades. Default is 1.
 

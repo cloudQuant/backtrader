@@ -37,14 +37,13 @@ Strategy Logic:
     runonce=True, and asserts each metric against migration-time values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -91,115 +90,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional inclusive lower bound; earlier rows are dropped.
-        todate: Optional inclusive upper bound; later rows are dropped.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close rather than the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping the loaded MT5 frame columns by position."""
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class IStochKomposterIndicator(bt.Indicator):
-    """Stochastic-and-ATR composite that prints offset buy/sell markers.
-
-    Emits a buy line below the bar low (and a sell line above the bar high),
-    offset by 3/8 of ATR, whenever the slowed %K stochastic crosses up through
-    the lower level or down through the upper level respectively.
-    """
-
-    lines = ('sell', 'buy', 'sto', 'atr')
-    params = dict(atr_period=14, k_period=5, d_period=3, slowing=3, up_level=70, dn_level=30)
-
-    def __init__(self):
-        """Build the ATR sub-indicator and set the warm-up minimum period."""
-        self._atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
-        self.addminperiod(max(int(self.p.atr_period), int(self.p.k_period) + int(self.p.d_period) + int(self.p.slowing) + 1) + 2)
-
-    def _raw_k(self, ago):
-        period = int(self.p.k_period)
-        highs = [float(self.data.high[-(ago + i)]) for i in range(period)]
-        lows = [float(self.data.low[-(ago + i)]) for i in range(period)]
-        hh = max(highs)
-        ll = min(lows)
-        cp = float(self.data.close[-ago])
-        if hh == ll:
-            return 50.0
-        return 100.0 * (cp - ll) / (hh - ll)
-
-    def _main_stochastic(self):
-        slowing = int(self.p.slowing)
-        vals = [self._raw_k(i) for i in range(slowing)]
-        return sum(vals) / len(vals)
-
-    def next(self):
-        """Compute the slowed stochastic and emit ATR-offset cross markers."""
-        self.lines.sell[0] = float('nan')
-        self.lines.buy[0] = float('nan')
-        sto_now = self._main_stochastic()
-        self.lines.sto[0] = sto_now
-        self.lines.atr[0] = float(self._atr[0])
-        if len(self) < 2:
-            return
-        sto_prev = float(self.lines.sto[-1])
-        atr_now = float(self._atr[0])
-        if sto_now > float(self.p.dn_level) and sto_prev <= float(self.p.dn_level):
-            self.lines.buy[0] = float(self.data.low[0]) - atr_now * 3.0 / 8.0
-        if sto_now < float(self.p.up_level) and sto_prev >= float(self.p.up_level):
-            self.lines.sell[0] = float(self.data.high[0]) + atr_now * 3.0 / 8.0
 
 
 class ExpIStochKomposterStrategy(bt.Strategy):
@@ -233,7 +133,7 @@ class ExpIStochKomposterStrategy(bt.Strategy):
         """Wire the M15 execution feed, H1 signal indicator, and counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = IStochKomposterIndicator(self.signal_data, atr_period=self.p.atr_period, k_period=self.p.k_period, d_period=self.p.d_period, slowing=self.p.slowing, up_level=self.p.up_level, dn_level=self.p.dn_level)
+        self.indicator = bt.indicators.IStochKomposterIndicator(self.signal_data, atr_period=self.p.atr_period, k_period=self.p.k_period, d_period=self.p.d_period, slowing=self.p.slowing, up_level=self.p.up_level, dn_level=self.p.dn_level)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -361,18 +261,15 @@ class ExpIStochKomposterStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -545,7 +442,7 @@ def test_266_0265_0876_istochkomposter() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0265_0876_istochkomposter.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

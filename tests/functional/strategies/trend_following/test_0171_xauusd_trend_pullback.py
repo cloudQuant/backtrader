@@ -27,49 +27,14 @@ Strategy Logic:
 from __future__ import annotations
 
 import datetime
-import io
 import math
 from pathlib import Path
 
 import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_DIR = _REPO / "tests" / "datas"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style tab-separated CSV data into a datetime-indexed DataFrame.
-
-    Args:
-        filepath: Path to the source ``.csv`` file.
-        fromdate: Optional lower datetime bound to include.
-        todate: Optional upper datetime bound to include.
-        bar_shift_minutes: Optional minute offset to shift bar timestamps.
-
-    Returns:
-        pandas.DataFrame: Cleaned OHLCV data sorted by datetime index.
-    """
-    with open(filepath, "r") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(
-        df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S"
-    )
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime")
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate:
-        df = df[df.index >= fromdate]
-    if todate:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):

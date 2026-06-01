@@ -3,38 +3,15 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported CSV data file and return a Pandas DataFrame."""
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -43,63 +20,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class MoneyFlowIndex(bt.Indicator):
-    """Inlined MFI indicator (not built into bt.indicators)."""
-    lines = ("mfi",)
-    params = (("period", 14),)
-
-    def __init__(self):
-        """Initialize the MFI indicator and set the minimum period."""
-        self.addminperiod(self.p.period + 1)
-
-    def next(self):
-        """Compute the Money Flow Index for the current bar."""
-        positive_flow = 0.0
-        negative_flow = 0.0
-        for i in range(self.p.period):
-            curr_tp = (float(self.data.high[-i]) + float(self.data.low[-i]) + float(self.data.close[-i])) / 3.0
-            prev_tp = (float(self.data.high[-i - 1]) + float(self.data.low[-i - 1]) + float(self.data.close[-i - 1])) / 3.0
-            raw_flow = curr_tp * float(self.data.volume[-i])
-            if curr_tp > prev_tp:
-                positive_flow += raw_flow
-            elif curr_tp < prev_tp:
-                negative_flow += raw_flow
-        if negative_flow == 0.0:
-            self.lines.mfi[0] = 100.0
-        else:
-            money_ratio = positive_flow / negative_flow
-            self.lines.mfi[0] = 100.0 - (100.0 / (1.0 + money_ratio))
-
-
-class DeltaMFI(bt.Indicator):
-    """Delta MFI indicator that computes the difference between two MFI periods and classifies color state."""
-
-    lines = ("color", "delta")
-    params = dict(mfi_period1=14, mfi_period2=50, level=50)
-
-    def __init__(self):
-        """Initialize the DeltaMFI indicator with two MoneyFlowIndex instances and threshold levels."""
-        self.addminperiod(max(int(self.p.mfi_period1), int(self.p.mfi_period2)) + 3)
-        self.mfi1 = MoneyFlowIndex(self.data, period=int(self.p.mfi_period1))
-        self.mfi2 = MoneyFlowIndex(self.data, period=int(self.p.mfi_period2))
-        lvl = int(self.p.level)
-        self.max_level = 100 - (100 - lvl)
-        self.min_level = 100 - lvl
-
-    def next(self):
-        """Compute the delta and color state for the current bar."""
-        m1 = float(self.mfi1[0])
-        m2 = float(self.mfi2[0])
-        self.lines.delta[0] = m1 - m2
-        color = 1.0
-        if m2 > self.max_level and m1 > m2:
-            color = 0.0
-        if m2 < self.min_level and m1 < m2:
-            color = 2.0
-        self.lines.color[0] = color
-
 
 class ExpDeltaMFIStrategy(bt.Strategy):
     """Delta MFI strategy: trades based on color transitions of the Delta MFI indicator."""
@@ -124,7 +44,7 @@ class ExpDeltaMFIStrategy(bt.Strategy):
         """Initialize the strategy: set up data references, DeltaMFI indicator, and state tracking counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = DeltaMFI(
+        self.ind = bt.indicators.DeltaMFI(
             self.signal_data,
             mfi_period1=self.p.mfi_period1,
             mfi_period2=self.p.mfi_period2,

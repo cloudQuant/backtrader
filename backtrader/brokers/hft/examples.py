@@ -177,7 +177,7 @@ class QueueMarketMakingQuoteBuilder:
         bid_price = min(reservation_price - self.half_spread, best_bid)
         ask_price = max(reservation_price + self.half_spread, best_ask)
         bid_price = float((bid_price // self.grid_interval) * self.grid_interval)
-        ask_price = float(((-(-ask_price // self.grid_interval))) * self.grid_interval)
+        ask_price = float((-(-ask_price // self.grid_interval)) * self.grid_interval)
 
         quotes = {}
         if position < self.max_position:
@@ -240,7 +240,7 @@ class OBIAlphaQuoteBuilder:
         bid_price = min(round(reservation_price - self.half_spread), best_bid)
         ask_price = max(round(reservation_price + self.half_spread), best_ask)
         bid_price = float((bid_price // self.grid_interval) * self.grid_interval)
-        ask_price = float(((-(-ask_price // self.grid_interval))) * self.grid_interval)
+        ask_price = float((-(-ask_price // self.grid_interval)) * self.grid_interval)
 
         quotes = {}
         if position < self.max_position:

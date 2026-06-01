@@ -21,15 +21,14 @@ Strategy Logic:
     - `extract_metrics` aggregates analyzer outputs into deterministic assertion payload.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -69,60 +68,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load and normalize a quoted MT5-style CSV export into OHLCV data.
-
-    Args:
-        filepath: Absolute or relative path to the MT5 tab-separated input.
-        fromdate: Optional start `datetime` boundary.
-        todate: Optional end `datetime` boundary.
-        bar_shift_minutes: Optional minute shift applied to each timestamp.
-
-    Returns:
-        pandas.DataFrame: Normalized bar data indexed by `datetime`.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -182,124 +130,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class ColorSchaffTrendCycleIndicator(bt.Indicator):
-    """Custom indicator producing Schaff Trend Cycle value and color states."""
-    lines = ('value', 'color')
-    params = dict(
-        xma_method='ema',
-        fast_xma=23,
-        slow_xma=50,
-        xphase=15,
-        applied_price='price_close',
-        cycle=10,
-        high_level=60,
-        low_level=-60,
-    )
-
-    def __init__(self):
-        """Initialize fast/slow MA dependencies and required history."""
-        price_line = resolve_price_line(self.data, self.p.applied_price)
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        self._fast = ma_cls(price_line, period=max(1, int(self.p.fast_xma)))
-        self._slow = ma_cls(price_line, period=max(1, int(self.p.slow_xma)))
-        self.addminperiod(max(int(self.p.fast_xma), int(self.p.slow_xma)) + int(self.p.cycle) * 2 + 5)
-
-    def next(self):
-        """Advance indicator by one bar and compute `value`/`color` for that bar."""
-        cycle = max(2, int(self.p.cycle))
-        macd_vals = [float(self._fast[-i]) - float(self._slow[-i]) for i in range(cycle)]
-        llv1 = min(macd_vals)
-        hhv1 = max(macd_vals)
-        prev_st = float(self.lines.value[-1]) if len(self) > 0 else 0.0
-        if prev_st != prev_st:
-            prev_st = 0.0
-        cur_macd = macd_vals[0]
-        st = ((cur_macd - llv1) / (hhv1 - llv1) * 100.0) if (hhv1 - llv1) != 0 else prev_st
-        st = 0.5 * (st - prev_st) + prev_st if len(self) > 0 else st
-        st_vals = [st]
-        for i in range(1, cycle):
-            value = float(self.lines.value[-i])
-            if value == value:
-                st_vals.append(value)
-        llv2 = min(st_vals)
-        hhv2 = max(st_vals)
-        prev_stc = float(self.lines.value[-1]) if len(self) > 0 else 0.0
-        if prev_stc != prev_stc:
-            prev_stc = 0.0
-        stc = ((st - llv2) / (hhv2 - llv2) * 200.0 - 100.0) if (hhv2 - llv2) != 0 else prev_stc
-        stc = 0.5 * (stc - prev_stc) + prev_stc if len(self) > 0 else stc
-        self.lines.value[0] = stc
-        delta = stc - prev_stc if len(self) > 0 else 0.0
-        color = 4
-        if stc > 0:
-            if stc > float(self.p.high_level):
-                color = 7 if delta >= 0 else 6
-            else:
-                color = 5 if delta >= 0 else 4
-        if stc < 0:
-            if stc < float(self.p.low_level):
-                color = 0 if delta < 0 else 1
-            else:
-                color = 2 if delta < 0 else 3
-        self.lines.color[0] = color
-
-    def once(self, start, end):
-        """Compute indicator output in vectorized mode for backtest startup."""
-        fast_array = self._fast.array
-        slow_array = self._slow.array
-        value_line = self.lines.value.array
-        color_line = self.lines.color.array
-        for line in (value_line, color_line):
-            while len(line) < end:
-                line.append(float('nan'))
-
-        cycle = max(2, int(self.p.cycle))
-        prev_value = None
-        actual_end = min(end, len(fast_array), len(slow_array))
-        for i in range(start, actual_end):
-            macd_vals = [
-                float(fast_array[i - j]) - float(slow_array[i - j])
-                for j in range(cycle)
-                if i - j >= 0
-            ]
-            llv1 = min(macd_vals)
-            hhv1 = max(macd_vals)
-            prev_st = 0.0 if prev_value is None else prev_value
-            cur_macd = macd_vals[0]
-            st = ((cur_macd - llv1) / (hhv1 - llv1) * 100.0) if (hhv1 - llv1) != 0 else prev_st
-            if prev_value is not None:
-                st = 0.5 * (st - prev_st) + prev_st
-
-            st_vals = [st]
-            for j in range(1, cycle):
-                idx = i - j
-                if idx < start:
-                    break
-                st_vals.append(float(value_line[idx]))
-            llv2 = min(st_vals)
-            hhv2 = max(st_vals)
-            prev_stc = 0.0 if prev_value is None else prev_value
-            stc = ((st - llv2) / (hhv2 - llv2) * 200.0 - 100.0) if (hhv2 - llv2) != 0 else prev_stc
-            if prev_value is not None:
-                stc = 0.5 * (stc - prev_stc) + prev_stc
-
-            delta = stc - prev_stc if prev_value is not None else 0.0
-            color = 4
-            if stc > 0:
-                if stc > float(self.p.high_level):
-                    color = 7 if delta >= 0 else 6
-                else:
-                    color = 5 if delta >= 0 else 4
-            if stc < 0:
-                if stc < float(self.p.low_level):
-                    color = 0 if delta < 0 else 1
-                else:
-                    color = 2 if delta < 0 else 3
-            value_line[i] = stc
-            color_line[i] = color
-            prev_value = stc
-
-
 class ColorSchaffTrendCycleStrategy(bt.Strategy):
     """Trade strategy driven by color transitions from Schaff Trend Cycle indicator."""
     params = dict(
@@ -317,7 +147,7 @@ class ColorSchaffTrendCycleStrategy(bt.Strategy):
 
     def __init__(self):
         """Create indicator and initialize execution and counters."""
-        self.indicator = ColorSchaffTrendCycleIndicator(
+        self.indicator = bt.indicators.ColorSchaffTrendCycleIndicator(
             self.data,
             xma_method=self.p.xma_method,
             fast_xma=self.p.fast_xma,
@@ -419,17 +249,14 @@ class ColorSchaffTrendCycleStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -553,7 +380,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute inline strategy, extract metrics, and optionally plot results.
 
@@ -563,7 +389,7 @@ def run(plot=False):
     Returns:
         tuple: `(results, metrics, cerebro)`.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

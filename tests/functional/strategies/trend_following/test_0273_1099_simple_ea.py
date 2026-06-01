@@ -37,7 +37,6 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import argparse
 import json
 from backtrader.dataseries import TimeFrame
@@ -48,6 +47,7 @@ from backtrader.strategy import Strategy
 import backtrader.feeds as btfeeds
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -79,59 +79,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated OHLCV data and normalize to a datetime-index DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV file.
-        fromdate: Optional lower bound filter for the datetime index.
-        todate: Optional upper bound filter for the datetime index.
-        bar_shift_minutes: Minutes to shift timestamps to mark bar close.
-
-    Returns:
-        pd.DataFrame: Normalized bars with ``open, high, low, close, volume,
-        openinterest`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -247,12 +194,7 @@ class SimpleEAStrategy(Strategy):
             self.loss_count += 1
 
 
-
-
-
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
-
 
 
 def prepare_frame(config, base_dir):
@@ -375,7 +317,7 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / args.config).resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()

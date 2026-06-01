@@ -47,7 +47,6 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import csv
 import json
 import os
@@ -56,6 +55,7 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -99,74 +99,8 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
 TRADE_ASSETS = ('XAUUSD', 'IVV', 'IEF')
 SIGNAL_ASSETS = ('XAUUSD', 'IVV', 'IEF', 'GTIP')
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
-
-    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
-    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
-    columns to backtrader's lowercase convention, and clips the frame to the
-    requested date range.
-
-    Args:
-        filepath: Path to the MT5 CSV file to read.
-        fromdate: Optional inclusive lower bound on the datetime index.
-        todate: Optional inclusive upper bound on the datetime index.
-
-    Returns:
-        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
-        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
-        sorted ascending and restricted to the requested window.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.dropna(subset=['datetime']).set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_to_monthly(df):
@@ -422,9 +356,6 @@ class GoldEnhanced6040Strategy(bt.Strategy):
             self.loss_count += 1
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 class FuturesCommission(bt.CommInfoBase):
@@ -472,7 +403,6 @@ def calculate_ulcer_index(values):
     return math.sqrt(squared / len(values))
 
 
-
 def load_inputs(config):
     """Load daily asset data and derive the monthly enhanced-60/40 inputs.
 
@@ -502,8 +432,6 @@ def load_inputs(config):
         'fromdate': fromdate,
         'todate': todate,
     }
-
-
 
 
 def build_cerebro(inputs, config):
@@ -644,7 +572,7 @@ def test_3_0003_gold_enhanced_60_40() -> None:
 
     Originally located at tests/functional/strategies_regression/asset_allocation/0003_gold_enhanced_60_40.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

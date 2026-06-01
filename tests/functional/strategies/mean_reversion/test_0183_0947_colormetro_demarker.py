@@ -22,38 +22,31 @@ Strategy Logic:
     win/loss totals, bar count, and final portfolio value.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
-
-_REPO = Path(__file__).resolve().parents[4]
-DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
+from backtrader.utils.load_data import augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a Pandas DataFrame with standard OHLC columns."""
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "volume", "<VOL>": "openinterest", "<SPREAD>": "spread",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest", "spread"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
+
+_REPO = Path(__file__).resolve().parents[4]
+DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def resample_h8(df):
@@ -76,84 +69,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("close", 3), ("volume", 4), ("openinterest", 5), ("spread", 6),
     )
 
-
-class DeMarkerIndicator(bt.Indicator):
-    """DeMarker indicator (custom — not built into bt.indicators)."""
-    lines = ("dem",)
-    params = (("period", 14),)
-
-    def __init__(self):
-        """Set minimum period to period + 1 for valid DeM computation."""
-        self.addminperiod(self.p.period + 1)
-
-    def next(self):
-        """Compute DeM = sum(max(high-high_prev,0)) / (sum(max(high-high_prev,0)) + sum(max(low_prev-low,0)))."""
-        de_max_sum = 0.0
-        de_min_sum = 0.0
-        for i in range(self.p.period):
-            high_now = float(self.data.high[-i])
-            high_prev = float(self.data.high[-(i + 1)])
-            low_now = float(self.data.low[-i])
-            low_prev = float(self.data.low[-(i + 1)])
-            de_max_sum += max(high_now - high_prev, 0.0)
-            de_min_sum += max(low_prev - low_now, 0.0)
-        denom = de_max_sum + de_min_sum
-        if denom == 0:
-            self.lines.dem[0] = 0.0
-        else:
-            self.lines.dem[0] = de_max_sum / denom
-
-
-class ColorMetroDeMarkerIndicator(bt.Indicator):
-    """Colour Metro DeMarker indicator: derives fast/slow adaptive trend lines from the DeM oscillator."""
-    lines = ("fast_line", "slow_line", "demarker")
-    params = dict(period_demarker=7, step_size_fast=5, step_size_slow=15)
-
-    def __init__(self):
-        """Initialize DeMarker instance, set minperiod, reset channel tracking vars."""
-        self.dem = DeMarkerIndicator(self.data, period=int(self.p.period_demarker))
-        self.addminperiod(int(self.p.period_demarker) + 3)
-        self._fmin1 = 999999.0
-        self._fmax1 = -999999.0
-        self._smin1 = 999999.0
-        self._smax1 = -999999.0
-        self._ftrend = 0
-        self._strend = 0
-
-    def next(self):
-        """Compute fast_line, slow_line and demarker from DeM value using step-based channel logic."""
-        dem0 = float(self.dem[0]) * 100.0
-        fmax0 = dem0 + 2.0 * float(self.p.step_size_fast)
-        fmin0 = dem0 - 2.0 * float(self.p.step_size_fast)
-        if dem0 > self._fmax1:
-            self._ftrend = 1
-        if dem0 < self._fmin1:
-            self._ftrend = -1
-        if self._ftrend > 0 and fmin0 < self._fmin1:
-            fmin0 = self._fmin1
-        if self._ftrend < 0 and fmax0 > self._fmax1:
-            fmax0 = self._fmax1
-        smax0 = dem0 + 2.0 * float(self.p.step_size_slow)
-        smin0 = dem0 - 2.0 * float(self.p.step_size_slow)
-        if dem0 > self._smax1:
-            self._strend = 1
-        if dem0 < self._smin1:
-            self._strend = -1
-        if self._strend > 0 and smin0 < self._smin1:
-            smin0 = self._smin1
-        if self._strend < 0 and smax0 > self._smax1:
-            smax0 = self._smax1
-        fast_line = fmin0 + float(self.p.step_size_fast) if self._ftrend > 0 else fmax0 - float(self.p.step_size_fast)
-        slow_line = smin0 + float(self.p.step_size_slow) if self._strend > 0 else smax0 - float(self.p.step_size_slow)
-        self.lines.fast_line[0] = fast_line
-        self.lines.slow_line[0] = slow_line
-        self.lines.demarker[0] = dem0
-        self._fmin1 = fmin0
-        self._fmax1 = fmax0
-        self._smin1 = smin0
-        self._smax1 = smax0
-
-
 class ColorMetroDeMarkerStrategy(bt.Strategy):
     """Trading strategy that enters positions on ColorMetroDeMarker fast/slow line crossovers with SL/TP."""
     params = dict(
@@ -170,7 +85,7 @@ class ColorMetroDeMarkerStrategy(bt.Strategy):
         """Initialize data references, indicator, counters, and entry/risk state variables."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = ColorMetroDeMarkerIndicator(
+        self.indicator = bt.indicators.ColorMetroDeMarkerIndicator(
             self.signal_feed,
             period_demarker=self.p.period_demarker,
             step_size_fast=self.p.step_size_fast,

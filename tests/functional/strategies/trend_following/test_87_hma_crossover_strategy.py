@@ -24,10 +24,10 @@ Test Data:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -102,8 +102,8 @@ class HmaCrossoverStrategy(bt.Strategy):
 
     Parameters:
         stake (int): Number of shares/contracts per trade. Default is 10.
-        hma_fast (int): Period for the fast HMA. Default is 60.
-        hma_slow (int): Period for the slow HMA. Default is 90.
+        hma_fast (int): Period for the fast bt.indicators.HMA. Default is 60.
+        hma_slow (int): Period for the slow bt.indicators.HMA. Default is 90.
         atr_period (int): Period for the ATR indicator. Default is 14.
     """
     params = dict(

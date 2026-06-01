@@ -47,15 +47,14 @@ Strategy Logic:
       expected values with tolerance checks.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, os, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -101,68 +100,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style tab-delimited historical bars into a normalized OHLCV DataFrame.
-
-    The loader keeps the same field names used by the original strategy migration
-    and applies optional datetime filtering and a minute-shift to align bar
-    timestamps with backtest expectations.
-
-    Args:
-        filepath (str): Path to the MT5 CSV file.
-        fromdate (datetime | None): Optional inclusive lower bound for bar index
-            filtering.
-        todate (datetime | None): Optional inclusive upper bound for bar index
-            filtering.
-        bar_shift_minutes (int): Optional bar timestamp shift in minutes.
-
-    Returns:
-        pd.DataFrame: Indexed DataFrame with ``datetime`` index and columns
-        ``open, high, low, close, volume, openinterest``.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -173,52 +114,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
     """
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class VWAPCloseIndicator(bt.Indicator):
-    """Reconstructs VWAP_Close indicator.
-
-    VWAP = sum(close[i] * volume[i], i=0..n-1) / sum(volume[i], i=0..n-1)
-    Uses tick volume by default.
-    Buffer 0 = VWAP line.
-    """
-    lines = ('vwap',)
-    params = dict(n=2)
-
-    def __init__(self):
-        """Initialize VWAP rolling window size and minimum period.
-
-        The indicator keeps the latest ``n`` bar prices and volumes and starts
-        producing values only after enough history is available.
-        """
-        self._n = int(self.p.n)
-        self.addminperiod(self._n + 1)
-
-    def next(self):
-        """Compute and emit the next VWAP-close value.
-
-        The calculation uses close*volume weighted average over up to ``n`` prior
-        bars and falls back to the previous VWAP value when volume is not
-        available.
-        """
-        n = self._n
-        sum1 = 0.0
-        sum2 = 0
-        for i in range(n):
-            if i >= len(self.data):
-                break
-            c = float(self.data.close[-i])
-            v = float(self.data.volume[-i])
-            if v < 1:
-                v = 1
-            sum1 += c * v
-            sum2 += v
-
-        if sum2 > 0:
-            self.lines.vwap[0] = sum1 / sum2
-        else:
-            prev = float(self.lines.vwap[-1]) if len(self.lines.vwap) > 1 else float(self.data.close[0])
-            self.lines.vwap[0] = prev if not math.isnan(prev) else float(self.data.close[0])
 
 
 class ExpVWAPCloseStrategy(bt.Strategy):
@@ -248,7 +143,7 @@ class ExpVWAPCloseStrategy(bt.Strategy):
         """
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = VWAPCloseIndicator(
+        self.indicator = bt.indicators.VWAPCloseIndicator(
             self.signal_data, n=self.p.n,
         )
         self.bar_num = 0
@@ -470,7 +365,7 @@ def extract_metrics(strat, cerebro, frame, cfg):
 
 def run(plot=False):
     """Run the strategy once and return raw cerebro results and extracted metrics."""
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

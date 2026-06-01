@@ -24,14 +24,29 @@ Strategy Logic:
     summary metrics after one-bar replay execution.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,63 +95,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV source and normalize it into a Backtrader DataFrame.
-
-    Args:
-        filepath: Input CSV/TSV path.
-        fromdate: Inclusive start datetime.
-        todate: Inclusive end datetime.
-        bar_shift_minutes: Minute offset applied to timestamps.
-
-    Returns:
-        Datetime-indexed DataFrame.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader feed with additional spread line."""
     lines = ('spread',)
@@ -150,42 +108,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class XRSIHistogramVolDirectIndicator(bt.Indicator):
-    """Simple direct XRSI histogram indicator that emits color state transitions."""
-    lines = ('color_state', 'value')
-    params = dict(rsi_period=14, ma_length=12)
-
-    def __init__(self):
-        """Initialize rolling history for smoothed direct RSI histogram."""
-        self._scaled_history = []
-        self.addminperiod(max(self.p.rsi_period, self.p.ma_length) + 3)
-
-    def next(self):
-        """Update scaled RSI values and binary color direction."""
-        gains = []
-        losses = []
-        for idx in range(self.p.rsi_period):
-            delta = float(self.data.close[-idx]) - float(self.data.close[-idx - 1])
-            gains.append(max(delta, 0.0))
-            losses.append(max(-delta, 0.0))
-        avg_gain = sum(gains) / float(len(gains))
-        avg_loss = sum(losses) / float(len(losses))
-        if avg_loss <= 1e-12:
-            rsi_value = 100.0 if avg_gain > 0 else 50.0
-        else:
-            rs = avg_gain / avg_loss
-            rsi_value = 100.0 - (100.0 / (1.0 + rs))
-        raw = (rsi_value - 50.0) * float(self.data.volume[0])
-        self._scaled_history.append(raw)
-        if len(self._scaled_history) > self.p.ma_length:
-            self._scaled_history.pop(0)
-        current = sum(self._scaled_history) / float(len(self._scaled_history))
-        previous = self.lines.value[-1] if len(self) else 0.0
-        color = 0.0 if current >= previous else 1.0
-        self.lines.value[0] = current
-        self.lines.color_state[0] = color
 
 
 class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
@@ -212,7 +134,7 @@ class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
         """Initialize feeds, indicator, and order tracking state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.indicator = XRSIHistogramVolDirectIndicator(self.signal_data, rsi_period=self.p.rsi_period, ma_length=self.p.ma_length)
+        self.indicator = bt.indicators.XRSIHistogramVolDirectIndicator(self.signal_data, rsi_period=self.p.rsi_period, ma_length=self.p.ma_length)
         self.entry_order = None
         self.close_order = None
         self.stop_order = None
@@ -375,13 +297,9 @@ class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
             self.closing_side = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -542,7 +460,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp_XRSI_Histogram_Vol_Direct backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

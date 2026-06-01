@@ -3,48 +3,15 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported M15 bars into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to MT5 CSV/TSV data file.
-        fromdate: Optional inclusive lower datetime bound.
-        todate: Optional inclusive upper datetime bound.
-        bar_shift_minutes: Minutes to shift bar timestamps.
-
-    Returns:
-        Datetime-indexed DataFrame with open/high/low/close/volume/openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -53,68 +20,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class BSIIndicator(bt.Indicator):
-    """Balance of power-style indicator returning BSI value and trend color."""
-    lines = ("bsi", "color")
-    params = dict(range_period=20, slowing=3, avg_period=3, volume_mode="TICK")
-
-    def __init__(self):
-        """Set minimum period and initialize smoothing configuration."""
-        self.addminperiod(int(self.p.range_period) + int(self.p.slowing) + int(self.p.avg_period) + 3)
-
-    def _component(self, ago):
-        sumpos = 0.0
-        sumneg = 0.0
-        sumhigh = 0.0
-        for k in range(int(self.p.slowing)):
-            idx = ago + k
-            highs = [float(self.data.high[-(idx + j)]) for j in range(int(self.p.range_period))]
-            lows = [float(self.data.low[-(idx + j)]) for j in range(int(self.p.range_period))]
-            hh = max(highs)
-            ll = min(lows)
-            rng = max(hh - ll, 1e-12)
-            bark_close = float(self.data.close[-idx])
-            bark_prev_close = float(self.data.close[-(idx + 1)])
-            bark_high = float(self.data.high[-idx])
-            bark_low = float(self.data.low[-idx])
-            sp = bark_high - bark_low
-            if self.p.volume_mode == "NONE":
-                vol = 1.0
-            elif self.p.volume_mode == "VOLUME":
-                vmax = max(float(self.data.openinterest[-(idx + j)]) for j in range(int(self.p.range_period)))
-                vol = float(self.data.openinterest[-idx]) / vmax if vmax else 0.0
-            else:
-                vmax = max(float(self.data.volume[-(idx + j)]) for j in range(int(self.p.range_period)))
-                vol = float(self.data.volume[-idx]) / vmax if vmax else 0.0
-            ratio = 0.0
-            if not (bark_prev_close - sp * 0.2 > bark_close):
-                ratio = 1.0 if bark_low == ll else (hh - bark_low) / rng
-                sumpos += (bark_close - bark_low) * ratio * vol
-            if not (bark_prev_close + sp * 0.2 < bark_close):
-                ratio = 1.0 if bark_high == hh else (bark_high - ll) / rng
-                sumneg += (bark_high - bark_close) * ratio * vol * -1.0
-            sumhigh += rng
-        if not sumhigh:
-            return 0.0
-        return (sumpos / sumhigh * 100.0) + (sumneg / sumhigh * 100.0)
-
-    def next(self):
-        """Compute BSI and derive color from directional BSI movement."""
-        vals = [self._component(i) for i in range(int(self.p.avg_period))]
-        bsi = sum(vals) / float(int(self.p.avg_period))
-        self.lines.bsi[0] = bsi
-        if len(self) < 2:
-            self.lines.color[0] = 1.0
-            return
-        prev = float(self.lines.bsi[-1])
-        color = 1.0
-        if prev > bsi:
-            color = 0.0
-        if prev < bsi:
-            color = 2.0
-        self.lines.color[0] = color
 
 
 class ExpBSIStrategy(bt.Strategy):
@@ -132,7 +37,7 @@ class ExpBSIStrategy(bt.Strategy):
         """Attach indicator and initialize all run-time counters/state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = BSIIndicator(
+        self.ind = bt.indicators.BSIIndicator(
             self.signal_data,
             range_period=self.p.range_period, slowing=self.p.slowing,
             avg_period=self.p.avg_period, volume_mode=self.p.volume_mode,

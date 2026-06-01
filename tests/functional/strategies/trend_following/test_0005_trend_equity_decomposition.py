@@ -43,14 +43,13 @@ migration time.
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import csv
 import json
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -90,68 +89,6 @@ _CONFIG = {
         'global_summary_csv': '../../strategy_backtest_results.csv',
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load a MetaTrader 5 CSV (tab- or comma-separated) into an OHLCV frame.
-
-    Args:
-        filepath: Path to the MT5 export with ``<DATE>``/``<TIME>``/OHLCV columns.
-        fromdate: Optional lower datetime bound; rows before it are dropped.
-        todate: Optional upper datetime bound; rows after it are dropped.
-
-    Returns:
-        pandas.DataFrame: OHLCV data indexed by datetime and sorted ascending
-        with columns ``open``, ``high``, ``low``, ``close``, ``volume``,
-        ``openinterest``.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.dropna(subset=['datetime']).set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def prepare_trend_equity_features(df, params):
@@ -327,9 +264,6 @@ class TrendEquityDecompositionStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
@@ -355,7 +289,6 @@ def calculate_ulcer_index(values):
         drawdown = (peak - value) / peak * 100.0 if peak > 0 else 0.0
         squared += drawdown ** 2
     return math.sqrt(squared / len(values))
-
 
 
 def resolve_data_file(file_value):
@@ -503,12 +436,9 @@ def extract_metrics(strat, cerebro, inputs, config):
     }
 
 
-
-
-
 def main():
     """Run the end-to-end backtest and extract its metrics dict."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = load_inputs(config)
     print(f"Loaded trend-equity decomposition bars: {len(inputs['data'])}")
     cerebro = build_cerebro(inputs, config)

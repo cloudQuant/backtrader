@@ -28,16 +28,15 @@ Strategy Logic:
     - Regression assertions consume metrics built by ``extract_metrics()``.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import os
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -88,48 +87,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load and normalize MT5 CSV data into indexed OHLCV data."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 def resample_frame(df, rule):
     """Resample a dataframe using standard OHLC semantics for candle construction."""
     out = df.resample(rule, label='right', closed='right').agg({
@@ -152,36 +109,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class MoneyFlowIndex(bt.Indicator):
-    """Custom Money Flow Index indicator with explicit period window."""
-
-    lines = ('mfi',)
-    params = (('period', 14),)
-
-    def __init__(self):
-        """Initialize minimal period required for stable indicator output."""
-        self.addminperiod(self.p.period + 1)
-
-    def next(self):
-        """Calculate and publish current MFI value from recent flow aggregates."""
-        positive = 0.0
-        negative = 0.0
-        for i in range(0, self.p.period):
-            tp_now = (float(self.data.high[-i]) + float(self.data.low[-i]) + float(self.data.close[-i])) / 3.0
-            tp_prev = (float(self.data.high[-i - 1]) + float(self.data.low[-i - 1]) + float(self.data.close[-i - 1])) / 3.0
-            money_flow = tp_now * float(self.data.volume[-i])
-            if tp_now > tp_prev:
-                positive += money_flow
-            elif tp_now < tp_prev:
-                negative += money_flow
-        if negative == 0:
-            self.lines.mfi[0] = 100.0
-            return
-        ratio = positive / negative
-        self.lines.mfi[0] = 100.0 - (100.0 / (1.0 + ratio))
-
 
 class ExpMfiStrategy(bt.Strategy):
     """Mean-reversion strategy driven by Money Flow Index threshold changes."""
@@ -210,7 +137,7 @@ class ExpMfiStrategy(bt.Strategy):
         """Initialize feeds, counters, and per-trade risk tracking fields."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
-        self.mfi = MoneyFlowIndex(self.h4, period=self.p.mfi_period)
+        self.mfi = bt.indicators.MoneyFlowIndex(self.h4, period=self.p.mfi_period)
 
         self.bar_num = 0
         self.buy_count = 0
@@ -378,7 +305,6 @@ class ExpMfiStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -387,9 +313,7 @@ if LOCAL_BACKTRADER_REPO.exists():
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -483,10 +407,9 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the strategy backtest and return results, metrics, and Cerebro."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

@@ -37,14 +37,13 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -99,64 +98,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV frame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound used to clip the frame.
-        todate: Optional inclusive upper bound used to clip the frame.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of its open.
-
-    Returns:
-        pandas.DataFrame: A datetime-indexed frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume`` and ``openinterest`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Plain pandas OHLCV feed mapping the standard column positions."""
 
@@ -169,51 +110,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class RelativeVigorIndex(bt.Indicator):
-    """Relative Vigor Index (RVI) with its 4-point symmetric signal line."""
-
-    lines = ('rvi', 'signal')
-    params = dict(period=44)
-
-    def __init__(self):
-        """Reserve enough warm-up bars for the period plus the 4-bar weighting."""
-        self.addminperiod(self.p.period + 6)
-
-    def next(self):
-        """Compute the RVI ratio and its weighted signal value for the current bar."""
-        numerator_sum = 0.0
-        denominator_sum = 0.0
-        for shift in range(self.p.period):
-            close0 = float(self.data.close[-shift])
-            open0 = float(self.data.open[-shift])
-            close1 = float(self.data.close[-shift - 1])
-            open1 = float(self.data.open[-shift - 1])
-            close2 = float(self.data.close[-shift - 2])
-            open2 = float(self.data.open[-shift - 2])
-            close3 = float(self.data.close[-shift - 3])
-            open3 = float(self.data.open[-shift - 3])
-            high0 = float(self.data.high[-shift])
-            low0 = float(self.data.low[-shift])
-            high1 = float(self.data.high[-shift - 1])
-            low1 = float(self.data.low[-shift - 1])
-            high2 = float(self.data.high[-shift - 2])
-            low2 = float(self.data.low[-shift - 2])
-            high3 = float(self.data.high[-shift - 3])
-            low3 = float(self.data.low[-shift - 3])
-            numerator_sum += ((close0 - open0) + 2.0 * (close1 - open1) + 2.0 * (close2 - open2) + (close3 - open3)) / 6.0
-            denominator_sum += ((high0 - low0) + 2.0 * (high1 - low1) + 2.0 * (high2 - low2) + (high3 - low3)) / 6.0
-        rvi_value = numerator_sum / denominator_sum if denominator_sum else 0.0
-        self.lines.rvi[0] = rvi_value
-        if len(self) >= 4:
-            values = [float(self.lines.rvi[0]), float(self.lines.rvi[-1]), float(self.lines.rvi[-2]), float(self.lines.rvi[-3])]
-            if all(math.isfinite(value) for value in values):
-                self.lines.signal[0] = (values[0] + 2.0 * values[1] + 2.0 * values[2] + values[3]) / 6.0
-            else:
-                self.lines.signal[0] = rvi_value
-        else:
-            self.lines.signal[0] = rvi_value
 
 
 class JsSistem2Strategy(bt.Strategy):
@@ -255,7 +151,7 @@ class JsSistem2Strategy(bt.Strategy):
             period_signal=self.p.osma_signal_period,
         )
         self.osma = self.macd.macd - self.macd.signal
-        self.rvi = RelativeVigorIndex(self.data, period=self.p.rvi_ma_period)
+        self.rvi = bt.indicators.RelativeVigorIndex(self.data, period=self.p.rvi_ma_period)
         self.order = None
         self.pending_reversal = None
         self.bar_num = 0
@@ -464,7 +360,6 @@ class JsSistem2Strategy(bt.Strategy):
         self._position_was_open = False
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 REPO_BACKTRADER_DIR = BASE_DIR.parents[2] / 'backtrader'
@@ -472,9 +367,7 @@ if str(REPO_BACKTRADER_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_BACKTRADER_DIR))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -653,7 +546,7 @@ def test_133_0133_0481_js_sistem_2() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0133_0481_js_sistem_2.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

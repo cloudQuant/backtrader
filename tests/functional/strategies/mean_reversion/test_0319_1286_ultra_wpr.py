@@ -33,16 +33,15 @@ Strategy Logic:
     migration-time expectations under ``runonce=True``.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,62 +82,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated CSV into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional number of minutes to shift each bar's
-            timestamp forward.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -221,104 +167,6 @@ class CountSmoother:
         return self.state
 
 
-class UltraWPRIndicator(bt.Indicator):
-    """Ultra Williams %R oscillator emitting bulls and bears strength lines."""
-
-    lines = ('bulls', 'bears',)
-    params = dict(
-        wpr_period=13,
-        w_method='jjma',
-        start_length=3,
-        w_phase=100,
-        xstep=5,
-        xsteps_total=10,
-        smooth_method='jjma',
-        smooth_length=3,
-        smooth_phase=100,
-    )
-
-    def __init__(self):
-        """Build the WPR fan, per-length smoothers, and output smoothers."""
-        self._periods = [int(self.p.start_length + self.p.xstep * i) for i in range(int(self.p.xsteps_total) + 1)]
-        self._wpr_indicators = [bt.indicators.WilliamsR(self.data, period=self.p.wpr_period) for _ in self._periods]
-        self._smoothers = [CountSmoother(self.p.w_method, period) for period in self._periods]
-        self._prev_values = [None for _ in self._periods]
-        self._bull_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
-        self._bear_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
-        self.addminperiod(self.p.wpr_period + max(self._periods) + self.p.smooth_length + 5)
-
-    def next(self):
-        """Count rising vs falling smoothed WPR lines and emit bulls/bears."""
-        upsch = 0.0
-        dnsch = 0.0
-        current_values = []
-        base_wpr = float(self._wpr_indicators[0][0])
-        if math.isnan(base_wpr):
-            self.lines.bulls[0] = float('nan')
-            self.lines.bears[0] = float('nan')
-            return
-        for index, smoother in enumerate(self._smoothers):
-            value = smoother.update(base_wpr)
-            current_values.append(value)
-            prev = self._prev_values[index]
-            if prev is None:
-                continue
-            if value > prev:
-                upsch += 1.0
-            else:
-                dnsch += 1.0
-        self.lines.bulls[0] = self._bull_smoother.update(upsch)
-        self.lines.bears[0] = self._bear_smoother.update(dnsch)
-        self._prev_values = current_values
-
-    def once(self, start, end):
-        """Vectorized batch computation of bulls/bears over a bar range.
-
-        Args:
-            start: Index of the first bar to compute (inclusive).
-            end: Index just past the last bar to compute (exclusive).
-        """
-        base_wpr_array = self._wpr_indicators[0].lines[0].array
-        bulls_line = self.lines.bulls.array
-        bears_line = self.lines.bears.array
-        for line in (bulls_line, bears_line):
-            while len(line) < end:
-                line.append(float('nan'))
-
-        smoothers = [CountSmoother(self.p.w_method, period) for period in self._periods]
-        prev_values = [None for _ in self._periods]
-        bull_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
-        bear_smoother = CountSmoother(self.p.smooth_method, self.p.smooth_length)
-        actual_end = min(end, len(base_wpr_array))
-        for i in range(start, actual_end):
-            upsch = 0.0
-            dnsch = 0.0
-            current_values = []
-            base_wpr = float(base_wpr_array[i])
-            if math.isnan(base_wpr):
-                bulls_line[i] = float('nan')
-                bears_line[i] = float('nan')
-                continue
-            for index, smoother in enumerate(smoothers):
-                value = smoother.update(base_wpr)
-                current_values.append(value)
-                prev = prev_values[index]
-                if prev is None:
-                    continue
-                if value > prev:
-                    upsch += 1.0
-                else:
-                    dnsch += 1.0
-            bulls_line[i] = bull_smoother.update(upsch)
-            bears_line[i] = bear_smoother.update(dnsch)
-            prev_values = current_values
-
-        self._smoothers = smoothers
-        self._prev_values = prev_values
-        self._bull_smoother = bull_smoother
-        self._bear_smoother = bear_smoother
-
-
 class UltraWPRStrategy(bt.Strategy):
     """Mean-reversion strategy trading UltraWPR bulls/bears crossovers."""
 
@@ -338,7 +186,7 @@ class UltraWPRStrategy(bt.Strategy):
 
     def __init__(self):
         """Construct the UltraWPR indicator and reset counters."""
-        self.indicator = UltraWPRIndicator(
+        self.indicator = bt.indicators.UltraWPRIndicator(
             self.data,
             wpr_period=self.p.wpr_period,
             w_method=self.p.w_method,
@@ -453,17 +301,14 @@ class UltraWPRStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -596,7 +441,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the full backtest end-to-end and return its outputs.
 
@@ -608,7 +452,7 @@ def run(plot=False):
         strategy instances, metrics is the extracted metrics dict, and cerebro
         is the executed engine.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

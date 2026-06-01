@@ -23,22 +23,21 @@ Strategy Principle:
         - Trailing MA: 92-period (`trailing_ma_period`) Exponential Moving Average (EMA).
         - CrossOver: Detects crossovers between fast and slow WMAs.
     - Entry Signals:
-        - Buy Entry: Fast WMA crosses above Slow WMA. Any active short position is closed beforehand.
-        - Sell Entry: Fast WMA crosses below Slow WMA. Any active long position is closed beforehand.
+        - Buy Entry: Fast WMA crosses above Slow bt.indicators.WMA. Any active short position is closed beforehand.
+        - Sell Entry: Fast WMA crosses below Slow bt.indicators.WMA. Any active long position is closed beforehand.
     - Exit Signals:
         - Symmetrical Stop Loss & Take Profit: Set at execution price plus/minus SL/TP distance (95 pips SL, 670 pips TP).
-        - Trailing EMA Stop: Active long position is closed if price drops below 92 EMA. Active short position is closed if price rises above 92 EMA.
+        - Trailing EMA Stop: Active long position is closed if price drops below 92 bt.indicators.EMA. Active short position is closed if price rises above 92 bt.indicators.EMA.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,68 +74,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Load the inlined strategy and backtest configuration dict.
-
-    Args:
-        *args: Variable length argument list for compatibility.
-        **kwargs: Arbitrary keyword arguments for compatibility.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -243,18 +184,15 @@ class MALWorldStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -351,7 +289,6 @@ def extract_metrics(strategy, cerebro, frame, config):
     return {'fromdate': frame['fromdate'], 'todate': frame['todate'], 'bars': len(frame['data']), 'bar_num': strategy.bar_num, 'signal_count': strategy.signal_count, 'buy_count': strategy.buy_count, 'sell_count': strategy.sell_count, 'trade_count': strategy.trade_count, 'win_count': strategy.win_count, 'loss_count': strategy.loss_count, 'initial_cash': initial_cash, 'final_value': final_value, 'net_pnl': final_value - initial_cash, 'total_return_pct': (final_value / initial_cash - 1.0) * 100.0, 'total_trades': total_trades, 'won': won, 'lost': lost, 'win_rate': (won / total_trades * 100.0) if total_trades else 0.0, 'profit_factor': (gross_won / gross_lost) if gross_lost else None, 'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sharpe_ratio': sharpe.get('sharperatio'), 'annual_return_pct': (returns.get('rnorm') or 0) * 100.0, 'sqn': sqn.get('sqn')}
 
 
-
 def run(plot=False):
     """Execute the full backtest workflow.
 
@@ -361,7 +298,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro) instances.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

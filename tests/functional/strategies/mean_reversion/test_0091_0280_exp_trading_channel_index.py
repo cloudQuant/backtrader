@@ -27,14 +27,29 @@ Strategy Logic:
     A wrapped run captures analyzer metrics and validates expected backtest outputs.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,63 +95,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported bars and normalize them for Backtrader.
-
-    Args:
-        filepath: Path to the MT5 text export.
-        fromdate: Optional lower bound timestamp.
-        todate: Optional upper bound timestamp.
-        bar_shift_minutes: Optional minute offset applied to each timestamp.
-
-    Returns:
-        A datetime-indexed OHLCV spread DataFrame.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader feed that exposes MT5 spread field as an extra data line."""
     lines = ('spread',)
@@ -150,31 +108,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class TradingChannelIndexProxy(bt.Indicator):
-    """Indicator computing Trading Channel Index (TCI) and quantized state."""
-    lines = ('tci', 'color_index')
-    params = dict(length1=60, length2=30, coeff=0.015, high_level=50, low_level=-50)
-
-    def __init__(self):
-        """Initialize indicator inputs used by the TCI computation."""
-        self.sma1 = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.length1)
-        self.dev = bt.indicators.StandardDeviation(self.data.close, period=self.p.length1)
-        self.addminperiod(max(self.p.length1, self.p.length2) + 5)
-
-    def next(self):
-        """Compute raw TCI and discretized color state for the current bar."""
-        base = float(self.sma1[0])
-        dev = max(float(self.dev[0]), 1e-8)
-        raw = (float(self.data.close[0]) - base) / (dev * self.p.coeff)
-        self.lines.tci[0] = raw
-        if raw <= self.p.low_level:
-            self.lines.color_index[0] = 0.0
-        elif raw >= self.p.high_level:
-            self.lines.color_index[0] = 4.0
-        else:
-            self.lines.color_index[0] = 2.0
 
 
 class ExpTradingChannelIndexStrategy(bt.Strategy):
@@ -199,7 +132,7 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
     def __init__(self):
         """Initialize feeds, indicators, order references, and execution state."""
         self.data0_feed = self.datas[0]
-        self.tci = TradingChannelIndexProxy(
+        self.tci = bt.indicators.TradingChannelIndexProxy(
             self.data0_feed,
             length1=self.p.length1,
             length2=self.p.length2,
@@ -360,13 +293,9 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
             self.active_side = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -501,7 +430,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp_Trading_Channel_Index backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

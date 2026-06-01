@@ -127,7 +127,7 @@ class OCOOrderStrategy(bt.Strategy):
 
     Attributes:
         cross (bt.ind.CrossOver): Crossover indicator detecting when fast SMA
-            crosses above/below slow SMA. Positive values indicate bullish
+            crosses above/below slow bt.indicators.SMA. Positive values indicate bullish
             crossover (entry signal).
         orefs (list): List of order references for active OCO orders. Used to
             track pending orders and prevent duplicate order placement.

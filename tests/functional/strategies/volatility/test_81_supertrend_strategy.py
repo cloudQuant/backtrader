@@ -18,10 +18,10 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -59,91 +59,6 @@ def resolve_data_path(filename: str) -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
-
-
-class SuperTrendIndicator(bt.Indicator):
-    """SuperTrend Indicator.
-
-    A trend-following indicator that uses Average True Range (ATR) to
-    identify the direction of the trend and potential entry/exit points.
-    The indicator consists of two lines:
-    - supertrend: The dynamic support/resistance level
-    - direction: Trend direction (1 for uptrend, -1 for downtrend)
-
-    Attributes:
-        lines: Tuple containing 'supertrend' and 'direction' line names.
-        params: Dictionary with 'period' (ATR period) and 'multiplier'
-            (ATR multiplier for band width) parameters.
-
-    Example:
-        >>> indicator = SuperTrendIndicator(data, period=10, multiplier=3.0)
-        >>> print(indicator.supertrend[0])  # Current SuperTrend value
-        >>> print(indicator.direction[0])   # Current trend direction
-    """
-    lines = ('supertrend', 'direction')
-    params = dict(
-        period=10,
-        multiplier=3.0,
-    )
-
-    def __init__(self):
-        """Initialize the SuperTrend indicator.
-
-        Sets up the ATR indicator and calculates the middle price (HL2)
-        which is the average of high and low prices. These values are
-        used in the next() method to calculate the SuperTrend bands.
-        """
-        self.atr = bt.indicators.ATR(self.data, period=self.p.period)
-        self.hl2 = (self.data.high + self.data.low) / 2.0
-
-    def next(self):
-        """Calculate the SuperTrend indicator values for the current bar.
-
-        This method implements the SuperTrend algorithm:
-        1. Calculate upper and lower bands using ATR
-        2. Determine trend direction based on previous values
-        3. Update SuperTrend line based on price action and band values
-
-        The algorithm:
-        - In uptrend: SuperTrend is max(lower_band, previous_SuperTrend)
-        - In downtrend: SuperTrend is min(upper_band, previous_SuperTrend)
-        - Trend flips when price crosses the SuperTrend line
-
-        Note:
-            During the initialization period (before period+1 bars), the
-            indicator uses HL2 as the SuperTrend value and direction=1.
-        """
-        if len(self) < self.p.period + 1:
-            self.lines.supertrend[0] = self.hl2[0]
-            self.lines.direction[0] = 1
-            return
-            
-        atr = self.atr[0]
-        hl2 = self.hl2[0]
-        
-        upper_band = hl2 + self.p.multiplier * atr
-        lower_band = hl2 - self.p.multiplier * atr
-        
-        prev_supertrend = self.lines.supertrend[-1]
-        prev_direction = self.lines.direction[-1]
-        
-        # Uptrend
-        if prev_direction == 1:
-            if self.data.close[0] < prev_supertrend:
-                self.lines.supertrend[0] = upper_band
-                self.lines.direction[0] = -1
-            else:
-                self.lines.supertrend[0] = max(lower_band, prev_supertrend)
-                self.lines.direction[0] = 1
-        # Downtrend
-        else:
-            if self.data.close[0] > prev_supertrend:
-                self.lines.supertrend[0] = lower_band
-                self.lines.direction[0] = 1
-            else:
-                self.lines.supertrend[0] = min(upper_band, prev_supertrend)
-                self.lines.direction[0] = -1
-
 
 class SuperTrendStrategy(bt.Strategy):
     """SuperTrend Strategy.
@@ -186,7 +101,7 @@ class SuperTrendStrategy(bt.Strategy):
         and initializes tracking variables for orders and statistics.
         """
         self.dataclose = self.datas[0].close
-        self.supertrend = SuperTrendIndicator(
+        self.supertrend = bt.indicators.SuperTrendIndicator(
             self.datas[0],
             period=self.p.period,
             multiplier=self.p.multiplier

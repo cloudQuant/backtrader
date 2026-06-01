@@ -39,12 +39,28 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
 import backtrader as bt
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("tick_volume", "real_volume"),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,69 +99,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 LOCAL_BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(LOCAL_BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume,
-        tick_volume, and openinterest columns, filtered to the requested range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'openinterest',
-    })
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'tick_volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_to_h2(df):
@@ -485,8 +442,6 @@ class XBullsBearsEyesVolDirectStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -496,7 +451,6 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
 
 
 def resolve_data_path(filename):
@@ -701,7 +655,7 @@ def test_61_0061_0191_xbullsbearseyes_vol_direct() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0061_0191_xbullsbearseyes_vol_direct.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

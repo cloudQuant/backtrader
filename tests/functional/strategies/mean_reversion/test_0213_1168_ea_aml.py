@@ -26,16 +26,15 @@ Strategy Logic:
        Sharpe, SQN, drawdown, returns.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -76,55 +75,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -133,68 +87,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class AdaptiveMarketLevel(bt.Indicator):
-    """Adaptive Market Level indicator using fractal dimension and adaptive smoothing.
-
-    The AML line adapts its smoothing alpha based on the measured fractal
-    dimension of the price range, providing faster response in trending markets
-    and slower response in mean-reverting regimes.
-    """
-    lines = ('aml',)
-    params = dict(
-        fractal=70,
-        lag=18,
-        shift=0,
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Initialize history deques and minimum period for the indicator."""
-        self._smooth_history = []
-        self._aml_history = []
-        self._min_period = max(int(self.p.fractal) * 2 + int(self.p.lag), 1)
-
-    def _range(self, count, start):
-        highs = []
-        lows = []
-        for idx in range(start, start + count):
-            ago = -idx if idx else 0
-            highs.append(float(self.data.high[ago]))
-            lows.append(float(self.data.low[ago]))
-        return max(highs) - min(lows)
-
-    def next(self):
-        """Compute AML value using fractal-range adaptive smoothing."""
-        fractal = int(self.p.fractal)
-        lag = int(self.p.lag)
-        if len(self.data) < self._min_period:
-            self.lines.aml[0] = float(self.data.close[0])
-            return
-        r1 = self._range(fractal, 0) / fractal
-        r2 = self._range(fractal, fractal) / fractal
-        r3 = self._range(fractal * 2, 0) / (fractal * 2)
-        dim = 0.0
-        if r1 + r2 > 0 and r3 > 0:
-            dim = (math.log(r1 + r2) - math.log(r3)) * 1.44269504088896
-        alpha = math.exp(-lag * (dim - 1.0))
-        alpha = min(max(alpha, 0.01), 1.0)
-        price = (
-            float(self.data.high[0])
-            + float(self.data.low[0])
-            + 2.0 * float(self.data.open[0])
-            + 2.0 * float(self.data.close[0])
-        ) / 6.0
-        prev_smooth = self._smooth_history[-1] if self._smooth_history else 0.0
-        smooth = alpha * price + (1.0 - alpha) * prev_smooth
-        lagged_smooth = self._smooth_history[-lag] if len(self._smooth_history) >= lag else 0.0
-        prev_aml = self._aml_history[-1] if self._aml_history else smooth
-        threshold = lag * lag * float(self.p.point)
-        aml = smooth if abs(smooth - lagged_smooth) >= threshold else prev_aml
-        self._smooth_history.append(smooth)
-        self._aml_history.append(aml)
-        self.lines.aml[0] = aml
 
 
 class EaAmlStrategy(bt.Strategy):
@@ -220,7 +112,7 @@ class EaAmlStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize AML indicator, order state, and trade counters."""
-        self.aml = AdaptiveMarketLevel(
+        self.aml = bt.indicators.AdaptiveMarketLevel(
             self.data,
             fractal=self.p.fractal,
             lag=self.p.lag,
@@ -383,34 +275,6 @@ class EaAmlStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """PandasData feed for MetaTrader5 CSV data (no extra lines)."""
     params = (
@@ -470,70 +334,6 @@ def build_aml_signal_frame(df, fractal, lag, point):
         aml_values.append(aml)
     signal_df['aml'] = aml_values
     return signal_df
-
-
-class AmlIndicator(bt.Indicator):
-    """Adaptive Market Level indicator for backtrader (on-chart version).
-
-    Uses the same fractal-range adaptive smoothing logic as AdaptiveMarketLevel
-    but implemented as a Backtrader indicator with minperiod management.
-    """
-    lines = ('aml',)
-    params = dict(
-        fractal=70,
-        lag=18,
-        shift=0,
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Initialize smoothing deque and minperiod based on fractal and lag."""
-        lag = max(1, int(self.p.lag))
-        fractal = max(1, int(self.p.fractal))
-        self._smooth = deque(maxlen=lag + 1)
-        self.addminperiod(max(fractal * 2 + 2, lag + 2))
-
-    def _range(self, start, count):
-        highs = [float(self.data.high[-(start + i)]) for i in range(count)]
-        lows = [float(self.data.low[-(start + i)]) for i in range(count)]
-        return max(highs) - min(lows)
-
-    def next(self):
-        """Compute AML value using fractal-range adaptive smoothing."""
-        fractal = max(1, int(self.p.fractal))
-        lag = max(1, int(self.p.lag))
-        price = (
-            float(self.data.high[0])
-            + float(self.data.low[0])
-            + 2.0 * float(self.data.open[0])
-            + 2.0 * float(self.data.close[0])
-        ) / 6.0
-
-        if len(self.data) < fractal * 2 + 1:
-            self._smooth.append(price)
-            self.lines.aml[0] = float(self.lines.aml[-1]) if len(self) > 1 else price
-            return
-
-        r1 = self._range(0, fractal) / fractal
-        r2 = self._range(fractal, fractal) / fractal
-        r3 = self._range(0, fractal * 2) / (fractal * 2)
-
-        dim = 0.0
-        if r1 + r2 > 0 and r3 > 0:
-            dim = (math.log(r1 + r2) - math.log(r3)) / math.log(2.0)
-
-        alpha = math.exp(-lag * (dim - 1.0))
-        alpha = min(1.0, max(0.01, alpha))
-
-        prev_smooth = self._smooth[-1] if self._smooth else 0.0
-        smooth = alpha * price + (1.0 - alpha) * prev_smooth
-        lagged_smooth = self._smooth[0] if len(self._smooth) == self._smooth.maxlen else 0.0
-        self._smooth.append(smooth)
-
-        if abs(smooth - lagged_smooth) >= lag * lag * float(self.p.point):
-            self.lines.aml[0] = smooth
-        else:
-            self.lines.aml[0] = float(self.lines.aml[-1]) if len(self) > 1 else smooth
 
 
 class EaAmlStrategy(bt.Strategy):
@@ -719,18 +519,15 @@ class EaAmlStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -889,7 +686,7 @@ def test_214_0213_1168_ea_aml() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0213_1168_ea_aml.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

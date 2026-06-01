@@ -7,10 +7,10 @@ Uses Keltner Channel breakout to determine trend.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -44,29 +44,6 @@ def resolve_data_path(filename: str) -> Path:
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
 
-
-class KeltnerChannelIndicator(bt.Indicator):
-    """Keltner Channel indicator.
-
-    Calculates the Keltner Channel, which consists of a middle line (EMA),
-    an upper band, and a lower band based on Average True Range (ATR).
-    """
-    lines = ('mid', 'top', 'bot')
-    params = dict(period=20, atr_mult=2.0, atr_period=14)
-
-    def __init__(self):
-        """Initialize the Keltner Channel indicator.
-
-        Calculates the middle line as an Exponential Moving Average (EMA) and
-        the upper/lower bands by adding/subtracting a multiple of the Average
-        True Range (ATR) to/from the middle line.
-        """
-        self.l.mid = bt.indicators.EMA(self.data.close, period=self.p.period)
-        atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-        self.l.top = self.l.mid + self.p.atr_mult * atr
-        self.l.bot = self.l.mid - self.p.atr_mult * atr
-
-
 class KeltnerChannelStrategy(bt.Strategy):
     """Keltner Channel strategy.
 
@@ -88,7 +65,7 @@ class KeltnerChannelStrategy(bt.Strategy):
         Sets up the Keltner Channel indicator and initializes tracking variables
         for orders, bar count, and trade statistics.
         """
-        self.kc = KeltnerChannelIndicator(
+        self.kc = bt.indicators.KeltnerChannelIndicator(
             self.data, period=self.p.period, atr_mult=self.p.atr_mult
         )
 

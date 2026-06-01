@@ -28,7 +28,7 @@ Strategy Principle:
     Positions are exited by configured stop-loss / take-profit distances.
 
 Strategy Logic:
-    `load_config()` loads strategy/backtest parameters and resolves repo placeholders.
+    `_bt_load_config(_CONFIG, repo=_REPO)` loads strategy/backtest parameters and resolves repo placeholders.
     `load_mt5_csv()` cleans and normalizes raw MT5 data into indexed OHLCV rows.
     `resolve_data_path()` ensures the configured file exists in repository.
     `load_backtest_frame()` applies date filtering to the normalized frame.
@@ -42,16 +42,15 @@ Strategy Logic:
     `run()` executes the backtest and returns run results and metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -88,61 +87,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-format TSV file and normalize columns for Backtrader.
-
-    Args:
-        filepath (str | os.PathLike): Path to source file.
-        fromdate (datetime.datetime | None): Optional inclusive start filter.
-        todate (datetime.datetime | None): Optional inclusive end filter.
-        bar_shift_minutes (int): Optional minutes to shift each bar timestamp.
-
-    Returns:
-        pandas.DataFrame: DataFrame indexed by datetime with OHLCV + openinterest.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -151,42 +99,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class RKDIndicator(bt.Indicator):
-    """Compute a custom RKD line set from RSV/K/D values."""
-    lines = ('rsv', 'k', 'd')
-    params = dict(kd_period=30, m1=3, m2=6)
-
-    def __init__(self):
-        """Define indicator warm-up length before valid line updates."""
-        self.addminperiod(max(int(self.p.kd_period), int(self.p.m1), int(self.p.m2)) + 2)
-
-    def next(self):
-        """Update RSV, K, and D for the latest bar."""
-        kd_period = int(self.p.kd_period)
-        m1 = int(self.p.m1)
-        m2 = int(self.p.m2)
-        highs = [float(self.data.high[-i]) for i in range(kd_period)]
-        lows = [float(self.data.low[-i]) for i in range(kd_period)]
-        max_high = max(highs)
-        min_low = min(lows)
-        denom = max_high - min_low
-        if denom == 0:
-            rsv = 0.0
-        else:
-            rsv = (float(self.data.close[0]) - min_low) / denom * 100.0
-        self.lines.rsv[0] = rsv
-
-        if len(self) < m1:
-            self.lines.k[0] = 0.0
-        else:
-            self.lines.k[0] = sum(float(self.lines.rsv[-i]) for i in range(m1)) / m1
-
-        if len(self) < m2:
-            self.lines.d[0] = 0.0
-        else:
-            self.lines.d[0] = sum(float(self.lines.k[-i]) for i in range(m2)) / m2
 
 
 class RkdEaStrategy(bt.Strategy):
@@ -204,7 +116,7 @@ class RkdEaStrategy(bt.Strategy):
     def __init__(self):
         """Initialize RKD indicator, state counters and trade life-cycle flags."""
         self.base = self.datas[0]
-        self.rkd = RKDIndicator(self.base, kd_period=self.p.kd_period, m1=self.p.m1, m2=self.p.m2)
+        self.rkd = bt.indicators.RKDIndicator(self.base, kd_period=self.p.kd_period, m1=self.p.m1, m2=self.p.m2)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -316,18 +228,15 @@ class RkdEaStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -461,7 +370,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the test strategy and return execution artifacts.
 
@@ -471,7 +379,7 @@ def run(plot=False):
     Returns:
         tuple: `(results, metrics, cerebro)` where results is Cerebro output.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

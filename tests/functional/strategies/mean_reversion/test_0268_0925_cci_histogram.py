@@ -20,56 +20,16 @@ Strategy Logic:
 - Strategy fires once per new H4 bar with stop-loss/take-profit at point distances
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported CSV data into a datetime-indexed DataFrame.
-
-    Parameters
-    ----------
-    filepath : str or Path
-        Path to the MT5 CSV file.
-    fromdate : datetime or None
-        Earliest date to include.
-    todate : datetime or None
-        Latest date to include.
-    bar_shift_minutes : int
-        Minutes to shift the datetime index forward.
-
-    Returns
-    -------
-    pd.DataFrame
-        Columns: datetime, open, high, low, close, volume, openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def _build_signal_frame(df, minutes):
@@ -91,39 +51,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
     )
 
 
-class CCIHistogramIndicator(bt.Indicator):
-    """CCI-based colour-state indicator classifying CCI into three zones.
-
-    Lines
-    -----
-    cci : float
-        Commodity Channel Index value.
-    color_state : float
-        0.0 = overbought (CCI > high_level), 1.0 = neutral, 2.0 = oversold.
-    hist_base : float
-        Always 0.0 (placeholder for histogram baseline).
-    """
-    lines = ("cci", "color_state", "hist_base")
-    params = dict(cci_period=14, high_level=100, low_level=-100)
-
-    def __init__(self):
-        """Initialise indicator state: attach CCI sub-indicator and set minimum period."""
-        cci = bt.indicators.CommodityChannelIndex(self.data, period=int(self.p.cci_period))
-        self.lines.cci = cci
-        self.addminperiod(int(self.p.cci_period) + 2)
-
-    def next(self):
-        """Classify current CCI value into colour state (0=overbought, 1=neutral, 2=oversold)."""
-        cci_value = float(self.lines.cci[0])
-        color = 1.0
-        if cci_value > float(self.p.high_level):
-            color = 0.0
-        elif cci_value < float(self.p.low_level):
-            color = 2.0
-        self.lines.color_state[0] = color
-        self.lines.hist_base[0] = 0.0
-
-
 class ExpCCIHistogramStrategy(bt.Strategy):
     """Dual-timeframe strategy trading CCI colour-state transitions on H4 data."""
     params = dict(
@@ -137,10 +64,10 @@ class ExpCCIHistogramStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        """Initialise strategy: bind data feeds and create CCIHistogramIndicator."""
+        """Initialise strategy: bind data feeds and create bt.indicators.CCIHistogramIndicator."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = CCIHistogramIndicator(
+        self.indicator = bt.indicators.CCIHistogramIndicator(
             self.signal_data,
             cci_period=self.p.cci_period,
             high_level=self.p.high_level,

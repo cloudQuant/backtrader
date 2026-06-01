@@ -27,15 +27,14 @@ Strategy Logic:
     in regression assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -76,61 +75,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated OHLCV data into a datetime-indexed DataFrame.
-
-    Args:
-        filepath: Path to the MT5-style CSV/TSV input.
-        fromdate: Optional lower time bound filter.
-        todate: Optional upper time bound filter.
-        bar_shift_minutes: Optional minute shift applied to each parsed bar
-            timestamp.
-
-    Returns:
-        DataFrame with normalized OHLCV columns and datetime index.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -179,127 +126,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class ColorStepXCCXIndicator(bt.Indicator):
-    """Compute fast/slow XCCX channel lines for directional step signals."""
-    lines = ('mplus', 'mminus',)
-    params = dict(
-        dsmooth_method='jjma',
-        dperiod=30,
-        dphase=100,
-        msmooth_method='t3',
-        mperiod=7,
-        mphase=15,
-        ipc='price_typical',
-        step_size_fast=5,
-        step_size_slow=30,
-    )
-
-    def __init__(self):
-        """Initialize smoothed base/offset series and running channel states."""
-        price_line = resolve_price_line(self.data, self.p.ipc)
-        self._base = resolve_ma_class(self.p.dsmooth_method)(price_line, period=self.p.dperiod)
-        self._up = resolve_ma_class(self.p.msmooth_method)(price_line - self._base, period=self.p.mperiod)
-        self._dn = resolve_ma_class(self.p.msmooth_method)(abs(price_line - self._base), period=self.p.mperiod)
-        self._fmin1 = 999999.0
-        self._fmax1 = -999999.0
-        self._smin1 = 999999.0
-        self._smax1 = -999999.0
-        self._ftrend = 0
-        self._strend = 0
-        self.addminperiod(self.p.dperiod + self.p.mperiod + 5)
-
-    def next(self):
-        """Update fast and slow channel lines on the next bar."""
-        xupccx = float(self._up[0])
-        xdnccx = float(self._dn[0])
-        xccx = 100.0 * xupccx / xdnccx if xupccx != 0.0 and xdnccx != 0.0 else 0.0
-        fmax0 = xccx + 2 * float(self.p.step_size_fast)
-        fmin0 = xccx - 2 * float(self.p.step_size_fast)
-        if xccx > self._fmax1:
-            self._ftrend = 1
-        if xccx < self._fmin1:
-            self._ftrend = -1
-        if self._ftrend > 0 and fmin0 < self._fmin1:
-            fmin0 = self._fmin1
-        if self._ftrend < 0 and fmax0 > self._fmax1:
-            fmax0 = self._fmax1
-        smax0 = xccx + 2 * float(self.p.step_size_slow)
-        smin0 = xccx - 2 * float(self.p.step_size_slow)
-        if xccx > self._smax1:
-            self._strend = 1
-        if xccx < self._smin1:
-            self._strend = -1
-        if self._strend > 0 and smin0 < self._smin1:
-            smin0 = self._smin1
-        if self._strend < 0 and smax0 > self._smax1:
-            smax0 = self._smax1
-        self.lines.mplus[0] = fmin0 + float(self.p.step_size_fast) if self._ftrend > 0 else fmax0 - float(self.p.step_size_fast)
-        self.lines.mminus[0] = smin0 + float(self.p.step_size_slow) if self._strend > 0 else smax0 - float(self.p.step_size_slow)
-        self._fmin1 = fmin0
-        self._fmax1 = fmax0
-        self._smin1 = smin0
-        self._smax1 = smax0
-
-    def once(self, start, end):
-        """Compute channel lines for vectorized/cached bars from `start` to `end`."""
-        up_array = self._up.array
-        dn_array = self._dn.array
-        mplus_line = self.lines.mplus.array
-        mminus_line = self.lines.mminus.array
-        for line in (mplus_line, mminus_line):
-            while len(line) < end:
-                line.append(float('nan'))
-
-        fmin1 = 999999.0
-        fmax1 = -999999.0
-        smin1 = 999999.0
-        smax1 = -999999.0
-        ftrend = 0
-        strend = 0
-        fast_step = float(self.p.step_size_fast)
-        slow_step = float(self.p.step_size_slow)
-        actual_end = min(end, len(up_array), len(dn_array))
-        for i in range(start, actual_end):
-            xupccx = float(up_array[i])
-            xdnccx = float(dn_array[i])
-            xccx = 100.0 * xupccx / xdnccx if xupccx != 0.0 and xdnccx != 0.0 else 0.0
-            fmax0 = xccx + 2.0 * fast_step
-            fmin0 = xccx - 2.0 * fast_step
-            if xccx > fmax1:
-                ftrend = 1
-            if xccx < fmin1:
-                ftrend = -1
-            if ftrend > 0 and fmin0 < fmin1:
-                fmin0 = fmin1
-            if ftrend < 0 and fmax0 > fmax1:
-                fmax0 = fmax1
-
-            smax0 = xccx + 2.0 * slow_step
-            smin0 = xccx - 2.0 * slow_step
-            if xccx > smax1:
-                strend = 1
-            if xccx < smin1:
-                strend = -1
-            if strend > 0 and smin0 < smin1:
-                smin0 = smin1
-            if strend < 0 and smax0 > smax1:
-                smax0 = smax1
-
-            mplus_line[i] = fmin0 + fast_step if ftrend > 0 else fmax0 - fast_step
-            mminus_line[i] = smin0 + slow_step if strend > 0 else smax0 - slow_step
-            fmin1 = fmin0
-            fmax1 = fmax0
-            smin1 = smin0
-            smax1 = smax0
-
-        self._fmin1 = fmin1
-        self._fmax1 = fmax1
-        self._smin1 = smin1
-        self._smax1 = smax1
-        self._ftrend = ftrend
-        self._strend = strend
-
-
 class ColorStepXCCXStrategy(bt.Strategy):
     """Reversal/momentum strategy driven by ColorStepXCCX indicator crossings."""
     params = dict(
@@ -318,7 +144,7 @@ class ColorStepXCCXStrategy(bt.Strategy):
 
     def __init__(self):
         """Create indicator instance and reset runtime counters."""
-        self.indicator = ColorStepXCCXIndicator(
+        self.indicator = bt.indicators.ColorStepXCCXIndicator(
             self.data,
             dsmooth_method=self.p.dsmooth_method,
             dperiod=self.p.dperiod,
@@ -427,17 +253,14 @@ class ColorStepXCCXStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -564,7 +387,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest and return result tuple.
 
@@ -574,7 +396,7 @@ def run(plot=False):
     Returns:
         ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

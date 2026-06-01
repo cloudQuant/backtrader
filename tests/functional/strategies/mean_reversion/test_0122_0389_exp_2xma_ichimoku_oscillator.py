@@ -19,15 +19,30 @@ Strategy Logic:
     in a single backtest, then assert regression metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
 import os
 import sys
 import datetime as dt
-import io
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,166 +102,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-class XmaIchimoku(bt.Indicator):
-    """Calculate a smoothed midpoint of selected high/low ranges."""
-    lines = ('value',)
-
-    params = dict(
-        up_period=6,
-        dn_period=6,
-        up_mode='HIGH',
-        dn_mode='LOW',
-        xma_method='SMA',
-        x_length=25,
-        x_phase=15,
-        price_shift=0.0,
-    )
-
-    def __init__(self):
-        """Initialize Ichimoku-like windows and smoothing helpers."""
-        self.addminperiod(max(int(self.p.up_period), int(self.p.dn_period)) + int(self.p.x_length) + 5)
-        self._raw_buf = []
-        self._smooth_prev = None
-
-    def _series_value(self, mode, ago):
-        mode = str(mode).upper()
-        if mode == 'OPEN':
-            return float(self.data.open[ago])
-        if mode == 'LOW':
-            return float(self.data.low[ago])
-        if mode == 'HIGH':
-            return float(self.data.high[ago])
-        return float(self.data.close[ago])
-
-    def _smooth_value(self, raw_value):
-        method = str(self.p.xma_method).upper()
-        if method in ('MODE_SMA_', 'SMA'):
-            period = max(1, int(self.p.x_length))
-            if len(self._raw_buf) < period:
-                return raw_value
-            return sum(self._raw_buf[-period:]) / float(period)
-
-        length = max(1, int(self.p.x_length))
-        phase = max(-100, min(100, int(self.p.x_phase)))
-        alpha = 2.0 / (length + 1.0)
-        alpha *= 1.0 + 0.35 * (phase / 100.0)
-        alpha = max(0.01, min(0.99, alpha))
-        if self._smooth_prev is None or not math.isfinite(self._smooth_prev):
-            smooth = raw_value
-        else:
-            smooth = self._smooth_prev + alpha * (raw_value - self._smooth_prev)
-        self._smooth_prev = smooth
-        return smooth
-
-    def next(self):
-        """Compute smoothed range midpoint for each bar."""
-        up_period = int(self.p.up_period)
-        dn_period = int(self.p.dn_period)
-        if len(self.data) < max(up_period, dn_period):
-            self.lines.value[0] = 0.0
-            return
-
-        highs = [self._series_value(self.p.up_mode, -i) for i in range(up_period)]
-        lows = [self._series_value(self.p.dn_mode, -i) for i in range(dn_period)]
-        ish_up = max(highs)
-        ish_dn = min(lows)
-        raw_value = (ish_up + ish_dn) / 2.0
-        self._raw_buf.append(raw_value)
-        smooth = self._smooth_value(raw_value) + float(self.p.price_shift)
-        self.lines.value[0] = smooth
-
-
-class TwoXmaIchimokuOscillator(bt.Indicator):
-    """Combine two XMA windows into oscillator value and color channels."""
-    lines = ('line', 'color',)
-
-    params = dict(
-        up_period1=6,
-        dn_period1=6,
-        up_period2=9,
-        dn_period2=9,
-        up_mode1='HIGH',
-        dn_mode1='LOW',
-        up_mode2='HIGH',
-        dn_mode2='LOW',
-        xma1_method='SMA',
-        xma2_method='SMA',
-        x_length1=25,
-        x_length2=80,
-        x_phase=15,
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Create two :class:`XmaIchimoku` instances and reset color state."""
-        self.xma1 = XmaIchimoku(
-            self.data,
-            up_period=self.p.up_period1,
-            dn_period=self.p.dn_period1,
-            up_mode=self.p.up_mode1,
-            dn_mode=self.p.dn_mode1,
-            xma_method=self.p.xma1_method,
-            x_length=self.p.x_length1,
-            x_phase=self.p.x_phase,
-        )
-        self.xma2 = XmaIchimoku(
-            self.data,
-            up_period=self.p.up_period2,
-            dn_period=self.p.dn_period2,
-            up_mode=self.p.up_mode2,
-            dn_mode=self.p.dn_mode2,
-            xma_method=self.p.xma2_method,
-            x_length=self.p.x_length2,
-            x_phase=self.p.x_phase,
-        )
-        self._prev_color = 2.0
-
-    def next(self):
-        """Update oscillator value and derived color trend state."""
-        point = float(self.p.point) if float(self.p.point) != 0 else 1.0
-        line_value = (float(self.xma1[0]) - float(self.xma2[0])) / point
-        self.lines.line[0] = line_value
-
-        if len(self) < 2:
-            self.lines.color[0] = 2.0
-            self._prev_color = 2.0
-            return
-
-        prev_line = float(self.lines.line[-1])
-        color = self._prev_color
-        if line_value >= 0:
-            if line_value > prev_line:
-                color = 0.0
-            elif line_value < prev_line:
-                color = 1.0
-        else:
-            if line_value < prev_line:
-                color = 4.0
-            elif line_value > prev_line:
-                color = 3.0
-        self.lines.color[0] = color
-        self._prev_color = color
-
-
 class Exp2XmaIchimokuOscillatorStrategy(bt.Strategy):
     """Strategy implementation for the dual XMA Ichimoku oscillator."""
     params = dict(
@@ -281,7 +136,7 @@ class Exp2XmaIchimokuOscillatorStrategy(bt.Strategy):
         """Wire indicator state and initialize trade bookkeeping."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.osc = TwoXmaIchimokuOscillator(
+        self.osc = bt.indicators.TwoXmaIchimokuOscillator(
             self.data1,
             up_period1=self.p.up_period1,
             dn_period1=self.p.dn_period1,
@@ -464,15 +319,12 @@ class Exp2XmaIchimokuOscillatorStrategy(bt.Strategy):
         print('===========================================================')
 
 
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -488,33 +340,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data into a normalized pandas frame."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, minutes):
@@ -533,7 +358,6 @@ def resample_frame(df, minutes):
     out['openinterest'] = out['openinterest'].fillna(0)
     out['spread'] = out['spread'].fillna(0)
     return out
-
 
 
 def load_backtest_frame(config: dict) -> dict:
@@ -607,7 +431,7 @@ def run(cfg_path: str | None = None):
     """Execute the strategy and return results with calculated metrics."""
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
-    cfg = load_config(cfg_path)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO)
 
     data_cfg = cfg['data']
     params_cfg = cfg.get('params', {})

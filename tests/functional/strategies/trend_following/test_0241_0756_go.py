@@ -28,15 +28,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -72,141 +71,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 export file into a cleaned pandas dataframe.
-
-    Args:
-        filepath: Path to MT5-style TSV export.
-        fromdate: Optional inclusive start datetime filter.
-        todate: Optional inclusive end datetime filter.
-        bar_shift_minutes: Optional minute offset applied to index.
-
-    Returns:
-        pandas.DataFrame: Data with columns ``open``, ``high``, ``low``, ``close``,
-        ``volume``, ``openinterest``.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader Pandas feed adapter mapping standard OHLCV column ordering."""
 
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class GOIndicator(bt.Indicator):
-    """Indicator that derives a GO signal from smoothed OHLC components."""
-
-    lines = ('go',)
-    params = dict(period=174, ma_method='SMA')
-
-    def __init__(self):
-        """Build MA buffers for OHLC input series and warmup period.
-
-        Args:
-            None.
-
-        Returns:
-            None.
-
-        Side effects:
-            Creates ``ma_open``, ``ma_high``, ``ma_low``, ``ma_close`` lines.
-        """
-        ma_cls = {
-            'SMA': bt.indicators.SimpleMovingAverage,
-            'EMA': bt.indicators.ExponentialMovingAverage,
-            'SMMA': bt.indicators.SmoothedMovingAverage,
-            'WMA': bt.indicators.WeightedMovingAverage,
-        }.get(str(self.p.ma_method).upper(), bt.indicators.SimpleMovingAverage)
-        self.ma_open = ma_cls(self.data.open, period=self.p.period)
-        self.ma_high = ma_cls(self.data.high, period=self.p.period)
-        self.ma_low = ma_cls(self.data.low, period=self.p.period)
-        self.ma_close = ma_cls(self.data.close, period=self.p.period)
-        self.addminperiod(int(self.p.period) + 1)
-
-    def _calc_go(self, ma_open, ma_high, ma_low, ma_close, volume):
-        values = (ma_open, ma_high, ma_low, ma_close, volume)
-        if not all(math.isfinite(float(v)) for v in values):
-            return 0.0
-        return (
-            (ma_close - ma_open)
-            + (ma_high - ma_open)
-            + (ma_low - ma_open)
-            + (ma_close - ma_low)
-            + (ma_close - ma_high)
-        ) * volume
-
-    def next(self):
-        """Compute GO for current bar and publish it to ``lines.go``."""
-        self.lines.go[0] = self._calc_go(
-            float(self.ma_open[0]),
-            float(self.ma_high[0]),
-            float(self.ma_low[0]),
-            float(self.ma_close[0]),
-            float(self.data.volume[0]),
-        )
-
-    def once(self, start, end):
-        """Compute GO for buffered bars in run-once mode."""
-        ma_open = self.ma_open.array
-        ma_high = self.ma_high.array
-        ma_low = self.ma_low.array
-        ma_close = self.ma_close.array
-        volume = self.data.volume.array
-        go = self.lines.go.array
-        for i in range(start, end):
-            go[i] = self._calc_go(
-                float(ma_open[i]),
-                float(ma_high[i]),
-                float(ma_low[i]),
-                float(ma_close[i]),
-                float(volume[i]),
-            )
 
 
 class GOStrategy(bt.Strategy):
@@ -357,7 +227,6 @@ class GOStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -366,9 +235,7 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -451,10 +318,9 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run strategy once and return results, metrics, and configured Cerebro."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

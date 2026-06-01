@@ -39,14 +39,29 @@ Strategy Logic:
     migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,66 +110,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated OHLCV export into a backtrader-ready frame.
-
-    Args:
-        filepath: Path to the MT5 CSV file (tab-separated, ``<DATE>``/``<TIME>``
-            headers, optionally wrapped in double quotes per line).
-        fromdate: Optional inclusive lower datetime bound; earlier rows are dropped.
-        todate: Optional inclusive upper datetime bound; later rows are dropped.
-        bar_shift_minutes: Minutes added to each bar timestamp so the index marks
-            bar-close time rather than bar-open time.
-
-    Returns:
-        pandas.DataFrame: Datetime-indexed, sorted frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume``, ``openinterest`` and ``spread`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader Pandas feed for M15 data, adding a ``spread`` line."""
 
@@ -171,39 +126,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
     )
 
 
-class AlligatorIndicator(bt.Indicator):
-    """Williams Alligator indicator with Jaw, Teeth, Lips lines."""
-    lines = ('jaw', 'teeth', 'lips',)
-    params = dict(
-        jaw_period=13,
-        jaw_shift=8,
-        teeth_period=8,
-        teeth_shift=5,
-        lips_period=5,
-        lips_shift=3,
-        ma_method='smma',
-        applied_price='median',
-    )
-
-    def __init__(self):
-        """Build the Jaw/Teeth/Lips smoothed moving averages from the source price.
-
-        Side effects:
-            Selects the applied price (median or close) and assigns the three
-            ``SmoothedMovingAverage`` lines for Jaw, Teeth, and Lips.
-        """
-        src = (self.data.high + self.data.low) / 2.0 if self.p.applied_price == 'median' else self.data.close
-        self.l.jaw = bt.indicators.SmoothedMovingAverage(src, period=self.p.jaw_period)
-        self.l.teeth = bt.indicators.SmoothedMovingAverage(src, period=self.p.teeth_period)
-        self.l.lips = bt.indicators.SmoothedMovingAverage(src, period=self.p.lips_period)
-
-
 class SidusStrategy(bt.Strategy):
     """
     0318 Sidus EA — Alligator + RSI strategy.
 
     Logic:
-    - Uses Alligator indicator (Jaw, Teeth, Lips) and RSI.
+    - Uses Alligator indicator (Jaw, Teeth, Lips) and bt.indicators.RSI.
     - BUY: RSI crosses above 50 AND all three Alligator lines are rising
       (diff between bar#1 and bar#2 values > delta for Jaw, Teeth, Lips).
       SL = Low[1] - offset.
@@ -244,7 +172,7 @@ class SidusStrategy(bt.Strategy):
             price, and stop/limit exit levels.
         """
         self.data0 = self.datas[0]
-        self.alligator = AlligatorIndicator(
+        self.alligator = bt.indicators.AlligatorIndicator(
             self.data0,
             jaw_period=self.p.jaw_period,
             jaw_shift=self.p.jaw_shift,
@@ -459,13 +387,9 @@ class SidusStrategy(bt.Strategy):
             self._reset_exit_levels()
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -619,7 +543,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Sidus EA backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

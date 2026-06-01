@@ -27,16 +27,15 @@ Strategy Logic:
     performance metrics at the end of the run.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,60 +74,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style tab-delimited CSV bars into a normalized DataFrame.
-
-    Args:
-        filepath: File path of the raw MT5 CSV export.
-        fromdate: Optional lower datetime bound.
-        todate: Optional upper datetime bound.
-        bar_shift_minutes: Optional minute offset applied to the parsed index.
-
-    Returns:
-        pandas.DataFrame: OHLCV data indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -230,88 +178,6 @@ class CountSmoother:
         return self.state
 
 
-class TRVIIndicator(bt.Indicator):
-    """TRVI indicator combining price-range velocity with volume-weighted smoothing."""
-    lines = ('trvi', 'signal',)
-    params = dict(period=26, volume_type='tick')
-
-    def __init__(self):
-        """Create helper averages and internal signal buffer."""
-        self._num_avg = RollingWeightedAverage(self.p.period)
-        self._den_avg = RollingWeightedAverage(self.p.period)
-        self._signal_window = deque(maxlen=4)
-        self.addminperiod(self.p.period + 8)
-
-    def _volume(self):
-        if str(self.p.volume_type).lower() == 'real':
-            return float(self.data.openinterest[0]) if len(self.data.openinterest) else float(self.data.volume[0])
-        return float(self.data.volume[0])
-
-    def _count_val(self, a_now, b_now, a_prev1, b_prev1, a_prev2, b_prev2, a_prev3, b_prev3, vol_now, vol_prev1, vol_prev2, vol_prev3):
-        return (
-            vol_now * (a_now - b_now)
-            + 8.0 * vol_prev1 * (a_prev1 - b_prev1)
-            + 8.0 * vol_prev2 * (a_prev2 - b_prev2)
-            + vol_prev3 * (a_prev3 - b_prev3)
-        )
-
-    def next(self):
-        """Compute TRVI and smoothed signal for the current bar."""
-        volume_now = self._volume()
-        volume_prev1 = float(self.data.volume[-1])
-        volume_prev2 = float(self.data.volume[-2])
-        volume_prev3 = float(self.data.volume[-3])
-        num_value = self._count_val(
-            float(self.data.close[0]), float(self.data.open[0]),
-            float(self.data.close[-1]), float(self.data.open[-1]),
-            float(self.data.close[-2]), float(self.data.open[-2]),
-            float(self.data.close[-3]), float(self.data.open[-3]),
-            volume_now, volume_prev1, volume_prev2, volume_prev3,
-        )
-        den_value = self._count_val(
-            float(self.data.high[0]), float(self.data.low[0]),
-            float(self.data.high[-1]), float(self.data.low[-1]),
-            float(self.data.high[-2]), float(self.data.low[-2]),
-            float(self.data.high[-3]), float(self.data.low[-3]),
-            volume_now, volume_prev1, volume_prev2, volume_prev3,
-        )
-        smooth_num = self._num_avg.update(num_value)
-        smooth_den = self._den_avg.update(den_value)
-        trvi_value = smooth_num / smooth_den if smooth_den else 0.0
-        self.lines.trvi[0] = trvi_value
-        self._signal_window.appendleft(trvi_value)
-        if len(self._signal_window) == 4:
-            self.lines.signal[0] = (
-                4.0 * self._signal_window[0]
-                + 3.0 * self._signal_window[1]
-                + 2.0 * self._signal_window[2]
-                + self._signal_window[3]
-            ) / 10.0
-        else:
-            self.lines.signal[0] = trvi_value
-
-
-class ColorRMACDIndicator(bt.Indicator):
-    """Custom RMACD composite indicator with configurable signal MA."""
-    lines = ('rmacd', 'signal',)
-    params = dict(
-        fast_rvi=12,
-        slow_trvi=26,
-        volume_type='tick',
-        signal_method='sma',
-        signal_xma=9,
-    )
-
-    def __init__(self):
-        """Build RMACD components and required minimum period."""
-        ma_cls = resolve_ma_class(self.p.signal_method)
-        self.rvi = bt.indicators.RSI(self.data.close, period=self.p.fast_rvi, safediv=True)
-        self.trvi = TRVIIndicator(self.data, period=self.p.slow_trvi, volume_type=self.p.volume_type)
-        self.lines.rmacd = self.rvi - self.trvi.signal
-        self.lines.signal = ma_cls(self.lines.rmacd, period=self.p.signal_xma)
-        self.addminperiod(max(self.p.fast_rvi, self.p.slow_trvi + 8, self.p.signal_xma) + 5)
-
-
 class RMACDStrategy(bt.Strategy):
     """Backtrader strategy implementing RMACD signal-based reversals."""
     params = dict(
@@ -328,7 +194,7 @@ class RMACDStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator, counters, and position state tracking."""
-        self.indicator = ColorRMACDIndicator(
+        self.indicator = bt.indicators.ColorRMACDIndicator(
             self.data,
             fast_rvi=self.p.fast_rvi,
             slow_trvi=self.p.slow_trvi,
@@ -474,17 +340,14 @@ class RMACDStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -608,7 +471,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest and return execution outputs.
 
@@ -618,7 +480,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)`` from the backtest run.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

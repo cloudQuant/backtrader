@@ -6,13 +6,13 @@ Test the TimeLine MA strategy using rebar futures data RB889.csv
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
 import pytest
 
@@ -37,46 +37,6 @@ def resolve_data_path(filename: str) -> Path:
             return candidate
 
     raise FileNotFoundError(f"Data file not found: {filename}")
-
-
-class TimeLine(bt.Indicator):
-    """Time average price line indicator
-
-    Calculate the cumulative average of the day's closing prices as the time average price line
-    """
-    lines = ('day_avg_price',)
-    params = (("day_end_time", (15, 0, 0)),)
-
-    def __init__(self):
-        """Initialize the TimeLine indicator.
-
-        Creates an empty list to store closing prices for the current day.
-        The cumulative average of these prices will be calculated as the
-        time average price line.
-        """
-        self.day_close_price_list = []
-
-    def next(self):
-        """Calculate the time average price for the current bar.
-
-        This method is called for each bar in the data series. It:
-        1. Appends the current bar's close price to the day's price list
-        2. Calculates the cumulative average of all prices in the list
-        3. Resets the price list at the end of the trading day
-
-        The time average price line is useful for intraday strategies as it
-        represents the average entry price of all market participants throughout
-        the day.
-        """
-        self.day_close_price_list.append(self.data.close[0])
-        self.lines.day_avg_price[0] = sum(self.day_close_price_list) / len(self.day_close_price_list)
-
-        self.current_datetime = bt.num2date(self.data.datetime[0])
-        self.current_hour = self.current_datetime.hour
-        self.current_minute = self.current_datetime.minute
-        day_end_hour, day_end_minute, _ = self.p.day_end_time
-        if self.current_hour == day_end_hour and self.current_minute == day_end_minute:
-            self.day_close_price_list = []
 
 
 class TimeLineMaStrategy(bt.Strategy):
@@ -113,7 +73,7 @@ class TimeLineMaStrategy(bt.Strategy):
         self.buy_count = 0
         self.sell_count = 0
         # Time average price line indicator
-        self.day_avg_price = TimeLine(self.datas[0])
+        self.day_avg_price = bt.indicators.TimeLine(self.datas[0])
         self.ma_value = bt.indicators.SMA(self.datas[0].close, period=self.p.ma_period)
         # Trading state
         self.marketposition = 0

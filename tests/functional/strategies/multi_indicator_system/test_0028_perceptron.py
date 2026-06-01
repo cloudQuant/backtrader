@@ -15,55 +15,22 @@ Strategy Principle:
 
 Strategy Logic:
     1) Load MT5 M15 bars and apply the test date window.
-    2) Compute indicator deltas for MA cross, RSI, CCI, momentum and AO.
+    2) Compute indicator deltas for MA cross, RSI, CCI, momentum and bt.indicators.AO.
     3) Feed signals into a weighted perceptron and generate directional entry orders.
     4) Enforce exit levels each bar and clear order/trade state on callbacks.
     5) Assert migration metrics in the regression test.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
 import backtrader.feeds as btfeeds
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data and return an indexed DataFrame.
-
-    Args:
-        filepath: Path to source CSV.
-        fromdate: Optional start datetime.
-        todate: Optional end datetime.
-        bar_shift_minutes: Optional index shift in minutes.
-
-    Returns:
-        DataFrame with datetime index and OHLCV columns.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime")
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):

@@ -21,9 +21,9 @@ Strategy Logic:
     resulting metrics in the regression test.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import json
 from backtrader.dataseries import TimeFrame
@@ -36,6 +36,7 @@ import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -74,59 +75,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-formatted CSV data and return a Backtrader-friendly DataFrame.
-
-    Args:
-        filepath: Path to the source text export.
-        fromdate: Inclusive lower bound on ``datetime`` filtering.
-        todate: Inclusive upper bound on ``datetime`` filtering.
-        bar_shift_minutes: Offset minutes applied to bar timestamps before filtering.
-
-    Returns:
-        A pandas DataFrame indexed by datetime containing
-        ``open``, ``high``, ``low``, ``close``, ``volume``, ``openinterest``.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Pandas feed adapter for MT5-export OHLCV fields."""
 
@@ -134,74 +82,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class AltrTrendSignalV22(Indicator):
-    """Adaptive trend breakout indicator used by the strategy."""
-
-    lines = ('sell', 'buy')
-    params = dict(
-        k=30,
-        kstop=0.5,
-        kperiod=150,
-        per_adx=14,
-    )
-
-    def __init__(self):
-        """Create ADX trend indicator and initialize state."""
-        self.adx = btind.AverageDirectionalMovementIndex(self.data, period=max(int(self.p.per_adx), 1))
-        self.addminperiod(max(int(self.p.per_adx), 1) + 2)
-        self._trend = 0
-
-    def next(self):
-        """Compute breakout level and emit short/long trigger values."""
-        self.lines.buy[0] = 0.0
-        self.lines.sell[0] = 0.0
-
-        adx_prev = float(self.adx[-1]) if len(self) > 1 else float(self.adx[0])
-        if math.isnan(adx_prev) or adx_prev <= 0:
-            return
-
-        ssp = max(int(math.ceil(float(self.p.kperiod) / adx_prev)), 1)
-        lookback = min(ssp, len(self.data))
-        if lookback <= 0:
-            return
-
-        highs = []
-        lows = []
-        avg_range = 0.0
-        for idx in range(lookback):
-            high = float(self.data.high[-idx])
-            low = float(self.data.low[-idx])
-            highs.append(high)
-            lows.append(low)
-            avg_range += abs(high - low)
-
-        trading_range = avg_range / (ssp + 1.0)
-        ss_max = max(highs)
-        ss_min = min(lows)
-        threshold = (ss_max - ss_min) * float(self.p.k) / 100.0
-        smin = ss_min + threshold
-        smax = ss_max - threshold
-
-        previous_trend = self._trend
-        trend = previous_trend
-        close = float(self.data.close[0])
-
-        if close < smin:
-            trend = -1
-        if close > smax:
-            trend = 1
-
-        if previous_trend == 0:
-            previous_trend = trend
-
-        if trend != previous_trend and close > smax:
-            self.lines.buy[0] = float(self.data.low[0]) - trading_range * float(self.p.kstop)
-        if trend != previous_trend and close < smin:
-            self.lines.sell[0] = float(self.data.high[0]) + trading_range * float(self.p.kstop)
-
-        self._trend = trend if trend != 0 else previous_trend
 
 
 class AltrTrendSignalV22Strategy(Strategy):
@@ -221,7 +101,7 @@ class AltrTrendSignalV22Strategy(Strategy):
 
     def __init__(self):
         """Initialize indicator wiring and state counters."""
-        self.indicator = AltrTrendSignalV22(
+        self.indicator = bt.indicators.AltrTrendSignalV22(
             self.data,
             k=self.p.k,
             kstop=self.p.kstop,
@@ -368,12 +248,7 @@ class AltrTrendSignalV22Strategy(Strategy):
             self.loss_count += 1
 
 
-
-
-
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
-
 
 
 def prepare_frame(config, base_dir):
@@ -480,7 +355,7 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / args.config).resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()

@@ -745,18 +745,21 @@ def _iter_exchange_market_events(market_data_path, symbol: str) -> Iterator[tupl
             timestamp = float(int(row["exch_ts"]) / 1_000_000_000.0)
             if ev & _TRADE_EVENT:
                 event_seq += 1
-                yield "tick", SimpleNamespace(
-                    timestamp=timestamp,
-                    timestamp_ns=int(row["exch_ts"]),
-                    event_seq=event_seq,
-                    symbol=symbol,
-                    price=float(row["px"]),
-                    volume=float(row["qty"]),
-                    direction="buy" if (ev & _BUY_EVENT) else "sell",
-                    bid_price=bid_price,
-                    ask_price=ask_price,
-                    bid_volume=bid_qty,
-                    ask_volume=ask_qty,
+                yield (
+                    "tick",
+                    SimpleNamespace(
+                        timestamp=timestamp,
+                        timestamp_ns=int(row["exch_ts"]),
+                        event_seq=event_seq,
+                        symbol=symbol,
+                        price=float(row["px"]),
+                        volume=float(row["qty"]),
+                        direction="buy" if (ev & _BUY_EVENT) else "sell",
+                        bid_price=bid_price,
+                        ask_price=ask_price,
+                        bid_volume=bid_qty,
+                        ask_volume=ask_qty,
+                    ),
                 )
             if ev & _DEPTH_EVENT:
                 previous_bid_price = bid_price
@@ -772,23 +775,26 @@ def _iter_exchange_market_events(market_data_path, symbol: str) -> Iterator[tupl
                 if bid_price is None or ask_price is None:
                     continue
                 event_seq += 1
-                yield "orderbook", SimpleNamespace(
-                    timestamp=timestamp,
-                    timestamp_ns=int(row["exch_ts"]),
-                    event_seq=event_seq,
-                    symbol=symbol,
-                    previous_bids=(
-                        [(previous_bid_price, previous_bid_qty)]
-                        if previous_bid_price is not None
-                        else []
+                yield (
+                    "orderbook",
+                    SimpleNamespace(
+                        timestamp=timestamp,
+                        timestamp_ns=int(row["exch_ts"]),
+                        event_seq=event_seq,
+                        symbol=symbol,
+                        previous_bids=(
+                            [(previous_bid_price, previous_bid_qty)]
+                            if previous_bid_price is not None
+                            else []
+                        ),
+                        previous_asks=(
+                            [(previous_ask_price, previous_ask_qty)]
+                            if previous_ask_price is not None
+                            else []
+                        ),
+                        bids=[(bid_price, bid_qty)],
+                        asks=[(ask_price, ask_qty)],
                     ),
-                    previous_asks=(
-                        [(previous_ask_price, previous_ask_qty)]
-                        if previous_ask_price is not None
-                        else []
-                    ),
-                    bids=[(bid_price, bid_qty)],
-                    asks=[(ask_price, ask_qty)],
                 )
 
 

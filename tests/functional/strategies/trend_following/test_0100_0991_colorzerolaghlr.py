@@ -27,9 +27,9 @@ Strategy Logic:
     outputs for this migration test.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
@@ -38,9 +38,8 @@ from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -93,62 +92,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5 tab-separated CSV export as an OHLCV DataFrame for Backtrader.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Optional minutes to offset the parsed datetime index.
-
-    Returns:
-        DataFrame with datetime index and columns required by pandas data feeds.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Custom pandas feed mapping MT5 columns into Backtrader data lines."""
     params = (
@@ -160,82 +103,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class HLRIndicator(Indicator):
-    """Base HLR indicator returning a normalized high-low range position."""
-
-    lines = ('value',)
-    params = dict(period=40)
-
-    def __init__(self):
-        """Initialize highest/lowest trackers and line averaging setup."""
-        period = int(self.p.period)
-        self.highest = bt.indicators.Highest(self.data.high, period=period)
-        self.lowest = bt.indicators.Lowest(self.data.low, period=period)
-        self.mid = (self.data.high + self.data.low) / 2.0
-        self.addminperiod(period + 1)
-
-    def next(self):
-        """Compute the HLR oscillator value for current bar."""
-        hh = float(self.highest[0])
-        ll = float(self.lowest[0])
-        span = hh - ll
-        self.l.value[0] = 0.0 if span == 0.0 else 100.0 * ((float(self.mid[0]) - ll) / span)
-
-
-class ZeroLagHLRIndicator(Indicator):
-    """Zero-lag variant of HLR computed from a blended set of HLR periods."""
-
-    lines = ('fast', 'slow')
-    params = dict(
-        smoothing=15,
-        factor1=0.05,
-        hlr_period1=8,
-        factor2=0.10,
-        hlr_period2=21,
-        factor3=0.16,
-        hlr_period3=34,
-        factor4=0.26,
-        hlr_period4=55,
-        factor5=0.43,
-        hlr_period5=89,
-        preserve_source_hlr3_weight=True,
-    )
-
-    def __init__(self):
-        """Instantiate source HLR components and initialize smoothing state."""
-        self.hlr1 = HLRIndicator(self.data, period=int(self.p.hlr_period1))
-        self.hlr2 = HLRIndicator(self.data, period=int(self.p.hlr_period2))
-        self.hlr3 = HLRIndicator(self.data, period=int(self.p.hlr_period3))
-        self.hlr4 = HLRIndicator(self.data, period=int(self.p.hlr_period4))
-        self.hlr5 = HLRIndicator(self.data, period=int(self.p.hlr_period5))
-        self.smooth_const = (float(self.p.smoothing) - 1.0) / float(self.p.smoothing)
-        self.hlr3_weight = float(self.p.factor2 if self.p.preserve_source_hlr3_weight else self.p.factor3)
-        max_period = max(
-            int(self.p.hlr_period1),
-            int(self.p.hlr_period2),
-            int(self.p.hlr_period3),
-            int(self.p.hlr_period4),
-            int(self.p.hlr_period5),
-        )
-        self.addminperiod((3 * max_period) + 3)
-
-    def next(self):
-        """Update fast and smoothed slow HLR outputs."""
-        fast = (
-            float(self.p.factor1) * float(self.hlr1.value[0])
-            + float(self.p.factor2) * float(self.hlr2.value[0])
-            + self.hlr3_weight * float(self.hlr3.value[0])
-            + float(self.p.factor4) * float(self.hlr4.value[0])
-            + float(self.p.factor5) * float(self.hlr5.value[0])
-        )
-        if len(self) <= 1:
-            slow = fast / float(self.p.smoothing)
-        else:
-            slow = (fast / float(self.p.smoothing)) + (float(self.l.slow[-1]) * self.smooth_const)
-        self.l.fast[0] = fast
-        self.l.slow[0] = slow
 
 
 class ColorZeroLagHLRStrategy(Strategy):
@@ -267,7 +134,7 @@ class ColorZeroLagHLRStrategy(Strategy):
 
     def __init__(self):
         """Create indicator instances and initialize state counters and warm-up window."""
-        self.indicator = ZeroLagHLRIndicator(self.data, **{
+        self.indicator = bt.indicators.ZeroLagHLRIndicator(self.data, **{
             'smoothing': self.p.smoothing,
             'factor1': self.p.factor1,
             'hlr_period1': self.p.hlr_period1,
@@ -449,7 +316,6 @@ class ColorZeroLagHLRStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -458,9 +324,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -589,7 +453,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run strategy backtest and return execution results and metrics.
 
@@ -599,7 +462,7 @@ def run(plot=False):
     Returns:
         Tuple of (results, metrics, cerebro).
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

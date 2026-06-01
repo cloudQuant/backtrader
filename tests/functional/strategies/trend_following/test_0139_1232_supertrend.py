@@ -29,13 +29,12 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -70,110 +69,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export and return a normalized OHLCV DataFrame.
-
-    Args:
-        filepath: Absolute path to the MT5 ``.csv`` export.
-        fromdate: Optional lower bound for datetime filtering.
-        todate: Optional upper bound for datetime filtering.
-        bar_shift_minutes: Minutes to shift bar timestamps forward.
-
-    Returns:
-        DataFrame indexed by datetime with open/high/low/close/volume/openinterest.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping MT5 OHLCV column order."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class SuperTrendIndicator(bt.Indicator):
-    """
-    SuperTrend indicator based on ATR.
-    upper_band = (high + low) / 2 + multiplier * ATR
-    lower_band = (high + low) / 2 - multiplier * ATR
-    Trend flips when price crosses the band.
-    """
-    lines = ('supertrend', 'direction',)
-    params = (
-        ('atr_period', 10),
-        ('multiplier', 3.0),
-    )
-
-    def __init__(self):
-        """Initialize ATR indicator and internal band direction state."""
-        self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-        self._upper = None
-        self._lower = None
-        self._dir = 1  # 1=up (bullish), -1=down (bearish)
-
-    def next(self):
-        """Update upper/lower bands and directional trend on each bar."""
-        hl2 = (float(self.data.high[0]) + float(self.data.low[0])) / 2.0
-        atr_val = float(self.atr[0])
-        up = hl2 + self.p.multiplier * atr_val
-        dn = hl2 - self.p.multiplier * atr_val
-
-        if self._upper is not None:
-            up = min(up, self._upper) if float(self.data.close[-1]) > self._upper else up
-            dn = max(dn, self._lower) if float(self.data.close[-1]) < self._lower else dn
-
-        close = float(self.data.close[0])
-        if self._dir == 1:
-            if close < dn:
-                self._dir = -1
-        else:
-            if close > up:
-                self._dir = 1
-
-        self._upper = up
-        self._lower = dn
-        self.lines.supertrend[0] = dn if self._dir == 1 else up
-        self.lines.direction[0] = float(self._dir)
-
 
 class SuperTrendStrategy(bt.Strategy):
     """
@@ -189,7 +90,7 @@ class SuperTrendStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize strategy counters and direction tracking state."""
-        self.st = SuperTrendIndicator(
+        self.st = bt.indicators.SuperTrendBandIndicator(
             self.data, atr_period=self.p.atr_period, multiplier=self.p.multiplier)
         self.bar_num = 0
         self.buy_count = 0
@@ -267,7 +168,6 @@ class SuperTrendStrategy(bt.Strategy):
             self.loss_count += 1
         self._position_was_open = False
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
-
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -374,12 +274,11 @@ def run(plot=False):
     Returns:
         Tuple of ``(results, metrics, cerebro)``.
     """
-    config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
+    config=_bt_load_config(_CONFIG, repo=_REPO); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)
     if plot: cerebro.plot()
     return results,metrics,cerebro
-
 
 
 if __name__=='__main__':

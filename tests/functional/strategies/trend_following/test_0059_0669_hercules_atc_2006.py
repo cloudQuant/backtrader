@@ -18,15 +18,15 @@ Strategy Logic:
     expectations in the test wrapper.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,88 +75,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MT5 tab-separated export as a Backtrader-ready DataFrame.
-
-    Args:
-        filepath: MT5 CSV file path.
-        fromdate: Optional lower bound datetime.
-        todate: Optional upper bound datetime.
-        bar_shift_minutes: Optional minutes to shift timestamps.
-
-    Returns:
-        DataFrame indexed by datetime with OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed mapping MT5 export columns into Backtrader data lines."""
 
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class PercentEnvelope(bt.Indicator):
-    """Percent envelope built from a moving-average midpoint."""
-    lines = ('top', 'bot')
-    params = dict(period=14, perc=1.0)
-
-    def __init__(self):
-        """Initialize MA and enforce minimum lookback warm-up."""
-        self.ma = bt.indicators.SimpleMovingAverage(self.data, period=int(self.p.period))
-        self.addminperiod(int(self.p.period))
-
-    def next(self):
-        """Update upper/lower envelope boundaries for the current bar."""
-        offset = float(self.p.perc) / 100.0
-        ma = float(self.ma[0])
-        self.lines.top[0] = ma * (1.0 + offset)
-        self.lines.bot[0] = ma * (1.0 - offset)
 
 
 class HerculesAtc2006Strategy(bt.Strategy):
@@ -192,8 +116,8 @@ class HerculesAtc2006Strategy(bt.Strategy):
         self.ma_fast = bt.indicators.ExponentialMovingAverage(self.base.close, period=self.p.ma1_period)
         self.ma_slow = bt.indicators.SimpleMovingAverage(self.base.open, period=self.p.ma2_period)
         self.rsi_h1 = bt.indicators.RSI((self.h1.high + self.h1.low + self.h1.close) / 3.0, period=10)
-        self.env_d1 = PercentEnvelope(self.d1.close, period=24, perc=0.99)
-        self.env_h4 = PercentEnvelope(self.h4.close, period=96, perc=0.10)
+        self.env_d1 = bt.indicators.PercentEnvelope(self.d1.close, period=24, perc=0.99)
+        self.env_h4 = bt.indicators.PercentEnvelope(self.h4.close, period=96, perc=0.10)
 
         self.bar_num = 0
         self.signal_count = 0
@@ -457,7 +381,6 @@ class HerculesAtc2006Strategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -466,9 +389,7 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -618,7 +539,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the migration backtest and return ``(results, metrics, cerebro)``.
 
@@ -628,7 +548,7 @@ def run(plot=False):
     Returns:
         Tuple containing execution results, metrics and engine.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

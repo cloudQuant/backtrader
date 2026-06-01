@@ -21,15 +21,14 @@ Strategy Logic:
     - `extract_metrics` collects analyzer summaries used by assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -73,60 +72,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load and normalize MT5 CSV text data into a timezone-naive OHLCV dataframe.
-
-    Args:
-        filepath: Path to MT5 tab-separated input file.
-        fromdate: Optional inclusive start datetime filter.
-        todate: Optional inclusive end datetime filter.
-        bar_shift_minutes: Optional minute shift applied to timestamps.
-
-    Returns:
-        pandas.DataFrame: Normalized bars with columns `datetime`, `open`, `high`, `low`, `close`, `volume`, `openinterest`.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -182,75 +130,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class VininITrendIndicator(bt.Indicator):
-    """Indicator that calculates a smoothed trend score from MA comparisons."""
-    lines = ('trend',)
-    params = dict(
-        ma_method1='sma',
-        length1=3,
-        phase1=15,
-        ma_step=10,
-        ma_count=10,
-        ma_method2='jjma',
-        length2=20,
-        phase2=100,
-        ipc='price_close',
-    )
-
-    def __init__(self):
-        """Build MA lines and required warmup length."""
-        price_line = resolve_price_line(self.data, self.p.ipc)
-        periods = [int(self.p.length1 + idx * self.p.ma_step) for idx in range(int(self.p.ma_count))]
-        self._ma_lines = [resolve_ma_class(self.p.ma_method1)(price_line, period=max(1, p)) for p in periods]
-        self._smooth = resolve_ma_class(self.p.ma_method2)(self.lines.trend, period=max(1, int(self.p.length2)))
-        self.addminperiod(max(periods) + int(self.p.length2) + 5)
-
-    def next(self):
-        """Compute trend score and one-step EMA-smoothed trend value."""
-        close_value = float(self.data.close[0])
-        score = 0
-        for ma_line in self._ma_lines:
-            if close_value > float(ma_line[0]):
-                score += 1
-            else:
-                score -= 1
-        raw = 100.0 * score / max(1, len(self._ma_lines))
-        prev = float(self.lines.trend[-1]) if len(self) > 0 else raw
-        if prev != prev:
-            prev = raw
-        period = max(1, int(self.p.length2))
-        alpha = 2.0 / (period + 1.0)
-        if len(self) == 0:
-            self.lines.trend[0] = raw
-        else:
-            self.lines.trend[0] = alpha * raw + (1.0 - alpha) * prev
-
-    def once(self, start, end):
-        """Compute trend values for startup/backfill path."""
-        close_array = self.data.close.array
-        ma_arrays = [ma_line.array for ma_line in self._ma_lines]
-        trend_line = self.lines.trend.array
-        while len(trend_line) < end:
-            trend_line.append(float('nan'))
-
-        period = max(1, int(self.p.length2))
-        alpha = 2.0 / (period + 1.0)
-        prev = None
-        actual_end = min([end, len(close_array)] + [len(array) for array in ma_arrays])
-        for i in range(start, actual_end):
-            close_value = float(close_array[i])
-            score = 0
-            for ma_array in ma_arrays:
-                if close_value > float(ma_array[i]):
-                    score += 1
-                else:
-                    score -= 1
-            raw = 100.0 * score / max(1, len(ma_arrays))
-            value = raw if prev is None else alpha * raw + (1.0 - alpha) * prev
-            trend_line[i] = value
-            prev = value
-
-
 class VininITrendStrategy(bt.Strategy):
     """Trend strategy using VininI Trend indicator in breakdown/twist mode."""
     params = dict(
@@ -272,7 +151,7 @@ class VininITrendStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator and trade counters."""
-        self.indicator = VininITrendIndicator(
+        self.indicator = bt.indicators.VininITrendIndicator(
             self.data,
             ma_method1=self.p.ma_method1,
             length1=self.p.length1,
@@ -397,17 +276,14 @@ class VininITrendStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -531,7 +407,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest and return `(results, metrics, cerebro)`.
 
@@ -541,7 +416,7 @@ def run(plot=False):
     Returns:
         tuple: `results, metrics, cerebro`.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

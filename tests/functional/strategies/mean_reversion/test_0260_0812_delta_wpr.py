@@ -22,50 +22,15 @@ Strategy Logic:
 - Fixed stop-loss/take-profit at configured point distances
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-format CSV file into a Pandas DataFrame.
-
-    Strips quotes, handles empty lines, and sorts the resulting index.
-
-    Args:
-        filepath: Path to the CSV file.
-        fromdate: Optional start date filter.
-        todate: Optional end date filter.
-        bar_shift_minutes: Minutes to shift the datetime index by.
-
-    Returns:
-        DataFrame with columns [open, high, low, close, volume, openinterest].
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -74,38 +39,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class DeltaWPR(bt.Indicator):
-    """Delta Williams %R — WPR spread and color-coded momentum regime.
-
-    Computes two WPRs with different periods and derives:
-    - delta: WPR(fast) - WPR(slow), measuring short-term vs medium-term
-    - color: 0=bullish alignment, 1=neutral, 2=bearish alignment
-    """
-    lines = ("color", "delta")
-    params = dict(wpr_period1=14, wpr_period2=30, level=-50)
-
-    def __init__(self):
-        """Create fast/slow Williams %R indicators and precompute level thresholds."""
-        self.addminperiod(max(int(self.p.wpr_period1), int(self.p.wpr_period2)) + 3)
-        self.wpr1 = bt.indicators.WilliamsR(self.data, period=int(self.p.wpr_period1))
-        self.wpr2 = bt.indicators.WilliamsR(self.data, period=int(self.p.wpr_period2))
-        self.max_level = int(self.p.level)
-        self.min_level = int(-100 - self.p.level)
-
-    def next(self):
-        """Compute delta WPR and color signal for the current bar."""
-        w1 = float(self.wpr1[0])
-        w2 = float(self.wpr2[0])
-        self.lines.delta[0] = w1 - w2
-        color = 1.0
-        if w2 > self.max_level and w1 > w2:
-            color = 0.0
-        if w2 < self.min_level and w1 < w2:
-            color = 2.0
-        self.lines.color[0] = color
-
 
 class ExpDeltaWPRStrategy(bt.Strategy):
     """Dual-timeframe strategy trading color transitions from DeltaWPR on H4 data."""
@@ -129,7 +62,7 @@ class ExpDeltaWPRStrategy(bt.Strategy):
         """Initialize data handles, indicator, and run-time counters/state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = DeltaWPR(
+        self.ind = bt.indicators.DeltaWPR(
             self.signal_data,
             wpr_period1=self.p.wpr_period1,
             wpr_period2=self.p.wpr_period2,

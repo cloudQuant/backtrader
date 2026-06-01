@@ -4,7 +4,7 @@
 
 This module implements and tests a mean reversion strategy based on Simple Moving
 Average (SMA). The strategy buys when the price drops below the SMA by a
-specified percentage threshold and sells when the price returns to the SMA.
+specified percentage threshold and sells when the price returns to the bt.indicators.SMA.
 
 Reference: backtrader-strategies-compendium/strategies/MeanReversion.py
 
@@ -17,7 +17,7 @@ Data Used:
 
 Strategy Principle:
     The strategy assumes price tends to revert toward its Simple Moving
-    Average. A close that falls a configurable percentage (``dip_size``, 2.5%
+    bt.indicators.Average. A close that falls a configurable percentage (``dip_size``, 2.5%
     by default) below the SMA is treated as an oversold deviation and a long
     entry signal, while a recovery of price back to the SMA is treated as
     completion of the reversion and an exit signal. No leverage or stop loss is
@@ -30,7 +30,7 @@ Strategy Logic:
     2. ``next`` increments the bar counter, skips bars while an order is
        pending, opens a long position when the close dips at least ``dip_size``
        below the SMA, and closes the position once the close recovers to or
-       above the SMA.
+       above the bt.indicators.SMA.
     3. ``notify_order`` tracks order status transitions and increments the buy
        and sell counters on completion; ``notify_trade`` logs realized profit
        when a trade closes.
@@ -46,11 +46,11 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import math
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -94,7 +94,7 @@ class MeanReversionSmaStrategy(bt.Strategy):
     """A mean reversion trading strategy based on Simple Moving Average (SMA).
 
     This strategy implements a mean reversion approach by identifying when prices
-    deviate significantly from their SMA. It enters long positions when the price
+    deviate significantly from their bt.indicators.SMA. It enters long positions when the price
     drops below the SMA by a specified percentage threshold (dip_size) and exits
     when the price returns to the SMA level.
 
@@ -102,7 +102,7 @@ class MeanReversionSmaStrategy(bt.Strategy):
         - Buy when price drops below SMA by more than dip_size percentage.
 
     Exit Conditions:
-        - Sell when price returns to or above SMA.
+        - Sell when price returns to or above bt.indicators.SMA.
 
     Attributes:
         sma (bt.indicators.SMA): The Simple Moving Average indicator.

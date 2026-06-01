@@ -67,7 +67,7 @@ class SimpleMAStrategy(bt.Strategy):
     This strategy implements a classic dual moving average crossover approach
     to test Backtrader's data resampling functionality. It generates buy and sell
     signals based on the crossover of a fast simple moving average (SMA) and a
-    slow SMA.
+    slow bt.indicators.SMA.
 
     Trading Logic:
         - Entry (Buy): When the fast SMA crosses above the slow SMA

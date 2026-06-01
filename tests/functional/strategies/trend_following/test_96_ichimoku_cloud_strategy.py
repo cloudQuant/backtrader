@@ -6,17 +6,17 @@ This module tests the Ichimoku Cloud strategy implementation, which uses
 the Ichimoku Kinko Hyo technical indicator to generate trading signals based
 on price position relative to the cloud (Kumo).
 
-Reference: backtrader-strategies-compendium/strategies/Ichimoku.py
+Reference: backtrader-strategies-compendium/strategies/bt.indicators.Ichimoku.py
 
 The strategy enters long positions when price is above the cloud and exits
 when price breaks below the cloud boundaries.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent

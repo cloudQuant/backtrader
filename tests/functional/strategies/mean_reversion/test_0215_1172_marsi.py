@@ -35,14 +35,13 @@ Strategy Logic:
     extract a metrics dictionary compared against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,64 +86,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close rather than the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping the loaded MT5 frame columns by position."""
 
@@ -157,65 +98,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class EmaRsiVa(bt.Indicator):
-    """Volatility-adaptive EMA whose smoothing reacts to RSI distance from 50."""
-
-    lines = ('value',)
-    params = dict(
-        rsi_period=14,
-        ema_periods=14.0,
-        applied_price='close',
-    )
-
-    def __init__(self):
-        """Resolve the applied price line, build RSI, and set warmup period."""
-        self.price_line = self._resolve_price_line()
-        self.rsi = bt.indicators.RSI(self.price_line, period=self.p.rsi_period)
-        self.addminperiod(max(2, int(self.p.rsi_period) * 2))
-
-    def _resolve_price_line(self):
-        ap = str(self.p.applied_price).lower()
-        if ap in ('close', 'price_close'):
-            return self.data.close
-        if ap in ('open', 'price_open'):
-            return self.data.open
-        if ap in ('high', 'price_high'):
-            return self.data.high
-        if ap in ('low', 'price_low'):
-            return self.data.low
-        if ap in ('median', 'price_median'):
-            return (self.data.high + self.data.low) / 2.0
-        if ap in ('typical', 'price_typical'):
-            return (self.data.high + self.data.low + self.data.close) / 3.0
-        if ap in ('weighted', 'price_weighted'):
-            return (self.data.high + self.data.low + self.data.close * 2.0) / 4.0
-        return self.data.close
-
-    def next(self):
-        """Update the adaptive EMA line using the RSI-modulated smoothing factor."""
-        price = float(self.price_line[0])
-        if len(self) == int(self.p.rsi_period) * 2:
-            self.lines.value[0] = price
-            return
-
-        rsi_value = float(self.rsi[0]) if len(self.rsi) else float('nan')
-        if not math.isfinite(rsi_value):
-            prev = float(self.lines.value[-1]) if math.isfinite(float(self.lines.value[-1])) else price
-            self.lines.value[0] = prev
-            return
-
-        rsvoltl = abs(rsi_value - 50.0) + 1.0
-        multi = (5.0 + 100.0 / float(self.p.rsi_period)) / (0.06 + 0.92 * rsvoltl + 0.02 * rsvoltl ** 2)
-        pdsx = max(1.0, multi * float(self.p.ema_periods))
-        alpha = 2.0 / (pdsx + 1.0)
-
-        prev_value = float(self.lines.value[-1])
-        if not math.isfinite(prev_value):
-            prev_value = float(self.price_line[-1])
-
-        self.lines.value[0] = price * alpha + prev_value * (1.0 - alpha)
 
 
 class MarsiStrategy(bt.Strategy):
@@ -240,13 +122,13 @@ class MarsiStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the slow/fast EmaRsiVa lines and zero counters and exit state."""
-        self.slow = EmaRsiVa(
+        self.slow = bt.indicators.EmaRsiVa(
             self.data,
             rsi_period=self.p.slow_rsi_period,
             ema_periods=self.p.slow_ema_periods,
             applied_price=self.p.slow_price,
         )
-        self.fast = EmaRsiVa(
+        self.fast = bt.indicators.EmaRsiVa(
             self.data,
             rsi_period=self.p.fast_rsi_period,
             ema_periods=self.p.fast_ema_periods,
@@ -417,18 +299,15 @@ class MarsiStrategy(bt.Strategy):
             return
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -611,7 +490,7 @@ def test_216_0215_1172_marsi() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0215_1172_marsi.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

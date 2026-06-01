@@ -8,10 +8,10 @@ A multi-confirmation strategy combining MACD, RSI, and Bollinger Bands
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -156,7 +156,7 @@ def test_macd_rsi_bb_strategy(runonce):
 
     The strategy uses a mean-reversion approach, buying when price recovers
     from below the lower Bollinger Band with oversold RSI, and selling when
-    price reaches the upper Bollinger Band with overbought RSI.
+    price reaches the upper Bollinger Band with overbought bt.indicators.RSI.
 
     Expected results:
     - bar_num: 1224

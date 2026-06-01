@@ -15,10 +15,10 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -82,8 +82,8 @@ class RenkoEmaStrategy(bt.Strategy):
         crossover (bt.indicators.CrossOver): Crossover indicator for the two EMAs.
         p (AutoOrderedDict): Strategy parameters containing:
             - stake (int): Number of shares per trade. Default is 10.
-            - fast_period (int): Period for fast EMA. Default is 10.
-            - slow_period (int): Period for slow EMA. Default is 20.
+            - fast_period (int): Period for fast bt.indicators.EMA. Default is 10.
+            - slow_period (int): Period for slow bt.indicators.EMA. Default is 20.
             - renko_brick_size (float): Brick size for Renko filter. Default is 1.0.
     """
     params = dict(

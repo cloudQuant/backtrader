@@ -9,15 +9,30 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -74,63 +89,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting.
-
-    Args:
-        filepath: Absolute or relative path to a MT5-export CSV file.
-        fromdate: Optional lower datetime bound.
-        todate: Optional upper datetime bound.
-        bar_shift_minutes: Optional minute offset applied to each bar timestamp.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with normalized OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader data feed mapping MT5 columns including spread."""
     lines = ('spread',)
@@ -144,30 +102,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class ColorX2MA(bt.Indicator):
-    """Indicator that outputs smoothed MA value and directional color index."""
-    lines = ('value', 'color_idx')
-    params = dict(length1=12, length2=5)
-
-    def __init__(self):
-        """Initialize MA stacks and minimum period."""
-        ma1 = bt.indicators.SimpleMovingAverage(self.data.close, period=max(2, self.p.length1))
-        ma2 = bt.indicators.SimpleMovingAverage(ma1, period=max(2, self.p.length2))
-        self.lines.value = ma2
-        self.addminperiod(self.p.length1 + self.p.length2 + 2)
-
-    def next(self):
-        """Update color index based on value momentum."""
-        current = float(self.lines.value[0])
-        prev = float(self.lines.value[-1]) if len(self) > 1 and math.isfinite(float(self.lines.value[-1])) else current
-        color = 0.0
-        if prev < current:
-            color = 1.0
-        elif prev > current:
-            color = 2.0
-        self.lines.color_idx[0] = color
 
 
 class ExpColorX2MAX2Strategy(bt.Strategy):
@@ -200,8 +134,8 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
         """Initialize feeds, indicators, and runtime state."""
         self.fast_feed = self.datas[0]
         self.slow_feed = self.datas[1]
-        self.fast_ind = ColorX2MA(self.fast_feed, length1=self.p.fast_length1, length2=self.p.fast_length2)
-        self.slow_ind = ColorX2MA(self.slow_feed, length1=self.p.slow_length1, length2=self.p.slow_length2)
+        self.fast_ind = bt.indicators.ColorX2MA(self.fast_feed, length1=self.p.fast_length1, length2=self.p.fast_length2)
+        self.slow_ind = bt.indicators.ColorX2MA(self.slow_feed, length1=self.p.slow_length1, length2=self.p.slow_length2)
         self.order = None
         self.entry_side = None
         self.stop_price = None
@@ -383,7 +317,6 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 REPO_BACKTRADER_DIR = BASE_DIR.parents[2] / 'backtrader'
@@ -391,9 +324,7 @@ if str(REPO_BACKTRADER_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_BACKTRADER_DIR))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -545,7 +476,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp ColorX2MA X2 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

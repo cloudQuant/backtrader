@@ -18,7 +18,7 @@ Strategy Principle:
     A port of the MT5 expert advisor "Exp_iAnchMom". The iAnchMom oscillator is
     the percentage gap between a fast EMA and a slower SMA of the applied price
     (``100 * (ema / sma - 1)``); it reads as an anchored momentum measure that
-    is positive when the EMA leads the SMA. Turning points in this oscillator
+    is positive when the EMA leads the bt.indicators.SMA. Turning points in this oscillator
     signal reversals: a trough (down then up) opens longs and closes shorts,
     while a peak (up then down) opens shorts and closes longs. Fixed point-based
     stop-loss and take-profit levels bound each trade.
@@ -39,9 +39,9 @@ Strategy Logic:
     metric against the captured baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
@@ -49,9 +49,8 @@ from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -96,64 +95,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -202,30 +143,6 @@ def get_price_line(data, price_mode):
     raise ValueError(f'Unsupported price mode: {price_mode}')
 
 
-class IAnchMomIndicator(Indicator):
-    """Anchored-momentum oscillator: percentage gap of a fast EMA over a slow SMA."""
-
-    lines = ('value',)
-    params = dict(
-        sma_period=34,
-        ema_period=20,
-        price_type='close',
-    )
-
-    def __init__(self):
-        """Build the SMA and EMA of the applied price and set the warm-up period."""
-        price = get_price_line(self.data, self.p.price_type)
-        self.sma = bt.indicators.SimpleMovingAverage(price, period=int(self.p.sma_period))
-        self.ema = bt.indicators.ExponentialMovingAverage(price, period=int(self.p.ema_period))
-        self.addminperiod(int(self.p.sma_period) + 2)
-
-    def next(self):
-        """Emit the percentage gap ``100 * (ema / sma - 1)`` for the current bar."""
-        sma = float(self.sma[0])
-        ema = float(self.ema[0])
-        self.l.value[0] = 0.0 if sma == 0.0 else 100.0 * ((ema / sma) - 1.0)
-
-
 class IAnchMomStrategy(Strategy):
     """Reversal strategy trading turning points of the iAnchMom oscillator.
 
@@ -251,7 +168,7 @@ class IAnchMomStrategy(Strategy):
 
     def __init__(self):
         """Build the iAnchMom indicator and reset counters and trade state."""
-        self.indicator = IAnchMomIndicator(
+        self.indicator = bt.indicators.IAnchMomIndicator(
             self.data,
             sma_period=self.p.sma_period,
             ema_period=self.p.ema_period,
@@ -433,7 +350,6 @@ class IAnchMomStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -442,9 +358,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -647,7 +561,7 @@ def test_199_0198_0994_ianchmom() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0198_0994_ianchmom.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

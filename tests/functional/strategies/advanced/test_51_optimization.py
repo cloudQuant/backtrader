@@ -107,10 +107,10 @@ class OptimizeStrategy(bt.Strategy):
         sell_count: Total number of completed sell orders.
 
     Args:
-        smaperiod: Period for the Simple Moving Average. Defaults to 15.
+        smaperiod: Period for the Simple Moving bt.indicators.Average. Defaults to 15.
         macdperiod1: Fast EMA period for MACD calculation. Defaults to 12.
         macdperiod2: Slow EMA period for MACD calculation. Defaults to 26.
-        macdperiod3: Signal line EMA period for MACD. Defaults to 9.
+        macdperiod3: Signal line EMA period for bt.indicators.MACD. Defaults to 9.
     """
     params = (
         ('smaperiod', 15),

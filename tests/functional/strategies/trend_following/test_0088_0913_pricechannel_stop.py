@@ -24,15 +24,14 @@ Strategy Logic:
     expected migration values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,146 +74,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV data and normalize it into a Backtrader OHLCV frame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional datetime lower bound.
-        todate: Optional datetime upper bound.
-        bar_shift_minutes: Optional minute offset to apply to bar timestamps.
-
-    Returns:
-        Backtrader-ready DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Standard OHLCV Backtrader feed for MT5-normalized data."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class PriceChannelStopIndicator(bt.Indicator):
-    """Reconstructs PriceChannel_Stop from its MQ5 source.
-
-    6 output buffers mapped to lines:
-      0=DownTrendSignal, 1=DownTrendBuffer, 2=DownTrendLine
-      3=UpTrendSignal,   4=UpTrendBuffer,   5=UpTrendLine
-    """
-    lines = ('down_signal', 'down_buffer', 'down_line',
-             'up_signal', 'up_buffer', 'up_line')
-    params = dict(channel_period=5, risk=0.10)
-
-    def __init__(self):
-        """Initialize oscillator state and force initial warm-up period."""
-        self._cp = int(self.p.channel_period)
-        self._risk = float(self.p.risk)
-        self._trend = 0
-        self._prev_bsmax = 0.0
-        self._prev_bsmin = 0.0
-        self.addminperiod(self._cp + 2)
-
-    def next(self):
-        """Update indicator lines from current and rolling high/low windows."""
-        cp = self._cp
-        risk = self._risk
-
-        # Highest high and lowest low over [bar, bar+ChannelPeriod)
-        hi = max(float(self.data.high[-i]) for i in range(cp))
-        lo = min(float(self.data.low[-i]) for i in range(cp))
-
-        d_price = (hi - lo) * risk
-        bsmax = hi - d_price
-        bsmin = lo + d_price
-
-        cur_close = float(self.data.close[0])
-
-        if cur_close > self._prev_bsmax:
-            self._trend = 1
-        if cur_close < self._prev_bsmin:
-            self._trend = -1
-
-        # Ratchet
-        if self._trend > 0 and bsmin < self._prev_bsmin:
-            bsmin = self._prev_bsmin
-        if self._trend < 0 and bsmax > self._prev_bsmax:
-            bsmax = self._prev_bsmax
-
-        # Reset all
-        self.lines.down_signal[0] = 0.0
-        self.lines.down_buffer[0] = 0.0
-        self.lines.down_line[0] = 0.0
-        self.lines.up_signal[0] = 0.0
-        self.lines.up_buffer[0] = 0.0
-        self.lines.up_line[0] = 0.0
-
-        prev_down_buffer = float(self.lines.down_buffer[-1]) if len(self) > 1 and not math.isnan(float(self.lines.down_buffer[-1])) else 0.0
-        prev_up_buffer = float(self.lines.up_buffer[-1]) if len(self) > 1 and not math.isnan(float(self.lines.up_buffer[-1])) else 0.0
-
-        if self._trend > 0:
-            price = bsmin
-            if prev_down_buffer > 0:
-                self.lines.up_signal[0] = price
-                self.lines.up_line[0] = price
-            else:
-                self.lines.up_buffer[0] = price
-                self.lines.up_line[0] = price
-
-        if self._trend < 0:
-            price = bsmax
-            if prev_up_buffer > 0:
-                self.lines.down_signal[0] = price
-                self.lines.down_line[0] = price
-            else:
-                self.lines.down_buffer[0] = price
-                self.lines.down_line[0] = price
-
-        self._prev_bsmax = bsmax
-        self._prev_bsmin = bsmin
 
 
 class ExpPriceChannelStopStrategy(bt.Strategy):
@@ -238,7 +107,7 @@ class ExpPriceChannelStopStrategy(bt.Strategy):
         """Initialize indicators, counters, and order-state flags."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = PriceChannelStopIndicator(
+        self.indicator = bt.indicators.PriceChannelStopIndicator(
             self.signal_data,
             channel_period=self.p.channel_period,
             risk=self.p.risk,
@@ -467,7 +336,7 @@ def run(plot=False):
     Returns:
         Tuple of ``(results, metrics, cerebro)``.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

@@ -17,8 +17,7 @@ Data Used:
     carries the raw spread column from the MT5 export.
 
 Strategy Principle:
-    This is a port of the MT5 expert advisor ``Exp_BlauTVI_Tm``. The BlauTVI
-    (Blau Tick Volume Indicator) is a triple-EMA-smoothed oscillator built from
+    This is a port of the MT5 expert advisor ``Exp_BlauTVI_Tm``. The bt.indicators.BlauTVI(Blau Tick Volume Indicator) is a triple-EMA-smoothed oscillator built from
     up-tick and down-tick volume estimates, bounded near +/-100. The strategy
     reads the indicator on the higher H4 timeframe and treats a turn in its
     smoothed value as a mean-reversion signal: a downturn that resumes upward
@@ -37,15 +36,30 @@ Strategy Logic:
     against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -101,65 +115,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a tab-separated MT5 export into an OHLCV+spread DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV/TSV export file.
-        fromdate: Optional inclusive lower bound on the bar timestamp.
-        todate: Optional inclusive upper bound on the bar timestamp.
-        bar_shift_minutes: Minutes to add to each bar timestamp so bars are
-            stamped at their close.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume,
-        openinterest, and spread columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed exposing OHLCV plus the extra spread line by column position."""
 
@@ -174,36 +129,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class BlauTVI(bt.Indicator):
-    """Blau Tick Volume Indicator: a triple-EMA-smoothed up/down tick oscillator."""
-
-    lines = ('value', 'color_idx')
-    params = dict(xlength1=12, xlength2=12, xlength3=12)
-
-    def __init__(self):
-        """Build the up/down tick EMAs and the smoothed oscillator value line."""
-        up_ticks = (self.data.volume + (self.data.close - self.data.open) / 0.01) / 2.0
-        dn_ticks = (self.data.volume - (self.data.close - self.data.open) / 0.01) / 2.0
-        up_1 = bt.indicators.ExponentialMovingAverage(up_ticks, period=self.p.xlength1)
-        dn_1 = bt.indicators.ExponentialMovingAverage(dn_ticks, period=self.p.xlength1)
-        up_2 = bt.indicators.ExponentialMovingAverage(up_1, period=self.p.xlength2)
-        dn_2 = bt.indicators.ExponentialMovingAverage(dn_1, period=self.p.xlength2)
-        raw = 100.0 * (up_2 - dn_2) / (up_2 + dn_2 + 1e-12)
-        self.lines.value = bt.indicators.ExponentialMovingAverage(raw, period=self.p.xlength3)
-        self.addminperiod(self.p.xlength1 + self.p.xlength2 + self.p.xlength3 + 2)
-
-    def next(self):
-        """Assign a color index based on the value's sign and direction of change."""
-        current = float(self.lines.value[0])
-        prev = float(self.lines.value[-1]) if len(self) > 1 and math.isfinite(float(self.lines.value[-1])) else current
-        color = 2.0
-        if current > 0:
-            color = 4.0 if current > prev else 3.0
-        elif current < 0:
-            color = 0.0 if current < prev else 1.0
-        self.lines.color_idx[0] = color
 
 
 class ExpBlauTVITmStrategy(bt.Strategy):
@@ -238,7 +163,7 @@ class ExpBlauTVITmStrategy(bt.Strategy):
         """Bind execution/signal feeds, build the indicator, and reset state."""
         self.exec_feed = self.datas[0]
         self.signal_feed = self.datas[1]
-        self.ind = BlauTVI(self.signal_feed, xlength1=self.p.xlength1, xlength2=self.p.xlength2, xlength3=self.p.xlength3)
+        self.ind = bt.indicators.BlauTVI(self.signal_feed, xlength1=self.p.xlength1, xlength2=self.p.xlength2, xlength3=self.p.xlength3)
         self.order = None
         self.entry_side = None
         self.stop_price = None
@@ -418,7 +343,6 @@ class ExpBlauTVITmStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 REPO_BACKTRADER_DIR = BASE_DIR.parents[2] / 'backtrader'
@@ -426,9 +350,7 @@ if str(REPO_BACKTRADER_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_BACKTRADER_DIR))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -600,7 +522,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp BlauTVI Tm backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

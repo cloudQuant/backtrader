@@ -28,15 +28,14 @@ Strategy Logic:
     - `extract_metrics` and test harness wrap strategy execution to compare against migration metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -74,60 +73,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5 CSV export into a Backtrader-ready DataFrame.
-
-    Args:
-        filepath (str): Source MT5 tab-separated file path.
-        fromdate (datetime.datetime | None): Optional start filter.
-        todate (datetime.datetime | None): Optional end filter.
-        bar_shift_minutes (int): Minute offset for each bar timestamp.
-
-    Returns:
-        pd.DataFrame: Parsed dataframe indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -157,29 +105,6 @@ def resolve_ma_class(name):
     return bt.indicators.WeightedMovingAverage
 
 
-class CandlesXSmoothedIndicator(bt.Indicator):
-    """Indicator that smooths OHLC bars with configurable MA and derives color state."""
-    lines = ('smooth_open', 'smooth_high', 'smooth_low', 'smooth_close', 'color_state',)
-    params = dict(
-        ma_method='lwma',
-        ma_length=30,
-        ma_phase=100,
-    )
-
-    def __init__(self):
-        """Initialize all smoothed OHLC lines and color state."""
-        ma_cls = resolve_ma_class(self.p.ma_method)
-        self.lines.smooth_open = ma_cls(self.data.open, period=self.p.ma_length)
-        self.lines.smooth_high = ma_cls(self.data.high, period=self.p.ma_length)
-        self.lines.smooth_low = ma_cls(self.data.low, period=self.p.ma_length)
-        self.lines.smooth_close = ma_cls(self.data.close, period=self.p.ma_length)
-        self.addminperiod(self.p.ma_length + 2)
-
-    def next(self):
-        """Set color state to bullish (`0`) or bearish (`1`) for current bar."""
-        self.lines.color_state[0] = 0.0 if float(self.lines.smooth_open[0]) < float(self.lines.smooth_close[0]) else 1.0
-
-
 class CandlesXSmoothedStrategy(bt.Strategy):
     """Breakout strategy on smoothed candle structure."""
     params = dict(
@@ -196,7 +121,7 @@ class CandlesXSmoothedStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize smoothed indicator, counters, and breakout threshold."""
-        self.signal = CandlesXSmoothedIndicator(
+        self.signal = bt.indicators.CandlesXSmoothedIndicator(
             self.data,
             ma_method=self.p.ma_method,
             ma_length=self.p.ma_length,
@@ -301,17 +226,14 @@ class CandlesXSmoothedStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -435,7 +357,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the strategy backtest and return the collected outputs.
 
@@ -445,7 +366,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro).
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

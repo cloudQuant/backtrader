@@ -30,15 +30,14 @@ Strategy Logic:
       deterministic regression assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -79,50 +78,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV data and normalize it into a Backtrader-ready DataFrame."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -145,82 +103,6 @@ def resolve_ma_class(name):
     return bt.indicators.WeightedMovingAverage
 
 
-class QQECloudIndicator(bt.Indicator):
-    """Indicator computing smoothed QQE-like trend values from RSI.
-
-    Args:
-        rsi_period: RSI lookback period.
-        sf: Smoothing factor for XRSI and momentum smoothers.
-        darfactor: ATR-like factor used to offset trailing reference.
-        xma_method: Moving-average method alias used for RSI smoothing.
-        xphase: Unused legacy parameter preserved for compatibility.
-    """
-    lines = ('up', 'down')
-    params = dict(rsi_period=14, sf=5, darfactor=4.236, xma_method='sma', xphase=15)
-
-    def __init__(self):
-        """Initialize RSI, smoothed RSI, and momentum smoothing components."""
-        self._rsi = bt.indicators.RelativeStrengthIndex(self.data.close, period=max(2, int(self.p.rsi_period)))
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        self._xrsi = ma_cls(self._rsi, period=max(1, int(self.p.sf)))
-        wilders_period = max(2, int(self.p.rsi_period) * 2 - 1)
-        self._mom = abs(self._xrsi - self._xrsi(-1))
-        self._xmom = ma_cls(self._mom, period=wilders_period)
-        self._xxmom = ma_cls(self._xmom, period=wilders_period)
-        self.addminperiod(int(self.p.rsi_period) + int(self.p.sf) + wilders_period * 2 + 5)
-
-    def next(self):
-        """Update output lines on each tick using previous envelope state."""
-        xrsi = float(self._xrsi[0])
-        prev_xrsi = float(self._xrsi[-1])
-        dar = float(self._xxmom[0]) * float(self.p.darfactor)
-        prev_tr = float(self.lines.down[-1]) if len(self) > 0 else 50.0
-        if prev_tr != prev_tr:
-            prev_tr = 50.0
-        tr = prev_tr
-        dv = tr
-        if xrsi < tr:
-            tr = xrsi + dar
-            if prev_xrsi < dv and tr > dv:
-                tr = dv
-        elif xrsi > tr:
-            tr = xrsi - dar
-            if prev_xrsi > dv and tr < dv:
-                tr = dv
-        self.lines.up[0] = xrsi
-        self.lines.down[0] = tr
-
-    def once(self, start, end):
-        """Vectorized indicator evaluation for vectorized Backtrader runs."""
-        xrsi_array = self._xrsi.array
-        xxmom_array = self._xxmom.array
-        up_line = self.lines.up.array
-        down_line = self.lines.down.array
-        for line in (up_line, down_line):
-            while len(line) < end:
-                line.append(float('nan'))
-
-        prev_tr = 50.0
-        actual_end = min(end, len(xrsi_array), len(xxmom_array))
-        for i in range(start, actual_end):
-            xrsi = float(xrsi_array[i])
-            prev_xrsi = float(xrsi_array[i - 1]) if i > 0 else xrsi
-            dar = float(xxmom_array[i]) * float(self.p.darfactor)
-            tr = prev_tr
-            dv = tr
-            if xrsi < tr:
-                tr = xrsi + dar
-                if prev_xrsi < dv and tr > dv:
-                    tr = dv
-            elif xrsi > tr:
-                tr = xrsi - dar
-                if prev_xrsi > dv and tr < dv:
-                    tr = dv
-            up_line[i] = xrsi
-            down_line[i] = tr
-            prev_tr = tr
-
-
 class QQECloudStrategy(bt.Strategy):
     """QQECloud strategy managing time-windowed entries and mirrored exits."""
     params = dict(
@@ -239,7 +121,7 @@ class QQECloudStrategy(bt.Strategy):
 
     def __init__(self):
         """Instantiate indicator and initialize trade counters."""
-        self.indicator = QQECloudIndicator(
+        self.indicator = bt.indicators.QQECloudIndicator(
             self.data,
             rsi_period=self.p.rsi_period,
             sf=self.p.sf,
@@ -336,17 +218,14 @@ class QQECloudStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -438,10 +317,9 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run backtest and return results, metrics and cerebro instance."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

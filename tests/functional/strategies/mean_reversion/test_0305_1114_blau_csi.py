@@ -22,21 +22,20 @@ The original `config.yaml`, `run.py`, strategy files, and `expected.json` are co
 into this self-contained file.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
 from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.indicators as btind
 import backtrader.functions as btfunc
 import backtrader.feeds as btfeeds
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -85,58 +84,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV file and normalize to a DataFrame index.
-
-    Args:
-        filepath: Source file path.
-        fromdate: Optional start datetime.
-        todate: Optional end datetime.
-        bar_shift_minutes: Optional bar index shift in minutes.
-
-    Returns:
-        DataFrame with standardized columns and datetime index.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Pandas data feed adapter for MT5 OHLCV style columns."""
     params = (
@@ -168,37 +115,6 @@ def _price_series(data, mode):
     return data.close
 
 
-class BlauCSI(Indicator):
-    """Blau CSI indicator built from smoothed momentum vs. range."""
-    lines = ('main',)
-    params = dict(
-        xma_method='ema',
-        xlength=1,
-        xlength1=20,
-        xlength2=5,
-        xlength3=3,
-        ipc1='close',
-        ipc2='open',
-    )
-
-    def __init__(self):
-        """Initialize smoothed momentum and price-range lines for CSI output."""
-        shift = max(int(self.p.xlength) - 1, 0)
-        price1 = _price_series(self.data, self.p.ipc1)
-        price2 = _price_series(self.data, self.p.ipc2)
-        mom = price1 - price2(-shift)
-        price_range = btind.Highest(self.data.high, period=max(int(self.p.xlength), 1)) - btind.Lowest(self.data.low, period=max(int(self.p.xlength), 1))
-
-        xmom = btind.EMA(mom, period=int(self.p.xlength1))
-        xrange = btind.EMA(price_range, period=int(self.p.xlength1))
-        xxmom = btind.EMA(xmom, period=int(self.p.xlength2))
-        xxrange = btind.EMA(xrange, period=int(self.p.xlength2))
-        xxxmom = btind.EMA(xxmom, period=int(self.p.xlength3))
-        xxxrange = btind.EMA(xxrange, period=int(self.p.xlength3))
-
-        self.l.main = btfunc.DivByZero(100.0 * xxxmom, xxxrange, zero=0.0)
-
-
 class BlauCSIStrategy(Strategy):
     """Strategy that translates Blau CSI signals into order management flow."""
     params = dict(
@@ -224,7 +140,7 @@ class BlauCSIStrategy(Strategy):
 
     def __init__(self):
         """Initialize oscillator and per-run runtime counters."""
-        self.osc = BlauCSI(
+        self.osc = bt.indicators.BlauCSI(
             self.data,
             xlength=self.p.xlength,
             xlength1=self.p.xlength1,
@@ -424,18 +340,15 @@ class BlauCSIStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -604,7 +517,7 @@ def test_306_0305_1114_blau_csi() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0305_1114_blau_csi.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

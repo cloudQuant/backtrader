@@ -68,8 +68,8 @@ class SmaCrossSignalStrategy(bt.Strategy):
         sum_profit: Cumulative profit/loss from all closed trades.
 
     Parameters:
-        sma1 (int): Period for the short-term SMA. Default is 10.
-        sma2 (int): Period for the long-term SMA. Default is 20.
+        sma1 (int): Period for the short-term bt.indicators.SMA. Default is 10.
+        sma2 (int): Period for the long-term bt.indicators.SMA. Default is 20.
 
     Note:
         This strategy uses the SignalStrategy base class from backtrader,

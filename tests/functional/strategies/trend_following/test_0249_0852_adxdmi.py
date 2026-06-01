@@ -3,48 +3,15 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5 CSV file into a datetime-indexed OHLCV DataFrame.
-
-    Args:
-        filepath: Path to MT5 export.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Minutes to shift timestamps.
-
-    Returns:
-        DataFrame containing datetime and OHLCV/openinterest columns.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -53,23 +20,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class ADXDMI(bt.Indicator):
-    """DMI direction indicator exposing plus/minus directional values."""
-    lines = ("plus", "minus")
-    params = dict(period=14)
-
-    def __init__(self):
-        """Initialize plus and minus directional sub-indicators."""
-        self.addminperiod(int(self.p.period) + 3)
-        self.plus_di = bt.indicators.PlusDirectionalIndicator(self.data, period=int(self.p.period))
-        self.minus_di = bt.indicators.MinusDirectionalIndicator(self.data, period=int(self.p.period))
-
-    def next(self):
-        """Write current directional index values to output lines."""
-        self.lines.plus[0] = float(self.plus_di[0])
-        self.lines.minus[0] = float(self.minus_di[0])
 
 
 class ExpADXDMIStrategy(bt.Strategy):
@@ -87,7 +37,7 @@ class ExpADXDMIStrategy(bt.Strategy):
         """Bind signal data and initialize state counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = ADXDMI(self.signal_data, period=self.p.dmi_period)
+        self.ind = bt.indicators.ADXDMI(self.signal_data, period=self.p.dmi_period)
         self.bar_num = 0
         self.signal_count = 0
         self.trade_count = 0

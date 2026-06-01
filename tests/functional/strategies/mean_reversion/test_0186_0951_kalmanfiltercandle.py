@@ -36,15 +36,30 @@ Strategy Logic:
     each metric against migration-time expectations under ``runonce=True``.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -88,66 +103,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated CSV into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional number of minutes to shift each bar's
-            timestamp forward.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume,
-        openinterest, and spread columns, sorted ascending and filtered to the
-        requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -195,74 +150,6 @@ def indicator_source_price(data, ago=0):
     return float(data[ago])
 
 
-class KalmanFilterLine(bt.Indicator):
-    """Single-series Kalman-style adaptive filter with a velocity term."""
-
-    lines = ('value', 'color')
-    params = dict(k=1.0, price_shift_points=0.0)
-
-    def __init__(self):
-        """Set the minimum period and initialize filter state."""
-        self.addminperiod(2)
-        self._initialized = False
-        self._velocity = 0.0
-        self.sqrt100 = math.sqrt(float(self.p.k) / 100.0)
-        self.k100 = float(self.p.k) / 100.0
-
-    def next(self):
-        """Advance the filter one bar and emit the value and color lines."""
-        source_price = indicator_source_price(self.data, 0)
-        if not self._initialized:
-            self.lines.value[0] = source_price + float(self.p.price_shift_points)
-            self.lines.color[0] = 0
-            self._velocity = 0.0
-            self._initialized = True
-            return
-        prev_value = float(self.lines.value[-1]) - float(self.p.price_shift_points)
-        distance = source_price - prev_value
-        error = prev_value + distance * self.sqrt100
-        self._velocity += distance * self.k100
-        filtered = error + self._velocity + float(self.p.price_shift_points)
-        self.lines.value[0] = filtered
-        self.lines.color[0] = 1 if self._velocity > 0 else 0
-
-
-class KalmanFilterCandleIndicator(bt.Indicator):
-    """Builds Kalman-filtered OHLC candles and a bull/bear color line."""
-
-    lines = ('k_open', 'k_high', 'k_low', 'k_close', 'color')
-    params = dict(k=1.0, point=0.01, price_shift=0)
-
-    def __init__(self):
-        """Construct per-OHLC Kalman filter lines and set the minimum period."""
-        price_shift_points = float(self.p.point) * float(self.p.price_shift)
-        self.k_open_line = KalmanFilterLine(self.data.open, k=self.p.k, price_shift_points=price_shift_points)
-        self.k_high_line = KalmanFilterLine(self.data.high, k=self.p.k, price_shift_points=price_shift_points)
-        self.k_low_line = KalmanFilterLine(self.data.low, k=self.p.k, price_shift_points=price_shift_points)
-        self.k_close_line = KalmanFilterLine(self.data.close, k=self.p.k, price_shift_points=price_shift_points)
-        self.addminperiod(3)
-
-    def next(self):
-        """Assemble the filtered candle and classify its bull/bear color."""
-        o = float(self.k_open_line.value[0])
-        h = max(float(self.k_high_line.value[0]), o)
-        l = min(float(self.k_low_line.value[0]), o)
-        c = float(self.k_close_line.value[0])
-        h = max(h, c)
-        l = min(l, c)
-        self.lines.k_open[0] = o
-        self.lines.k_high[0] = h
-        self.lines.k_low[0] = l
-        self.lines.k_close[0] = c
-        if o < c:
-            color = 2
-        elif o > c:
-            color = 0
-        else:
-            color = 1
-        self.lines.color[0] = color
-
-
 class KalmanFilterCandleStrategy(bt.Strategy):
     """Reversal strategy trading Kalman-filtered candle color flips."""
 
@@ -289,7 +176,7 @@ class KalmanFilterCandleStrategy(bt.Strategy):
         """Bind feeds, build the indicator, and reset order/risk state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = KalmanFilterCandleIndicator(
+        self.indicator = bt.indicators.KalmanFilterCandleIndicator(
             self.signal_feed,
             k=self.p.k,
             point=self.p.point,
@@ -509,7 +396,6 @@ class KalmanFilterCandleStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -518,9 +404,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -727,7 +611,7 @@ def test_187_0186_0951_kalmanfiltercandle() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0186_0951_kalmanfiltercandle.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

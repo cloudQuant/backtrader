@@ -38,15 +38,14 @@ Strategy Logic:
     captured regression baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -93,64 +92,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV frame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp so bars are stamped
-            at their close instead of their open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with ``open``, ``high``, ``low``,
-        ``close``, ``volume`` and ``openinterest`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Pandas data feed mapping MT5-style OHLCV columns by position.
 
@@ -162,84 +103,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class LaguerreFilter(bt.Indicator):
-    """Laguerre filter oscillator bounded in the [0, 1] range.
-
-    Implements Ehlers' four-stage Laguerre filter and converts the staged
-    values into a normalised oscillator. Readings near 0 indicate oversold
-    conditions and readings near 1 indicate overbought conditions.
-    """
-
-    lines = ('value',)
-    params = dict(gamma=0.7)
-
-    def __init__(self):
-        """Set the minimum period and reset the four Laguerre stage buffers."""
-        self.addminperiod(2)
-        self._l0 = None
-        self._l1 = None
-        self._l2 = None
-        self._l3 = None
-
-    def next(self):
-        """Advance the Laguerre stages and emit the normalised oscillator value."""
-        price = float(self.data[0])
-        gamma = float(self.p.gamma)
-        if self._l0 is None:
-            self._l0 = price
-            self._l1 = price
-            self._l2 = price
-            self._l3 = price
-            self.lines.value[0] = 0.5
-            return
-        l0_prev = self._l0
-        l1_prev = self._l1
-        l2_prev = self._l2
-        l3_prev = self._l3
-        self._l0 = (1.0 - gamma) * price + gamma * l0_prev
-        self._l1 = -gamma * self._l0 + l0_prev + gamma * l1_prev
-        self._l2 = -gamma * self._l1 + l1_prev + gamma * l2_prev
-        self._l3 = -gamma * self._l2 + l2_prev + gamma * l3_prev
-        cu = 0.0
-        cd = 0.0
-        pairs = ((self._l0, self._l1), (self._l1, self._l2), (self._l2, self._l3))
-        for left, right in pairs:
-            if left >= right:
-                cu += left - right
-            else:
-                cd += right - left
-        denom = cu + cd
-        self.lines.value[0] = cu / denom if denom else self.lines.value[-1]
-
-
-class AppliedPriceCCI(bt.Indicator):
-    """Commodity Channel Index computed over an arbitrary applied-price line.
-
-    Mirrors the MetaTrader CCI: the mean absolute deviation of the recent
-    applied-price window is scaled by ``factor`` and used to normalise the
-    distance of the current price from the window mean.
-    """
-
-    lines = ('cci',)
-    params = dict(period=14, factor=0.015)
-
-    def __init__(self):
-        """Require ``period + 1`` bars before the indicator produces output."""
-        self.addminperiod(int(self.p.period) + 1)
-
-    def next(self):
-        """Compute the CCI value for the current bar from the applied price."""
-        period = int(self.p.period)
-        prices = [float(self.data[-i]) for i in range(period)]
-        mean_price = sum(prices) / period
-        mean_dev = sum(abs(price - mean_price) for price in prices) / period
-        denom = float(self.p.factor) * mean_dev
-        if denom == 0:
-            self.lines.cci[0] = 0.0
-            return
-        self.lines.cci[0] = (float(self.data[0]) - mean_price) / denom
 
 
 class StarterStrategy(bt.Strategy):
@@ -272,8 +135,8 @@ class StarterStrategy(bt.Strategy):
         """Create indicator graph and initialize per-cycle counters/state."""
         self.price_cci = self._price_line(self.p.cci_price)
         self.price_ma = self._price_line(self.p.ma_price)
-        self.laguerre = LaguerreFilter(self.data.close, gamma=self.p.lag_gamma)
-        self.cci = AppliedPriceCCI(self.price_cci, period=self.p.cci_period)
+        self.laguerre = bt.indicators.StarterLaguerreFilter(self.data.close, gamma=self.p.lag_gamma)
+        self.cci = bt.indicators.AppliedPriceCCI(self.price_cci, period=self.p.cci_period)
         ma_cls = self._ma_class(self.p.ma_method)
         self.ma = ma_cls(self.price_ma, period=self.p.ma_period)
 
@@ -505,18 +368,15 @@ class StarterStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -664,7 +524,7 @@ def test_207_0206_1156_starter() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0206_1156_starter.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

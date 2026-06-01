@@ -34,19 +34,18 @@ Strategy Logic:
     migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
 from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.feeds as btfeeds
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,60 +86,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close rather than the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """PandasData feed mapping the loaded MT5 frame columns by position."""
 
@@ -154,55 +99,6 @@ def _weighted_ma(values):
     weights = list(range(1, len(values) + 1))
     denominator = float(sum(weights))
     return sum(value * weight for value, weight in zip(values, weights)) / denominator
-
-
-class ColorHMA(Indicator):
-    """Hull Moving Average line plus its slope-direction ("color") line."""
-
-    lines = ('hma', 'direction')
-    params = dict(period=13)
-
-    def __init__(self):
-        """Derive the half, full, and sqrt periods and set the warmup window."""
-        self.period = max(int(self.p.period), 2)
-        self.half_period = max(int(math.floor(self.period / 2.0)), 1)
-        self.sqrt_period = max(int(math.floor(math.sqrt(self.period))), 1)
-        self._dma_history = []
-        self.addminperiod(self.period + self.sqrt_period + 2)
-
-    def _window(self, length):
-        return [float(self.data[-idx]) for idx in range(length - 1, -1, -1)]
-
-    def next(self):
-        """Compute the HMA value for this bar and update its slope direction."""
-        if len(self.data) < self.period:
-            current = float(self.data.close[0]) if hasattr(self.data, 'close') else float(self.data[0])
-            self._dma_history.append(current)
-            self.l.hma[0] = current
-            self.l.direction[0] = 0.0
-            return
-
-        half_values = self._window(self.half_period)
-        full_values = self._window(self.period)
-        lwma_half = _weighted_ma(half_values)
-        lwma_full = _weighted_ma(full_values)
-        dma = 2.0 * lwma_half - lwma_full
-        self._dma_history.append(dma)
-
-        if len(self._dma_history) >= self.sqrt_period:
-            hma = _weighted_ma(self._dma_history[-self.sqrt_period:])
-        else:
-            hma = dma
-
-        self.l.hma[0] = hma
-        if len(self) < 2:
-            self.l.direction[0] = 0.0
-        elif self.l.hma[-1] < self.l.hma[0]:
-            self.l.direction[0] = 1.0
-        elif self.l.hma[-1] > self.l.hma[0]:
-            self.l.direction[0] = -1.0
-        else:
-            self.l.direction[0] = self.l.direction[-1]
 
 
 class ColorHMAStrategy(Strategy):
@@ -223,7 +119,7 @@ class ColorHMAStrategy(Strategy):
 
     def __init__(self):
         """Build the ColorHMA indicator and zero counters and risk state."""
-        self.indicator = ColorHMA(self.data, period=self.p.hma_period)
+        self.indicator = bt.indicators.ColorHMA(self.data, period=self.p.hma_period)
         self.bar_num = 0
         self.buy_signal_count = 0
         self.sell_signal_count = 0
@@ -376,7 +272,6 @@ class ColorHMAStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -385,9 +280,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -587,7 +480,7 @@ def test_200_0199_1000_colorhma() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0199_1000_colorhma.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

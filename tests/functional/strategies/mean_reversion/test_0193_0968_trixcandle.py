@@ -22,15 +22,30 @@ Strategy Logic:
     4. Verify deterministic metrics via analyzers and explicit assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,63 +90,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style TSV data and normalize to Backtrader-ready columns.
-
-    Args:
-        filepath: Absolute file path.
-        fromdate: Optional inclusive start filter.
-        todate: Optional inclusive end filter.
-        bar_shift_minutes: Optional timestamp offset in minutes.
-
-    Returns:
-        Cleaned DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Base data feed including spread for dual-purpose candle computation."""
     lines = ('spread',)
@@ -145,41 +103,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class TriXCandleIndicator(bt.Indicator):
-    """Indicator that transforms TRIX values into a candle-style representation."""
-    lines = ('o', 'h', 'l', 'c', 'color')
-    params = dict(period=14)
-
-    def __init__(self):
-        """Initialize TRIX line calculators and minimum data warmup."""
-        self.addminperiod(int(self.p.period) + 2)
-        self.trix_open = bt.indicators.TRIX(self.data.open, period=int(self.p.period))
-        self.trix_high = bt.indicators.TRIX(self.data.high, period=int(self.p.period))
-        self.trix_low = bt.indicators.TRIX(self.data.low, period=int(self.p.period))
-        self.trix_close = bt.indicators.TRIX(self.data.close, period=int(self.p.period))
-
-    def next(self):
-        """Compute per-bar TRIX O/H/L/C proxy values and color state."""
-        o = float(self.trix_open[0])
-        h = float(self.trix_high[0])
-        l = float(self.trix_low[0])
-        c = float(self.trix_close[0])
-        mx = max(o, c)
-        mn = min(o, c)
-        h = max(mx, h)
-        l = min(mn, l)
-        color = 1
-        if o < c:
-            color = 2
-        elif o > c:
-            color = 0
-        self.lines.o[0] = o
-        self.lines.h[0] = h
-        self.lines.l[0] = l
-        self.lines.c[0] = c
-        self.lines.color[0] = color
 
 
 class TriXCandleStrategy(bt.Strategy):
@@ -206,7 +129,7 @@ class TriXCandleStrategy(bt.Strategy):
         """Instantiate indicator and initialize state counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = TriXCandleIndicator(self.signal_feed, period=self.p.trix_period)
+        self.indicator = bt.indicators.TriXCandleIndicator(self.signal_feed, period=self.p.trix_period)
         self.bar_num = 0
         self.buy_signal_count = 0
         self.sell_signal_count = 0
@@ -414,7 +337,6 @@ class TriXCandleStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -423,9 +345,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -622,7 +542,7 @@ def test_194_0193_0968_trixcandle() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0193_0968_trixcandle.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

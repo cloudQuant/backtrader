@@ -24,13 +24,13 @@ Strategy Logic:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent

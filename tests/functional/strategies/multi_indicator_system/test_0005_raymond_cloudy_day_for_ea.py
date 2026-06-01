@@ -34,6 +34,7 @@ import json
 import backtrader as bt
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -71,26 +72,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 
 
 def load_mt5_csv_with_raymond_levels(filepath, fromdate=None, todate=None, bar_shift_minutes=0, raymond_timeframe='D'):
@@ -275,13 +256,9 @@ class RaymondCloudyDayStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -439,7 +416,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def normalize_metric(value):
     """Normalize datetime and non-finite numbers for serialization."""
     if isinstance(value, (datetime.datetime, datetime.date)):
@@ -449,10 +425,9 @@ def normalize_metric(value):
     return value
 
 
-
 def run(plot=False):
     """Run backtest workflow and return strategy output artifacts."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

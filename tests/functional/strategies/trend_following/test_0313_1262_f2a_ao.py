@@ -26,7 +26,7 @@ Strategy Principle:
 
 Strategy Logic:
     load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
-    strategy and the default analyzers, building the F2aAOIndicator (which
+    strategy and the default analyzers, building the bt.indicators.F2aAOIndicator(which
     supports both event-driven ``next`` and vectorized ``once`` evaluation). Each
     bar the strategy reads the buy/sell arrows at the configured signal bar plus
     a candle-direction trend filter to derive open/close signals, then opens,
@@ -36,16 +36,15 @@ Strategy Logic:
     metric against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
 import os
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,62 +81,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -147,103 +93,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class F2aAOIndicator(bt.Indicator):
-    """F2a_AO arrow indicator from a fast/slow/filter EMA system.
-
-    Builds fast, slow and filter EMAs of a weighted price and emits a ``buy``
-    arrow below the bar when the fast-minus-slow spread turns up with filter
-    confirmation, or a ``sell`` arrow above the bar on the bearish turn, using an
-    internal latch so arrows alternate direction.
-    """
-
-    lines = ('sell', 'buy')
-    params = dict(ma_filtr=3, ma_fast=13, ma_slow=144)
-
-    def __init__(self):
-        """Build the fast/slow/filter EMAs and set the minimum period."""
-        series = (self.data.close * 5.0 + self.data.open * 2.0 + self.data.high + self.data.low) / 9.0
-        self._fast = bt.indicators.ExponentialMovingAverage(series, period=max(1, int(self.p.ma_fast)))
-        self._slow = bt.indicators.ExponentialMovingAverage(series, period=max(1, int(self.p.ma_slow)))
-        self._filter = bt.indicators.ExponentialMovingAverage(series, period=max(1, int(self.p.ma_filtr)))
-        self.addminperiod(max(int(self.p.ma_slow), int(self.p.ma_fast), int(self.p.ma_filtr)) + 20)
-        self._trend = 0
-
-    def next(self):
-        """Compute buy/sell arrows for the current bar (event-driven mode).
-
-        Detects a confirmed turn in the fast-minus-slow spread and plots a buy
-        arrow below the low or a sell arrow above the high, offset by half the
-        recent average range, toggling the internal trend latch.
-        """
-        value1_0 = float(self._fast[0]) - float(self._slow[0])
-        value1_1 = float(self._fast[-1]) - float(self._slow[-1])
-        value1_2 = float(self._fast[-2]) - float(self._slow[-2])
-        current = float(self._filter[0])
-        prev = float(self._filter[-1])
-        avg_range = 0.0
-        for count in range(10):
-            avg_range += abs(float(self.data.high[-count]) - float(self.data.low[-count]))
-        range_value = avg_range / 10.0
-        self.lines.buy[0] = 0.0
-        self.lines.sell[0] = 0.0
-        if self._trend <= 0:
-            if value1_0 > value1_1 and current >= prev and value1_1 <= value1_2:
-                self.lines.buy[0] = float(self.data.low[0]) - range_value * 0.5
-                self._trend = 1
-        if self._trend >= 0:
-            if value1_0 < value1_1 and current <= prev and value1_1 >= value1_2:
-                self.lines.sell[0] = float(self.data.high[0]) + range_value * 0.5
-                self._trend = -1
-
-    def once(self, start, end):
-        """Compute buy/sell arrows over a range of bars (vectorized mode).
-
-        Vectorized equivalent of ``next`` used under ``runonce``: iterates the
-        arrays from ``start`` to ``end``, detecting confirmed spread turns and
-        writing buy/sell arrow values while maintaining the trend latch.
-
-        Args:
-            start: First bar index to process.
-            end: Stop index (exclusive) for processing.
-        """
-        fast = self._fast.array
-        slow = self._slow.array
-        filtr = self._filter.array
-        high = self.data.high.array
-        low = self.data.low.array
-        buy = self.lines.buy.array
-        sell = self.lines.sell.array
-        trend = 0
-        for i in range(start, end):
-            buy[i] = 0.0
-            sell[i] = 0.0
-            if i < 12:
-                continue
-            value1_0 = float(fast[i]) - float(slow[i])
-            value1_1 = float(fast[i - 1]) - float(slow[i - 1])
-            value1_2 = float(fast[i - 2]) - float(slow[i - 2])
-            current = float(filtr[i])
-            prev = float(filtr[i - 1])
-            if not all(math.isfinite(v) for v in (value1_0, value1_1, value1_2, current, prev)):
-                continue
-            avg_range = 0.0
-            valid_ranges = 0
-            for count in range(10):
-                idx = i - count
-                bar_range = abs(float(high[idx]) - float(low[idx]))
-                if math.isfinite(bar_range):
-                    avg_range += bar_range
-                    valid_ranges += 1
-            range_value = avg_range / valid_ranges if valid_ranges else 0.0
-            if trend <= 0 and value1_0 > value1_1 and current >= prev and value1_1 <= value1_2:
-                buy[i] = float(low[i]) - range_value * 0.5
-                trend = 1
-            if trend >= 0 and value1_0 < value1_1 and current <= prev and value1_1 >= value1_2:
-                sell[i] = float(high[i]) + range_value * 0.5
-                trend = -1
-        self._trend = trend
 
 
 class F2aAOStrategy(bt.Strategy):
@@ -275,7 +124,7 @@ class F2aAOStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the F2aAO indicator and reset bar/trade counters."""
-        self.indicator = F2aAOIndicator(self.data, ma_filtr=self.p.ma_filtr, ma_fast=self.p.ma_fast, ma_slow=self.p.ma_slow)
+        self.indicator = bt.indicators.F2aAOIndicator(self.data, ma_filtr=self.p.ma_filtr, ma_fast=self.p.ma_fast, ma_slow=self.p.ma_slow)
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -395,17 +244,14 @@ class F2aAOStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -563,7 +409,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the F2a_AO backtest and optionally plot the result.
 
@@ -573,7 +418,7 @@ def run(plot=False):
     Returns:
         A tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

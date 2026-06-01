@@ -30,14 +30,29 @@ Strategy Logic:
     on opposite transitions or timed hold exits.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,53 +97,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
@@ -142,34 +110,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class AbsolutelyNoLagLwmaColor(bt.Indicator):
-    """Indicator computing WMA-of-WMA (no-lag) upper/lower channels with color breakout signal."""
-    lines = ('color_idx', 'upper', 'lower')
-    params = dict(length=7)
-
-    def __init__(self):
-        """Initialize double-WMA smoothing for high and low inputs."""
-        self.up_lwma_1 = bt.indicators.WeightedMovingAverage(self.data.high, period=self.p.length)
-        self.up_lwma_2 = bt.indicators.WeightedMovingAverage(self.up_lwma_1, period=self.p.length)
-        self.dn_lwma_1 = bt.indicators.WeightedMovingAverage(self.data.low, period=self.p.length)
-        self.dn_lwma_2 = bt.indicators.WeightedMovingAverage(self.dn_lwma_1, period=self.p.length)
-
-    def next(self):
-        """Set the color index based on close position relative to the no-lag WMA channel."""
-        upper = float(self.up_lwma_2[0])
-        lower = float(self.dn_lwma_2[0])
-        close = float(self.data.close[0])
-        open_ = float(self.data.open[0])
-        self.lines.upper[0] = upper
-        self.lines.lower[0] = lower
-        color = 4.0
-        if close > upper:
-            color = 3.0 if close >= open_ else 2.0
-        elif close < lower:
-            color = 0.0 if close <= open_ else 1.0
-        self.lines.color_idx[0] = color
 
 
 class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
@@ -193,7 +133,7 @@ class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
         """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
-        self.channel = AbsolutelyNoLagLwmaColor(self.signal_feed, length=self.p.length)
+        self.channel = bt.indicators.AbsolutelyNoLagLwmaColor(self.signal_feed, length=self.p.length)
         self.entry_order = None
         self.close_order = None
         self.stop_order = None
@@ -333,13 +273,9 @@ class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
             self.entry_datetime = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -463,7 +399,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp AbsolutelyNoLagLwma Range Channel Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

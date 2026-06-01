@@ -9,15 +9,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -63,63 +62,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a tab-separated MT5 export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV/TSV export file.
-        fromdate: Optional inclusive lower bound on the bar timestamp.
-        todate: Optional inclusive upper bound on the bar timestamp.
-        bar_shift_minutes: Minutes to add to each bar timestamp so bars are
-            stamped at their close.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -127,92 +73,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class SidusIndicator(bt.Indicator):
-    """Reconstructs Sidus indicator from its MQ5 source.
-
-    Uses 4 MAs: FastEMA, SlowEMA, FastLWMA, SlowLWMA + ATR(15).
-    Buy arrows on: FastLWMA crosses above SlowLWMA, or SlowLWMA crosses above SlowEMA.
-    Sell arrows on reverse crosses.
-    Arrow offset = ATR * digit scaling.
-    """
-    lines = ('buy_arrow', 'sell_arrow')
-    params = dict(fast_ema=18, slow_ema=28, fast_lwma=5, slow_lwma=8, digit=0)
-
-    def __init__(self):
-        """Cache MA periods and digit scaling, and set the indicator warmup."""
-        self._fe = int(self.p.fast_ema)
-        self._se = int(self.p.slow_ema)
-        self._fl = int(self.p.fast_lwma)
-        self._sl = int(self.p.slow_lwma)
-        self._digit = float(10 ** int(self.p.digit)) if int(self.p.digit) > 0 else 0.0
-        self.addminperiod(max(self._fe, self._se, self._fl, self._sl) + 3)
-
-    def _ema(self, period, ago):
-        # Simple EMA approximation using close prices
-        k = 2.0 / (period + 1)
-        val = float(self.data.close[-(ago + period - 1)])
-        for i in range(ago + period - 2, ago - 1, -1):
-            val = float(self.data.close[-i]) * k + val * (1 - k) if i >= 0 else val
-        return val
-
-    def _lwma(self, period, ago):
-        total = 0.0
-        wsum = 0.0
-        for i in range(period):
-            w = float(period - i)
-            total += float(self.data.close[-(ago + i)]) * w
-            wsum += w
-        return total / wsum if wsum > 0 else 0.0
-
-    def _atr(self, period, ago):
-        total = 0.0
-        for i in range(period):
-            idx = ago + i
-            h = float(self.data.high[-idx])
-            l = float(self.data.low[-idx])
-            if idx + 1 < len(self.data):
-                pc = float(self.data.close[-(idx + 1)])
-                tr = max(h - l, abs(h - pc), abs(l - pc))
-            else:
-                tr = h - l
-            total += tr
-        return total / period
-
-    def next(self):
-        """Emit buy/sell arrow offsets when the LWMA/EMA cross conditions fire."""
-        # Current bar (ago=0) and previous bar (ago=1)
-        fst_ema_0 = self._ema(self._fe, 0)
-        slw_ema_0 = self._ema(self._se, 0)
-        fst_lwma_0 = self._lwma(self._fl, 0)
-        slw_lwma_0 = self._lwma(self._sl, 0)
-
-        fst_lwma_1 = self._lwma(self._fl, 1)
-        slw_lwma_1 = self._lwma(self._sl, 1)
-        slw_ema_1 = self._ema(self._se, 1)
-
-        atr_val = self._atr(15, 0)
-        rng = atr_val * 3.0
-        digit = self._digit
-
-        buy_val = 0.0
-        sell_val = 0.0
-
-        # Buy: FastLWMA crosses above SlowLWMA, or SlowLWMA crosses above SlowEMA
-        if (fst_lwma_0 > slw_lwma_0 + digit and fst_lwma_1 <= slw_lwma_1):
-            buy_val = float(self.data.low[0]) - rng
-        if (slw_lwma_0 > slw_ema_0 + digit and slw_lwma_1 <= slw_ema_1):
-            buy_val = float(self.data.low[0]) - rng
-
-        # Sell: FastLWMA crosses below SlowLWMA, or SlowLWMA crosses below SlowEMA
-        if (fst_lwma_0 < slw_lwma_0 - digit and fst_lwma_1 >= slw_lwma_1):
-            sell_val = float(self.data.high[0]) + rng
-        if (slw_lwma_0 < slw_ema_0 - digit and slw_lwma_1 >= slw_ema_1):
-            sell_val = float(self.data.high[0]) + rng
-
-        self.lines.buy_arrow[0] = buy_val
-        self.lines.sell_arrow[0] = sell_val
 
 
 class ExpSidusStrategy(bt.Strategy):
@@ -240,7 +100,7 @@ class ExpSidusStrategy(bt.Strategy):
         """Bind base/signal feeds, build the Sidus indicator, and reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = SidusIndicator(
+        self.indicator = bt.indicators.SidusIndicator(
             self.signal_data,
             fast_ema=self.p.fast_ema, slow_ema=self.p.slow_ema,
             fast_lwma=self.p.fast_lwma, slow_lwma=self.p.slow_lwma,
@@ -495,7 +355,7 @@ def run(plot=False):
     Returns:
         A tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

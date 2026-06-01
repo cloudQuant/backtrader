@@ -26,14 +26,13 @@ Strategy Principle:
         - Opposing Signal Exit: Close active position immediately if a fresh opposing swing signal occurs.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -74,65 +73,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Load the inlined strategy and backtest configuration dict.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom backtrader Pandas data feed with default columns."""
     params = (
@@ -144,76 +84,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class ZigZagRecentPivotSignal(bt.Indicator):
-    """Custom indicator tracking local pivot age and pivot price breakout channels.
-
-    Lines:
-        signal (Line): Pivot direction signal line (1 for high, -1 for low).
-        pivot_age (Line): Age of the confirmed pivot in bars.
-        pivot_price (Line): Confirmed pivot price level.
-    """
-    lines = ('signal', 'pivot_age', 'pivot_price')
-    params = dict(depth=17, deviation=7, backstep=5, point=0.01)
-
-    def __init__(self):
-        """Initialize indicator buffers and establish minimum warmup period."""
-        self.addminperiod(self.p.depth + self.p.backstep + 2)
-        self._last_pivot_type = 0
-        self._last_pivot_price = None
-        self._latest_signal = 0
-        self._latest_age = 999999
-        self._latest_pivot_price = 0.0
-
-    def next(self):
-        """Calculate local ZigZag pivot high and low levels on each new bar."""
-        self.lines.signal[0] = 0
-        self.lines.pivot_age[0] = self._latest_age if self._latest_age < 999999 else 999999
-        self.lines.pivot_price[0] = self._latest_pivot_price
-
-        if len(self.data) <= self.p.depth + self.p.backstep:
-            return
-
-        shift = self.p.backstep
-        candidate_high = float(self.data.high[-shift])
-        candidate_low = float(self.data.low[-shift])
-        high_window = [float(self.data.high[-shift - i]) for i in range(self.p.depth)]
-        low_window = [float(self.data.low[-shift - i]) for i in range(self.p.depth)]
-        deviation_abs = self.p.deviation * self.p.point
-
-        pivot_type = 0
-        pivot_price = None
-        if candidate_high >= max(high_window):
-            pivot_type = 1
-            pivot_price = candidate_high
-        elif candidate_low <= min(low_window):
-            pivot_type = -1
-            pivot_price = candidate_low
-
-        if pivot_type != 0 and pivot_price is not None:
-            is_new_pivot = False
-            if self._last_pivot_price is None:
-                is_new_pivot = True
-            elif pivot_type != self._last_pivot_type and abs(pivot_price - self._last_pivot_price) >= deviation_abs:
-                is_new_pivot = True
-            elif pivot_type == self._last_pivot_type:
-                if pivot_type == 1 and pivot_price > self._last_pivot_price:
-                    is_new_pivot = True
-                if pivot_type == -1 and pivot_price < self._last_pivot_price:
-                    is_new_pivot = True
-            if is_new_pivot:
-                self._last_pivot_type = pivot_type
-                self._last_pivot_price = pivot_price
-                self._latest_signal = 1 if pivot_type == 1 else -1
-                self._latest_age = 0
-                self._latest_pivot_price = pivot_price
-
-        if self._latest_age < 999999:
-            self.lines.signal[0] = self._latest_signal
-            self.lines.pivot_age[0] = self._latest_age
-            self.lines.pivot_price[0] = self._latest_pivot_price
-            self._latest_age += 1
 
 
 class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
@@ -234,7 +104,7 @@ class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicators, backtest tracking metrics, and state variables."""
-        self.signal_indicator = ZigZagRecentPivotSignal(
+        self.signal_indicator = bt.indicators.ZigZagRecentPivotSignal(
             self.data,
             depth=self.p.depth,
             deviation=self.p.deviation,
@@ -308,7 +178,6 @@ class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 REPO_BACKTRADER_DIR = BASE_DIR.parents[2] / 'backtrader'
@@ -316,9 +185,7 @@ if str(REPO_BACKTRADER_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_BACKTRADER_DIR))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -517,7 +384,7 @@ def test_132_0132_0473_zigzagevgetrofi_ver_1() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0132_0473_zigzagevgetrofi_ver_1.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

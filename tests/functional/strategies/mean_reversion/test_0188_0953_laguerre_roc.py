@@ -24,15 +24,30 @@ Strategy Logic:
        migration metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,63 +95,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Read and normalize MT5-formatted tab-separated data.
-
-    Args:
-        filepath: Absolute CSV/TSV path.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Optional timestamp shift in minutes.
-
-    Returns:
-        Clean DataFrame with datetime index and required numeric columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """OHLCV feed plus spread line for indicator computations."""
     lines = ('spread',)
@@ -150,68 +108,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class LaguerreRocIndicator(bt.Indicator):
-    """Laguerre ROC indicator emitting value, midline, and color."""
-    lines = ('lroc', 'midline', 'color')
-    params = dict(vperiod=5, gamma=0.5, up_level=0.75, dn_level=0.25, point=0.01)
-
-    def __init__(self):
-        """Initialize rolling state and warm-up period."""
-        self.addminperiod(int(self.p.vperiod) + 4)
-        self._initialized = False
-        self._l0 = self._l1 = self._l2 = self._l3 = None
-
-    def next(self):
-        """Calculate laguerre recursive values and output normalized ROC color."""
-        if len(self.data) <= int(self.p.vperiod):
-            self.lines.lroc[0] = 0.5
-            self.lines.midline[0] = 0.5
-            self.lines.color[0] = 2
-            return
-        reference = float(self.data.close[-int(self.p.vperiod)])
-        if reference == 0:
-            roc = float(self.p.point)
-        else:
-            roc = (float(self.data.close[0]) - reference) / reference + float(self.p.point)
-        gamma = float(self.p.gamma)
-        if not self._initialized:
-            self._l0 = self._l1 = self._l2 = self._l3 = roc
-            self._initialized = True
-        l0_prev, l1_prev, l2_prev, l3_prev = self._l0, self._l1, self._l2, self._l3
-        l0 = (1.0 - gamma) * roc + gamma * l0_prev
-        l1 = -gamma * l0 + l0_prev + gamma * l1_prev
-        l2 = -gamma * l1 + l1_prev + gamma * l2_prev
-        l3 = -gamma * l2 + l2_prev + gamma * l3_prev
-        cu = 0.0
-        cd = 0.0
-        if l0 >= l1:
-            cu += l0 - l1
-        else:
-            cd += l1 - l0
-        if l1 >= l2:
-            cu += l1 - l2
-        else:
-            cd += l2 - l1
-        if l2 >= l3:
-            cu += l2 - l3
-        else:
-            cd += l3 - l2
-        lroc = cu / (cu + cd) if (cu + cd) != 0 else 0.5
-        color = 2
-        if lroc > float(self.p.up_level):
-            color = 4
-        elif lroc > 0.5:
-            color = 3
-        if lroc < float(self.p.dn_level):
-            color = 0
-        elif lroc < 0.5:
-            color = 1
-        self.lines.lroc[0] = lroc
-        self.lines.midline[0] = 0.5
-        self.lines.color[0] = color
-        self._l0, self._l1, self._l2, self._l3 = l0, l1, l2, l3
 
 
 class LaguerreRocStrategy(bt.Strategy):
@@ -241,7 +137,7 @@ class LaguerreRocStrategy(bt.Strategy):
         """Create signal indicator, initialize risk and lifecycle tracking."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = LaguerreRocIndicator(
+        self.indicator = bt.indicators.LaguerreRocIndicator(
             self.signal_feed,
             vperiod=self.p.vperiod,
             gamma=self.p.gamma,
@@ -452,7 +348,6 @@ class LaguerreRocStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -461,9 +356,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -660,7 +553,7 @@ def test_189_0188_0953_laguerre_roc() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0188_0953_laguerre_roc.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

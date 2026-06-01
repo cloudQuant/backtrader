@@ -39,15 +39,14 @@ Strategy Logic:
     migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, os, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -97,185 +96,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load and normalize MT5 CSV export data into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV file.
-        fromdate: Optional start datetime; rows before this are filtered out.
-        todate: Optional end datetime; rows after this are filtered out.
-        bar_shift_minutes: Minutes to add to bar timestamps to mark bar close.
-
-    Returns:
-        A dataframe indexed by datetime with open/high/low/close/volume/openinterest.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping MT5 OHLCV fields by positional index."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class StepMANRTRIndicator(bt.Indicator):
-    """Reconstructs StepMA_NRTR indicator.
-
-    StepSizeCalc: Volty-based step size from ATR-like calculation.
-    StepMACalc: Trend-following MA with NRTR ratchet.
-    4 buffers: UpBuffer(0), DnBuffer(1), BuySignal(2), SellSignal(3).
-    Buy when trend flips from down to up. Sell on reverse.
-    """
-    lines = ('trend_up', 'trend_down', 'buy_signal', 'sell_signal')
-    params = dict(length=10, kv=1.0, step_size=0, percentage=0, switch=1)
-
-    def __init__(self):
-        """Initialize rolling state and derived parameters for indicator updates."""
-        self._length = int(self.p.length)
-        self._kv = float(self.p.kv)
-        self._step_size = int(self.p.step_size)
-        self._percentage = float(self.p.percentage)
-        self._switch = int(self.p.switch)  # 0=Close, 1=HighLow
-        self._trend0 = 0
-        self._trend1 = 0
-        self._trend1_ = 0
-        self._smax1 = 0.0
-        self._smin1 = 0.0
-        self._first = True
-        self.addminperiod(self._length + 3)
-
-    def _step_size_calc(self, bar_idx):
-        length = self._length
-        kv = self._kv
-        if self._step_size > 0:
-            return self._step_size
-        # Volty calculation: average of high-low ranges
-        total = 0.0
-        for i in range(length):
-            h = float(self.data.high[-i])
-            l = float(self.data.low[-i])
-            total += h - l
-        avg = total / length if length > 0 else 0
-        # Convert to points-like value
-        step = avg * kv / self.data.close[0] * 10000 if self.data.close[0] != 0 else 0
-        return max(step, 1)
-
-    def _step_ma_calc(self):
-        step = self._step_size_calc(0)
-        point = float(self.data.close[0]) / 10000.0 if float(self.data.close[0]) > 10 else 0.0001
-        size_p = step * point
-        size_2p = size_p * 2
-
-        cur_high = float(self.data.high[0])
-        cur_low = float(self.data.low[0])
-        cur_close = float(self.data.close[0])
-
-        if self._first:
-            self._trend1 = 0
-            self._smax1 = cur_low + size_2p
-            self._smin1 = cur_high - size_2p
-            self._first = False
-
-        if self._switch:  # HighLow mode
-            smax0 = cur_high - size_2p
-            smin0 = cur_low + size_2p
-        else:
-            smax0 = cur_close + size_2p
-            smin0 = cur_close - size_2p
-
-        self._trend0 = self._trend1
-
-        if cur_close > self._smax1:
-            self._trend0 = 1
-        if cur_close < self._smin1:
-            self._trend0 = -1
-
-        if self._trend0 > 0:
-            if smin0 < self._smin1:
-                smin0 = self._smin1
-            result = smin0 + size_p
-        else:
-            if smax0 > self._smax1:
-                smax0 = self._smax1
-            result = smax0 - size_p
-
-        self._trend1_ = self._trend1
-        self._smax1 = smax0
-        self._smin1 = smin0
-        self._trend1 = self._trend0
-
-        return result, size_p
-
-    def next(self):
-        """Compute trend-up/down lines and buy/sell trigger levels for this bar."""
-        result, size_p = self._step_ma_calc()
-        ratio = self._percentage / 100.0 if self._percentage > 0 else 0
-        step = self._step_size_calc(0)
-        if step > 0:
-            result += ratio / step
-
-        tu = 0.0
-        td = 0.0
-        bs = 0.0
-        ss = 0.0
-
-        point = float(self.data.close[0]) / 10000.0 if float(self.data.close[0]) > 10 else 0.0001
-
-        if self._trend0 > 0:
-            tu = result - step * point
-            if self._trend1_ < 0:
-                bs = tu
-        if self._trend0 < 0:
-            td = result + step * point
-            if self._trend1_ > 0:
-                ss = td
-
-        self.lines.trend_up[0] = tu
-        self.lines.trend_down[0] = td
-        self.lines.buy_signal[0] = bs
-        self.lines.sell_signal[0] = ss
 
 
 class ExpStepMANRTRStrategy(bt.Strategy):
@@ -303,7 +133,7 @@ class ExpStepMANRTRStrategy(bt.Strategy):
         """Initialize data views, StepMA indicator, and strategy counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = StepMANRTRIndicator(
+        self.indicator = bt.indicators.StepMANRTRIndicator(
             self.signal_data,
             length=self.p.length, kv=self.p.kv,
             step_size=self.p.step_size, percentage=self.p.percentage,
@@ -552,7 +382,7 @@ def run(plot=False):
     Returns:
         Tuple containing run results, extracted metrics, and Cerebro instance.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

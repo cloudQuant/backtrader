@@ -24,15 +24,30 @@ Strategy Logic:
     regression tolerances.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -84,67 +99,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV file and normalize for a Backtrader pandas feed.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Optional minute adjustment.
-
-    Returns:
-        Normalized OHLCV dataframe indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -156,70 +114,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
     )
 
 
-class AccumulationDistributionLine(bt.Indicator):
-    """Accumulate the ADL indicator from price and volume progression."""
-    lines = ('adl',)
-
-    def next(self):
-        """Compute one bar's accumulation/distribution line value."""
-        high = float(self.data.high[0])
-        low = float(self.data.low[0])
-        close = float(self.data.close[0])
-        volume = float(self.data.volume[0])
-        if high == low:
-            money_flow_multiplier = 0.0
-        else:
-            money_flow_multiplier = ((close - low) - (high - close)) / (high - low)
-        previous = float(self.lines.adl[-1]) if len(self) > 1 else 0.0
-        self.lines.adl[0] = previous + money_flow_multiplier * volume
-
-
-class ChaikinOscillator(bt.Indicator):
-    """Chaikin oscillator as EMA(short) minus EMA(long) of ADL."""
-    lines = ('cho',)
-    params = dict(fast_period=3, slow_period=10)
-
-    def __init__(self):
-        """Initialize fast/slow ADL EMAs."""
-        self.adl = AccumulationDistributionLine(self.data)
-        fast = bt.indicators.ExponentialMovingAverage(self.adl, period=self.p.fast_period)
-        slow = bt.indicators.ExponentialMovingAverage(self.adl, period=self.p.slow_period)
-        self.lines.cho = fast - slow
-
-
-class LineCCI(bt.Indicator):
-    """Custom CCI computation on the selected input data."""
-    lines = ('cci',)
-    params = dict(period=14)
-
-    def next(self):
-        """Calculate a bar's CCI value with zero-handling for degenerate windows."""
-        if len(self.data) < self.p.period:
-            self.lines.cci[0] = 0.0
-            return
-        values = [float(self.data[-i]) for i in range(self.p.period)]
-        mean_value = sum(values) / self.p.period
-        mean_dev = sum(abs(v - mean_value) for v in values) / self.p.period
-        if mean_dev == 0:
-            self.lines.cci[0] = 0.0
-            return
-        self.lines.cci[0] = (float(self.data[0]) - mean_value) / (0.015 * mean_dev)
-
-
-class CCIDualOnMA(bt.Indicator):
-    """Provide fast/slow CCI values computed on a smoothing moving average."""
-    lines = ('fast', 'slow')
-    params = dict(ma_period=12, fast_period=14, slow_period=50)
-
-    def __init__(self):
-        """Initialize smoothed MA and dual CCI lines."""
-        self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.ma_period)
-        self.lines.fast = LineCCI(self.ma, period=self.p.fast_period)
-        self.lines.slow = LineCCI(self.ma, period=self.p.slow_period)
-
-
 class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
-    """Trend-follow/mean-reversion hybrid strategy using CHO and dual CCI."""
+    """Trend-follow/mean-reversion hybrid strategy using CHO and dual bt.indicators.CCI."""
     params = dict(
         fixed_lot=3.0,
         stop_loss_points=150,
@@ -246,8 +142,8 @@ class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
 
     def __init__(self):
         """Create indicators and initialize trading state."""
-        self.cho = ChaikinOscillator(self.data, fast_period=self.p.cho_fast_period, slow_period=self.p.cho_slow_period)
-        self.cci_dual = CCIDualOnMA(self.data, ma_period=self.p.ma_period, fast_period=self.p.cci_fast_period, slow_period=self.p.cci_slow_period)
+        self.cho = bt.indicators.ChaikinOscillator(self.data, fast_period=self.p.cho_fast_period, slow_period=self.p.cho_slow_period)
+        self.cci_dual = bt.indicators.CCIDualOnMA(self.data, ma_period=self.p.ma_period, fast_period=self.p.cci_fast_period, slow_period=self.p.cci_slow_period)
         self.entry_order = None
         self.stop_order = None
         self.limit_order = None
@@ -540,9 +436,7 @@ if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
-
 
 
 def resolve_data_path(filename):
@@ -560,7 +454,6 @@ def resolve_data_path(filename):
     return path
 
 
-
 def parse_dt(value):
     """Parse configured date strings.
 
@@ -573,7 +466,6 @@ def parse_dt(value):
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
-
 
 
 def load_backtest_frame(config):
@@ -598,7 +490,6 @@ def load_backtest_frame(config):
         raise ValueError('Loaded data frame is empty')
     print(f'Loaded {len(df)} bars: {df.index[0]} -> {df.index[-1]}')
     return {'data': df}
-
 
 
 def build_cerebro(config, frame):
@@ -634,7 +525,6 @@ def build_cerebro(config, frame):
     return cerebro
 
 
-
 def finite_or_none(value):
     """Normalize non-finite analyzer values to ``None``.
 
@@ -649,7 +539,6 @@ def finite_or_none(value):
     if isinstance(value, (int, float)) and not math.isfinite(value):
         return None
     return value
-
 
 
 def extract_metrics(results, start_value):
@@ -695,9 +584,6 @@ def extract_metrics(results, start_value):
     }
 
 
-
-
-
 def run(plot=False):
     """Run strategy backtest and return raw results and summary metrics.
 
@@ -707,7 +593,7 @@ def run(plot=False):
     Returns:
         Tuple ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

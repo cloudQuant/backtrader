@@ -1,0 +1,220 @@
+backtrader/position.py:150: error: Incompatible types in assignment (expression has type "None", base class "object" defined the type as "Callable[[], int]")  [assignment]
+backtrader/brokers/hft/queue.py:26: error: Argument 1 to "abs" has incompatible type "Any | None"; expected "SupportsAbs[Any]"  [arg-type]
+backtrader/mixins/singleton.py:45: error: Incompatible types in assignment (expression has type "WeakValueDictionary[Never, Never]", variable has type "dict[type, Any]")  [assignment]
+backtrader/utils/py3.py:33: error: Incompatible types in assignment (expression has type "None", variable has type Module)  [assignment]
+backtrader/utils/py3.py:272: error: Variable "meta" is not valid as a type  [valid-type]
+backtrader/utils/py3.py:272: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#variables-vs-type-aliases
+backtrader/utils/py3.py:272: error: Invalid base class "meta"  [misc]
+backtrader/utils/autodict.py:205: error: Unsupported left operand type for + ("AutoOrderedDict")  [operator]
+backtrader/utils/autodict.py:211: error: Unsupported left operand type for - ("AutoOrderedDict")  [operator]
+backtrader/utils/autodict.py:217: error: Unsupported left operand type for * ("AutoOrderedDict")  [operator]
+backtrader/utils/autodict.py:223: error: Unsupported left operand type for // ("AutoOrderedDict")  [operator]
+backtrader/utils/autodict.py:229: error: Unsupported left operand type for / ("AutoOrderedDict")  [operator]
+backtrader/channel.py:255: error: Returning Any from function declared to return "dict[Any, Any]"  [no-any-return]
+backtrader/channel.py:560: error: Returning Any from function declared to return "Event | None"  [no-any-return]
+backtrader/bokeh/live/datahandler.py:253: error: Value of type "Any | None" is not indexable  [index]
+backtrader/sizer.py:68: error: "None" has no attribute "getcommissioninfo"  [attr-defined]
+backtrader/sizer.py:69: error: "None" has no attribute "getcash"  [attr-defined]
+backtrader/fillers.py:39: error: Incompatible types in assignment (expression has type "tuple[tuple[str, None]]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/fillers.py:71: error: Incompatible types in assignment (expression has type "tuple[tuple[str, float]]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/fillers.py:116: error: Incompatible types in assignment (expression has type "tuple[tuple[str, None], tuple[str, float]]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/channels/tick.py:130: error: No overload variant of "open" matches argument types "Any", "dict[str, str]"  [call-overload]
+backtrader/channels/tick.py:130: note: Possible overload variants:
+backtrader/channels/tick.py:130: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj, mode: Literal['r', 'rb'] = ..., compresslevel: int = ..., encoding: None = ..., errors: None = ..., newline: None = ...) -> GzipFile
+backtrader/channels/tick.py:130: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _WritableFileobj, mode: Literal['a', 'ab', 'w', 'wb', 'x', 'xb'], compresslevel: int = ..., encoding: None = ..., errors: None = ..., newline: None = ...) -> GzipFile
+backtrader/channels/tick.py:130: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj | _WritableFileobj, mode: Literal['rt', 'at', 'wt', 'xt'], compresslevel: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ...) -> TextIOWrapper[_WrappedBuffer]
+backtrader/channels/tick.py:130: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj | _WritableFileobj, mode: str, compresslevel: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ...) -> GzipFile | TextIOWrapper[_WrappedBuffer]
+backtrader/channels/tick.py:130: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['r+', '+r', 'rt+', 'r+t', '+rt', 'tr+', 't+r', '+tr', 'w+', '+w', 'wt+', 'w+t', '+wt', 'tw+', 't+w', '+tw', 'a+', '+a', 'at+', 'a+t', '+at', 'ta+', 't+a', '+ta', 'x+', '+x', 'xt+', 'x+t', '+xt', 'tx+', 't+x', '+tx'] | Literal['w', 'wt', 'tw', 'a', 'at', 'ta', 'x', 'xt', 'tx'] | Literal['r', 'rt', 'tr', 'U', 'rU', 'Ur', 'rtU', 'rUt', 'Urt', 'trU', 'tUr', 'Utr'] = ..., buffering: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ..., closefd: bool = ..., opener: Any | None = ...) -> TextIOWrapper[_WrappedBuffer]
+backtrader/channels/tick.py:130: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'] | Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'] | Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: Literal[0], encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> FileIO
+backtrader/channels/tick.py:130: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedRandom
+backtrader/channels/tick.py:130: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedWriter
+backtrader/channels/tick.py:130: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedReader[_BufferedReaderStream]
+backtrader/channels/tick.py:130: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'] | Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'] | Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: int = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BinaryIO
+backtrader/channels/tick.py:130: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: str, buffering: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ..., closefd: bool = ..., opener: Any | None = ...) -> IO[Any]
+backtrader/channels/tick.py:188: error: Incompatible return value type (got "None", expected "float")  [return-value]
+backtrader/channels/tick.py:192: error: Incompatible return value type (got "None", expected "float")  [return-value]
+backtrader/channels/tick.py:194: error: Incompatible return value type (got "None", expected "float")  [return-value]
+backtrader/channels/orderbook.py:138: error: Item "None" of "Any | None" has no attribute "endswith"  [union-attr]
+backtrader/channels/orderbook.py:141: error: Item "None" of "Any | None" has no attribute "endswith"  [union-attr]
+backtrader/channels/orderbook.py:145: error: No overload variant of "open" matches argument types "Any | None", "dict[str, str]"  [call-overload]
+backtrader/channels/orderbook.py:145: note: Possible overload variants:
+backtrader/channels/orderbook.py:145: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj, mode: Literal['r', 'rb'] = ..., compresslevel: int = ..., encoding: None = ..., errors: None = ..., newline: None = ...) -> GzipFile
+backtrader/channels/orderbook.py:145: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _WritableFileobj, mode: Literal['a', 'ab', 'w', 'wb', 'x', 'xb'], compresslevel: int = ..., encoding: None = ..., errors: None = ..., newline: None = ...) -> GzipFile
+backtrader/channels/orderbook.py:145: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj | _WritableFileobj, mode: Literal['rt', 'at', 'wt', 'xt'], compresslevel: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ...) -> TextIOWrapper[_WrappedBuffer]
+backtrader/channels/orderbook.py:145: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj | _WritableFileobj, mode: str, compresslevel: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ...) -> GzipFile | TextIOWrapper[_WrappedBuffer]
+backtrader/channels/orderbook.py:145: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['r+', '+r', 'rt+', 'r+t', '+rt', 'tr+', 't+r', '+tr', 'w+', '+w', 'wt+', 'w+t', '+wt', 'tw+', 't+w', '+tw', 'a+', '+a', 'at+', 'a+t', '+at', 'ta+', 't+a', '+ta', 'x+', '+x', 'xt+', 'x+t', '+xt', 'tx+', 't+x', '+tx'] | Literal['w', 'wt', 'tw', 'a', 'at', 'ta', 'x', 'xt', 'tx'] | Literal['r', 'rt', 'tr', 'U', 'rU', 'Ur', 'rtU', 'rUt', 'Urt', 'trU', 'tUr', 'Utr'] = ..., buffering: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ..., closefd: bool = ..., opener: Any | None = ...) -> TextIOWrapper[_WrappedBuffer]
+backtrader/channels/orderbook.py:145: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'] | Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'] | Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: Literal[0], encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> FileIO
+backtrader/channels/orderbook.py:145: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedRandom
+backtrader/channels/orderbook.py:145: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedWriter
+backtrader/channels/orderbook.py:145: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedReader[_BufferedReaderStream]
+backtrader/channels/orderbook.py:145: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'] | Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'] | Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: int = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BinaryIO
+backtrader/channels/orderbook.py:145: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: str, buffering: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ..., closefd: bool = ..., opener: Any | None = ...) -> IO[Any]
+backtrader/channels/orderbook.py:184: error: Item "None" of "Any | None" has no attribute "endswith"  [union-attr]
+backtrader/channels/orderbook.py:187: error: No overload variant of "open" matches argument types "Any | None", "dict[str, str]"  [call-overload]
+backtrader/channels/orderbook.py:187: note: Possible overload variants:
+backtrader/channels/orderbook.py:187: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj, mode: Literal['r', 'rb'] = ..., compresslevel: int = ..., encoding: None = ..., errors: None = ..., newline: None = ...) -> GzipFile
+backtrader/channels/orderbook.py:187: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _WritableFileobj, mode: Literal['a', 'ab', 'w', 'wb', 'x', 'xb'], compresslevel: int = ..., encoding: None = ..., errors: None = ..., newline: None = ...) -> GzipFile
+backtrader/channels/orderbook.py:187: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj | _WritableFileobj, mode: Literal['rt', 'at', 'wt', 'xt'], compresslevel: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ...) -> TextIOWrapper[_WrappedBuffer]
+backtrader/channels/orderbook.py:187: note:     def open(filename: str | bytes | PathLike[str] | PathLike[bytes] | _ReadableFileobj | _WritableFileobj, mode: str, compresslevel: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ...) -> GzipFile | TextIOWrapper[_WrappedBuffer]
+backtrader/channels/orderbook.py:187: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['r+', '+r', 'rt+', 'r+t', '+rt', 'tr+', 't+r', '+tr', 'w+', '+w', 'wt+', 'w+t', '+wt', 'tw+', 't+w', '+tw', 'a+', '+a', 'at+', 'a+t', '+at', 'ta+', 't+a', '+ta', 'x+', '+x', 'xt+', 'x+t', '+xt', 'tx+', 't+x', '+tx'] | Literal['w', 'wt', 'tw', 'a', 'at', 'ta', 'x', 'xt', 'tx'] | Literal['r', 'rt', 'tr', 'U', 'rU', 'Ur', 'rtU', 'rUt', 'Urt', 'trU', 'tUr', 'Utr'] = ..., buffering: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ..., closefd: bool = ..., opener: Any | None = ...) -> TextIOWrapper[_WrappedBuffer]
+backtrader/channels/orderbook.py:187: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'] | Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'] | Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: Literal[0], encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> FileIO
+backtrader/channels/orderbook.py:187: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedRandom
+backtrader/channels/orderbook.py:187: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedWriter
+backtrader/channels/orderbook.py:187: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'], buffering: Literal[-1, 1] = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BufferedReader[_BufferedReaderStream]
+backtrader/channels/orderbook.py:187: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: Literal['rb+', 'r+b', '+rb', 'br+', 'b+r', '+br', 'wb+', 'w+b', '+wb', 'bw+', 'b+w', '+bw', 'ab+', 'a+b', '+ab', 'ba+', 'b+a', '+ba', 'xb+', 'x+b', '+xb', 'bx+', 'b+x', '+bx'] | Literal['rb', 'br', 'rbU', 'rUb', 'Urb', 'brU', 'bUr', 'Ubr'] | Literal['wb', 'bw', 'ab', 'ba', 'xb', 'bx'], buffering: int = ..., encoding: None = ..., errors: None = ..., newline: None = ..., closefd: bool = ..., opener: Any | None = ...) -> BinaryIO
+backtrader/channels/orderbook.py:187: note:     def open(file: int | str | bytes | PathLike[str] | PathLike[bytes], mode: str, buffering: int = ..., encoding: str | None = ..., errors: str | None = ..., newline: str | None = ..., closefd: bool = ..., opener: Any | None = ...) -> IO[Any]
+backtrader/channels/live_queue.py:135: error: Unsupported operand types for - ("None" and "float")  [operator]
+backtrader/channels/live_queue.py:135: note: Left operand is of type "Any | None"
+backtrader/channels/live_queue.py:145: error: Returning Any from function declared to return "Event | None"  [no-any-return]
+backtrader/reports/performance.py:246: error: Unsupported operand types for < ("int" and "None")  [operator]
+backtrader/reports/performance.py:246: note: Left operand is of type "int | None"
+backtrader/reports/performance.py:247: error: Unsupported operand types for * ("int" and "None")  [operator]
+backtrader/reports/performance.py:247: note: Right operand is of type "int | None"
+backtrader/reports/performance.py:247: error: Unsupported operand types for / ("int" and "None")  [operator]
+backtrader/reports/performance.py:247: error: Incompatible types in assignment (expression has type "float", target has type "int | None")  [assignment]
+backtrader/reports/performance.py:248: error: Unsupported operand types for * ("int" and "None")  [operator]
+backtrader/reports/performance.py:248: note: Right operand is of type "int | None"
+backtrader/reports/performance.py:248: error: Unsupported operand types for / ("int" and "None")  [operator]
+backtrader/reports/performance.py:248: error: Incompatible types in assignment (expression has type "float", target has type "int | None")  [assignment]
+backtrader/reports/performance.py:594: error: Incompatible types in assignment (expression has type "Any | str", target has type "int | None")  [assignment]
+backtrader/tradingcal.py:179: error: Incompatible types in assignment (expression has type "tuple[Any, ...]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/tradingcal.py:290: error: Incompatible types in assignment (expression has type "tuple[tuple[str, None], tuple[str, int]]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/sizers/percents_sizer.py:57: error: Item "None" of "Any | None" has no attribute "getposition"  [union-attr]
+backtrader/sizers/fixedsize.py:104: error: Item "None" of "Any | None" has no attribute "getposition"  [union-attr]
+backtrader/sizers/fixedsize.py:146: error: Item "None" of "Any | None" has no attribute "position"  [union-attr]
+backtrader/sizers/fixedsize.py:159: error: Item "None" of "Any | None" has no attribute "position"  [union-attr]
+backtrader/broker.py:49: error: "BrokerAliasMixin" has no attribute "getcash"; maybe "get_cash"?  [attr-defined]
+backtrader/broker.py:51: error: "BrokerAliasMixin" has no attribute "getvalue"; maybe "get_value"?  [attr-defined]
+backtrader/commissions/__init__.py:36: error: Incompatible types in assignment (expression has type "tuple[tuple[str, bool]]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/commissions/__init__.py:45: error: Incompatible types in assignment (expression has type "tuple[tuple[str, int]]", base class "CommInfoFutures" defined the type as "tuple[tuple[str, bool]]")  [assignment]
+backtrader/commissions/__init__.py:54: error: Incompatible types in assignment (expression has type "tuple[tuple[str, int]]", base class "CommInfoFutures" defined the type as "tuple[tuple[str, bool]]")  [assignment]
+backtrader/commissions/__init__.py:63: error: Incompatible types in assignment (expression has type "tuple[tuple[str, bool]]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/commissions/__init__.py:72: error: Incompatible types in assignment (expression has type "tuple[tuple[str, int]]", base class "CommInfoStocks" defined the type as "tuple[tuple[str, bool]]")  [assignment]
+backtrader/commissions/__init__.py:81: error: Incompatible types in assignment (expression has type "tuple[tuple[str, int]]", base class "CommInfoStocks" defined the type as "tuple[tuple[str, bool]]")  [assignment]
+backtrader/brokers/btapibroker.py:226: error: Signature of "getposition" incompatible with supertype "backtrader.broker.BrokerBase"  [override]
+backtrader/brokers/btapibroker.py:226: note:      Superclass:
+backtrader/brokers/btapibroker.py:226: note:          def getposition(self, data: Any, side: Any = ...) -> Any
+backtrader/brokers/btapibroker.py:226: note:      Subclass:
+backtrader/brokers/btapibroker.py:226: note:          def getposition(self, data: Any, clone: Any = ..., side: Any = ...) -> Any
+backtrader/brokers/btapibroker.py:750: error: Argument 1 to "float" has incompatible type "Any | None"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+backtrader/brokers/bbroker.py:1019: error: Unused "type: ignore" comment  [unused-ignore]
+backtrader/brokers/bbroker.py:1049: error: Unused "type: ignore" comment  [unused-ignore]
+backtrader/brokers/hft/matching_core.py:197: error: Argument 1 to "abs" has incompatible type "Any | None"; expected "SupportsAbs[Any]"  [arg-type]
+backtrader/brokers/tickbroker.py:702: error: Argument 1 to "int" has incompatible type "Any | None"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+backtrader/brokers/tickbroker.py:736: error: Argument 1 to "int" has incompatible type "Any | None"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+backtrader/brokers/tickbroker.py:755: error: Argument 1 to "int" has incompatible type "Any | None"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+backtrader/brokers/tickbroker.py:789: error: Argument 1 to "int" has incompatible type "Any | None"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+backtrader/brokers/hft/binance_bbo_compare.py:192: error: Argument 1 to "float" has incompatible type "Any | None"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+backtrader/brokers/hft/binance_bbo_compare.py:1159: error: Argument 1 to "float" has incompatible type "Any | None"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+backtrader/plot/locator.py:254: error: Value of type "range | None" is not indexable  [index]
+backtrader/plot/finance.py:152: error: Dict entry 0 has incompatible type "Any": "CandlestickPlotHandler"; expected "type": "HandlerBase"  [dict-item]
+backtrader/plot/finance.py:484: error: Dict entry 0 has incompatible type "Any": "VolumePlotHandler"; expected "type": "HandlerBase"  [dict-item]
+backtrader/plot/finance.py:714: error: Dict entry 0 has incompatible type "Any": "OHLCPlotHandler"; expected "type": "HandlerBase"  [dict-item]
+backtrader/plot/finance.py:945: error: Dict entry 0 has incompatible type "Any": "LineOnClosePlotHandler"; expected "type": "HandlerBase"  [dict-item]
+backtrader/reports/charts.py:83: error: Incompatible types in assignment (expression has type "int | float", variable has type "int")  [assignment]
+backtrader/reports/charts.py:243: error: Incompatible types in assignment (expression has type "int | float", variable has type "int")  [assignment]
+backtrader/reports/charts.py:251: error: Incompatible types in assignment (expression has type "int | float", variable has type "int")  [assignment]
+backtrader/bokeh/tab.py:19: error: Name "Panel" already defined on line 8  [no-redef]
+backtrader/bokeh/tab.py:24: error: Name "Panel" already defined on line 8  [no-redef]
+backtrader/bokeh/tabs/source.py:67: error: Argument 1 to "append" of "list" has incompatible type "PreText"; expected "Div"  [arg-type]
+backtrader/bokeh/tabs/live.py:63: error: Argument 1 to "append" of "list" has incompatible type "Slider"; expected "Div"  [arg-type]
+backtrader/bokeh/tabs/live.py:76: error: Argument 1 to "append" of "list" has incompatible type "Select"; expected "Div"  [arg-type]
+backtrader/bokeh/tabs/live.py:86: error: Argument 1 to "append" of "list" has incompatible type "Select"; expected "Div"  [arg-type]
+backtrader/bokeh/tabs/live.py:96: error: Argument 1 to "append" of "list" has incompatible type "Button"; expected "Div"  [arg-type]
+backtrader/plot/plot_plotly.py:624: error: Argument 1 to "append" of "list" has incompatible type "float"; expected "int"  [arg-type]
+backtrader/plot/plot_plotly.py:633: error: Argument 1 to "append" of "list" has incompatible type "float"; expected "int"  [arg-type]
+backtrader/plot/plot_plotly.py:643: error: List comprehension has incompatible type List[float]; expected List[int]  [misc]
+backtrader/plot/plot_plotly.py:998: error: No overload variant of "update" of "MutableMapping" matches argument types "float", "str", "int", "dict[str, Sequence[object]]"  [call-overload]
+backtrader/plot/plot_plotly.py:998: note: Possible overload variants:
+backtrader/plot/plot_plotly.py:998: note:     def update(self, SupportsKeysAndGetItem[str, bool], /) -> None
+backtrader/plot/plot_plotly.py:998: note:     def update(self, SupportsKeysAndGetItem[str, bool], /, **kwargs: bool) -> None
+backtrader/plot/plot_plotly.py:998: note:     def update(self, Iterable[tuple[str, bool]], /) -> None
+backtrader/plot/plot_plotly.py:998: note:     def update(self, Iterable[tuple[str, bool]], /, **kwargs: bool) -> None
+backtrader/plot/plot_plotly.py:998: note:     def update(self, **kwargs: bool) -> None
+backtrader/functions.py:835: error: Cannot determine type of "flogic"  [has-type]
+backtrader/resamplerfilter.py:458: error: "_BaseResampler" not callable  [operator]
+backtrader/indicator.py:324: error: Argument 1 to "len" has incompatible type "Any | None"; expected "Sized"  [arg-type]
+backtrader/indicator.py:400: error: Function "builtins.object.__class__" is not valid as a type  [valid-type]
+backtrader/indicator.py:400: note: Perhaps you need "Callable[...]" or a callback protocol?
+backtrader/indicator.py:400: error: Invalid base class "Indicator.__class__"  [misc]
+backtrader/indicator.py:441: error: Cannot determine type of "lines" in base class "LineMultiple"  [misc]
+backtrader/talib.py:233: error: "None" not callable  [misc]
+backtrader/talib.py:259: error: "None" not callable  [misc]
+backtrader/signal.py:117: error: "tuple[str]" has no attribute "signal"  [attr-defined]
+backtrader/indicators/contrib/functional_repeats.py:557: error: Need type annotation for "_queues"  [var-annotated]
+backtrader/indicators/contrib/functional_repeats.py:793: error: Need type annotation for "_smooth"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_volatility_systems_test_0017_colorschaffdemarkertrendcycle.py:63: error: Need type annotation for "macd_window"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_volatility_systems_test_0017_colorschaffdemarkertrendcycle.py:64: error: Need type annotation for "st_window"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_trend_following_test_0322_1294_2pb_ideal_xosma.py:84: error: Need type annotation for "_smooth_values"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_trend_following_test_0320_1290_rmacd.py:81: error: Need type annotation for "values"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_trend_following_test_0320_1290_rmacd.py:106: error: Need type annotation for "_signal_window"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_trend_following_test_0318_1287_linear_reg_slope_v2.py:120: error: Need type annotation for "_window"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_trend_following_test_0275_1104_digital_macd.py:103: error: Need type annotation for "_closes"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_risk_management_test_0019_1276_movingaverage_fn.py:114: error: Name "re" is not defined  [name-defined]
+backtrader/indicators/contrib/functional/functional_risk_management_test_0019_1276_movingaverage_fn.py:118: error: Name "re" is not defined  [name-defined]
+backtrader/indicators/contrib/functional/functional_risk_management_test_0019_1276_movingaverage_fn.py:141: error: Need type annotation for "_smooth_values"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0319_1286_ultra_wpr.py:67: error: Need type annotation for "values"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0070_0241_exp_braintrend2_absolutelynolaglwma_x2macandle_mmrec.py:61: error: Need type annotation for "_trs"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0070_0241_exp_braintrend2_absolutelynolaglwma_x2macandle_mmrec.py:116: error: Need type annotation for "_price_window"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0070_0241_exp_braintrend2_absolutelynolaglwma_x2macandle_mmrec.py:117: error: Need type annotation for "_lwma_window"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0064_0229_exp_xdemarker_histogram_vol_direct.py:68: error: Need type annotation for "_demax"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0064_0229_exp_xdemarker_histogram_vol_direct.py:69: error: Need type annotation for "_demin"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0064_0229_exp_xdemarker_histogram_vol_direct.py:70: error: Need type annotation for "_raw"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_mean_reversion_test_0064_0229_exp_xdemarker_histogram_vol_direct.py:71: error: Need type annotation for "_vol"  [var-annotated]
+backtrader/indicators/contrib/functional/functional_machine_learning_test_0021_1293_jbrainsig1_ultra_rsi.py:87: error: Need type annotation for "values"  [var-annotated]
+backtrader/feeds/vchartfile.py:117: error: Unsupported operand types for < ("int" and "None")  [operator]
+backtrader/feeds/vchartfile.py:117: note: Right operand is of type "Any | None"
+backtrader/feeds/vchartfile.py:122: error: Argument 1 to "unpack" has incompatible type "Any | None"; expected "str | bytes"  [arg-type]
+backtrader/feeds/vchartfile.py:134: error: Unsupported operand types for < ("int" and "None")  [operator]
+backtrader/feeds/vchartfile.py:134: note: Left operand is of type "Any | None"
+backtrader/feeds/vchart.py:109: error: Argument 1 to "unpack" has incompatible type "Any | None"; expected "str | bytes"  [arg-type]
+backtrader/feeds/vchart.py:117: error: Unsupported operand types for < ("int" and "None")  [operator]
+backtrader/feeds/vchart.py:117: note: Left operand is of type "Any | None"
+backtrader/feeds/rollover.py:191: error: Argument 1 to "zip" has incompatible type "Any | None"; expected "Iterable[Any]"  [arg-type]
+backtrader/feeds/rollover.py:191: error: Argument 2 to "zip" has incompatible type "Any | None"; expected "Iterable[Any]"  [arg-type]
+backtrader/feeds/rollover.py:197: error: Unsupported target for indexed assignment ("Any | None")  [index]
+backtrader/feeds/pandafeed.py:77: error: Argument 1 to "next" has incompatible type "Any | None"; expected "SupportsNext[Any]"  [arg-type]
+backtrader/feeds/pandafeed.py:339: error: Unsupported operand types for + ("None" and "int")  [operator]
+backtrader/feeds/pandafeed.py:339: note: Left operand is of type "Any | None"
+backtrader/feeds/csvgeneric.py:141: error: "None" not callable  [misc]
+backtrader/feeds/chainer.py:109: error: Unsupported target for indexed assignment ("str")  [index]
+backtrader/feeds/btapifeed.py:181: error: Incompatible return value type (got "None", expected "bool")  [return-value]
+backtrader/feeds/btapifeed.py:264: error: Argument "symbol" to "BarEvent" has incompatible type "Any | None"; expected "str"  [arg-type]
+backtrader/feeds/btapifeed.py:298: error: Argument "symbol" to "BarEvent" has incompatible type "Any | None"; expected "str"  [arg-type]
+backtrader/feeds/btapifeed.py:356: error: Argument "channel_name" to "Event" has incompatible type "Any | None"; expected "str"  [arg-type]
+backtrader/strategy.py:1455: error: Argument 1 to "append" of "list" has incompatible type "int"; expected "str"  [arg-type]
+backtrader/strategy.py:1581: error: Cannot determine type of "_orderspending"  [has-type]
+backtrader/strategy.py:2949: error: Too few arguments  [call-arg]
+backtrader/strategy.py:3166: error: Signature of "log" incompatible with supertype "Strategy"  [override]
+backtrader/strategy.py:3166: note:      Superclass:
+backtrader/strategy.py:3166: note:          def log(self, txt: Any, dt: Any = ..., level: Any = ...) -> Any
+backtrader/strategy.py:3166: note:      Subclass:
+backtrader/strategy.py:3166: note:          def log(self, txt: Any) -> Any
+backtrader/analyzer.py:398: error: Incompatible types in assignment (expression has type "tuple[tuple[str, None], tuple[str, None], tuple[str, bool]]", base class "ParameterizedBase" defined the type as "ParameterAccessor")  [assignment]
+backtrader/analyzer.py:410: error: Cannot assign to a method  [method-assign]
+backtrader/cerebro.py:1591: error: Unused "type: ignore" comment  [unused-ignore]
+backtrader/cerebro.py:1696: error: Unused "type: ignore" comment  [unused-ignore]
+backtrader/profiles.py:105: error: "Cerebro" has no attribute "live_profile"  [attr-defined]
+backtrader/profiles.py:106: error: "Cerebro" has no attribute "profile_store"  [attr-defined]
+backtrader/plot/plot.py:224: error: Unsupported left operand type for > ("None")  [operator]
+backtrader/plot/plot.py:224: note: Left operand is of type "Any | None"
+backtrader/plot/plot.py:244: error: Unsupported left operand type for > ("None")  [operator]
+backtrader/utils/fractal.py:51: error: Incompatible types in assignment (expression has type "tuple[str, str]", base class "LineMultiple" defined the type as "Lines")  [assignment]
+backtrader/utils/fractal.py:53: error: Incompatible types in assignment (expression has type "dict[str, bool]", base class "LineIterator" defined the type as "PlotInfoObj")  [assignment]
+backtrader/utils/fractal.py:55: error: Incompatible types in assignment (expression has type "dict[str, dict[str, object]]", base class "LineIterator" defined the type as "PlotLinesObj")  [assignment]
+backtrader/utils/fractal.py:71: error: Incompatible types in assignment (expression has type "tuple[tuple[str, int], tuple[str, float], tuple[str, int]]", base class "PeriodN" defined the type as "tuple[tuple[str, int]]")  [assignment]
+backtrader/utils/fractal.py:92: error: "tuple[str, str]" has no attribute "fractal_bearish"  [attr-defined]
+backtrader/feeds/blaze.py:85: error: Argument 1 to "next" has incompatible type "Any | None"; expected "SupportsNext[Any]"  [arg-type]
+backtrader/btrun/btrun.py:33: error: Module "backtrader" has no attribute "strategies"  [attr-defined]
+backtrader/btrun/btrun.py:52: error: Cannot assign to a type  [misc]
+backtrader/btrun/btrun.py:52: error: Incompatible types in assignment (expression has type "None", variable has type "type[BtApiFeed]")  [assignment]
+backtrader/btrun/btrun.py:441: error: Incompatible types in assignment (expression has type "datetime", target has type "bool")  [assignment]
+backtrader/btrun/btrun.py:449: error: Incompatible types in assignment (expression has type "datetime", target has type "bool")  [assignment]
+backtrader/btrun/btrun.py:452: error: Incompatible types in assignment (expression has type "int", target has type "bool")  [assignment]
+backtrader/btrun/btrun.py:583: error: Argument 1 to "module_from_spec" has incompatible type "ModuleSpec | None"; expected "ModuleSpec"  [arg-type]
+backtrader/btrun/btrun.py:584: error: Item "None" of "ModuleSpec | None" has no attribute "loader"  [union-attr]
+backtrader/btrun/btrun.py:584: error: Item "None" of "Loader | Any | None" has no attribute "exec_module"  [union-attr]
+backtrader/bokeh/app.py:36: error: Name "Panel" already defined on line 22  [no-redef]
+backtrader/bokeh/app.py:38: error: Name "Panel" already defined on line 22  [no-redef]
+backtrader/bokeh/app.py:876: error: "None" not callable  [misc]
+Found 158 errors in 62 files (checked 441 source files)

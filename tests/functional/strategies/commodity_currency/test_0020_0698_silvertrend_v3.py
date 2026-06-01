@@ -37,14 +37,29 @@ Strategy Logic:
     expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("tick_volume", "real_volume"),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -84,116 +99,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated CSV into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 TSV export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional number of minutes to shift each bar's
-            timestamp forward.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, tick_volume,
-        and openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'tick_volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping the M15 OHLCV columns by position."""
 
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class SilverTrendSignalProxy(bt.Indicator):
-    """Proxy indicator emitting +1/-1 on SMA crossover direction flips."""
-
-    lines = ('signal',)
-    params = dict(risk=3)
-
-    def __init__(self):
-        """Set up the SMA and minimum period from the risk parameter."""
-        self.period = max(3, int(self.p.risk) * 2 + 1)
-        self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.period)
-        self.addminperiod(self.period + 2)
-
-    def next(self):
-        """Carry the prior signal forward, flipping it on a fresh MA crossover."""
-        signal = float(self.lines.signal[-1]) if len(self) > 0 else 0.0
-        if not math.isfinite(signal):
-            signal = 0.0
-        close_prev = float(self.data.close[-1])
-        close_now = float(self.data.close[0])
-        ma_prev = float(self.ma[-1])
-        ma_now = float(self.ma[0])
-        if close_prev <= ma_prev and close_now > ma_now:
-            signal = 1.0
-        elif close_prev >= ma_prev and close_now < ma_now:
-            signal = -1.0
-        self.lines.signal[0] = signal
-
-
-class JTpoProxy(bt.Indicator):
-    """Proxy oscillator measuring close deviation from its moving average."""
-
-    lines = ('value',)
-    params = dict(period=14)
-
-    def __init__(self):
-        """Set up the SMA and minimum period from the period parameter."""
-        self.period = max(2, int(self.p.period))
-        self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.period)
-        self.addminperiod(self.period + 1)
-
-    def next(self):
-        """Compute the current close-minus-SMA deviation value."""
-        self.lines.value[0] = float(self.data.close[0]) - float(self.ma[0])
 
 
 class SilverTrendV3Strategy(bt.Strategy):
@@ -215,8 +126,8 @@ class SilverTrendV3Strategy(bt.Strategy):
     def __init__(self):
         """Bind the M15 feed, signal proxies, and reset state variables."""
         self.data0_feed = self.datas[0]
-        self.silver = SilverTrendSignalProxy(self.data0_feed, risk=self.p.risk)
-        self.jtpo = JTpoProxy(self.data0_feed, period=self.p.jtpo_period)
+        self.silver = bt.indicators.SilverTrendDirectionSignalProxy(self.data0_feed, risk=self.p.risk)
+        self.jtpo = bt.indicators.JTpoProxy(self.data0_feed, period=self.p.jtpo_period)
 
         self.bar_num = 0
         self.signal_count = 0
@@ -379,7 +290,6 @@ class SilverTrendV3Strategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -388,9 +298,7 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -526,7 +434,7 @@ def test_20_0020_0698_silvertrend_v3() -> None:
 
     Originally located at tests/functional/strategies_regression/commodity_currency/0020_0698_silvertrend_v3.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

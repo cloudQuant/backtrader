@@ -30,14 +30,13 @@ Strategy Logic:
     trades, and `extract_metrics()` exposes the fields asserted in the test.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,72 +82,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Recursively replace `{repo}` placeholders in configuration values.
-
-    Args:
-        node: Any nested config object.
-
-    Returns:
-        Copied config with repository placeholders resolved.
-    """
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Return a deep copy of the inline configuration with resolved paths."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style tab separated data into a normalized indexed DataFrame.
-
-    Args:
-        filepath: Source CSV path.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Minute shift applied to timestamp index.
-
-    Returns:
-        DataFrame with datetime index and normalized OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -188,57 +125,6 @@ def _applied_price(data, price_type, ago=0):
     return c
 
 
-class IRSISignIndicator(bt.Indicator):
-    """Compute RSI sign-flip levels and adaptive ATR-adjusted marker lines."""
-
-    lines = ('sell', 'buy', 'rsi', 'atr')
-    params = dict(atr_period=14, rsi_period=14, rsi_price=0, up_level=70, dn_level=30)
-
-    def __init__(self):
-        """Initialize ATR series and minimum required history."""
-        self._atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
-        self.addminperiod(max(int(self.p.atr_period), int(self.p.rsi_period)) + 2)
-
-    def _calc_rsi(self):
-        """Calculate RSI manually from configured applied prices."""
-        period = int(self.p.rsi_period)
-        gains = []
-        losses = []
-        for i in range(period):
-            p0 = _applied_price(self.data, int(self.p.rsi_price), i)
-            p1 = _applied_price(self.data, int(self.p.rsi_price), i + 1)
-            delta = p0 - p1
-            gains.append(max(delta, 0.0))
-            losses.append(max(-delta, 0.0))
-        avg_gain = sum(gains) / period if period else 0.0
-        avg_loss = sum(losses) / period if period else 0.0
-        if avg_loss == 0.0:
-            return 100.0 if avg_gain > 0.0 else 50.0
-        rs = avg_gain / avg_loss
-        return 100.0 - (100.0 / (1.0 + rs))
-
-    def next(self):
-        """Update buy/sell marker levels and RSI / ATR output lines."""
-        self.lines.sell[0] = float('nan')
-        self.lines.buy[0] = float('nan')
-        rsi_now = self._calc_rsi()
-        self.lines.rsi[0] = rsi_now
-        self.lines.atr[0] = float(self._atr[0])
-
-        if len(self) < 2:
-            return
-
-        rsi_prev = float(self.lines.rsi[-1])
-        atr_now = float(self._atr[0])
-        low_now = float(self.data.low[0])
-        high_now = float(self.data.high[0])
-
-        if rsi_now > float(self.p.dn_level) and rsi_prev <= float(self.p.dn_level):
-            self.lines.buy[0] = low_now - atr_now * 3.0 / 8.0
-        if rsi_now < float(self.p.up_level) and rsi_prev >= float(self.p.up_level):
-            self.lines.sell[0] = high_now + atr_now * 3.0 / 8.0
-
-
 class ExpIRSISignStrategy(bt.Strategy):
     """RSI-sign based mean-reversion strategy with risk-managed entries/exits."""
 
@@ -264,7 +150,7 @@ class ExpIRSISignStrategy(bt.Strategy):
         """Initialize data feeds, indicator, and trading counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = IRSISignIndicator(
+        self.indicator = bt.indicators.IRSISignIndicator(
             self.signal_data,
             atr_period=self.p.atr_period,
             rsi_period=self.p.rsi_period,
@@ -400,18 +286,15 @@ class ExpIRSISignStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -589,7 +472,7 @@ def _extract_metrics_compat(strat, cerebro, inputs, config):
 
 def test_268_0267_0879_irsisign() -> None:
     'Migrated regression test (runonce=True only). Originally located at tests/functional/strategies_regression/mean_reversion/0267_0879_irsisign.'
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

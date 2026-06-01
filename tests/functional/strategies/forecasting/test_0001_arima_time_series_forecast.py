@@ -34,55 +34,16 @@ Strategy Logic:
 from __future__ import annotations
 
 import datetime
-import io
 import warnings
 from pathlib import Path
 
 import backtrader as bt
 import numpy as np
-import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV/TSV export to read.
-        fromdate: Optional inclusive lower bound used to trim the index.
-        todate: Optional inclusive upper bound used to trim the index.
-        bar_shift_minutes: Minutes to shift the datetime index forward.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume and
-        openinterest columns sorted in ascending time order.
-    """
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = "\n".join(lines)
-    sep = "\t" if "\t" in lines[0] else ","
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df["<DATE>"].astype(str) + " " + df["<TIME>"].astype(str)
-    parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M", errors="coerce")
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M:%S", errors="coerce")
-    df["datetime"] = parsed
-    df = df.rename(columns={"<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-                             "<TICKVOL>": "tick_volume", "<VOL>": "real_volume"})
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"] if "tick_volume" in df.columns else 0
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def prepare_arima_features(df, params):

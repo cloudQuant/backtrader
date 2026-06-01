@@ -4,49 +4,32 @@ Self-contained single-file test (manually authored). Runs with runonce=True only
 Uses M15 + H1 (fast) + D1 (slow) multi-timeframe.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
-
-_REPO = Path(__file__).resolve().parents[4]
-DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
+from backtrader.utils.load_data import augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 export data into a DataFrame with spread column.
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
-    Args:
-        filepath: Path to MT5 CSV/TSV file.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Minutes to shift bar timestamps.
-
-    Returns:
-        DataFrame indexed by datetime with OHLCV spread fields.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "volume", "<VOL>": "openinterest", "<SPREAD>": "spread",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest", "spread"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
+_REPO = Path(__file__).resolve().parents[4]
+DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def _resample(df, rule):
@@ -70,34 +53,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
     )
 
 
-class XPeriodCandleColor(bt.Indicator):
-    """Period candle indicator producing smoothed OHLC and color signal."""
-    lines = ("color_idx", "xopen", "xclose", "xhigh", "xlow")
-    params = dict(cperiod=5, ma_length=3)
-
-    def __init__(self):
-        """Create MA components and set required warmup."""
-        self.smooth_open = bt.indicators.SimpleMovingAverage(self.data.open, period=self.p.ma_length)
-        self.smooth_high = bt.indicators.SimpleMovingAverage(self.data.high, period=self.p.ma_length)
-        self.smooth_low = bt.indicators.SimpleMovingAverage(self.data.low, period=self.p.ma_length)
-        self.smooth_close = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.ma_length)
-        self.addminperiod(self.p.ma_length + self.p.cperiod)
-
-    def next(self):
-        """Compute candle block and assign color index for trend direction."""
-        lookback = max(1, int(self.p.cperiod))
-        start = -(lookback - 1)
-        xopen = float(self.smooth_open[start])
-        xclose = float(self.smooth_close[0])
-        highs = [float(self.smooth_high[-i]) for i in range(lookback)]
-        lows = [float(self.smooth_low[-i]) for i in range(lookback)]
-        self.lines.xopen[0] = xopen
-        self.lines.xclose[0] = xclose
-        self.lines.xhigh[0] = max(highs)
-        self.lines.xlow[0] = min(lows)
-        self.lines.color_idx[0] = 0.0 if xopen <= xclose else 2.0
-
-
 class ExpXPeriodCandleX2Strategy(bt.Strategy):
     """Dual-timeframe X-Period Candle color strategy with risk and counters."""
     params = dict(
@@ -116,8 +71,8 @@ class ExpXPeriodCandleX2Strategy(bt.Strategy):
         """Bind fast/slow feeds and initialize trading state."""
         self.fast_feed = self.datas[0]
         self.slow_feed = self.datas[1]
-        self.fast_indicator = XPeriodCandleColor(self.fast_feed, cperiod=self.p.fast_cperiod, ma_length=self.p.fast_ma_length)
-        self.slow_indicator = XPeriodCandleColor(self.slow_feed, cperiod=self.p.slow_cperiod, ma_length=self.p.slow_ma_length)
+        self.fast_indicator = bt.indicators.XPeriodCandleColor(self.fast_feed, cperiod=self.p.fast_cperiod, ma_length=self.p.fast_ma_length)
+        self.slow_indicator = bt.indicators.XPeriodCandleColor(self.slow_feed, cperiod=self.p.slow_cperiod, ma_length=self.p.slow_ma_length)
         self.order = None
         self.entry_side = None
         self.stop_price = None

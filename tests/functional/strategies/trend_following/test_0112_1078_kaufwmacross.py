@@ -41,7 +41,6 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
@@ -49,6 +48,7 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -98,66 +98,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load tab-separated MT5 exported price data into a time-indexed DataFrame.
-
-    The source file is parsed, cleaned of quote wrappers, and converted to a standard
-    pandas OHLCV format with a datetime index created from `<DATE>` + `<TIME>`.
-
-    Args:
-        filepath: Absolute path to the source MT5 CSV file.
-        fromdate: Optional lower-bound datetime filter.
-        todate: Optional upper-bound datetime filter.
-        bar_shift_minutes: Minutes to shift each bar timestamp forward after parsing.
-
-    Returns:
-        A DataFrame indexed by datetime with columns `open`, `high`, `low`,
-        `close`, `volume`, and `openinterest`.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, rule):
@@ -271,7 +211,7 @@ def true_range(frame):
 
 
 def compute_atr(frame, period=15):
-    """Compute ATR by smoothing True Range with SMMA.
+    """Compute ATR by smoothing True Range with bt.indicators.SMMA.
 
     Args:
         frame: OHLCV-like DataFrame.
@@ -348,7 +288,7 @@ def compute_kaufwmacross(frame, ama_period=9, fast_ma_period=2, slow_ma_period=3
 
     Args:
         frame: OHLCV signal-data DataFrame.
-        ama_period: ER lookback period for KAMA.
+        ama_period: ER lookback period for bt.indicators.KAMA.
         fast_ma_period: Fast period used in KAMA smoothing.
         slow_ma_period: Slow period used in KAMA smoothing.
         ama_price: Source price selector for KAMA; current implementation uses close price.
@@ -622,7 +562,6 @@ class KaufWMAcrossStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -631,9 +570,7 @@ if LOCAL_BACKTRADER_REPO.exists():
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -658,7 +595,7 @@ def load_backtest_frames(config):
     """Build the base and signal DataFrames used by the strategy.
 
     Args:
-        config: Normalized configuration dictionary from `load_config()`.
+        config: Normalized configuration dictionary from `_bt_load_config(_CONFIG, repo=_REPO)`.
 
     Returns:
         A dictionary containing base (`m15`) and signal DataFrames plus the
@@ -760,7 +697,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run a single backtest pass and return result objects and metrics.
 
@@ -770,7 +706,7 @@ def run(plot=False):
     Returns:
         A tuple `(results, metrics, cerebro)` where results contains strategy runs.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

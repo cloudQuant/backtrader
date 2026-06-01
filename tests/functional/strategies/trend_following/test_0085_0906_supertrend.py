@@ -23,15 +23,14 @@ The original `config.yaml`, `run.py`, strategy files, and `expected.json` are co
 into this self-contained file.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,165 +74,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV data into a sorted DataFrame indexed by datetime.
-
-    Args:
-        filepath: Source MT5 export path.
-        fromdate: Optional start timestamp.
-        todate: Optional end timestamp.
-        bar_shift_minutes: Optional timestamp shift in minutes.
-
-    Returns:
-        Normalized OHLCV/OpenInterest DataFrame.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed adapter for MT5-style OHLCV layout."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class SuperTrendIndicator(bt.Indicator):
-    """Reconstructs SuperTrend indicator from its MQ5 source.
-
-    Uses CCI and ATR. CCI crossing Level triggers trend change.
-    TrendUp = low - ATR (ratchets upward), TrendDown = high + ATR (ratchets downward).
-    SignUp when TrendDown was active and TrendUp appears (trend flip up).
-    SignDown when TrendUp was active and TrendDown appears (trend flip down).
-    """
-    lines = ('trend_up', 'trend_down', 'sign_up', 'sign_down')
-    params = dict(cci_period=50, atr_period=5, level=0)
-
-    def __init__(self):
-        """Initialize internal rolling state for CCI/ATR-based trend levels."""
-        self._cci_period = int(self.p.cci_period)
-        self._atr_period = int(self.p.atr_period)
-        self._level = int(self.p.level)
-        self._prev_tu = 0.0
-        self._prev_td = 0.0
-        self._prev_cci = 0.0
-        self.addminperiod(max(self._cci_period, self._atr_period) + 2)
-
-    def _calc_cci(self):
-        period = self._cci_period
-        tp_vals = []
-        for i in range(period):
-            h = float(self.data.high[-i])
-            l = float(self.data.low[-i])
-            c = float(self.data.close[-i])
-            tp_vals.append((h + l + c) / 3.0)
-        mean_tp = sum(tp_vals) / period
-        mean_dev = sum(abs(v - mean_tp) for v in tp_vals) / period
-        if mean_dev == 0:
-            return 0.0
-        return (tp_vals[0] - mean_tp) / (0.015 * mean_dev)
-
-    def _calc_atr(self):
-        period = self._atr_period
-        total = 0.0
-        for i in range(period):
-            h = float(self.data.high[-i])
-            l = float(self.data.low[-i])
-            if i + 1 < len(self.data):
-                pc = float(self.data.close[-(i + 1)])
-                tr = max(h - l, abs(h - pc), abs(l - pc))
-            else:
-                tr = h - l
-            total += tr
-        return total / period
-
-    def next(self):
-        """Calculate CCI/ATR levels and emit trend/sign buffers for each bar."""
-        cci = self._calc_cci()
-        atr = self._calc_atr()
-        level = self._level
-
-        tu = 0.0
-        td = 0.0
-        su = 0.0
-        sd = 0.0
-
-        cur_high = float(self.data.high[0])
-        cur_low = float(self.data.low[0])
-
-        # Trend flip detection
-        if cci >= level and self._prev_cci < level:
-            tu = self._prev_td  # start uptrend from previous downtrend value
-
-        if cci <= level and self._prev_cci > level:
-            td = self._prev_tu  # start downtrend from previous uptrend value
-
-        # Continuous trend
-        if cci > level:
-            tu = cur_low - atr
-            if tu < self._prev_tu and self._prev_cci >= level:
-                tu = self._prev_tu
-
-        if cci < level:
-            td = cur_high + atr
-            if td > self._prev_td and self._prev_cci <= level:
-                td = self._prev_td
-
-        # Signal arrows: trend reversal
-        if self._prev_td != 0.0 and tu != 0.0:
-            su = tu
-        if self._prev_tu != 0.0 and td != 0.0:
-            sd = td
-
-        self._prev_cci = cci
-        self._prev_tu = tu
-        self._prev_td = td
-
-        self.lines.trend_up[0] = tu
-        self.lines.trend_down[0] = td
-        self.lines.sign_up[0] = su
-        self.lines.sign_down[0] = sd
-
 
 class ExpSuperTrendStrategy(bt.Strategy):
     """EA reads buffer 2 (SignUp) and buffer 3 (SignDown) for entry.
@@ -258,7 +108,7 @@ class ExpSuperTrendStrategy(bt.Strategy):
         """Set up indicator and initialize runtime counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = SuperTrendIndicator(
+        self.indicator = bt.indicators.SuperTrendCCIIndicator(
             self.signal_data,
             cci_period=self.p.cci_period, atr_period=self.p.atr_period,
             level=self.p.level,
@@ -435,7 +285,7 @@ def extract_metrics(strat, cerebro, frame, cfg):
 
 def run(plot=False):
     """Execute full backtest flow and return run results, metrics, and cerebro."""
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

@@ -32,16 +32,15 @@ Strategy Logic:
     analyzer output that the test asserts against the captured baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
 import os
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -89,59 +88,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 CSV export to read.
-        fromdate: Optional inclusive lower bound used to trim the index.
-        todate: Optional inclusive upper bound used to trim the index.
-        bar_shift_minutes: Minutes to shift the datetime index forward.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume and
-        openinterest columns in ascending time order.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -170,70 +120,6 @@ def _applied_price(data, price_type, ago=0):
     if price_type == 6:
         return (h + l + c + c) / 4.0
     return c
-
-
-class VolumeWeightedMAStDevIndicator(bt.Indicator):
-    """Volume-weighted MA with standard-deviation graded signal lines.
-
-    Computes a volume-weighted moving average (``vwma``) and measures the
-    standard deviation of its change. When the latest change exceeds the
-    ``dk1``/``dk2`` standard-deviation bands it sets the corresponding
-    ``bulls1``/``bulls2`` or ``bears1``/``bears2`` signal lines.
-    """
-
-    lines = ('vwma', 'bears1', 'bulls1', 'bears2', 'bulls2')
-    params = dict(length=12, ipc=0, use_tick_volume=True, dk1=1.5, dk2=2.5, std_period=9)
-
-    def __init__(self):
-        """Reserve the warm-up window for the VWMA and std-dev calculations."""
-        self.addminperiod(int(self.p.length) + int(self.p.std_period) + 3)
-
-    def _vwma_at(self, ago):
-        length = int(self.p.length)
-        weights = []
-        total = 0.0
-        for i in range(length):
-            idx = ago + i
-            vol = float(self.data.volume[-idx]) if self.p.use_tick_volume else float(self.data.openinterest[-idx])
-            if vol < 0:
-                vol = 0.0
-            weights.append(vol)
-            total += vol
-        if total == 0.0:
-            return _applied_price(self.data, int(self.p.ipc), ago)
-        value = 0.0
-        for i in range(length):
-            value += _applied_price(self.data, int(self.p.ipc), ago + i) * (weights[i] / total)
-        return value
-
-    def next(self):
-        """Update the VWMA and set graded bull/bear signal lines."""
-        self.lines.bears1[0] = float('nan')
-        self.lines.bulls1[0] = float('nan')
-        self.lines.bears2[0] = float('nan')
-        self.lines.bulls2[0] = float('nan')
-        vwma_now = self._vwma_at(0)
-        self.lines.vwma[0] = vwma_now
-        std_period = int(self.p.std_period)
-        dvwma = []
-        for i in range(std_period):
-            v0 = self._vwma_at(i)
-            v1 = self._vwma_at(i + 1)
-            dvwma.append(v0 - v1)
-        mean = sum(dvwma) / std_period
-        variance = sum((x - mean) ** 2 for x in dvwma) / std_period
-        stdev = math.sqrt(variance)
-        dstd = dvwma[0]
-        filter1 = float(self.p.dk1) * stdev
-        filter2 = float(self.p.dk2) * stdev
-        if dstd < -filter1 and dstd >= -filter2:
-            self.lines.bears1[0] = vwma_now
-        if dstd < -filter2:
-            self.lines.bears2[0] = vwma_now
-        if dstd > filter1 and dstd <= filter2:
-            self.lines.bulls1[0] = vwma_now
-        if dstd > filter2:
-            self.lines.bulls2[0] = vwma_now
 
 
 class ExpVolumeWeightedMAStDevStrategy(bt.Strategy):
@@ -268,7 +154,7 @@ class ExpVolumeWeightedMAStDevStrategy(bt.Strategy):
         """Bind execution/signal feeds, wire the indicator and init counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = VolumeWeightedMAStDevIndicator(self.signal_data, length=self.p.length, ipc=self.p.ipc, use_tick_volume=self.p.use_tick_volume, dk1=self.p.dk1, dk2=self.p.dk2, std_period=self.p.std_period)
+        self.indicator = bt.indicators.VolumeWeightedMAStDevIndicator(self.signal_data, length=self.p.length, ipc=self.p.ipc, use_tick_volume=self.p.use_tick_volume, dk1=self.p.dk1, dk2=self.p.dk2, std_period=self.p.std_period)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -410,18 +296,15 @@ class ExpVolumeWeightedMAStDevStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -549,7 +432,6 @@ def extract_metrics(strategy, cerebro, frame, config):
     return {'fromdate': frame['fromdate'], 'todate': frame['todate'], 'bars': len(frame['data']), 'bar_num': strategy.bar_num, 'signal_count': strategy.signal_count, 'buy_count': strategy.buy_count, 'sell_count': strategy.sell_count, 'trade_count': strategy.trade_count, 'win_count': strategy.win_count, 'loss_count': strategy.loss_count, 'initial_cash': initial_cash, 'final_value': final_value, 'net_pnl': final_value - initial_cash, 'total_return_pct': (final_value / initial_cash - 1.0) * 100.0, 'total_trades': total_trades, 'won': won, 'lost': lost, 'win_rate': (won / total_trades * 100.0) if total_trades else 0.0, 'profit_factor': (gross_won / gross_lost) if gross_lost else None, 'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sharpe_ratio': sharpe.get('sharperatio'), 'annual_return_pct': (returns.get('rnorm') or 0) * 100.0, 'sqn': sqn.get('sqn')}
 
 
-
 def run(plot=False):
     """Run backtest and return results and extracted metrics.
 
@@ -559,7 +441,7 @@ def run(plot=False):
     Returns:
         Tuple ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

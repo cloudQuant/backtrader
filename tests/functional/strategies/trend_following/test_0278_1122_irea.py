@@ -24,16 +24,15 @@ Strategy Logic:
     assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -72,83 +71,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 data and normalize OHLCV columns for pandas/Backtrader usage."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Base M15 feed mapping MT5 data columns to Backtrader data lines."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class InverseReactionIndicator(bt.Indicator):
-    """Indicator that tracks candle reaction amplitude and dynamic thresholds."""
-    lines = ('price_change', 'upper_level', 'lower_level')
-    params = dict(ma_period=3, coefficient=1.618)
-
-    def __init__(self):
-        """Set minimum required history for moving-average reaction computation."""
-        self.addminperiod(self.p.ma_period)
-
-    def next(self):
-        """Compute per-bar price-change and dynamic reaction upper/lower levels."""
-        price_change = float(self.data.close[0] - self.data.open[0])
-        self.lines.price_change[0] = price_change
-        if len(self) < self.p.ma_period:
-            self.lines.upper_level[0] = float('nan')
-            self.lines.lower_level[0] = float('nan')
-            return
-        total = 0.0
-        for i in range(self.p.ma_period):
-            total += abs(float(self.data.close[-i] - self.data.open[-i]))
-        dcl = (total / float(self.p.ma_period)) * float(self.p.coefficient)
-        self.lines.upper_level[0] = dcl
-        self.lines.lower_level[0] = -dcl
 
 
 class IreaStrategy(bt.Strategy):
@@ -167,7 +95,7 @@ class IreaStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator instance, state, thresholds, and bookkeeping counters."""
-        self.ir = InverseReactionIndicator(
+        self.ir = bt.indicators.InverseReactionIndicator(
             self.data,
             ma_period=self.p.ma_period,
             coefficient=self.p.coefficient,
@@ -289,18 +217,15 @@ class IreaStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[2]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -396,10 +321,9 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run backtest once and return results, metrics, and engine."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

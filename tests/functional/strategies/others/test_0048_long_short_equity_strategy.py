@@ -6,11 +6,11 @@ Universe: IVV, IWM, IWD, GLD, IEF.
 from __future__ import annotations
 
 import datetime
-import io
 from pathlib import Path
 
 import backtrader as bt
 import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_DIR = _REPO / "tests" / "datas" / "mt5_1d_data"
@@ -22,31 +22,6 @@ ASSET_FILES = {
     "ief": DATA_DIR / "IEF_1d.csv",
 }
 ASSET_ORDER = tuple(ASSET_FILES)
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load MT5 CSV data and return a cleaned OHLCV DataFrame."""
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = "\n".join(lines)
-    sep = "\t" if "\t" in lines[0] else ","
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df["<DATE>"].astype(str) + " " + df["<TIME>"].astype(str)
-    parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M", errors="coerce")
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M:%S", errors="coerce")
-    df["datetime"] = parsed
-    df = df.rename(columns={"<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-                             "<TICKVOL>": "tick_volume", "<VOL>": "real_volume"})
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"] if "tick_volume" in df.columns else 0
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def prepare_long_short_inputs(asset_map):

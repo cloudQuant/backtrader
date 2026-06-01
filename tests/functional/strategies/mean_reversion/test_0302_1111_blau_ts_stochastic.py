@@ -37,21 +37,20 @@ Strategy Logic:
     against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
 from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.indicators as btind
 import backtrader.functions as btfunc
 import backtrader.feeds as btfeeds
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -100,60 +99,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume and openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Backtrader PandasData feed mapping the MT5 OHLCV column layout.
 
@@ -190,49 +135,6 @@ def _price_series(data, mode):
     return data.close
 
 
-class BlauTSStochastic(Indicator):
-    """Blau TS Stochastic: triple-smoothed stochastic momentum oscillator.
-
-    A stochastic numerator (price minus lowest low) and its range (highest high
-    minus lowest low) are each triple-smoothed with EMAs; the histogram is
-    200 times their ratio minus 100 (guarded against division by zero), and an
-    EMA of the histogram forms the signal line exposed on the down line.
-    """
-
-    lines = ('up', 'down', 'hist')
-    params = dict(
-        xlength=5,
-        xlength1=20,
-        xlength2=5,
-        xlength3=3,
-        xlength4=3,
-        ipc='close',
-    )
-
-    def __init__(self):
-        """Build the triple-EMA stochastic chain for the hist/up/down lines."""
-        price = _price_series(self.data, self.p.ipc)
-        hh = btind.Highest(self.data.high, period=int(self.p.xlength))
-        ll = btind.Lowest(self.data.low, period=int(self.p.xlength))
-        stoch = price - ll
-        range_line = hh - ll
-
-        xstoch = btind.EMA(stoch, period=int(self.p.xlength1))
-        xxstoch = btind.EMA(xstoch, period=int(self.p.xlength2))
-        xxxstoch = btind.EMA(xxstoch, period=int(self.p.xlength3))
-
-        xrange = btind.EMA(range_line, period=int(self.p.xlength1))
-        xxrange = btind.EMA(xrange, period=int(self.p.xlength2))
-        xxxrange = btind.EMA(xxrange, period=int(self.p.xlength3))
-
-        hist = btfunc.DivByZero(200.0 * xxxstoch, xxxrange, zero=0.0) - 100.0
-        signal = btind.EMA(hist, period=int(self.p.xlength4))
-
-        self.l.hist = hist
-        self.l.up = hist
-        self.l.down = signal
-
-
 class BlauTSStochasticStrategy(Strategy):
     """Trade Blau TS Stochastic signals with selectable signal modes.
 
@@ -266,7 +168,7 @@ class BlauTSStochasticStrategy(Strategy):
 
     def __init__(self):
         """Build the Blau TS Stochastic oscillator, reset counters and warmup."""
-        self.osc = BlauTSStochastic(
+        self.osc = bt.indicators.BlauTSStochastic(
             self.data,
             xlength=self.p.xlength,
             xlength1=self.p.xlength1,
@@ -484,18 +386,15 @@ class BlauTSStochasticStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -707,7 +606,7 @@ def test_303_0302_1111_blau_ts_stochastic() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0302_1111_blau_ts_stochastic.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

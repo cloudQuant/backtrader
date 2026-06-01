@@ -38,15 +38,14 @@ Strategy Logic:
     against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,62 +82,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -207,38 +153,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class ZPFIndicator(bt.Indicator):
-    """Zero Power Flow oscillator (volume-weighted MA spread).
-
-    Multiplies a moving average of volume by the gap between a short and a long
-    moving average of an applied price, producing a volume-weighted
-    trend-strength value (``zpf``) that oscillates around zero, with symmetric
-    ``line1``/``line2`` envelopes.
-    """
-
-    lines = ('line1', 'line2', 'zpf',)
-    params = dict(
-        xma_method='sma',
-        xlength=12,
-        xphase=15,
-        ipc='price_close',
-        volume_type='tick',
-    )
-
-    def __init__(self):
-        """Build the price/volume moving averages and the ZPF lines."""
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        price_line = resolve_price_line(self.data, self.p.ipc)
-        volume_line = self.data.volume if str(self.p.volume_type).lower() == 'tick' else self.data.openinterest
-        self.x1ma = ma_cls(price_line, period=self.p.xlength)
-        self.x2ma = ma_cls(price_line, period=max(1, 2 * self.p.xlength))
-        self.xvol = ma_cls(volume_line, period=self.p.xlength)
-        self.lines.zpf = self.xvol * (self.x1ma - self.x2ma) / 2.0
-        self.lines.line1 = -self.lines.zpf
-        self.lines.line2 = self.lines.zpf
-        self.addminperiod(max(2 * self.p.xlength, self.p.xlength) + 2)
-
-
 class ZPFStrategy(bt.Strategy):
     """Port of the MT5 ``Exp_ZPF`` zero-line oscillator strategy.
 
@@ -269,7 +183,7 @@ class ZPFStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the ZPF indicator and reset bar/trade counters."""
-        self.zpf = ZPFIndicator(
+        self.zpf = bt.indicators.ZPFIndicator(
             self.data,
             xma_method=self.p.xma_method,
             xlength=self.p.xlength,
@@ -383,17 +297,14 @@ class ZPFStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -525,7 +436,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the ZPF backtest and optionally plot the result.
 
@@ -535,7 +445,7 @@ def run(plot=False):
     Returns:
         A tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

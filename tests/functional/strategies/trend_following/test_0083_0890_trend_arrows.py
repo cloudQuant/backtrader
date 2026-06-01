@@ -29,15 +29,14 @@ The original `config.yaml`, `run.py`, strategy code, and `expected.json` are col
 into this single self-contained test file.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,160 +79,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style exported tab-separated data into a sorted DataFrame.
-
-    Args:
-        filepath: Path to the raw CSV/TSV file.
-        fromdate: Optional datetime lower bound for filtering rows.
-        todate: Optional datetime upper bound for filtering rows.
-        bar_shift_minutes: Optional minute shift applied to all bar timestamps.
-
-    Returns:
-        A pandas DataFrame indexed by datetime containing `open`, `high`, `low`, `close`,
-        `volume`, and `openinterest` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed adapter for in-memory MT5-style OHLCV bars."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class TrendArrowsIndicator(bt.Indicator):
-    """Reconstructs trend_arrows indicator.
-
-    Computes AverageHigh (avg of highest highs over iPeriod sub-windows)
-    and AverageLow (avg of lowest lows over iPeriod sub-windows).
-    TrendUp = LL when close > HH; TrendDown = HH when close < LL;
-    else continues previous trend.
-    SignUp when TrendUp appears fresh; SignDown when TrendDown appears fresh.
-    Buffers: 0=TrendUp, 1=TrendDown, 2=SignUp(buy), 3=SignDown(sell).
-    """
-    lines = ('trend_up', 'trend_down', 'sign_up', 'sign_down')
-    params = dict(iperiod=15, ifullperiods=1)
-
-    def __init__(self):
-        """Initialize cached period lengths for trend arrow reconstruction."""
-        self._ip = int(self.p.iperiod)
-        self._ifp = int(self.p.ifullperiods)
-        self._window = self._ip + self._ifp
-        self.addminperiod(self._window + 2)
-
-    def next(self):
-        """Compute trend and signal buffers for the current bar.
-
-        The method:
-        1. Splits the lookback window into `iperiod` sub-windows and averages highs/lows.
-        2. Generates TrendUp/TrendDown buffers based on close relative to aggregated levels.
-        3. Emits SignUp/SignDown only on fresh transitions from inactive to active.
-        """
-        ip = self._ip
-        ifp = self._ifp
-        window = self._window
-
-        # Compute AverageHigh: average of highest highs over ip sub-windows
-        segment_size = max(window // ip, 1)
-        hh_sum = 0.0
-        ll_sum = 0.0
-        count = 0
-        for seg in range(ip):
-            start = seg * segment_size
-            end = min(start + segment_size, window)
-            if start >= len(self.data):
-                break
-            seg_high = -1e30
-            seg_low = 1e30
-            for k in range(start, min(end, len(self.data))):
-                h = float(self.data.high[-k]) if k > 0 else float(self.data.high[0])
-                l = float(self.data.low[-k]) if k > 0 else float(self.data.low[0])
-                if h > seg_high:
-                    seg_high = h
-                if l < seg_low:
-                    seg_low = l
-            hh_sum += seg_high
-            ll_sum += seg_low
-            count += 1
-
-        hh = hh_sum / count if count else float(self.data.high[0])
-        ll = ll_sum / count if count else float(self.data.low[0])
-
-        close_val = float(self.data.close[0])
-        prev_tu = float(self.lines.trend_up[-1]) if len(self.lines.trend_up) > 1 else 0.0
-        prev_td = float(self.lines.trend_down[-1]) if len(self.lines.trend_down) > 1 else 0.0
-        if math.isnan(prev_tu):
-            prev_tu = 0.0
-        if math.isnan(prev_td):
-            prev_td = 0.0
-
-        tu = 0.0
-        td = 0.0
-
-        if close_val > hh:
-            tu = ll
-        elif close_val < ll:
-            td = hh
-        else:
-            if prev_td != 0.0:
-                td = hh
-            if prev_tu != 0.0:
-                tu = ll
-
-        su = 0.0
-        sd = 0.0
-        if prev_tu == 0.0 and tu != 0.0:
-            su = tu
-        if prev_td == 0.0 and td != 0.0:
-            sd = td
-
-        self.lines.trend_up[0] = tu
-        self.lines.trend_down[0] = td
-        self.lines.sign_up[0] = su
-        self.lines.sign_down[0] = sd
 
 
 class ExpTrendArrowsStrategy(bt.Strategy):
@@ -258,7 +113,7 @@ class ExpTrendArrowsStrategy(bt.Strategy):
         """Bind indicator/data feeds and initialize all trade / signal counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = TrendArrowsIndicator(
+        self.indicator = bt.indicators.TrendArrowsIndicator(
             self.signal_data,
             iperiod=self.p.iperiod,
             ifullperiods=self.p.ifullperiods,
@@ -483,7 +338,7 @@ def run(plot=False):
     Returns:
         A tuple of `(results, metrics, cerebro)`.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

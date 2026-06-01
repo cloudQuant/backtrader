@@ -36,15 +36,14 @@ Strategy Logic:
     each metric against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -86,63 +85,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, sorted ascending and filtered to the date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -150,92 +96,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class KaracaticaIndicator(bt.Indicator):
-    """Reconstructs Karacatica from MQ5 source.
-
-    Uses ATR(iPeriod), ADX(iPeriod) +DI/-DI, and close-vs-close(iPeriod-ago)
-    to generate buy/sell arrows with direction latch to avoid repeats.
-    """
-    lines = ('buy_arrow', 'sell_arrow')
-    params = dict(iperiod=70)
-
-    def __init__(self):
-        """Initialize the ATR scaling factor, direction latch, and min period."""
-        self._s = 1.5 / 2.0
-        self._ltr = 0  # 0=none, 1=last was buy, 2=last was sell
-        self.addminperiod(int(self.p.iperiod) + 2)
-
-    def _calc_atr(self):
-        period = int(self.p.iperiod)
-        total = 0.0
-        for i in range(period):
-            hi = float(self.data.high[-i])
-            lo = float(self.data.low[-i])
-            prev_c = float(self.data.close[-(i + 1)])
-            total += max(hi - lo, abs(hi - prev_c), abs(prev_c - lo))
-        return total / period
-
-    def _calc_adx_di(self):
-        period = int(self.p.iperiod)
-        plus_dm_sum = 0.0
-        minus_dm_sum = 0.0
-        tr_sum = 0.0
-        for i in range(period):
-            hi = float(self.data.high[-i])
-            lo = float(self.data.low[-i])
-            prev_hi = float(self.data.high[-(i + 1)])
-            prev_lo = float(self.data.low[-(i + 1)])
-            prev_c = float(self.data.close[-(i + 1)])
-            up_move = hi - prev_hi
-            down_move = prev_lo - lo
-            plus_dm = up_move if (up_move > down_move and up_move > 0) else 0.0
-            minus_dm = down_move if (down_move > up_move and down_move > 0) else 0.0
-            tr = max(hi - lo, abs(hi - prev_c), abs(prev_c - lo))
-            plus_dm_sum += plus_dm
-            minus_dm_sum += minus_dm
-            tr_sum += tr
-        if tr_sum == 0:
-            return 0.0, 0.0
-        plus_di = 100.0 * plus_dm_sum / tr_sum
-        minus_di = 100.0 * minus_dm_sum / tr_sum
-        return plus_di, minus_di
-
-    def next(self):
-        """Emit ATR-offset buy/sell arrows on latched directional breakouts.
-
-        Computes ATR and +DI/-DI over ``iperiod`` and, when the close exceeds
-        its value ``iperiod`` bars ago with +DI dominant (and the last arrow was
-        not a buy), places a buy arrow below the low; the symmetric condition
-        places a sell arrow above the high. The direction latch prevents
-        consecutive arrows of the same side.
-        """
-        period = int(self.p.iperiod)
-        if len(self.data) < period + 2:
-            self.lines.buy_arrow[0] = 0.0
-            self.lines.sell_arrow[0] = 0.0
-            return
-
-        atr = self._calc_atr()
-        plus_di, minus_di = self._calc_adx_di()
-        cur_close = float(self.data.close[0])
-        past_close = float(self.data.close[-period])
-        cur_high = float(self.data.high[0])
-        cur_low = float(self.data.low[0])
-
-        buy_val = 0.0
-        sell_val = 0.0
-
-        if cur_close > past_close and plus_di > minus_di and self._ltr != 1:
-            buy_val = cur_low - atr * self._s
-            self._ltr = 1
-        if cur_close < past_close and plus_di < minus_di and self._ltr != 2:
-            sell_val = cur_high + atr * self._s
-            self._ltr = 2
-
-        self.lines.buy_arrow[0] = buy_val
-        self.lines.sell_arrow[0] = sell_val
 
 
 class ExpKaracaticaStrategy(bt.Strategy):
@@ -247,7 +107,7 @@ class ExpKaracaticaStrategy(bt.Strategy):
     positions on an opposing arrow that appeared on an earlier bar.
 
     Args:
-        iperiod: Lookback period passed to the KaracaticaIndicator.
+        iperiod: Lookback period passed to the bt.indicators.KaracaticaIndicator.
         signal_bar: Which completed signal bar to read arrows from.
         stop_loss_points: Stop-loss distance in points (0 disables).
         take_profit_points: Take-profit distance in points (0 disables).
@@ -283,7 +143,7 @@ class ExpKaracaticaStrategy(bt.Strategy):
         """
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = KaracaticaIndicator(self.signal_data, iperiod=self.p.iperiod)
+        self.indicator = bt.indicators.KaracaticaIndicator(self.signal_data, iperiod=self.p.iperiod)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -538,7 +398,7 @@ def run(plot=False):
     Returns:
         A tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

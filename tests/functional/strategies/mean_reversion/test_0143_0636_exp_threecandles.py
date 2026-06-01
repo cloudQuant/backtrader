@@ -37,14 +37,13 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -92,119 +91,11 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional lower date bound for datetime index filtering.
-        todate: Optional upper date bound for datetime index filtering.
-        bar_shift_minutes: Minutes to shift each bar timestamp forward.
-
-    Returns:
-        pd.DataFrame: Index-datetime frame with open, high, low, close, volume and
-            openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed that maps MT5 export fields into OHLCV positions."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class ThreeCandlesIndicator(bt.Indicator):
-    """Indicator producing three-candle reversal signal labels."""
-    lines = ('signal',)
-    params = (
-        ('max_bar1', 300),
-        ('volume_type', 'tick'),
-    )
-
-    def __init__(self):
-        """Require enough history before the indicator can emit stable signals."""
-        self.addminperiod(5)
-
-    def next(self):
-        """Evaluate bullish/bearish setups and emit normalized signal codes."""
-        self.lines.signal[0] = 2.0
-
-        chk_vol = True
-        range_points = float(self.data.high[-3] - self.data.low[-3])
-        point = float(getattr(self.data, '_point_value', 0.01) or 0.01)
-        if point > 0 and range_points / point > float(self.p.max_bar1):
-            chk_vol = False
-
-        bullish_setup = (
-            float(self.data.open[-3]) < float(self.data.close[-3]) and
-            float(self.data.open[-2]) < float(self.data.close[-2]) and
-            float(self.data.close[-2]) < float(self.data.high[-3]) and
-            float(self.data.open[-1]) > float(self.data.close[-1]) and
-            float(self.data.close[-1]) < float(self.data.open[-2])
-        )
-        bearish_setup = (
-            float(self.data.open[-3]) > float(self.data.close[-3]) and
-            float(self.data.open[-2]) > float(self.data.close[-2]) and
-            float(self.data.close[-2]) > float(self.data.low[-3]) and
-            float(self.data.open[-1]) < float(self.data.close[-1]) and
-            float(self.data.close[-1]) > float(self.data.open[-2])
-        )
-
-        vol_series = self.data.volume
-
-        def volume_filter_ok():
-            if not chk_vol or self.p.volume_type == 'none':
-                return True
-            v3 = float(vol_series[-3])
-            v2 = float(vol_series[-2])
-            v1 = float(vol_series[-1])
-            return v3 < v2 or v1 > v2 or v1 > v3
-
-        if bullish_setup and volume_filter_ok():
-            self.lines.signal[0] = 0.0 if float(self.data.close[0]) < float(self.data.open[0]) else 1.0
-        if bearish_setup and volume_filter_ok():
-            self.lines.signal[0] = 3.0 if float(self.data.close[0]) < float(self.data.open[0]) else 4.0
 
 
 class ExpThreeCandlesStrategy(bt.Strategy):
@@ -228,7 +119,7 @@ class ExpThreeCandlesStrategy(bt.Strategy):
         """Initialize indicator, risk state, and run-time counters."""
         self.data_main = self.datas[0]
         self.data_main._point_value = float(self.p.point)
-        self.signal = ThreeCandlesIndicator(self.data_main, max_bar1=self.p.max_bar1, volume_type=self.p.volume_type)
+        self.signal = bt.indicators.ThreeCandlesIndicator(self.data_main, max_bar1=self.p.max_bar1, volume_type=self.p.volume_type)
 
         self.bar_num = 0
         self.signal_count = 0
@@ -361,7 +252,6 @@ class ExpThreeCandlesStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -371,7 +261,6 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -475,7 +364,6 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 
-
 def run(plot=False):
     """Run backtest and return tuple of results, metrics, and cerebro.
 
@@ -485,7 +373,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

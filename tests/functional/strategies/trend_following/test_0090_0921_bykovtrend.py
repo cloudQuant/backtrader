@@ -44,15 +44,14 @@ Strategy Logic:
        the captured metrics against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,69 +94,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export (tab-delimited columns such
-            as ``<DATE>``, ``<TIME>``, ``<OPEN>`` ... ``<VOL>``).
-        fromdate: Optional inclusive lower datetime bound for the returned rows.
-        todate: Optional inclusive upper datetime bound for the returned rows.
-        bar_shift_minutes: Minutes to add to every timestamp, used to stamp
-            each bar at its close time rather than its open time.
-
-    Returns:
-        pandas.DataFrame: A datetime-indexed frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume``, and ``openinterest`` columns, sorted by
-        time and filtered to the requested date window.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -177,75 +117,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class BykovTrendIndicator(bt.Indicator):
-    """Reconstructs BykovTrend from its MQ5 source.
-
-    Uses WPR(SSP) + ATR(15) to detect trend flips.
-    Outputs buy_arrow / sell_arrow (non-zero price level when arrow fires).
-    """
-    lines = ('buy_arrow', 'sell_arrow')
-    params = dict(risk=3, ssp=9)
-
-    def __init__(self):
-        """Cache WPR/ATR periods, the risk threshold, and set indicator warmup."""
-        self._k = 33 - int(self.p.risk)
-        self._atr_period = 15
-        self._wpr_period = int(self.p.ssp)
-        self._uptrend = True
-        self._old = True
-        self.addminperiod(max(self._wpr_period, self._atr_period) + 2)
-
-    def _calc_wpr(self):
-        period = self._wpr_period
-        if len(self.data) < period:
-            return 0.0
-        hh = max(float(self.data.high[-i]) for i in range(period))
-        ll = min(float(self.data.low[-i]) for i in range(period))
-        close_val = float(self.data.close[0])
-        if hh == ll:
-            return 0.0
-        return -100.0 * (hh - close_val) / (hh - ll)
-
-    def _calc_atr(self):
-        period = self._atr_period
-        if len(self.data) < period + 1:
-            return 0.0
-        total = 0.0
-        for i in range(period):
-            hi = float(self.data.high[-i])
-            lo = float(self.data.low[-i])
-            prev_close = float(self.data.close[-(i + 1)])
-            tr = max(hi - lo, abs(hi - prev_close), abs(prev_close - lo))
-            total += tr
-        return total / period
-
-    def next(self):
-        """Update the trend state and emit buy/sell arrow offsets on flips."""
-        k = self._k
-        wpr = self._calc_wpr()
-        atr = self._calc_atr()
-        rng = atr * 3.0 / 8.0
-
-        uptrend = self._uptrend
-        if wpr < -100 + k:
-            uptrend = False
-        if wpr > -k:
-            uptrend = True
-
-        buy_val = 0.0
-        sell_val = 0.0
-        if not self._old and uptrend:
-            buy_val = float(self.data.low[0]) - rng
-        if self._old and not uptrend:
-            sell_val = float(self.data.high[0]) + rng
-
-        self.lines.buy_arrow[0] = buy_val
-        self.lines.sell_arrow[0] = sell_val
-
-        self._old = uptrend
-        self._uptrend = uptrend
 
 
 class ExpBykovTrendStrategy(bt.Strategy):
@@ -275,7 +146,7 @@ class ExpBykovTrendStrategy(bt.Strategy):
         """Bind base/signal feeds, build the BykovTrend indicator, reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = BykovTrendIndicator(self.signal_data, risk=self.p.risk, ssp=self.p.ssp)
+        self.indicator = bt.indicators.BykovTrendIndicator(self.signal_data, risk=self.p.risk, ssp=self.p.ssp)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -452,18 +323,15 @@ class ExpBykovTrendStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -642,7 +510,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the end-to-end BykovTrend backtest and return its results.
 
@@ -654,7 +521,7 @@ def run(plot=False):
         strategy instances, ``metrics`` is the dict from :func:`extract_metrics`,
         and ``cerebro`` is the engine that executed the backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

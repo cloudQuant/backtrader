@@ -29,14 +29,29 @@ Strategy Logic:
     SQN, and trade counts) against expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,63 +110,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Read and normalize an MT5 CSV export into a sorted OHLC DataFrame.
-
-    Args:
-        filepath: Path of the tab-separated MT5 data file.
-        fromdate: Optional lower datetime bound for filtering.
-        todate: Optional upper datetime bound for filtering.
-        bar_shift_minutes: Number of minutes to shift timestamps.
-
-    Returns:
-        Normalized DataFrame with OHLCV/spread columns, indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom pandas data feed that carries spread as an additional line."""
     lines = ('spread',)
@@ -165,108 +123,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class SkyscraperFixIndicator(bt.Indicator):
-    """Indicator for directional buffer-based skyline reversals."""
-    lines = ('up_buffer', 'dn_buffer', 'buy_buffer', 'sell_buffer')
-    params = dict(
-        length=10,
-        kv=0.9,
-        percentage=0.0,
-        use_high_low=True,
-        atr_period=15,
-        point_size=0.01,
-    )
-
-    def __init__(self):
-        """Build ATR state and initialize rolling trend context."""
-        self.addminperiod(max(self.p.length, self.p.atr_period) + 2)
-        self.atr = bt.indicators.AverageTrueRange(self.data, period=self.p.atr_period)
-        self.atr_high = bt.indicators.Highest(self.atr, period=self.p.length)
-        self.atr_low = bt.indicators.Lowest(self.atr, period=self.p.length)
-        self._prev_smin = None
-        self._prev_smax = None
-        self._prev_trend = 0
-
-    @staticmethod
-    def _nan():
-        return float('nan')
-
-    @staticmethod
-    def _valid(value):
-        return value is not None and math.isfinite(value)
-
-    def next(self):
-        """Update the skyscraper buffers for the current bar."""
-        up = self._nan()
-        dn = self._nan()
-        buy = self._nan()
-        sell = self._nan()
-
-        if self._prev_smin is None:
-            self._prev_smin = float(self.data.close[0])
-            self._prev_smax = float(self.data.close[0])
-            self._prev_trend = 0
-            self.lines.up_buffer[0] = up
-            self.lines.dn_buffer[0] = dn
-            self.lines.buy_buffer[0] = buy
-            self.lines.sell_buffer[0] = sell
-            return
-
-        atrmax = float(self.atr_high[0])
-        atrmin = float(self.atr_low[0])
-        if not math.isfinite(atrmax) or not math.isfinite(atrmin):
-            self.lines.up_buffer[0] = up
-            self.lines.dn_buffer[0] = dn
-            self.lines.buy_buffer[0] = buy
-            self.lines.sell_buffer[0] = sell
-            return
-
-        step = int(0.5 * self.p.kv * (atrmax + atrmin) / self.p.point_size)
-        xstep = step * self.p.point_size
-        x2step = 2.0 * xstep
-
-        close = float(self.data.close[0])
-        high = float(self.data.high[0])
-        low = float(self.data.low[0])
-
-        if self.p.use_high_low:
-            smax0 = low + x2step
-            smin0 = high - x2step
-        else:
-            smax0 = close + x2step
-            smin0 = close - x2step
-
-        trend0 = self._prev_trend
-        if close > self._prev_smax:
-            trend0 = 1
-        if close < self._prev_smin:
-            trend0 = -1
-
-        if trend0 > 0:
-            smin0 = max(smin0, self._prev_smin)
-            up = smin0
-        else:
-            smax0 = min(smax0, self._prev_smax)
-            dn = smax0
-
-        prev_up = self.lines.up_buffer[-1] if len(self) > 1 else self._nan()
-        prev_dn = self.lines.dn_buffer[-1] if len(self) > 1 else self._nan()
-
-        if self._valid(prev_dn) and self._valid(up):
-            buy = up
-        if self._valid(prev_up) and self._valid(dn):
-            sell = dn
-
-        self.lines.up_buffer[0] = up
-        self.lines.dn_buffer[0] = dn
-        self.lines.buy_buffer[0] = buy
-        self.lines.sell_buffer[0] = sell
-
-        self._prev_smin = smin0
-        self._prev_smax = smax0
-        self._prev_trend = trend0
 
 
 class SkyscraperFixDuplexStrategy(bt.Strategy):
@@ -304,7 +160,7 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
 
-        self.long_indicator = SkyscraperFixIndicator(
+        self.long_indicator = bt.indicators.SkyscraperFixDuplexIndicator(
             self.signal_data,
             length=self.p.long_length,
             kv=self.p.long_kv,
@@ -312,7 +168,7 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
             use_high_low=self.p.long_use_high_low,
             point_size=self.p.point_size,
         )
-        self.short_indicator = SkyscraperFixIndicator(
+        self.short_indicator = bt.indicators.SkyscraperFixDuplexIndicator(
             self.signal_data,
             length=self.p.short_length,
             kv=self.p.short_kv,
@@ -497,13 +353,9 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
         self.log(f'TRADE CLOSED pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -691,7 +543,7 @@ def main():
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
 
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

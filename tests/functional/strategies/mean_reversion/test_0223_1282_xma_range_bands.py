@@ -35,14 +35,13 @@ Strategy Logic:
     expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,62 +82,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close rather than the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -205,36 +151,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class XMARangeBandsIndicator(bt.Indicator):
-    """Moving-average midline with range-scaled upper and lower bands."""
-
-    lines = ('mid', 'upper', 'lower',)
-    params = dict(
-        ma_method1='sma',
-        length1=100,
-        phase1=15,
-        ma_method2='jjma',
-        length2=20,
-        phase2=100,
-        deviation=2.0,
-        ipc='price_close',
-        price_shift=0,
-    )
-
-    def __init__(self):
-        """Build the midline MA and range MA, then derive the band lines."""
-        price_line = resolve_price_line(self.data, self.p.ipc)
-        ma_cls_1 = resolve_ma_class(self.p.ma_method1)
-        ma_cls_2 = resolve_ma_class(self.p.ma_method2)
-        self._base = ma_cls_1(price_line, period=self.p.length1)
-        bar_range = self.data.high - self.data.low
-        self._range_ma = ma_cls_2(bar_range, period=self.p.length2)
-        self.lines.mid = self._base + self.p.price_shift
-        self.lines.upper = self.lines.mid + self._range_ma * self.p.deviation
-        self.lines.lower = self.lines.mid - self._range_ma * self.p.deviation
-        self.addminperiod(max(self.p.length1, self.p.length2) + 3)
-
-
 class XMARangeBandsStrategy(bt.Strategy):
     """Fade band breakouts: trade closes re-entering the range bands."""
 
@@ -254,7 +170,7 @@ class XMARangeBandsStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the range-bands indicator and zero the trade counters."""
-        self.bands = XMARangeBandsIndicator(
+        self.bands = bt.indicators.XMARangeBandsIndicator(
             self.data,
             ma_method1=self.p.ma_method1,
             length1=self.p.length1,
@@ -362,17 +278,14 @@ class XMARangeBandsStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -555,7 +468,7 @@ def test_224_0223_1282_xma_range_bands() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0223_1282_xma_range_bands.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

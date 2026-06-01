@@ -20,48 +20,15 @@ Strategy Logic:
     point-based exit levels while collecting count metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 CSV export into a sorted OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV source file.
-        fromdate: Optional inclusive lower datetime bound.
-        todate: Optional inclusive upper datetime bound.
-        bar_shift_minutes: Optional shift applied to the datetime index.
-
-    Returns:
-        A datetime-indexed DataFrame with OHLCV columns sorted by time.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -71,31 +38,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class PChannelSystem(bt.Indicator):
-    """Indicator that classifies current bar position versus rolling channel bounds."""
-
-    lines = ("color",)
-    params = dict(period=20, shift=2)
-
-    def __init__(self):
-        """Initialize warmup requirements for the configured rolling period."""
-        self.addminperiod(int(self.p.period) + int(self.p.shift) + 3)
-
-    def next(self):
-        """Compute channel colors from rolling high/low and current candle body."""
-        shift = int(self.p.shift)
-        hh = max(float(self.data.high[-(shift + i)]) for i in range(int(self.p.period)))
-        ll = min(float(self.data.low[-(shift + i)]) for i in range(int(self.p.period)))
-        close = float(self.data.close[0])
-        open_ = float(self.data.open[0])
-        color = 2.0
-        if close > hh:
-            color = 4.0 if open_ <= close else 3.0
-        if close < ll:
-            color = 0.0 if open_ > close else 1.0
-        self.lines.color[0] = color
 
 
 class ExpPChannelSystemStrategy(bt.Strategy):
@@ -114,7 +56,7 @@ class ExpPChannelSystemStrategy(bt.Strategy):
         """Attach market feeds, the channel indicator, and tracking counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = PChannelSystem(self.signal_data, period=self.p.period, shift=self.p.shift)
+        self.ind = bt.indicators.PChannelSystem(self.signal_data, period=self.p.period, shift=self.p.shift)
         self.bar_num = 0
         self.signal_count = 0
         self.trade_count = 0

@@ -36,9 +36,9 @@ Strategy Logic:
     against the baseline recorded at migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import json
 from backtrader.dataseries import TimeFrame
@@ -51,6 +51,7 @@ import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -90,60 +91,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export (tab-separated).
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-        bar_shift_minutes: Number of minutes to add to each timestamp so bars
-            align to their close time.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """PandasData feed mapping the standard OHLCV columns by position."""
 
@@ -151,30 +98,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class SlowStoch(Indicator):
-    """EMA-smoothed slow stochastic exposing an oscillator and a signal line."""
-
-    lines = ('sto', 'signal')
-    params = dict(
-        k_period=5,
-        d_period=3,
-        slowing=3,
-        xlength=5,
-    )
-
-    def __init__(self):
-        """Build the StochasticFull and EMA-smooth its %D and slow %D lines."""
-        stoch = btind.StochasticFull(
-            self.data,
-            period=max(int(self.p.k_period), 1),
-            period_dfast=max(int(self.p.d_period), 1),
-            period_dslow=max(int(self.p.slowing), 1),
-            safediv=True,
-        )
-        self.l.sto = btind.ExponentialMovingAverage(stoch.percD, period=max(int(self.p.xlength), 1))
-        self.l.signal = btind.ExponentialMovingAverage(stoch.percDSlow, period=max(int(self.p.xlength), 1))
 
 
 class SlowStochStrategy(Strategy):
@@ -195,7 +118,7 @@ class SlowStochStrategy(Strategy):
 
     def __init__(self):
         """Attach the SlowStoch indicator, zero counters, and compute warm-up bars."""
-        self.indicator = SlowStoch(
+        self.indicator = bt.indicators.SlowStoch(
             self.data,
             k_period=self.p.k_period,
             d_period=self.p.d_period,
@@ -379,12 +302,7 @@ class SlowStochStrategy(Strategy):
             self.loss_count += 1
 
 
-
-
-
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
-
 
 
 def prepare_frame(config, base_dir):
@@ -518,7 +436,7 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / args.config).resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()

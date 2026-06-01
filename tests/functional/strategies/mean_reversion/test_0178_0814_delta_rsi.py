@@ -36,16 +36,15 @@ Strategy Logic:
     and performance figures against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
 import os
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -93,61 +92,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume and openinterest columns, sorted ascending and filtered to the
-        requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -158,42 +106,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
     """
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class DeltaRSI(bt.Indicator):
-    """Dual-RSI momentum indicator producing a regime color and RSI delta.
-
-    A fast RSI (rsi_period1) and a slow RSI (rsi_period2) are compared. The
-    delta line is their difference. The color line encodes the regime: bullish
-    extreme (0.0) when the slow RSI is in the upper band and the fast RSI leads
-    higher, bearish extreme (2.0) when the slow RSI is in the lower band and the
-    fast RSI leads lower, and neutral (1.0) otherwise.
-    """
-
-    lines = ('color', 'delta')
-    params = dict(rsi_period1=14, rsi_period2=50, level=50)
-
-    def __init__(self):
-        """Set the minimum period and build the fast/slow RSI sub-indicators."""
-        self.addminperiod(max(int(self.p.rsi_period1), int(self.p.rsi_period2)) + 3)
-        self.rsi1 = bt.indicators.RSI(self.data, period=int(self.p.rsi_period1))
-        self.rsi2 = bt.indicators.RSI(self.data, period=int(self.p.rsi_period2))
-        lvl = int(self.p.level)
-        self.max_level = 100 - (100 - lvl)
-        self.min_level = 100 - lvl
-
-    def next(self):
-        """Compute the RSI delta and regime color for the current bar."""
-        r1 = float(self.rsi1[0])
-        r2 = float(self.rsi2[0])
-        self.lines.delta[0] = r1 - r2
-        color = 1.0
-        if r2 > self.max_level and r1 > r2:
-            color = 0.0
-        if r2 < self.min_level and r1 < r2:
-            color = 2.0
-        self.lines.color[0] = color
-
 
 class ExpDeltaRSIStrategy(bt.Strategy):
     """Trade Delta RSI color transitions on the higher-timeframe signal feed.
@@ -225,7 +137,7 @@ class ExpDeltaRSIStrategy(bt.Strategy):
         """Bind the base and signal feeds, build Delta RSI, and reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = DeltaRSI(self.signal_data, rsi_period1=self.p.rsi_period1, rsi_period2=self.p.rsi_period2, level=self.p.level)
+        self.ind = bt.indicators.DeltaRSI(self.signal_data, rsi_period1=self.p.rsi_period1, rsi_period2=self.p.rsi_period2, level=self.p.level)
         self.signal_count = 0
         self.trade_count = 0
         self.buy_count = 0
@@ -286,18 +198,15 @@ class ExpDeltaRSIStrategy(bt.Strategy):
         self._position_was_open = False
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -407,7 +316,7 @@ def run(plot=False):
         strategy instances, metrics is the extract_metrics() dictionary, and
         cerebro is the configured engine.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     df = load_frame(config)
     params = dict(config['params'])
     minutes = params.pop('indicator_minutes')

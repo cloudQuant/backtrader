@@ -20,14 +20,13 @@ Strategy Logic:
     4. Aggregate analyzers and trade counters for deterministic regression checks.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -72,101 +71,15 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style TSV data into normalized dataframe.
-
-    Args:
-        filepath: Absolute path to the CSV/TSV file.
-        fromdate: Optional inclusive start timestamp filter.
-        todate: Optional inclusive end timestamp filter.
-        bar_shift_minutes: Optional minute offset applied to all timestamps.
-
-    Returns:
-        DataFrame indexed by datetime with open/high/low/close/volume columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Base OHLCV feed for iWPRSign backtest execution."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class IWPRSignIndicator(bt.Indicator):
-    """Indicator computing WPR buy/sell levels with ATR context."""
-    lines = ('sell', 'buy', 'wpr', 'atr')
-    params = dict(atr_period=14, wpr_period=14, up_level=-30, dn_level=-70)
-
-    def __init__(self):
-        """Initialize ATR source and required lookback."""
-        self._atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
-        self.addminperiod(max(int(self.p.atr_period), int(self.p.wpr_period)) + 2)
-
-    def _calc_wpr(self):
-        period = int(self.p.wpr_period)
-        highs = [float(self.data.high[-i]) for i in range(period)]
-        lows = [float(self.data.low[-i]) for i in range(period)]
-        hh = max(highs)
-        ll = min(lows)
-        cp = float(self.data.close[0])
-        if hh == ll:
-            return -50.0
-        return -100.0 * (hh - cp) / (hh - ll)
-
-    def next(self):
-        """Compute WPR and create buy/sell trigger levels."""
-        self.lines.sell[0] = float('nan')
-        self.lines.buy[0] = float('nan')
-        wpr_now = self._calc_wpr()
-        self.lines.wpr[0] = wpr_now
-        self.lines.atr[0] = float(self._atr[0])
-        if len(self) < 2:
-            return
-        wpr_prev = float(self.lines.wpr[-1])
-        atr_now = float(self._atr[0])
-        if wpr_now > float(self.p.dn_level) and wpr_prev <= float(self.p.dn_level):
-            self.lines.buy[0] = float(self.data.low[0]) - atr_now * 3.0 / 8.0
-        if wpr_now < float(self.p.up_level) and wpr_prev >= float(self.p.up_level):
-            self.lines.sell[0] = float(self.data.high[0]) + atr_now * 3.0 / 8.0
 
 
 class ExpIWPRSignStrategy(bt.Strategy):
@@ -192,7 +105,7 @@ class ExpIWPRSignStrategy(bt.Strategy):
         """Initialize feed bindings, indicator, and runtime counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = IWPRSignIndicator(self.signal_data, atr_period=self.p.atr_period, wpr_period=self.p.wpr_period, up_level=self.p.up_level, dn_level=self.p.dn_level)
+        self.indicator = bt.indicators.IWPRSignIndicator(self.signal_data, atr_period=self.p.atr_period, wpr_period=self.p.wpr_period, up_level=self.p.up_level, dn_level=self.p.dn_level)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -314,18 +227,15 @@ class ExpIWPRSignStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -490,7 +400,7 @@ def test_267_0266_0878_iwprsign() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0266_0878_iwprsign.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

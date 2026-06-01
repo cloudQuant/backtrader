@@ -39,9 +39,9 @@ Strategy Logic:
     Sharpe, drawdown, SQN) against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import json
 from backtrader.dataseries import TimeFrame
@@ -56,6 +56,7 @@ import backtrader.functions as btfunc
 import backtrader.feeds as btfeeds
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,61 +96,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated OHLCV export into a backtrader-ready frame.
-
-    Args:
-        filepath: Path to the MT5 CSV file (tab-separated, ``<DATE>``/``<TIME>``
-            headers, optionally wrapped in double quotes per line).
-        fromdate: Optional inclusive lower datetime bound; earlier rows are dropped.
-        todate: Optional inclusive upper datetime bound; later rows are dropped.
-        bar_shift_minutes: Minutes added to each bar timestamp so the index marks
-            bar-close time rather than bar-open time.
-
-    Returns:
-        pandas.DataFrame: Datetime-indexed frame with ``open``, ``high``, ``low``,
-        ``close``, ``volume`` and ``openinterest`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Backtrader Pandas feed mapping the standard OHLCV column order."""
 
@@ -157,61 +103,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class T3Average(Indicator):
-    """Tillson T3 moving average built from a six-stage EMA cascade."""
-
-    lines = ('t3',)
-    params = dict(period=10, vfactor=0.7)
-
-    def __init__(self):
-        """Build the six EMA stages and combine them into the T3 line.
-
-        Side effects:
-            Creates the cascade of six EMAs and assigns ``t3`` as the
-            volume-factor-weighted combination of the third through sixth stages.
-        """
-        period = max(int(self.p.period), 1)
-        vfactor = min(max(float(self.p.vfactor), 0.0), 1.0)
-        e1 = btind.EMA(self.data, period=period)
-        e2 = btind.EMA(e1, period=period)
-        e3 = btind.EMA(e2, period=period)
-        e4 = btind.EMA(e3, period=period)
-        e5 = btind.EMA(e4, period=period)
-        e6 = btind.EMA(e5, period=period)
-
-        c1 = -vfactor ** 3
-        c2 = 3 * vfactor ** 2 + 3 * vfactor ** 3
-        c3 = -6 * vfactor ** 2 - 3 * vfactor - 3 * vfactor ** 3
-        c4 = 1 + 3 * vfactor + vfactor ** 3 + 3 * vfactor ** 2
-        self.l.t3 = c1 * e6 + c2 * e5 + c3 * e4 + c4 * e3
-
-
-class T3Trix(Indicator):
-    """TRIX-style oscillator built from fast and slow T3 rate-of-change lines."""
-
-    lines = ('fast', 'slow', 'hist')
-    params = dict(
-        xlength1=10,
-        xlength2=18,
-        xphase=70,
-    )
-
-    def __init__(self):
-        """Build fast/slow T3 averages and their normalized rate-of-change lines.
-
-        Side effects:
-            Derives the volume factor from ``xphase``, builds the fast and slow
-            ``T3Average`` lines, and assigns ``fast``/``slow`` as their per-bar
-            relative changes with ``hist`` aliased to ``fast``.
-        """
-        vfactor = min(max(float(self.p.xphase) / 100.0, 0.0), 1.0)
-        fast_t3 = T3Average(self.data.close, period=int(self.p.xlength1), vfactor=vfactor)
-        slow_t3 = T3Average(self.data.close, period=int(self.p.xlength2), vfactor=vfactor)
-        self.l.fast = btfunc.DivByZero(fast_t3 - fast_t3(-1), fast_t3(-1), zero=0.0)
-        self.l.slow = btfunc.DivByZero(slow_t3 - slow_t3(-1), slow_t3(-1), zero=0.0)
-        self.l.hist = self.l.fast
 
 
 class T3TrixStrategy(Strategy):
@@ -238,7 +129,7 @@ class T3TrixStrategy(Strategy):
             counters, entry/stop/target prices, the pending entry direction, and
             the warmup window.
         """
-        self.osc = T3Trix(
+        self.osc = bt.indicators.T3Trix(
             self.data,
             xlength1=self.p.xlength1,
             xlength2=self.p.xlength2,
@@ -446,12 +337,7 @@ class T3TrixStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
-
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
-
 
 
 def prepare_frame(config, base_dir):
@@ -592,7 +478,7 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / args.config).resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()

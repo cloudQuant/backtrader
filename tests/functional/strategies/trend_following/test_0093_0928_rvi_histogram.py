@@ -34,15 +34,14 @@ Strategy Logic:
     ``runonce=True``.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,68 +86,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated CSV into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional number of minutes to shift each bar's
-            timestamp forward.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, sorted ascending and filtered to the requested
-        date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -218,44 +159,6 @@ class _RollingSimpleAverage:
         return sum(self.values) / len(self.values)
 
 
-class RVIHistogramIndicator(bt.Indicator):
-    """Relative Vigor Index with a smoothed signal line and color state."""
-
-    lines = ('main', 'signal', 'hist_base', 'color_state')
-    params = dict(rvi_period=14, high_level=0.3, low_level=-0.3)
-
-    def __init__(self):
-        """Build the weighted/simple averagers used by the RVI computation."""
-        self._co_avg4 = _RollingWeightedAverage4()
-        self._hl_avg4 = _RollingWeightedAverage4()
-        self._num_sma = _RollingSimpleAverage(self.p.rvi_period)
-        self._den_sma = _RollingSimpleAverage(self.p.rvi_period)
-        self._main_avg4 = _RollingWeightedAverage4()
-        self.addminperiod(int(self.p.rvi_period) + 6)
-
-    def next(self):
-        """Compute the RVI main/signal lines and the level-based color state."""
-        co = float(self.data.close[0]) - float(self.data.open[0])
-        hl = float(self.data.high[0]) - float(self.data.low[0])
-        weighted_co = self._co_avg4.update(co)
-        weighted_hl = self._hl_avg4.update(hl)
-        num = self._num_sma.update(weighted_co)
-        den = self._den_sma.update(weighted_hl)
-        main = num / den if abs(den) > 1e-12 else 0.0
-        signal = self._main_avg4.update(main)
-
-        color = 1.0
-        if main > float(self.p.high_level):
-            color = 0.0
-        elif main < float(self.p.low_level):
-            color = 2.0
-
-        self.lines.main[0] = main
-        self.lines.signal[0] = signal
-        self.lines.hist_base[0] = 0.0
-        self.lines.color_state[0] = color
-
-
 class ExpRVIHistogramStrategy(bt.Strategy):
     """RVI Histogram strategy with cross/levels modes and fixed risk brackets."""
 
@@ -280,7 +183,7 @@ class ExpRVIHistogramStrategy(bt.Strategy):
         """Bind base/signal feeds, build the RVI indicator, reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = RVIHistogramIndicator(
+        self.indicator = bt.indicators.RVIHistogramIndicator(
             self.signal_data,
             rvi_period=self.p.rvi_period,
             high_level=self.p.high_level,
@@ -427,18 +330,15 @@ class ExpRVIHistogramStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -581,10 +481,9 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the backtest and return the result tuple ``(results, metrics, cerebro)``."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

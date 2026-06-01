@@ -34,15 +34,30 @@ Strategy Logic:
     baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,64 +97,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 CSV export to read.
-        fromdate: Optional inclusive lower bound used to trim the index.
-        todate: Optional inclusive upper bound used to trim the index.
-        bar_shift_minutes: Minutes to shift the datetime index forward.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume,
-        openinterest and spread columns in ascending time order.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -183,53 +140,6 @@ def _applied_price(data, mode, ago=0):
     return c
 
 
-class LocoIndicator(bt.Indicator):
-    """Loco follow-through line with a binary bullish/bearish color flag.
-
-    Tracks the applied price and produces a ``loco`` line plus a ``color`` flag
-    (0 = bullish, 1 = bearish) that flips when price reverses its run of higher
-    or lower readings.
-    """
-
-    lines = ('loco', 'color')
-    params = dict(length=1, ipc='price_close_', price_shift_points=0.0)
-
-    def __init__(self):
-        """Reserve the warm-up window and initialise carry-forward state."""
-        self.addminperiod(max(int(self.p.length), 1) + 2)
-        self._initialized = False
-        self._prev = None
-
-    def next(self):
-        """Update the Loco line and color flag for the current bar."""
-        series0 = _applied_price(self.data, self.p.ipc, 0)
-        if not self._initialized:
-            result = series0
-            color = 0
-            self._prev = result
-            self._initialized = True
-        else:
-            prev = float(self._prev)
-            ago = min(int(self.p.length), len(self.data) - 1)
-            series1 = _applied_price(self.data, self.p.ipc, -ago)
-            if series1 > prev and series0 > prev:
-                result = max(prev, series0 * 0.999)
-                color = 0
-            elif series1 < prev and series0 < prev:
-                result = min(prev, series0 * 1.001)
-                color = 1
-            else:
-                if series0 > prev:
-                    result = series0 * 0.999
-                    color = 0
-                else:
-                    result = series0 * 1.001
-                    color = 1
-            self._prev = result
-        self.lines.loco[0] = result + float(self.p.price_shift_points)
-        self.lines.color[0] = color
-
-
 class LocoStrategy(bt.Strategy):
     """Trades Loco color flips with fixed protective levels and reversals.
 
@@ -262,7 +172,7 @@ class LocoStrategy(bt.Strategy):
         """Wire the Loco indicator on the signal feed and init state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = LocoIndicator(self.signal_feed, length=self.p.length, ipc=self.p.ipc, price_shift_points=0.0)
+        self.indicator = bt.indicators.LocoIndicator(self.signal_feed, length=self.p.length, ipc=self.p.ipc, price_shift_points=0.0)
         self.bar_num = 0
         self.buy_signal_count = 0
         self.sell_signal_count = 0
@@ -469,7 +379,6 @@ class LocoStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -478,9 +387,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -648,7 +555,7 @@ def test_5_0005_loco() -> None:
 
     Originally located at tests/functional/strategies_regression/grid_trading/0005_loco.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

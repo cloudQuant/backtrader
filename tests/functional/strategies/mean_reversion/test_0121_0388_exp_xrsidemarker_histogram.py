@@ -18,15 +18,30 @@ Strategy Logic:
     deterministic metrics from analyzers and strategy counters.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
 import os
 import sys
 import datetime as dt
-import io
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,89 +95,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-class DeMarker(bt.Indicator):
-    """Custom DeMarker oscillator implementation."""
-    lines = ('demarker',)
-    params = dict(period=14)
-
-    def __init__(self):
-        """Initialize period windows and DeMarker ratio line."""
-        self.addminperiod(self.p.period + 1)
-        up_move = bt.If(self.data.high(0) - self.data.high(-1) > 0, self.data.high(0) - self.data.high(-1), 0.0)
-        down_move = bt.If(self.data.low(-1) - self.data.low(0) > 0, self.data.low(-1) - self.data.low(0), 0.0)
-        up_sum = bt.ind.SumN(up_move, period=self.p.period)
-        down_sum = bt.ind.SumN(down_move, period=self.p.period)
-        total = up_sum + down_sum
-        self.lines.demarker = bt.If(total != 0, up_sum / total, 0.5)
-
-
-class XrsiDeMarkerHistogram(bt.Indicator):
-    """Blend RSI and DeMarker into a smoothed histogram line."""
-    lines = ('value',)
-    params = dict(
-        ind_period=14,
-        rsi_price='close',
-        high_level=60.0,
-        low_level=40.0,
-        xma_method='SMA',
-        x_length=5,
-        x_phase=15,
-    )
-
-    def __init__(self):
-        """Instantiate RSI and DeMarker and initialize smoothing buffers."""
-        self.rsi = bt.ind.RSI(self.data.close, period=self.p.ind_period)
-        self.demarker = DeMarker(self.data, period=self.p.ind_period)
-        self._raw_buf = []
-        self._smooth_prev = None
-        self.addminperiod(self.p.ind_period + self.p.x_length + 5)
-
-    def _smooth_value(self, raw_value):
-        method = str(self.p.xma_method).upper()
-        if method in ('MODE_SMA_', 'SMA'):
-            period = max(1, int(self.p.x_length))
-            if len(self._raw_buf) < period:
-                return raw_value
-            return sum(self._raw_buf[-period:]) / float(period)
-
-        length = max(1, int(self.p.x_length))
-        phase = max(-100, min(100, int(self.p.x_phase)))
-        alpha = 2.0 / (length + 1.0)
-        alpha *= 1.0 + 0.35 * (phase / 100.0)
-        alpha = max(0.01, min(0.99, alpha))
-        if self._smooth_prev is None or not math.isfinite(self._smooth_prev):
-            smooth = raw_value
-        else:
-            smooth = self._smooth_prev + alpha * (raw_value - self._smooth_prev)
-        self._smooth_prev = smooth
-        return smooth
-
-    def next(self):
-        """Compute and smooth the combined histogram value."""
-        raw_value = (float(self.rsi[0]) + 100.0 * float(self.demarker.demarker[0])) / 2.0
-        self._raw_buf.append(raw_value)
-        self.lines.value[0] = self._smooth_value(raw_value)
-
-
 class ExpXrsiDeMarkerHistogramStrategy(bt.Strategy):
     """Strategy wrapper for the XRSI + DeMarker histogram signal."""
     params = dict(
@@ -191,7 +123,7 @@ class ExpXrsiDeMarkerHistogramStrategy(bt.Strategy):
         """Wire data sources, indicator, and execution state."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.hist = XrsiDeMarkerHistogram(
+        self.hist = bt.indicators.XrsiDeMarkerHistogram(
             self.data1,
             ind_period=self.p.ind_period,
             rsi_price=self.p.rsi_price,
@@ -368,15 +300,12 @@ class ExpXrsiDeMarkerHistogramStrategy(bt.Strategy):
         print('=========================================================')
 
 
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -392,33 +321,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data into a normalized DataFrame for Backtrader."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, minutes):
@@ -437,7 +339,6 @@ def resample_frame(df, minutes):
     out['openinterest'] = out['openinterest'].fillna(0)
     out['spread'] = out['spread'].fillna(0)
     return out
-
 
 
 def load_backtest_frame(config: dict) -> dict:
@@ -511,7 +412,7 @@ def run(cfg_path: str | None = None):
     """Execute strategy and return backtest result tuple."""
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
-    cfg = load_config(cfg_path)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO)
 
     data_cfg = cfg['data']
     params_cfg = cfg.get('params', {})

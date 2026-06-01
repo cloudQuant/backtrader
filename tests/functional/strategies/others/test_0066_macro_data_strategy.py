@@ -21,50 +21,16 @@ Strategy Logic:
 from __future__ import annotations
 
 import datetime
-import io
 from pathlib import Path
 
 import backtrader as bt
 import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 TARGET_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "XAUUSD_1d.csv"
 GROWTH_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "IVV_1d.csv"
 RATES_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "IEF_1d.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load an MT5 export and return a datetime-indexed OHLCV DataFrame.
-
-    Args:
-        filepath: Path to MT5 CSV/TSV file.
-        fromdate: Optional inclusive start datetime for slicing.
-        todate: Optional inclusive end datetime for slicing.
-
-    Returns:
-        OHLCV DataFrame ready for a Backtrader ``PandasData`` feed.
-    """
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = "\n".join(lines)
-    sep = "\t" if "\t" in lines[0] else ","
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df["<DATE>"].astype(str) + " " + df["<TIME>"].astype(str)
-    parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M", errors="coerce")
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M:%S", errors="coerce")
-    df["datetime"] = parsed
-    df = df.rename(columns={"<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-                             "<TICKVOL>": "tick_volume", "<VOL>": "real_volume"})
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"] if "tick_volume" in df.columns else 0
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def prepare_macro_proxy_data(target_df, growth_df, rates_df, params):

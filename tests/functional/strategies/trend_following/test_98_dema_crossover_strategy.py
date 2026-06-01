@@ -20,10 +20,10 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -84,7 +84,7 @@ class DemaCrossoverStrategy(bt.Strategy):
         dema_fast (bt.indicators.DEMA): Fast DEMA indicator with short period.
         dema_slow (bt.indicators.DEMA): Slow DEMA indicator with long period.
         crossover (bt.indicators.CrossOver): Crossover indicator tracking the
-            relationship between fast and slow DEMA. Positive values indicate
+            relationship between fast and slow bt.indicators.DEMA. Positive values indicate
             fast DEMA is above slow DEMA, negative values indicate below.
         order (bt.Order): Current pending order, or None if no order is pending.
         bar_num (int): Counter tracking the number of bars processed.

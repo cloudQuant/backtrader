@@ -27,7 +27,7 @@ Strategy Principle:
 Strategy Logic:
     load_backtest_frame loads the M15 frame; build_cerebro wires the M15 execution
     feed plus an H1 resampled signal feed, a fixed-commission futures broker, the
-    strategy, and the analyzers. IGapStrategy computes IGapIndicator (ATR plus
+    strategy, and the analyzers. IGapStrategy computes bt.indicators.IGapIndicator(ATR plus
     gap arrows) on the signal feed and, once per new signal bar after warm-up,
     first checks protective exits, then reads the buy/sell arrows to open, close,
     or reverse positions subject to the open/close flags. notify_order tracks
@@ -39,15 +39,30 @@ Strategy Logic:
     expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -93,65 +108,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional minute offset added to each timestamp so the
-            bar is stamped at its close.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume,
-        openinterest, and spread columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed exposing the standard OHLCV columns plus a spread line."""
 
@@ -166,32 +122,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class IGapIndicator(bt.Indicator):
-    """Detect opening gaps and emit ATR-offset buy/sell arrow levels."""
-
-    lines = ('sell_signal', 'buy_signal', 'atr_value')
-    params = dict(size_gap=5, point=0.01, atr_period=15)
-
-    def __init__(self):
-        """Set the warm-up period, build the ATR, and cache the gap distance."""
-        self.addminperiod(int(self.p.atr_period) + int(self.p.size_gap) + 4)
-        self.atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
-        self.gap_distance = float(self.p.size_gap) * float(self.p.point)
-
-    def next(self):
-        """Emit buy/sell arrow levels when the prior close gaps past the open."""
-        self.lines.sell_signal[0] = 0.0
-        self.lines.buy_signal[0] = 0.0
-        atr_value = float(self.atr[0])
-        self.lines.atr_value[0] = atr_value
-        if len(self.data) < 2:
-            return
-        if float(self.data.close[-1]) > float(self.data.open[0]) + self.gap_distance:
-            self.lines.buy_signal[0] = float(self.data.low[0]) - atr_value * 3.0 / 8.0
-        if float(self.data.close[-1]) < float(self.data.open[0]) - self.gap_distance:
-            self.lines.sell_signal[0] = float(self.data.high[0]) + atr_value * 3.0 / 8.0
 
 
 class IGapStrategy(bt.Strategy):
@@ -220,7 +150,7 @@ class IGapStrategy(bt.Strategy):
         """Bind the execution/signal feeds, build the indicator, reset state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = IGapIndicator(
+        self.indicator = bt.indicators.IGapIndicator(
             self.signal_feed,
             size_gap=self.p.size_gap,
             point=self.p.point,
@@ -454,7 +384,6 @@ class IGapStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -463,9 +392,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -631,7 +558,7 @@ def test_190_0189_0955_i_gap() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0189_0955_i_gap.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

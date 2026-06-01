@@ -16,48 +16,15 @@ Strategy Logic:
     issues buy/sell orders on bullish-to-bearish or bearish-to-bullish transitions.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 CSV file into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV/TSV file.
-        fromdate: Optional start datetime (inclusive).
-        todate: Optional end datetime (inclusive).
-        bar_shift_minutes: Minutes to shift bar timestamps forward.
-
-    Returns:
-        Datetime-indexed DataFrame with open/high/low/close/volume/openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -66,34 +33,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class CandlesticksBW(bt.Indicator):
-    """Indicator that encodes AO/AC state into a numeric candle color code."""
-    lines = ("color",)
-    params = dict()
-
-    def __init__(self):
-        """Set up AO and AC dependencies and minimum period."""
-        self.addminperiod(40)
-        self.ao = bt.indicators.AwesomeOscillator(self.data)
-        self.ac = self.ao - bt.indicators.SMA(self.ao, period=5)
-
-    def next(self):
-        """Compute the color code for the current bar."""
-        ao0 = float(self.ao[0])
-        ao1 = float(self.ao[-1])
-        ac0 = float(self.ac[0])
-        ac1 = float(self.ac[-1])
-        open_ = float(self.data.open[0])
-        close = float(self.data.close[0])
-        if ao0 >= ao1 and ac0 >= ac1:
-            color = 0.0 if open_ <= close else 1.0
-        elif ao0 <= ao1 and ac0 <= ac1:
-            color = 5.0 if open_ >= close else 4.0
-        else:
-            color = 2.0 if open_ <= close else 3.0
-        self.lines.color[0] = color
 
 
 class ExpCandlesticksBWStrategy(bt.Strategy):
@@ -111,7 +50,7 @@ class ExpCandlesticksBWStrategy(bt.Strategy):
         """Initialize indicators, data references, and accounting counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = CandlesticksBW(self.signal_data)
+        self.ind = bt.indicators.CandlesticksBW(self.signal_data)
         self.bar_num = 0
         self.signal_count = 0
         self.trade_count = 0

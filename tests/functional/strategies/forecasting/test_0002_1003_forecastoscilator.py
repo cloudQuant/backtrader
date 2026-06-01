@@ -33,19 +33,18 @@ Strategy Logic:
     analyzer output that the test asserts against the captured baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
 from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.feeds as btfeeds
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,59 +86,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 CSV export to read.
-        fromdate: Optional inclusive lower bound used to trim the index.
-        todate: Optional inclusive upper bound used to trim the index.
-        bar_shift_minutes: Minutes to shift the datetime index forward.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume and
-        openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -190,95 +136,6 @@ def _price_value(data, shift, mode):
     return close
 
 
-class ForecastOscilator(Indicator):
-    """Forecast Oscillator with T3-smoothed signal and arrow lines.
-
-    Computes the percentage deviation of price from a linear-regression
-    forecast (the raw ``ind`` line), smooths it with a six-stage T3 moving
-    average into the ``signal`` line, and emits ``buy``/``sell`` arrow values
-    when the oscillator crosses its signal under the configured sign
-    conditions.
-    """
-
-    lines = ('ind', 'signal', 'buy', 'sell')
-    params = dict(length=15, t3=3, b=0.7, ipc='close')
-
-    def __init__(self):
-        """Reserve the warm-up window and initialise T3 smoothing state."""
-        self.addminperiod(int(self.p.length) + 5)
-        self._e1 = 0.0
-        self._e2 = 0.0
-        self._e3 = 0.0
-        self._e4 = 0.0
-        self._e5 = 0.0
-        self._e6 = 0.0
-        self._initialized = False
-
-    def next(self):
-        """Compute the oscillator, T3 signal and arrow lines for this bar."""
-        length = max(int(self.p.length), 1)
-        t3 = max(int(self.p.t3), 1)
-        b = float(self.p.b)
-        b2 = b * b
-        b3 = b2 * b
-        c1 = -b3
-        c2 = 3 * (b2 + b3)
-        c3 = -3 * (2 * b2 + b + b3)
-        c4 = 1 + 3 * b + b3 + 3 * b2
-        n = max(1 + 0.5 * (t3 - 1), 1.0)
-        w1 = 2.0 / (n + 1.0)
-        w2 = 1.0 - w1
-        kx = 6.0 / (length * (length + 1.0))
-        br = (length + 1.0) / 3.0
-
-        if len(self.data) <= length + 2:
-            price = _price_value(self.data, 0, self.p.ipc)
-            self.l.ind[0] = 0.0
-            self.l.signal[0] = 0.0
-            self.l.buy[0] = float('nan')
-            self.l.sell[0] = float('nan')
-            if not self._initialized:
-                self._e1 = self._e2 = self._e3 = self._e4 = self._e5 = self._e6 = price
-                self._initialized = True
-            return
-
-        weighted_sum = 0.0
-        for i in range(length, 0, -1):
-            tmp = i - br
-            weighted_sum += tmp * _price_value(self.data, length - i, self.p.ipc)
-        wt = weighted_sum * kx
-        price_now = _price_value(self.data, 0, self.p.ipc)
-        forecastosc = ((price_now - wt) / wt * 100.0) if wt else 0.0
-
-        if not self._initialized:
-            self._e1 = self._e2 = self._e3 = self._e4 = self._e5 = self._e6 = forecastosc
-            self._initialized = True
-
-        self._e1 = w1 * forecastosc + w2 * self._e1
-        self._e2 = w1 * self._e1 + w2 * self._e2
-        self._e3 = w1 * self._e2 + w2 * self._e3
-        self._e4 = w1 * self._e3 + w2 * self._e4
-        self._e5 = w1 * self._e4 + w2 * self._e5
-        self._e6 = w1 * self._e5 + w2 * self._e6
-        t3_fosc = c1 * self._e6 + c2 * self._e5 + c3 * self._e4 + c4 * self._e3
-
-        self.l.ind[0] = forecastosc
-        self.l.signal[0] = t3_fosc
-        self.l.buy[0] = float('nan')
-        self.l.sell[0] = float('nan')
-
-        if len(self.data) >= length + 4:
-            ind_prev1 = float(self.l.ind[-1])
-            ind_prev2 = float(self.l.ind[-2])
-            sig_prev1 = float(self.l.signal[-1])
-            sig_prev2 = float(self.l.signal[-2])
-            sig_prev3 = float(self.l.signal[-3])
-            if ind_prev1 > sig_prev2 and ind_prev2 <= sig_prev3 and sig_prev1 < 0:
-                self.l.buy[0] = t3_fosc - 0.05
-            if ind_prev1 < sig_prev2 and ind_prev2 >= sig_prev3 and sig_prev1 > 0:
-                self.l.sell[0] = t3_fosc + 0.05
-
-
 class ForecastOscilatorStrategy(Strategy):
     """Trades Forecast Oscillator arrows with fixed protective levels.
 
@@ -306,7 +163,7 @@ class ForecastOscilatorStrategy(Strategy):
 
     def __init__(self):
         """Wire the Forecast Oscillator and initialise counters and state."""
-        self.indicator = ForecastOscilator(self.data, length=self.p.length, t3=self.p.t3, b=self.p.b, ipc=self.p.ipc)
+        self.indicator = bt.indicators.ForecastOscilator(self.data, length=self.p.length, t3=self.p.t3, b=self.p.b, ipc=self.p.ipc)
         self.bar_num = 0
         self.buy_signal_count = 0
         self.sell_signal_count = 0
@@ -466,7 +323,6 @@ class ForecastOscilatorStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -475,9 +331,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -642,7 +496,7 @@ def test_2_0002_1003_forecastoscilator() -> None:
 
     Originally located at tests/functional/strategies_regression/forecasting/0002_1003_forecastoscilator.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

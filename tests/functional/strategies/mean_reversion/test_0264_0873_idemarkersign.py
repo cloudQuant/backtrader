@@ -20,7 +20,7 @@ Strategy Principle:
     successive highs and lows over a lookback window, normalized to 0..1. Level
     crossings flag exhaustion: a cross up through the lower level is a bullish
     signal and a cross down through the upper level is a bearish signal, with the
-    trigger price offset by a fraction of ATR. Signals are evaluated on the
+    trigger price offset by a fraction of bt.indicators.ATR. Signals are evaluated on the
     slower H4 frame while orders execute on the faster M15 frame, and each
     position carries fixed point-based stop-loss and take-profit distances.
 
@@ -36,14 +36,13 @@ Strategy Logic:
     against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -88,110 +87,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close rather than the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping the loaded MT5 frame columns by position."""
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class IDeMarkerSignIndicator(bt.Indicator):
-    """DeMarker oscillator that emits buy/sell triggers on level crossings."""
-
-    lines = ('sell', 'buy', 'demarker', 'atr')
-    params = dict(atr_period=14, demarker_period=14, up_level=0.7, dn_level=0.3)
-
-    def __init__(self):
-        """Build the ATR sub-indicator and set the minimum warmup period."""
-        self._atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
-        self.addminperiod(max(int(self.p.atr_period), int(self.p.demarker_period) + 1) + 2)
-
-    def _calc_demarker(self):
-        period = int(self.p.demarker_period)
-        demax_sum = 0.0
-        demin_sum = 0.0
-        for i in range(period):
-            high0 = float(self.data.high[-i])
-            high1 = float(self.data.high[-(i + 1)])
-            low0 = float(self.data.low[-i])
-            low1 = float(self.data.low[-(i + 1)])
-            demax_sum += max(high0 - high1, 0.0)
-            demin_sum += max(low1 - low0, 0.0)
-        denom = demax_sum + demin_sum
-        if denom == 0.0:
-            return 0.5
-        return demax_sum / denom
-
-    def next(self):
-        """Compute the DeMarker value and set buy/sell triggers on crossings."""
-        self.lines.sell[0] = float('nan')
-        self.lines.buy[0] = float('nan')
-        demarker_now = self._calc_demarker()
-        self.lines.demarker[0] = demarker_now
-        self.lines.atr[0] = float(self._atr[0])
-        if len(self) < 2:
-            return
-        demarker_prev = float(self.lines.demarker[-1])
-        atr_now = float(self._atr[0])
-        if demarker_now > float(self.p.dn_level) and demarker_prev <= float(self.p.dn_level):
-            self.lines.buy[0] = float(self.data.low[0]) - atr_now * 3.0 / 8.0
-        if demarker_now < float(self.p.up_level) and demarker_prev >= float(self.p.up_level):
-            self.lines.sell[0] = float(self.data.high[0]) + atr_now * 3.0 / 8.0
 
 
 class ExpIDeMarkerSignStrategy(bt.Strategy):
@@ -218,7 +123,7 @@ class ExpIDeMarkerSignStrategy(bt.Strategy):
         """Wire the M15/H4 feeds and indicator, and zero the counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = IDeMarkerSignIndicator(self.signal_data, atr_period=self.p.atr_period, demarker_period=self.p.demarker_period, up_level=self.p.up_level, dn_level=self.p.dn_level)
+        self.indicator = bt.indicators.IDeMarkerSignIndicator(self.signal_data, atr_period=self.p.atr_period, demarker_period=self.p.demarker_period, up_level=self.p.up_level, dn_level=self.p.dn_level)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -340,18 +245,15 @@ class ExpIDeMarkerSignStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -523,7 +425,7 @@ def test_265_0264_0873_idemarkersign() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0264_0873_idemarkersign.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

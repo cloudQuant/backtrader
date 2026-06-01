@@ -40,15 +40,30 @@ Strategy Logic:
     values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -96,65 +111,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional inclusive lower bound; earlier rows are dropped.
-        todate: Optional inclusive upper bound; later rows are dropped.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close rather than the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, openinterest, and spread columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping MT5 OHLCV columns plus a spread line."""
 
@@ -169,77 +125,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class LsmaAngleIndicator(bt.Indicator):
-    """Compute LSMA slope angle and map it to a color-state indicator.
-
-    The indicator evaluates two least-squares MAs at different shifts and uses
-    the angle and trend persistence to classify bullish/bearish momentum states.
-
-    Args:
-        lsma_period: Look-back window used for each LSMA estimate.
-        angle_threshold: Threshold used to classify the angle magnitude.
-        start_shift: Shift index for the start LSMA sample.
-        end_shift: Shift index for the end LSMA sample.
-    """
-
-    lines = ('angle', 'color_index')
-    params = dict(lsma_period=25, angle_threshold=15, start_shift=4, end_shift=0)
-
-    def __init__(self):
-        """Set minimum-history requirement and initialize derived scale factor."""
-        needed = int(max(self.p.lsma_period + self.p.start_shift, self.p.lsma_period + self.p.end_shift)) + 2
-        self.addminperiod(needed)
-        self._m_factor = None
-
-    def _lsma(self, shift):
-        period = int(self.p.lsma_period)
-        values = [float(self.data.close[-(shift + i)]) for i in range(period)]
-        x = list(range(period))
-        x_mean = sum(x) / period
-        y_mean = sum(values) / period
-        numerator = sum((xi - x_mean) * (yi - y_mean) for xi, yi in zip(x, values))
-        denominator = sum((xi - x_mean) ** 2 for xi in x)
-        slope = numerator / denominator if denominator else 0.0
-        intercept = y_mean - slope * x_mean
-        return intercept + slope * (period - 1)
-
-    def _ensure_factor(self):
-        if self._m_factor is not None:
-            return
-        point = float(getattr(self.data, '_dataname', None).attrs['point']) if hasattr(getattr(self.data, '_dataname', None), 'attrs') and 'point' in self.data._dataname.attrs else None
-        if point is None or point <= 0:
-            close0 = float(self.data.close[0]) if len(self.data) else 0.0
-            point = 0.01 if abs(close0) >= 10 and abs(close0) < 1000 else 0.0001
-        shift_diff = float(int(self.p.start_shift) - int(self.p.end_shift))
-        self._m_factor = (1000.0 if abs(float(self.data.close[0])) >= 10 and abs(float(self.data.close[0])) < 1000 else 100000.0) / shift_diff
-
-    def next(self):
-        """Calculate the current angle and update color index for the next bar."""
-        if int(self.p.end_shift) >= int(self.p.start_shift):
-            self.lines.angle[0] = 0.0
-            self.lines.color_index[0] = 2
-            return
-        self._ensure_factor()
-        end_ma = self._lsma(int(self.p.end_shift))
-        start_ma = self._lsma(int(self.p.start_shift))
-        angle = self._m_factor * (end_ma - start_ma) / 2.0
-        self.lines.angle[0] = angle
-        clr = 2
-        threshold = float(self.p.angle_threshold)
-        prev_angle = float(self.lines.angle[-1]) if len(self) > 0 and math.isfinite(float(self.lines.angle[-1])) else angle
-        if angle > threshold:
-            if angle > prev_angle:
-                clr = 4
-            elif angle < prev_angle:
-                clr = 3
-        if angle < -threshold:
-            if angle < prev_angle:
-                clr = 0
-            elif angle > prev_angle:
-                clr = 1
-        self.lines.color_index[0] = clr
 
 
 class LsmaAngleStrategy(bt.Strategy):
@@ -290,7 +175,7 @@ class LsmaAngleStrategy(bt.Strategy):
         """Wire data feeds/indicator and initialize trade and risk counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = LsmaAngleIndicator(
+        self.indicator = bt.indicators.LsmaAngleIndicator(
             self.signal_feed,
             lsma_period=self.p.lsma_period,
             angle_threshold=self.p.angle_threshold,
@@ -504,7 +389,6 @@ class LsmaAngleStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -513,9 +397,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -710,7 +592,7 @@ def test_196_0195_0974_lsma_angle() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0195_0974_lsma_angle.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

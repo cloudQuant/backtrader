@@ -33,15 +33,14 @@ Strategy Logic:
     against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,62 +81,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -204,35 +150,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class BlauCMomentumIndicator(bt.Indicator):
-    """Blau composite momentum: triple-smoothed price-difference oscillator."""
-
-    lines = ('value',)
-    params = dict(
-        xma_method='ema',
-        xlength=1,
-        xlength1=20,
-        xlength2=5,
-        xlength3=3,
-        xphase=15,
-        ipc1='price_close',
-        ipc2='price_open',
-    )
-
-    def __init__(self):
-        """Build the price difference, triple-smooth it, and set the min period."""
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        price1 = resolve_price_line(self.data, self.p.ipc1)
-        price2 = resolve_price_line(self.data, self.p.ipc2)
-        mom = price1 - price2(-max(0, int(self.p.xlength) - 1))
-        xmom = ma_cls(mom, period=max(1, int(self.p.xlength1)))
-        xxmom = ma_cls(xmom, period=max(1, int(self.p.xlength2)))
-        xxxmom = ma_cls(xxmom, period=max(1, int(self.p.xlength3)))
-        self._momentum = xxxmom
-        self.lines.value = 100.0 * xxxmom
-        self.addminperiod(int(self.p.xlength) + int(self.p.xlength1) + int(self.p.xlength2) + int(self.p.xlength3) + 5)
-
-
 class BlauCMomentumStrategy(bt.Strategy):
     """Trade BlauCMomentum zero-line crossings or slope turns.
 
@@ -257,7 +174,7 @@ class BlauCMomentumStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the BlauCMomentum indicator and reset counters."""
-        self.indicator = BlauCMomentumIndicator(
+        self.indicator = bt.indicators.BlauCMomentumIndicator(
             self.data,
             xma_method=self.p.xma_method,
             xlength=self.p.xlength,
@@ -384,17 +301,14 @@ class BlauCMomentumStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -529,7 +443,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the full backtest pipeline and return results, metrics, and engine.
 
@@ -541,7 +454,7 @@ def run(plot=False):
         returned by ``cerebro.run()``, ``metrics`` is the extracted metrics dict,
         and ``cerebro`` is the engine instance.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

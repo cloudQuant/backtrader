@@ -35,15 +35,14 @@ Strategy Logic:
     then validates captured metrics against expected snapshots.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,24 +86,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
@@ -114,141 +95,10 @@ if str(BACKTRADER_REPO) not in sys.path:
 PI = math.pi
 
 
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported TSV file into a timezone-naive OHLCV DataFrame.
-
-    Args:
-        filepath: Path to an MT5 tab-separated data file.
-        fromdate: Optional lower bound for filtering rows by datetime.
-        todate: Optional upper bound for filtering rows by datetime.
-        bar_shift_minutes: Optional minutes to shift index forward after parse.
-
-    Returns:
-        pandas.DataFrame with columns datetime, open, high, low, close, volume,
-        and openinterest, indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Minimal pandas feed compatible with the inlined regression data schema."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class NonLagDotIndicator(bt.Indicator):
-    """Reconstructs NonLagDot from its MQ5 source.
-
-    Applies a weighted cosine kernel over SMA values to produce a non-lag MA,
-    then assigns color: 0=gray, 1=magenta(down), 2=green(up).
-    """
-    lines = ('nlm', 'color')
-    params = dict(length=10, filter_pts=0, deviation=0.0, point=0.0001)
-
-    def __init__(self):
-        """Pre-compute kernel parameters and allocate indicator state."""
-        self._length = int(self.p.length)
-        coeff = 3 * PI
-        phase = self._length - 1
-        cycle = 4
-        self._len_total = int(self._length * cycle + phase)
-        self._dT1 = (2 * cycle - 1) / (cycle * self._length - 1)
-        self._dT2 = 1.0 / (phase - 1) if phase > 1 else 1.0
-        self._kd = 1.0 + self.p.deviation / 100.0
-        self._fi = int(self.p.filter_pts) * float(self.p.point)
-        self._coeff = coeff
-        self._phase = phase
-        self._cycle = cycle
-        self._trend = 0
-        self.addminperiod(self._length + self._len_total + 2)
-
-    def _calc_sma(self, ago):
-        length = self._length
-        total = 0.0
-        for i in range(length):
-            total += float(self.data.close[-(ago + i)])
-        return total / length
-
-    def next(self):
-        """Compute smoothed value and trend color for current bar.
-
-        The method calculates weighted SMA contributions, applies optional filtering,
-        and updates `nlm` and `color` lines.
-        """
-        length = self._length
-        len_total = self._len_total
-        coeff = self._coeff
-        phase = self._phase
-        fi = self._fi
-
-        # Build weighted sum using cosine kernel over SMA values
-        total_sum = 0.0
-        total_weight = 0.0
-        t = 0.0
-
-        for i in range(int(len_total)):
-            # SMA at offset i (0 = current bar)
-            sma_val = self._calc_sma(i)
-            if i <= phase - 1:
-                alfa = 1.0
-            else:
-                alfa = 1.0 / (1.0 + math.exp((i - phase + 0.5) * coeff / len_total))
-
-            beta = math.cos(PI * t)
-            g = 1.0 / (coeff * t + 1.0)
-            if t <= 0.5:
-                g = 1.0
-
-            total_sum += sma_val * beta * g * alfa
-            total_weight += beta * g * alfa
-
-            if t < 0.5:
-                t += self._dT2
-            elif t < len_total - 1:
-                t += self._dT1
-
-        nlm_val = self._kd * total_sum / total_weight if total_weight > 0 else 0.0
-
-        # Filter: if change < fi, hold previous value
-        prev_nlm = float(self.lines.nlm[-1]) if len(self.lines.nlm) > 1 and not math.isnan(float(self.lines.nlm[-1])) else nlm_val
-        if fi > 0 and abs(nlm_val - prev_nlm) < fi:
-            nlm_val = prev_nlm
-
-        self.lines.nlm[0] = nlm_val
-
-        # Trend detection
-        trend = self._trend
-        if nlm_val - prev_nlm > fi:
-            trend = 1  # up
-        if prev_nlm - nlm_val > fi:
-            trend = -1  # down
-
-        # Color: 0=gray, 1=magenta(down), 2=green(up)
-        color = 0.0
-        if trend > 0:
-            color = 2.0
-        if trend < 0:
-            color = 1.0
-
-        self.lines.color[0] = color
-        self._trend = trend
 
 
 class ExpNonLagDotStrategy(bt.Strategy):
@@ -273,7 +123,7 @@ class ExpNonLagDotStrategy(bt.Strategy):
         """Initialize indicators, dataset handles, and all trade tracking counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = NonLagDotIndicator(
+        self.indicator = bt.indicators.NonLagDotIndicator(
             self.signal_data, length=self.p.length,
             filter_pts=self.p.filter_pts, deviation=self.p.deviation,
             point=self.p.point,
@@ -496,7 +346,7 @@ def run(plot=False):
     Returns:
         Tuple of (results, metrics, cerebro).
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

@@ -25,15 +25,14 @@ Strategy Logic:
     `extract_metrics()` consolidates analyzer outputs for test assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import json
 import sys
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -71,74 +70,11 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Resolve `{repo}` placeholders from config into absolute paths.
-
-    Args:
-        node: Arbitrary nested config object.
-
-    Returns:
-        A recursively resolved object.
-    """
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Return a deep copy of the inline config with resolved repository paths."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
 TO_DOWN = -1
 NO_TREND = 0
 TO_UP = 1
 DOWN = -2
 UP = 2
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV data and normalize columns for backtesting.
-
-    Args:
-        filepath: Path to MT5 historical CSV.
-        fromdate: Optional lower bound datetime.
-        todate: Optional upper bound datetime.
-        bar_shift_minutes: Minutes to shift bar timestamps.
-
-    Returns:
-        Clean DataFrame indexed by datetime with OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -148,85 +84,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class RenkoLineBreak(bt.Indicator):
-    """Indicator that models renko-like box transitions."""
-
-    lines = ('upper', 'lower', 'boxes')
-    params = dict(
-        min_box_size=500,
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Initialize box size and state."""
-        box_size = float(self.p.min_box_size)
-        if box_size < 0:
-            box_size = 300.0
-        self._box_size = box_size * float(self.p.point)
-        self._seed_close = None
-        self._initialized = False
-        self._up = False
-        self.addminperiod(1)
-
-    def next(self):
-        """Update Renko upper/lower/box count states each bar."""
-        price = float(self.data.close[0])
-
-        if self._seed_close is None:
-            self._seed_close = price
-            self.lines.upper[0] = 0.0
-            self.lines.lower[0] = 0.0
-            self.lines.boxes[0] = 0.0
-            return
-
-        if not self._initialized:
-            if abs(price - self._seed_close) < self._box_size:
-                self.lines.upper[0] = 0.0
-                self.lines.lower[0] = 0.0
-                self.lines.boxes[0] = 0.0
-                return
-            if price > self._seed_close:
-                self.lines.upper[0] = price
-                self.lines.lower[0] = self._seed_close
-                self.lines.boxes[0] = 1.0
-                self._up = True
-            else:
-                self.lines.upper[0] = self._seed_close
-                self.lines.lower[0] = price
-                self.lines.boxes[0] = -1.0
-                self._up = False
-            self._initialized = True
-            return
-
-        prev_up = float(self.lines.upper[-1])
-        prev_dn = float(self.lines.lower[-1])
-        prev_boxes = float(self.lines.boxes[-1])
-
-        if price >= prev_up + self._box_size:
-            self.lines.upper[0] = price
-            self.lines.lower[0] = prev_up
-            if self._up:
-                self.lines.boxes[0] = prev_boxes + 1.0
-            else:
-                self._up = True
-                self.lines.boxes[0] = 1.0
-            return
-
-        if price <= prev_dn - self._box_size:
-            self.lines.upper[0] = prev_dn
-            self.lines.lower[0] = price
-            if self._up:
-                self._up = False
-                self.lines.boxes[0] = -1.0
-            else:
-                self.lines.boxes[0] = prev_boxes - 1.0
-            return
-
-        self.lines.upper[0] = prev_up
-        self.lines.lower[0] = prev_dn
-        self.lines.boxes[0] = prev_boxes
 
 
 class RenkoLineBreakVsRsiStrategy(bt.Strategy):
@@ -245,7 +102,7 @@ class RenkoLineBreakVsRsiStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicators, execution state, and counters."""
-        self.rlb = RenkoLineBreak(self.data, min_box_size=self.p.min_box_size, point=self.p.point)
+        self.rlb = bt.indicators.RenkoLineBreak(self.data, min_box_size=self.p.min_box_size, point=self.p.point)
         self.rsi = bt.indicators.RSI(self.data.close, period=int(self.p.rsi_period), safediv=True)
 
         self.order = None
@@ -453,16 +310,11 @@ class RenkoLineBreakVsRsiStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 CURRENT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = CURRENT_DIR.parents[1]
 BACKTRADER_LOCAL = REPO_ROOT.parent / 'backtrader'
 if BACKTRADER_LOCAL.exists() and str(BACKTRADER_LOCAL) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_LOCAL))
-
-
-
-
 
 
 def build_cerebro(config):
@@ -557,7 +409,7 @@ def extract_metrics(config, cerebro, strategy, df):
 
 def main():
     """Run backtest and print JSON report for legacy execution path."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     cerebro = build_cerebro(config)
     strategies = cerebro.run()
     strategy = strategies[0]

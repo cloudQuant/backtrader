@@ -23,15 +23,14 @@ Strategy Logic:
     asserted in the regression block.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -73,60 +72,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV data and return an index-normalized OHLCV DataFrame.
-
-    Args:
-        filepath: Source file path.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Optional minute shift applied to index.
-
-    Returns:
-        DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -149,34 +97,6 @@ def resolve_ma_class(name):
     return bt.indicators.WeightedMovingAverage
 
 
-class XMAIshimokuChannelIndicator(bt.Indicator):
-    """Compute XMA-smoothed midpoint channel lines."""
-    lines = ('mid', 'upper', 'lower',)
-    params = dict(
-        up_period=3,
-        dn_period=3,
-        up_mode='high',
-        dn_mode='low',
-        xma_method='sma',
-        xlength=100,
-        xphase=15,
-        up_percent=1.0,
-        dn_percent=1.0,
-        price_shift=0,
-    )
-
-    def __init__(self):
-        """Prepare indicator buffers and min-period for channel outputs."""
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        highest = bt.indicators.Highest(self.data.high, period=self.p.up_period)
-        lowest = bt.indicators.Lowest(self.data.low, period=self.p.dn_period)
-        midpoint = (highest + lowest) / 2.0
-        self.lines.mid = ma_cls(midpoint, period=self.p.xlength) + self.p.price_shift
-        self.lines.upper = self.lines.mid * (1.0 + self.p.up_percent / 100.0)
-        self.lines.lower = self.lines.mid * (1.0 - self.p.dn_percent / 100.0)
-        self.addminperiod(max(self.p.up_period, self.p.dn_period, self.p.xlength) + 3)
-
-
 class XMAIshimokuChannelStrategy(bt.Strategy):
     """Ishimoku-channel style crossover strategy."""
     params = dict(
@@ -196,7 +116,7 @@ class XMAIshimokuChannelStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize channel indicator and counters."""
-        self.channel = XMAIshimokuChannelIndicator(
+        self.channel = bt.indicators.XMAIshimokuChannelIndicator(
             self.data,
             up_period=self.p.up_period,
             dn_period=self.p.dn_period,
@@ -304,17 +224,14 @@ class XMAIshimokuChannelStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -438,7 +355,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run backtest and return run results with extracted metrics.
 
@@ -448,7 +364,7 @@ def run(plot=False):
     Returns:
         ``(results, metrics, cerebro)`` tuple.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

@@ -86,7 +86,7 @@ class StrategyA(bt.Strategy):
 
         Sets up two Simple Moving Average (SMA) indicators with periods
         defined by p1 and p2 parameters, and creates a crossover indicator
-        to detect when the fast SMA crosses the slow SMA. Also initializes
+        to detect when the fast SMA crosses the slow bt.indicators.SMA. Also initializes
         tracking variables for orders, bars, and trade counts.
         """
         sma1 = bt.ind.SMA(period=self.p.p1)
@@ -148,7 +148,7 @@ class StrategyB(bt.Strategy):
 
         Sets up a Simple Moving Average (SMA) indicator with the period
         defined by the 'period' parameter, and creates a crossover indicator
-        to detect when the price crosses above or below the SMA. Also
+        to detect when the price crosses above or below the bt.indicators.SMA. Also
         initializes tracking variables for orders, bars, and trade counts.
         """
         sma = bt.ind.SMA(period=self.p.period)

@@ -21,7 +21,7 @@ Strategy Principle:
     fixed holding period.
 
 Strategy Logic:
-    1. load_config() / load_data() loads and preprocesses the CSV, computes
+    1. _bt_load_config(_CONFIG, repo=_REPO) / load_data() loads and preprocesses the CSV, computes
        ROC(3), its percentile rank over a 252-bar window, and a long-term MA
        trend filter.
     2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
@@ -37,14 +37,13 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import json
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
-import pandas as pd
 import numpy as np
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -84,67 +83,6 @@ _CONFIG = {
         'global_summary_csv': '../strategy_backtest_results.csv',
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load an MT5-format CSV file into a pandas DataFrame with parsed datetime index.
-
-    Parameters
-    ----------
-    filepath : str or Path
-        Path to the CSV file.
-    fromdate : datetime or None
-        Earliest date to include (inclusive).
-    todate : datetime or None
-        Latest date to include (inclusive).
-
-    Returns
-    -------
-    pd.DataFrame
-        Columns: datetime (index), open, high, low, close, volume, openinterest.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def calculate_roc(prices, period=3):
@@ -321,9 +259,6 @@ class ROCMeanReversionStrategy(bt.Strategy):
 """ROC Mean Reversion backtest entry point."""
 
 
-
-
-
 BASE_DIR = Path(__file__).parent.resolve()
 
 
@@ -379,7 +314,6 @@ def calculate_ulcer_index(values):
         drawdown = (max_value - v) / max_value * 100.0 if max_value > 0 else 0.0
         sum_squared += drawdown ** 2
     return math.sqrt(sum_squared / len(values))
-
 
 
 def load_data(config):
@@ -557,7 +491,7 @@ def test_17_0017_roc_mean_reversion() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0017_roc_mean_reversion.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

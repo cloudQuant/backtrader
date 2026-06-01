@@ -9,14 +9,29 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -66,53 +81,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
@@ -126,43 +94,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class SlidingRangeColor(bt.Indicator):
-    """Indicator computing sliding-window average range channels with a color index for breakout direction."""
-    lines = ('color_idx', 'upper', 'lower')
-    params = dict(
-        up_calc_period_range=5,
-        up_calc_period_shift=0,
-        dn_calc_period_range=5,
-        dn_calc_period_shift=0,
-        up_digit=2,
-        dn_digit=2,
-    )
-
-    def next(self):
-        """Compute rounded average of recent highs/lows and set color based on close relative to the range."""
-        up_end = len(self.data) - 1 - self.p.up_calc_period_shift
-        up_start = max(0, up_end - self.p.up_calc_period_range + 1)
-        dn_end = len(self.data) - 1 - self.p.dn_calc_period_shift
-        dn_start = max(0, dn_end - self.p.dn_calc_period_range + 1)
-        highs = [float(self.data.high[-idx]) for idx in range(len(self.data) - 1 - up_end, len(self.data) - up_start)]
-        lows = [float(self.data.low[-idx]) for idx in range(len(self.data) - 1 - dn_end, len(self.data) - dn_start)]
-        if not highs or not lows:
-            self.lines.color_idx[0] = 4.0
-            return
-        upper = round(sum(highs) / len(highs), self.p.up_digit)
-        lower = round(sum(lows) / len(lows), self.p.dn_digit)
-        close = float(self.data.close[0])
-        open_ = float(self.data.open[0])
-        self.lines.upper[0] = upper
-        self.lines.lower[0] = lower
-        color = 4.0
-        if close > upper:
-            color = 3.0 if close >= open_ else 2.0
-        elif close < lower:
-            color = 0.0 if close <= open_ else 1.0
-        self.lines.color_idx[0] = color
 
 
 class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
@@ -191,7 +122,7 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
         """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
-        self.channel = SlidingRangeColor(
+        self.channel = bt.indicators.SlidingRangeColor(
             self.signal_feed,
             up_calc_period_range=self.p.up_calc_period_range,
             up_calc_period_shift=self.p.up_calc_period_shift,
@@ -333,13 +264,9 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
             self.entry_datetime = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -436,7 +363,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp Rj SlidingRangeRj Digit System Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

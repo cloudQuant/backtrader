@@ -22,9 +22,9 @@ Strategy Logic:
     4. Collect analyzer metrics and validate against migration baselines.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
@@ -32,9 +32,8 @@ from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -80,62 +79,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load tab-separated MT5 export data into a normalized DataFrame.
-
-    Args:
-        filepath: Absolute path to input file.
-        fromdate: Optional inclusive start filter.
-        todate: Optional inclusive end filter.
-        bar_shift_minutes: Optional minute offset for bar timestamps.
-
-    Returns:
-        DataFrame indexed by datetime with OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Feed mapping for normalized XAUUSD OHLCV bars."""
     params = (
@@ -147,28 +90,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class IAMMAIndicator(Indicator):
-    """Indicator implementation of i-AMMA value progression."""
-    lines = ('value',)
-    params = dict(ma_period=25, price_shift=0, point=0.01)
-
-    def __init__(self):
-        """Initialize i-AMMA offset and minimum startup bars."""
-        self.price_offset = float(self.p.point) * float(self.p.price_shift)
-        self.addminperiod(2)
-
-    def next(self):
-        """Compute adaptive MA value for current bar."""
-        if len(self) == 1:
-            self.l.value[0] = float(self.data.close[0])
-            return
-        period = max(int(self.p.ma_period), 1)
-        prev = float(self.l.value[-1])
-        price = float(self.data.close[0])
-        amma = (((period - 1) * (prev - self.price_offset)) + price) / period
-        self.l.value[0] = amma + self.price_offset
 
 
 class IAMMAStrategy(Strategy):
@@ -344,7 +265,6 @@ class IAMMAStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -353,9 +273,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -548,7 +466,7 @@ def test_198_0197_0990_i_amma() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0197_0990_i_amma.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

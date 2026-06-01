@@ -37,14 +37,29 @@ Strategy Logic:
     and analyzer metrics against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -86,66 +101,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume,
-        openinterest, and spread columns, sorted ascending and filtered to the
-        date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed exposing the MT5 ``spread`` column as an extra line."""
 
@@ -160,51 +115,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class FlatTrendIndicator(bt.Indicator):
-    """Flat-trend regime indicator combining ADX/DI and Parabolic SAR.
-
-    Emits four binary lines (``buy``, ``sell``, ``end_buy``, ``end_sell``) that
-    classify each bar's trend state from the SAR position relative to price and
-    the dominance of the positive over the negative directional indicator.
-    """
-
-    lines = ('sell', 'buy', 'end_sell', 'end_buy')
-
-    def __init__(self):
-        """Build the ADX, +DI, -DI and Parabolic SAR sub-indicators.
-
-        Also sets the minimum period to 20 bars so the directional and SAR
-        components have enough history before producing signals.
-        """
-        self.adx = bt.indicators.AverageDirectionalMovementIndex(self.data)
-        self.di_plus = bt.indicators.PlusDirectionalIndicator(self.data)
-        self.di_minus = bt.indicators.MinusDirectionalIndicator(self.data)
-        self.sar = bt.indicators.ParabolicSAR(self.data)
-        self.addminperiod(20)
-
-    def next(self):
-        """Classify the current bar into a buy/sell/end-of-trend state.
-
-        Sets exactly one of the four output lines to 1.0 based on whether the
-        SAR sits below price (uptrend context) and whether +DI exceeds -DI.
-        """
-        sell = buy = end_sell = end_buy = 0.0
-        if self.sar[0] < self.data.close[0]:
-            if self.di_plus[0] > self.di_minus[0]:
-                buy = 1.0
-            else:
-                end_buy = 1.0
-        else:
-            if self.di_plus[0] > self.di_minus[0]:
-                end_sell = 1.0
-            else:
-                sell = 1.0
-        self.lines.sell[0] = sell
-        self.lines.buy[0] = buy
-        self.lines.end_sell[0] = end_sell
-        self.lines.end_buy[0] = end_buy
 
 
 class FlatTrendEAStrategy(bt.Strategy):
@@ -249,7 +159,7 @@ class FlatTrendEAStrategy(bt.Strategy):
         """
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.indicator = FlatTrendIndicator(self.signal_data)
+        self.indicator = bt.indicators.FlatTrendIndicator(self.signal_data)
         self.entry_order = None
         self.stop_order = None
         self.limit_order = None
@@ -452,13 +362,9 @@ class FlatTrendEAStrategy(bt.Strategy):
             self.active_take_price = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -628,7 +534,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Flat Trend EA backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

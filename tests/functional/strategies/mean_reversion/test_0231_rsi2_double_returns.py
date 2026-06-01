@@ -15,7 +15,7 @@ Data Used:
 
 Strategy Principle:
     A long-only mean-reversion system built around the Connors-style 2-period
-    RSI. It only buys with the trend (close above the 100-period SMA) when the
+    bt.indicators.RSI. It only buys with the trend (close above the 100-period SMA) when the
     fast RSI dips below an oversold threshold, anticipating a snap-back. Entries
     are placed as next-day limit orders priced below the close by an ATR-scaled
     offset that widens or narrows with annualized volatility regime (high,
@@ -35,20 +35,19 @@ Strategy Logic:
     asserts each value against the baseline recorded at migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 from datetime import timedelta
 import argparse
 import datetime
 import sys
 import sys as _migration_sys
 from pathlib import Path as _MigrationPath
-import backtrader as bt
 import numpy as np
-import pandas as pd
 import pytest
 from tests.test_utils.benchmark_metrics import add_benchmark_analyzer, collect_benchmark_metrics
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -90,67 +89,6 @@ _CONFIG = {
         'global_summary_csv': '../../strategy_backtest_results.csv',
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export (tab- or comma-separated).
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns sorted in ascending time order.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    frame = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = frame['<DATE>'].astype(str) + ' ' + frame['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    frame['datetime'] = parsed
-    frame = frame.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'real_volume',
-    })
-    frame['openinterest'] = 0
-    frame['volume'] = frame['tick_volume'] if 'tick_volume' in frame.columns else 0
-    frame = frame[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    frame = frame.dropna(subset=['datetime']).set_index('datetime').sort_index()
-    if fromdate is not None:
-        frame = frame[frame.index >= fromdate]
-    if todate is not None:
-        frame = frame[frame.index <= todate]
-    return frame
 
 
 class RSI2DoubleReturnsStrategy(bt.Strategy):
@@ -286,7 +224,6 @@ class RSI2DoubleReturnsStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 
@@ -305,7 +242,6 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(SOURCE_STRATEGY_DIR) not in sys.path:
     sys.path.insert(0, str(SOURCE_STRATEGY_DIR))
-
 
 
 # Auto-added: ensure repo root is on sys.path so tests.test_utils resolves
@@ -328,7 +264,6 @@ if hasattr(bt, "ind"):
 
 
 TRADING_DAYS_PER_YEAR = 252
-
 
 
 def resolve_data_path(path_text: str) -> Path:
@@ -427,7 +362,6 @@ def result_path(config) -> Path:
     return (BASE_DIR / outputs.get("local_result_json", "backtest_result.json")).resolve()
 
 
-
 def run(plot=False):
     """Load data, run the backtest, and return the collected benchmark metrics.
 
@@ -437,7 +371,7 @@ def run(plot=False):
     Returns:
         The metrics dictionary produced by ``collect_benchmark_metrics``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(frame, config)
     results = cerebro.run()

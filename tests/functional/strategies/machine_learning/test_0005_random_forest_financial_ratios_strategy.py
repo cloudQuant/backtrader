@@ -6,13 +6,13 @@ RandomForest classifier on synthetic financial ratios for IVV/IWM/IWD/PDP/DBMF.
 from __future__ import annotations
 
 import datetime
-import io
 from pathlib import Path
 
 import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_mt5_csv
 
 # Optional ML dependency: skip the whole module when scikit-learn is absent
 # (e.g. minimal CI images) instead of failing at import/collection time.
@@ -30,31 +30,6 @@ ASSET_FILES = {
     "pdp": DATA_DIR / "PDP_1d.csv",
     "dbmf": DATA_DIR / "DBMF_1d.csv",
 }
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load MT5-style market CSV and return sorted OHLCV DataFrame."""
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = "\n".join(lines)
-    sep = "\t" if "\t" in lines[0] else ","
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df["<DATE>"].astype(str) + " " + df["<TIME>"].astype(str)
-    parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M", errors="coerce")
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M:%S", errors="coerce")
-    df["datetime"] = parsed
-    df = df.rename(columns={"<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-                             "<TICKVOL>": "tick_volume", "<VOL>": "real_volume"})
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"] if "tick_volume" in df.columns else 0
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def prepare_ml_inputs(asset_map, params):

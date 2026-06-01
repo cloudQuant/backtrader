@@ -20,15 +20,14 @@ Strategy Logic:
     ``notify_trade`` counters for regression metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -66,60 +65,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-style TSV data and normalize it for Backtrader.
-
-    Args:
-        filepath: Raw MT5 CSV filepath.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Optional bar timestamp shift in minutes.
-
-    Returns:
-        Parsed DataFrame indexed by datetime with OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -129,53 +77,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class CenterOfGravityIndicator(bt.Indicator):
-    """Center of Gravity indicator composed of price selection and smoothed center line."""
-
-    lines = ('center', 'signal', 'state',)
-    params = dict(
-        period=10,
-        smooth_period=3,
-        ma_method='sma',
-        applied_price='close',
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Initialize base MAs and derived center/signal/state lines."""
-        ma_cls = bt.indicators.SMA if str(self.p.ma_method).lower() == 'sma' else bt.indicators.EMA
-        price = self._price_line()
-        sma = bt.indicators.SMA(price, period=self.p.period)
-        lwma = bt.indicators.WeightedMovingAverage(price, period=self.p.period)
-        self.lines.center = (sma * lwma) / self.p.point
-        self.lines.signal = ma_cls(self.lines.center, period=self.p.smooth_period)
-        self.addminperiod(self.p.period + self.p.smooth_period + 5)
-
-    def _price_line(self):
-        mode = str(self.p.applied_price).lower()
-        if mode == 'open':
-            return self.data.open
-        if mode == 'high':
-            return self.data.high
-        if mode == 'low':
-            return self.data.low
-        if mode == 'median':
-            return (self.data.high + self.data.low) / 2.0
-        if mode == 'typical':
-            return (self.data.high + self.data.low + self.data.close) / 3.0
-        if mode == 'weighted':
-            return (self.data.high + self.data.low + self.data.close + self.data.close) / 4.0
-        if mode == 'simpl':
-            return (self.data.open + self.data.close) / 2.0
-        if mode == 'quarter':
-            return (self.data.high + self.data.low + self.data.open + self.data.close) / 4.0
-        return self.data.close
-
-    def next(self):
-        """Compute the state classification for the current bar."""
-        self.lines.state[0] = 2.0 if float(self.lines.center[0]) < float(self.lines.signal[0]) else 1.0
 
 
 class CenterOfGravityStrategy(bt.Strategy):
@@ -194,7 +95,7 @@ class CenterOfGravityStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator and trade bookkeeping counters."""
-        self.cog = CenterOfGravityIndicator(
+        self.cog = bt.indicators.CenterOfGravityIndicator(
             self.data,
             period=self.p.period,
             smooth_period=self.p.smooth_period,
@@ -270,17 +171,14 @@ class CenterOfGravityStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -404,7 +302,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the strategy backtest and return ``results``, ``metrics`` and engine.
 
@@ -414,7 +311,7 @@ def run(plot=False):
     Returns:
         ``(results, metrics, cerebro)`` tuple.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

@@ -19,40 +19,17 @@ Strategy Logic:
     6. Assert bar_num, signal_count, buy/sell counts, trade counts, win/loss.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -61,66 +38,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class MoneyFlowIndex(bt.Indicator):
-    """Inlined MFI indicator (not built into bt.indicators)."""
-    lines = ("mfi",)
-    params = (("period", 14),)
-
-    def __init__(self):
-        """Initialize the indicator and declare the minimum period."""
-        self.addminperiod(self.p.period + 1)
-
-    def next(self):
-        """Compute MFI (Money Flow Index) over the configured period."""
-        positive_flow = 0.0
-        negative_flow = 0.0
-        for i in range(self.p.period):
-            curr_tp = (float(self.data.high[-i]) + float(self.data.low[-i]) + float(self.data.close[-i])) / 3.0
-            prev_tp = (float(self.data.high[-i - 1]) + float(self.data.low[-i - 1]) + float(self.data.close[-i - 1])) / 3.0
-            raw_flow = curr_tp * float(self.data.volume[-i])
-            if curr_tp > prev_tp:
-                positive_flow += raw_flow
-            elif curr_tp < prev_tp:
-                negative_flow += raw_flow
-        if negative_flow == 0.0:
-            self.lines.mfi[0] = 100.0
-        else:
-            money_ratio = positive_flow / negative_flow
-            self.lines.mfi[0] = 100.0 - (100.0 / (1.0 + money_ratio))
-
-
-class MFISlowdown(bt.Indicator):
-    """MFI-based signal generator with optional momentum slowdown detection.
-
-    Generates buy/sell lines when MFI reaches extreme levels (level_min/level_max).
-    When seek_slowdown is True, also requires MFI momentum to be slowing
-    (|m1 - m0| < 1.0) before triggering a signal.
-    """
-    lines = ("sell", "buy")
-    params = dict(mfi_period=2, level_max=90.0, level_min=10.0, seek_slowdown=True)
-
-    def __init__(self):
-        """Initialize MFI sub-indicator, ATR, and minimum period."""
-        self.addminperiod(max(int(self.p.mfi_period) + 2, 18))
-        self.mfi = MoneyFlowIndex(self.data, period=int(self.p.mfi_period))
-        self.atr = bt.indicators.ATR(self.data, period=15)
-
-    def next(self):
-        """Compute buy/sell signals from MFI extremes and optional slowdown."""
-        self.lines.buy[0] = float("nan")
-        self.lines.sell[0] = float("nan")
-        m0 = float(self.mfi[0])
-        m1 = float(self.mfi[-1])
-        atr = float(self.atr[0])
-        if m0 >= float(self.p.level_max):
-            if (not self.p.seek_slowdown) or abs(m1 - m0) < 1.0:
-                self.lines.buy[0] = float(self.data.low[0]) - atr * 3.0 / 8.0
-        if m0 <= float(self.p.level_min):
-            if (not self.p.seek_slowdown) or abs(m1 - m0) < 1.0:
-                self.lines.sell[0] = float(self.data.high[0]) + atr * 3.0 / 8.0
-
 
 class ExpMFISlowdownStrategy(bt.Strategy):
     """MFI Slowdown strategy with dual-data architecture (base M15 + signal H4).
@@ -150,7 +67,7 @@ class ExpMFISlowdownStrategy(bt.Strategy):
         """Initialize datas, MFISlowdown indicator, and trade counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = MFISlowdown(
+        self.ind = bt.indicators.MFISlowdown(
             self.signal_data,
             mfi_period=self.p.mfi_period,
             level_max=self.p.level_max,

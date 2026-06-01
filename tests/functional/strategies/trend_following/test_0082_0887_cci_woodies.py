@@ -12,7 +12,7 @@ Data Used:
 
 Strategy Principle:
     The strategy follows two Commodity Channel Index (CCI) curves reconstructed
-    from MT5-style price fields: Fast CCI and Slow CCI.
+    from MT5-style price fields: Fast CCI and Slow bt.indicators.CCI.
     Entry depends on a crossover of the two curves:
     - Fast line crossing above Slow line opens long.
     - Fast line crossing below Slow line opens short.
@@ -28,15 +28,14 @@ Strategy Logic:
     Regression assertions compare the extracted metrics with pinned expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,62 +81,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-style tab-separated export into an indexed pandas DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV file.
-        fromdate: Optional ``datetime`` lower bound for filtering rows.
-        todate: Optional ``datetime`` upper bound for filtering rows.
-        bar_shift_minutes: Minutes to shift all bar timestamps, if non-zero.
-
-    Returns:
-        ``pandas.DataFrame`` with columns ``datetime``, ``open``, ``high``,
-        ``low``, ``close``, ``volume``, and ``openinterest`` indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -160,45 +107,6 @@ def _applied_price(data, price_type, ago=0):
     elif price_type == 5: return (h+l+c)/3 # PRICE_TYPICAL
     elif price_type == 6: return (h+l+c+c)/4  # PRICE_WEIGHTED
     return c
-
-
-class CCIWoodiesIndicator(bt.Indicator):
-    """Reconstructs CCI_Woodies indicator.
-
-    DRAW_FILLING between FastCCI and SlowCCI.
-    Buffer 0 = FastCCI, Buffer 1 = SlowCCI.
-    When Fast > Slow → bullish (Lime fill); when Fast < Slow → bearish (Plum fill).
-    """
-    lines = ('fast_cci', 'slow_cci')
-    params = dict(fast_period=6, fast_price=4, slow_period=14, slow_price=4)
-
-    def __init__(self):
-        """Build internal period and price type state for fast and slow CCI."""
-        self._fp = int(self.p.fast_period)
-        self._sp = int(self.p.slow_period)
-        self._fpr = int(self.p.fast_price)
-        self._spr = int(self.p.slow_price)
-        self.addminperiod(max(self._fp, self._sp) + 2)
-
-    def _calc_cci(self, period, price_type):
-        prices = []
-        for i in range(period):
-            if i >= len(self.data):
-                break
-            prices.append(_applied_price(self.data, price_type, i))
-        if not prices:
-            return 0.0
-        mean = sum(prices) / len(prices)
-        mad = sum(abs(p - mean) for p in prices) / len(prices)
-        tp = prices[0]  # current bar
-        if mad == 0:
-            return 0.0
-        return (tp - mean) / (0.015 * mad)
-
-    def next(self):
-        """Compute and store current fast and slow CCI values for each bar."""
-        self.lines.fast_cci[0] = self._calc_cci(self._fp, self._fpr)
-        self.lines.slow_cci[0] = self._calc_cci(self._sp, self._spr)
 
 
 class ExpCCIWoodiesStrategy(bt.Strategy):
@@ -228,7 +136,7 @@ class ExpCCIWoodiesStrategy(bt.Strategy):
         """Initialize data references, derived signal state, and counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = CCIWoodiesIndicator(
+        self.indicator = bt.indicators.CCIWoodiesIndicator(
             self.signal_data,
             fast_period=self.p.fast_period, fast_price=self.p.fast_price,
             slow_period=self.p.slow_period, slow_price=self.p.slow_price,
@@ -418,7 +326,7 @@ def run(plot=False):
     Returns:
         Tuple of ``(results, metrics, cerebro)`` captured from Backtrader run.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

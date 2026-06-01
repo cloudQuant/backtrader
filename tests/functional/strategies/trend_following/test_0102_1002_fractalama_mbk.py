@@ -24,21 +24,20 @@ Strategy Logic:
     analyzer/trade counters for deterministic regression assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
 from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,116 +81,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data and return a sorted OHLCV DataFrame.
-
-    Args:
-        filepath: Source CSV file path.
-        fromdate: Optional datetime lower bound.
-        todate: Optional datetime upper bound.
-        bar_shift_minutes: Minute shift applied to timestamps.
-
-    Returns:
-        pd.DataFrame: DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Custom MT5 data feed with default OHLCV column mapping."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class FractalAMAMBK(Indicator):
-    """FRAMA-style indicator exposing smoothed trend and trigger lines."""
-    lines = ('frama', 'trigger')
-    params = dict(
-        r_period=16,
-        multiplier=4.6,
-        signal_multiplier=2.5,
-    )
-
-    def __init__(self):
-        """Set minimum period based on FRAMA computation window."""
-        self.addminperiod(max(int(self.p.r_period), 2) + 2)
-
-    def _range(self, high_line, low_line, start_shift, count):
-        highs = [float(high_line[-shift]) if shift else float(high_line[0]) for shift in range(start_shift, start_shift + count)]
-        lows = [float(low_line[-shift]) if shift else float(low_line[0]) for shift in range(start_shift, start_shift + count)]
-        return max(highs) - min(lows)
-
-    def next(self):
-        """Compute FRAMA and trigger values for the current bar."""
-        period = max(int(self.p.r_period), 2)
-        n = (period // 2) * 2
-        n2 = max(n // 2, 1)
-        price = float(self.data.close[0])
-
-        if len(self.data) <= n:
-            self.l.frama[0] = price
-            self.l.trigger[0] = price
-            return
-
-        r1 = self._range(self.data.high, self.data.low, 0, n2) / n2
-        r2 = self._range(self.data.high, self.data.low, n2, n2) / n2
-        r3 = self._range(self.data.high, self.data.low, 0, n) / n
-
-        if r3 <= 0 or (r1 + r2) <= 0:
-            dimension_estimate = 1.0
-        else:
-            dimension_estimate = (math.log(r1 + r2) - math.log(r3)) * 1.442695
-
-        alpha = math.exp(-float(self.p.multiplier) * (dimension_estimate - 1.0))
-        alpha = min(max(alpha, 0.01), 1.0)
-        alphas = math.exp(-float(self.p.signal_multiplier) * (dimension_estimate - 1.0))
-
-        prev_frama = float(self.l.frama[-1]) if len(self.data) > 1 and math.isfinite(float(self.l.frama[-1])) else float(self.data.close[-1])
-        prev_trigger = float(self.l.trigger[-1]) if len(self.data) > 1 and math.isfinite(float(self.l.trigger[-1])) else prev_frama
-
-        frama = alpha * price + (1.0 - alpha) * prev_frama
-        trigger = alphas * frama + (1.0 - alphas) * prev_trigger
-        self.l.frama[0] = frama
-        self.l.trigger[0] = trigger
 
 
 class FractalAMAMBKStrategy(Strategy):
@@ -213,7 +108,7 @@ class FractalAMAMBKStrategy(Strategy):
 
     def __init__(self):
         """Initialize strategy state, counters, and risk tracking fields."""
-        self.indicator = FractalAMAMBK(
+        self.indicator = bt.indicators.FractalAMAMBK(
             self.data,
             r_period=self.p.r_period,
             multiplier=self.p.multiplier,
@@ -382,7 +277,6 @@ class FractalAMAMBKStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -391,9 +285,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -513,7 +405,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest and return execution results and metrics.
 
@@ -523,7 +414,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

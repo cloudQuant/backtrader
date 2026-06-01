@@ -29,15 +29,14 @@ Strategy Logic:
     - `extract_metrics` summarizes analyzer output and strategy counters for assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -73,60 +72,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated CSV into a Backtrader-ready DataFrame.
-
-    Args:
-        filepath (str): Path to MT5 CSV file.
-        fromdate (datetime.datetime | None): Optional start date filter.
-        todate (datetime.datetime | None): Optional end date filter.
-        bar_shift_minutes (int): Optional timestamp offset in minutes.
-
-    Returns:
-        pd.DataFrame: DataFrame indexed by datetime with OHLCV/openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -136,37 +84,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class HMA(bt.Indicator):
-    """Hull Moving Average indicator used by OsHMA."""
-
-    lines = ('hma',)
-    params = dict(period=13)
-
-    def __init__(self):
-        """Initialize the HMA with smoothed weighted moving averages."""
-        half = max(1, int(self.p.period // 2))
-        sqrt_period = max(1, int(self.p.period ** 0.5))
-        wma_half = bt.indicators.WeightedMovingAverage(self.data, period=half)
-        wma_full = bt.indicators.WeightedMovingAverage(self.data, period=int(self.p.period))
-        diff = (2.0 * wma_half) - wma_full
-        self.lines.hma = bt.indicators.WeightedMovingAverage(diff, period=sqrt_period)
-        self.addminperiod(int(self.p.period) + sqrt_period + 3)
-
-
-class OsHMAIndicator(bt.Indicator):
-    """Histogram indicator that combines fast and slow HMA lines."""
-
-    lines = ('hist',)
-    params = dict(fast_hma=13, slow_hma=26)
-
-    def __init__(self):
-        """Initialize fast and slow HMA sub-indicators and histogram output."""
-        fast = HMA(self.data.close, period=self.p.fast_hma)
-        slow = HMA(self.data.close, period=self.p.slow_hma)
-        self.lines.hist = fast.hma - slow.hma
-        self.addminperiod(max(self.p.fast_hma, self.p.slow_hma) + int(self.p.slow_hma ** 0.5) + 5)
 
 
 class OsHMAStrategy(bt.Strategy):
@@ -183,7 +100,7 @@ class OsHMAStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator, state counters, and forced-entry guard."""
-        self.indicator = OsHMAIndicator(self.data, fast_hma=self.p.fast_hma, slow_hma=self.p.slow_hma)
+        self.indicator = bt.indicators.OsHMAIndicator(self.data, fast_hma=self.p.fast_hma, slow_hma=self.p.slow_hma)
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -304,17 +221,14 @@ class OsHMAStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -438,7 +352,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the OsHMA strategy backtest and return result payload.
 
@@ -448,7 +361,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro).
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

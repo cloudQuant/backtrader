@@ -37,7 +37,6 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import csv
 import json
 from datetime import datetime
@@ -45,6 +44,7 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,63 +82,6 @@ _CONFIG = {
         'global_summary_csv': '../../strategy_backtest_results.csv',
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load a MetaTrader 5 daily CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export (tab- or comma-separated).
-        fromdate: Optional inclusive lower bound on the datetime index.
-        todate: Optional inclusive upper bound on the datetime index.
-
-    Returns:
-        pandas.DataFrame: Indexed by datetime with open/high/low/close/volume/
-        openinterest columns, sorted ascending and sliced to the range.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.dropna(subset=['datetime']).set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def prepare_skewness_data(price_map, params):
@@ -284,9 +227,6 @@ class CommoditySkewnessStrategy(bt.Strategy):
 # -*- coding: utf-8 -*-
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
@@ -312,7 +252,6 @@ def calculate_ulcer_index(values):
         drawdown = (peak - value) / peak * 100.0 if peak > 0 else 0.0
         squared += drawdown ** 2
     return math.sqrt(squared / len(values))
-
 
 
 def load_inputs(config):
@@ -472,7 +411,7 @@ def test_15_0015_commodity_skewness_strategy() -> None:
 
     Originally located at tests/functional/strategies_regression/commodity_currency/0015_commodity_skewness_strategy.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

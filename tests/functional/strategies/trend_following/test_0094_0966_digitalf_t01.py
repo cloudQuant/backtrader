@@ -37,16 +37,31 @@ Strategy Logic:
     asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -89,26 +104,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
 DIGITAL_WEIGHTS = [
     0.24470985659780,
     0.23139774006970,
@@ -137,45 +132,6 @@ DIGITAL_WEIGHTS = [
 ]
 
 
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume,
-        openinterest, and spread columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed adding an MT5 ``spread`` column to the OHLCV mapping."""
 
@@ -190,71 +146,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class DigitalFT01Indicator(bt.Indicator):
-    """Fixed-weight digital filter with a channel trigger for crossover signals."""
-
-    lines = ('digital', 'trigger')
-    params = dict(halfchannel=25, applied_price_code=1, point=0.01, signal_period_minutes=180)
-
-    def __init__(self):
-        """Set the minimum period to cover the digital-filter kernel length."""
-        self.addminperiod(len(DIGITAL_WEIGHTS) + 10)
-
-    def _price_value(self, shift):
-        o = float(self.data.open[-shift] if shift else self.data.open[0])
-        h = float(self.data.high[-shift] if shift else self.data.high[0])
-        l = float(self.data.low[-shift] if shift else self.data.low[0])
-        c = float(self.data.close[-shift] if shift else self.data.close[0])
-        code = int(self.p.applied_price_code)
-        if code == 1:
-            return c
-        if code == 2:
-            return o
-        if code == 3:
-            return h
-        if code == 4:
-            return l
-        if code == 5:
-            return (h + l) / 2.0
-        if code == 6:
-            return (h + l + c) / 3.0
-        if code == 7:
-            return (h + l + c + c) / 4.0
-        if code == 8:
-            return (o + h + l + c) / 4.0
-        if code == 12:
-            base = h + l + c
-            if c < o:
-                return (base + l) / 4.0
-            if c > o:
-                return (base + h) / 4.0
-            return (base + c) / 4.0
-        return c
-
-    def next(self):
-        """Compute the digital-filter value and channel trigger for this bar.
-
-        Convolves the fixed DIGITAL_WEIGHTS kernel with the applied price, then
-        sets the trigger to a reference close plus/minus the half-channel
-        depending on whether the filtered value is above or below that close.
-        """
-        if len(self.data) < len(DIGITAL_WEIGHTS):
-            return
-        digital = 0.0
-        for shift, weight in enumerate(DIGITAL_WEIGHTS):
-            digital += weight * self._price_value(shift)
-        dt = bt.num2date(self.data.datetime[0])
-        period_minutes = max(int(self.p.signal_period_minutes), 1)
-        bars_from_day_start = int(round((dt.hour * 60 + dt.minute) / float(period_minutes)) + 1)
-        if len(self.data) <= bars_from_day_start:
-            return
-        ref_close = float(self.data.close[-bars_from_day_start])
-        halfchannel = float(self.p.halfchannel) * float(self.p.point)
-        trigger = ref_close + halfchannel if digital >= ref_close else ref_close - halfchannel
-        self.lines.digital[0] = digital
-        self.lines.trigger[0] = trigger
 
 
 class DigitalFT01Strategy(bt.Strategy):
@@ -284,7 +175,7 @@ class DigitalFT01Strategy(bt.Strategy):
         """Bind execution/signal feeds, build the indicator, and reset state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = DigitalFT01Indicator(
+        self.indicator = bt.indicators.DigitalFT01Indicator(
             self.signal_feed,
             halfchannel=self.p.halfchannel,
             applied_price_code=self.p.applied_price_code,
@@ -523,7 +414,6 @@ class DigitalFT01Strategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -532,9 +422,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -695,7 +583,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the full backtest end-to-end and return its results.
 
@@ -707,7 +594,7 @@ def run(plot=False):
         strategy instances, metrics is the extract_metrics() dict, and cerebro
         is the engine used for the run.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

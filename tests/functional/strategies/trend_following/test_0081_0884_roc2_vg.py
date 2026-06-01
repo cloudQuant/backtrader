@@ -32,15 +32,14 @@ Strategy Logic:
       against expected snapshot metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -86,61 +85,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load and normalize MT5 tab-separated bars for backtest input.
-
-    Args:
-        filepath: Path to MT5-style CSV data export.
-        fromdate: Optional inclusive lower datetime.
-        todate: Optional inclusive upper datetime.
-        bar_shift_minutes: Optional minute shift applied to bar timestamps.
-
-    Returns:
-        pd.DataFrame: Standardized OHLCV dataframe indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -164,40 +112,6 @@ def _calc_roc(price, prev_price, roc_type):
     elif roc_type == 5:  # ROCR100
         return (price / prev_price) * 100
     return (price - prev_price) / prev_price
-
-
-class ROC2VGIndicator(bt.Indicator):
-    """Reconstructs ROC2_VG indicator.
-
-    DRAW_FILLING between ROC1 and ROC2.
-    Buffer 0 = ROC1 (period1, type1), Buffer 1 = ROC2 (period2, type2).
-    """
-    lines = ('roc1', 'roc2')
-    params = dict(roc_period1=8, roc_type1=1, roc_period2=14, roc_type2=1)
-
-    def __init__(self):
-        """Initialize ROC periods and required minimum history window."""
-        self._p1 = int(self.p.roc_period1)
-        self._p2 = int(self.p.roc_period2)
-        self._t1 = int(self.p.roc_type1)
-        self._t2 = int(self.p.roc_type2)
-        self.addminperiod(max(self._p1, self._p2) + 2)
-
-    def next(self):
-        """Populate ``roc1`` and ``roc2`` for the current bar."""
-        price = float(self.data.close[0])
-
-        if self._p1 < len(self.data):
-            prev1 = float(self.data.close[-self._p1])
-        else:
-            prev1 = price
-        self.lines.roc1[0] = _calc_roc(price, prev1, self._t1)
-
-        if self._p2 < len(self.data):
-            prev2 = float(self.data.close[-self._p2])
-        else:
-            prev2 = price
-        self.lines.roc2[0] = _calc_roc(price, prev2, self._t2)
 
 
 class ExpROC2VGStrategy(bt.Strategy):
@@ -226,7 +140,7 @@ class ExpROC2VGStrategy(bt.Strategy):
         """Initialize indicator binding, counters, and internal state flags."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = ROC2VGIndicator(
+        self.indicator = bt.indicators.ROC2VGIndicator(
             self.signal_data,
             roc_period1=self.p.roc_period1, roc_type1=self.p.roc_type1,
             roc_period2=self.p.roc_period2, roc_type2=self.p.roc_type2,
@@ -461,7 +375,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro)
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

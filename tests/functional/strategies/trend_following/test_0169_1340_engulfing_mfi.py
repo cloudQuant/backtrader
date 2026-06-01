@@ -30,7 +30,7 @@ Strategy Principle:
 
 Strategy Logic:
     `load_mt5_csv()` converts MT5 raw fields into normalized OHLCV bars.
-    `load_config()` and `_resolve_repo_paths()` provide deterministic test config.
+    `_bt_load_config(_CONFIG, repo=_REPO)` and `_resolve_repo_paths()` provide deterministic test config.
     `load_backtest_frame()` resolves file paths and applies date filtering.
     `build_cerebro()` binds feed, strategy, and analyzers.
     `MFI` computes interval-level money flow.
@@ -41,13 +41,12 @@ Strategy Logic:
     `run()` executes the backtest and returns artifacts.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,94 +81,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-format TSV data and normalize columns for Backtrader.
-
-    Args:
-        filepath (str | os.PathLike): Input file path.
-        fromdate (datetime.datetime | None): Optional inclusive start date filter.
-        todate (datetime.datetime | None): Optional inclusive end date filter.
-        bar_shift_minutes (int): Minutes to shift each bar timestamp.
-
-    Returns:
-        pandas.DataFrame: Normalized OHLCV dataframe indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader feed mapping for MT5 TSV-derived OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class MFI(bt.Indicator):
-    """Money Flow Index indicator."""
-    lines = ('mfi',)
-    params = (('period', 14),)
-
-    def __init__(self):
-        """Set minimum period before indicator outputs are valid."""
-        self.addminperiod(self.p.period + 1)
-
-    def next(self):
-        """Update money flow index from rolling period of raw price/volume."""
-        period = self.p.period
-        pos_flow = 0.0
-        neg_flow = 0.0
-        for i in range(-period, 0):
-            tp_cur = (float(self.data.high[i]) + float(self.data.low[i]) + float(self.data.close[i])) / 3.0
-            tp_prev = (float(self.data.high[i - 1]) + float(self.data.low[i - 1]) + float(self.data.close[i - 1])) / 3.0
-            mf = tp_cur * float(self.data.volume[i])
-            if tp_cur > tp_prev:
-                pos_flow += mf
-            elif tp_cur < tp_prev:
-                neg_flow += mf
-        if neg_flow == 0:
-            self.lines.mfi[0] = 100.0
-        else:
-            ratio = pos_flow / neg_flow
-            self.lines.mfi[0] = 100.0 - 100.0 / (1.0 + ratio)
-
 
 class EngulfingMFIStrategy(bt.Strategy):
     """
@@ -188,7 +105,7 @@ class EngulfingMFIStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize MFI/SMA indicators and strategy counters."""
-        self.mfi = MFI(self.data, period=self.p.mfi_period)
+        self.mfi = bt.indicators.MFI(self.data, period=self.p.mfi_period)
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.bar_num = 0
         self.buy_count = 0
@@ -294,7 +211,6 @@ class EngulfingMFIStrategy(bt.Strategy):
             self.loss_count += 1
         self._position_was_open = False
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
-
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -404,12 +320,11 @@ def run(plot=False):
     Returns:
         tuple: `(results, metrics, cerebro)`.
     """
-    config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
+    config=_bt_load_config(_CONFIG, repo=_REPO); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)
     if plot: cerebro.plot()
     return results,metrics,cerebro
-
 
 
 if __name__=='__main__':

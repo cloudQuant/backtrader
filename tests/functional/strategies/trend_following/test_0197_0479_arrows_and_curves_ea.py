@@ -9,15 +9,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -60,65 +59,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Loads MT5 CSV data and parses it into a Pandas DataFrame.
-
-    Cleans double quotes, strips whitespaces, and aligns the datetime index. Optionally shifts K-line datetime
-    and filters by date range.
-
-    Args:
-        filepath (str or Path): Path to the CSV data file.
-        fromdate (datetime, optional): Start date filter. Defaults to None.
-        todate (datetime, optional): End date filter. Defaults to None.
-        bar_shift_minutes (int, optional): Number of minutes to shift datetime index. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Processed OHLCV DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom Pandas Data Feed for MT5 CSV format.
 
@@ -133,95 +73,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class ArrowsCurvesIndicator(bt.Indicator):
-    """Custom Arrows and Curves technical indicator.
-
-    Calculates channel boundaries (smax, smin, smax2, smin2) based on highest high and lowest low windows
-    and returns trade entry signals (buy, sell, buy_stop, sell_stop).
-    """
-    lines = ('sell', 'buy', 'sell_stop', 'buy_stop', 'smax', 'smin', 'smax2', 'smin2')
-    params = dict(ssp=20, channel=0, ch_stop=30, relay=10)
-
-    def __init__(self):
-        """Initializes trends, state flags, and sets indicator minimum period requirement."""
-        self.addminperiod(self.p.ssp + self.p.relay + 2)
-        self._uptrend = False
-        self._old = False
-        self._uptrend2 = False
-        self._old2 = False
-
-    def next(self):
-        """Calculates channel lines and signals for each bar.
-
-        Generates buy/sell and buy_stop/sell_stop triggers based on price crossovers
-        and trend state switches.
-        """
-        if len(self.data) <= self.p.ssp + self.p.relay:
-            for line in self.lines:
-                line[0] = 0.0
-            return
-
-        high_window = [float(self.data.high[-shift]) for shift in range(self.p.relay, self.p.relay + self.p.ssp)]
-        low_window = [float(self.data.low[-shift]) for shift in range(self.p.relay, self.p.relay + self.p.ssp)]
-        close0 = float(self.data.close[0])
-        high_val = max(high_window)
-        low_val = min(low_window)
-        smax = high_val - (low_val - high_val) * self.p.channel / 100.0
-        smin = low_val + (high_val - low_val) * self.p.channel / 100.0
-        smax2 = high_val - (high_val - low_val) * (self.p.channel + self.p.ch_stop) / 100.0
-        smin2 = low_val + (high_val - low_val) * (self.p.channel + self.p.ch_stop) / 100.0
-
-        sell_signal = 0.0
-        buy_signal = 0.0
-        sell_stop = 0.0
-        buy_stop = 0.0
-
-        uptrend = self._uptrend
-        uptrend2 = self._uptrend2
-        old = self._old
-        old2 = self._old2
-
-        if close0 < smin and close0 < smax and uptrend2 is True:
-            uptrend = False
-        if close0 > smax and close0 > smin and uptrend2 is False:
-            uptrend = True
-        if (close0 > smax2 or close0 > smin2) and uptrend is False:
-            uptrend2 = False
-        if (close0 < smin2 or close0 < smax2) and uptrend is True:
-            uptrend2 = True
-
-        if close0 < smin and close0 < smax and uptrend2 is False:
-            sell_signal = low_val
-            uptrend2 = True
-        if close0 > smax and close0 > smin and uptrend2 is True:
-            buy_signal = high_val
-            uptrend2 = False
-
-        if uptrend != old and uptrend is False:
-            sell_signal = low_val
-        if uptrend != old and uptrend is True:
-            buy_signal = high_val
-
-        if uptrend2 != old2 and uptrend2 is True:
-            buy_stop = smax2
-        if uptrend2 != old2 and uptrend2 is False:
-            sell_stop = smin2
-
-        self.lines.sell[0] = sell_signal
-        self.lines.buy[0] = buy_signal
-        self.lines.sell_stop[0] = sell_stop
-        self.lines.buy_stop[0] = buy_stop
-        self.lines.smax[0] = smax
-        self.lines.smin[0] = smin
-        self.lines.smax2[0] = smax2
-        self.lines.smin2[0] = smin2
-
-        self._old = uptrend
-        self._old2 = uptrend2
-        self._uptrend = uptrend
-        self._uptrend2 = uptrend2
 
 
 class ArrowsAndCurvesEAStrategy(bt.Strategy):
@@ -251,7 +102,7 @@ class ArrowsAndCurvesEAStrategy(bt.Strategy):
 
     def __init__(self):
         """Initializes indicator, orders, variables, and position tracking counters."""
-        self.signal = ArrowsCurvesIndicator(
+        self.signal = bt.indicators.ArrowsCurvesIndicator(
             self.data,
             ssp=self.p.ssp,
             channel=self.p.channel,
@@ -430,7 +281,6 @@ class ArrowsAndCurvesEAStrategy(bt.Strategy):
         self._last_position_size = 0.0
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 REPO_BACKTRADER_DIR = BASE_DIR.parents[2] / 'backtrader'
@@ -438,9 +288,7 @@ if str(REPO_BACKTRADER_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_BACKTRADER_DIR))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -572,7 +420,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Orchestrates strategy loading, execution, evaluation, and optional plotting.
 
@@ -582,7 +429,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro) containing strategy results, metrics dict, and engine.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

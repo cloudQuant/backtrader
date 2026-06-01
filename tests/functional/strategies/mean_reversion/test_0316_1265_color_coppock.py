@@ -9,15 +9,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -55,60 +54,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-style TSV into an indexed OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Minutes to shift each bar timestamp.
-
-    Returns:
-        DataFrame with normalized OHLCV columns indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -169,75 +117,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class ColorCoppockIndicator(bt.Indicator):
-    """Compute Coppock oscillator value and its directional color state."""
-
-    lines = ('value', 'color')
-    params = dict(
-        roc1_period=14,
-        roc2_period=10,
-        xma_method='lwma',
-        xma_period=12,
-        xma_phase=100,
-        applied_price='price_close',
-    )
-
-    def __init__(self):
-        """Initialize ROC sum and the final smoothing moving average."""
-        price_line = resolve_price_line(self.data, self.p.applied_price)
-        roc1 = (price_line - price_line(-int(self.p.roc1_period))) / price_line(-int(self.p.roc1_period))
-        roc2 = (price_line - price_line(-int(self.p.roc2_period))) / price_line(-int(self.p.roc2_period))
-        self._roc_sum = roc1 + roc2
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        self._smooth = ma_cls(self._roc_sum, period=max(1, int(self.p.xma_period)))
-        self.addminperiod(max(int(self.p.roc1_period), int(self.p.roc2_period)) + int(self.p.xma_period) + 3)
-
-    def next(self):
-        """Update value and color for the current bar."""
-        value = float(self._smooth[0])
-        prev = float(self._smooth[-1])
-        self.lines.value[0] = value
-        color = 2
-        if value > 0:
-            if value > prev:
-                color = 4
-            elif value < prev:
-                color = 3
-        if value < 0:
-            if value < prev:
-                color = 0
-            elif value > prev:
-                color = 1
-        self.lines.color[0] = color
-
-    def once(self, start, end):
-        """Fill value/color lines for preloaded bars in a batch run."""
-        smooth = self._smooth.array
-        value_line = self.lines.value.array
-        color_line = self.lines.color.array
-        for line in (value_line, color_line):
-            while len(line) < end:
-                line.append(float('nan'))
-
-        actual_end = min(end, len(smooth))
-        for i in range(start, actual_end):
-            value = float(smooth[i])
-            prev = float(smooth[i - 1]) if i > 0 else value
-            color = 2
-            if value > 0:
-                if value > prev:
-                    color = 4
-                elif value < prev:
-                    color = 3
-            if value < 0:
-                if value < prev:
-                    color = 0
-                elif value > prev:
-                    color = 1
-            value_line[i] = value
-            color_line[i] = color
-
-
 class ColorCoppockStrategy(bt.Strategy):
     """Trade Coppock turning points with position reversals and stop tracking."""
 
@@ -254,7 +133,7 @@ class ColorCoppockStrategy(bt.Strategy):
 
     def __init__(self):
         """Attach indicator instance and initialize counters/state."""
-        self.indicator = ColorCoppockIndicator(
+        self.indicator = bt.indicators.ColorCoppockIndicator(
             self.data,
             roc1_period=self.p.roc1_period,
             roc2_period=self.p.roc2_period,
@@ -354,17 +233,14 @@ class ColorCoppockStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -491,7 +367,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute backtest and return results, metrics, and engine.
 
@@ -501,7 +376,7 @@ def run(plot=False):
     Returns:
         ``(results, metrics, cerebro)`` tuple.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

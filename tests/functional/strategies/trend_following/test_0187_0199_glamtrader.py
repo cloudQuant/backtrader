@@ -38,13 +38,62 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime
 import backtrader as bt
 import numpy as np
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and add GlamTrader precomputed feature columns."""
+    df = _load_mt5_csv(filepath, bar_shift_minutes=bar_shift_minutes)
+
+    weighted_price = (df["high"] + df["low"] + 2.0 * df["close"]) / 4.0
+    weights = np.arange(1, 15)
+    df["ma"] = weighted_price.rolling(14).apply(
+        lambda values: np.dot(values, weights) / weights.sum(),
+        raw=True,
+    )
+
+    median_price = (df["high"] + df["low"]) / 2.0
+    df["ao"] = median_price.rolling(5).mean() - median_price.rolling(34).mean()
+
+    gamma = 0.7
+    l0 = l1 = l2 = l3 = None
+    laguerre_values = []
+    for raw_price in df["close"].tolist():
+        price = float(raw_price)
+        if l0 is None:
+            l0 = l1 = l2 = l3 = price
+        l0_prev, l1_prev, l2_prev, l3_prev = l0, l1, l2, l3
+        l0 = (1.0 - gamma) * price + gamma * l0_prev
+        l1 = -gamma * l0 + l0_prev + gamma * l1_prev
+        l2 = -gamma * l1 + l1_prev + gamma * l2_prev
+        l3 = -gamma * l2 + l2_prev + gamma * l3_prev
+        cu = 0.0
+        cd = 0.0
+        if l0 >= l1:
+            cu += l0 - l1
+        else:
+            cd += l1 - l0
+        if l1 >= l2:
+            cu += l1 - l2
+        else:
+            cd += l2 - l1
+        if l2 >= l3:
+            cu += l2 - l3
+        else:
+            cd += l3 - l2
+        laguerre_values.append(cu / (cu + cd) if (cu + cd) else 0.0)
+    df["laguerre"] = laguerre_values
+
+    if fromdate is not None:
+        df = df[df.index >= fromdate]
+    if todate is not None:
+        df = df[df.index <= todate]
+    return df
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -86,101 +135,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 LOCAL_BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(LOCAL_BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5 CSV and precompute MA, AO, and Laguerre feature columns.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional number of minutes to shift each bar's
-            timestamp forward.
-
-    Returns:
-        A DataFrame indexed by datetime with OHLCV, openinterest, and the
-        precomputed ``ma``, ``ao``, and ``laguerre`` columns, filtered to the
-        requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-
-    weighted_price = (df['high'] + df['low'] + 2.0 * df['close']) / 4.0
-    weights = np.arange(1, 15)
-    df['ma'] = weighted_price.rolling(14).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
-
-    median_price = (df['high'] + df['low']) / 2.0
-    df['ao'] = median_price.rolling(5).mean() - median_price.rolling(34).mean()
-
-    gamma = 0.7
-    l0 = l1 = l2 = l3 = None
-    laguerre_values = []
-    for price in df['close'].tolist():
-        if l0 is None:
-            l0 = l1 = l2 = l3 = float(price)
-        l0_prev, l1_prev, l2_prev, l3_prev = l0, l1, l2, l3
-        l0 = (1.0 - gamma) * price + gamma * l0_prev
-        l1 = -gamma * l0 + l0_prev + gamma * l1_prev
-        l2 = -gamma * l1 + l1_prev + gamma * l2_prev
-        l3 = -gamma * l2 + l2_prev + gamma * l3_prev
-        cu = 0.0
-        cd = 0.0
-        if l0 >= l1:
-            cu += l0 - l1
-        else:
-            cd += l1 - l0
-        if l1 >= l2:
-            cu += l1 - l2
-        else:
-            cd += l2 - l1
-        if l2 >= l3:
-            cu += l2 - l3
-        else:
-            cd += l3 - l2
-        laguerre_values.append(cu / (cu + cd) if (cu + cd) else 0.0)
-    df['laguerre'] = laguerre_values
-
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -192,94 +150,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('close', 3), ('volume', 4), ('openinterest', 5),
         ('ma', 6), ('ao', 7), ('laguerre', 8),
     )
-
-
-class WeightedPrice(bt.Indicator):
-    """Weighted price line ``(high + low + 2*close) / 4`` per bar."""
-
-    lines = ('weighted',)
-
-    def next(self):
-        """Compute the weighted price for the current bar."""
-        self.lines.weighted[0] = (
-            float(self.data.high[0])
-            + float(self.data.low[0])
-            + 2.0 * float(self.data.close[0])
-        ) / 4.0
-
-
-class AwesomeOscillator(bt.Indicator):
-    """Awesome Oscillator: fast minus slow SMA of the median price."""
-
-    lines = ('ao',)
-    params = dict(fast=5, slow=34)
-
-    def __init__(self):
-        """Build the fast and slow median-price moving averages."""
-        median_price = (self.data.high + self.data.low) / 2.0
-        self._fast = bt.indicators.SimpleMovingAverage(median_price, period=self.p.fast)
-        self._slow = bt.indicators.SimpleMovingAverage(median_price, period=self.p.slow)
-
-    def next(self):
-        """Emit the fast/slow SMA difference for the current bar."""
-        self.lines.ao[0] = float(self._fast[0]) - float(self._slow[0])
-
-
-class LaguerreIndicator(bt.Indicator):
-    """Laguerre RSI-style oscillator over a four-stage Laguerre filter."""
-
-    lines = ('laguerre',)
-    params = dict(gamma=0.7)
-
-    def __init__(self):
-        """Set the minimum period and initialize Laguerre filter state."""
-        self.addminperiod(2)
-        self._l0 = None
-        self._l1 = None
-        self._l2 = None
-        self._l3 = None
-
-    def next(self):
-        """Advance the Laguerre filter and emit the oscillator value."""
-        price = float(self.data.close[0])
-        gamma = self.p.gamma
-        if self._l0 is None:
-            self._l0 = price
-            self._l1 = price
-            self._l2 = price
-            self._l3 = price
-
-        l0_prev = self._l0
-        l1_prev = self._l1
-        l2_prev = self._l2
-        l3_prev = self._l3
-
-        l0 = (1.0 - gamma) * price + gamma * l0_prev
-        l1 = -gamma * l0 + l0_prev + gamma * l1_prev
-        l2 = -gamma * l1 + l1_prev + gamma * l2_prev
-        l3 = -gamma * l2 + l2_prev + gamma * l3_prev
-
-        cu = 0.0
-        cd = 0.0
-        if l0 >= l1:
-            cu += l0 - l1
-        else:
-            cd += l1 - l0
-        if l1 >= l2:
-            cu += l1 - l2
-        else:
-            cd += l2 - l1
-        if l2 >= l3:
-            cu += l2 - l3
-        else:
-            cd += l3 - l2
-
-        self.lines.laguerre[0] = cu / (cu + cd) if (cu + cd) else 0.0
-        self._l0 = l0
-        self._l1 = l1
-        self._l2 = l2
-        self._l3 = l3
-
 
 class GlamTraderStrategy(bt.Strategy):
     """GlamTrader trend strategy using MA, AO, and Laguerre with trailing stop."""
@@ -456,7 +326,6 @@ class GlamTraderStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -466,7 +335,6 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -594,7 +462,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the compiled backtest and return execution artifacts.
 
@@ -604,7 +471,7 @@ def run(plot=False):
     Returns:
         tuple[list, dict, bt.Cerebro]: ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

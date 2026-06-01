@@ -13,7 +13,7 @@ Data Used:
 
 Strategy Principle:
     - The signal is built from three Smoothed Moving Averages (Jaw, Teeth,
-      Lips) on median price and a 15-period ATR.
+      Lips) on median price and a 15-period bt.indicators.ATR.
     - Long/short trigger levels are generated when price is below/above all three
       MAs and trend confirmation holds across recent lookback bars.
     - The strategy applies fixed stop-loss and take-profit distance in points for
@@ -28,9 +28,9 @@ Strategy Logic:
       behaves as expected.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import json
 from backtrader.dataseries import TimeFrame
@@ -43,6 +43,7 @@ import backtrader.indicators as btind
 import backtrader.feeds as btfeeds
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -85,59 +86,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load and normalize MT5-exported CSV bars into a Backtrader-compatible DataFrame.
-
-    Args:
-        filepath: CSV path containing MT5 tab-separated OHLC fields.
-        fromdate: Optional start datetime used to filter rows on index.
-        todate: Optional end datetime used to filter rows on index.
-        bar_shift_minutes: Optional minute shift applied to the datetime index.
-
-    Returns:
-        A DataFrame with `datetime`, `open`, `high`, `low`, `close`, `volume`,
-        and `openinterest` columns, indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Pandas data feed mapping MT5 column names to Backtrader data fields."""
 
@@ -145,87 +93,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class BWWiseMan1Signal(Indicator):
-    """Generate long/short trigger values based on Alligator-like MAs and ATR.
-
-    The indicator outputs two value lines (`buy`, `sell`) that represent candidate
-    entry levels for short and long flips under the configured market regime.
-    """
-    lines = ('sell', 'buy')
-    params = dict(
-        retrogradely=True,
-        back=2,
-        jaw_period=13,
-        jaw_shift=8,
-        teeth_period=8,
-        teeth_shift=5,
-        lips_period=5,
-        lips_shift=3,
-        atr_period=15,
-    )
-
-    def __init__(self):
-        """Initialize moving average and ATR lines and minimum period requirements."""
-        median_price = (self.data.high + self.data.low) / 2.0
-        self.jaw = btind.SmoothedMovingAverage(median_price, period=max(int(self.p.jaw_period), 1))
-        self.teeth = btind.SmoothedMovingAverage(median_price, period=max(int(self.p.teeth_period), 1))
-        self.lips = btind.SmoothedMovingAverage(median_price, period=max(int(self.p.lips_period), 1))
-        self.atr = btind.ATR(self.data, period=max(int(self.p.atr_period), 1))
-        self.addminperiod(
-            max(
-                int(self.p.jaw_period) + int(self.p.jaw_shift),
-                int(self.p.teeth_period) + int(self.p.teeth_shift),
-                int(self.p.lips_period) + int(self.p.lips_shift),
-                int(self.p.atr_period),
-            ) + int(self.p.back) + 2
-        )
-
-    def next(self):
-        """Compute current `buy`/`sell` trigger values from MA and ATR relationships."""
-        self.lines.buy[0] = 0.0
-        self.lines.sell[0] = 0.0
-
-        if len(self.data) <= max(int(self.p.jaw_shift), int(self.p.teeth_shift), int(self.p.lips_shift), int(self.p.back)):
-            return
-
-        jaw = float(self.jaw[-int(self.p.jaw_shift)])
-        teeth = float(self.teeth[-int(self.p.teeth_shift)])
-        lips = float(self.lips[-int(self.p.lips_shift)])
-        high = float(self.data.high[0])
-        low = float(self.data.low[0])
-        close = float(self.data.close[0])
-        mid = (high + low) / 2.0
-        atr = float(self.atr[0])
-
-        raw_sell = 0.0
-        raw_buy = 0.0
-
-        if low > lips and low > teeth and low > jaw and close < mid:
-            contup = True
-            for i in range(1, int(self.p.back) + 1):
-                if high <= float(self.data.high[-i]):
-                    contup = False
-                    break
-            if contup:
-                raw_sell = high + atr * 3.0 / 8.0
-
-        if high < lips and high < teeth and high < jaw and close > mid:
-            contup = True
-            for i in range(1, int(self.p.back) + 1):
-                if low >= float(self.data.low[-i]):
-                    contup = False
-                    break
-            if contup:
-                raw_buy = low - atr * 3.0 / 8.0
-
-        if bool(self.p.retrogradely):
-            self.lines.buy[0] = raw_sell
-            self.lines.sell[0] = raw_buy
-        else:
-            self.lines.buy[0] = raw_buy
-            self.lines.sell[0] = raw_sell
 
 
 class BWWiseMan1Strategy(Strategy):
@@ -252,7 +119,7 @@ class BWWiseMan1Strategy(Strategy):
 
     def __init__(self):
         """Initialize counter state and persistent risk-control levels."""
-        self.indicator = BWWiseMan1Signal(
+        self.indicator = bt.indicators.BWWiseMan1Signal(
             self.data,
             retrogradely=self.p.retrogradely,
             back=self.p.back,
@@ -406,12 +273,7 @@ class BWWiseMan1Strategy(Strategy):
             self.loss_count += 1
 
 
-
-
-
 MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
-
-
 
 
 def prepare_frame(config, base_dir):
@@ -518,7 +380,7 @@ def main():
 
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / args.config).resolve()
-    config = load_config(config_path)
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = prepare_frame(config, base_dir)
     cerebro = build_cerebro(config, frame)
     results = cerebro.run()

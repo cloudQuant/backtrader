@@ -34,19 +34,18 @@ Strategy Logic:
     dictionary compared against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
 from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.feeds as btfeeds
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -94,60 +93,6 @@ _CONFIG = {
         'stocklike': False,
     },
 }
-
-
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export to read.
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close rather than the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -198,39 +143,6 @@ def _price_value(data, shift, mode):
     return close
 
 
-class FineTuningMA(Indicator):
-    """Weighted moving average with rank/shift-shaped per-bar weights."""
-
-    lines = ('value',)
-    params = dict(ftma=10, rank1=2.0, rank2=2.0, rank3=2.0, shift1=1.0, shift2=1.0, shift3=1.0, ipc='typical')
-
-    def __init__(self):
-        """Precompute the normalized FineTuningMA weights and warmup period."""
-        self.ftma = max(int(self.p.ftma), 1)
-        self.weights = []
-        total = 0.0
-        for h in range(self.ftma):
-            denom = max(self.ftma - 1.0, 1.0)
-            part = float(h) / denom
-            w = self.p.shift1 + math.pow(part, float(self.p.rank1)) * (1.0 - self.p.shift1)
-            w = (self.p.shift2 + math.pow(1.0 - part, float(self.p.rank2)) * (1.0 - self.p.shift2)) * w
-            w = (self.p.shift3 + math.pow(1.0 - abs(part - 0.5) * 2.0, float(self.p.rank3)) * (1.0 - self.p.shift3)) * w
-            self.weights.append(w)
-            total += w
-        self.weights = [w / total for w in self.weights] if total else [1.0 / self.ftma] * self.ftma
-        self.addminperiod(self.ftma + 2)
-
-    def next(self):
-        """Output the weighted average of the applied price over the window."""
-        if len(self.data) < self.ftma:
-            self.l.value[0] = _price_value(self.data, 0, self.p.ipc)
-            return
-        total = 0.0
-        for h in range(self.ftma):
-            total += self.weights[h] * _price_value(self.data, h, self.p.ipc)
-        self.l.value[0] = total
-
-
 class FineTuningMAStrategy(Strategy):
     """Trade FineTuningMA slope reversals with fixed stop-loss and take-profit."""
 
@@ -256,7 +168,7 @@ class FineTuningMAStrategy(Strategy):
 
     def __init__(self):
         """Build the FineTuningMA indicator and zero counters and risk state."""
-        self.indicator = FineTuningMA(
+        self.indicator = bt.indicators.FineTuningMA(
             self.data,
             ftma=self.p.ftma,
             rank1=self.p.rank1,
@@ -419,7 +331,6 @@ class FineTuningMAStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -428,9 +339,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -633,7 +542,7 @@ def test_201_0200_1005_finetuningma() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0200_1005_finetuningma.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

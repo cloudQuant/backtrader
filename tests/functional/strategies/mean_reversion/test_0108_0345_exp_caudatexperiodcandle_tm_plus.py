@@ -36,15 +36,30 @@ Strategy Logic:
     analyzers, and asserts each value against migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -96,65 +111,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a tab-separated MT5 export into an OHLCV+spread DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV/TSV export file.
-        fromdate: Optional inclusive lower bound on the bar timestamp.
-        todate: Optional inclusive upper bound on the bar timestamp.
-        bar_shift_minutes: Minutes to add to each bar timestamp so bars are
-            stamped at their close.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume,
-        openinterest, and spread columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed exposing OHLCV plus the extra spread line by column position."""
 
@@ -169,44 +125,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class CaudateXPeriodCandleColor(bt.Indicator):
-    """Synthetic period-candle indicator emitting a color index and smoothed OHLC."""
-
-    lines = ('color_idx', 'xopen', 'xclose', 'xhigh', 'xlow')
-    params = dict(cperiod=5, ma_length=3)
-
-    def __init__(self):
-        """Build the smoothed OHLC moving averages and set the warmup period."""
-        self.smooth_open = bt.indicators.SimpleMovingAverage(self.data.open, period=self.p.ma_length)
-        self.smooth_high = bt.indicators.SimpleMovingAverage(self.data.high, period=self.p.ma_length)
-        self.smooth_low = bt.indicators.SimpleMovingAverage(self.data.low, period=self.p.ma_length)
-        self.smooth_close = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.ma_length)
-        self.addminperiod(self.p.ma_length + self.p.cperiod)
-
-    def next(self):
-        """Build the period candle and assign its color index from the midpoint."""
-        lookback = max(1, int(self.p.cperiod))
-        start = -(lookback - 1)
-        xopen = float(self.smooth_open[start])
-        xclose = float(self.smooth_close[0])
-        highs = [float(self.smooth_high[-i]) for i in range(lookback)]
-        lows = [float(self.smooth_low[-i]) for i in range(lookback)]
-        xhigh = max(highs)
-        xlow = min(lows)
-        self.lines.xopen[0] = xopen
-        self.lines.xclose[0] = xclose
-        self.lines.xhigh[0] = xhigh
-        self.lines.xlow[0] = xlow
-
-        color = 2.0 if xopen <= xclose else 4.0
-        candle_half = (xhigh + xlow) / 2.0
-        if xopen > candle_half and xclose > candle_half:
-            color = 0.0 if xopen <= xclose else 1.0
-        elif xopen < candle_half and xclose < candle_half:
-            color = 6.0 if xopen >= xclose else 5.0
-        self.lines.color_idx[0] = color
 
 
 class ExpCaudateXPeriodCandleTmPlusStrategy(bt.Strategy):
@@ -237,7 +155,7 @@ class ExpCaudateXPeriodCandleTmPlusStrategy(bt.Strategy):
         """Bind execution/signal feeds, build the channel, and reset order state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
-        self.channel = CaudateXPeriodCandleColor(self.signal_feed, cperiod=self.p.cperiod, ma_length=self.p.ma_length)
+        self.channel = bt.indicators.CaudateXPeriodCandleColor(self.signal_feed, cperiod=self.p.cperiod, ma_length=self.p.ma_length)
         self.order = None
         self.entry_side = None
         self.entry_datetime = None
@@ -410,7 +328,6 @@ class ExpCaudateXPeriodCandleTmPlusStrategy(bt.Strategy):
             self.entry_datetime = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 REPO_BACKTRADER_DIR = BASE_DIR.parents[2] / 'backtrader'
@@ -418,9 +335,7 @@ if str(REPO_BACKTRADER_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_BACKTRADER_DIR))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -578,7 +493,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp CaudateXPeriodCandle Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

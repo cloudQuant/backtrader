@@ -26,15 +26,30 @@ Strategy Logic:
     against the expected migration baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -89,63 +104,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Read MT5 tab-separated OHLC data and normalize it for Backtrader input.
-
-    Args:
-        filepath: File path to an MT5-exported data file.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Timestamp minute offset to apply.
-
-    Returns:
-        Parsed and indexed DataFrame with OHLCV/spread columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed wrapper that includes spread as an extra data line."""
     lines = ('spread',)
@@ -159,88 +117,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class X2MACandleApprox(bt.Indicator):
-    """Dual-stage MA candle approximation producing candle color and values."""
-    lines = ('open_value', 'high_value', 'low_value', 'close_value', 'color_state')
-    params = dict(length1=12, phase1=15, length2=5, phase2=15, gap=10.0)
-
-    def __init__(self):
-        """Initialize queues, state, and smoothing parameters."""
-        self._length1 = max(1, int(self.p.length1))
-        self._length2 = max(2, int(self.p.length2))
-        self._phase2 = max(-100, min(100, int(self.p.phase2)))
-        base_alpha = 2.0 / (self._length2 + 1.0)
-        self._alpha = max(0.01, min(0.95, base_alpha * (1.0 + self._phase2 / 200.0)))
-        self._phase_gain = self._phase2 / 200.0
-        self._queues = {
-            'open': deque(maxlen=self._length1),
-            'high': deque(maxlen=self._length1),
-            'low': deque(maxlen=self._length1),
-            'close': deque(maxlen=self._length1),
-        }
-        self._states = {
-            'open': {'ema1': None, 'ema2': None},
-            'high': {'ema1': None, 'ema2': None},
-            'low': {'ema1': None, 'ema2': None},
-            'close': {'ema1': None, 'ema2': None},
-        }
-        self.addminperiod(self._length1 + self._length2)
-
-    @staticmethod
-    def _finite(value):
-        return value is not None and math.isfinite(value)
-
-    def _sma(self, key, value):
-        queue = self._queues[key]
-        queue.append(float(value))
-        if len(queue) < self._length1:
-            return None
-        return sum(queue) / len(queue)
-
-    def _smooth(self, key, value):
-        state = self._states[key]
-        if state['ema1'] is None:
-            state['ema1'] = value
-            state['ema2'] = value
-        else:
-            state['ema1'] = state['ema1'] + self._alpha * (value - state['ema1'])
-            state['ema2'] = state['ema2'] + self._alpha * (state['ema1'] - state['ema2'])
-        return state['ema1'] + self._phase_gain * (state['ema1'] - state['ema2'])
-
-    def _stage_value(self, key, line):
-        sma_value = self._sma(key, line[0])
-        if sma_value is None:
-            return None
-        return self._smooth(key, sma_value)
-
-    def next(self):
-        """Compute smoothed open/high/low/close and color for each bar."""
-        open_value = self._stage_value('open', self.data.open)
-        high_value = self._stage_value('high', self.data.high)
-        low_value = self._stage_value('low', self.data.low)
-        close_value = self._stage_value('close', self.data.close)
-        if not all(self._finite(v) for v in (open_value, high_value, low_value, close_value)):
-            self.lines.open_value[0] = float('nan')
-            self.lines.high_value[0] = float('nan')
-            self.lines.low_value[0] = float('nan')
-            self.lines.close_value[0] = float('nan')
-            self.lines.color_state[0] = float('nan')
-            return
-        max_value = max(open_value, close_value, high_value, low_value)
-        min_value = min(open_value, close_value, high_value, low_value)
-        adjusted_open = open_value
-        if len(self) > 1 and abs(float(self.data.open[0]) - float(self.data.close[0])) <= float(self.p.gap):
-            prev_close = float(self.lines.close_value[-1])
-            if self._finite(prev_close):
-                adjusted_open = prev_close
-        color_state = 2.0 if adjusted_open < close_value else 0.0 if adjusted_open > close_value else 1.0
-        self.lines.open_value[0] = adjusted_open
-        self.lines.high_value[0] = max_value
-        self.lines.low_value[0] = min_value
-        self.lines.close_value[0] = close_value
-        self.lines.color_state[0] = color_state
 
 
 class ExpX2MACandleMMRecStrategy(bt.Strategy):
@@ -273,7 +149,7 @@ class ExpX2MACandleMMRecStrategy(bt.Strategy):
         """Build signals, order state, and MM recovery tracking on initialization."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.indicator = X2MACandleApprox(
+        self.indicator = bt.indicators.X2MACandleApprox(
             self.signal_data,
             length1=self.p.length1,
             phase1=self.p.phase1,
@@ -455,13 +331,9 @@ class ExpX2MACandleMMRecStrategy(bt.Strategy):
             self.closing_side = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -610,7 +482,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp_X2MACandle_MMRec backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

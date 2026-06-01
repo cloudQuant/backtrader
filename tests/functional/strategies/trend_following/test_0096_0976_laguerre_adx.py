@@ -3,50 +3,32 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
-
-_REPO = Path(__file__).resolve().parents[4]
-DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
+from backtrader.utils.load_data import augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 OHLCV data into a DataFrame with spread column.
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
-    Args:
-        filepath: Path to MT5 CSV/TSV file.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Minute shift to apply to bar timestamps.
-
-    Returns:
-        Datetime-indexed DataFrame with OHLCV and spread columns.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-        "<SPREAD>": "spread",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest", "spread"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
+_REPO = Path(__file__).resolve().parents[4]
+DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -56,61 +38,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5), ("spread", 6),
     )
-
-
-class LaguerreAdxIndicator(bt.Indicator):
-    """Laguerre-filtered ADX directional components built from +/- DI."""
-    lines = ("up", "down")
-    params = dict(adx_period=14, gamma=0.764)
-
-    def __init__(self):
-        """Initialize DI inputs, laguerre states, and minimum period."""
-        self.addminperiod(int(self.p.adx_period) + 5)
-        self.plus_di = bt.indicators.PlusDirectionalIndicator(self.data, period=int(self.p.adx_period))
-        self.minus_di = bt.indicators.MinusDirectionalIndicator(self.data, period=int(self.p.adx_period))
-        self._p = dict(l0=0.0, l1=0.0, l2=0.0, l3=0.0)
-        self._m = dict(l0=0.0, l1=0.0, l2=0.0, l3=0.0)
-
-    def _laguerre_step(self, value, state, previous_output):
-        gamma = float(self.p.gamma)
-        l0a = state["l0"]
-        l1a = state["l1"]
-        l2a = state["l2"]
-        l3a = state["l3"]
-        l0 = (1.0 - gamma) * value + gamma * l0a
-        l1 = -gamma * l0 + l0a + gamma * l1a
-        l2 = -gamma * l1 + l1a + gamma * l2a
-        l3 = -gamma * l2 + l2a + gamma * l3a
-        state["l0"] = l0
-        state["l1"] = l1
-        state["l2"] = l2
-        state["l3"] = l3
-        cu = 0.0
-        cd = 0.0
-        if l0 >= l1:
-            cu = l0 - l1
-        else:
-            cd = l1 - l0
-        if l1 >= l2:
-            cu += l1 - l2
-        else:
-            cd += l2 - l1
-        if l2 >= l3:
-            cu += l2 - l3
-        else:
-            cd += l3 - l2
-        if cu + cd != 0.0:
-            return cu / (cu + cd)
-        return previous_output
-
-    def next(self):
-        """Compute smoothed up/down values from directional indicators."""
-        prev_up = float(self.lines.up[-1]) if len(self) > 0 and math.isfinite(float(self.lines.up[-1])) else 0.0
-        prev_down = float(self.lines.down[-1]) if len(self) > 0 and math.isfinite(float(self.lines.down[-1])) else 0.0
-        plus_value = float(self.plus_di[0]) if math.isfinite(float(self.plus_di[0])) else 0.0
-        minus_value = float(self.minus_di[0]) if math.isfinite(float(self.minus_di[0])) else 0.0
-        self.lines.up[0] = self._laguerre_step(plus_value, self._p, prev_up)
-        self.lines.down[0] = self._laguerre_step(minus_value, self._m, prev_down)
 
 
 class LaguerreAdxStrategy(bt.Strategy):
@@ -129,7 +56,7 @@ class LaguerreAdxStrategy(bt.Strategy):
         """Bind execution/signal feeds and initialize counters and risk state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = LaguerreAdxIndicator(
+        self.indicator = bt.indicators.LaguerreAdxIndicator(
             self.signal_feed, adx_period=self.p.adx_period, gamma=self.p.gamma
         )
         self.bar_num = 0

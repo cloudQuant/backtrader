@@ -27,52 +27,16 @@ Strategy Logic:
   time-based exits (live_minutes, reduce_minutes), Friday close filter
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-format CSV file into a Pandas DataFrame.
-
-    Parses tab-separated columns (DATE, TIME, OPEN, HIGH, LOW, CLOSE, TICKVOL, VOL),
-    renames them to backtrader convention, and optionally shifts the datetime index.
-
-    Args:
-        filepath: Path to the CSV file.
-        fromdate: Optional start date filter.
-        todate: Optional end date filter.
-        bar_shift_minutes: Minutes to shift the datetime index by.
-
-    Returns:
-        DataFrame with columns [open, high, low, close, volume, openinterest].
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime")
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, rule):

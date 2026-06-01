@@ -9,15 +9,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -57,60 +56,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV export into an indexed OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 data file.
-        fromdate: Optional lower datetime bound.
-        todate: Optional upper datetime bound.
-        bar_shift_minutes: Optional minute shift for each bar timestamp.
-
-    Returns:
-        DataFrame indexed by datetime with normalized OHLCV columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -173,57 +121,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class BlauCMIIndicator(bt.Indicator):
-    """Compute the CMI oscillator from nested moving averages of momentum."""
-
-    lines = ('value',)
-    params = dict(
-        xma_method='ema',
-        xlength=1,
-        xlength1=20,
-        xlength2=5,
-        xlength3=3,
-        xphase=15,
-        ipc1='price_close',
-        ipc2='price_open',
-    )
-
-    def __init__(self):
-        """Set up numerator/denominator moving averages for oscillator output."""
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        price1 = resolve_price_line(self.data, self.p.ipc1)
-        price2 = resolve_price_line(self.data, self.p.ipc2)
-        mom = price1 - price2(-max(0, int(self.p.xlength) - 1))
-        abs_mom = abs(mom)
-        xmom = ma_cls(mom, period=max(1, int(self.p.xlength1)))
-        xabsmom = ma_cls(abs_mom, period=max(1, int(self.p.xlength1)))
-        xxmom = ma_cls(xmom, period=max(1, int(self.p.xlength2)))
-        xxabsmom = ma_cls(xabsmom, period=max(1, int(self.p.xlength2)))
-        xxxmom = ma_cls(xxmom, period=max(1, int(self.p.xlength3)))
-        xxxabsmom = ma_cls(xxabsmom, period=max(1, int(self.p.xlength3)))
-        self._numerator = xxxmom
-        self._denominator = xxxabsmom
-        self.addminperiod(int(self.p.xlength1) + int(self.p.xlength2) + int(self.p.xlength3) + int(self.p.xlength) + 5)
-
-    def next(self):
-        """Populate the indicator value on a per-bar basis."""
-        den = float(self._denominator[0])
-        self.lines.value[0] = 100.0 * float(self._numerator[0]) / den if den else 0.0
-
-    def once(self, start, end):
-        """Compute indicator values in a vectorized range for Backtrader backfills."""
-        numerator = self._numerator.array
-        denominator = self._denominator.array
-        value_line = self.lines.value.array
-        while len(value_line) < end:
-            value_line.append(float('nan'))
-
-        actual_end = min(end, len(numerator), len(denominator))
-        for i in range(start, actual_end):
-            den = float(denominator[i])
-            value_line[i] = 100.0 * float(numerator[i]) / den if den else 0.0
-
-
 class BlauCMIStrategy(bt.Strategy):
     """Trade indicator turning points with directional reversal handling."""
 
@@ -242,7 +139,7 @@ class BlauCMIStrategy(bt.Strategy):
 
     def __init__(self):
         """Attach CMI indicator and initialize all counters/flags."""
-        self.indicator = BlauCMIIndicator(
+        self.indicator = bt.indicators.BlauCMIIndicator(
             self.data,
             xma_method=self.p.xma_method,
             xlength=self.p.xlength,
@@ -344,17 +241,14 @@ class BlauCMIStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -456,10 +350,9 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the strategy and return results, metrics, and the Cerebro object."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

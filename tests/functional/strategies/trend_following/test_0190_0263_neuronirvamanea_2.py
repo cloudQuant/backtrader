@@ -40,14 +40,29 @@ Strategy Logic:
        metrics from analyzers, and asserts them against migration-time values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -105,64 +120,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export CSV file.
-        fromdate: Optional lower datetime bound (inclusive) for filtering.
-        todate: Optional upper datetime bound (inclusive) for filtering.
-        bar_shift_minutes: Minutes to add to each bar timestamp.
-
-    Returns:
-        pandas.DataFrame indexed by datetime with OHLCV, openinterest, and
-        spread columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed exposing an extra ``spread`` line from MT5 exports."""
 
@@ -177,83 +134,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class LaguerrePlusDiProxy(bt.Indicator):
-    """Laguerre-style +DI proxy normalized to the 0..1 range.
-
-    Approximates the directional-movement balance used by the original EA by
-    computing positive/negative directional movement and true range over the
-    lookback period and emitting the normalized +DI share.
-    """
-
-    lines = ('value',)
-    params = dict(period=14)
-
-    def __init__(self):
-        """Set the minimum period required before emitting values."""
-        self.addminperiod(self.p.period + 3)
-
-    def next(self):
-        """Compute the normalized +DI ratio for the current bar."""
-        pdm_vals = []
-        mdm_vals = []
-        tr_vals = []
-        for idx in range(self.p.period):
-            high0 = float(self.data.high[-idx])
-            high1 = float(self.data.high[-idx - 1])
-            low0 = float(self.data.low[-idx])
-            low1 = float(self.data.low[-idx - 1])
-            close1 = float(self.data.close[-idx - 1])
-            up_move = high0 - high1
-            down_move = low1 - low0
-            pdm = up_move if up_move > down_move and up_move > 0 else 0.0
-            mdm = down_move if down_move > up_move and down_move > 0 else 0.0
-            tr = max(high0 - low0, abs(high0 - close1), abs(low0 - close1))
-            pdm_vals.append(pdm)
-            mdm_vals.append(mdm)
-            tr_vals.append(tr)
-        tr_sum = sum(tr_vals)
-        if tr_sum <= 1e-12:
-            self.lines.value[0] = 0.5
-            return
-        pdi = 100.0 * sum(pdm_vals) / tr_sum
-        mdi = 100.0 * sum(mdm_vals) / tr_sum
-        denom = pdi + mdi
-        ratio = 0.5 if denom <= 1e-12 else pdi / denom
-        self.lines.value[0] = max(0.0, min(1.0, ratio))
-
-
-class SilverTrendSignalProxy(bt.Indicator):
-    """SilverTrend buy/sell signal proxy based on a moving-average crossover.
-
-    Emits a non-zero ``buy`` (or ``sell``) value when price crosses above (or
-    below) a risk-scaled simple moving average, mirroring the EA's signal lines.
-    """
-
-    lines = ('buy', 'sell')
-    params = dict(risk=3)
-
-    def __init__(self):
-        """Build the risk-scaled moving average and set the minimum period."""
-        self.period = max(3, int(self.p.risk) * 2 + 1)
-        self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.period)
-        self.addminperiod(self.period + 3)
-
-    def next(self):
-        """Set buy/sell signal lines from the price/MA crossover this bar."""
-        buy = 0.0
-        sell = 0.0
-        close0 = float(self.data.close[0])
-        close1 = float(self.data.close[-1])
-        ma0 = float(self.ma[0])
-        ma1 = float(self.ma[-1])
-        if close1 <= ma1 and close0 > ma0:
-            buy = close0
-        elif close1 >= ma1 and close0 < ma0:
-            sell = close0
-        self.lines.buy[0] = buy
-        self.lines.sell[0] = sell
 
 
 class NeuroNirvamanEA2Strategy(bt.Strategy):
@@ -297,12 +177,12 @@ class NeuroNirvamanEA2Strategy(bt.Strategy):
     def __init__(self):
         """Instantiate the indicator proxies and reset order/state tracking."""
         self.data0_feed = self.datas[0]
-        self.laguerre_1 = LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_1_period)
-        self.laguerre_2 = LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_2_period)
-        self.laguerre_3 = LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_3_period)
-        self.laguerre_4 = LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_4_period)
-        self.silver_1 = SilverTrendSignalProxy(self.data0_feed, risk=self.p.risk_1)
-        self.silver_2 = SilverTrendSignalProxy(self.data0_feed, risk=self.p.risk_2)
+        self.laguerre_1 = bt.indicators.LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_1_period)
+        self.laguerre_2 = bt.indicators.LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_2_period)
+        self.laguerre_3 = bt.indicators.LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_3_period)
+        self.laguerre_4 = bt.indicators.LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_4_period)
+        self.silver_1 = bt.indicators.SilverTrendSignalProxy(self.data0_feed, risk=self.p.risk_1)
+        self.silver_2 = bt.indicators.SilverTrendSignalProxy(self.data0_feed, risk=self.p.risk_2)
         self.entry_order = None
         self.close_order = None
         self.stop_order = None
@@ -498,13 +378,9 @@ class NeuroNirvamanEA2Strategy(bt.Strategy):
             self.active_side = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -650,7 +526,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run NeuroNirvamanEA 2 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

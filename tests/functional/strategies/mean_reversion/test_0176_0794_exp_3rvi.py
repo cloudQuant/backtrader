@@ -25,15 +25,14 @@ Strategy Logic:
        verification.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import os
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,94 +86,12 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader TSV export into a normalized OHLCV DataFrame.
-
-    Args:
-        filepath: Absolute path to the source file.
-        fromdate: Optional inclusive start datetime filter.
-        todate: Optional inclusive end datetime filter.
-        bar_shift_minutes: Optional minute offset applied to all timestamps.
-
-    Returns:
-        A DataFrame indexed by datetime with columns required for Backtrader.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Base OHLC feed mapping for XAUUSD backtest bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class RelativeVigorIndex(bt.Indicator):
-    """Relative Vigor Index indicator with smoothed signal line."""
-    lines = ('rvi', 'signal')
-    params = dict(period=13)
-
-    def __init__(self):
-        """Compute weighted numerator/denominator and moving-average filtered lines."""
-        weighted_num = (
-            (self.data.close - self.data.open)
-            + 2.0 * (self.data.close(-1) - self.data.open(-1))
-            + 2.0 * (self.data.close(-2) - self.data.open(-2))
-            + (self.data.close(-3) - self.data.open(-3))
-        ) / 6.0
-        weighted_den = (
-            (self.data.high - self.data.low)
-            + 2.0 * (self.data.high(-1) - self.data.low(-1))
-            + 2.0 * (self.data.high(-2) - self.data.low(-2))
-            + (self.data.high(-3) - self.data.low(-3))
-        ) / 6.0
-        num_ma = bt.indicators.SimpleMovingAverage(weighted_num, period=self.p.period)
-        den_ma = bt.indicators.SimpleMovingAverage(weighted_den, period=self.p.period)
-        self.lines.rvi = bt.If(den_ma != 0, num_ma / den_ma, 0.0)
-        self.lines.signal = (
-            self.lines.rvi
-            + 2.0 * self.lines.rvi(-1)
-            + 2.0 * self.lines.rvi(-2)
-            + self.lines.rvi(-3)
-        ) / 6.0
 
 
 class Exp3RviStrategy(bt.Strategy):
@@ -201,9 +118,9 @@ class Exp3RviStrategy(bt.Strategy):
         self.data_tf1 = self.datas[0]
         self.data_tf2 = self.datas[1]
         self.data_tf3 = self.datas[2]
-        self.rvi1 = RelativeVigorIndex(self.data_tf1, period=self.p.rvi_period)
-        self.rvi2 = RelativeVigorIndex(self.data_tf2, period=self.p.rvi_period)
-        self.rvi3 = RelativeVigorIndex(self.data_tf3, period=self.p.rvi_period)
+        self.rvi1 = bt.indicators.SmoothedRelativeVigorIndex(self.data_tf1, period=self.p.rvi_period)
+        self.rvi2 = bt.indicators.SmoothedRelativeVigorIndex(self.data_tf2, period=self.p.rvi_period)
+        self.rvi3 = bt.indicators.SmoothedRelativeVigorIndex(self.data_tf3, period=self.p.rvi_period)
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -339,7 +256,6 @@ class Exp3RviStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -348,9 +264,7 @@ if LOCAL_BACKTRADER_REPO.exists():
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -563,7 +477,7 @@ def test_176_0176_0794_exp_3rvi() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0176_0794_exp_3rvi.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

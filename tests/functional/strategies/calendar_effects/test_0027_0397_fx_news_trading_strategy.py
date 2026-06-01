@@ -41,13 +41,13 @@ Strategy Logic:
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 from datetime import datetime
 import csv
 import json
 import backtrader as bt
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,71 +83,11 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
 EVENT_DEFINITIONS = {
     'nfp': {'month_day_rule': 'first_friday', 'code': 1.0},
     'fomc': {'fixed_dates': [(1, 31), (3, 20), (5, 1), (6, 12), (7, 31), (9, 18), (11, 7), (12, 18)], 'code': 2.0},
     'cpi': {'fixed_dates': [(1, 10), (2, 13), (3, 12), (4, 10), (5, 15), (6, 12), (7, 11), (8, 14), (9, 11), (10, 10), (11, 13), (12, 11)], 'code': 3.0},
 }
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
-
-    Handles both tab- and comma-separated exports and either ``HH:MM`` or
-    ``HH:MM:SS`` time formats.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.dropna(subset=['datetime']).set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def _first_friday(year, month):
@@ -363,9 +303,6 @@ class FXNewsTradingStrategy(bt.Strategy):
 # -*- coding: utf-8 -*-
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
@@ -384,7 +321,6 @@ def calculate_ulcer_index(values):
         drawdown = (peak - value) / peak * 100.0 if peak > 0 else 0.0
         squared += drawdown ** 2
     return math.sqrt(squared / len(values))
-
 
 
 def load_inputs(config):
@@ -495,7 +431,7 @@ def test_27_0027_0397_fx_news_trading_strategy() -> None:
 
     Originally located at tests/functional/strategies_regression/calendar_effects/0027_0397_fx_news_trading_strategy.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

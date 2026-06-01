@@ -46,10 +46,10 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -114,9 +114,9 @@ class ForexEmaStrategy(bt.Strategy):
 
     Parameters:
         stake (int): Number of units/shares per trade. Default is 10.
-        shortema (int): Period for the short-term EMA. Default is 5.
-        mediumema (int): Period for the medium-term EMA. Default is 20.
-        longema (int): Period for the long-term EMA. Default is 50.
+        shortema (int): Period for the short-term bt.indicators.EMA. Default is 5.
+        mediumema (int): Period for the medium-term bt.indicators.EMA. Default is 20.
+        longema (int): Period for the long-term bt.indicators.EMA. Default is 50.
 
     Attributes:
         shortema (ExponentialMovingAverage): Short-term EMA indicator.

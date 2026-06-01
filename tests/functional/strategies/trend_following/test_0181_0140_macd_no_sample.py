@@ -32,15 +32,30 @@ Strategy Logic:
     - ``test_180_0181_0140_macd_no_sample`` asserts regression expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -85,67 +100,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data and return a normalized OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Optional timestamp shift in minutes.
-
-    Returns:
-        pandas.DataFrame: Normalized bar data indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
@@ -155,16 +113,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
         ('volume', 4), ('openinterest', 5), ('spread', 6),
     )
-
-
-class WeightedPrice(bt.Indicator):
-    """Simple weighted price indicator used as a smoothed input price stream."""
-    lines = ('value',)
-
-    def __init__(self):
-        """Initialize weighted close/hi/low value for downstream indicators."""
-        self.lines.value = (self.data.high + self.data.low + self.data.close * 2.0) / 4.0
-
 
 class MacdNoSampleStrategy(bt.Strategy):
     """MACD-driven strategy with optional trailing stop and guarded exits."""
@@ -186,7 +134,7 @@ class MacdNoSampleStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicators, order/trade state, and runtime counters."""
-        self.weighted_price = WeightedPrice(self.data)
+        self.weighted_price = bt.indicators.WeightedPrice(self.data)
         self.ma = bt.indicators.WeightedMovingAverage(self.weighted_price.value, period=self.p.ma_period)
         self.macd = bt.indicators.MACD(
             self.weighted_price.value,
@@ -395,13 +343,9 @@ if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
-
-
 
 
 def resolve_data_path(filename):
@@ -422,13 +366,11 @@ def resolve_data_path(filename):
     return path
 
 
-
 def parse_dt(value):
     """Parse ISO datetime string from config into ``datetime``."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
-
 
 
 def load_backtest_frame(config):
@@ -446,7 +388,6 @@ def load_backtest_frame(config):
         raise ValueError('Loaded data frame is empty')
     print(f'Loaded {len(df)} bars: {df.index[0]} -> {df.index[-1]}')
     return {'data': df}
-
 
 
 def build_cerebro(config, frame):
@@ -482,7 +423,6 @@ def build_cerebro(config, frame):
     return cerebro
 
 
-
 def finite_or_none(value):
     """Convert non-finite numeric values to ``None`` for stable metrics."""
     if value is None:
@@ -490,7 +430,6 @@ def finite_or_none(value):
     if isinstance(value, (int, float)) and not math.isfinite(value):
         return None
     return value
-
 
 
 def extract_metrics(results, start_value):
@@ -530,9 +469,6 @@ def extract_metrics(results, start_value):
     }
 
 
-
-
-
 def run(plot=False):
     """Run the strategy backtest and return results, metrics, and engine.
 
@@ -542,7 +478,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

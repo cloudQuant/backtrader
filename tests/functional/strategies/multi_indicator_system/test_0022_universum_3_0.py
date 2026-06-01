@@ -29,51 +29,15 @@ Strategy Logic:
     baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 CSV export to read.
-        fromdate: Optional inclusive lower bound used to trim the index.
-        todate: Optional inclusive upper bound used to trim the index.
-        bar_shift_minutes: Minutes to shift the datetime index forward.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume and
-        openinterest columns in ascending time order.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "tick_volume", "<VOL>": "real_volume",
-    })
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"]
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime")
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -88,40 +52,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class DeMarkerIndicator(bt.Indicator):
-    """DeMarker oscillator measuring directional high/low pressure.
-
-    Sums the positive high-to-high and low-to-low moves over ``period`` bars
-    and normalises the up moves by the total, producing a single ``dem`` line
-    bounded in [0, 1] where higher values indicate stronger buying pressure.
-    """
-
-    lines = ("dem",)
-    params = (("period", 14),)
-
-    def __init__(self):
-        """Reserve the minimum lookback needed for the period-based window."""
-        self.addminperiod(self.p.period + 1)
-
-    def next(self):
-        """Compute the DeMarker value for the current bar."""
-        de_max_sum = 0.0
-        de_min_sum = 0.0
-        for i in range(self.p.period):
-            high_now = float(self.data.high[-i])
-            high_prev = float(self.data.high[-(i + 1)])
-            low_now = float(self.data.low[-i])
-            low_prev = float(self.data.low[-(i + 1)])
-            de_max_sum += max(high_now - high_prev, 0.0)
-            de_min_sum += max(low_prev - low_now, 0.0)
-        denom = de_max_sum + de_min_sum
-        if denom == 0:
-            self.lines.dem[0] = 0.0
-        else:
-            self.lines.dem[0] = de_max_sum / denom
-
 
 class Universum30Strategy(bt.Strategy):
     """DeMarker-driven strategy with martingale position sizing.
@@ -143,7 +73,7 @@ class Universum30Strategy(bt.Strategy):
 
     def __init__(self):
         """Build the DeMarker indicator and initialise counters and state."""
-        self.demarker = DeMarkerIndicator(self.data, period=self.p.ma_period)
+        self.demarker = bt.indicators.DeMarkerIndicator(self.data, period=self.p.ma_period)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0

@@ -2227,8 +2227,7 @@ class Cerebro(ParameterizedBase):
                     # (invalid/sentinel value from uninitialized data)
                     if dt0 < 1:
                         logger.warning(
-                            "Invalid datetime value dt0=%s detected in "
-                            "_runnext, aborting run loop",
+                            "Invalid datetime value dt0=%s detected in _runnext, aborting run loop",
                             dt0,
                         )
                         return

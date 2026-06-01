@@ -24,15 +24,30 @@ Strategy Logic:
     migrated regression metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -88,63 +103,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV data into a normalized pandas DataFrame.
-
-    Args:
-        filepath: Input data file path.
-        fromdate: Optional inclusive start datetime.
-        todate: Optional inclusive end datetime.
-        bar_shift_minutes: Optional timestamp offset in minutes.
-
-    Returns:
-        DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader feed with spread as an extra data line."""
     lines = ('spread',)
@@ -158,48 +116,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class IinMASignalIndicator(bt.Indicator):
-    """Cross-period MA signal indicator producing buy/sell trigger levels."""
-    lines = ('buy_signal', 'sell_signal')
-    params = dict(fast_period=10, fast_ma='EMA', slow_period=22, slow_ma='SMA', atr_period=10)
-
-    def __init__(self):
-        """Initialize fast/slow MAs and internal trend state."""
-        ma_map = {
-            'SMA': bt.indicators.SimpleMovingAverage,
-            'EMA': bt.indicators.ExponentialMovingAverage,
-            'SMMA': bt.indicators.SmoothedMovingAverage,
-            'WMA': bt.indicators.WeightedMovingAverage,
-        }
-        fast_cls = ma_map.get(str(self.p.fast_ma).upper(), bt.indicators.ExponentialMovingAverage)
-        slow_cls = ma_map.get(str(self.p.slow_ma).upper(), bt.indicators.SimpleMovingAverage)
-        self.fast_ma = fast_cls(self.data.close, period=self.p.fast_period)
-        self.slow_ma = slow_cls(self.data.close, period=self.p.slow_period)
-        self._trend = 0
-        self.addminperiod(max(self.p.fast_period, self.p.slow_period) + self.p.atr_period + 3)
-
-    def next(self):
-        """Detect MA transitions and write conditional trigger levels."""
-        buy_signal = 0.0
-        sell_signal = 0.0
-        fast_now = float(self.fast_ma[0])
-        fast_prev = float(self.fast_ma[-1])
-        slow_now = float(self.slow_ma[0])
-        slow_prev = float(self.slow_ma[-1])
-        avg_range = 0.0
-        for idx in range(self.p.atr_period):
-            avg_range += abs(float(self.data.high[-idx]) - float(self.data.low[-idx]))
-        avg_range /= float(self.p.atr_period)
-        if self._trend <= 0 and fast_now > slow_now and fast_prev < slow_prev:
-            buy_signal = float(self.data.low[0]) - avg_range * 0.5
-            self._trend = 1
-        if self._trend >= 0 and fast_now < slow_now and fast_prev > slow_prev:
-            sell_signal = float(self.data.high[0]) + avg_range * 0.5
-            self._trend = -1
-        self.lines.buy_signal[0] = buy_signal
-        self.lines.sell_signal[0] = sell_signal
 
 
 class ExpIinMASignalMMRecStrategy(bt.Strategy):
@@ -233,7 +149,7 @@ class ExpIinMASignalMMRecStrategy(bt.Strategy):
         """Prepare data references, indicator, order state, and MM history buffers."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.indicator = IinMASignalIndicator(
+        self.indicator = bt.indicators.IinMASignalIndicator(
             self.signal_data,
             fast_period=self.p.fast_ma_period,
             fast_ma=self.p.fast_ma_type,
@@ -450,13 +366,9 @@ class ExpIinMASignalMMRecStrategy(bt.Strategy):
             self.closing_side = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -617,7 +529,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp_Iin_MA_Signal_MMRec backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

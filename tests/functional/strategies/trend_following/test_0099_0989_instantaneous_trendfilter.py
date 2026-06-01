@@ -24,9 +24,9 @@ Strategy Logic:
     trade counters in ``extract_metrics`` for deterministic assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
@@ -35,9 +35,8 @@ from backtrader.utils.dateintern import num2date
 from backtrader.strategy import Strategy
 from backtrader.indicator import Indicator
 import backtrader.feeds as btfeeds
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -79,62 +78,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MT5 exported tab-separated CSV file as a normalized dataframe.
-
-    Args:
-        filepath: Path to the MT5 CSV file.
-        fromdate: Optional start datetime filter.
-        todate: Optional end datetime filter.
-        bar_shift_minutes: Minute offset to apply to timestamps.
-
-    Returns:
-        pd.DataFrame: Datetime-indexed dataframe with OHLCV fields.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Custom MT5 pandas feed using default column mapping for OHLCV bars."""
     params = (
@@ -146,44 +89,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class InstantaneousTrendFilterIndicator(Indicator):
-    """Indicator computing trend and trigger values from a low-lag trend filter."""
-    lines = ('trend', 'trigger')
-    params = dict(alpha=0.07)
-
-    def __init__(self):
-        """Initialize coefficients and warm-up requirements."""
-        alpha = float(self.p.alpha)
-        a2 = alpha * alpha
-        self.k0 = alpha - a2 / 4.0
-        self.k1 = 0.5 * a2
-        self.k2 = alpha - 0.75 * a2
-        self.k3 = 2.0 * (1.0 - alpha)
-        self.k4 = (1.0 - alpha) ** 2
-        self.addminperiod(1)
-
-    def next(self):
-        """Compute the current trend/trigger outputs."""
-        price0 = float(self.data.close[0])
-        if len(self) <= 4:
-            trend = price0
-        else:
-            price1 = float(self.data.close[-1])
-            price2 = float(self.data.close[-2])
-            trend = (
-                self.k0 * price0
-                + self.k1 * price1
-                - self.k2 * price2
-                + self.k3 * float(self.l.trend[-1])
-                - self.k4 * float(self.l.trend[-2])
-            )
-        self.l.trend[0] = trend
-        if len(self) <= 2:
-            self.l.trigger[0] = trend
-        else:
-            self.l.trigger[0] = 2.0 * trend - float(self.l.trend[-2])
 
 
 class InstantaneousTrendFilterStrategy(Strategy):
@@ -203,7 +108,7 @@ class InstantaneousTrendFilterStrategy(Strategy):
 
     def __init__(self):
         """Initialize indicator, order state, and strategy counters."""
-        self.indicator = InstantaneousTrendFilterIndicator(self.data, alpha=self.p.alpha)
+        self.indicator = bt.indicators.InstantaneousTrendFilterIndicator(self.data, alpha=self.p.alpha)
         self.bar_num = 0
         self.buy_signal_count = 0
         self.sell_signal_count = 0
@@ -359,7 +264,6 @@ class InstantaneousTrendFilterStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -368,9 +272,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -509,7 +411,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the inlined regression backtest and return results, metrics, and engine.
 
@@ -519,7 +420,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

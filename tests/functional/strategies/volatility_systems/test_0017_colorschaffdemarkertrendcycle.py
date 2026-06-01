@@ -41,17 +41,32 @@ Strategy Logic:
        expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
 from collections import deque
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -97,83 +112,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-class DeMarker(bt.Indicator):
-    """DeMarker oscillator measuring directional move strength (0..1)."""
-
-    lines = ('demarker',)
-    params = dict(period=14)
-
-    def __init__(self):
-        """Build the up/down move sums and emit the DeMarker ratio."""
-        self.addminperiod(self.p.period + 1)
-        high_diff = self.data.high(0) - self.data.high(-1)
-        low_diff = self.data.low(-1) - self.data.low(0)
-        up_move = bt.If(high_diff > 0, high_diff, 0.0)
-        down_move = bt.If(low_diff > 0, low_diff, 0.0)
-        up_sum = bt.ind.SumN(up_move, period=self.p.period)
-        down_sum = bt.ind.SumN(down_move, period=self.p.period)
-        total = up_sum + down_sum
-        self.lines.demarker = bt.If(total != 0, up_sum / total, 0.5)
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export CSV file.
-        fromdate: Optional lower datetime bound (inclusive) for filtering.
-        todate: Optional upper datetime bound (inclusive) for filtering.
-        bar_shift_minutes: Minutes to add to each bar timestamp.
-
-    Returns:
-        pandas.DataFrame indexed by datetime with OHLCV, openinterest, and
-        spread columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed exposing an extra ``spread`` line from MT5 exports."""
 
@@ -188,72 +126,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class ColorSchaffDeMarkerTrendCycle(bt.Indicator):
-    """Schaff Trend Cycle of DeMarker oscillators with a discrete color line."""
-
-    lines = ('stc', 'color')
-    params = dict(fast_demarker=23, slow_demarker=50, cycle=10, high_level=60, low_level=-60)
-
-    def __init__(self):
-        """Build the fast/slow DeMarkers and initialize the STC smoothing state."""
-        self.addminperiod(3 * max(int(self.p.fast_demarker), int(self.p.slow_demarker)) + int(self.p.cycle) + 5)
-        self.fast_demarker = DeMarker(self.data, period=int(self.p.fast_demarker))
-        self.slow_demarker = DeMarker(self.data, period=int(self.p.slow_demarker))
-        self.factor = 2.0 / (1.0 + float(self.p.cycle))
-        self.macd_window = deque(maxlen=int(self.p.cycle))
-        self.st_window = deque(maxlen=int(self.p.cycle))
-        self.prev_st = None
-        self.prev_stc = None
-
-    def _normalize(self, value, window, scale):
-        if not window:
-            return 0.0
-        llv = min(window)
-        hhv = max(window)
-        if hhv - llv == 0:
-            return None
-        return ((value - llv) / (hhv - llv)) * scale
-
-    def next(self):
-        """Compute the STC value and discrete color code for the current bar."""
-        fast = float(self.fast_demarker[0]) if math.isfinite(float(self.fast_demarker[0])) else 0.0
-        slow = float(self.slow_demarker[0]) if math.isfinite(float(self.slow_demarker[0])) else 0.0
-        macd = fast - slow
-        self.macd_window.append(macd)
-        st_raw = self._normalize(macd, self.macd_window, 100.0)
-        if st_raw is None:
-            st_value = self.prev_st if self.prev_st is not None else 0.0
-        else:
-            st_value = st_raw
-        if self.prev_st is not None:
-            st_value = self.factor * (st_value - self.prev_st) + self.prev_st
-        self.prev_st = st_value
-        self.st_window.append(st_value)
-        stc_raw = self._normalize(st_value, self.st_window, 200.0)
-        if stc_raw is None:
-            stc_value = self.prev_stc if self.prev_stc is not None else 0.0
-        else:
-            stc_value = stc_raw - 100.0
-        if self.prev_stc is not None:
-            stc_value = self.factor * (stc_value - self.prev_stc) + self.prev_stc
-        prev = self.prev_stc if self.prev_stc is not None else stc_value
-        self.prev_stc = stc_value
-        d_sts = stc_value - prev
-        clr = 2
-        if stc_value > 0:
-            if stc_value > float(self.p.high_level):
-                clr = 7 if d_sts >= 0 else 6
-            else:
-                clr = 5 if d_sts >= 0 else 4
-        elif stc_value < 0:
-            if stc_value < float(self.p.low_level):
-                clr = 0 if d_sts < 0 else 1
-            else:
-                clr = 2 if d_sts < 0 else 3
-        self.lines.stc[0] = stc_value
-        self.lines.color[0] = clr
 
 
 class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
@@ -285,7 +157,7 @@ class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
         """Bind feeds, build the STC indicator, and reset order/risk state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = ColorSchaffDeMarkerTrendCycle(
+        self.indicator = bt.indicators.ColorSchaffDeMarkerTrendCycle(
             self.signal_feed,
             fast_demarker=self.p.fast_demarker,
             slow_demarker=self.p.slow_demarker,
@@ -523,7 +395,6 @@ class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[3]
@@ -532,9 +403,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -688,7 +557,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest end to end and optionally plot the result.
 
@@ -698,7 +566,7 @@ def run(plot=False):
     Returns:
         Tuple of (results, metrics, cerebro) from the completed backtest.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

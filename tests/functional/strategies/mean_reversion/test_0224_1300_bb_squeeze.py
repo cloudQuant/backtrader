@@ -38,13 +38,12 @@ Strategy Logic:
     against migration-time values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,58 +81,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 export data and return an indexed OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the raw MT5 CSV.
-        fromdate: Optional start datetime.
-        todate: Optional end datetime.
-        bar_shift_minutes: Minutes to shift each bar timestamp.
-
-    Returns:
-        pandas.DataFrame: Data indexed by datetime and limited to requested range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping MT5 export columns to Backtrader OHLCV fields."""
 
@@ -141,44 +88,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class BBSqueezeIndicator(bt.Indicator):
-    """
-    Bollinger Band Squeeze: measures BB width relative to Keltner Channel.
-    Histogram = close - midline of (BB + KC) / 2, colored by whether
-    BB is inside KC (squeeze on) or outside (squeeze off).
-    Simplified: histogram = momentum (close - SMA), signal direction by
-    BB bandwidth vs KC bandwidth.
-    """
-    lines = ('squeeze', 'momentum',)
-    params = (
-        ('bb_period', 20),
-        ('bb_dev', 2.0),
-        ('kc_period', 20),
-        ('kc_mult', 1.5),
-        ('mom_period', 12),
-    )
-
-    def __init__(self):
-        """Instantiate BB, ATR, SMA, and momentum indicators used by the squeeze."""
-        self.bb = bt.indicators.BollingerBands(self.data.close, period=self.p.bb_period, devfactor=self.p.bb_dev)
-        self.atr = bt.indicators.ATR(self.data, period=self.p.kc_period)
-        self.sma = bt.indicators.SMA(self.data.close, period=self.p.kc_period)
-        self.mom = bt.indicators.Momentum(self.data.close, period=self.p.mom_period)
-
-    def next(self):
-        """Calculate squeeze state and momentum for every new bar."""
-        bb_upper = float(self.bb.top[0])
-        bb_lower = float(self.bb.bot[0])
-        bb_width = bb_upper - bb_lower
-
-        kc_upper = float(self.sma[0]) + self.p.kc_mult * float(self.atr[0])
-        kc_lower = float(self.sma[0]) - self.p.kc_mult * float(self.atr[0])
-        kc_width = kc_upper - kc_lower
-
-        self.lines.squeeze[0] = 1.0 if bb_width < kc_width else -1.0
-        self.lines.momentum[0] = float(self.mom[0])
 
 
 class BBSqueezeStrategy(bt.Strategy):
@@ -201,7 +110,7 @@ class BBSqueezeStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator and all strategy counters for assertions."""
-        self.squeeze = BBSqueezeIndicator(
+        self.squeeze = bt.indicators.BBSqueezeIndicator(
             self.data,
             bb_period=self.p.bb_period,
             bb_dev=self.p.bb_dev,
@@ -291,7 +200,6 @@ class BBSqueezeStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -368,12 +276,11 @@ def extract_metrics(strat, cerebro, frame, config):
 
 def run(plot=False):
     """Run the regression strategy once and return results and metrics."""
-    config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
+    config=_bt_load_config(_CONFIG, repo=_REPO); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)
     if plot: cerebro.plot()
     return results,metrics,cerebro
-
 
 
 if __name__=='__main__':

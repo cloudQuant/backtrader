@@ -40,14 +40,13 @@ Strategy Logic:
     expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -88,61 +87,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated OHLCV export into a backtrader-ready frame.
-
-    Args:
-        filepath: Path to the MT5 CSV file (tab-separated, ``<DATE>``/``<TIME>``
-            headers, optionally wrapped in double quotes per line).
-        fromdate: Optional inclusive lower datetime bound; earlier rows are dropped.
-        todate: Optional inclusive upper datetime bound; later rows are dropped.
-        bar_shift_minutes: Minutes added to each bar timestamp so the index marks
-            bar-close time rather than bar-open time.
-
-    Returns:
-        pandas.DataFrame: Datetime-indexed frame with ``open``, ``high``, ``low``,
-        ``close``, ``volume`` and ``openinterest`` columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader Pandas feed mapping the standard OHLCV column order."""
 
@@ -150,69 +94,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class CenterOfGravityCandleIndicator(bt.Indicator):
-    """Center-of-Gravity Candle indicator exposing center, signal, and state lines."""
-
-    lines = ('center', 'signal', 'state')
-    params = dict(
-        period=10,
-        smooth_period=3,
-        ma_method='sma',
-        applied_price='close',
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Build the center, signal, and warmup period from the applied price.
-
-        Side effects:
-            Computes ``center`` as the point-scaled product of an SMA and a LWMA
-            of the applied price, derives ``signal`` by smoothing ``center``, and
-            sets the minimum warmup period.
-        """
-        ma_cls = self._ma_class()
-        price = self._price_line()
-        sma = bt.indicators.SimpleMovingAverage(price, period=self.p.period)
-        lwma = bt.indicators.WeightedMovingAverage(price, period=self.p.period)
-        self.lines.center = (sma * lwma) / self.p.point
-        self.lines.signal = ma_cls(self.lines.center, period=self.p.smooth_period)
-        self.addminperiod(self.p.period + self.p.smooth_period + 5)
-
-    def _ma_class(self):
-        mode = str(self.p.ma_method).lower()
-        if mode in {'ema', 'mode_ema'}:
-            return bt.indicators.ExponentialMovingAverage
-        if mode in {'smma', 'smoothed', 'mode_smma'}:
-            return bt.indicators.SmoothedMovingAverage
-        if mode in {'lwma', 'wma', 'mode_lwma'}:
-            return bt.indicators.WeightedMovingAverage
-        return bt.indicators.SimpleMovingAverage
-
-    def _price_line(self):
-        mode = str(self.p.applied_price).lower()
-        if mode == 'open':
-            return self.data.open
-        if mode == 'high':
-            return self.data.high
-        if mode == 'low':
-            return self.data.low
-        if mode == 'median':
-            return (self.data.high + self.data.low) / 2.0
-        if mode == 'typical':
-            return (self.data.high + self.data.low + self.data.close) / 3.0
-        if mode == 'weighted':
-            return (self.data.high + self.data.low + self.data.close + self.data.close) / 4.0
-        if mode == 'simpl':
-            return (self.data.open + self.data.close) / 2.0
-        if mode == 'quarter':
-            return (self.data.high + self.data.low + self.data.open + self.data.close) / 4.0
-        return self.data.close
-
-    def next(self):
-        """Set ``state`` to 2 when center is above signal, else 0, for the bar."""
-        self.lines.state[0] = 2.0 if float(self.lines.center[0]) > float(self.lines.signal[0]) else 0.0
 
 
 class CenterOfGravityCandleStrategy(bt.Strategy):
@@ -242,7 +123,7 @@ class CenterOfGravityCandleStrategy(bt.Strategy):
             Creates ``self.cog`` from ``CenterOfGravityCandleIndicator`` and
             initialises bar, trade, order, and risk-state tracking attributes.
         """
-        self.cog = CenterOfGravityCandleIndicator(
+        self.cog = bt.indicators.CenterOfGravityCandleIndicator(
             self.data,
             period=self.p.period,
             smooth_period=self.p.smooth_period,
@@ -385,14 +266,12 @@ class CenterOfGravityCandleStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
 LOCAL_BACKTRADER_REPO = WORKSPACE_DIR / 'backtrader'
 if LOCAL_BACKTRADER_REPO.exists():
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
-
 
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -422,7 +301,6 @@ def resample_frame(df, minutes):
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
     resampled['openinterest'] = resampled['openinterest'].fillna(0)
     return resampled
-
 
 
 def resolve_data_path(filename):
@@ -576,7 +454,7 @@ def test_256_0255_0788_center_of_gravity_candle() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0255_0788_center_of_gravity_candle.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

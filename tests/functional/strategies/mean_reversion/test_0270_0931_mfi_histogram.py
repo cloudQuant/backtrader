@@ -25,14 +25,13 @@ Strategy Logic:
     evaluates exits, then reports counters via `extract_metrics()`.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -76,72 +75,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Recursively replace `{repo}` placeholders inside nested config objects.
-
-    Args:
-        node: Dictionary/list/string/scalar node to resolve.
-
-    Returns:
-        A node with all `{repo}` placeholders replaced by absolute path.
-    """
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Return resolved in-memory config for the regression script."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported TSV data and normalize OHLCV columns.
-
-    Args:
-        filepath: Source data file path.
-        fromdate: Optional lower datetime filter.
-        todate: Optional upper datetime filter.
-        bar_shift_minutes: Minutes to shift timestamps.
-
-    Returns:
-        Normalized DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -156,60 +93,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class MFIHistogramIndicator(bt.Indicator):
-    """Calculate Money Flow Index histogram state for color-based transitions."""
-
-    lines = ('value', 'midline', 'color_state')
-    params = dict(mfi_period=14, high_level=60, low_level=40)
-
-    def __init__(self):
-        """Initialize minimum period for MFI calculations."""
-        self.addminperiod(self.p.mfi_period + 1)
-
-    def next(self):
-        """Compute MFI and emit normalized value, midline, and color state."""
-        if len(self.data) <= self.p.mfi_period:
-            self.lines.value[0] = 50.0
-            self.lines.midline[0] = 50.0
-            self.lines.color_state[0] = 1.0
-            return
-
-        positive_flow = 0.0
-        negative_flow = 0.0
-        for ago in range(self.p.mfi_period):
-            high = float(self.data.high[-ago])
-            low = float(self.data.low[-ago])
-            close = float(self.data.close[-ago])
-            prev_high = float(self.data.high[-ago - 1])
-            prev_low = float(self.data.low[-ago - 1])
-            prev_close = float(self.data.close[-ago - 1])
-            volume = float(self.data.volume[-ago])
-            typical = (high + low + close) / 3.0
-            prev_typical = (prev_high + prev_low + prev_close) / 3.0
-            raw_money_flow = typical * volume
-            if typical > prev_typical:
-                positive_flow += raw_money_flow
-            elif typical < prev_typical:
-                negative_flow += raw_money_flow
-
-        if negative_flow <= 1e-12:
-            mfi_value = 100.0 if positive_flow > 0 else 50.0
-        else:
-            money_ratio = positive_flow / negative_flow
-            mfi_value = 100.0 - (100.0 / (1.0 + money_ratio))
-
-        color = 1.0
-        if mfi_value > float(self.p.high_level):
-            color = 0.0
-        elif mfi_value < float(self.p.low_level):
-            color = 2.0
-
-        self.lines.value[0] = mfi_value
-        self.lines.midline[0] = 50.0
-        self.lines.color_state[0] = color
-
 
 class ExpMFIHistogramStrategy(bt.Strategy):
     """Trade strategy reacting to MFI histogram color flips."""
@@ -234,7 +117,7 @@ class ExpMFIHistogramStrategy(bt.Strategy):
         """Initialize feeds, indicator and execution state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = MFIHistogramIndicator(
+        self.indicator = bt.indicators.MFIHistogramIndicator(
             self.signal_data,
             mfi_period=self.p.mfi_period,
             high_level=self.p.high_level,
@@ -352,18 +235,15 @@ class ExpMFIHistogramStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -534,7 +414,7 @@ def _extract_metrics_compat(strat, cerebro, inputs, config):
 
 def test_271_0270_0931_mfi_histogram() -> None:
     'Migrated regression test (runonce=True only). Originally located at tests/functional/strategies_regression/mean_reversion/0270_0931_mfi_histogram.'
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

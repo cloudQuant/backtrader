@@ -21,15 +21,30 @@ Strategy Logic:
     assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
 import os
 import sys
 import datetime as dt
-import io
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,111 +98,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-class KwanNrpIndicator(bt.Indicator):
-    """Compute smoothed KWAN_NRP value and direction direction states."""
-
-    lines = ('kwan', 'direction',)
-
-    params = dict(
-        k_period=5,
-        d_period=3,
-        slowing=3,
-        rsi_period=14,
-        momentum_period=14,
-        x_length=3,
-    )
-
-    def __init__(self):
-        """Prepare stochastic, RSI, and momentum components for indicator output."""
-        # --- Stochastic %D (signal line) ---
-        stoch = bt.indicators.Stochastic(
-            self.data,
-            period=self.p.k_period,
-            period_dfast=self.p.slowing,
-            period_dslow=self.p.d_period,
-        )
-        self.stoch_d = stoch.percD
-
-        # --- RSI ---
-        self.rsi = bt.indicators.RSI(
-            self.data.close,
-            period=self.p.rsi_period,
-        )
-
-        # --- Momentum Oscillator  = 100 * close / close[-period] ---
-        self.mom_osc = bt.indicators.MomentumOscillator(
-            self.data.close,
-            period=self.p.momentum_period,
-        )
-
-        # --- Raw KWAN oscillator ---
-        # kwan_raw = stoch_d * rsi / mom_osc
-        # Guard against mom_osc == 0 in next() and protect period alignment.
-        self.addminperiod(
-            max(self.p.k_period + self.p.slowing + self.p.d_period,
-                self.p.rsi_period,
-                self.p.momentum_period)
-            + self.p.x_length + 2
-        )
-
-        # Internal raw value buffer.
-        self._raw_buf = []
-
-    def next(self):
-        """Update KWAN value and directional signal line."""
-        mom = self.mom_osc[0]
-        if mom == 0 or not math.isfinite(mom):
-            kwan_raw = 100.0
-        else:
-            kwan_raw = self.stoch_d[0] * self.rsi[0] / mom
-
-        self._raw_buf.append(kwan_raw)
-
-        # Smooth raw values with a simple moving average of the last XLength bars.
-        xl = self.p.x_length
-        if len(self._raw_buf) >= xl:
-            smoothed = sum(self._raw_buf[-xl:]) / xl
-        else:
-            smoothed = kwan_raw
-
-        self.lines.kwan[0] = smoothed
-
-        # Determine direction: rise / fall / flat versus previous smoothed value.
-        if len(self._raw_buf) < xl + 1:
-            self.lines.direction[0] = 1.0
-            return
-
-        prev_smoothed_vals = self._raw_buf[-(xl + 1):-1]
-        if len(prev_smoothed_vals) >= xl:
-            prev_smoothed = sum(prev_smoothed_vals[-xl:]) / xl
-        else:
-            prev_smoothed = smoothed
-
-        if smoothed > prev_smoothed:
-            self.lines.direction[0] = 0.0  # rising
-        elif smoothed < prev_smoothed:
-            self.lines.direction[0] = 2.0  # falling
-        else:
-            self.lines.direction[0] = 1.0  # flat
-
-
 class ExpKwanNrpStrategy(bt.Strategy):
     """Reproduce Exp_KWAN_NRP with execution + signal data feeds."""
 
@@ -218,7 +128,7 @@ class ExpKwanNrpStrategy(bt.Strategy):
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
 
-        self.kwan = KwanNrpIndicator(
+        self.kwan = bt.indicators.KwanNrpIndicator(
             self.data1,
             k_period=self.p.k_period,
             d_period=self.p.d_period,
@@ -418,15 +328,12 @@ class ExpKwanNrpStrategy(bt.Strategy):
         print('=============================================')
 
 
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -442,43 +349,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV and normalize to Backtrader-compatible columns.
-
-    Args:
-        filepath: CSV file path.
-        fromdate: Optional start timestamp.
-        todate: Optional end timestamp.
-        bar_shift_minutes: Minutes added to all bar timestamps.
-
-    Returns:
-        Normalized DataFrame indexed by datetime.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, minutes):
@@ -497,7 +367,6 @@ def resample_frame(df, minutes):
     out['openinterest'] = out['openinterest'].fillna(0)
     out['spread'] = out['spread'].fillna(0)
     return out
-
 
 
 def load_backtest_frame(config: dict) -> dict:
@@ -571,7 +440,7 @@ def run(cfg_path: str | None = None):
     """Run backtest once and return results and metrics."""
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
-    cfg = load_config(cfg_path)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO)
 
     data_cfg = cfg['data']
     params_cfg = cfg.get('params', {})

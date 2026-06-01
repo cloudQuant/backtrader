@@ -31,15 +31,14 @@ migration time.
 from __future__ import annotations
 import math
 from pathlib import Path
-import io
 import json
 import sys
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
 import numpy as np
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -78,68 +77,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 CSV data and return a normalized Backtrader-compatible DataFrame.
-
-    Args:
-        filepath: Source MT5 CSV file path.
-        fromdate: Optional start datetime for slicing.
-        todate: Optional end datetime for slicing.
-        bar_shift_minutes: Optional minute-level index shift applied to bars.
-
-    Returns:
-        pandas.DataFrame: Time-indexed OHLCV DataFrame.
-    """
-    with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = '\n'.join(lines)
-    sep = '\t' if '\t' in lines[0] else ','
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df['<DATE>'].astype(str) + ' ' + df['<TIME>'].astype(str)
-    parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M', errors='coerce')
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format='%Y.%m.%d %H:%M:%S', errors='coerce')
-    df['datetime'] = parsed
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-        '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume'] if 'tick_volume' in df.columns else 0
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 def prepare_double_7s_features(df, params):
     """Prepare double-7 moving-window signals for entry and exit decisions."""
     out = df.copy()
@@ -147,7 +84,7 @@ def prepare_double_7s_features(df, params):
     n_low = int(params.get('n_low', 7))
     n_high = int(params.get('n_high', 7))
     
-    # Trend filter by long-window SMA.
+    # Trend filter by long-window bt.indicators.SMA.
     out['sma'] = out['close'].rolling(sma_period).mean()
     
     # Rolling lows and highs for the configured N-day windows.
@@ -271,9 +208,6 @@ class Double7sMeanReversionStrategy(bt.Strategy):
 """Double 7s Mean Reversion backtest migration."""
 
 
-
-
-
 BASE_DIR = Path(__file__).parent.resolve()
 
 
@@ -309,7 +243,6 @@ def calculate_ulcer_index(values):
         drawdown = (max_value - v) / max_value * 100.0 if max_value > 0 else 0.0
         sum_squared += drawdown ** 2
     return math.sqrt(sum_squared / len(values))
-
 
 
 def load_data(config):
@@ -448,7 +381,7 @@ def test_2_0002_double_7s_mean_reversion() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0002_double_7s_mean_reversion.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

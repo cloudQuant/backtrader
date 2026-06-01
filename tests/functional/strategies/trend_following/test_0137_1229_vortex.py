@@ -35,13 +35,12 @@ Strategy Logic:
     asserts each value against the baseline recorded at migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -75,60 +74,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 ``.csv`` export (tab-separated).
-        fromdate: Optional lower bound; rows before it are dropped.
-        todate: Optional upper bound; rows after it are dropped.
-        bar_shift_minutes: Number of minutes to add to each timestamp so bars
-            align to their close time.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping the standard OHLCV columns by position."""
 
@@ -136,55 +81,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class VortexIndicator(bt.Indicator):
-    """
-    Vortex Indicator (VI+ and VI-).
-    VM+ = |High[0] - Low[-1]|
-    VM- = |Low[0] - High[-1]|
-    TR  = max(High-Low, |High-Close[-1]|, |Low-Close[-1]|)
-    VI+ = sum(VM+, period) / sum(TR, period)
-    VI- = sum(VM-, period) / sum(TR, period)
-    """
-    lines = ('vi_plus', 'vi_minus',)
-    params = (('period', 14),)
-
-    def __init__(self):
-        """No setup needed; VI+/VI- are computed bar-by-bar in ``next``."""
-        pass
-
-    def next(self):
-        """Compute VI+ and VI- from summed vortex movement over true range."""
-        p = self.p.period
-        if len(self.data) < p + 2:
-            self.lines.vi_plus[0] = 0.0
-            self.lines.vi_minus[0] = 0.0
-            return
-
-        vm_plus_sum = 0.0
-        vm_minus_sum = 0.0
-        tr_sum = 0.0
-        for i in range(p):
-            idx = -i
-            idx_prev = idx - 1
-            h = float(self.data.high[idx])
-            l = float(self.data.low[idx])
-            h_prev = float(self.data.high[idx_prev])
-            l_prev = float(self.data.low[idx_prev])
-            c_prev = float(self.data.close[idx_prev])
-
-            vm_plus_sum += abs(h - l_prev)
-            vm_minus_sum += abs(l - h_prev)
-            tr_sum += max(h - l, abs(h - c_prev), abs(l - c_prev))
-
-        if tr_sum > 0:
-            self.lines.vi_plus[0] = vm_plus_sum / tr_sum
-            self.lines.vi_minus[0] = vm_minus_sum / tr_sum
-        else:
-            self.lines.vi_plus[0] = 0.0
-            self.lines.vi_minus[0] = 0.0
-
 
 class VortexStrategy(bt.Strategy):
     """
@@ -201,7 +97,7 @@ class VortexStrategy(bt.Strategy):
 
     def __init__(self):
         """Attach the Vortex indicator and zero the trade/position counters."""
-        self.vortex = VortexIndicator(self.data, period=self.p.vortex_period)
+        self.vortex = bt.indicators.VortexIndicator(self.data, period=self.p.vortex_period)
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -278,7 +174,6 @@ class VortexStrategy(bt.Strategy):
             self.loss_count += 1
         self._position_was_open = False
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
-
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -389,12 +284,11 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro)
     """
-    config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
+    config=_bt_load_config(_CONFIG, repo=_REPO); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)
     if plot: cerebro.plot()
     return results,metrics,cerebro
-
 
 
 if __name__=='__main__':

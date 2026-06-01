@@ -28,8 +28,7 @@ Strategy Principle:
 
 Strategy Logic:
     load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
-    strategy and the default analyzers, building the Color3rdGenXMAIndicator
-    (helpers resolve_ma_class and resolve_price_line select the MA type and
+    strategy and the default analyzers, building the bt.indicators.Color3rdGenXMAIndicator(helpers resolve_ma_class and resolve_price_line select the MA type and
     applied price). Each bar the strategy reads the indicator color at the
     configured signal bar, opens a long/short only at the configured session
     start time, and closes after ``time_min`` minutes in the market.
@@ -39,15 +38,14 @@ Strategy Logic:
     migration-time expectations.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -88,62 +86,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -160,7 +105,7 @@ def resolve_ma_class(name):
 
     Args:
         name: MA type name (e.g. ``sma``, ``ema``, ``smma`` or MT5-style
-            ``mode_*`` variants); several smoothing variants map to EMA.
+            ``mode_*`` variants); several smoothing variants map to bt.indicators.EMA.
 
     Returns:
         The matching backtrader moving-average indicator class, defaulting to
@@ -210,33 +155,6 @@ def resolve_price_line(data, mode):
     return (data.high + data.low + data.close) / 3.0
 
 
-class Color3rdGenXMAIndicator(bt.Indicator):
-    """Third-generation (reduced-lag) moving average with a slope color.
-
-    Combines a base moving average with a re-smoothed version using a
-    lambda-derived alpha to cut lag, exposing the resulting line on ``value`` and
-    a ``color`` line marking whether it is rising (2), falling (0) or flat (1).
-    """
-
-    lines = ('value', 'color')
-    params = dict(xma_method='ema', xlength=50, xphase=15, ipc='price_typical', price_shift=0)
-
-    def __init__(self):
-        """Build the two-stage moving average and the value/color lines."""
-        price = resolve_price_line(self.data, self.p.ipc)
-        ma_cls = resolve_ma_class(self.p.xma_method)
-        slength = max(1, int(self.p.xlength) * 2)
-        self._x1 = ma_cls(price, period=slength)
-        self._x2 = ma_cls(self._x1, period=max(1, int(self.p.xlength)))
-        lam = float(slength) / max(1.0, float(self.p.xlength))
-        self._alpha = lam * (slength - 1.0) / max(1e-9, (slength - lam))
-        self._dprice_shift = float(self.p.price_shift) * 0.00001
-        value = (self._alpha + 1.0) * self._x1 - self._alpha * self._x2 + self._dprice_shift
-        self.lines.value = value
-        self.lines.color = bt.If(value > value(-1), 2.0, bt.If(value < value(-1), 0.0, 1.0))
-        self.addminperiod(slength + int(self.p.xlength) + 5)
-
-
 class Color3rdGenXMAStrategy(bt.Strategy):
     """Port of the MT5 ``Exp_Color3rdGenXMA`` slope-color, time-gated strategy.
 
@@ -274,7 +192,7 @@ class Color3rdGenXMAStrategy(bt.Strategy):
 
     def __init__(self):
         """Build the Color3rdGenXMA indicator and reset bar/trade counters."""
-        self.indicator = Color3rdGenXMAIndicator(
+        self.indicator = bt.indicators.Color3rdGenXMAIndicator(
             self.data,
             xma_method=self.p.xma_method,
             xlength=self.p.xlength,
@@ -388,17 +306,14 @@ class Color3rdGenXMAStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -530,7 +445,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the Color3rdGenXMA backtest and optionally plot the result.
 
@@ -540,7 +454,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)`` from the completed run.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

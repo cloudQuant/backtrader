@@ -24,14 +24,29 @@ Strategy Logic:
     and validates the captured migration metrics through assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -85,63 +100,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV file and normalize it into Backtrader-ready DataFrame.
-
-    Args:
-        filepath: Raw MT5 CSV/TSV file path.
-        fromdate: Filter all bars before this datetime.
-        todate: Filter all bars after this datetime.
-        bar_shift_minutes: Optional bar datetime offset in minutes.
-
-    Returns:
-        DataFrame indexed by datetime with Open-High-Low-Close-Volume fields.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed extension carrying spread as an additional data line."""
     lines = ('spread',)
@@ -155,63 +113,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class XRSIHistogramVolIndicator(bt.Indicator):
-    """Volume-scaled RSI histogram indicator producing directional color states."""
-    lines = ('color_state', 'value', 'max_level', 'up_level', 'dn_level', 'min_level')
-    params = dict(rsi_period=14, high_level2=17, high_level1=5, low_level1=-5, low_level2=-17, ma_length=12)
-
-    def __init__(self):
-        """Prepare rolling RSI and volume histories."""
-        self._scaled_history = []
-        self._volume_history = []
-        self.addminperiod(max(self.p.rsi_period, self.p.ma_length) + 3)
-
-    def next(self):
-        """Calculate scaled histogram level and classify it into a color state."""
-        vol = float(self.data.volume[0]) if len(self.data.volume) else 0.0
-        gains = []
-        losses = []
-        for idx in range(self.p.rsi_period):
-            delta = float(self.data.close[-idx]) - float(self.data.close[-idx - 1])
-            gains.append(max(delta, 0.0))
-            losses.append(max(-delta, 0.0))
-        avg_gain = sum(gains) / float(len(gains))
-        avg_loss = sum(losses) / float(len(losses))
-        if avg_loss <= 1e-12:
-            rsi_value = 100.0 if avg_gain > 0 else 50.0
-        else:
-            rs = avg_gain / avg_loss
-            rsi_value = 100.0 - (100.0 / (1.0 + rs))
-        raw = (rsi_value - 50.0) * vol
-        self._scaled_history.append(raw)
-        self._volume_history.append(vol)
-        if len(self._scaled_history) > self.p.ma_length:
-            self._scaled_history.pop(0)
-        if len(self._volume_history) > self.p.ma_length:
-            self._volume_history.pop(0)
-        scaled = sum(self._scaled_history) / float(len(self._scaled_history))
-        avg_vol = sum(self._volume_history) / float(len(self._volume_history)) if self._volume_history else max(vol, 1.0)
-        max_level = self.p.high_level2 * avg_vol
-        up_level = self.p.high_level1 * avg_vol
-        dn_level = self.p.low_level1 * avg_vol
-        min_level = self.p.low_level2 * avg_vol
-        clr = 2.0
-        if scaled > max_level:
-            clr = 0.0
-        elif scaled > up_level:
-            clr = 1.0
-        elif scaled < min_level:
-            clr = 4.0
-        elif scaled < dn_level:
-            clr = 3.0
-        self.lines.value[0] = scaled
-        self.lines.max_level[0] = max_level
-        self.lines.up_level[0] = up_level
-        self.lines.dn_level[0] = dn_level
-        self.lines.min_level[0] = min_level
-        self.lines.color_state[0] = clr
 
 
 class ExpXRSIHistogramVolStrategy(bt.Strategy):
@@ -243,7 +144,7 @@ class ExpXRSIHistogramVolStrategy(bt.Strategy):
         """Initialize state, strategy config references, indicator and book-keeping fields."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.indicator = XRSIHistogramVolIndicator(
+        self.indicator = bt.indicators.XRSIHistogramVolIndicator(
             self.signal_data,
             rsi_period=self.p.rsi_period,
             high_level2=self.p.high_level2,
@@ -437,13 +338,9 @@ class ExpXRSIHistogramVolStrategy(bt.Strategy):
             self.closing_side = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -604,7 +501,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp_XRSI_Histogram_Vol backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

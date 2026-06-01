@@ -3,48 +3,15 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5 export into an intraday OHLCV DataFrame.
-
-    Args:
-        filepath: Path to MT5 CSV/TSV input file.
-        fromdate: Optional inclusive lower datetime bound.
-        todate: Optional inclusive upper datetime bound.
-        bar_shift_minutes: Minutes to shift bar timestamps for close-time alignment.
-
-    Returns:
-        DataFrame indexed by datetime with open/high/low/close/volume/openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -53,27 +20,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class I4DRFV2(bt.Indicator):
-    """Close-difference indicator producing value and binary color trend state."""
-    lines = ("color", "value")
-    params = dict(period=11)
-
-    def __init__(self):
-        """Initialize the minimum period requirement."""
-        self.addminperiod(int(self.p.period) + 2)
-
-    def next(self):
-        """Compute current indicator value and color."""
-        total = 0.0
-        period = int(self.p.period)
-        for i in range(period):
-            diff = float(self.data.close[-i]) - float(self.data.close[-(i + 1)])
-            total += 1.0 if diff > 0 else -1.0
-        value = total / float(period) * 100.0
-        self.lines.value[0] = value
-        self.lines.color[0] = 1.0 if value > 0 else 0.0
 
 
 class ExpI4DRFV2Strategy(bt.Strategy):
@@ -97,7 +43,7 @@ class ExpI4DRFV2Strategy(bt.Strategy):
         """Wire feeds/indicator and reset strategy state for a run."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = I4DRFV2(self.signal_data, period=self.p.period)
+        self.ind = bt.indicators.I4DRFV2(self.signal_data, period=self.p.period)
         self.signal_count = 0
         self.trade_count = 0
         self.buy_count = 0

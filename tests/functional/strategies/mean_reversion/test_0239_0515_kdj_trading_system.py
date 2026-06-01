@@ -26,14 +26,13 @@ Strategy Principle:
         - Target Exits: Fixed Stop Loss (25 pips) and Take Profit (45 pips).
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -72,110 +71,11 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Load the inlined strategy and backtest configuration dict.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class KDJIndicator(bt.Indicator):
-    """Indicator class implementing the custom KDJ oscillator.
-
-    Lines:
-        kdc (Line): Output difference line (%K - %D).
-        rsv (Line): Raw Stochastic Value line.
-        k (Line): Smoothed %K line.
-        d (Line): Smoothed %D line.
-    """
-    lines = ('kdc', 'rsv', 'k', 'd')
-    params = dict(m1=3, m2=6, kdj_period=30)
-
-    def __init__(self):
-        """Initialize the custom KDJ indicator and establish minimum warmup period."""
-        self.addminperiod(int(self.p.kdj_period) + int(self.p.m2) + 2)
-
-    def next(self):
-        """Calculate RSV, %K, %D, and %K-%D values on each new bar."""
-        kdj_period = int(self.p.kdj_period)
-        m1 = int(self.p.m1)
-        m2 = int(self.p.m2)
-        highs = [float(self.data.high[-i]) for i in range(kdj_period)]
-        lows = [float(self.data.low[-i]) for i in range(kdj_period)]
-        max_high = max(highs)
-        min_low = min(lows)
-        if max_high - min_low != 0.0:
-            self.lines.rsv[0] = (float(self.data.close[0]) - min_low) / (max_high - min_low) * 100.0
-        else:
-            self.lines.rsv[0] = 1.0
-        rsv_values = []
-        for i in range(m1):
-            value = float(self.lines.rsv[-i]) if len(self) > i else 50.0
-            rsv_values.append(value)
-        self.lines.k[0] = sum(rsv_values) / float(m1)
-        k_values = []
-        for i in range(m2):
-            value = float(self.lines.k[-i]) if len(self) > i else 50.0
-            k_values.append(value)
-        self.lines.d[0] = sum(k_values) / float(m2)
-        self.lines.kdc[0] = float(self.lines.k[0]) - float(self.lines.d[0])
 
 
 class KDJTradingSystemStrategy(bt.Strategy):
@@ -198,7 +98,7 @@ class KDJTradingSystemStrategy(bt.Strategy):
     def __init__(self):
         """Initialize indicators, backtest tracking metrics, and state variables."""
         self.data_h1 = self.datas[1]
-        self.kdj = KDJIndicator(self.data_h1, m1=int(self.p.m1), m2=int(self.p.m2), kdj_period=int(self.p.kdj_period))
+        self.kdj = bt.indicators.KDJIndicator(self.data_h1, m1=int(self.p.m1), m2=int(self.p.m2), kdj_period=int(self.p.kdj_period))
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -318,7 +218,6 @@ class KDJTradingSystemStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -328,7 +227,6 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -512,7 +410,7 @@ def test_240_0239_0515_kdj_trading_system() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0239_0515_kdj_trading_system.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

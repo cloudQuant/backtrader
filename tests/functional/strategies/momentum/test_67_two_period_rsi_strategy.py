@@ -8,13 +8,13 @@ Larry Connor's 2-Period RSI Strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -56,8 +56,8 @@ class TwoPeriodRSIStrategy(bt.Strategy):
     Attributes:
         dataclose: Reference to the close price data.
         rsi: 2-period RSI indicator.
-        sma5: 5-period Simple Moving Average.
-        sma200: 200-period Simple Moving Average.
+        sma5: 5-period Simple Moving bt.indicators.Average.
+        sma200: 200-period Simple Moving bt.indicators.Average.
         order: Current pending order.
         last_operation: Last operation type ("BUY" or "SELL").
         bar_num: Number of bars processed.

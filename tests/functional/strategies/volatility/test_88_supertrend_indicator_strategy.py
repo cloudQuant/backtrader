@@ -25,10 +25,10 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
 import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -72,117 +72,6 @@ def resolve_data_path(filename: str) -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
-
-
-class SuperTrendIndicator(bt.Indicator):
-    """SuperTrend trend-following indicator.
-
-    The SuperTrend indicator is a trend-following indicator that uses the
-    Average True Range (ATR) to calculate upper and lower bands around price.
-    It determines the current trend direction and provides a dynamic support/
-    resistance line that adjusts based on volatility.
-
-    The indicator is calculated as follows:
-        1. Calculate basic upper and lower bands using HL2 +/- (multiplier * ATR)
-        2. Modify the bands to only change when price crosses them
-        3. Determine trend based on price position relative to previous bands
-        4. Return the appropriate band as the SuperTrend line
-
-    Lines:
-        st: The SuperTrend line (acts as dynamic support/resistance)
-        final_up: Modified upper band
-        final_dn: Modified lower band
-        trend: Current trend direction (1 for uptrend, -1 for downtrend)
-
-    Params:
-        period: ATR calculation period (default: 20)
-        multiplier: ATR multiplier for band width (default: 3.0)
-
-    Interpretation:
-        - When price is above the SuperTrend line, the trend is up (bullish)
-        - When price is below the SuperTrend line, the trend is down (bearish)
-        - The line acts as trailing stop-loss level
-    """
-    lines = ('st', 'final_up', 'final_dn', 'trend')
-    params = dict(period=20, multiplier=3.0)
-
-    def __init__(self):
-        """Initialize the SuperTrend indicator.
-
-        Sets up the internal calculations:
-            - ATR indicator for volatility measurement
-            - Basic upper and lower bands based on HL2 +/- (multiplier * ATR)
-            - Minimum period requirement (period + 1 bars needed)
-
-        The basic bands are calculated as:
-            basic_up = hl2 + (multiplier * ATR)
-            basic_dn = hl2 - (multiplier * ATR)
-
-        where hl2 = (high + low) / 2
-        """
-        self.atr = bt.indicators.ATR(self.data, period=self.p.period)
-        hl2 = (self.data.high + self.data.low) / 2.0
-        self.basic_up = hl2 + self.p.multiplier * self.atr
-        self.basic_dn = hl2 - self.p.multiplier * self.atr
-        self.addminperiod(self.p.period + 1)
-
-    def next(self):
-        """Calculate the SuperTrend indicator values for the current bar.
-
-        This method is called for each bar in the data series and performs
-        the following calculations:
-
-        1. **Initialization (first bar)**: Set final bands to basic bands,
-           initialize trend to uptrend (1), and set SuperTrend line to lower band
-
-        2. **Band Modification**: Update final upper/lower bands using special logic:
-           - Upper band decreases if basic_up < previous final_up OR previous close > previous final_up
-           - Lower band increases if basic_dn > previous final_dn OR previous close < previous final_dn
-           - Otherwise, carry forward the previous band value
-
-        3. **Trend Detection**: Determine trend direction:
-           - Uptrend (1) if current close > previous final upper band
-           - Downtrend (-1) if current close < previous final lower band
-           - Keep previous trend if neither condition is met
-
-        4. **SuperTrend Line**: Set to final lower band in uptrend, final upper band in downtrend
-
-        The band modification ensures the bands only change when price breaks through them,
-        creating a trailing effect that follows the trend.
-        """
-        if len(self) == self.p.period + 1:
-            self.final_up[0] = self.basic_up[0]
-            self.final_dn[0] = self.basic_dn[0]
-            self.trend[0] = 1
-            self.st[0] = self.basic_dn[0]
-            return
-
-        prev_fu = self.final_up[-1]
-        prev_fd = self.final_dn[-1]
-
-        # Update upper band
-        if self.basic_up[0] < prev_fu or self.data.close[-1] > prev_fu:
-            self.final_up[0] = self.basic_up[0]
-        else:
-            self.final_up[0] = prev_fu
-
-        # Update lower band
-        if self.basic_dn[0] > prev_fd or self.data.close[-1] < prev_fd:
-            self.final_dn[0] = self.basic_dn[0]
-        else:
-            self.final_dn[0] = prev_fd
-
-        # Determine trend direction
-        if self.data.close[0] > self.final_up[-1]:
-            self.trend[0] = 1
-        elif self.data.close[0] < self.final_dn[-1]:
-            self.trend[0] = -1
-        else:
-            self.trend[0] = self.trend[-1]
-
-        # Set SuperTrend line
-        self.st[0] = self.final_dn[0] if self.trend[0] > 0 else self.final_up[0]
-
 
 class SuperTrendIndicatorStrategy(bt.Strategy):
     """Trading strategy based on SuperTrend indicator signals.
@@ -234,7 +123,7 @@ class SuperTrendIndicatorStrategy(bt.Strategy):
         self.dataclose = self.datas[0].close
 
         # SuperTrend indicator
-        self.st = SuperTrendIndicator(
+        self.st = bt.indicators.SuperTrendBandsIndicator(
             self.data,
             period=self.p.st_period,
             multiplier=self.p.st_mult

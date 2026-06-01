@@ -17,7 +17,7 @@ Strategy Principle:
 Strategy Logic:
     __init__ creates H4 StdDev(30)/CCI(11) and M15 MACD(20,50,2)/ATR(12).
     next() waits for warmup, checks CCI + MACD cross for entry direction,
-    and opens positions with SL/TP based on StdDev. Existing positions check
+    and opens positions with SL/TP based on bt.indicators.StdDev. Existing positions check
     breakeven, MACD/ATR-based close conditions, and protection levels.
     notify_order tracks completed/rejected orders. notify_trade counts
     win/loss and stores last trade profit for loss-factor sizing.
@@ -25,38 +25,14 @@ Strategy Logic:
 from __future__ import annotations
 
 import datetime
-import io
 from pathlib import Path
 
 import backtrader as bt
 import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader5 CSV export into a pandas DataFrame with datetime index."""
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "tick_volume", "<VOL>": "real_volume",
-    })
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"]
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime")
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_h4(df):

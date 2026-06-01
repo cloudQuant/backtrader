@@ -36,9 +36,9 @@ Strategy Logic:
     migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 from backtrader.dataseries import TimeFrame
 from backtrader.comminfo import CommInfoBase
@@ -50,8 +50,8 @@ from backtrader.indicator import Indicator
 import backtrader.indicators as btind
 import backtrader.functions as btfunc
 import backtrader.feeds as btfeeds
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,60 +95,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume and openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
     """Backtrader PandasData feed mapping the MT5 OHLCV column layout.
 
@@ -160,42 +106,6 @@ class Mt5PandasFeed(btfeeds.PandasData):
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class BlauErgodic(Indicator):
-    """Blau Ergodic oscillator: triple-smoothed normalised momentum.
-
-    Price momentum and its absolute value are each triple-smoothed with EMAs;
-    the main line is 100 times their ratio (guarded against division by zero).
-    The signal line is an EMA of the main line, and spread is their difference.
-    """
-
-    lines = ('main', 'signal', 'spread')
-    params = dict(
-        xlength=2,
-        xlength1=20,
-        xlength2=5,
-        xlength3=3,
-        xlength4=3,
-    )
-
-    def __init__(self):
-        """Build the triple-EMA momentum chain for main, signal and spread."""
-        shift = max(int(self.p.xlength) - 1, 1)
-        momentum = self.data.close - self.data.close(-shift)
-        abs_momentum = abs(momentum)
-
-        xmom = btind.EMA(momentum, period=int(self.p.xlength1))
-        xxmom = btind.EMA(xmom, period=int(self.p.xlength2))
-        xxxmom = btind.EMA(xxmom, period=int(self.p.xlength3))
-
-        xabsmom = btind.EMA(abs_momentum, period=int(self.p.xlength1))
-        xxabsmom = btind.EMA(xabsmom, period=int(self.p.xlength2))
-        xxxabsmom = btind.EMA(xxabsmom, period=int(self.p.xlength3))
-
-        self.l.main = btfunc.DivByZero(100.0 * xxxmom, xxxabsmom, zero=0.0)
-        self.l.signal = btind.EMA(self.l.main, period=int(self.p.xlength4))
-        self.l.spread = self.l.main - self.l.signal
 
 
 class BlauErgodicStrategy(Strategy):
@@ -227,7 +137,7 @@ class BlauErgodicStrategy(Strategy):
 
     def __init__(self):
         """Build the Blau Ergodic oscillator, reset counters and warmup length."""
-        self.osc = BlauErgodic(
+        self.osc = bt.indicators.BlauErgodic(
             self.data,
             xlength=self.p.xlength,
             xlength1=self.p.xlength1,
@@ -469,13 +379,9 @@ class BlauErgodicStrategy(Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -671,7 +577,7 @@ def test_302_0301_1108_blau_ergodic() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0301_1108_blau_ergodic.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

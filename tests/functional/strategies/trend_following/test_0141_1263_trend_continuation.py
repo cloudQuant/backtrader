@@ -29,15 +29,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -74,60 +73,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 tab-separated market data into a cleaned Backtrader DataFrame.
-
-    Args:
-        filepath: Input file path.
-        fromdate: Optional start datetime inclusive.
-        todate: Optional end datetime inclusive.
-        bar_shift_minutes: Optional timestamp shift to align session offset.
-
-    Returns:
-        DataFrame indexed by datetime with normalized OHLCV/openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -178,51 +126,6 @@ def resolve_price_line(data, mode):
     if price_mode in {'price_quarter', 'quarter'}:
         return (data.high + data.low + data.open + data.close) / 4.0
     return data.close
-
-
-class TrendContinuationIndicator(bt.Indicator):
-    """Momentum continuation indicator using smoothed up/down directional components."""
-    lines = ('up', 'down')
-    params = dict(nperiod=20, xmethod='t3', xperiod=5, xphase=61, ipc='price_close')
-
-    def __init__(self):
-        """Resolve price source and moving-average class then enforce warm-up period."""
-        self._price = resolve_price_line(self.data, self.p.ipc)
-        self._ma_cls = resolve_ma_class(self.p.xmethod)
-        self.addminperiod(int(self.p.nperiod) + int(self.p.xperiod) + 5)
-
-    def next(self):
-        """Compute smoothed up/down continuation values from directional price differences."""
-        nperiod = max(2, int(self.p.nperiod))
-        dprice = float(self._price[0]) - float(self._price[-1])
-        positives = []
-        negatives = []
-        cf_p = []
-        cf_n = []
-        running_p = 0.0
-        running_n = 0.0
-        for i in range(nperiod):
-            diff = float(self._price[-i]) - float(self._price[-i - 1])
-            pos = -diff if diff > 0 else 0.0
-            neg = diff if diff < 0 else 0.0
-            running_p += pos
-            running_n += neg
-            positives.append(pos)
-            negatives.append(neg)
-            cf_p.append(running_p)
-            cf_n.append(running_n)
-        ch_p = sum(positives)
-        ch_n = sum(negatives)
-        cff_p = sum(cf_p)
-        cff_n = sum(cf_n)
-        k_p = ch_p - cff_n
-        k_n = ch_n - cff_p
-        period = max(1, int(self.p.xperiod))
-        alpha = 2.0 / (period + 1.0)
-        prev_up = float(self.lines.up[-1]) if len(self) > 0 else k_p
-        prev_dn = float(self.lines.down[-1]) if len(self) > 0 else k_n
-        self.lines.up[0] = alpha * k_p + (1.0 - alpha) * prev_up if len(self) > 0 else k_p
-        self.lines.down[0] = alpha * k_n + (1.0 - alpha) * prev_dn if len(self) > 0 else k_n
 
 
 class TrendContinuationStrategy(bt.Strategy):
@@ -339,17 +242,14 @@ class TrendContinuationStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -473,7 +373,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest and return results, metrics, and engine.
 
@@ -483,7 +382,7 @@ def run(plot=False):
     Returns:
         Tuple ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

@@ -26,14 +26,13 @@ Strategy Logic:
     `extract_metrics()` summarizes test assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -77,72 +76,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Recursively replace `{repo}` placeholders within configuration values.
-
-    Args:
-        node: A nested config object.
-
-    Returns:
-        Resolved object with concrete filesystem path substitutions.
-    """
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Return the deep-copied, resolved config structure."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported tab data and normalize OHLCV index.
-
-    Args:
-        filepath: Source file path.
-        fromdate: Optional start datetime window.
-        todate: Optional end datetime window.
-        bar_shift_minutes: Minute offset to apply after parsing.
-
-    Returns:
-        DataFrame indexed by datetime with standardized OHLCV fields.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -157,30 +94,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class RSIHistogramIndicator(bt.Indicator):
-    """Compute RSI values and convert to a three-state color histogram."""
-
-    lines = ('value', 'midline', 'color_state')
-    params = dict(rsi_period=14, high_level=60, low_level=40)
-
-    def __init__(self):
-        """Initialize RSI and minimum period."""
-        self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period, safediv=True)
-        self.addminperiod(self.p.rsi_period + 1)
-
-    def next(self):
-        """Update value, midline, and current color state."""
-        rsi_value = float(self.rsi[0])
-        color = 1.0
-        if rsi_value > float(self.p.high_level):
-            color = 0.0
-        elif rsi_value < float(self.p.low_level):
-            color = 2.0
-        self.lines.value[0] = rsi_value
-        self.lines.midline[0] = 50.0
-        self.lines.color_state[0] = color
 
 
 class ExpRSIHistogramStrategy(bt.Strategy):
@@ -206,7 +119,7 @@ class ExpRSIHistogramStrategy(bt.Strategy):
         """Initialize state variables, counters, and RSI indicator instance."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = RSIHistogramIndicator(
+        self.indicator = bt.indicators.RSIHistogramIndicator(
             self.signal_data,
             rsi_period=self.p.rsi_period,
             high_level=self.p.high_level,
@@ -321,18 +234,15 @@ class ExpRSIHistogramStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -506,7 +416,7 @@ def test_272_0271_0932_rsi_histogram() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0271_0932_rsi_histogram.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

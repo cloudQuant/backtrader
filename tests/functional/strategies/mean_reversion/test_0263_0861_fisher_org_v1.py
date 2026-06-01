@@ -22,56 +22,16 @@ Strategy Logic:
   point distances, configurable buy/sell open/close gating
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5-exported CSV data into a datetime-indexed DataFrame.
-
-    Parameters
-    ----------
-    filepath : str or Path
-        Path to the MT5 CSV file.
-    fromdate : datetime or None
-        Earliest date to include.
-    todate : datetime or None
-        Latest date to include.
-    bar_shift_minutes : int
-        Minutes to shift the datetime index forward.
-
-    Returns
-    -------
-    pd.DataFrame
-        Columns: datetime, open, high, low, close, volume, openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def _build_signal_frame(df, minutes):
@@ -134,49 +94,6 @@ def _price(data, mode, ago=0):
     return c
 
 
-class FisherOrgV1(bt.Indicator):
-    """Fisher Transform indicator producing a Gaussian-like signal line and its lagged trigger.
-
-    Lines
-    -----
-    fisher : float
-        Current smoothed Fisher Transform value.
-    trigger : float
-        Previous bar's fisher value, used for crossover detection.
-    """
-    lines = ("fisher", "trigger")
-    params = dict(length=7, ipc=1)
-
-    def __init__(self):
-        """Initialise indicator state and smoothing recursive value."""
-        self.addminperiod(int(self.p.length) + 2)
-        self._value1 = 0.0
-
-    def next(self):
-        """Compute Fisher Transform value and set fisher/trigger lines."""
-        length = int(self.p.length)
-        highs = [float(self.data.high[-i]) for i in range(length)]
-        lows = [float(self.data.low[-i]) for i in range(length)]
-        smax = max(highs)
-        smin = min(lows)
-        if smax == smin:
-            smax += 1e-12
-        price = _price(self.data, int(self.p.ipc), 0)
-        wpr = (price - smin) / (smax - smin)
-        value0 = (wpr - 0.5) + 0.67 * self._value1
-        value0 = min(max(value0, -0.999), 0.999)
-        fisher_prev = float(self.lines.fisher[-1]) if len(self) > 1 else 0.0
-        if not math.isfinite(fisher_prev):
-            fisher_prev = 0.0
-        res2 = (1.0 + value0) / (1.0 - value0)
-        if res2 < 1e-7:
-            res2 = 1.0
-        fisher = 0.5 * math.log(res2) + 0.5 * fisher_prev
-        self.lines.fisher[0] = fisher
-        self.lines.trigger[0] = fisher_prev
-        self._value1 = value0
-
-
 class ExpFisherOrgV1Strategy(bt.Strategy):
     """Dual-timeframe strategy trading FisherOrgV1 crossover signals."""
     params = dict(
@@ -192,7 +109,7 @@ class ExpFisherOrgV1Strategy(bt.Strategy):
         """Initialise strategy: bind data feeds and create FisherOrgV1 indicator."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = FisherOrgV1(self.signal_data, length=self.p.length, ipc=self.p.ipc)
+        self.ind = bt.indicators.FisherOrgV1(self.signal_data, length=self.p.length, ipc=self.p.ipc)
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0

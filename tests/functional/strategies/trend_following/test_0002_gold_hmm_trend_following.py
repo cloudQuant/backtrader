@@ -38,7 +38,6 @@ Strategy Logic:
 from __future__ import annotations
 
 import datetime
-import io
 import warnings
 from pathlib import Path
 
@@ -46,6 +45,7 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_mt5_csv
 
 # Optional ML dependency: skip the whole module when hmmlearn is absent
 # (e.g. minimal CI images) instead of failing at import/collection time.
@@ -57,52 +57,6 @@ warnings.filterwarnings("ignore")
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
-
-    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
-    and ``<TIME>`` columns into a datetime index (optionally shifted), renames
-    the OHLC/volume columns to backtrader's lowercase convention, and clips the
-    frame to the requested date range.
-
-    Args:
-        filepath: Path to the MT5 CSV file to read.
-        fromdate: Optional inclusive lower bound on the datetime index.
-        todate: Optional inclusive upper bound on the datetime index.
-        bar_shift_minutes: Optional minutes to add to each parsed timestamp.
-
-    Returns:
-        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
-        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
-        sorted ascending and restricted to the requested window.
-    """
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
-        lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
-    cleaned = "\n".join(lines)
-    sep = "\t" if "\t" in lines[0] else ","
-    df = pd.read_csv(io.StringIO(cleaned), sep=sep)
-    dt_text = df["<DATE>"].astype(str) + " " + df["<TIME>"].astype(str)
-    parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M", errors="coerce")
-    if parsed.isna().any():
-        parsed = pd.to_datetime(dt_text, format="%Y.%m.%d %H:%M:%S", errors="coerce")
-    if bar_shift_minutes:
-        parsed = parsed + pd.to_timedelta(int(bar_shift_minutes), unit="m")
-    df["datetime"] = parsed
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low", "<CLOSE>": "close",
-        "<TICKVOL>": "tick_volume", "<VOL>": "real_volume",
-    })
-    df["openinterest"] = 0
-    df["volume"] = df["tick_volume"] if "tick_volume" in df.columns else 0
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.dropna(subset=["datetime"]).set_index("datetime").sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def _standardize(train_values, predict_values):

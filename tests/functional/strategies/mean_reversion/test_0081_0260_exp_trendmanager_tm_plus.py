@@ -23,14 +23,29 @@ Strategy Logic:
     validate regression metrics.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -81,63 +96,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 TSV and normalize fields for Backtrader.
-
-    Args:
-        filepath: Source path.
-        fromdate: Inclusive start filter.
-        todate: Inclusive end filter.
-        bar_shift_minutes: Timestamp offset.
-
-    Returns:
-        Datetime-indexed DataFrame.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader pandas feed with spread channel."""
     lines = ('spread',)
@@ -151,26 +109,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class TrendManagerIndicator(bt.Indicator):
-    """Simple MA-based trend indicator generating color state."""
-    lines = ('color_state', 'fast_line', 'slow_line')
-    params = dict(length1=23, length2=84)
-
-    def __init__(self):
-        """Initialize fast and slow SMAs for crossover detection."""
-        self.fast = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.length1)
-        self.slow = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.length2)
-        self.addminperiod(max(self.p.length1, self.p.length2) + 3)
-
-    def next(self):
-        """Update trend lines and color state on each bar."""
-        fast = float(self.fast[0])
-        slow = float(self.slow[0])
-        self.lines.fast_line[0] = fast
-        self.lines.slow_line[0] = slow
-        self.lines.color_state[0] = 0.0 if fast >= slow else 1.0
 
 
 class ExpTrendManagerTmPlusStrategy(bt.Strategy):
@@ -199,7 +137,7 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
         """Initialize signal feeds, indicator, and runtime state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.indicator = TrendManagerIndicator(self.signal_data, length1=self.p.length1, length2=self.p.length2)
+        self.indicator = bt.indicators.TrendManagerIndicator(self.signal_data, length1=self.p.length1, length2=self.p.length2)
         self.entry_order = None
         self.close_order = None
         self.stop_order = None
@@ -380,13 +318,9 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
             self.position_open_dt = None
 
 
-
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -547,7 +481,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run Exp_TrendManager_Tm_Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     start_value = cerebro.broker.getvalue()

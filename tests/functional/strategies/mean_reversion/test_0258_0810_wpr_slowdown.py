@@ -25,51 +25,16 @@ Strategy Logic:
   tracks buy/sell/wins/losses for assertion verification
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-format CSV file into a Pandas DataFrame with deduplication.
-
-    Strips quotes, handles empty lines, and sorts the resulting index.
-
-    Args:
-        filepath: Path to the CSV file.
-        fromdate: Optional start date filter.
-        todate: Optional end date filter.
-        bar_shift_minutes: Minutes to shift the datetime index by.
-
-    Returns:
-        DataFrame with columns [open, high, low, close, volume, openinterest].
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -78,43 +43,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class WPRSlowdown(bt.Indicator):
-    """Williams %R Slowdown — detects %R extreme flattening as reversal signal.
-
-    Fires buy when %R >= level_max (overbought) and the change between
-    consecutive bars is small (slowdown), indicating exhaustion. Fires sell
-    symmetrically at level_min (oversold). Signal lines store ATR-scaled
-    price levels.
-    """
-    lines = ("sell", "buy")
-    params = dict(wpr_period=12, level_max=-20.0, level_min=-80.0, seek_slowdown=True)
-
-    def __init__(self):
-        """Set Williams %R and ATR indicators used by slowdown logic."""
-        self.addminperiod(max(int(self.p.wpr_period) + 2, 18))
-        self.wpr = bt.indicators.WilliamsR(self.data, period=int(self.p.wpr_period))
-        self.atr = bt.indicators.ATR(self.data, period=15)
-
-    def next(self):
-        """Compute WPR slowdown signal for the current bar.
-
-        Sets buy/sell lines to ATR-derived price levels when the WPR extreme
-        + slowdown condition is met, or NaN otherwise.
-        """
-        self.lines.buy[0] = float("nan")
-        self.lines.sell[0] = float("nan")
-        w0 = float(self.wpr[0])
-        w1 = float(self.wpr[-1])
-        atr = float(self.atr[0])
-        if w0 >= float(self.p.level_max):
-            if (not self.p.seek_slowdown) or abs(w1 - w0) < 1.0:
-                self.lines.buy[0] = float(self.data.low[0]) - atr * 3.0 / 8.0
-        if w0 <= float(self.p.level_min):
-            if (not self.p.seek_slowdown) or abs(w1 - w0) < 1.0:
-                self.lines.sell[0] = float(self.data.high[0]) + atr * 3.0 / 8.0
-
 
 class ExpWPRSlowdownStrategy(bt.Strategy):
     """WPR Slowdown strategy — trades WPR extreme + slowdown signals on H4.
@@ -145,7 +73,7 @@ class ExpWPRSlowdownStrategy(bt.Strategy):
         """Initialize signal references and strategy state for one-trade-cycle flow."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = WPRSlowdown(
+        self.ind = bt.indicators.WPRSlowdown(
             self.signal_data,
             wpr_period=self.p.wpr_period,
             level_max=self.p.level_max,

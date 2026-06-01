@@ -38,15 +38,14 @@ Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -90,64 +89,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV frame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 export file.
-        fromdate: Optional inclusive lower bound used to clip the frame.
-        todate: Optional inclusive upper bound used to clip the frame.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of its open.
-
-    Returns:
-        pandas.DataFrame: A datetime-indexed frame with ``open``, ``high``,
-        ``low``, ``close``, ``volume`` and ``openinterest`` columns sorted in
-        ascending time order.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -155,94 +100,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class WPRSISignalIndicator(bt.Indicator):
-    """Reconstructs WPRSIsignal indicator from its MQ5 source.
-
-    Uses WPR and RSI with same period.
-    Buy: WPR crosses above -20 from below AND RSI > 50, with filterUP lookback confirmation.
-    Sell: WPR crosses below -80 from above AND RSI < 50, with filterDN lookback confirmation.
-    """
-    lines = ('sell_arrow', 'buy_arrow')  # buffer 0 = sell, buffer 1 = buy
-    params = dict(wprsi_period=27, filter_up=10, filter_dn=10)
-
-    def __init__(self):
-        """Reserve warm-up bars covering the WPRSI period plus the filter window."""
-        self._period = int(self.p.wprsi_period)
-        self._filter_up = int(self.p.filter_up)
-        self._filter_dn = int(self.p.filter_dn)
-        filter_max = max(self._filter_up, self._filter_dn)
-        self.addminperiod(self._period + filter_max + 3)
-
-    def _calc_wpr(self, ago=0):
-        period = self._period
-        highest = max(float(self.data.high[-(ago + i)]) for i in range(period))
-        lowest = min(float(self.data.low[-(ago + i)]) for i in range(period))
-        close = float(self.data.close[-ago])
-        if highest == lowest:
-            return -50.0
-        return -100.0 * (highest - close) / (highest - lowest)
-
-    def _calc_rsi(self, ago=0):
-        period = self._period
-        gains = 0.0
-        losses = 0.0
-        for i in range(period):
-            idx = ago + i
-            c = float(self.data.close[-idx])
-            cp = float(self.data.close[-(idx + 1)])
-            diff = c - cp
-            if diff > 0:
-                gains += diff
-            else:
-                losses -= diff
-        avg_gain = gains / period
-        avg_loss = losses / period
-        if avg_loss == 0:
-            return 100.0
-        rs = avg_gain / avg_loss
-        return 100.0 - (100.0 / (1.0 + rs))
-
-    def next(self):
-        """Emit buy/sell arrows on filtered Williams %R crosses confirmed by RSI."""
-        wpr_0 = self._calc_wpr(0)
-        wpr_1 = self._calc_wpr(1)
-        rsi_0 = self._calc_rsi(0)
-
-        buy_val = 0.0
-        sell_val = 0.0
-
-        cur_high = float(self.data.high[0])
-        cur_low = float(self.data.low[0])
-        rng = cur_high - cur_low
-
-        # Buy: WPR crosses above -20 from below, RSI > 50
-        if wpr_0 > -20.0 and wpr_1 < -20.0 and rsi_0 > 50.0:
-            z = 0
-            for k in range(2, self._filter_up + 3):
-                if k < len(self.data):
-                    wk = self._calc_wpr(k)
-                    if wk > -20.0:
-                        z = 1
-                        break
-            if z == 0:
-                buy_val = cur_low - rng / 2.0
-
-        # Sell: WPR crosses below -80 from above, RSI < 50
-        if wpr_1 > -80.0 and wpr_0 < -80.0 and rsi_0 < 50.0:
-            h = 0
-            for c in range(2, self._filter_dn + 3):
-                if c < len(self.data):
-                    wk = self._calc_wpr(c)
-                    if wk < -80.0:
-                        h = 1
-                        break
-            if h == 0:
-                sell_val = cur_high + rng / 2.0
-
-        self.lines.sell_arrow[0] = sell_val
-        self.lines.buy_arrow[0] = buy_val
 
 
 class ExpWPRSISignalStrategy(bt.Strategy):
@@ -267,7 +124,7 @@ class ExpWPRSISignalStrategy(bt.Strategy):
         """Wire the base/signal feeds, the WPRSI indicator and trade counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = WPRSISignalIndicator(
+        self.indicator = bt.indicators.WPRSISignalIndicator(
             self.signal_data,
             wprsi_period=self.p.wprsi_period,
             filter_up=self.p.filter_up,
@@ -516,7 +373,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)`` from the completed backtest.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

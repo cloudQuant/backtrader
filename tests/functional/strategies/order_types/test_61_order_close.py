@@ -18,7 +18,7 @@ Strategy Principle:
     deterministic close-price fills, not the predictive value of the signal.
 
 Strategy Logic:
-    OrderCloseStrategy builds an SMA and a CrossOver of close versus the SMA.
+    OrderCloseStrategy builds an SMA and a CrossOver of close versus the bt.indicators.SMA.
     Each bar it skips while an order is pending, then — while flat — submits a
     buy with exectype=Order.Close on a bullish crossover, or — while long —
     submits a close with exectype=Order.Close on a bearish crossover.

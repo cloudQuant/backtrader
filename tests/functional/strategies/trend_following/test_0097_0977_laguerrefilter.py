@@ -28,16 +28,31 @@ Strategy Logic:
     assertions in the migrated regression test.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -78,64 +93,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 formatted CSV into a sorted, datetime-indexed Backtrader frame.
-
-    Args:
-        filepath: MT5 export file path.
-        fromdate: Optional inclusive lower bound on the datetime index.
-        todate: Optional inclusive upper bound on the datetime index.
-        bar_shift_minutes: Optional timestamp shift in minutes.
-
-    Returns:
-        pd.DataFrame: Sorted DataFrame indexed by datetime containing OHLCV,
-        spread and open interest columns used by feeds.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom feed extension to expose MT5 ``spread`` as an extra line."""
     lines = ('spread',)
@@ -149,59 +106,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class LaguerreFilterIndicator(bt.Indicator):
-    """Laguerre smoothing indicator with finite impulse response fallback lines."""
-    lines = ('laguerre', 'fir')
-    params = dict(gamma=0.7)
-
-    def __init__(self):
-        """Initialize internal Laguerre filter state and warm-up requirements."""
-        self.addminperiod(4)
-        self._l0 = None
-        self._l1 = None
-        self._l2 = None
-        self._l3 = None
-
-    def _price(self, ago=0):
-        return (float(self.data.high[ago]) + float(self.data.low[ago])) / 2.0
-
-    def next(self):
-        """Compute current Laguerre and FIR values for the current bar."""
-        price = self._price(0)
-        if self._l0 is None:
-            self._l0 = price
-            self._l1 = price
-            self._l2 = price
-            self._l3 = price
-            self.lines.laguerre[0] = price
-            self.lines.fir[0] = price
-            return
-        l0a = self._l0
-        l1a = self._l1
-        l2a = self._l2
-        l3a = self._l3
-        gamma = float(self.p.gamma)
-        l0 = (1.0 - gamma) * price + gamma * l0a
-        l1 = -gamma * l0 + l0a + gamma * l1a
-        l2 = -gamma * l1 + l1a + gamma * l2a
-        l3 = -gamma * l2 + l2a + gamma * l3a
-        self._l0 = l0
-        self._l1 = l1
-        self._l2 = l2
-        self._l3 = l3
-        if len(self) > 4:
-            self.lines.laguerre[0] = (l0 + 2.0 * l1 + 2.0 * l2 + l3) / 6.0
-            self.lines.fir[0] = (
-                1.0 * self._price(0)
-                + 2.0 * self._price(-1)
-                + 2.0 * self._price(-2)
-                + 1.0 * self._price(-3)
-            ) / 6.0
-        else:
-            self.lines.laguerre[0] = price
-            self.lines.fir[0] = price
 
 
 class LaguerreFilterStrategy(bt.Strategy):
@@ -228,7 +132,7 @@ class LaguerreFilterStrategy(bt.Strategy):
         """Initialize strategy state, indicators, and execution counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = LaguerreFilterIndicator(self.signal_feed, gamma=self.p.gamma)
+        self.indicator = bt.indicators.LaguerreFilterIndicator(self.signal_feed, gamma=self.p.gamma)
         self.bar_num = 0
         self.buy_signal_count = 0
         self.sell_signal_count = 0
@@ -445,7 +349,6 @@ class LaguerreFilterStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -454,9 +357,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -587,7 +488,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the full backtest and return execution artifacts.
 
@@ -597,7 +497,7 @@ def run(plot=False):
     Returns:
         tuple: ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

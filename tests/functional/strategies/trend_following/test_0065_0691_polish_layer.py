@@ -21,9 +21,9 @@ Strategy Principle:
         - MA Short: 9-period (`ma_period_short`) Exponential Moving Average (EMA).
         - MA Long: 45-period (`ma_period_long`) Exponential Moving Average (EMA).
         - RSI: 14-period (`ma_period_rsi`) Relative Strength Index.
-        - Stochastic: 5-period K, 3-period dFast, 3-period dSlow (`k_period_stoch`, `d_period_stoch`, `slowing_stoch`) Stochastic Oscillator.
+        - Stochastic: 5-period K, 3-period dFast, 3-period dSlow (`k_period_stoch`, `d_period_stoch`, `slowing_stoch`) Stochastic bt.indicators.Oscillator.
         - Williams %R: 14-period (`calc_period_wpr`) Williams %R.
-        - DeMarker: Custom 14-period (`ma_period_demarker`) DeMarker Indicator.
+        - DeMarker: Custom 14-period (`ma_period_demarker`) DeMarker bt.indicators.Indicator.
     - Entry Signals:
         - Trend Direction: Long trend established when 9 EMA > 45 EMA and RSI(14) > previous RSI(14). Short trend conversely.
         - Buy Entry (Triple Oscillator Confirmation): During an active long trend, we buy if:
@@ -40,15 +40,14 @@ Strategy Principle:
         - Ensure Trade Expiry: If no trade is opened within `ensure_trade_after_bars` (100 bars), we force-submit a buy order.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -93,73 +92,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Load the inlined strategy and backtest configuration dict.
-
-    Args:
-        *args: Variable length argument list for compatibility.
-        **kwargs: Arbitrary keyword arguments for compatibility.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume',
-    })
-    if '<VOL>' in df.columns:
-        df['openinterest'] = df['<VOL>']
-    else:
-        df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom backtrader Pandas data feed with default columns."""
     params = (
@@ -171,28 +103,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class DeMarker(bt.Indicator):
-    """Custom implementation of standard DeMarker Indicator.
-
-    Lines:
-        demarker: Normalized value line calculated by dividing high difference simple averages by range sums.
-    """
-    lines = ('demarker',)
-    params = dict(period=14)
-
-    def __init__(self):
-        """Initialize indicators, compute high/low differentials, and averages over period parameter."""
-        high_diff = self.data.high - self.data.high(-1)
-        low_diff = self.data.low(-1) - self.data.low
-        demax = bt.If(high_diff > 0, high_diff, 0.0)
-        demin = bt.If(low_diff > 0, low_diff, 0.0)
-        avg_demax = bt.indicators.SimpleMovingAverage(demax, period=self.p.period)
-        avg_demin = bt.indicators.SimpleMovingAverage(demin, period=self.p.period)
-        denominator = avg_demax + avg_demin
-        self.lines.demarker = bt.If(denominator != 0, avg_demax / denominator, 0.0)
-
 
 class PolishLayerStrategy(bt.Strategy):
     """Strategy class implementing moving average crossover, RSI trend, and triple oscillator momentum breakouts.
@@ -225,7 +135,7 @@ class PolishLayerStrategy(bt.Strategy):
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.ma_period_rsi)
         self.stochastic = bt.indicators.Stochastic(self.data, period=self.p.k_period_stoch, period_dfast=self.p.d_period_stoch, period_dslow=self.p.slowing_stoch)
         self.wpr = bt.indicators.WilliamsR(self.data, period=self.p.calc_period_wpr)
-        self.demarker = DeMarker(self.data, period=self.p.ma_period_demarker)
+        self.demarker = bt.indicators.DeMarker(self.data, period=self.p.ma_period_demarker)
         self.order = None
         self.bar_num = 0
         self.signal_count = 0
@@ -444,7 +354,6 @@ class PolishLayerStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -453,9 +362,7 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -609,7 +516,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro) instances.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

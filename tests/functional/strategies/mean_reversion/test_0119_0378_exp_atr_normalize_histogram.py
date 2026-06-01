@@ -31,15 +31,30 @@ Strategy Logic:
     6. test_119_0119_0378_exp_atr_normalize_histogram() runs and validates.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
 import os
 import sys
 import datetime as dt
-import io
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,118 +110,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-class AtrNormalizeHistogram(bt.Indicator):
-    """ATR-normalized histogram indicator for multi-timeframe signal generation.
-
-    Computes a normalized ATR value where xdiff is smoothed range ratio,
-    colored by threshold crossings (high/middle/low levels).
-    """
-
-    lines = ('value', 'color')
-    params = dict(
-        ma_method1='SMA',
-        length1=14,
-        phase1=15,
-        ma_method2='SMA',
-        length2=14,
-        phase2=15,
-        high_level=60,
-        middle_level=50,
-        low_level=40,
-        point=0.01,
-    )
-
-    def __init__(self):
-        """Initialise indicator state: rolling buffers and prior smoothing values."""
-        self._diff_buf = []
-        self._range_buf = []
-        self._diff_prev = None
-        self._range_prev = None
-        self.addminperiod(max(int(self.p.length1), int(self.p.length2)) + 5)
-
-    def _smooth(self, raw_value, method, length, phase, buf, prev_attr):
-        """Apply SMA, LWMA, or exponential smoothing to a raw value.
-
-        Args:
-            raw_value: The raw input value.
-            method: Smoothing method ('SMA', 'LWMA', or EMA variant).
-            length: Lookback window length.
-            phase: Phase parameter for EMA variants (-100 to 100).
-            buf: Rolling buffer list.
-            prev_attr: Attribute name to store previous smoothed value.
-
-        Returns:
-            Smoothed value as float.
-        """
-        method = str(method).upper()
-        length = max(1, int(length))
-        if method in ('MODE_SMA_', 'SMA'):
-            if len(buf) < length:
-                return raw_value
-            return sum(buf[-length:]) / float(length)
-        if method in ('MODE_LWMA_', 'LWMA'):
-            if len(buf) < length:
-                return raw_value
-            weights = list(range(1, length + 1))
-            values = buf[-length:]
-            return sum(v * w for v, w in zip(values, weights)) / float(sum(weights))
-
-        prev = getattr(self, prev_attr)
-        phase = max(-100, min(100, int(phase)))
-        alpha = 2.0 / (length + 1.0)
-        alpha *= 1.0 + 0.35 * (phase / 100.0)
-        alpha = max(0.01, min(0.99, alpha))
-        if prev is None or not math.isfinite(prev):
-            smooth = raw_value
-        else:
-            smooth = prev + alpha * (raw_value - prev)
-        setattr(self, prev_attr, smooth)
-        return smooth
-
-    def next(self):
-        """Compute per-bar normalized ATR value and color classification."""
-        prev_close = float(self.data.close[-1]) if len(self.data) > 1 else float(self.data.close[0])
-        diff = float(self.data.close[0]) - float(self.data.low[0])
-        range_value = max(float(self.data.high[0]), prev_close) - min(float(self.data.low[0]), prev_close)
-        self._diff_buf.append(diff)
-        self._range_buf.append(range_value)
-        xdiff = self._smooth(diff, self.p.ma_method1, self.p.length1, self.p.phase1, self._diff_buf, '_diff_prev')
-        xrange = self._smooth(range_value, self.p.ma_method2, self.p.length2, self.p.phase2, self._range_buf, '_range_prev')
-        xrange = max(xrange, float(self.p.point))
-        value = 100.0 * xdiff / xrange
-        if value > float(self.p.high_level):
-            color = 0.0
-        elif value > float(self.p.middle_level):
-            color = 1.0
-        elif value < float(self.p.low_level):
-            color = 4.0
-        elif value < float(self.p.middle_level):
-            color = 3.0
-        else:
-            color = 2.0
-        self.lines.value[0] = value
-        self.lines.color[0] = color
-
-
 class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
     """Multi-timeframe strategy based on ATR Normalized Histogram color transitions.
 
@@ -242,7 +145,7 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
         """Initialise strategy: set up data aliases, indicator, and state counters."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.hist = AtrNormalizeHistogram(
+        self.hist = bt.indicators.AtrNormalizeHistogram(
             self.data1,
             ma_method1=self.p.ma_method1,
             length1=self.p.length1,
@@ -428,15 +331,12 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
         print('==============================================================')
 
 
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -451,40 +351,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None):
-    """Load MT5 CSV file and return a cleaned pandas DataFrame.
-
-    Args:
-        filepath: Path to the MT5 exported CSV file.
-        fromdate: Optional start datetime to filter data.
-        todate: Optional end datetime to filter data.
-
-    Returns:
-        pd.DataFrame with datetime index and OHLCV columns plus spread.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, minutes):
@@ -511,7 +377,6 @@ def resample_frame(df, minutes):
     out['openinterest'] = out['openinterest'].fillna(0)
     out['spread'] = out['spread'].fillna(0)
     return out
-
 
 
 def load_backtest_frame(config: dict) -> dict:
@@ -615,7 +480,7 @@ def run(cfg_path: str | None = None):
     """
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
-    cfg = load_config(cfg_path)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO)
 
     data_cfg = cfg['data']
     params_cfg = cfg.get('params', {})

@@ -36,15 +36,14 @@ Strategy Logic:
     migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse, datetime, sys
 import backtrader as bt, yaml
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,63 +86,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 tab-separated export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
-            at their close).
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, sorted and filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -151,69 +97,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class SilverTrendIndicator(bt.Indicator):
-    """Reconstructs SilverTrend_Signal from its MQ5 source.
-
-    Uses SSP-period average range to compute smin/smax bands.
-    K = RISK * 100.
-    smin = SsMin + (SsMax - SsMin) * K / 100
-    smax = SsMax - (SsMax - SsMin) * K / 100
-    Trend toggles: close < smin → downtrend, close > smax → uptrend.
-    Buy arrow on uptrend toggle, sell arrow on downtrend toggle.
-    """
-    lines = ('buy_arrow', 'sell_arrow')
-    params = dict(ssp=9, risk=3)
-
-    def __init__(self):
-        """Cache SSP/risk parameters, reset trend state, and set min period."""
-        self._ssp = int(self.p.ssp)
-        self._k = float(self.p.risk) * 100.0
-        self._uptrend = False
-        self._old = False
-        self.addminperiod(self._ssp + 2)
-
-    def next(self):
-        """Update the adaptive bands and emit buy/sell arrows on trend flips."""
-        ssp = self._ssp
-
-        # Compute average range over SSP bars
-        total_range = 0.0
-        for i in range(ssp):
-            h = float(self.data.high[-i])
-            l = float(self.data.low[-i])
-            total_range += h - l
-        avg_range = total_range / ssp
-        rng = avg_range
-
-        # SsMax = highest high over SSP bars, SsMin = lowest low
-        ss_max = max(float(self.data.high[-i]) for i in range(ssp))
-        ss_min = min(float(self.data.low[-i]) for i in range(ssp))
-
-        k = self._k
-        smin = ss_min + (ss_max - ss_min) * k / 100.0
-        smax = ss_max - (ss_max - ss_min) * k / 100.0
-
-        cur_close = float(self.data.close[0])
-
-        if cur_close < smin:
-            self._uptrend = False
-        if cur_close > smax:
-            self._uptrend = True
-
-        buy_val = 0.0
-        sell_val = 0.0
-
-        if self._uptrend != self._old and self._uptrend:
-            buy_val = float(self.data.low[0]) - rng * 0.5
-        if self._uptrend != self._old and not self._uptrend:
-            sell_val = float(self.data.high[0]) + rng * 0.5
-
-        self._old = self._uptrend
-
-        self.lines.buy_arrow[0] = buy_val
-        self.lines.sell_arrow[0] = sell_val
 
 
 class ExpSilverTrendStrategy(bt.Strategy):
@@ -244,7 +127,7 @@ class ExpSilverTrendStrategy(bt.Strategy):
         """Bind the base and signal feeds, build the indicator, reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = SilverTrendIndicator(
+        self.indicator = bt.indicators.SilverTrendIndicator(
             self.signal_data, ssp=self.p.ssp, risk=self.p.risk,
         )
         self.bar_num = 0
@@ -512,7 +395,7 @@ def run(plot=False):
         returned by ``cerebro.run()``, ``metrics`` is the extracted metrics dict,
         and ``cerebro`` is the engine instance.
     """
-    cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
     if plot: cerebro.plot()

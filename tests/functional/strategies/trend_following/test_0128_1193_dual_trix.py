@@ -30,7 +30,7 @@ Strategy Principle:
     only on crossover transitions.
 
 Strategy Logic:
-    `load_config()` initializes the inlined strategy/backtest parameters.
+    `_bt_load_config(_CONFIG, repo=_REPO)` initializes the inlined strategy/backtest parameters.
     `load_mt5_csv()` loads and normalizes the MT5 export into a DataFrame.
     `load_backtest_frame()` resolves file paths and applies date filters.
     `build_cerebro()` sets up feed, analyzers, broker and strategy bindings.
@@ -44,13 +44,12 @@ Strategy Logic:
     `run()` executes backtest flow and returns result artifacts.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse, datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -87,59 +86,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-formatted TSV file into a normalized Backtrader-friendly DataFrame.
-
-    Args:
-        filepath (str | os.PathLike): Path to the source CSV/TSV file.
-        fromdate (datetime.datetime | None): Optional start filter (inclusive).
-        todate (datetime.datetime | None): Optional end filter (inclusive).
-        bar_shift_minutes (int): Number of minutes to shift bar timestamps.
-
-    Returns:
-        pandas.DataFrame: DataFrame indexed by `datetime` containing OHLCV and
-        open-interest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader feed mapping for normalized MT5/OHLCV DataFrame columns."""
     params = (
@@ -151,9 +97,9 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 class DualTrixStrategy(bt.Strategy):
     """
     Dual TRIX crossover strategy.
-    TRIX = rate of change of a triple-smoothed EMA.
-    Buy: fast TRIX crosses above slow TRIX.
-    Sell: fast TRIX crosses below slow TRIX.
+    TRIX = rate of change of a triple-smoothed bt.indicators.EMA.
+    Buy: fast TRIX crosses above slow bt.indicators.TRIX.
+    Sell: fast TRIX crosses below slow bt.indicators.TRIX.
     No martingale — fixed lot sizing.
     """
     params = dict(
@@ -237,7 +183,6 @@ class DualTrixStrategy(bt.Strategy):
             self.loss_count += 1
         self._position_was_open = False
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
-
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -351,12 +296,11 @@ def run(plot=False):
         tuple: `(results, metrics, cerebro)` tuple where `results` is cerebro output,
             `metrics` is extracted regression payload, and `cerebro` is the engine.
     """
-    config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
+    config=_bt_load_config(_CONFIG, repo=_REPO); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)
     if plot: cerebro.plot()
     return results,metrics,cerebro
-
 
 
 if __name__=='__main__':

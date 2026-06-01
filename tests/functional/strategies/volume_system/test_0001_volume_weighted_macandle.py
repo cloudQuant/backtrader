@@ -32,15 +32,14 @@ Strategy Logic:
     test asserts against the captured baseline.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -82,103 +81,16 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the tab-separated MT5 CSV export to read.
-        fromdate: Optional inclusive lower bound used to trim the index.
-        todate: Optional inclusive upper bound used to trim the index.
-        bar_shift_minutes: Minutes to shift the datetime index forward.
-
-    Returns:
-        A datetime-indexed DataFrame with open, high, low, close, volume and
-        openinterest columns in ascending time order.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={'<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest'})
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """PandasData feed mapping standard OHLCV columns by position."""
 
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
-
-
-class VWMACandle(bt.Indicator):
-    """Volume-weighted candle color indicator.
-
-    Computes volume-weighted moving averages of the open and close over
-    ``length`` bars and emits a ``color`` line of 2.0 (bullish), 0.0 (bearish)
-    or 1.0 (neutral) depending on their relationship.
-    """
-
-    lines = ('color',)
-    params = dict(length=12, use_tick_volume=True)
-
-    def __init__(self):
-        """Reserve the warm-up window needed for the volume-weighted average."""
-        self.addminperiod(int(self.p.length) + 3)
-
-    def _vwma(self, field, ago=0):
-        length = int(self.p.length)
-        total = 0.0
-        vals = 0.0
-        for i in range(length):
-            idx = ago + i
-            vol = float(self.data.volume[-idx]) if self.p.use_tick_volume else float(self.data.openinterest[-idx])
-            total += max(vol, 0.0)
-            vals += float(getattr(self.data, field)[-idx]) * max(vol, 0.0)
-        return float(getattr(self.data, field)[-ago]) if total == 0.0 else vals / total
-
-    def next(self):
-        """Set the candle color from volume-weighted open vs close."""
-        op = self._vwma('open', 0)
-        cl = self._vwma('close', 0)
-        color = 1.0
-        if op < cl:
-            color = 2.0
-        elif op > cl:
-            color = 0.0
-        self.lines.color[0] = color
 
 
 class ExpVWMACandleStrategy(bt.Strategy):
@@ -208,7 +120,7 @@ class ExpVWMACandleStrategy(bt.Strategy):
         """Bind execution/signal feeds, wire the indicator and init counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = VWMACandle(self.signal_data, length=self.p.length, use_tick_volume=self.p.use_tick_volume)
+        self.ind = bt.indicators.VWMACandle(self.signal_data, length=self.p.length, use_tick_volume=self.p.use_tick_volume)
         self.bar_num = 0
         self.signal_count = 0
         self.trade_count = 0
@@ -284,12 +196,10 @@ class ExpVWMACandleStrategy(bt.Strategy):
         self._position_was_open = False
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -389,7 +299,7 @@ def extract_metrics(strat, cerebro, df, config):
 
 def run(plot=False):
     """Build and run the strategy backtest, returning results and metrics."""
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     df = load_frame(config)
     params = dict(config['params'])
     minutes = params.pop('indicator_minutes')

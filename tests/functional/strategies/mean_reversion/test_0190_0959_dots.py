@@ -30,15 +30,30 @@ Strategy Logic:
     by final assertions.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import datetime
 import sys
 import backtrader.analyzers as btanalyzers
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -85,63 +100,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config():
-    """Inlined config (was config.yaml)."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5 export TSV file and normalize it into an indexed OHLCV frame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower datetime bound.
-        todate: Optional inclusive upper datetime bound.
-        bar_shift_minutes: Optional minute shift applied to each bar timestamp.
-
-    Returns:
-        A DataFrame indexed by ``datetime`` with spread and open-interest fields.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Pandas feed extending Backtrader with a spread line mapping."""
     lines = ('spread',)
@@ -155,79 +113,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-class DotsIndicator(bt.Indicator):
-    """Compute a multi-cycle Dots value and color-change state.
-
-    Attributes:
-        lines: Custom lines ``dots`` and ``color``.
-        params: Indicator parameters used in strategy logic.
-    """
-    lines = ('dots', 'color')
-    params = dict(length=10, filter_points=0.0, price_code=1, point=0.01)
-
-    def __init__(self):
-        """Initialize internal caches and indicator warmup state."""
-        self.addminperiod(int(self.p.length) * 4 + int(self.p.length) + 5)
-        self.res1 = 1.0 / max(float(self.p.length), 1.0)
-        self.phase = max(int(self.p.length) - 1, 0)
-        self.cycle = 4
-        self.filter_distance = float(self.p.filter_points) * float(self.p.point)
-
-    def _price_value(self, shift):
-        o = float(self.data.open[-shift] if shift else self.data.open[0])
-        h = float(self.data.high[-shift] if shift else self.data.high[0])
-        l = float(self.data.low[-shift] if shift else self.data.low[0])
-        c = float(self.data.close[-shift] if shift else self.data.close[0])
-        code = int(self.p.price_code)
-        if code == 1:
-            return c
-        if code == 2:
-            return o
-        if code == 3:
-            return h
-        if code == 4:
-            return l
-        if code == 5:
-            return (h + l) / 2.0
-        if code == 6:
-            return (h + l + c) / 3.0
-        if code == 7:
-            return (h + l + c + c) / 4.0
-        if code == 8:
-            return (o + h + l + c) / 4.0
-        return c
-
-    def next(self):
-        """Update smoothed value and color state for the current bar."""
-        total_len = self.phase + int(self.p.length) * self.cycle
-        if len(self.data) <= total_len:
-            return
-        t = 0.0
-        total = 0.0
-        weight = 0.0
-        for iii in range(total_len):
-            if t <= 0.5:
-                g = 1.0
-            else:
-                g = 1.0 / (self.phase + 1.0)
-            beta = math.cos(math.pi * t)
-            alpha = g * beta
-            price = self._price_value(iii)
-            total += alpha * price
-            weight += alpha
-            if t < 1.0:
-                t += self.res1
-        ma = total / weight if weight else self.data.close[0]
-        prev_ma = float(self.lines.dots[-1]) if len(self.data) > 1 else ma
-        color = float(self.lines.color[-1]) if len(self.data) > 1 else 0.0
-        if ma - prev_ma > self.filter_distance:
-            color = 0.0
-        elif prev_ma - ma > self.filter_distance:
-            color = 1.0
-        self.lines.dots[0] = ma
-        self.lines.color[0] = color
 
 
 class DotsStrategy(bt.Strategy):
@@ -256,7 +141,7 @@ class DotsStrategy(bt.Strategy):
         """Bind price feeds, instantiate indicator, and init tracking counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
-        self.indicator = DotsIndicator(
+        self.indicator = bt.indicators.DotsIndicator(
             self.signal_feed,
             length=self.p.length,
             filter_points=self.p.filter_points,
@@ -472,7 +357,6 @@ class DotsStrategy(bt.Strategy):
             self.entry_side = None
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_ROOT = BASE_DIR.parents[2]
@@ -481,9 +365,7 @@ if BACKTRADER_REPO.exists() and str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -672,7 +554,7 @@ def test_191_0190_0959_dots() -> None:
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0190_0959_dots.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)

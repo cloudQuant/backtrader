@@ -31,15 +31,14 @@ Strategy Logic:
     captured metric against migration-time values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -83,62 +82,9 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV frame.
-
-    Args:
-        filepath: Path to the MT5 CSV export file.
-        fromdate: Optional inclusive lower bound on the datetime index.
-        todate: Optional inclusive upper bound on the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp (e.g. to mark bar
-            close rather than bar open).
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume, and openinterest columns.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low',
-        '<CLOSE>': 'close', '<TICKVOL>': 'volume', '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -201,83 +147,6 @@ def resolve_price_line(data, mode):
     return data.close
 
 
-class EFDistanceIndicator(bt.Indicator):
-    """Energy-field distance indicator producing a weighted applied-price value.
-
-    Weights each price in a window by the accumulated powered distance to the
-    other prices in the window, yielding a smoothed ``value`` line whose turns
-    signal momentum shifts.
-    """
-
-    lines = ('value',)
-    params = dict(length=10, power=2.0, ipc='price_close', price_shift=0.0)
-
-    def __init__(self):
-        """Set the minimum period required for the energy-field window."""
-        self.addminperiod(int(self.p.length) * 2 + 2)
-
-    def next(self):
-        """Compute the energy-field weighted price value for the current bar."""
-        length = int(self.p.length)
-        current_price = float(resolve_price_line(self.data, self.p.ipc)[0])
-        weights = []
-        prices = []
-        for i in range(length):
-            base_price = float(resolve_price_line(self.data, self.p.ipc)[-i])
-            energy = 0.0
-            for j in range(length):
-                ref_price = float(resolve_price_line(self.data, self.p.ipc)[-(i + j)])
-                energy += abs((base_price - ref_price) ** float(self.p.power))
-            weights.append(energy)
-            prices.append(base_price)
-        norm = sum(weights)
-        value = sum(w * p for w, p in zip(weights, prices)) / norm if norm else 0.0
-        self.lines.value[0] = value + float(self.p.price_shift)
-
-
-class FlatTrendIndicator(bt.Indicator):
-    """Volatility-regime classifier from smoothed ATR and standard-deviation slopes.
-
-    Compares the slopes of smoothed ATR and smoothed standard deviation to emit a
-    ``state`` line flagging rising, falling, or flat volatility.
-    """
-
-    lines = ('state',)
-    params = dict(
-        stdev_period=20,
-        stdev_method='lwma',
-        stdev_length=5,
-        stdev_phase=15,
-        atr_period=20,
-        atr_method='lwma',
-        atr_length=5,
-        atr_phase=15,
-    )
-
-    def __init__(self):
-        """Construct smoothed ATR and standard-deviation components, set min period."""
-        self._atr = bt.indicators.AverageTrueRange(self.data, period=max(1, int(self.p.atr_period)))
-        self._std = bt.indicators.StandardDeviation(self.data.close, period=max(1, int(self.p.stdev_period)))
-        atr_ma = resolve_ma_class(self.p.atr_method)
-        std_ma = resolve_ma_class(self.p.stdev_method)
-        self._xatr = atr_ma(self._atr, period=max(1, int(self.p.atr_length)))
-        self._xstd = std_ma(self._std, period=max(1, int(self.p.stdev_length)))
-        self.addminperiod(max(int(self.p.atr_period) + int(self.p.atr_length), int(self.p.stdev_period) + int(self.p.stdev_length)) + 3)
-
-    def next(self):
-        """Classify the current volatility regime from ATR/stdev slope direction."""
-        prev_xatr = float(self._xatr[-1])
-        prev_xstd = float(self._xstd[-1])
-        xatr = float(self._xatr[0])
-        xstd = float(self._xstd[0])
-        res = 0
-        if prev_xatr > xatr and prev_xstd > xstd:
-            res = 1
-        if prev_xatr < xatr and prev_xstd < xstd:
-            res = 2
-        self.lines.state[0] = res + 1
-
-
 class EFDistanceStrategy(bt.Strategy):
     """Reversal strategy trading EF-distance turns gated by a volatility regime filter.
 
@@ -305,8 +174,8 @@ class EFDistanceStrategy(bt.Strategy):
 
     def __init__(self):
         """Construct the EF distance and FlatTrend indicators and init counters."""
-        self.indicator = EFDistanceIndicator(self.data, length=self.p.xlength, power=self.p.power, ipc=self.p.ipc)
-        self.flat_trend = FlatTrendIndicator(
+        self.indicator = bt.indicators.EFDistanceIndicator(self.data, length=self.p.xlength, power=self.p.power, ipc=self.p.ipc)
+        self.flat_trend = bt.indicators.FlatTrendDistanceIndicator(
             self.data,
             stdev_period=self.p.stdev_period,
             stdev_method=self.p.stdev_method,
@@ -427,17 +296,14 @@ class EFDistanceStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3] / 'backtrader'
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -564,7 +430,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Run the backtest and return results, extracted metrics, and cerebro.
 
@@ -574,7 +439,7 @@ def run(plot=False):
     Returns:
         A tuple of ``(results, metrics, cerebro)``.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

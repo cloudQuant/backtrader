@@ -31,15 +31,30 @@ Strategy Principle:
         - Reversal Exit: Exit long on buy_close indicator flip, exit short on sell_close indicator flip.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
 import os
 import sys
 import datetime as dt
-import io
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -47,7 +62,7 @@ _CONFIG = {
     'strategy': {
         'name': 'Exp_AverageChangeCandle',
         'source_ea': 'ea/0387_Exp_AverageChangeCandle/Exp_AverageChangeCandle.mq5',
-        'source_indicator': 'indicators/1498_AverageChangeCandle/AverageChangeCandle.mq5',
+        'source_indicator': 'indicators/1498_AverageChangeCandle/bt.indicators.AverageChangeCandle.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -94,169 +109,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Load the inlined strategy and backtest configuration dict.
-
-    Args:
-        *args: Variable length argument list for compatibility.
-        **kwargs: Arbitrary keyword arguments for compatibility.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-class AverageChangeCandle(bt.Indicator):
-    """Custom Average Change Candle indicator that computes power-scaled smoothed lines.
-
-    Lines:
-        open_line (bt.LineSeries): Smoothed open line.
-        high_line (bt.LineSeries): Smoothed high line.
-        low_line (bt.LineSeries): Smoothed low line.
-        close_line (bt.LineSeries): Smoothed close line.
-        color (bt.LineSeries): Candle color state (0 = bearish, 1 = flat, 2 = bullish).
-    """
-    lines = ('open_line', 'high_line', 'low_line', 'close_line', 'color',)
-
-    params = dict(
-        ma_method1='LWMA',
-        length1=12,
-        phase1=15,
-        ipc1='PRICE_MEDIAN_',
-        ma_method2='JJMA',
-        length2=5,
-        phase2=100,
-        pow_value=5.0,
-    )
-
-    def __init__(self):
-        """Initialize indicator variables, buffer lists, and min periods."""
-        self.addminperiod(max(int(self.p.length1), int(self.p.length2)) + 10)
-        self._base_buf = []
-        self._o_buf = []
-        self._h_buf = []
-        self._l_buf = []
-        self._c_buf = []
-        self._base_prev = None
-        self._o_prev = None
-        self._h_prev = None
-        self._l_prev = None
-        self._c_prev = None
-
-    def _price_series(self):
-        mode = str(self.p.ipc1).upper()
-        o = float(self.data.open[0])
-        h = float(self.data.high[0])
-        l = float(self.data.low[0])
-        c = float(self.data.close[0])
-        if mode == 'PRICE_OPEN_':
-            return o
-        if mode == 'PRICE_HIGH_':
-            return h
-        if mode == 'PRICE_LOW_':
-            return l
-        if mode == 'PRICE_TYPICAL_':
-            return (h + l + c) / 3.0
-        if mode == 'PRICE_WEIGHTED_':
-            return (h + l + c + c) / 4.0
-        if mode == 'PRICE_SIMPL_':
-            return (o + c) / 2.0
-        if mode == 'PRICE_QUARTER_':
-            return (h + l + o + c) / 4.0
-        if mode == 'PRICE_DEMARK_':
-            return (h + l + 2.0 * c) / 4.0
-        return (h + l) / 2.0
-
-    def _smooth(self, raw_value, method, length, phase, buf, prev_value_attr):
-        method = str(method).upper()
-        length = max(1, int(length))
-        if method in ('MODE_SMA_', 'SMA'):
-            if len(buf) < length:
-                return raw_value
-            return sum(buf[-length:]) / float(length)
-        if method in ('MODE_LWMA_', 'LWMA'):
-            if len(buf) < length:
-                return raw_value
-            weights = list(range(1, length + 1))
-            values = buf[-length:]
-            denom = float(sum(weights))
-            return sum(v * w for v, w in zip(values, weights)) / denom
-        prev = getattr(self, prev_value_attr)
-        phase = max(-100, min(100, int(phase)))
-        alpha = 2.0 / (length + 1.0)
-        alpha *= 1.0 + 0.35 * (phase / 100.0)
-        alpha = max(0.01, min(0.99, alpha))
-        if prev is None or not math.isfinite(prev):
-            smooth = raw_value
-        else:
-            smooth = prev + alpha * (raw_value - prev)
-        setattr(self, prev_value_attr, smooth)
-        return smooth
-
-    def next(self):
-        """Compute smoothed and power-scaled candle lines on each bar."""
-        base_price = self._price_series()
-        self._base_buf.append(base_price)
-        xma = self._smooth(
-            base_price,
-            self.p.ma_method1,
-            self.p.length1,
-            self.p.phase1,
-            self._base_buf,
-            '_base_prev',
-        )
-        xma = xma if xma != 0 else 1e-12
-
-        power = float(self.p.pow_value)
-        o_raw = math.pow(float(self.data.open[0]) / xma, power)
-        h_raw = math.pow(float(self.data.high[0]) / xma, power)
-        l_raw = math.pow(float(self.data.low[0]) / xma, power)
-        c_raw = math.pow(float(self.data.close[0]) / xma, power)
-
-        self._o_buf.append(o_raw)
-        self._h_buf.append(h_raw)
-        self._l_buf.append(l_raw)
-        self._c_buf.append(c_raw)
-
-        o_val = self._smooth(o_raw, self.p.ma_method2, self.p.length2, self.p.phase2, self._o_buf, '_o_prev')
-        h_val = self._smooth(h_raw, self.p.ma_method2, self.p.length2, self.p.phase2, self._h_buf, '_h_prev')
-        l_val = self._smooth(l_raw, self.p.ma_method2, self.p.length2, self.p.phase2, self._l_buf, '_l_prev')
-        c_val = self._smooth(c_raw, self.p.ma_method2, self.p.length2, self.p.phase2, self._c_buf, '_c_prev')
-
-        max_body = max(o_val, c_val)
-        min_body = min(o_val, c_val)
-        h_val = max(max_body, h_val)
-        l_val = min(min_body, l_val)
-
-        if o_val < c_val:
-            color = 2.0
-        elif o_val > c_val:
-            color = 0.0
-        else:
-            color = 1.0
-
-        self.lines.open_line[0] = o_val
-        self.lines.high_line[0] = h_val
-        self.lines.low_line[0] = l_val
-        self.lines.close_line[0] = c_val
-        self.lines.color[0] = color
-
-
 class ExpAverageChangeCandleStrategy(bt.Strategy):
     """Strategy class implementing the Average Change Candle indicator logic.
 
@@ -290,7 +142,7 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
         """Initialize indicators, feeds, backtest tracking metrics, and state variables."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
-        self.ind = AverageChangeCandle(
+        self.ind = bt.indicators.AverageChangeCandle(
             self.data1,
             ma_method1=self.p.ma_method1,
             length1=self.p.length1,
@@ -480,16 +332,12 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
         print('=====================================================')
 
 
-
-
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -505,43 +353,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('openinterest', 5),
         ('spread', 6),
     )
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-        '<SPREAD>': 'spread',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest', 'spread']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 def resample_frame(df, minutes):
@@ -568,7 +379,6 @@ def resample_frame(df, minutes):
     out['openinterest'] = out['openinterest'].fillna(0)
     out['spread'] = out['spread'].fillna(0)
     return out
-
 
 
 def load_backtest_frame(config: dict) -> dict:
@@ -683,7 +493,7 @@ def run(cfg_path: str | None = None):
     """
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
-    cfg = load_config(cfg_path)
+    cfg = _bt_load_config(_CONFIG, repo=_REPO)
 
     data_cfg = cfg['data']
     params_cfg = cfg.get('params', {})

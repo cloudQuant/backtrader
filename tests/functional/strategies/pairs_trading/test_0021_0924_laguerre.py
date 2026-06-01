@@ -17,7 +17,7 @@ Data Used:
 
 Strategy Principle:
     This is a port of the MT5 expert advisor Exp_Laguerre, built on John Ehlers'
-    Laguerre RSI. A four-stage Laguerre filter (controlled by gamma) smooths
+    Laguerre bt.indicators.RSI. A four-stage Laguerre filter (controlled by gamma) smooths
     price and produces an RSI-style 0-100 oscillator. The oscillator is mapped
     into colour states based on high/middle/low zone levels, and colour-state
     transitions act as counter-trend reversal signals: a flip to the bullish
@@ -37,15 +37,14 @@ Strategy Logic:
     migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import sys
 import argparse
 import datetime
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -90,67 +89,10 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load an MT5-exported tab-separated CSV into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Optional number of minutes to shift each bar's
-            timestamp forward.
-
-    Returns:
-        A DataFrame indexed by datetime with open, high, low, close, volume, and
-        openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime').sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -165,89 +107,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class LaguerreIndicator(bt.Indicator):
-    """Ehlers Laguerre RSI oscillator with high/low colour-state transitions."""
-
-    lines = ('value', 'color_state')
-    params = dict(gamma=0.7, high_level=85, middle_level=50, low_level=15)
-
-    def __init__(self):
-        """Initialize the Laguerre filter stages and minimum period."""
-        self._l0 = 0.0
-        self._l1 = 0.0
-        self._l2 = 0.0
-        self._l3 = 0.0
-        self._initialized = False
-        self.addminperiod(3)
-
-    def _zone(self, value):
-        if value > float(self.p.high_level):
-            return 'high'
-        if value > float(self.p.middle_level):
-            return 'high_mid'
-        if value < float(self.p.low_level):
-            return 'low'
-        return 'low_mid'
-
-    def _color_from_state(self, curr_zone, prev_zone, prev_color):
-        if curr_zone == 'high':
-            return 1.0
-        if curr_zone == 'high_mid':
-            if prev_zone == 'high':
-                return 2.0
-            if prev_zone == 'high_mid':
-                return prev_color
-            return 1.0
-        if curr_zone == 'low_mid':
-            if prev_zone in ('high', 'high_mid'):
-                return 2.0
-            if prev_zone == 'low_mid':
-                return prev_color
-            return 1.0
-        if curr_zone == 'low':
-            return 2.0
-        return prev_color
-
-    def next(self):
-        """Advance the Laguerre filter and update the value/colour lines."""
-        price = float(self.data.close[0])
-        gamma = float(self.p.gamma)
-        prev_l0, prev_l1, prev_l2, prev_l3 = self._l0, self._l1, self._l2, self._l3
-
-        if not self._initialized:
-            self._l0 = price
-            self._l1 = price
-            self._l2 = price
-            self._l3 = price
-            self._initialized = True
-        else:
-            self._l0 = (1.0 - gamma) * price + gamma * prev_l0
-            self._l1 = -gamma * self._l0 + prev_l0 + gamma * prev_l1
-            self._l2 = -gamma * self._l1 + prev_l1 + gamma * prev_l2
-            self._l3 = -gamma * self._l2 + prev_l2 + gamma * prev_l3
-
-        cu = 0.0
-        cd = 0.0
-        pairs = ((self._l0, self._l1), (self._l1, self._l2), (self._l2, self._l3))
-        for a, b in pairs:
-            if a >= b:
-                cu += a - b
-            else:
-                cd += b - a
-        value = 0.0
-        if (cu + cd) > 1e-12:
-            value = 100.0 * cu / (cu + cd)
-
-        prev_value = float(self.lines.value[-1]) if len(self) > 1 else value
-        prev_color = float(self.lines.color_state[-1]) if len(self) > 1 else 1.0
-        curr_zone = self._zone(value)
-        prev_zone = self._zone(prev_value)
-        color = self._color_from_state(curr_zone, prev_zone, prev_color)
-
-        self.lines.value[0] = value
-        self.lines.color_state[0] = color
 
 
 class ExpLaguerreStrategy(bt.Strategy):
@@ -274,7 +133,7 @@ class ExpLaguerreStrategy(bt.Strategy):
         """Bind base/signal feeds, attach the indicator, and init counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.indicator = LaguerreIndicator(
+        self.indicator = bt.indicators.LaguerreColorIndicator(
             self.signal_data,
             gamma=self.p.gamma,
             high_level=self.p.high_level,
@@ -404,18 +263,15 @@ class ExpLaguerreStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
 BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
 if str(BACKTRADER_REPO) not in sys.path:
     sys.path.insert(0, str(BACKTRADER_REPO))
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -577,7 +433,6 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
     """Execute the backtest and return raw run results and metrics.
 
@@ -587,7 +442,7 @@ def run(plot=False):
     Returns:
         Tuple of (results, metrics, cerebro).
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

@@ -3,49 +3,16 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
 from __future__ import annotations
+import backtrader as bt
 
 import datetime
-import io
 import math
 from pathlib import Path
 
-import backtrader as bt
-import pandas as pd
+from backtrader.utils.load_data import load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 M15 export into a datetime-indexed OHLCV frame.
-
-    Args:
-        filepath: Path to MT5 CSV/TSV data file.
-        fromdate: Optional inclusive lower datetime bound.
-        todate: Optional inclusive upper datetime bound.
-        bar_shift_minutes: Minutes to shift timestamps for bar close alignment.
-
-    Returns:
-        DataFrame containing datetime, open, high, low, close, volume, openinterest.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.read().strip().split("\n")
-    cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
-    df = pd.read_csv(io.StringIO(cleaned), sep="\t")
-    df["datetime"] = pd.to_datetime(df["<DATE>"] + " " + df["<TIME>"], format="%Y.%m.%d %H:%M:%S")
-    df = df.rename(columns={
-        "<OPEN>": "open", "<HIGH>": "high", "<LOW>": "low",
-        "<CLOSE>": "close", "<TICKVOL>": "volume", "<VOL>": "openinterest",
-    })
-    df = df[["datetime", "open", "high", "low", "close", "volume", "openinterest"]]
-    df = df.set_index("datetime").sort_index()
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
@@ -54,35 +21,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
     )
-
-
-class AroonOscillatorSignAlert(bt.Indicator):
-    """Aroon oscillator alert indicator with buy/sell level trigger lines."""
-    lines = ("sell", "buy", "osc")
-    params = dict(atr_period=14, aroon_period=9, up_level=50, dn_level=-50)
-
-    def __init__(self):
-        """Initialize ATR/Aroon period constraints and ATR helper indicator."""
-        self.addminperiod(max(int(self.p.atr_period), int(self.p.aroon_period)) + 3)
-        self.atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
-
-    def next(self):
-        """Compute oscillator and emit trigger prices when levels are crossed."""
-        p = int(self.p.aroon_period)
-        highs = [float(self.data.high[-i]) for i in range(p)]
-        lows = [float(self.data.low[-i]) for i in range(p)]
-        highest = highs.index(max(highs))
-        lowest = lows.index(min(lows))
-        osc = 100.0 * (highest - lowest) / float(p)
-        prev = float(self.lines.osc[-1]) if len(self) > 1 else osc
-        self.lines.osc[0] = osc
-        self.lines.buy[0] = float("nan")
-        self.lines.sell[0] = float("nan")
-        atr = float(self.atr[0])
-        if osc > float(self.p.dn_level) and prev <= float(self.p.dn_level):
-            self.lines.buy[0] = float(self.data.low[0]) - atr * 3.0 / 8.0
-        if osc < float(self.p.up_level) and prev >= float(self.p.up_level):
-            self.lines.sell[0] = float(self.data.high[0]) + atr * 3.0 / 8.0
 
 
 class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
@@ -100,7 +38,7 @@ class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
         """Attach data feeds and indicator; initialize counters/state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = AroonOscillatorSignAlert(
+        self.ind = bt.indicators.AroonOscillatorSignAlert(
             self.signal_data,
             atr_period=self.p.atr_period, aroon_period=self.p.aroon_period,
             up_level=self.p.up_level, dn_level=self.p.dn_level,

@@ -35,15 +35,14 @@ Strategy Logic:
     and asserts the recorded figures against migration-time expected values.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import os
 import argparse, datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -95,62 +94,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
-
-    Args:
-        filepath: Path to the MT5 CSV export file.
-        fromdate: Optional inclusive lower bound for the datetime index.
-        todate: Optional inclusive upper bound for the datetime index.
-        bar_shift_minutes: Minutes to add to each timestamp so the index marks
-            the bar close instead of the bar open.
-
-    Returns:
-        A pandas DataFrame indexed by datetime with open, high, low, close,
-        volume and openinterest columns, filtered to the requested date range.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
-    })
-    df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Backtrader PandasData feed mapping the MT5 OHLCV column layout.
 
@@ -161,34 +104,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
-
-
-class CGOscillator(bt.Indicator):
-    """Center of Gravity (CG) oscillator with a one-bar-lagged signal line.
-
-    The main line is a length-weighted ratio of recent median prices, shifted
-    to centre around zero. The signal line is the previous bar's main value.
-    """
-
-    lines = ('main', 'signal')
-    params = (('length', 10),)
-
-    def __init__(self):
-        """Set the minimum period and precompute the CG centring shift."""
-        self.addminperiod(int(self.p.length) + 1)
-        self.cgshift = (float(self.p.length) + 1.0) / 2.0
-
-    def next(self):
-        """Compute the CG main and lagged signal value for the current bar."""
-        num = 0.0
-        denom = 0.0
-        length = int(self.p.length)
-        for count in range(length):
-            price = (float(self.data.high[-count]) + float(self.data.low[-count])) / 2.0
-            num += (1.0 + count) * price
-            denom += price
-        self.lines.main[0] = (-num / denom + self.cgshift) if denom else 0.0
-        self.lines.signal[0] = self.lines.main[-1] if len(self) > 1 else 0.0
 
 
 class ExpCGOscillatorX2Strategy(bt.Strategy):
@@ -223,8 +138,8 @@ class ExpCGOscillatorX2Strategy(bt.Strategy):
         self.data_fast = self.datas[0]
         self.data_slow = self.datas[1]
 
-        self.cg_slow = CGOscillator(self.data_slow, length=self.p.length_slow)
-        self.cg_fast = CGOscillator(self.data_fast, length=self.p.length_fast)
+        self.cg_slow = bt.indicators.CGOscillator(self.data_slow, length=self.p.length_slow)
+        self.cg_fast = bt.indicators.CGOscillator(self.data_fast, length=self.p.length_fast)
 
         self.bar_num = 0
         self.signal_count = 0
@@ -431,7 +346,6 @@ class ExpCGOscillatorX2Strategy(bt.Strategy):
             self.loss_count += 1
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 WORKSPACE_DIR = BASE_DIR.parents[2]
@@ -441,7 +355,6 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -554,7 +467,6 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 
-
 def run(plot=False):
     """Build the engine, run the backtest, and extract metrics.
 
@@ -566,7 +478,7 @@ def run(plot=False):
         strategy instances, metrics is the extract_metrics() dictionary, and
         cerebro is the configured engine.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')

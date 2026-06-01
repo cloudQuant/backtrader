@@ -20,7 +20,7 @@ Strategy Principle:
     output and deterministic analyzer results.
 
 Strategy Logic:
-    WriterTestStrategy builds an SMA and a CrossOver of close versus the SMA.
+    WriterTestStrategy builds an SMA and a CrossOver of close versus the bt.indicators.SMA.
     Each bar it increments the bar counter, buys when the crossover turns
     positive while flat, and closes when the crossover turns negative while in a
     position. notify_order increments buy/sell counters on completed orders. The
@@ -77,7 +77,7 @@ class WriterTestStrategy(bt.Strategy):
     - Sell and close position when price crosses below SMA
 
     Attributes:
-        crossover: CrossOver indicator tracking price vs SMA.
+        crossover: CrossOver indicator tracking price vs bt.indicators.SMA.
         bar_num: Counter for the number of bars processed.
         buy_count: Counter for buy orders executed.
         sell_count: Counter for sell orders executed.
@@ -88,7 +88,7 @@ class WriterTestStrategy(bt.Strategy):
         """Initialize the WriterTestStrategy.
 
         Sets up the Simple Moving Average (SMA) indicator and the crossover
-        indicator that tracks when the price crosses above or below the SMA.
+        indicator that tracks when the price crosses above or below the bt.indicators.SMA.
         Also initializes counters for tracking bars, buy orders, and sell orders.
         """
         sma = bt.ind.SMA(self.data, period=self.p.period)

@@ -6,13 +6,13 @@ Tests the improved Fei A'li four-price strategy using rebar futures data RB889.c
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
 import pytest
 

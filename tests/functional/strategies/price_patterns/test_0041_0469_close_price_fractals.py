@@ -28,15 +28,14 @@ Strategy Principle:
         - Reverse Signal: Reversing fractals trigger immediate closing of the active position.
 """
 from __future__ import annotations
+import backtrader as bt
 import math
 from pathlib import Path
-import io
 import argparse
 import datetime
 import sys
-import backtrader as bt
-import pandas as pd
 import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
 
 _REPO = Path(__file__).resolve().parents[4]
 
@@ -74,69 +73,6 @@ _CONFIG = {
 }
 
 
-def _resolve_repo_paths(node):
-    """Replace '{repo}' placeholder in config string values with absolute repo path."""
-    if isinstance(node, dict):
-        return {k: _resolve_repo_paths(v) for k, v in node.items()}
-    if isinstance(node, list):
-        return [_resolve_repo_paths(v) for v in node]
-    if isinstance(node, str):
-        return node.replace('{repo}', str(_REPO))
-    return node
-
-
-def load_config(*args, **kwargs):
-    """Load the inlined strategy and backtest configuration dict.
-
-    Args:
-        *args: Variable length argument list for compatibility.
-        **kwargs: Arbitrary keyword arguments for compatibility.
-
-    Returns:
-        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
-    """
-    import copy
-    return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    """Load MT5 format historical CSV data file into a pandas DataFrame.
-
-    Args:
-        filepath (str or Path): Path to the MT5 CSV file.
-        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
-        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
-        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
-
-    Returns:
-        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
-    """
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(bt.feeds.PandasData):
     """Custom backtrader Pandas data feed with default columns."""
     params = (
@@ -148,30 +84,6 @@ class Mt5PandasFeed(bt.feeds.PandasData):
         ('volume', 4),
         ('openinterest', 5),
     )
-
-
-class ClosePriceFractals(bt.Indicator):
-    """Custom 5-period Fractal indicator calculated solely on closing prices.
-
-    Lines:
-        upper: Contains fractal peak closing price if upper fractal is formed.
-        lower: Contains fractal valley closing price if lower fractal is formed.
-    """
-    lines = ('upper', 'lower')
-
-    def __init__(self):
-        """Initialize the indicator with a minimum period of 5 bars."""
-        self.addminperiod(5)
-
-    def next(self):
-        """Determine if a peak or valley fractal forms on bar -2 based on close prices."""
-        self.lines.upper[0] = float('nan')
-        self.lines.lower[0] = float('nan')
-        candidate = float(self.data.close[-2])
-        if candidate > float(self.data.close[-3]) and candidate > float(self.data.close[-4]) and candidate >= float(self.data.close[-1]) and candidate >= float(self.data.close[0]):
-            self.lines.upper[0] = candidate
-        if candidate < float(self.data.close[-3]) and candidate < float(self.data.close[-4]) and candidate <= float(self.data.close[-1]) and candidate <= float(self.data.close[0]):
-            self.lines.lower[0] = candidate
 
 
 class ClosePriceFractalsStrategy(bt.Strategy):
@@ -193,7 +105,7 @@ class ClosePriceFractalsStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize indicator instance, backtest metrics, and position stop loss/take profit levels."""
-        self.fractals = ClosePriceFractals(self.data)
+        self.fractals = bt.indicators.ClosePriceFractals(self.data)
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
@@ -385,7 +297,6 @@ class ClosePriceFractalsStrategy(bt.Strategy):
             self._clear_risk()
 
 
-
 BASE_DIR = Path(__file__).resolve().parent
 
 REPO_BACKTRADER_DIR = BASE_DIR.parents[2] / 'backtrader'
@@ -393,9 +304,7 @@ if str(REPO_BACKTRADER_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_BACKTRADER_DIR))
 
 
-
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
-
 
 
 def resolve_data_path(filename):
@@ -544,7 +453,7 @@ def run(plot=False):
     Returns:
         tuple: (results, metrics, cerebro) instances.
     """
-    config = load_config()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...')
