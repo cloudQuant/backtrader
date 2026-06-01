@@ -808,7 +808,6 @@ print(f"夏普比率: {best_result['sharpe']:.2f}")
 ```bash
 
 - --
-
 - 文档版本：v1.0*
 - 创建日期：2026-01-08*
 - 作者：Claude*

@@ -1,4 +1,7 @@
-.PHONY: help test test-original lint format type-check security install dev-install clean
+.PHONY: help test test-fast test-strategies test-slow test-all test-original lint format type-check security install dev-install clean docs docs-en docs-zh docs-clean docs-offline docs-offline-zh docs-view docs-view-zh
+
+DOCS_BUILD_DIR := docs/_build/html
+DOCS_MPLCONFIGDIR ?= $(CURDIR)/docs/.mplconfig
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -13,6 +16,18 @@ dev-install:  ## Install development dependencies
 
 test:  ## Run all tests
 	python -m pytest tests/original_tests/ -v --tb=short
+
+test-fast:  ## Fast dev loop (~3.5 min): all non-strategy tests + the fastest ~35% of strategy tests (skips slowest 65%)
+	python -m pytest tests -m "not slow" -n 8 -q
+
+test-strategies:  ## Run only the heavy strategy regression suite (~9 min)
+	python -m pytest tests/functional/strategies -n 8 -q
+
+test-slow:  ## Run only the slowest ~65% of strategy tests (the ones test-fast skips)
+	python -m pytest tests -m slow -n 8 -q
+
+test-all:  ## Run the entire suite in parallel (~10 min)
+	python -m pytest tests -n 8 -q
 
 test-original:  ## Run only original tests (excluding crypto tests)
 	python -m pytest tests/original_tests/ -v --tb=short --html=tests/report.html
@@ -62,28 +77,34 @@ benchmark:  ## Run performance benchmarks
 	python -m pytest tests/original_tests/ --benchmark-only
 
 docs:  ## Generate all documentation (en + zh)
-	cd docs/_source && make all
+	$(MAKE) docs-offline
+	$(MAKE) docs-offline-zh
 
 docs-en:  ## Generate English documentation
-	cd docs/_source && make en
+	$(MAKE) docs-offline
 
 docs-zh:  ## Generate Chinese documentation
-	cd docs/_source && make zh
+	$(MAKE) docs-offline-zh
+
+docs-offline:  ## Build English docs locally without network-only extensions
+	mkdir -p $(DOCS_BUILD_DIR)/en $(DOCS_MPLCONFIGDIR)
+	DOCS_OFFLINE=1 BUILD_LANGUAGE=en MPLCONFIGDIR=$(DOCS_MPLCONFIGDIR) \
+		python -m sphinx -b html docs/source $(DOCS_BUILD_DIR)/en
+
+docs-offline-zh:  ## Build Chinese docs locally without network-only extensions
+	mkdir -p $(DOCS_BUILD_DIR)/zh $(DOCS_MPLCONFIGDIR)
+	DOCS_OFFLINE=1 BUILD_LANGUAGE=zh MPLCONFIGDIR=$(DOCS_MPLCONFIGDIR) \
+		python -m sphinx -b html -D language=zh_CN -D root_doc=index_zh -D master_doc=index_zh \
+		docs/source $(DOCS_BUILD_DIR)/zh
 
 docs-clean:  ## Clean generated documentation
-	cd docs/_source && make clean
-
-docs-live:  ## Build English docs with live reload (for development)
-	cd docs/_source && make livehtml
-
-docs-live-zh:  ## Build Chinese docs with live reload (for development)
-	cd docs/_source && make livehtml-zh
+	rm -rf docs/_build
 
 docs-view:  ## Open English documentation in browser
-	open docs/_source/en/_build/html/index.html
+	open $(DOCS_BUILD_DIR)/en/index.html
 
 docs-view-zh:  ## Open Chinese documentation in browser
-	open docs/_source/zh/_build/html/index.html
+	open $(DOCS_BUILD_DIR)/zh/index_zh.html
 
 git-setup:  ## Setup git hooks for development
 	@echo "Setting up git hooks..."

@@ -14,7 +14,10 @@ Example:
     >>> print(results[0].analyzers.lev.get_analysis())
 """
 
+import math
+
 from ..analyzer import Analyzer
+from ..mathsupport import is_finite_real
 
 
 # Ratio of used capital
@@ -93,5 +96,17 @@ class GrossLeverage(Analyzer):
         """
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
-        lev = (self._value - self._cash) / self._value
+        try:
+            if is_finite_real(self._value) and self._value != 0.0 and is_finite_real(self._cash):
+                lev = (self._value - self._cash) / self._value
+                if isinstance(lev, complex) or not math.isfinite(lev):
+                    lev = 0.0
+            else:
+                lev = 0.0
+        except (TypeError, ValueError, ZeroDivisionError):
+            lev = 0.0
+
+        if isinstance(lev, complex) or not math.isfinite(lev):
+            lev = 0.0
+
         self.rets[self.data0.datetime.datetime()] = lev

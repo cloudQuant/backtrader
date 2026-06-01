@@ -153,13 +153,14 @@ class Returns(TimeFrameAnalyzerBase):
         # rtot calculates total log returns
         try:
             nlrtot = self._value_end / self._value_start
-        except ZeroDivisionError:
-            rtot = float("-inf")
-        else:
-            if nlrtot < 0.0:
+            if isinstance(nlrtot, complex) or not math.isfinite(nlrtot) or nlrtot <= 0.0:
                 rtot = float("-inf")
             else:
                 rtot = math.log(nlrtot)
+                if not math.isfinite(rtot):
+                    rtot = float("-inf")
+        except (ZeroDivisionError, TypeError, ValueError):
+            rtot = float("-inf")
 
         self.rets["rtot"] = rtot
 

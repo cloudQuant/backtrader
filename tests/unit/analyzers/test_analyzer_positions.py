@@ -11,6 +11,9 @@ validates that the analyzer produces the expected output format.
 """
 
 import backtrader as bt
+import pytest
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import testcommon
 
@@ -94,6 +97,38 @@ def test_run(main=False):
             # Positions should track position values over time
             # Dict should have datetime keys with position values
             assert len(analysis) >= 0  # May be empty if no positions taken
+
+
+def _build_positions_analyzer(position_value, cash_value=None):
+    analyzer = bt.analyzers.PositionsValue.__new__(bt.analyzers.PositionsValue)
+    analyzer.p = SimpleNamespace(cash=cash_value is not None, headers=False)
+    analyzer.datas = [MagicMock(_timeframe=bt.TimeFrame.Days, _name="data0")]
+    analyzer.strategy = MagicMock()
+    analyzer.strategy.broker.get_value.return_value = position_value
+    analyzer.strategy.broker.get_cash.return_value = cash_value
+    analyzer.strategy.datetime.date.return_value = "2021-01-01"
+    analyzer.strategy.datetime.datetime.return_value = "2021-01-01T00:00:00"
+    analyzer.rets = {}
+    analyzer._usedate = True
+    return analyzer
+
+
+@pytest.mark.parametrize("position_value", ["bad", complex(1.0, 1.0), float("nan")])
+def test_positionsvalue_invalid_position_value_degrades_to_zero(position_value):
+    analyzer = _build_positions_analyzer(position_value)
+
+    analyzer.next()
+
+    assert analyzer.rets["2021-01-01"] == [0.0]
+
+
+@pytest.mark.parametrize("cash_value", ["bad", complex(1.0, 1.0), float("nan")])
+def test_positionsvalue_invalid_cash_value_degrades_to_zero(cash_value):
+    analyzer = _build_positions_analyzer(100.0, cash_value=cash_value)
+
+    analyzer.next()
+
+    assert analyzer.rets["2021-01-01"] == [100.0, 0.0]
 
 
 if __name__ == "__main__":

@@ -130,8 +130,6 @@ pytest tests/ -v
 
 |**API**| 100% 向后兼容 | 无需修改现有代码 |
 
-|**新增**| CCXT 实盘交易支持 | 可选功能 |
-
 |**新增**| Plotly/Bokeh 可视化 | 可选功能 |
 
 |**新增** | Cython 加速计算 | 可选功能 |
@@ -209,21 +207,6 @@ cerebro.run()  # 运行更快，但结果相同
 cerebro = bt.Cerebro()
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 cerebro.adddata(data)
-cerebro.run()
-
-# 新版：添加实盘交易能力（可选）
-
-store = bt.stores.CCXTStore(
-    exchange='binance',
-    currency='USDT',
-    config={'apiKey': 'YOUR_KEY', 'secret': 'YOUR_SECRET'}
-)
-data = store.getdata(dataname='BTC/USDT', use_websocket=True)
-broker = store.getbroker()
-
-cerebro = bt.Cerebro()
-cerebro.adddata(data)
-cerebro.setbroker(broker)
 cerebro.run()
 
 ```bash
@@ -408,72 +391,7 @@ diff old_results.txt new_results.txt
 
 ```bash
 
-### 场景 2: 添加实盘交易
-
-- *情况：** 您的回测策略经过验证，想添加实盘交易能力。
-
-- *解决方案：**
-
-```python
-
-# 步骤 1: 配置环境变量（安全）
-
-# 创建 .env 文件
-
-"""
-EXCHANGE=binance
-API_KEY=your_api_key
-API_SECRET=your_secret
-CURRENCY=USDT
-"""
-
-# 步骤 2: 修改策略添加实盘支持
-
-import backtrader as bt
-from backtrader.ccxt import config_helper
-
-# 加载配置
-
-config = config_helper.load_env_config()
-
-# 创建 Store
-
-store = bt.stores.CCXTStore(
-    exchange=config['exchange'],
-    currency=config['currency'],
-    config={
-        'apiKey': config['api_key'],
-        'secret': config['api_secret'],
-        'enableRateLimit': True,
-    }
-)
-
-# 步骤 3: 创建数据源
-
-data = store.getdata(
-    dataname='BTC/USDT',
-    timeframe=bt.TimeFrame.Minutes,
-    compression=1,
-    use_websocket=True,  # 实时数据
-    historical=False,    # 实盘模式
-
-)
-
-# 步骤 4: 创建 Broker
-
-broker = store.getbroker(use_threaded_order_manager=True)
-
-# 步骤 5: 运行
-
-cerebro = bt.Cerebro()
-cerebro.adddata(data)
-cerebro.setbroker(broker)
-cerebro.addstrategy(MyStrategy)
-cerebro.run()
-
-```bash
-
-### 场景 3: 启用性能优化
+### 场景 2: 启用性能优化
 
 - *情况：** 回测运行缓慢，希望启用性能优化。
 
@@ -649,40 +567,7 @@ def next(self):
 
 ```bash
 
-### 问题 4: WebSocket 连接问题
-
-- *症状：**
-
-```bash
-CCXTWebSocketError: WebSocket connection failed
-
-```bash
-
-- *解决方案：**
-
-```python
-
-# 1. 检查 ccxtpro 安装
-
-pip install ccxtpro
-
-# 2. 禁用 WebSocket 使用 REST
-
-data = store.getdata(
-    dataname='BTC/USDT',
-    use_websocket=False,  # 回退到 REST
-
-)
-
-# 3. 检查网络连接
-
-import ccxt
-exchange = ccxt.binance()
-print(exchange.fetch_time())
-
-```bash
-
-### 问题 5: 性能未提升
+### 问题 4: 性能未提升
 
 - *症状：** 升级后执行速度没有改善。
 
@@ -731,7 +616,7 @@ stats.print_stats(20)
 
 #### 标准格式（无需更改）
 
-```csv
+```text
 datetime,open,high,low,close,volume,openinterest
 2023-01-01 09:30:00,100.0,105.0,99.0,103.0,1000000,0
 2023-01-02 09:30:00,103.0,108.0,102.0,107.0,1200000,0
@@ -790,31 +675,6 @@ data = bt.feeds.PandasData(
 
 ### 数据源特定迁移
 
-#### CCXT 数据迁移
-
-```python
-
-# 回测数据
-
-data = bt.feeds.CCXTData(
-    exchange='binance',
-    dataname='BTC/USDT',
-    timeframe=bt.TimeFrame.Days,
-    fromdate=datetime(2020, 1, 1),
-    todate=datetime(2023, 12, 31),
-)
-
-# 实盘数据（新增）
-
-store = bt.stores.CCXTStore(exchange='binance', ...)
-data = store.getdata(
-    dataname='BTC/USDT',
-    use_websocket=True,  # 新增
-
-)
-
-```bash
-
 - --
 
 ## 配置变更
@@ -841,70 +701,7 @@ cerebro = bt.Cerebro(
 
 ```bash
 
-### Broker 配置
-
-#### CCXT Broker 新选项
-
-```python
-store = bt.stores.CCXTStore(
-    exchange='binance',
-    currency='USDT',
-    config={
-        'apiKey': 'YOUR_KEY',
-        'secret': 'YOUR_SECRET',
-        'enableRateLimit': True,
-        'timeout': 30000,  # 新增
-    }
-)
-
-broker = store.getbroker(
-    use_threaded_order_manager=True,  # 新增
-    check_conn=True,                  # 新增
-
-)
-
-```bash
-
 ### 数据源配置
-
-#### WebSocket 配置（新增）
-
-```python
-data = store.getdata(
-    dataname='BTC/USDT',
-    use_websocket=True,           # 启用 WebSocket
-    ws_config={                   # 新增
-        'max_reconnect': 10,
-        'reconnect_delay': 5,
-        'heartbeat_interval': 30,
-    }
-)
-
-```bash
-
-### 环境变量配置（新增）
-
-```bash
-
-# .env 文件
-
-EXCHANGE=binance
-API_KEY=your_api_key
-API_SECRET=your_secret
-CURRENCY=USDT
-USE_TESTNET=true
-LOG_LEVEL=INFO
-
-```bash
-
-```python
-
-# 加载配置
-
-from backtrader.ccxt import config_helper
-config = config_helper.load_env_config()
-
-```bash
 
 - --
 
@@ -1035,8 +832,6 @@ python my_strategy.py
 
 | `backtrader/metabase.py` | 核心架构（元类移除） |
 
-| `backtrader/ccxt/` | CCXT 实盘交易模块 |
-
 | `backtrader/plot/plot_plotly.py` | Plotly 可视化 |
 
 | `docs/migration/` | 迁移文档目录 |
@@ -1046,7 +841,6 @@ python my_strategy.py
 - **文档**: [项目文档](../README.md)
 - **问题反馈**: [GitHub Issues](<https://github.com/cloudQuant/backtrader/issues)>
 - **架构说明**: [ARCHITECTURE.md](../ARCHITECTURE.md)
-- **CCXT 指南**: [CCXT_LIVE_TRADING_GUIDE.md](../CCXT_LIVE_TRADING_GUIDE.md)
 
 - --
 
@@ -1101,5 +895,4 @@ python my_strategy.py
 | 推荐用途 | 生产 | 开发 | 主分支 |
 
 - --
-
 - *祝您升级顺利！** 如遇到问题，请参考故障排除章节或寻求社区帮助。

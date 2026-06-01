@@ -24,7 +24,7 @@ import traceback
 try:
     import matplotlib
 except ImportError:
-    raise ImportError("Matplotlib seems to be missing. Needed for plotting support")
+    raise ImportError("Matplotlib seems to be missing. Needed for plotting support") from None
 else:
     touse = "TKAgg" if sys.platform != "darwin" else "MacOSX"
     try:
@@ -33,7 +33,6 @@ else:
         # if another backend has already been loaded, an exception will be
         # generated and this can be skipped
         traceback.format_exception(type(e), e, e.__traceback__)
-        pass
 
 
 from .plot import Plot as Plot

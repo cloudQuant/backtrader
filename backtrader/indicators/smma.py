@@ -92,23 +92,25 @@ class SmoothedMovingAverage(MovingAverageBase):
 
         # Ensure output array is properly sized
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
-        # Pre-fill warmup period with NaN
-        for i in range(min(period - 1, len(darray))):
+        limit = min(end, len(darray))
+        for i in range(limit):
             larray[i] = float("nan")
 
-        # Calculate seed value (SMA of first period values)
-        seed_idx = period - 1
-        if seed_idx < len(darray):
-            seed_sum = sum(darray[0 : seed_idx + 1])
-            prev = seed_sum / period
-            larray[seed_idx] = prev
-        else:
-            return  # Not enough data
+        # Seed at self._minperiod - 1 to match nextstart() behavior.
+        # nextstart() sums self.data[-i] for i in range(period) at the first
+        # valid bar, which corresponds to darray[seed_idx - period + 1 : seed_idx + 1].
+        seed_idx = self._minperiod - 1
+        if seed_idx >= limit or seed_idx < period - 1:
+            return
+
+        seed_start = seed_idx - period + 1
+        prev = sum(float(darray[j]) for j in range(seed_start, seed_idx + 1)) / period
+        larray[seed_idx] = prev
 
         # SMMA is recursive - must calculate ALL values from period onwards
-        for i in range(period, min(end, len(darray))):
+        for i in range(seed_idx + 1, limit):
             current_val = float(darray[i])
             prev = prev * alpha1 + current_val * alpha
             larray[i] = prev

@@ -1,43 +1,228 @@
 #!/usr/bin/env python
-"""Contributed Indicators Module - Community-contributed technical indicators.
+"""Contributed indicators migrated from functional strategy tests.
 
-This module contains technical indicators contributed by the community
-that are not part of the standard indicator set.
-
-Indicators:
-    Vortex: Vortex Indicator for trend identification.
-
-Example:
-    Using Vortex indicator in a strategy:
-    >>> class MyStrategy(bt.Strategy):
-    ...     def __init__(self):
-    ...         self.vortex = bt.indicators.Vortex(self.data, period=14)
-    ...
-    ...     def next(self):
-    ...         if self.vortex.vi_plus[0] > self.vortex.vi_minus[0]:
-    ...             self.buy()
+These indicators are lower-commonality or strategy-specific indicators. They are
+re-exported from ``backtrader.indicators`` so users can access them as
+``bt.indicators.Xxx``.
 """
 
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+from importlib import import_module as _import_module
 
-from . import vortex as vortex
+_MODULES = (
+    "absolutely_no_lag_lwma",
+    "absolutely_no_lag_lwma_color",
+    "accumulation_distribution_line",
+    "adx_cross_hull_style_indicator",
+    "adxdmi",
+    "ai_acceleration_deceleration_oscillator",
+    "altr_trend_signal_v22",
+    "anchored_momentum_line",
+    "any_range_cld_tail_indicator",
+    "aroon_horn_sign_indicator",
+    "aroon_oscillator_sign_alert",
+    "arrows_curves_indicator",
+    "as_ctrend_indicator",
+    "asimmetric_stoch_nr_indicator",
+    "atr_normalize_histogram",
+    "average_change_candle",
+    "bb_squeeze_indicator",
+    "bezier_st_dev_indicator",
+    "binary_wave_indicator",
+    "blau_c_momentum_indicator",
+    "blau_cmi_indicator",
+    "blau_csi",
+    "blau_ergodic",
+    "blau_t_stoch_i",
+    "blau_ts_stochastic",
+    "blau_tvi",
+    "brain_trend2_indicator",
+    "brain_trend_signal_proxy",
+    "brake_parb_indicator",
+    "breakout_bars_trend_v2",
+    "bsi_indicator",
+    "bulls_bears_eyes",
+    "bulls_power",
+    "bw_wise_man1_signal",
+    "bykov_trend_indicator",
+    "candle_stop_color",
+    "candles_x_smoothed_indicator",
+    "candlesticks_bw",
+    "caudate_x_period_candle_color",
+    "cci_histogram_indicator",
+    "cci_woodies_indicator",
+    "center_of_gravity_candle_indicator",
+    "center_of_gravity_indicator",
+    "cg_oscillator",
+    "close_line_cci",
+    "close_price_fractals",
+    "color3rd_gen_xma_indicator",
+    "color_bb_candles_indicator",
+    "color_coppock_indicator",
+    "color_hma",
+    "color_j_variation_indicator",
+    "color_metro_de_marker_indicator",
+    "color_metro_stochastic_indicator",
+    "color_metro_wpr_indicator",
+    "color_schaff_de_marker_trend_cycle",
+    "color_schaff_trend_cycle_indicator",
+    "color_step_xccx_indicator",
+    "color_x2_ma",
+    "color_x_derivative",
+    "color_zerolag_de_marker",
+    "corrected_average_indicator",
+    "darvas_boxes_system",
+    "dema_range_channel_color",
+    "derivative_indicator",
+    "digital_ft01_indicator",
+    "digital_macd",
+    "donchian_channels_system",
+    "dots_indicator",
+    "ef_distance_indicator",
+    "ema_rsi_va",
+    "envelopes_jp_alonso",
+    "f2a_ao_indicator",
+    "fatl_filter",
+    "fibo_candles_indicator",
+    "fine_tuning_ma",
+    "fisher_org_v1",
+    "fisher_org_v1_sign",
+    "force_index_ema",
+    "force_index_ema_2",
+    "forecast_oscilator",
+    "fractal_amambk",
+    "frama_series",
+    "frasm_av2_indicator",
+    "go_indicator",
+    "hlr_indicator",
+    "hma",
+    "i4_drfv2",
+    "i4_drfv3",
+    "i_anch_mom_indicator",
+    "i_de_marker_sign_indicator",
+    "i_gap_indicator",
+    "i_stoch_komposter_indicator",
+    "i_trend_indicator",
+    "iamma_indicator",
+    "indexed_moving_average",
+    "instantaneous_trend_filter_indicator",
+    "inverse_reaction_indicator",
+    "irsi_sign_indicator",
+    "iwpr_sign_indicator",
+    "j_brain_trend1_sig_indicator",
+    "j_tpo_proxy",
+    "jma_slope_indicator",
+    "kalman_filter_indicator",
+    "kalman_filter_line",
+    "kama_indicator",
+    "karacatica_indicator",
+    "kdj_indicator",
+    "kwan_ccc_indicator",
+    "kwan_nrp_indicator",
+    "kwan_rdp_indicator",
+    "laguerre_adx_indicator",
+    "laguerre_filter_indicator",
+    "laguerre_plus_di_proxy",
+    "laguerre_roc_indicator",
+    "le_man_signal_indicator",
+    "linear_reg_slope_v2_indicator",
+    "loco_indicator",
+    "lrma_indicator",
+    "lsma_angle_indicator",
+    "ma_rounding_channel_indicator",
+    "macd2_indicator",
+    "macd_candle_indicator",
+    "malr_indicator",
+    "momentum_candle_sign_indicator",
+    "moving_average_fn_indicator",
+    "mt5_stochastic_close_close",
+    "muv_nor_diff_cloud_indicator",
+    "non_lag_dot_indicator",
+    "nrtr_extr_indicator",
+    "nrtr_indicator",
+    "p_channel_system",
+    "percent_envelope",
+    "percentage_crossover_channel",
+    "pivot_zig_zag_proxy",
+    "price_channel_stop_indicator",
+    "price_extreme_channel",
+    "qqe_cloud_indicator",
+    "ravi_indicator",
+    "raw_close_close_stochastic",
+    "rd_trend_trigger_indicator",
+    "renko_level",
+    "renko_line_break",
+    "rftl_indicator",
+    "rkd_indicator",
+    "roc2_vg_indicator",
+    "rsi_histogram_indicator",
+    "rsi_slowdown",
+    "rsioma_v2",
+    "rvi_histogram_indicator",
+    "safe_adx",
+    "shared_strategy_indicators",
+    "sidus_indicator",
+    "silver_trend_indicator",
+    "sliding_range_color",
+    "slow_stoch",
+    "smoothed_adx_indicator",
+    "smoothed_rsi",
+    "spearman_rank_correlation_histogram",
+    "stalin_indicator",
+    "starter_laguerre_filter",
+    "step_manrtr_indicator",
+    "stochastic_histogram_indicator",
+    "t3_alarm_indicator",
+    "t3_average",
+    "t3_indicator",
+    "the20s_v020_signal",
+    "three_candles_indicator",
+    "three_line_break_indicator",
+    "time_line",
+    "trading_channel_index_proxy",
+    "trend_arrows_indicator",
+    "trend_continuation_indicator",
+    "trend_intensity_index_proxy",
+    "trend_manager_indicator",
+    "tri_x_candle_indicator",
+    "trigger_line",
+    "triple_ema_rate",
+    "trvi_indicator",
+    "two_pb_ideal_xosma_indicator",
+    "ultra_absolutely_no_lag_lwma_color",
+    "ultra_wpr_indicator",
+    "up_down_candle_strength",
+    "vinin_i_trend_indicator",
+    "volume_weighted_ma_indicator",
+    "volume_weighted_ma_st_dev_indicator",
+    "vwap_close_indicator",
+    "vwma_candle",
+    "vwma_digit_system",
+    "wami",
+    "wprsi_signal_indicator",
+    "x_de_marker_histogram_vol_direct_indicator",
+    "x_fisher_indicator",
+    "xcci_histogram_vol_direct_indicator",
+    "xcci_histogram_vol_indicator",
+    "xma_ichimoku",
+    "xma_ishimoku_channel_indicator",
+    "xma_ishimoku_line",
+    "xma_range_bands_indicator",
+    "xmacd_indicator",
+    "xrsi_de_marker_histogram",
+    "xrsi_histogram_vol_direct_indicator",
+    "xrsi_histogram_vol_indicator",
+    "xrvi_indicator",
+    "zero_lag_macd",
+    "zig_zag_recent_pivot_signal",
+    "zpf_indicator",
+)
 
-# Import indicators to backtrader.indicators namespace
-# This is done by the parent __init__.py to avoid circular import
+__all__ = []
+
+for _module_name in _MODULES:
+    _module = _import_module(f"{__name__}.{_module_name}")
+    for _name in getattr(_module, "__all__", ()):  # pragma: no branch
+        globals()[_name] = getattr(_module, _name)
+        __all__.append(_name)
+
+del _import_module, _module_name, _module, _name

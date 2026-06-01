@@ -34,7 +34,10 @@ from .resamplerfilter import Replayer, Resampler
 from .tradingcal import PandasMarketCalendar
 from .utils import date2num, num2date, time2num, tzparse
 from .utils.date import Localizer
+from .utils.log_message import get_logger
 from .utils.py3 import range, string_types, zip
+
+logger = get_logger(__name__)
 
 
 # Refactor: Remove metaclass, use normal class and initialization method
@@ -73,10 +76,10 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     """
 
     # Class-level registry dictionary, replacing metaclass _indcol functionality
-    _registry = {}
+    _registry: dict = {}
 
     # Parameter initialization settings - use _params_tuple to save original definition
-    _params_tuple = (
+    _params_tuple: tuple = (
         ("dataname", None),
         ("name", ""),
         ("compression", 1),
@@ -145,8 +148,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 for line in self.lines:
                     if hasattr(line, "__dict__"):
                         line._is_data_feed_line = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to mark data feed lines: %s", e)
 
         # CRITICAL FIX: Also explicitly mark the datetime line
         # The datetime line might be accessed separately (e.g., self.datas[0].datetime)
@@ -155,13 +158,13 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             try:
                 if hasattr(self.datetime, "__dict__"):
                     self.datetime._is_data_feed_line = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to mark datetime line: %s", e)
 
         # Original content from __init__
         self._env = None
-        self._barstash = None
-        self._barstack = None
+        self._barstash: collections.deque = collections.deque()
+        self._barstack: collections.deque = collections.deque()
         self._laststatus = None
 
     def _init_preinit(self, *args, **kwargs):
@@ -169,7 +172,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # Find the owner and store it
         self._feed = self._find_feed_owner()
         # Initialize a queue to store notifications from cerebro
-        self.notifs = collections.deque()  # store notifications for cerebro
+        self.notifs: collections.deque = collections.deque()  # store notifications for cerebro
         # Get _dataname value from parameters
         self._dataname = getattr(self.p, "dataname", None)
         # Default _name attribute is empty
@@ -177,10 +180,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     def _init_postinit(self, *args, **kwargs):
         """Replace the original MetaAbstractDataBase.dopostinit"""
-        # Debug: check parameter state at the beginning
-        # print(f"_init_postinit start: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
-        # print(f"_init_postinit kwargs: {kwargs}")
-
         # Either set by subclass or the parameter or use the dataname (ticker)
         # Reset _name attribute, if _name is not empty, keep it; if empty, set it to name parameter value
         self._name = self._name or getattr(self.p, "name", "")
@@ -210,9 +209,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             # remove 9 to avoid precision rounding errors
             self.p.sessionend = datetime.time(23, 59, 59, 999990)
 
-        # Debug: check parameter state after modification
-        # print(f"_init_postinit end: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
-
         # If start date is date format and has no hour attribute, add sessionstart time to convert start date to date+time format
         fromdate = getattr(self.p, "fromdate", None)
         if isinstance(fromdate, datetime.date):
@@ -233,8 +229,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         self._barstack = collections.deque()  # for filter operations
         self._barstash = collections.deque()  # for filter operations
         # Set _filters and _ffilters as empty lists
-        self._filters = list()
-        self._ffilters = list()
+        self._filters: list = []
+        self._ffilters: list = []
 
         # Iterate through filters in parameters, first check if it's a class; if class, instantiate first; if instance has last attribute, add filter to _ffilters
         # If not a class, directly add filter to _filters
@@ -307,8 +303,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         else:
             self.todate = self.date2num(self.p.todate)
 
-        # FIXME: These two are never used and could be removed
-        # These two are not used and can be deleted
+        # Used by resamplerfilter and DataClone
         self.sessionstart = time2num(self.p.sessionstart)
         self.sessionend = time2num(self.p.sessionend)
 
@@ -420,9 +415,11 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         """
         # if onoff is True, the data will wait p.qcheck for incoming live data
         # on its queue.
-        qwait = self.p.qcheck if onoff else 0.0
-        qwait = max(0.0, qwait - qlapse)
-        self._qcheck = qwait
+        if not onoff:
+            self._qcheck = 0.0
+            return
+
+        self._qcheck = max(0.0, self.p.qcheck - qlapse)
 
     # Whether is live data; default is False; if True, cerebro will not use preload and runonce, because live data needs
     # to be fetched tick by tick or bar by bar
@@ -446,7 +443,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # mark allows to identify which is the last notification to deliver
         # Add a None, when None is retrieved, it means the queue is empty and all info has been retrieved
         self.notifs.append(None)  # put a mark
-        notifs = list()
+        notifs = []
         while True:
             notif = self.notifs.popleft()
             if notif is None:  # mark is reached
@@ -492,7 +489,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         Override in subclasses for cleanup.
         """
-        pass
 
     # Clone data
     def clone(self, **kwargs):
@@ -637,7 +633,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     # If accessing datetime[1] fails, we're at the end
                     return _inf
             return _inf  # max date else
-        except Exception:
+        except Exception as e:
+            logger.debug("Exception in _gettz for %s: %s", getattr(self, "_name", ""), e)
             return _inf
 
     # Move data forward by size
@@ -687,15 +684,12 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # If data length is greater than cached data length, if it's ticks data, call _tick_nullify to generate tick_xxx attributes, then call load to try getting next bar; if ret is empty
         # return ret. If master data is None, if it's ticks data, need to call _tick_fill.
         # If own length is less than cached data length, move forward
-        # print("AbstractDataBase next function is being called")
         if len(self) >= self.buflen():
             if ticks:
                 self._tick_nullify()
 
             # not preloaded - request next bar
             ret = self.load()
-            # if ret is not None:
-            #     print(f"AbstractDataBase next ret = {ret}")
             if not ret:
                 # if the load cannot produce bars - forward the result
                 return ret
@@ -717,9 +711,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 # can't deliver new bar, too early, go back
                 self.rewind()
                 return False
-            else:
-                if ticks:
-                    self._tick_fill()
+            if ticks:
+                self._tick_fill()
 
         else:
             if ticks:
@@ -918,6 +911,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             for line, val in zip(self.itersize(), coll.popleft()):
                 line[0] = val
 
+            self._tick_fill(force=True)
             return True
 
         return False
@@ -958,8 +952,6 @@ class DataBase(AbstractDataBase):
     This is the standard data feed class for most use cases.
     """
 
-    pass
-
 
 # Refactor: Remove MetaParams metaclass, use normal parameter processing
 class FeedBase:
@@ -978,7 +970,7 @@ class FeedBase:
         """
         # Manually set parameters, replacing original metaclass functionality
         self.p = self._create_params(**kwargs)
-        self.datas = list()
+        self.datas = []
 
     def _create_params(self, **kwargs):
         """Manually create parameter object, replacing metaclass parameter processing"""
@@ -1181,8 +1173,9 @@ class CSVDataBase(DataBase):
 
         # preloaded - no need to keep the object around - breaks multip in 3.x
         # Close data file and set to None
-        self.f.close()
-        self.f = None
+        if self.f is not None:
+            self.f.close()
+            self.f = None
 
     # Load a line of data
     def _load(self):
@@ -1284,11 +1277,13 @@ class DataClone(AbstractDataBase):
         """
         # CRITICAL FIX: Initialize these attributes BEFORE calling super().__init__
         # to ensure they exist when parent class methods access them
-        self._dlen = None
+        self._dlen = 0
         self._preloading = None
 
         # Get dataname and set it as self.data
         dataname = kwargs.get("dataname")
+        if dataname is None and hasattr(self, "p"):
+            dataname = getattr(self.p, "dataname", None)
         if dataname is None:
             raise ValueError("DataClone requires 'dataname' parameter")
 
@@ -1334,7 +1329,6 @@ class DataClone(AbstractDataBase):
         if hasattr(self.data, "todate"):
             self.todate = self.data.todate
 
-        # FIXME: if removed from guest, remove here too
         if hasattr(self.data, "sessionstart"):
             self.sessionstart = self.data.sessionstart
         if hasattr(self.data, "sessionend"):

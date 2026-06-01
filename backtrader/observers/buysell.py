@@ -40,11 +40,11 @@ class BuySell(Observer):
         "sell",
     )
 
-    plotinfo = dict(plot=True, subplot=False, plotlinelabels=True)
-    plotlines = dict(
-        buy=dict(marker="^", markersize=8.0, color="lime", fillstyle="full", ls=""),
-        sell=dict(marker="v", markersize=8.0, color="red", fillstyle="full", ls=""),
-    )
+    plotinfo = {"plot": True, "subplot": False, "plotlinelabels": True}
+    plotlines = {
+        "buy": {"marker": "^", "markersize": 8.0, "color": "lime", "fillstyle": "full", "ls": ""},
+        "sell": {"marker": "v", "markersize": 8.0, "color": "red", "fillstyle": "full", "ls": ""},
+    }
 
     params = (
         ("barplot", False),  # plot above/below max/min for clarity in bar plot
@@ -58,14 +58,28 @@ class BuySell(Observer):
         """
         self.curbuylen = 0
         self.curselllen = 0
+        self._lastbar = None
 
     def next(self):
         """Update buy/sell markers based on executed orders.
 
         Calculates average prices for buy and sell orders during the bar.
         """
-        buy = list()
-        sell = list()
+        try:
+            barref = self.data.datetime[0]
+        except (IndexError, AttributeError, TypeError):
+            barref = None
+
+        sentinel = object()
+        if getattr(self, "_lastbar", sentinel) != barref:
+            self.lines.buy[0] = float("nan")
+            self.lines.sell[0] = float("nan")
+            self.curbuylen = 0
+            self.curselllen = 0
+            self._lastbar = barref
+
+        buy = []
+        sell = []
         # If there are pending orders
         for order in self._owner._orderspending:
             # If no data or size is 0, skip

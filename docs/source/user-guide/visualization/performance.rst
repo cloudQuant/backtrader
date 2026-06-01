@@ -1,6 +1,6 @@
-======================
+========================
 Performance Optimization
-======================
+========================
 
 Optimizing backtest performance is crucial when working with large datasets or
 running many parameter combinations. This guide covers techniques to maximize

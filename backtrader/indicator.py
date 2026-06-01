@@ -11,7 +11,7 @@ in backtrader, managing line data, minimum periods, and calculation logic.
 
 from .lineiterator import IndicatorBase, LineIterator
 from .lineseries import Lines
-from .metabase import AutoInfoClass
+from .metabase import AutoInfoClass, OwnerContext
 from .utils.py3 import range
 
 
@@ -22,8 +22,8 @@ class IndicatorRegistry:
     caching mechanism from the original backtrader implementation.
     """
 
-    _indcol = dict()
-    _icache = dict()
+    _indcol: dict = {}
+    _icache: dict = {}
     _icacheuse = False
 
     @classmethod
@@ -40,7 +40,7 @@ class IndicatorRegistry:
     @classmethod
     def cleancache(cls):
         """Clear the indicator cache."""
-        cls._icache = dict()
+        cls._icache = {}
 
     @classmethod
     def usecache(cls, onoff):
@@ -128,6 +128,39 @@ class Indicator(IndicatorBase):
         """
         super().__init_subclass__(**kwargs)
 
+        init = cls.__dict__.get("__init__")
+        if init is not None and not getattr(init, "_bt_owner_context_wrapped", False):
+
+            def owner_context_init(self, *args, **kwargs):
+                parent_owner = OwnerContext.get_current_owner(LineIterator)
+                with OwnerContext.set_owner(self):
+                    result = init(self, *args, **kwargs)
+
+                if (
+                    parent_owner is not None
+                    and parent_owner is not self
+                    and hasattr(parent_owner, "addindicator")
+                ):
+                    old_owner = getattr(self, "_owner", None)
+                    if old_owner is not parent_owner:
+                        try:
+                            old_lists = getattr(old_owner, "_lineiterators", {})
+                            for indicators in old_lists.values():
+                                while self in indicators:
+                                    indicators.remove(self)
+                        except Exception:  # nosec B110
+                            # Best-effort detach from a previous owner; ignore failures.
+                            pass
+                        self._owner = parent_owner
+                        parent_owner.addindicator(self)
+
+                return result
+
+            owner_context_init.__name__ = getattr(init, "__name__", "__init__")
+            owner_context_init.__doc__ = getattr(init, "__doc__", None)
+            owner_context_init._bt_owner_context_wrapped = True
+            cls.__init__ = owner_context_init
+
         # CRITICAL FIX: Handle lines creation for indicators like LineSeries does
         # This ensures that lines tuples are converted to Lines instances
         lines = cls.__dict__.get("lines", ())
@@ -148,11 +181,9 @@ class Indicator(IndicatorBase):
             from .lineseries import Lines
 
             cls.lines = Lines._derive("lines", lines, extralines, ())
-            pass
 
         # NOTE: __init__ patching for _finalize_minperiod disabled as it's handled elsewhere
         # The minperiod calculation is now done explicitly in indicators that need it (like MACD)
-        pass
 
         # Register subclasses automatically
         if not cls.aliased and cls.__name__ != "Indicator" and not cls.__name__.startswith("_"):
@@ -230,6 +261,7 @@ class Indicator(IndicatorBase):
                     if data_max > self._minperiod:
                         self._minperiod = data_max
         except (AttributeError, TypeError):
+            # No usable datas to derive a minperiod from; keep current value.
             pass
 
         # Step 1: Calculate minperiod from lines
@@ -244,6 +276,7 @@ class Indicator(IndicatorBase):
                     if lines_max > self._minperiod:
                         self._minperiod = lines_max
         except (AttributeError, TypeError):
+            # Lines not iterable yet; keep current minperiod.
             pass
 
         # Step 2: Calculate minperiod from sub-indicators
@@ -257,6 +290,7 @@ class Indicator(IndicatorBase):
                         if ind_max > self._minperiod:
                             self._minperiod = ind_max
         except (AttributeError, TypeError):
+            # No sub-indicator registry available; keep current minperiod.
             pass
 
         # Step 3: Update minperiod on all lines
@@ -266,20 +300,31 @@ class Indicator(IndicatorBase):
                     if hasattr(line, "updateminperiod"):
                         line.updateminperiod(self._minperiod)
         except (AttributeError, TypeError):
+            # Lines not iterable; minperiod propagation is best-effort.
             pass
 
     def advance(self, size=1):
         """Advance indicator lines when data length is less than clock length.
 
-        This method supports indicators with data feeds of different lengths
-        (e.g., different timeframes).
+        Also advances sub-indicators so that during _oncepost() replay every
+        level of the indicator tree stays in sync (fixes runonce ATR/SMMA
+        index mismatch when an indicator uses sub_ind[0] in next()).
 
         Args:
             size: Number of steps to advance (default: 1)
         """
-        # Need intercepting this call to support datas with different lengths (timeframes)
-        if len(self) < len(self._clock):
+        # Prefer the concrete secondary-feed clock resolved in
+        # Strategy._periodset() for indicators that follow a non-primary feed
+        # (e.g. SMA over an H1 LinesOperation inside an M15 strategy). Their
+        # _clock may point at a feed whose len() is correct, but when an
+        # explicit secondary clock was pinned we use it so the indicator
+        # advances in lockstep with that feed. See
+        # docs/DEV_REGRESSION_FAILURES.md.
+        adv_clock = getattr(self, "_resolved_secondary_clock", None) or self._clock
+        if len(self) < len(adv_clock):
             self.lines.advance(size=size)
+            for ind in self._lineiterators.get(LineIterator.IndType, []):
+                ind.advance(size)
 
     def preonce_via_prenext(self, start, end):
         """Implement preonce using prenext for batch calculation.
@@ -299,8 +344,8 @@ class Indicator(IndicatorBase):
             # Advance all sub-indicators
             for indicator in self._lineiterators[LineIterator.IndType]:
                 indicator.advance()
-            # Advance self
-            self.advance()
+            # CRITICAL FIX: Directly advance lines instead of using self.advance()
+            self.lines.advance()
             # Call prenext
             self.prenext()
 
@@ -321,7 +366,8 @@ class Indicator(IndicatorBase):
             for indicator in self._lineiterators[LineIterator.IndType]:
                 indicator.advance()
 
-            self.advance()
+            # CRITICAL FIX: Directly advance lines instead of using self.advance()
+            self.lines.advance()
             self.nextstart()
 
     def once_via_next(self, start, end):
@@ -343,7 +389,11 @@ class Indicator(IndicatorBase):
             for indicator in self._lineiterators[LineIterator.IndType]:
                 indicator.advance()
 
-            self.advance()
+            # CRITICAL FIX: Directly advance lines instead of using self.advance()
+            # self.advance() checks len(self) < len(self._clock) which fails when
+            # _clock is MinimalClock (always returns 0) or when _clock is not properly
+            # synchronized. In once_via_next, we always need to advance.
+            self.lines.advance()
             self.next()
 
 
@@ -374,8 +424,8 @@ class LinePlotterIndicatorBase(Indicator.__class__):
         cls.lines = lines._derive(name, (lname,), 0, [])
         # Derive plotlines
         plotlines = AutoInfoClass
-        newplotlines = dict()
-        newplotlines.setdefault(lname, dict())
+        newplotlines: dict = {}
+        newplotlines.setdefault(lname, {})
         cls.plotlines = plotlines._derive(name, newplotlines, [], recurse=True)
 
         # Create the object and set the params in place
@@ -393,5 +443,3 @@ class LinePlotterIndicator(Indicator, LinePlotterIndicatorBase):
 
     Note: This class is not currently used in the project.
     """
-
-    pass

@@ -30,14 +30,15 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -351,7 +352,8 @@ def load_bond_data(csv_file: str) -> pd.DataFrame:
     return df
 
 
-def test_premium_rate_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_premium_rate_strategy(runonce):
     """Test convertible bond premium rate moving average crossover strategy.
 
     This end-to-end test validates the PremiumRateCrossoverStrategy by running
@@ -422,7 +424,7 @@ def test_premium_rate_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

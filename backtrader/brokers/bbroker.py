@@ -21,6 +21,15 @@ from backtrader.broker import BrokerBase
 from backtrader.order import BuyOrder, Order, SellOrder
 from backtrader.parameters import Float, ParameterDescriptor
 from backtrader.position import Position
+from backtrader.position_modes import (
+    POSITION_MODE_DUAL_SIDE,
+    POSITION_SIDE_LONG,
+    POSITION_SIDE_SHORT,
+    normalize_order_position_meta,
+    normalize_position_mode,
+    normalize_position_side,
+    signed_position_size,
+)
 from backtrader.utils.py3 import integer_types, string_types
 
 __all__ = ["BackBroker", "BrokerBack"]
@@ -36,6 +45,7 @@ class _CashDescriptor(ParameterDescriptor):
             if cash is not None:
                 return cash
         except AttributeError:
+            # _cash not set yet (pre-init); fall back to the descriptor default.
             pass
 
         return super().__get__(obj, objtype)
@@ -238,7 +248,8 @@ class BackBroker(BrokerBase):
         cases in which this is undesired, because different strategies are
         competing and the interest would be assigned on a non-deterministic
         basis to any of them.
-        # int2pnl, default is True. TODO: Understand literally as transferring generated interest costs to pnl
+        ``int2pnl`` defaults to True, meaning generated interest cost is
+        transferred to the PnL of the position-reducing operation.
 
       - ``shortcash`` (default: ``True``)
 
@@ -323,6 +334,8 @@ class BackBroker(BrokerBase):
         default=True, type_=bool, doc="Increase cash when shorting stocklike assets"
     )
 
+    position_mode = ParameterDescriptor(default="net", doc="net | dual_side")
+
     fundstartval = ParameterDescriptor(
         default=100.0,
         type_=float,
@@ -342,27 +355,29 @@ class BackBroker(BrokerBase):
         """
         super().__init__(**kwargs)
         # Used to save order history records
-        self._cash_addition = None
-        self._ocol = None
-        self._fundshares = None
+        self._cash_addition: collections.deque = collections.deque()
+        self._ocol = collections.defaultdict(list)
+        self._fundshares = 0.0
         self._fundval = None
-        self._ocos = None
-        self._pchildren = None
-        self.submitted = None
-        self.notifs = None
-        self.d_credit = None
-        self.positions = None
-        self._toactivate = None
-        self.pending = None
-        self.orders = None
-        self._unrealized = None
-        self._leverage = None
-        self._valuemktlever = None
-        self._valuelever = None
-        self._valuemkt = None
-        self._value = None
+        self._ocos = {}
+        self._pchildren = collections.defaultdict(collections.deque)
+        self.submitted: collections.deque = collections.deque()
+        self.notifs: collections.deque = collections.deque()
+        self.d_credit = collections.defaultdict(float)
+        self.positions = collections.defaultdict(Position)
+        self._toactivate: collections.deque = collections.deque()
+        self.pending: collections.deque = collections.deque()
+        self.orders = []
+        self._unrealized = 0.0
+        self._leverage = 1.0
+        self._valuemktlever = 0.0
+        self._valuelever = 0.0
+        self._valuemkt = 0.0
+        self._value = 0.0
         # Comment: Do not directly set self.cash = None, this will override the value in the parameter system
         # Instead use _cash as an internal state variable, initialize it in init()
+        # NOTE: _cash stays None until init(); get_cash() uses that as the
+        # "not yet initialized -> fall back to the cash param" sentinel.
         self._cash = None
         self.startingcash = None
         self._userhist = []
@@ -371,6 +386,13 @@ class BackBroker(BrokerBase):
         # share_value, net asset value
         # Used to save fund shares and net asset value
         self._fhistlast = [float("NaN"), float("NaN")]
+        self.long_positions = collections.defaultdict(Position)
+        self.short_positions = collections.defaultdict(Position)
+        self._position_mode_frozen = False
+        self._position_mode_frozen_reason = None
+        BrokerBase.set_param(
+            self, "position_mode", normalize_position_mode(self.get_param("position_mode"))
+        )
 
     def init(self):
         """Initialize broker state and internal data structures.
@@ -395,12 +417,14 @@ class BackBroker(BrokerBase):
         # Unrealized profit
         self._unrealized = 0.0  # no open position
         # Orders
-        self.orders = list()  # will only be appending
+        self.orders = []  # will only be appending
         # Double-ended queue
         self.pending = collections.deque()  # popleft and append(right)
         self._toactivate = collections.deque()  # to activate in next cycle
         # Position
         self.positions = collections.defaultdict(Position)
+        self.long_positions = collections.defaultdict(Position)
+        self.short_positions = collections.defaultdict(Position)
         # Interest rate
         self.d_credit = collections.defaultdict(float)  # credit per data
         # Double-ended queue for notification info
@@ -412,15 +436,165 @@ class BackBroker(BrokerBase):
         # If independent orders need to be kept
         self._pchildren = collections.defaultdict(collections.deque)
         # ocos
-        self._ocos = dict()
+        self._ocos = {}
         # ocol
         self._ocol = collections.defaultdict(list)
         # fund value
-        self._fundval = self.get_param("fundstartval")
+        self._fundval = self.get_param("fundstartval") or 100.0
         # fund shares
         self._fundshares = self.get_param("cash") / self._fundval
         # Cash addition
         self._cash_addition = collections.deque()
+
+    def start(self):
+        super().start()
+        self._freeze_position_mode("start()")
+
+    def set_param(self, name, value, validate=True):
+        if name == "position_mode":
+            self._ensure_position_mode_mutable()
+            value = normalize_position_mode(value)
+        return super().set_param(name, value, validate=validate)
+
+    def _freeze_position_mode(self, reason):
+        self._position_mode_frozen = True
+        self._position_mode_frozen_reason = reason
+
+    def _ensure_position_mode_mutable(self):
+        if getattr(self, "_position_mode_frozen", False):
+            raise ValueError(
+                "position_mode is frozen after "
+                f"{self._position_mode_frozen_reason} and cannot be changed at runtime"
+            )
+
+    def _is_dual_side_mode(self):
+        return normalize_position_mode(self.get_param("position_mode")) == POSITION_MODE_DUAL_SIDE
+
+    def _normalize_order_meta(self, isbuy, kwargs):
+        local_kwargs = dict(kwargs)
+        position_side = local_kwargs.pop("position_side", None)
+        offset = local_kwargs.pop("offset", None)
+        position_side, offset = normalize_order_position_meta(
+            self.get_param("position_mode"),
+            isbuy,
+            position_side=position_side,
+            offset=offset,
+        )
+        return position_side, offset, local_kwargs
+
+    @staticmethod
+    def _attach_position_meta(order, position_side=None, offset=None, **kwargs):
+        if position_side is not None:
+            order.addinfo(position_side=position_side)
+        if offset is not None:
+            order.addinfo(offset=offset)
+        if kwargs:
+            order.addinfo(**kwargs)
+        return order
+
+    @staticmethod
+    def _position_storage_key(data):
+        return data
+
+    def _get_leg_store(self, position_side):
+        position_side = normalize_position_side(position_side)
+        if position_side == POSITION_SIDE_LONG:
+            return self.long_positions
+        if position_side == POSITION_SIDE_SHORT:
+            return self.short_positions
+        raise ValueError(f"Unsupported position_side {position_side!r}")
+
+    def _get_leg_position(self, data, position_side):
+        return self._get_leg_store(position_side)[self._position_storage_key(data)]
+
+    def _make_signed_position(self, position_side, position):
+        signed_position = position.clone()
+        signed_position.size = signed_position_size(position_side, position.size)
+        if not signed_position.size:
+            signed_position.price = 0.0
+            signed_position.price_orig = 0.0
+        return signed_position
+
+    def _apply_signed_position(self, position_side, leg_position, signed_position):
+        leg_position.size = abs(float(signed_position.size or 0.0))
+        leg_position.price = signed_position.price if leg_position.size else 0.0
+        leg_position.price_orig = signed_position.price_orig if leg_position.size else 0.0
+        leg_position.adjbase = signed_position.adjbase
+        leg_position.datetime = signed_position.datetime
+        leg_position.updt = signed_position.updt
+        leg_position.upopened = abs(float(signed_position.upopened or 0.0))
+        leg_position.upclosed = abs(float(signed_position.upclosed or 0.0))
+        return leg_position
+
+    def _sync_net_position(self, data):
+        data_key = self._position_storage_key(data)
+        long_pos = self.long_positions[data_key]
+        short_pos = self.short_positions[data_key]
+        net_pos = self.positions[data_key]
+        net_size = long_pos.size - short_pos.size
+        if net_size > 0:
+            net_price = long_pos.price
+        elif net_size < 0:
+            net_price = short_pos.price
+        else:
+            net_price = 0.0
+        net_pos.fix(net_size, net_price)
+        if long_pos.datetime is not None and short_pos.datetime is not None:
+            net_pos.datetime = max(long_pos.datetime, short_pos.datetime)
+        else:
+            net_pos.datetime = long_pos.datetime or short_pos.datetime
+        net_pos.adjbase = long_pos.adjbase if long_pos.size else short_pos.adjbase
+        return net_pos
+
+    def _iter_dual_side_positions(self, datas=None):
+        if datas is not None:
+            iterable = datas
+        else:
+            iterable = set(self.long_positions) | set(self.short_positions) | set(self.positions)
+        for data in iterable:
+            data_key = self._position_storage_key(data)
+            for position_side, store in (
+                (POSITION_SIDE_LONG, self.long_positions),
+                (POSITION_SIDE_SHORT, self.short_positions),
+            ):
+                position = store[data_key]
+                if position.size:
+                    yield data_key, position_side, position
+
+    def _preview_position_key(self, order):
+        if not self._is_dual_side_mode():
+            return self._position_storage_key(order.data)
+        return (
+            self._position_storage_key(order.data),
+            normalize_position_side(getattr(order.info, "position_side", None)),
+        )
+
+    def _clone_position_for_order(self, order):
+        if not self._is_dual_side_mode():
+            return self.positions[self._position_storage_key(order.data)].clone()
+        position_side = normalize_position_side(getattr(order.info, "position_side", None))
+        return self._make_signed_position(
+            position_side,
+            self._get_leg_position(order.data, position_side),
+        )
+
+    def _credit_key(self, data, position_side=None):
+        if not self._is_dual_side_mode():
+            return self._position_storage_key(data)
+        return (self._position_storage_key(data), normalize_position_side(position_side))
+
+    def _validate_close_quantity(self, order, position):
+        if not self._is_dual_side_mode():
+            return
+        if getattr(order.info, "offset", None) != "close":
+            return
+        if (
+            abs(float(order.executed.remsize or order.size or 0.0))
+            > abs(float(position.size or 0.0)) + 1e-12
+        ):
+            raise ValueError(
+                "Close order size exceeds the available leg position in dual_side mode"
+            )
 
     def get_notification(self):
         """Get the next notification from the notification queue.
@@ -431,6 +605,7 @@ class BackBroker(BrokerBase):
         try:
             return self.notifs.popleft()
         except IndexError:
+            # Notification queue is empty; signal "no notification" with None.
             pass
 
         return None
@@ -571,37 +746,9 @@ class BackBroker(BrokerBase):
         """
         if hasattr(self, "_cash") and self._cash is not None:
             return self._cash
-        else:
-            return self.get_param("cash")
+        return self.get_param("cash")
 
     getcash = get_cash
-
-    # CRITICAL FIX: Override __getattribute__ to return runtime _cash value
-    # when accessing broker.cash, instead of the initial parameter value
-    # def __getattribute__(self, name):
-    #     """Override attribute access to return runtime cash value.
-
-    #     Args:
-    #         name: Attribute name being accessed
-
-    #     Returns:
-    #         Runtime _cash value if accessing 'cash', otherwise the attribute value
-    #     """
-    #     if name == "cash":
-    #         # Use object.__getattribute__ to avoid recursion
-    #         try:
-    #             _cash = object.__getattribute__(self, "_cash")
-    #             if _cash is not None:
-    #                 return _cash
-    #         except AttributeError:
-    #             pass
-    #         # Fall back to parameter value if _cash not set yet
-    #         try:
-    #             param_manager = object.__getattribute__(self, "_param_manager")
-    #             return param_manager.get("cash", 10000.0)
-    #         except AttributeError:
-    #             return 10000.0  # Default value
-    #     return object.__getattribute__(self, name)
 
     __getattribute__ = object.__getattribute__
 
@@ -655,10 +802,22 @@ class BackBroker(BrokerBase):
         Returns:
             bool: True if order was cancelled, False if not found
         """
-        try:
-            self.pending.remove(order)
-        except ValueError:
-            # If the list didn't have the element we didn't cancel anything
+        if order is None or not order.alive():
+            return False
+
+        if order.status not in (Order.Submitted, Order.Accepted, Order.Partial):
+            return False
+
+        removed = False
+        for queue in (self.pending, self.submitted):
+            try:
+                queue.remove(order)
+            except ValueError:
+                continue
+            removed = True
+            break
+
+        if not removed:
             return False
 
         order.cancel()
@@ -683,44 +842,104 @@ class BackBroker(BrokerBase):
 
     getvalue = get_value
 
-    # TODO This function is only declared here and not used anywhere else, unused function, commented out
-    # def get_value_lever(self, datas=None, mkt=False):
-    #     return self.get_value(datas=datas, mkt=mkt)
+    def _get_value_dual_side(self, datas, lever, shortcash, getcommissioninfo):
+        """Accumulate portfolio value across long+short legs (dual_side mode).
 
-    def _get_value(self, datas=None, lever=False):
-        """Calculate portfolio value for given data feeds.
-
-        Args:
-            datas: Data feeds to calculate value for (None for all)
-            lever: If True, return leveraged value
-
-        Returns:
-            float: Portfolio value
+        Returns a 4-tuple ``(direct, pos_value, unrealized, pos_value_unlever)``
+        where ``direct`` is non-None only for a single-data raw-value request
+        (caller returns it immediately); otherwise it is None and the three
+        accumulators are returned. Extracted verbatim from _get_value.
         """
-        # Position value
         pos_value = 0.0
-        # Unleveraged position value
         pos_value_unlever = 0.0
-        # Unrealized profit
         unrealized = 0.0
+        data_iterable = list(datas) if datas is not None else None
+        single_data_request = data_iterable is not None and len(data_iterable) == 1
+        for data in data_iterable or (
+            set(self.long_positions) | set(self.short_positions) | set(self.positions)
+        ):
+            long_position = self.long_positions[self._position_storage_key(data)]
+            short_position = self.short_positions[self._position_storage_key(data)]
+            if not long_position.size and not short_position.size:
+                if single_data_request:
+                    return 0.0, pos_value, unrealized, pos_value_unlever
+                continue
 
-        shortcash = self.get_param("shortcash")
-        positions = self.positions
-        getcommissioninfo = self.getcommissioninfo
+            comminfo = getcommissioninfo(data)
+            close0 = data.close[0]
+            leverage = comminfo.get_leverage()
+            data_raw_value = 0.0
+            data_value = 0.0
+            data_value_unlever = 0.0
+            data_unrealized = 0.0
 
-        # If cash is added, add the cash to self._cash
-        cash_addition = self._cash_addition
-        while cash_addition:
-            c = cash_addition.popleft()
-            self._fundshares += c / self._fundval
-            self._cash += c
+            for _position_side, leg_position in (
+                (POSITION_SIDE_LONG, long_position),
+                (POSITION_SIDE_SHORT, short_position),
+            ):
+                if not leg_position.size:
+                    continue
 
+                signed_position = self._make_signed_position(_position_side, leg_position)
+                if not shortcash:
+                    leg_raw_value = comminfo.getvalue(signed_position, close0)
+                    leg_value = abs(leg_raw_value)
+                else:
+                    leg_raw_value = comminfo.getvaluesize(signed_position.size, close0)
+                    leg_value = leg_raw_value
+
+                leg_unrealized = comminfo.profitandloss(
+                    signed_position.size,
+                    signed_position.price,
+                    close0,
+                )
+                data_raw_value += leg_raw_value
+                data_value += leg_value
+                data_unrealized += leg_unrealized
+
+                if leg_value > 0:
+                    leg_value -= leg_unrealized
+                    data_value_unlever += leg_value / leverage
+                    data_value_unlever += leg_unrealized
+                else:
+                    data_value_unlever += leg_value
+
+            if single_data_request:
+                if lever and data_raw_value > 0:
+                    data_raw_value -= data_unrealized
+                    return (
+                        (data_raw_value / leverage) + data_unrealized,
+                        pos_value,
+                        unrealized,
+                        pos_value_unlever,
+                    )
+                return data_raw_value, pos_value, unrealized, pos_value_unlever
+
+            pos_value += data_value
+            unrealized += data_unrealized
+            pos_value_unlever += data_value_unlever
+        return None, pos_value, unrealized, pos_value_unlever
+
+    def _get_value_net(self, datas, lever, shortcash, positions, getcommissioninfo):
+        """Accumulate portfolio value across net positions (net mode).
+
+        Returns a 4-tuple ``(direct, pos_value, unrealized, pos_value_unlever)``
+        with the same single-data early-return convention as
+        _get_value_dual_side. Extracted verbatim from _get_value.
+        """
+        pos_value = 0.0
+        pos_value_unlever = 0.0
+        unrealized = 0.0
         # If datas is None, loop through self.positions; if datas is not None, loop through datas
         for data in datas or positions:
             # Get commission related info
             comminfo = getcommissioninfo(data)
             # Get data position
             position = positions[data]
+            if not position:
+                if datas and len(datas) == 1:
+                    return 0.0, pos_value, unrealized, pos_value_unlever
+                continue
             close0 = data.close[0]
             # use valuesize:  returns raw value, rather than negative adj val
             # If shortcash is False, use comminfo.getvalue to get data value
@@ -737,9 +956,14 @@ class BackBroker(BrokerBase):
                 # If lever is True and dvalue is greater than 0, calculate the initial dvalue value, then divide by leverage and add unrealized profit to get data value
                 if lever and dvalue > 0:
                     dvalue -= dunrealized
-                    return (dvalue / leverage) + dunrealized
+                    return (
+                        (dvalue / leverage) + dunrealized,
+                        pos_value,
+                        unrealized,
+                        pos_value_unlever,
+                    )
                 # If lever is False or dvalue<0 due to shortcash, return dvalue
-                return dvalue  # raw data value requested, short selling is neg
+                return dvalue, pos_value, unrealized, pos_value_unlever
             # If shortcash is False
             if not shortcash:
                 dvalue = abs(dvalue)  # short selling adds value in this case
@@ -750,17 +974,54 @@ class BackBroker(BrokerBase):
             # If dvalue is greater than 0, calculate unleveraged position value
             if dvalue > 0:  # long position - unlever
                 dvalue -= dunrealized
-                # TODO Why is it necessary to reset pos_value_unlever every time
                 pos_value_unlever += dvalue / leverage
                 pos_value_unlever += dunrealized
             else:
                 pos_value_unlever += dvalue
+        return None, pos_value, unrealized, pos_value_unlever
+
+    def _get_value(self, datas=None, lever=False):
+        """Calculate portfolio value for given data feeds.
+
+        Args:
+            datas: Data feeds to calculate value for (None for all)
+            lever: If True, return leveraged value
+
+        Returns:
+            float: Portfolio value
+        """
+        shortcash = self.get_param("shortcash")
+        positions = self.positions
+        getcommissioninfo = self.getcommissioninfo
+
+        # If cash is added, add the cash to self._cash
+        cash_addition = self._cash_addition
+        while cash_addition:
+            c = cash_addition.popleft()
+            self._fundshares += c / self._fundval if self._fundval else 0.0
+            self._cash += c
+
+        if self._is_dual_side_mode():
+            direct, pos_value, unrealized, pos_value_unlever = self._get_value_dual_side(
+                datas, lever, shortcash, getcommissioninfo
+            )
+        else:
+            direct, pos_value, unrealized, pos_value_unlever = self._get_value_net(
+                datas, lever, shortcash, positions, getcommissioninfo
+            )
+        # Early-return for single-data requests (raw per-data value)
+        if direct is not None:
+            return direct
         # If not in fundhist mode, calculate _value and fundval
         if not self._fundhist:
-            # TODO Commented out unused v
-            # self._value = v = self._cash + pos_value_unlever
-            self._value = self._cash + pos_value_unlever
-            self._fundval = self._value / self._fundshares  # update fundvalue
+            # _cash is a float here (init() ran before any backtest step);
+            # None is only the pre-init sentinel used by get_cash().
+            self._value = self._cash + pos_value_unlever  # type: ignore[operator]
+            self._fundval = (
+                self._value / self._fundshares
+                if self._fundshares
+                else self.get_param("fundstartval")
+            )  # update fundvalue
         # If in fundhist mode
         else:
             # Try to fetch a value
@@ -773,7 +1034,7 @@ class BackBroker(BrokerBase):
             # _fundval = fval
             self._fundval = fval
             # _fund shares
-            self._fundshares = fvalue / fval
+            self._fundshares = fvalue / fval if fval else 0.0
             # Leverage multiplier
             lev = pos_value / (pos_value_unlever or 1.0)
 
@@ -785,7 +1046,7 @@ class BackBroker(BrokerBase):
         # Unleveraged position value
         self._valuemkt = pos_value_unlever
         # Leveraged account value
-        self._valuelever = self._cash + pos_value
+        self._valuelever = self._cash + pos_value  # type: ignore[operator]
         # Leveraged position value
         self._valuemktlever = pos_value
         # Leverage ratio
@@ -815,19 +1076,26 @@ class BackBroker(BrokerBase):
         if safe:
             os = [x.clone() for x in self.pending]
         else:
-            os = [x for x in self.pending]
+            os = list(self.pending)
 
         return os
 
-    def getposition(self, data):
+    def getposition(self, data, side=None):
         """Get the current position status for a data feed.
 
         Args:
             data: Data feed to get position for
+            side: Optional leg selector in dual_side mode
 
         Returns:
             Position: Current position instance for the data feed
         """
+        if side is not None:
+            if not self._is_dual_side_mode():
+                raise ValueError("side-specific getposition() is only available in dual_side mode")
+            return self._get_leg_position(data, side)
+        if self._is_dual_side_mode():
+            return self._sync_net_position(data)
         return self.positions[data]
 
     def orderstatus(self, order):
@@ -840,7 +1108,7 @@ class BackBroker(BrokerBase):
             Order.Status: The current status of the order
         """
         try:
-            o = self.orders.index(order)
+            o = self.orders[self.orders.index(order)]
         except ValueError:
             o = order
 
@@ -879,6 +1147,7 @@ class BackBroker(BrokerBase):
         Returns:
             Order: The submitted order or parent order if part of bracket
         """
+        self._freeze_position_mode("first order submission")
         # Get parent order ID of order or its own ID, if this ID is None, return order itself
         pref = self._take_children(order)
         if pref is None:  # order has not been taken
@@ -904,6 +1173,7 @@ class BackBroker(BrokerBase):
         Returns:
             Order: The transmitted order
         """
+        self._freeze_position_mode("first order submission")
         # If check is True and checksubmit is True
         if check and self.get_param("checksubmit"):
             # Orderssubmit
@@ -929,7 +1199,7 @@ class BackBroker(BrokerBase):
         # Currently available cash
         cash = self._cash
         # Position
-        positions = dict()
+        positions: dict = {}
         # When submitted is not empty
         while self.submitted:
             # Remove leftmost order and get it
@@ -937,16 +1207,25 @@ class BackBroker(BrokerBase):
             # If the result of calling _take_children(order) is None, this order will be rejected, continue to next order
             if self._take_children(order) is None:  # children not taken
                 continue
-            # Get commission info class
-            # comminfo = self.getcommissioninfo(order.data)
-            # TODO Commented out unused comminfo
             # Get position
-            position = positions.setdefault(order.data, self.positions[order.data].clone())
+            preview_key = self._preview_position_key(order)
+            position = positions.setdefault(preview_key, self._clone_position_for_order(order))
+            try:
+                self._validate_close_quantity(order, position)
+            except ValueError:
+                order.reject()
+                self.notify(order)
+                self._ococheck(order)
+                self._bracketize(order, cancel=True)
+                continue
             # pseudo-execute the order to get the remaining cash after exec
             # Cash obtained after assuming order execution
-            cash = self._execute(order, cash=cash, position=position)
+            trial_position = position.clone()
+            trial_cash = self._execute(order, cash=cash, position=trial_position)
             # If remaining cash is greater than 0, call submit_accept to accept order
-            if cash >= 0.0:
+            if trial_cash >= 0.0:
+                cash = trial_cash
+                positions[preview_key] = trial_position
                 self.submit_accept(order)
                 continue
             # If cash is less than 0, insufficient margin, notify order status, call _ococheck and _bracketize
@@ -961,7 +1240,6 @@ class BackBroker(BrokerBase):
         Args:
             order: Order to accept
         """
-        # TODO Set additional pannotated attribute for order, purpose unknown for now
         order.pannotated = None
         # Order submit
         order.submit()
@@ -1103,6 +1381,7 @@ class BackBroker(BrokerBase):
         Returns:
             Order: The submitted buy order
         """
+        position_side, offset, order_kwargs = self._normalize_order_meta(True, kwargs)
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -1119,7 +1398,9 @@ class BackBroker(BrokerBase):
             histnotify=histnotify,
         )
 
-        order.addinfo(**kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         self._ocoize(order, oco)
 
         return self.submit(order, check=_checksubmit)
@@ -1166,6 +1447,7 @@ class BackBroker(BrokerBase):
         Returns:
             Order: The submitted sell order
         """
+        position_side, offset, order_kwargs = self._normalize_order_meta(False, kwargs)
         order = SellOrder(
             owner=owner,
             data=data,
@@ -1182,18 +1464,28 @@ class BackBroker(BrokerBase):
             histnotify=histnotify,
         )
 
-        order.addinfo(**kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         self._ocoize(order, oco)
 
         return self.submit(order, check=_checksubmit)
 
     # Execute order
     def _execute(self, order, ago=None, price=None, cash=None, position=None, dtcoc=None):
+        if self._is_dual_side_mode():
+            return self._execute_dual_side(
+                order,
+                ago=ago,
+                price=price,
+                cash=cash,
+                position=position,
+                dtcoc=dtcoc,
+            )
         # ago = None is used a flag for pseudo execution
-        # # print(f"Order size:{order.executed.remsize}")  # Removed for performance
         # If ago is not None and price is None, do nothing and return
         if ago is not None and price is None:
-            return  # no psuedo exec no price - no execution
+            return None  # no psuedo exec no price - no execution
 
         # Get the order size to execute
         if self.get_param("filler") is None or ago is None:
@@ -1293,7 +1585,6 @@ class BackBroker(BrokerBase):
         if opened:
             # Calculate opening value
             if self.get_param("shortcash"):
-                # # print(f"opened:{opened},price:{price}")  # Removed for performance
                 openedvalue = comminfo.getvaluesize(opened, price)
             else:
                 openedvalue = comminfo.getoperationcost(opened, price)
@@ -1302,7 +1593,6 @@ class BackBroker(BrokerBase):
             opencash = openedvalue
             if openedvalue > 0:  # long position being opened
                 opencash /= comminfo.get_leverage()  # dec cash with level
-            # # print(f"openedvalue:{openedvalue},opencash:{opencash},cash:{cash}")  # Removed for performance
             # Subtract cash obtained after opening
             cash -= opencash  # original behavior
             # Commission for opening
@@ -1349,8 +1639,7 @@ class BackBroker(BrokerBase):
         execsize = closed + opened
         # If order execution size is greater than 0
         if execsize:
-            # Confimrm the operation to the comminfo object
-            # TODO Confirm required commission, this doesn't accept return value with any variable, seems useless
+            # Confirm the operation to the comminfo object
             comminfo.confirmexec(execsize, price)
 
             # do a real position update if something was executed
@@ -1391,6 +1680,144 @@ class BackBroker(BrokerBase):
             self._ococheck(order)
             self._bracketize(order, cancel=True)
 
+    def _execute_dual_side(self, order, ago=None, price=None, cash=None, position=None, dtcoc=None):
+        if ago is not None and price is None:
+            return None
+
+        if self.get_param("filler") is None or ago is None:
+            size = order.executed.remsize
+        else:
+            size = self.get_param("filler")(order, price, ago)
+            if not order.isbuy():
+                size = -size
+
+        comminfo = self.getcommissioninfo(order.data)
+        if order.data._compensate is not None:
+            data = order.data._compensate
+            cinfocomp = self.getcommissioninfo(data)
+        else:
+            data = order.data
+            cinfocomp = comminfo
+
+        position_side = normalize_position_side(getattr(order.info, "position_side", None))
+        actual_leg_position = None
+        if ago is not None:
+            actual_leg_position = self._get_leg_position(data, position_side)
+            signed_position = self._make_signed_position(position_side, actual_leg_position)
+        else:
+            signed_position = position
+
+        if getattr(order.info, "offset", None) == "close":
+            available = abs(float(signed_position.size or 0.0))
+            required = abs(float(size or 0.0))
+            if required > available + 1e-12:
+                if ago is None:
+                    return float("-inf")
+                order.reject()
+                self.notify(order)
+                self._ococheck(order)
+                self._bracketize(order, cancel=True)
+                return None
+
+        if ago is not None:
+            pprice_orig = signed_position.price
+            psize, pprice, opened, closed = signed_position.pseudoupdate(size, price)
+            pnl = comminfo.profitandloss(-closed, pprice_orig, price)
+            cash = self._cash
+        else:
+            pnl = 0
+            if not self.get_param("coo"):
+                price = pprice_orig = order.created.price
+            else:
+                if order.exectype == Order.Market:
+                    price = pprice_orig = order.data.open[0]
+                else:
+                    price = pprice_orig = order.created.price
+            psize, pprice, opened, closed = signed_position.update(size, price)
+
+        if closed:
+            if self.get_param("shortcash"):
+                closedvalue = comminfo.getvaluesize(-closed, pprice_orig)
+            else:
+                closedvalue = comminfo.getoperationcost(closed, pprice_orig)
+
+            closecash = closedvalue
+            if closedvalue > 0:
+                closecash /= comminfo.get_leverage()
+            cash += closecash + pnl * comminfo.stocklike
+            closedcomm = comminfo.getcommission(closed, price)
+            cash -= closedcomm
+            if ago is not None:
+                cash += comminfo.cashadjust(-closed, signed_position.adjbase, price)
+                self._cash = cash
+        else:
+            closedvalue = closedcomm = 0.0
+
+        popened = opened
+        if opened:
+            if self.get_param("shortcash"):
+                openedvalue = comminfo.getvaluesize(opened, price)
+            else:
+                openedvalue = comminfo.getoperationcost(opened, price)
+
+            opencash = openedvalue
+            if openedvalue > 0:
+                opencash /= comminfo.get_leverage()
+            cash -= opencash
+            openedcomm = cinfocomp.getcommission(opened, price)
+            cash -= openedcomm
+            if cash < 0.0:
+                opened = 0
+                openedvalue = openedcomm = 0.0
+            elif ago is not None:
+                if abs(psize) > abs(opened):
+                    adjsize = psize - opened
+                    cash += comminfo.cashadjust(adjsize, signed_position.adjbase, price)
+                signed_position.adjbase = price
+                self._cash = cash
+        else:
+            openedvalue = openedcomm = 0.0
+
+        if ago is None:
+            return cash
+
+        execsize = closed + opened
+        if execsize:
+            comminfo.confirmexec(execsize, price)
+            signed_position.update(execsize, price, data.datetime.datetime())
+            if closed and self.get_param("int2pnl"):
+                closedcomm += self.d_credit.pop(self._credit_key(data, position_side), 0.0)
+
+            if actual_leg_position is not None:
+                self._apply_signed_position(position_side, actual_leg_position, signed_position)
+                self._sync_net_position(data)
+
+            order.execute(
+                dtcoc or data.datetime[ago],
+                execsize,
+                price,
+                closed,
+                closedvalue,
+                closedcomm,
+                opened,
+                openedvalue,
+                openedcomm,
+                comminfo.margin,
+                pnl,
+                psize,
+                pprice,
+            )
+
+            order.addcomminfo(comminfo)
+            self.notify(order)
+            self._ococheck(order)
+
+        if popened and not opened:
+            order.margin()
+            self.notify(order)
+            self._ococheck(order)
+            self._bracketize(order, cancel=True)
+
     def notify(self, order):
         """Add an order notification to the notification queue.
 
@@ -1405,8 +1832,6 @@ class BackBroker(BrokerBase):
 
     # Try to execute market order
     def _try_exec_market(self, order, popen, phigh, plow):
-        # ago = 0
-        # TODO Commented out unused ago
         # If cheat_on_close is True or cheat_on_open in order is True
         if self.get_param("coc") and order.info.get("coc", True):
             # Order creation time
@@ -1447,7 +1872,7 @@ class BackBroker(BrokerBase):
             if dt0 >= order.dteos:
                 # past the end of session or right at it and eosbar is True
                 # If order.pannotated is a price and dt0 is greater than end of day time, set ago to -1, execution price equals previous close price
-                if order.pannotated and dt0 > order.dteos:
+                if order.pannotated is not None and dt0 > order.dteos:
                     ago = -1
                     execprice = order.pannotated
                 # Otherwise, ago equals 0, execution price equals pclose
@@ -1484,9 +1909,6 @@ class BackBroker(BrokerBase):
             # plimit is less than or equal to popen
             if plimit <= popen:
                 # open greater/equal than requested - sell more expensive
-                # Calculate pmin
-                # # TODO Commented out unused pmin
-                # pmin = max(plow, plimit)
                 # Calculate price after adding slippage
                 p = self._slip_down(plimit, popen, doslip=self.get_param("slip_open"), lim=True)
                 # Execute order
@@ -1600,7 +2022,7 @@ class BackBroker(BrokerBase):
 
         if pslip <= pmax:  # slipping can return price
             return pslip
-        elif self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
+        if self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
             if not self.get_param("slip_out"):
                 return pmax
 
@@ -1624,7 +2046,7 @@ class BackBroker(BrokerBase):
 
         if pslip >= pmin:  # slipping can return price
             return pslip
-        elif self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
+        if self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
             if not self.get_param("slip_out"):
                 return pmin
 
@@ -1787,7 +2209,6 @@ class BackBroker(BrokerBase):
         - Executes pending orders
         - Adjusts cash for mark-to-market
         """
-        positions = self.positions
         getcommissioninfo = self.getcommissioninfo
         d_credit = self.d_credit
         pending = self.pending
@@ -1807,16 +2228,27 @@ class BackBroker(BrokerBase):
         # Discount any cash for positions hold
         # Interest charges
         credit = 0.0
-        for data, pos in positions.items():
-            if pos:
-                comminfo = getcommissioninfo(data)
-                dt0 = data.datetime.datetime()
-                dcredit = comminfo.get_credit_interest(data, pos, dt0)
-                d_credit[data] += dcredit
-                credit += dcredit
-                pos.datetime = dt0  # mark last credit operation
+        if self._is_dual_side_mode():
+            for data, position_side, pos in self._iter_dual_side_positions():
+                if pos:
+                    comminfo = getcommissioninfo(data)
+                    dt0 = data.datetime.datetime()
+                    signed_position = self._make_signed_position(position_side, pos)
+                    dcredit = comminfo.get_credit_interest(data, signed_position, dt0)
+                    d_credit[self._credit_key(data, position_side)] += dcredit
+                    credit += dcredit
+                    pos.datetime = dt0
+        else:
+            for data, pos in self.positions.items():
+                if pos:
+                    comminfo = getcommissioninfo(data)
+                    dt0 = data.datetime.datetime()
+                    dcredit = comminfo.get_credit_interest(data, pos, dt0)
+                    d_credit[data] += dcredit
+                    credit += dcredit
+                    pos.datetime = dt0  # mark last credit operation
 
-        self._cash -= credit
+        self._cash -= credit  # type: ignore[operator]
         # Process order history
         self._process_order_history()
 
@@ -1849,14 +2281,27 @@ class BackBroker(BrokerBase):
         # Operations have been executed ... adjust cash end of bar
         # At the end of bar, adjust cash based on position info
         cash = self._cash
-        for data, pos in positions.items():
-            # futures change cash every bar
-            if pos:
-                comminfo = getcommissioninfo(data)
-                close0 = data.close[0]
-                cash += comminfo.cashadjust(pos.size, pos.adjbase, close0)
-                # record the last adjustment price
-                pos.adjbase = close0
+        if self._is_dual_side_mode():
+            for data, position_side, pos in self._iter_dual_side_positions():
+                if pos:
+                    comminfo = getcommissioninfo(data)
+                    close0 = data.close[0]
+                    signed_position = self._make_signed_position(position_side, pos)
+                    cash += comminfo.cashadjust(
+                        signed_position.size, signed_position.adjbase, close0
+                    )
+                    pos.adjbase = close0
+            for data in set(self.long_positions) | set(self.short_positions) | set(self.positions):
+                self._sync_net_position(data)
+        else:
+            for data, pos in self.positions.items():
+                # futures change cash every bar
+                if pos:
+                    comminfo = getcommissioninfo(data)
+                    close0 = data.close[0]
+                    cash += comminfo.cashadjust(pos.size, pos.adjbase, close0)
+                    # record the last adjustment price
+                    pos.adjbase = close0
 
         self._cash = cash
 

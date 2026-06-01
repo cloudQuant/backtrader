@@ -21,13 +21,14 @@ Example:
 """
 
 import heapq
-import logging
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from .utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class EventPriority(IntEnum):
@@ -38,8 +39,8 @@ class EventPriority(IntEnum):
 
     SYSTEM = 0
     FUNDING = 10
-    ORDERBOOK = 20
-    TICK = 30
+    TICK = 20
+    ORDERBOOK = 30
     BAR = 40
 
 
@@ -147,7 +148,7 @@ class DataChannel:
         self.symbol = symbol
         self.maxlen = maxlen
         self.params = kwargs
-        self._buffer = deque(maxlen=maxlen)
+        self._buffer: deque = deque(maxlen=maxlen)
         self._event_count = 0
         self._validate = validate
         self._auto_fix = auto_fix
@@ -155,7 +156,7 @@ class DataChannel:
         self._last_timestamp = None
         self.sharing_mode = sharing_mode
         self._strategy_states = {}
-        self._dataname = kwargs.get("dataname", None)
+        self._dataname = kwargs.get("dataname")
 
     @property
     def latest(self):

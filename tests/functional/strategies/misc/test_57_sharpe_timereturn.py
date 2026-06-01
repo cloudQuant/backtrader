@@ -14,6 +14,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -120,7 +121,8 @@ class SharpeTestStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_sharpe_timereturn():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_sharpe_timereturn(runonce):
     """Test Sharpe ratio and TimeReturn analyzers.
 
     This function sets up a backtesting environment with the SharpeTestStrategy,
@@ -161,7 +163,7 @@ def test_sharpe_timereturn():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

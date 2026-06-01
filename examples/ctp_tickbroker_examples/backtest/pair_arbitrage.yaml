@@ -1,0 +1,69 @@
+strategy: pair_arbitrage
+symbols:
+- rb2605
+- hc2605
+broker:
+  cash: 100000.0
+  slippage_perc: 0.0
+  allow_partial: false
+strategy_params:
+  symbol_a: rb2605
+  symbol_b: hc2605
+  spread_window: 2
+  entry_edge: 5.0
+  exit_edge: 0.5
+  order_size: 1
+  max_roundtrips: 1
+  printlog: true
+scenario:
+  type: pair_ticks
+  start_timestamp: 1710000000.0
+  ticks:
+    rb2610:
+    - - 0.0
+      - 100.0
+    - - 1.0
+      - 100.5
+    - - 2.0
+      - 106.0
+    - - 3.0
+      - 106.5
+    - - 4.0
+      - 101.2
+    - - 5.0
+      - 101.0
+    hc2610:
+    - - 0.2
+      - 100.0
+    - - 1.2
+      - 100.0
+    - - 2.2
+      - 100.0
+    - - 3.2
+      - 100.2
+    - - 4.2
+      - 100.6
+    rb2605:
+    - - 0.0
+      - 100.0
+    - - 1.0
+      - 100.5
+    - - 2.0
+      - 106.0
+    - - 3.0
+      - 106.5
+    - - 4.0
+      - 101.2
+    - - 5.0
+      - 101.0
+    hc2605:
+    - - 0.2
+      - 100.0
+    - - 1.2
+      - 100.0
+    - - 2.2
+      - 100.0
+    - - 3.2
+      - 100.2
+    - - 4.2
+      - 100.6

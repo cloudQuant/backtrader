@@ -165,7 +165,7 @@ class OLS_TransformationN(PeriodN):
 
         for arr in [spread_array, mean_array, std_array, zscore_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         # Calculate spread
         for i in range(

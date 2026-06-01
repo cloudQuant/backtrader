@@ -98,9 +98,10 @@ else:
                 self._tabstract.set_function_args(**self.p._getkwargs())
                 self._lookback = lookback = self._tabstract.lookback + 1
                 self.updateminperiod(lookback)
-                if getattr(self, "_unstable", False):
-                    self._lookback = 0
-                elif self.__class__.__name__ in self._KNOWN_UNSTABLE:
+                if (
+                    getattr(self, "_unstable", False)
+                    or self.__class__.__name__ in self._KNOWN_UNSTABLE
+                ):
                     self._lookback = 0
 
                 # findowner is used to discover _obj's parent class, but is an instance of bt.Cerebro
@@ -124,7 +125,7 @@ else:
 
             # Prepare plotinfo
             # Prepare plotting information
-            plotinfo = dict()
+            plotinfo = {}
             fflags = _tabstract.function_flags or []
             for fflag in fflags:
                 rfflag = R_TA_FUNC_FLAGS[fflag]
@@ -141,11 +142,11 @@ else:
             # Prepare plotting lines
             lines = _tabstract.output_names
             output_flags = _tabstract.output_flags
-            plotlines = dict()
+            plotlines = {}
             samecolor = False
             for lname in lines:
                 oflags = output_flags.get(lname, None)
-                pline = dict()
+                pline = {}
                 for oflag in oflags or []:
                     orflag = R_TA_OUTPUT_FLAGS[oflag]
                     if orflag & OUT_FLAGS_LINE:
@@ -178,7 +179,7 @@ else:
                 # indicator is a candle. The values of a candle (100) will be
                 # used to plot a sign above the maximum of the bar which
                 # produces the candle
-                pline = dict()
+                pline = {}
                 pline["_name"] = name  # plotted name
                 lname = "_candleplot"  # change name
                 lines.append(lname)
@@ -212,7 +213,7 @@ else:
                 start: Starting index for processing.
                 end: Ending index for processing.
             """
-            pass  # if not ... a call with a single value to once will happen
+            # if not ... a call with a single value to once will happen
 
         # Run once
         def once(self, start, end):

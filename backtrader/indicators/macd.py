@@ -27,6 +27,10 @@ import math
 from . import Indicator, MovAv
 
 
+def _finite(value):
+    return value is not None and not (isinstance(value, float) and not math.isfinite(value))
+
+
 class MACD(Indicator):
     """
     Moving Average Convergence Divergence. Defined by Gerald Appel in the 70s.
@@ -56,8 +60,8 @@ class MACD(Indicator):
         ("movav", MovAv.Exponential),
     )
 
-    plotinfo = dict(plothlines=[0.0])
-    plotlines = dict(signal=dict(ls="--"))
+    plotinfo = {"plothlines": [0.0]}
+    plotlines = {"signal": {"ls": "--"}}
 
     def _plotlabel(self):
         plabels = super()._plotlabel()
@@ -94,10 +98,17 @@ class MACD(Indicator):
 
         Ensures MACD values are available for signal line seeding.
         """
-        # Calculate MACD during warmup period so values are available for signal seeding
-        idx = self.lines[0].idx
-        me1_val = self.me1.lines[0].array[idx]
-        me2_val = self.me2.lines[0].array[idx]
+        try:
+            me1_val = self.me1[0]
+            me2_val = self.me2[0]
+        except (IndexError, TypeError):
+            self.lines.macd[0] = float("nan")
+            return
+
+        if not (_finite(me1_val) and _finite(me2_val)):
+            self.lines.macd[0] = float("nan")
+            return
+
         self.lines.macd[0] = me1_val - me2_val
 
     def nextstart(self):
@@ -105,20 +116,35 @@ class MACD(Indicator):
 
         Computes MACD and seeds signal with SMA of MACD values.
         """
-        # Calculate MACD = me1 - me2
-        # Use direct array access to avoid dependency on indicator processing order
-        idx = self.lines[0].idx
-        me1_val = self.me1.lines[0].array[idx]
-        me2_val = self.me2.lines[0].array[idx]
+        try:
+            me1_val = self.me1[0]
+            me2_val = self.me2[0]
+        except (IndexError, TypeError):
+            self.lines.macd[0] = float("nan")
+            self.lines.signal[0] = float("nan")
+            return
+
+        if not (_finite(me1_val) and _finite(me2_val)):
+            self.lines.macd[0] = float("nan")
+            self.lines.signal[0] = float("nan")
+            return
+
         macd_val = me1_val - me2_val
         self.lines.macd[0] = macd_val
         # # Seed signal with MACD value
         # self.lines.signal[0] = macd_val
         signal_period = self.p.period_signal
         macd_sum = 0.0
+        macd_count = 0
         for i in range(signal_period):
-            macd_sum += self.lines.macd[-i]
-        self.lines.signal[0] = macd_sum / signal_period
+            try:
+                value = self.lines.macd[-i]
+            except (IndexError, TypeError):
+                value = float("nan")
+            if _finite(value):
+                macd_sum += value
+                macd_count += 1
+        self.lines.signal[0] = macd_sum / macd_count if macd_count else macd_val
 
     def next(self):
         """Calculate MACD and signal line for the current bar.
@@ -126,17 +152,31 @@ class MACD(Indicator):
         MACD = me1 - me2
         Signal = EMA(MACD)
         """
-        # Calculate MACD = me1 - me2
-        # Use direct array access to avoid dependency on indicator processing order
-        idx = self.lines[0].idx
-        me1_val = self.me1.lines[0].array[idx]
-        me2_val = self.me2.lines[0].array[idx]
+        try:
+            me1_val = self.me1[0]
+            me2_val = self.me2[0]
+        except (IndexError, TypeError):
+            self.lines.macd[0] = float("nan")
+            self.lines.signal[0] = float("nan")
+            return
+
+        if not (_finite(me1_val) and _finite(me2_val)):
+            self.lines.macd[0] = float("nan")
+            self.lines.signal[0] = float("nan")
+            return
+
         macd_val = me1_val - me2_val
         self.lines.macd[0] = macd_val
         # Calculate signal = EMA of MACD
-        self.lines.signal[0] = (
-            self.lines.signal[-1] * self.signal_alpha1 + macd_val * self.signal_alpha
-        )
+        try:
+            previous_signal = self.lines.signal[-1]
+        except (IndexError, TypeError):
+            previous_signal = macd_val
+
+        if not _finite(previous_signal):
+            previous_signal = macd_val
+
+        self.lines.signal[0] = previous_signal * self.signal_alpha1 + macd_val * self.signal_alpha
 
     def once(self, start, end):
         """Calculate MACD in runonce mode"""
@@ -152,9 +192,9 @@ class MACD(Indicator):
 
         # Ensure arrays are properly sized
         while len(macd_array) < end:
-            macd_array.append(0.0)
+            macd_array.append(float("nan"))
         while len(signal_array) < end:
-            signal_array.append(0.0)
+            signal_array.append(float("nan"))
 
         # Pre-fill warmup period with NaN
         for i in range(min(macd_minperiod - 1, len(me1_array))):
@@ -224,7 +264,7 @@ class MACDHisto(MACD):
     alias = ("MACDHistogram",)
 
     lines = ("histo",)
-    plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
+    plotlines = {"histo": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
 
     def __init__(self):
         """Initialize the MACD Histogram indicator.
@@ -261,16 +301,19 @@ class MACDHisto(MACD):
 
         # Ensure histo array is sized
         while len(histo_array) < end:
-            histo_array.append(0.0)
+            histo_array.append(float("nan"))
 
         # Calculate histogram
         for i in range(start, min(end, len(macd_array), len(signal_array))):
             macd_val = macd_array[i] if i < len(macd_array) else 0.0
             signal_val = signal_array[i] if i < len(signal_array) else 0.0
 
-            if isinstance(macd_val, float) and math.isnan(macd_val):
-                histo_array[i] = float("nan")
-            elif isinstance(signal_val, float) and math.isnan(signal_val):
+            if (
+                isinstance(macd_val, float)
+                and math.isnan(macd_val)
+                or isinstance(signal_val, float)
+                and math.isnan(signal_val)
+            ):
                 histo_array[i] = float("nan")
             else:
                 histo_array[i] = macd_val - signal_val

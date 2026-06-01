@@ -1,0 +1,29 @@
+strategy: single_symbol
+symbols:
+- rb2605
+broker:
+  cash: 100000.0
+  slippage_perc: 0.0
+  allow_partial: false
+strategy_params:
+  symbol: rb2605
+  tick_window: 4
+  entry_bias: 1.0
+  exit_bias: 0.5
+  order_size: 1
+  max_roundtrips: 1
+  printlog: true
+scenario:
+  type: single_symbol_ticks
+  symbol: rb2605
+  start_timestamp: 1710000000.0
+  time_step: 1.0
+  ticks:
+  - 100.0
+  - 100.0
+  - 100.0
+  - 100.0
+  - 102.0
+  - 103.0
+  - 99.0
+  - 98.0

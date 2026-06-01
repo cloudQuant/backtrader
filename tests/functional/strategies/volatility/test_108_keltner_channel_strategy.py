@@ -38,10 +38,11 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -69,82 +70,6 @@ def resolve_data_path(filename: str) -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
-
-
-class KeltnerChannelIndicator(bt.Indicator):
-    """Keltner Channel volatility-based indicator.
-
-    The Keltner Channel is a technical analysis indicator that consists of
-    three lines designed to capture price volatility and trend direction.
-    Unlike Bollinger Bands which use standard deviation, Keltner Channels
-    use the Average True Range (ATR) to determine band width, making them
-    more responsive to price gaps and limit moves.
-
-    Construction:
-        - Middle Line (mid): Exponential Moving Average (EMA) of close prices
-        - Upper Band (top): EMA + (ATR × multiplier)
-        - Lower Band (bot): EMA - (ATR × multiplier)
-
-    Interpretation:
-        - Price above upper band: Strong bullish momentum, potential breakout
-        - Price below lower band: Strong bearish momentum, potential breakdown
-        - Price between bands: Trading within normal volatility range
-        - Expanding bands: Increasing volatility
-        - Contracting bands: Decreasing volatility (potential squeeze)
-
-    Lines:
-        mid: Middle line (Exponential Moving Average). Serves as the baseline
-            for the channel and represents the average price over the period.
-        top: Upper band (mid + atr_mult * ATR). Acts as dynamic resistance
-            and breakout level for long entries.
-        bot: Lower band (mid - atr_mult * ATR). Acts as dynamic support
-            and breakdown level for short entries.
-
-    Parameters:
-        period (int): Period for the EMA middle line calculation (default: 20).
-            Shorter periods make the channel more responsive to price changes.
-        atr_mult (float): Multiplier for ATR band width (default: 2.0).
-            Higher values create wider bands, fewer signals.
-            Lower values create narrower bands, more signals.
-        atr_period (int): Period for ATR calculation (default: 14).
-            Measures market volatility over this lookback period.
-
-    Example:
-        >>> # Create Keltner Channel with custom parameters
-        >>> kc = KeltnerChannelIndicator(self.data, period=20, atr_mult=2.5)
-        >>> # Access channel values
-        >>> print(f"Upper: {kc.top[0]}, Mid: {kc.mid[0]}, Lower: {kc.bot[0]}")
-
-    Note:
-        The Keltner Channel is particularly effective in trending markets
-        and for identifying breakout opportunities. Consider combining with
-        other indicators for confirmation in ranging markets.
-    """
-    lines = ('mid', 'top', 'bot')
-    params = dict(period=20, atr_mult=2.0, atr_period=14)
-
-    def __init__(self):
-        """Initialize Keltner Channel indicator calculations.
-
-        Creates the three lines of the Keltner Channel:
-        1. Middle line as EMA of closing prices
-        2. ATR to measure volatility
-        3. Upper and lower bands by adding/subtracting ATR multiple from EMA
-        """
-        # Calculate middle line as EMA of closing prices
-        # This serves as the baseline for the channel
-        self.l.mid = bt.indicators.EMA(self.data.close, period=self.p.period)
-
-        # Calculate Average True Range to measure volatility
-        # ATR captures price movement including gaps and limit moves
-        atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-
-        # Calculate upper and lower bands
-        # Upper band: EMA + (ATR × multiplier) - dynamic resistance
-        # Lower band: EMA - (ATR × multiplier) - dynamic support
-        self.l.top = self.l.mid + self.p.atr_mult * atr
-        self.l.bot = self.l.mid - self.p.atr_mult * atr
-
 
 class KeltnerChannelStrategy(bt.Strategy):
     """Keltner Channel breakout trading strategy.
@@ -216,7 +141,7 @@ class KeltnerChannelStrategy(bt.Strategy):
         """
         # Initialize Keltner Channel indicator
         # Uses specified period for EMA and multiplier for band width
-        self.kc = KeltnerChannelIndicator(
+        self.kc = bt.indicators.KeltnerChannelIndicator(
             self.data, period=self.p.period, atr_mult=self.p.atr_mult
         )
 
@@ -290,7 +215,8 @@ class KeltnerChannelStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_keltner_channel_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_keltner_channel_strategy(runonce):
     """Test the Keltner Channel strategy backtest execution and performance.
 
     This test function validates the KeltnerChannelStrategy by running a complete
@@ -350,7 +276,7 @@ def test_keltner_channel_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
     # Run backtest
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract performance metrics

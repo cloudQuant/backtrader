@@ -18,6 +18,22 @@ Note:
 
 import math
 
+
+def is_finite_real(value):
+    """Check if a value is a finite real number (not complex, not NaN, not inf).
+
+    Args:
+        value: The value to check.
+
+    Returns:
+        bool: True if value is a finite real number, False otherwise.
+    """
+    try:
+        return not isinstance(value, complex) and math.isfinite(value)
+    except TypeError:
+        return False
+
+
 # These functions are mainly used for calculating indicators, not used in main code. Commented for now, will review later whether Cython optimization is needed, no immediate need.
 # However, these functions could potentially be optimized using numpy, which provides specific functions for calculating mean and standard deviation
 
@@ -33,9 +49,9 @@ def average(x, bessel=False):
     Returns:
       A float with the average of the elements of x
     """
-    # CRITICAL FIX: Prevent division by zero
+    # CRITICAL FIX: Prevent division by zero and negative denominator
     denominator = len(x) - bessel
-    if denominator == 0:
+    if denominator <= 0:
         return 0.0
     return math.fsum(x) / denominator
 
@@ -51,6 +67,8 @@ def variance(x, avgx=None):
     Returns:
       A list with the variance for each element of x
     """
+    if not x:
+        return []
     if avgx is None:
         avgx = average(x)
     return [pow(y - avgx, 2.0) for y in x]
@@ -68,4 +86,9 @@ def standarddev(x, avgx=None, bessel=False):
     Returns:
       A float with the standard deviation of the elements of x
     """
-    return math.sqrt(average(variance(x, avgx), bessel=bessel))
+    if not x:
+        return 0.0
+    avg_var = average(variance(x, avgx), bessel=bessel)
+    if avg_var < 0.0:
+        return 0.0
+    return math.sqrt(avg_var)

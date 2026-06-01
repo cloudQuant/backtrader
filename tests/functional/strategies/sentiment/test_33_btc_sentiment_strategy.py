@@ -8,13 +8,14 @@ Uses Bollinger Bands indicator to trade BTC based on Google Trends sentiment dat
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -181,7 +182,8 @@ class BtcSentimentStrategy(bt.Strategy):
         )
 
 
-def test_btc_sentiment_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_btc_sentiment_strategy(runonce):
     """Test the BtcSentiment Bitcoin sentiment strategy.
 
     This test loads BTC price data and Google Trends sentiment data,
@@ -251,7 +253,7 @@ def test_btc_sentiment_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analyzer results

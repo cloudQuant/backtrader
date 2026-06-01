@@ -290,33 +290,31 @@
 
 | 7 | OANDA | `oanda.py` | `feeds/_core/_oanda.pyx` | P2 |
 
-| 8 | CCXT | `ccxtfeed.py` | `feeds/_core/_ccxtfeed.pyx` | P1 |
+| 8 | Crypto | `cryptofeed.py` | `feeds/_core/_cryptofeed.pyx` | P2 |
 
-| 9 | Crypto | `cryptofeed.py` | `feeds/_core/_cryptofeed.pyx` | P2 |
+| 9 | CTP 数据 | `ctpdata.py` | `feeds/_core/_ctpdata.pyx` | P1 |
 
-| 10 | CTP 数据 | `ctpdata.py` | `feeds/_core/_ctpdata.pyx` | P1 |
+| 10 | VC 数据 | `vcdata.py` | `feeds/_core/_vcdata.pyx` | P2 |
 
-| 11 | VC 数据 | `vcdata.py` | `feeds/_core/_vcdata.pyx` | P2 |
+| 11 | VChart | `vchart.py` | `feeds/_core/_vchart.pyx` | P2 |
 
-| 12 | VChart | `vchart.py` | `feeds/_core/_vchart.pyx` | P2 |
+| 12 | VChartCSV | `vchartcsv.py` | `feeds/_core/_vchartcsv.pyx` | P2 |
 
-| 13 | VChartCSV | `vchartcsv.py` | `feeds/_core/_vchartcsv.pyx` | P2 |
+| 13 | VChartFile | `vchartfile.py` | `feeds/_core/_vchartfile.pyx` | P2 |
 
-| 14 | VChartFile | `vchartfile.py` | `feeds/_core/_vchartfile.pyx` | P2 |
+| 14 | Blaze | `blaze.py` | `feeds/_core/_blaze.pyx` | P2 |
 
-| 15 | Blaze | `blaze.py` | `feeds/_core/_blaze.pyx` | P2 |
+| 15 | Chainer | `chainer.py` | `feeds/_core/_chainer.pyx` | P2 |
 
-| 16 | Chainer | `chainer.py` | `feeds/_core/_chainer.pyx` | P2 |
+| 16 | InfluxDB | `influxfeed.py` | `feeds/_core/_influxfeed.pyx` | P2 |
 
-| 17 | InfluxDB | `influxfeed.py` | `feeds/_core/_influxfeed.pyx` | P2 |
+| 17 | MT4 CSV | `mt4csv.py` | `feeds/_core/_mt4csv.pyx` | P2 |
 
-| 18 | MT4 CSV | `mt4csv.py` | `feeds/_core/_mt4csv.pyx` | P2 |
+| 18 | Rollover | `rollover.py` | `feeds/_core/_rollover.pyx` | P1 |
 
-| 19 | Rollover | `rollover.py` | `feeds/_core/_rollover.pyx` | P1 |
+| 19 | SierraChart | `sierrachart.py` | `feeds/_core/_sierrachart.pyx` | P2 |
 
-| 20 | SierraChart | `sierrachart.py` | `feeds/_core/_sierrachart.pyx` | P2 |
-
-### 3.5 经纪商模块 (7 个)
+### 3.5 经纪商模块 (6 个)
 
 | 序号 | 经纪商 | 文件 | Cython 文件 | 优先级 |
 
@@ -328,13 +326,11 @@
 
 | 3 | OANDA 经纪商 | `oandabroker.py` | `brokers/_core/_oandabroker.pyx` | P2 |
 
-| 4 | CCXT 经纪商 | `ccxtbroker.py` | `brokers/_core/_ccxtbroker.pyx` | P1 |
+| 4 | Crypto 经纪商 | `cryptobroker.py` | `brokers/_core/_cryptobroker.pyx` | P2 |
 
-| 5 | Crypto 经纪商 | `cryptobroker.py` | `brokers/_core/_cryptobroker.pyx` | P2 |
+| 5 | CTP 经纪商 | `ctpbroker.py` | `brokers/_core/_ctpbroker.pyx` | P1 |
 
-| 6 | CTP 经纪商 | `ctpbroker.py` | `brokers/_core/_ctpbroker.pyx` | P1 |
-
-| 7 | VC 经纪商 | `vcbroker.py` | `brokers/_core/_vcbroker.pyx` | P2 |
+| 6 | VC 经纪商 | `vcbroker.py` | `brokers/_core/_vcbroker.pyx` | P2 |
 
 ### 3.6 观察者模块 (7 个)
 
@@ -398,11 +394,9 @@
 
 | 2 | OANDA 存储 | `oandastore.py` | `stores/_core/_oandastore.pyx` | P2 |
 
-| 3 | CCXT 存储 | `ccxtstore.py` | `stores/_core/_ccxtstore.pyx` | P1 |
+| 3 | Crypto 存储 | `cryptostore.py` | `stores/_core/_cryptostore.pyx` | P2 |
 
-| 4 | Crypto 存储 | `cryptostore.py` | `stores/_core/_cryptostore.pyx` | P2 |
-
-| 5 | CTP 存储 | `ctpstore.py` | `stores/_core/_ctpstore.pyx` | P1 |
+| 4 | CTP 存储 | `ctpstore.py` | `stores/_core/_ctpstore.pyx` | P1 |
 
 | 6 | VC 存储 | `vcstore.py` | `stores/_core/_vcstore.pyx` | P2 |
 
@@ -525,9 +519,9 @@ backtrader/
 │       ├── _fixedsize.pyx, _percents.pyx
 │
 ├── stores/
-│   └── _core/                       # Cython 存储 (7 个)
+│   └── _core/                       # Cython 存储 (6 个)
 
-│       ├── _ibstore.pyx, _ccxtstore.pyx, ...
+│       ├── _ibstore.pyx, _ctpstore.pyx, ...
 │
 ├── utils/
 │   └── _core/                       # Cython 工具 (3 个)
@@ -878,8 +872,6 @@ _types.pxd (基础类型)
 
 | IB 数据 | `feeds/_core/_ibdata.pyx` | 1 天 |
 
-| CCXT | `feeds/_core/_ccxtfeed.pyx` | 1 天 |
-
 | CTP 数据 | `feeds/_core/_ctpdata.pyx` | 1 天 |
 
 | Rollover | `feeds/_core/_rollover.pyx` | 0.5 天 |
@@ -894,8 +886,6 @@ _types.pxd (基础类型)
 
 | IB 经纪商 | `brokers/_core/_ibbroker.pyx` | 1 天 |
 
-| CCXT 经纪商 | `brokers/_core/_ccxtbroker.pyx` | 1 天 |
-
 | CTP 经纪商 | `brokers/_core/_ctpbroker.pyx` | 1 天 |
 
 #### 第 17 周: 存储与过滤器 (12 个)
@@ -907,8 +897,6 @@ _types.pxd (基础类型)
 | Store 基类 | `_core/_store.pyx` | 0.5 天 |
 
 | IB 存储 | `stores/_core/_ibstore.pyx` | 1 天 |
-
-| CCXT 存储 | `stores/_core/_ccxtstore.pyx` | 1 天 |
 
 | CTP 存储 | `stores/_core/_ctpstore.pyx` | 1 天 |
 

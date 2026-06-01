@@ -14,11 +14,15 @@ Example:
     >>> print(results[0].analyzers.annret.get_analysis())
 """
 
+import math
 from collections import OrderedDict
 
 from ..analyzer import Analyzer
 from ..utils.date import num2date
+from ..utils.log_message import get_logger
 from ..utils.py3 import range
+
+logger = get_logger(__name__)
 
 
 # Calculate annual returns. The algorithm implementation is somewhat complex, so a pandas-based version MyAnnualReturn was written later with much simpler logic
@@ -76,15 +80,10 @@ class AnnualReturn(Analyzer):
         cur_year = -1
         # Start value
         value_start = 0.0
-        # todo This value is not used, commented out
-        # value_cur = 0.0   # Current value
         # End value
         value_end = 0.0
         # Save return data
-        # todo Directly setting in PyCharm will warn about setting attribute values outside __init__, use hasattr and setattr to set specific attribute values
-        # self.rets = list()  #
-        # self.ret = OrderedDict()
-        setattr(self, "rets", list())
+        setattr(self, "rets", [])
         setattr(self, "ret", OrderedDict())
 
         # Calculate using cached data
@@ -95,17 +94,15 @@ class AnnualReturn(Analyzer):
             # Convert date
             try:
                 dt = num2date(dt_val)
-            except Exception:
+            except (ValueError, TypeError, OverflowError) as e:
+                logger.debug("Failed to convert date value %s: %s", dt_val, e)
                 continue
 
             # If the year at index i is greater than current year, if current year > 0, calculate return and save to self.ret, and start value equals end value
             # When years are not equal, it indicates current i is a new year
             if dt.year > cur_year:
                 if cur_year >= 0:
-                    if value_start != 0:
-                        annual_ret = (value_end / value_start) - 1.0
-                    else:
-                        annual_ret = 0.0
+                    annual_ret = self._safe_annual_return(value_start, value_end)
                     self.rets.append(annual_ret)
                     self.ret[cur_year] = annual_ret
 
@@ -120,14 +117,32 @@ class AnnualReturn(Analyzer):
             # No matter what, the last value is always the last loaded value
             value_end = value_cur
         # If current year hasn't ended and return hasn't been calculated, calculate at the end even if less than a full year
-        if cur_year not in self.ret:
+        if cur_year >= 0 and cur_year not in self.ret:
             # finish calculating pending data
-            if value_start != 0:
-                annual_ret = (value_end / value_start) - 1.0
-            else:
-                annual_ret = 0.0
+            annual_ret = self._safe_annual_return(value_start, value_end)
             self.rets.append(annual_ret)
             self.ret[cur_year] = annual_ret
+
+    @staticmethod
+    def _safe_annual_return(value_start, value_end):
+        """Compute (value_end/value_start - 1), returning 0.0 for any invalid
+        (zero/NaN/inf/complex) inputs or result. Shared by the year-boundary
+        and final-pending paths in stop()."""
+        try:
+            valid_values = (
+                value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end)
+            )
+        except TypeError:
+            valid_values = False
+        if not valid_values:
+            return 0.0
+        try:
+            annual_ret = (value_end / value_start) - 1.0
+            if isinstance(annual_ret, complex) or not math.isfinite(annual_ret):
+                return 0.0
+            return annual_ret
+        except (ZeroDivisionError, TypeError, ValueError):
+            return 0.0
 
     def get_analysis(self):
         """Return the annual return analysis results.
@@ -187,7 +202,19 @@ class MyAnnualReturn(Analyzer):
         for year, data in df.groupby("year"):
             begin_value = list(data["pre_value"])[0]
             end_value = list(data["value"])[-1]
-            annual_return = (end_value / begin_value) - 1
+            try:
+                valid_values = math.isfinite(begin_value) and math.isfinite(end_value)
+            except TypeError:
+                valid_values = False
+            if not valid_values or begin_value == 0:
+                annual_return = 0.0
+            else:
+                try:
+                    annual_return = (end_value / begin_value) - 1
+                    if isinstance(annual_return, complex) or not math.isfinite(annual_return):
+                        annual_return = 0.0
+                except (ZeroDivisionError, TypeError, ValueError):
+                    annual_return = 0.0
             self.ret[year] = annual_return
 
     def get_analysis(self):

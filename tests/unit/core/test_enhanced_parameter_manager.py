@@ -754,6 +754,52 @@ class TestEnhancedBatchOperations:
         with pytest.raises(RuntimeError, match="Not in a transaction"):
             ParameterManager(descriptors).commit_transaction()
 
+    def test_reset_does_not_trigger_callbacks_inside_transaction(self):
+        """reset() inside a transaction should defer callbacks until commit."""
+        descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
+        manager = ParameterManager(descriptors, enable_callbacks=True)
+        callback_calls = []
+
+        def callback(name, old_value, new_value):
+            callback_calls.append((name, old_value, new_value))
+
+        manager.add_change_callback(callback)
+        manager.set("param1", 50)
+        callback_calls.clear()
+
+        manager.begin_transaction()
+        manager.reset("param1")
+
+        assert manager.get("param1") == 10
+        assert callback_calls == []
+
+        manager.commit_transaction()
+
+        assert callback_calls == [("param1", 50, 10)]
+
+    def test_reset_rollback_restores_value_without_callbacks(self):
+        """Rolling back a transaction with reset() should restore prior value and emit no callbacks."""
+        descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
+        manager = ParameterManager(descriptors, enable_callbacks=True)
+        callback_calls = []
+
+        def callback(name, old_value, new_value):
+            callback_calls.append((name, old_value, new_value))
+
+        manager.add_change_callback(callback)
+        manager.set("param1", 50)
+        callback_calls.clear()
+
+        manager.begin_transaction()
+        manager.reset("param1")
+
+        assert manager.get("param1") == 10
+
+        manager.rollback_transaction()
+
+        assert manager.get("param1") == 50
+        assert callback_calls == []
+
 
 class TestDependencyTracking:
     """Test parameter dependency tracking.

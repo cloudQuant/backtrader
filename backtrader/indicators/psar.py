@@ -91,10 +91,10 @@ class ParabolicSAR(PeriodN):
         ("afmax", 0.20),
     )
 
-    plotinfo = dict(subplot=False)
-    plotlines = dict(
-        psar=dict(marker=".", markersize=4.0, color="black", fillstyle="full", ls=""),
-    )
+    plotinfo = {"subplot": False}
+    plotlines = {
+        "psar": {"marker": ".", "markersize": 4.0, "color": "black", "fillstyle": "full", "ls": ""},
+    }
 
     def prenext(self):
         """Handle calculations before minimum period is reached.
@@ -105,7 +105,7 @@ class ParabolicSAR(PeriodN):
             self._status = []  # empty status
             return  # not enough data to do anything
 
-        elif len(self) == 2:
+        if len(self) == 2:
             self.nextstart()  # kickstart calculation
         else:
             self.next()  # regular calc

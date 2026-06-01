@@ -5,10 +5,29 @@ OpenGraph social cards, SEO sitemap, and modern UI via sphinx-design.
 """
 import os
 import sys
+import tempfile
 from datetime import datetime
 
 # Add project root to path for autodoc
 sys.path.insert(0, os.path.abspath('../..'))
+
+# Read the Docs / local build detection
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+_deploy_url = os.environ.get('DEPLOY_URL', '')
+_docs_offline = os.environ.get(
+    'DOCS_OFFLINE',
+    '1' if not on_rtd and not _deploy_url else '0',
+) == '1'
+
+if _docs_offline:
+    try:
+        tags.add('offline')
+    except NameError:
+        pass
+    os.environ.setdefault(
+        'MPLCONFIGDIR',
+        os.path.join(tempfile.gettempdir(), 'backtrader-mplconfig'),
+    )
 
 # -- Project information -----------------------------------------------------
 project = 'Backtrader'
@@ -30,18 +49,22 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.viewcode',
     'sphinx.ext.napoleon',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.todo',
     'sphinx.ext.coverage',
     'sphinx.ext.inheritance_diagram',
     'sphinx_copybutton',
     'myst_parser',
     'sphinx_design',
-    'sphinx_sitemap',
     'sphinxext.opengraph',
     'sphinxcontrib.mermaid',
     'notfound.extension',
 ]
+
+if not _docs_offline:
+    extensions.extend([
+        'sphinx.ext.intersphinx',
+        'sphinx_sitemap',
+    ])
 
 # MyST Parser configuration for Markdown
 myst_enable_extensions = [
@@ -56,12 +79,13 @@ myst_enable_extensions = [
     "substitution",
     "tasklist",
 ]
+myst_fence_as_directive = ["mermaid"]
 myst_parser_silent_implicit_level = True
 
 # Autosummary settings
-autosummary_generate = True
+autosummary_generate = not _docs_offline
 autosummary_imported_members = False
-autosummary_generate_overwrite = False
+autosummary_generate_overwrite = not _docs_offline
 
 # Autodoc settings
 autodoc_default_options = {
@@ -76,6 +100,7 @@ autodoc_default_options = {
 autodoc_typehints = 'description'
 autodoc_class_signature = 'separated'
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = ['ccxt', 'ctp', 'ib', 'oandapy']
 
 # Patterns for dynamically generated classes to skip
 _SKIP_PATTERNS = [
@@ -119,11 +144,13 @@ napoleon_use_rtype = True
 napoleon_type_aliases = None
 
 # Intersphinx mapping
-intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'pandas': ('https://pandas.pydata.org/docs/', None),
-}
+intersphinx_mapping = {}
+if not _docs_offline:
+    intersphinx_mapping = {
+        'python': ('https://docs.python.org/3', None),
+        'numpy': ('https://numpy.org/doc/stable/', None),
+        'pandas': ('https://pandas.pydata.org/docs/', None),
+    }
 
 # -- Internationalization (i18n) ---------------------------------------------
 language = 'en'
@@ -132,8 +159,6 @@ gettext_compact = False
 gettext_uuid = True
 gettext_location = True
 
-# Read the Docs detection
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 rtd_language = os.environ.get('READTHEDOCS_LANGUAGE', 'en')
 
 # BUILD_LANGUAGE env var: set by Makefile / CI for non-RTD Chinese builds
@@ -152,9 +177,6 @@ else:
     master_doc = 'index'
     root_doc = 'index'
     html_title = f'{project} Documentation'
-
-# -- Deployment environment detection ----------------------------------------
-_deploy_url = os.environ.get('DEPLOY_URL', '')  # e.g. https://cloudquant.github.io/backtrader
 
 # -- OpenGraph / Social Cards ------------------------------------------------
 ogp_site_name = 'Backtrader Documentation'
@@ -182,8 +204,10 @@ notfound_urls_prefix = None
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'furo'
 html_short_title = project
-html_logo = '_static/logo.svg'
-html_favicon = '_static/favicon.svg'
+_logo_file = os.path.join(os.path.dirname(__file__), '_static', 'logo.svg')
+_favicon_file = os.path.join(os.path.dirname(__file__), '_static', 'favicon.svg')
+html_logo = '_static/logo.svg' if os.path.exists(_logo_file) else None
+html_favicon = '_static/favicon.svg' if os.path.exists(_favicon_file) else None
 
 # Build language switcher URLs
 if on_rtd:
@@ -236,7 +260,7 @@ html_theme_options = {
     'navigation_with_keys': True,
     # -- Source links ---------------------------------------------------------
     'source_repository': 'https://github.com/cloudQuant/backtrader/',
-    'source_branch': 'development',
+    'source_branch': 'dev',
     'source_directory': 'docs/source/',
     # -- Top announcement bar (language switcher) -----------------------------
     'announcement': _lang_announcement,
@@ -279,7 +303,7 @@ html_context = {
     'display_github': True,
     'github_user': 'cloudQuant',
     'github_repo': 'backtrader',
-    'github_version': 'development',
+    'github_version': 'dev',
     'conf_py_path': '/docs/source/',
 }
 
@@ -319,6 +343,7 @@ suppress_warnings = [
     'ref.python',
     'autosummary',
     'autodoc.import_object',
+    'toc.excluded',
     'toc.not_included',
     'myst.xref_missing',
     'myst.header',
@@ -340,6 +365,32 @@ exclude_patterns = [
     '**.ipynb_checkpoints',
     'index.md',
 ]
+
+if _docs_offline:
+    exclude_patterns.extend([
+        'api/**',
+        'reference/optimization-docs/**',
+        'api/analyzers/backtrader.analyzers.sharpe_ratio_stats.rst',
+        'api/brokers/backtrader.brokers.cryptobroker.rst',
+        'api/brokers/backtrader.brokers.ctpbroker.rst',
+        'api/brokers/backtrader.brokers.ibbroker.rst',
+        'api/brokers/backtrader.brokers.oandabroker.rst',
+        'api/brokers/backtrader.brokers.vcbroker.rst',
+        'api/core/backtrader.btrun.btrun.rst',
+        'api/core/backtrader.btrun.rst',
+        'api/core/backtrader.tests.rst',
+        'api/core/backtrader.tests.test_backtrader.rst',
+        'api/feeds/backtrader.feeds.cryptofeed.rst',
+        'api/feeds/backtrader.feeds.ctpdata.rst',
+        'api/feeds/backtrader.feeds.ibdata.rst',
+        'api/feeds/backtrader.feeds.oanda.rst',
+        'api/feeds/backtrader.feeds.vcdata.rst',
+        'api/stores/backtrader.stores.cryptostore.rst',
+        'api/stores/backtrader.stores.ctpstore.rst',
+        'api/stores/backtrader.stores.ibstore.rst',
+        'api/stores/backtrader.stores.oandastore.rst',
+        'api/stores/backtrader.stores.vcstore.rst',
+    ])
 
 # -- Custom setup ------------------------------------------------------------
 def setup(app):

@@ -15,6 +15,8 @@ Example:
 """
 
 import backtrader as bt
+import math
+from types import SimpleNamespace
 
 import testcommon
 
@@ -86,6 +88,80 @@ def test_run(main=False):
             pass
         # Verify the strategy ran successfully
         assert len(strat) > 0
+
+
+def test_buysell_clears_stale_markers_without_orders():
+    observer = object.__new__(bt.observers.BuySell)
+    observer._owner = SimpleNamespace(_orderspending=[])
+    observer.data = SimpleNamespace(datetime=[1])
+    observer.lines = SimpleNamespace(buy=[1.0], sell=[2.0])
+    observer.p = SimpleNamespace(barplot=False, bardist=0.015)
+    observer.curbuylen = 0
+    observer.curselllen = 0
+
+    observer.next()
+
+    assert math.isnan(observer.lines.buy[0])
+    assert math.isnan(observer.lines.sell[0])
+
+
+def test_buysell_keeps_sell_nan_when_only_buy_order_exists():
+    data = SimpleNamespace(datetime=[1], low=[100.0], high=[110.0])
+    observer = object.__new__(bt.observers.BuySell)
+    observer._owner = SimpleNamespace(
+        _orderspending=[
+            SimpleNamespace(
+                data=data,
+                executed=SimpleNamespace(size=1, price=101.5),
+                isbuy=lambda: True,
+            )
+        ]
+    )
+    observer.data = data
+    observer.lines = SimpleNamespace(buy=[5.0], sell=[7.0])
+    observer.p = SimpleNamespace(barplot=False, bardist=0.015)
+    observer.curbuylen = 0
+    observer.curselllen = 0
+
+    observer.next()
+
+    assert observer.lines.buy[0] == 101.5
+    assert math.isnan(observer.lines.sell[0])
+
+
+def test_buysell_accumulates_same_bar_replay_orders():
+    data = SimpleNamespace(datetime=[1], low=[100.0], high=[110.0])
+    observer = object.__new__(bt.observers.BuySell)
+    observer.data = data
+    observer.lines = SimpleNamespace(buy=[float("nan")], sell=[float("nan")])
+    observer.p = SimpleNamespace(barplot=False, bardist=0.015)
+    observer.curbuylen = 0
+    observer.curselllen = 0
+
+    observer._owner = SimpleNamespace(
+        _orderspending=[
+            SimpleNamespace(
+                data=data,
+                executed=SimpleNamespace(size=1, price=100.0),
+                isbuy=lambda: True,
+            )
+        ]
+    )
+    observer.next()
+
+    observer._owner = SimpleNamespace(
+        _orderspending=[
+            SimpleNamespace(
+                data=data,
+                executed=SimpleNamespace(size=1, price=102.0),
+                isbuy=lambda: True,
+            )
+        ]
+    )
+    observer.next()
+
+    assert observer.lines.buy[0] == 101.0
+    assert math.isnan(observer.lines.sell[0])
 
 
 if __name__ == "__main__":

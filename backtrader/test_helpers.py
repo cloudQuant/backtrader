@@ -17,7 +17,10 @@ Example:
 
 import os
 import sys
-import traceback
+
+from .utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 # Dictionary to store registered test values
 _TEST_VALUES = {}
@@ -71,8 +74,7 @@ def get_test_value(test_file, index=0):
                         _TEST_VALUES[test_name]["cash"][index]
                     )
     except Exception as e:
-        print(f"Error accessing test values: {e}")
-        traceback.print_exc()
+        logger.warning("Error accessing test values: %s", e, exc_info=True)
 
     return None, None
 

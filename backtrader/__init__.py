@@ -29,8 +29,8 @@ Core Components:
 
 Subpackages:
     - analyzers: Performance analysis tools (Sharpe, Drawdown, etc.)
-    - brokers: Broker implementations (IB, OANDA, etc.)
-    - feeds: Data feed implementations (CSV, Pandas, Yahoo, etc.)
+    - brokers: Broker implementations (backtesting + unified bt_api_py live broker)
+    - feeds: Data feed implementations (CSV, Pandas, Yahoo, bt_api_py live feed)
     - indicators: Technical indicators (SMA, RSI, MACD, etc.)
     - observers: Chart observers for visualization
     - sizers: Position sizing algorithms
@@ -93,8 +93,10 @@ from .strategy import *
 from .timer import *
 from .trade import *
 from .utils import date2num, num2date, num2dt, num2time, time2num
+from .utils import configure_logging, get_logger, reset_logging, set_level
 from .version import __btversion__, __version__
 from .writer import *
+from .profiles import LiveProfile, build_cerebro
 
 # Iteration 138: Tick-level backtesting and live trading
 from .events import TickEvent, OrderBookSnapshot, FundingEvent, BarEvent

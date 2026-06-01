@@ -3,6 +3,7 @@ name: Tests
 on:
   push:
     branches:
+      - dev
       - development
       - master
     paths-ignore:
@@ -11,8 +12,12 @@ on:
       - '.readthedocs*.yaml'
   pull_request:
     branches:
+      - dev
       - development
       - master
+  schedule:
+    # Nightly full-suite run (02:30 UTC) — PRs only run the fast gate.
+    - cron: '30 2 * * *'
   workflow_dispatch:  # Allow manual trigger
 
 concurrency:
@@ -27,6 +32,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fail on tracked build artifacts
+        shell: bash
+        run: |
+          tracked_artifacts="$(git ls-files | grep -E '(^|/)(build|dist)(/|$)|(^|/)[^/]+\.egg-info(/|$)' || true)"
+          if [ -n "$tracked_artifacts" ]; then
+            echo "Tracked build artifacts are not allowed:"
+            echo "$tracked_artifacts"
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -36,7 +51,7 @@ jobs:
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff 'black==26.1.0' isort
+          pip install ruff 'black==26.1.0' isort mypy bandit pip-audit
 
       - name: Run ruff
         run: ruff check backtrader/
@@ -46,6 +61,78 @@ jobs:
 
       - name: Check imports with isort
         run: isort --check-only backtrader/
+
+      - name: Guard against star imports outside __init__.py (F403)
+        shell: bash
+        run: |
+          violations="$(grep -rEn '^from .* import \*' backtrader --include='*.py' | grep -v '__init__.py' || true)"
+          if [ -n "$violations" ]; then
+            echo "Star imports are only allowed in __init__.py:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - name: Type check with mypy (threshold gate)
+        shell: bash
+        run: |
+          # S4 收敛后从「非阻塞趋势」升级为「阈值阻塞」：超过基线即失败，防止回流。
+          # 当前实测 139（S4 基线 543 → 目标 <150）。留少量余量到 160 以吸收
+          # 第三方 stub 版本漂移带来的抖动；低于阈值即通过。
+          MYPY_THRESHOLD=160
+          mypy backtrader --config-file=pyproject.toml | tee mypy-report.txt || true
+          count="$(grep -cE 'error:' mypy-report.txt || true)"
+          echo "mypy error count: ${count} (S4 baseline 543, gate threshold ${MYPY_THRESHOLD})"
+          if [ "${count}" -gt "${MYPY_THRESHOLD}" ]; then
+            echo "::error::mypy errors (${count}) exceed threshold (${MYPY_THRESHOLD}). New type errors were introduced."
+            exit 1
+          fi
+
+      - name: Security scan with bandit (Medium/High blocking)
+        shell: bash
+        run: |
+          # R2-S3: Medium/High 阻塞，Low 仅报告。沿用 pyproject.toml [tool.bandit]
+          # 的 skips/exclude_dirs。已知的 2 处 Medium（influxfeed B608 / py3 B310）
+          # 已 triage 并加 # nosec 注释，当前 Medium/High = 0。
+          bandit -r backtrader -ll -q
+          echo "bandit Medium/High scan passed (Low findings are reported separately)"
+
+      - name: Bandit Low findings watchdog (iter12 S-1/S-4, non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: |
+          # 迭代12 把所有 Low（B110/B112 静默异常 + B311 弱随机）逐条 triage：
+          # 安全敏感路径补日志，热路径加 `# nosec <code>` 带理由，弱随机加 # nosec。
+          # 收敛后基线 = 0。任何新增未 triage 的 Low 都会让计数升过基线并告警，
+          # 防止静默异常/弱随机回流。
+          count="$(bandit -r backtrader -c pyproject.toml -f custom \
+            --msg-template '{test_id}' 2>/dev/null | grep -cE '^B[0-9]+' || true)"
+          echo "bandit Low (untriaged) finding count: ${count} (iter12 baseline 0)"
+          if [ "${count}" -gt 0 ]; then
+            echo "::warning::Untriaged bandit Low findings (${count}) increased above baseline (0). Add a reasoned # nosec or fix."
+          fi
+
+      - name: Dependency vulnerability scan (pip-audit, non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: |
+          # 迭代12 T-1: 持续监控依赖已知漏洞（CVE）。当前实测
+          # "No known vulnerabilities found"。先以非阻塞看板起步，稳定后可转阻塞。
+          pip-audit -r requirements.txt || true
+
+      - name: Complexity monitor (radon F-grade, non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: |
+          # R2-S6: 非阻塞看板，监控 CC>40（F 级）函数数量，防止新增。
+          # 基线 13（R2-S6 把 _evaluate_signals 从 F/CC57 降到 C/CC17，抵消 R2-S4
+          # fast/slow-path 拆分使 _once_op 升到 F 的影响）。最高风险的撮合状态机/
+          # 事件主循环/line 基座函数刻意暂缓（见 Round 1 S5）。
+          pip install radon
+          count="$(radon cc backtrader -n F -s 2>/dev/null | grep -cE ' - F ' || true)"
+          echo "radon F-grade (CC>40) function count: ${count} (R2-S6 baseline 13)"
+          if [ "${count}" -gt 13 ]; then
+            echo "::warning::F-grade complex functions (${count}) increased above baseline (13)."
+          fi
 
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -129,14 +216,53 @@ jobs:
         shell: bash
         env:
           PYTEST_ADDOPTS: ""
+          # PR 门禁跑快速分层（-m "not slow"，~3.5min），push/nightly/手动跑全量。
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           # Verify backtrader import
           python -c "import backtrader; print(f'Backtrader imported: {backtrader.__version__}')"
           # Show pytest and plugin versions
           echo "=== Pytest info ==="
           pip show pytest pytest-xdist pytest-timeout | grep -E "Name|Version"
-          # Run tests - use -n auto for parallel execution
-          pytest tests/ -n auto --tb=short --timeout=300 -q
+          # Choose tier by event: pull_request => fast gate; everything else => full suite.
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            echo "=== PR fast gate: pytest -m 'not slow' ==="
+            pytest tests/ -m "not slow" -n auto --tb=short --timeout=300 -q
+          else
+            echo "=== Full suite: pytest tests/ ==="
+            pytest tests/ -n auto --tb=short --timeout=300 -q
+          fi
+
+  coverage:
+    name: Coverage (non-strategy subset, non-blocking floor)
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[dev]"
+
+      - name: Measure coverage with floor (R2-S5)
+        continue-on-error: true
+        shell: bash
+        run: |
+          # R2-S5: baseline 60% on the non-strategy subset (see docs/COVERAGE_BASELINE.md).
+          # Floor set to 55% (5% margin for parallel/sampling jitter). Non-blocking for
+          # now (continue-on-error); promote to blocking once stable.
+          pytest tests --ignore=tests/functional/strategies \
+            --cov=backtrader --cov-report=term-missing:skip-covered \
+            --cov-fail-under=55 -n auto --timeout=300 -q
 
   test-summary:
     name: Test Summary
@@ -147,8 +273,8 @@ jobs:
       - name: Check test results
         run: |
           if [ "${{ needs.test.result }}" == "success" ]; then
-            echo "✅ All tests passed!"
+            echo "All matrix tests passed."
           else
-            echo "❌ Some tests failed"
+            echo "At least one matrix test job failed"
             exit 1
           fi

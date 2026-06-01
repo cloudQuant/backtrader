@@ -8,10 +8,11 @@ Bill Williams Alligator indicator strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -44,52 +45,6 @@ def resolve_data_path(filename: str) -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
-
-
-class AlligatorIndicator(bt.Indicator):
-    """Alligator Indicator - Bill Williams.
-
-    The Alligator indicator consists of three smoothed moving averages:
-    - Jaw (blue line): 13-period SMMA, shifted forward 8 bars
-    - Teeth (red line): 8-period SMMA, shifted forward 5 bars
-    - Lips (green line): 5-period SMMA, shifted forward 3 bars
-
-    The indicator is used to identify trending periods and potential
-    entry/exit points. When the three lines are intertwined, the market
-    is ranging. When they separate, a trend is emerging.
-
-    Attributes:
-        jaw: The jaw line (13-period SMMA)
-        teeth: The teeth line (8-period SMMA)
-        lips: The lips line (5-period SMMA)
-
-    Args:
-        jaw_period: Period for the jaw line calculation (default: 13).
-        teeth_period: Period for the teeth line calculation (default: 8).
-        lips_period: Period for the lips line calculation (default: 5).
-    """
-    lines = ('jaw', 'teeth', 'lips')
-    params = dict(
-        jaw_period=13,
-        teeth_period=8,
-        lips_period=5,
-    )
-
-    def __init__(self):
-        """Initialize the Alligator indicator.
-
-        Creates three Smoothed Moving Average (SMMA) lines for the jaw,
-        teeth, and lips. The SMMA is equivalent to an EMA with alpha = 1/period.
-        """
-        self.lines.jaw = bt.indicators.SmoothedMovingAverage(
-            self.data.close, period=self.p.jaw_period
-        )
-        self.lines.teeth = bt.indicators.SmoothedMovingAverage(
-            self.data.close, period=self.p.teeth_period
-        )
-        self.lines.lips = bt.indicators.SmoothedMovingAverage(
-            self.data.close, period=self.p.lips_period
-        )
 
 
 class AlligatorStrategy(bt.Strategy):
@@ -130,7 +85,7 @@ class AlligatorStrategy(bt.Strategy):
         and initializes tracking variables for orders and bar counts.
         """
         self.dataclose = self.datas[0].close
-        self.alligator = AlligatorIndicator(
+        self.alligator = bt.indicators.AlligatorIndicator(
             self.datas[0],
             jaw_period=self.p.jaw_period,
             teeth_period=self.p.teeth_period,
@@ -185,7 +140,8 @@ class AlligatorStrategy(bt.Strategy):
                 self.order = self.sell(size=self.p.stake)
 
 
-def test_alligator_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_alligator_strategy(runonce):
     """Test the Alligator strategy.
 
     This function sets up and runs a backtest of the Alligator strategy
@@ -219,7 +175,7 @@ def test_alligator_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

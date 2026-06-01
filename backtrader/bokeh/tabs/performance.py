@@ -5,7 +5,11 @@ Performance metrics tab.
 Displays key performance metrics of the strategy.
 """
 
+from backtrader.utils.log_message import get_logger
+
 from ..tab import BokehTab
+
+logger = get_logger(__name__)
 
 try:
     from bokeh.layouts import column
@@ -168,8 +172,8 @@ class PerformanceTab(BokehTab):
                                 total_return *= 1 + r
                             metrics["total_return"] = (total_return - 1) * 100
 
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to extract analyzer metrics: %s", e)
 
         # Get capital info from broker
         if hasattr(strategy, "broker"):
@@ -181,8 +185,8 @@ class PerformanceTab(BokehTab):
                 metrics["end_value"] = end_value
                 if "total_return" not in metrics and start_cash > 0:
                     metrics["total_return"] = (end_value - start_cash) / start_cash * 100
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to get broker capital info: %s", e)
 
         return metrics
 

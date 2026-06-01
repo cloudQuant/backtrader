@@ -8,13 +8,14 @@ Larry Connor's 2-Period RSI Strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -55,8 +56,8 @@ class TwoPeriodRSIStrategy(bt.Strategy):
     Attributes:
         dataclose: Reference to the close price data.
         rsi: 2-period RSI indicator.
-        sma5: 5-period Simple Moving Average.
-        sma200: 200-period Simple Moving Average.
+        sma5: 5-period Simple Moving bt.indicators.Average.
+        sma200: 200-period Simple Moving bt.indicators.Average.
         order: Current pending order.
         last_operation: Last operation type ("BUY" or "SELL").
         bar_num: Number of bars processed.
@@ -147,7 +148,8 @@ class TwoPeriodRSIStrategy(bt.Strategy):
         pass
 
 
-def test_two_period_rsi_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_two_period_rsi_strategy(runonce):
     """Test the Two Period RSI strategy.
 
     This test function:
@@ -188,7 +190,7 @@ def test_two_period_rsi_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

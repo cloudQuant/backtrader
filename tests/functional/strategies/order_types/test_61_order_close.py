@@ -4,6 +4,28 @@
 
 Reference: backtrader-master2/samples/order-close/close-daily.py
 Tests order execution at the closing price of each bar.
+
+Data Used:
+    Daily OHLC bars from ``2005-2006-day-001.txt`` (the standard backtrader
+    sample file in BacktraderCSVData format), located via resolve_data_path and
+    consumed in full as a single daily feed with end-of-session bars enabled.
+
+Strategy Principle:
+    A minimal SMA crossover used to exercise the Order.Close execution type,
+    where orders fill at the bar's closing price rather than the next bar's open.
+    A simple moving average defines the trend; a price-over-SMA cross is treated
+    as a bullish entry and the reverse cross as the exit. The focus is verifying
+    deterministic close-price fills, not the predictive value of the signal.
+
+Strategy Logic:
+    OrderCloseStrategy builds an SMA and a CrossOver of close versus the bt.indicators.SMA.
+    Each bar it skips while an order is pending, then — while flat — submits a
+    buy with exectype=Order.Close on a bullish crossover, or — while long —
+    submits a close with exectype=Order.Close on a bearish crossover.
+    notify_order counts completed buys/sells and clears the order reference; stop
+    prints final counters. The parametrized test enables seteosbar, runs both
+    runonce=True and runonce=False, and asserts bar count, final value, Sharpe,
+    annual return, and max drawdown against expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -11,6 +33,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -101,7 +124,8 @@ class OrderCloseStrategy(bt.Strategy):
         print(f"OrderClose: bar_num={self.bar_num}, buy={self.buy_count}, sell={self.sell_count}")
 
 
-def test_order_close():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_order_close(runonce):
     """Test Order Close execution at closing price.
 
     This test verifies that orders are correctly executed at the
@@ -126,7 +150,7 @@ def test_order_close():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
 
     print("Running backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

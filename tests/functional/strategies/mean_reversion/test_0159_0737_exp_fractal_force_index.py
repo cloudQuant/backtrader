@@ -1,0 +1,706 @@
+"""Inlined regression test for tests/functional/strategies/mean_reversion/regression/0159_0737_exp_fractal_force_index.
+
+This module is generated from strategy regression artifacts and is intentionally
+kept as a single executable test file for deterministic migration checks.
+
+Data Used:
+    Loads XAUUSD minute bars from ``{repo}/tests/datas/XAUUSD_M15.csv``.
+    Trading is limited to the configured period from 2025-12-03 01:15:00 to
+    2026-03-10 09:00:00, with 15-minute base compression and
+    240-minute indicator resampling for Fractal Force Index calculations.
+    Tick volume is used as the primary weighting volume source.
+
+Strategy Principle:
+    The Fractal Force Index strategy listens for threshold crossovers of the
+    computed indicator line (high/low levels) and opens positions accordingly.
+    Position lifecycle is controlled by optional stop-loss and take-profit levels
+    plus close-on-opposite-sign rules for configurable trend direction modes.
+
+Strategy Logic:
+    1. Build backtest frames from CSV, resample for the indicator and compute
+       Fractal Force Index values.
+    2. Feed base OHLCV and indicator series into Backtrader.
+    3. Evaluate crossover and close conditions each bar, place/cancel orders,
+       and track completed/rejected execution events.
+    4. Collect analyzer outputs (Sharpe, returns, drawdown, trade stats, SQN),
+       then assert them against expected migration metrics.
+"""
+from __future__ import annotations
+import math
+from pathlib import Path
+import argparse
+import datetime
+import os
+import sys
+import backtrader as bt
+import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("tick_volume", "real_volume"),
+        bar_shift_minutes=bar_shift_minutes,
+    )
+
+_REPO = Path(__file__).resolve().parents[4]
+
+_CONFIG = {
+    'strategy': {
+        'name': 'Exp_Fractal_Force_Index',
+        'source_ea': 'ea/0737_Exp_Fractal_Force_Index',
+    },
+    'data': {
+        'symbol': 'XAUUSD',
+        'timeframe': 'M15',
+        'base_timeframe': 'M15',
+        'file': '{repo}/tests/datas/XAUUSD_M15.csv',
+        'fromdate': '2025-12-03 01:15:00',
+        'todate': '2026-03-10 09:00:00',
+        'bar_shift_minutes': 15,
+        'indicator_timeframe_minutes': 240,
+        'execution_compression_minutes': 15,
+        'returns_compression_minutes': 15,
+        'feature_cache_dir': 'features',
+    },
+    'indicator': {
+        'e_period': 30,
+        'normal_speed': 30,
+        'ma_method': 'sma',
+        'price_type': 'close',
+        'volume_type': 'tick',
+    },
+    'params': {
+        'stop_loss': 1000,
+        'take_profit': 2000,
+        'lots': 0.1,
+        'buy_pos_open': True,
+        'sell_pos_open': True,
+        'buy_pos_close': True,
+        'sell_pos_close': True,
+        'trend': 'direct',
+        'high_level': 0.0,
+        'low_level': 0.0,
+        'point': 0.01,
+        'digits_adjust': 10,
+        'price_digits': 2,
+    },
+    'backtest': {
+        'initial_cash': 1000000,
+        'commission': 0.0,
+        'margin': 0.01,
+        'multiplier': 100.0,
+        'commission_type': 'fixed',
+        'stocklike': False,
+    },
+}
+
+
+PRICE_MAP = {
+    'close': lambda row: row['close'],
+    'open': lambda row: row['open'],
+    'high': lambda row: row['high'],
+    'low': lambda row: row['low'],
+    'median': lambda row: (row['high'] + row['low']) / 2.0,
+    'typical': lambda row: (row['high'] + row['low'] + row['close']) / 3.0,
+    'weighted': lambda row: (row['high'] + row['low'] + 2.0 * row['close']) / 4.0,
+    'simple': lambda row: (row['open'] + row['close']) / 2.0,
+    'quarter': lambda row: (row['high'] + row['low'] + row['open'] + row['close']) / 4.0,
+}
+
+
+def resample_frame(df, rule):
+    """Resample OHLCV data using right-closed, right-labeled windows.
+
+    Args:
+        df: Source DataFrame containing datetime index and standard OHLCV fields.
+        rule: Pandas frequency string, e.g. ``"240min"``.
+
+    Returns:
+        Aggregated DataFrame with first/last/open interest behavior aligned to
+        the chosen timeframe.
+    """
+    out = df.resample(rule, label='right', closed='right').agg({
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'tick_volume': 'sum',
+        'real_volume': 'sum',
+        'openinterest': 'last',
+    })
+    out = out.dropna(subset=['open', 'high', 'low', 'close'])
+    out['openinterest'] = out['openinterest'].fillna(0)
+    out['volume'] = out['tick_volume']
+    return out
+
+
+def _sma(values):
+    return sum(values) / len(values)
+
+
+def _ema(values):
+    period = len(values)
+    ema = values[0]
+    smooth = 2.0 / (1.0 + period)
+    for value in values[1:]:
+        ema = value * smooth + ema * (1.0 - smooth)
+    return ema
+
+
+def _smma(values):
+    period = len(values)
+    smma = values[0]
+    for value in values[1:]:
+        smma = (smma * (period - 1) + value) / period
+    return smma
+
+
+def _lwma(values):
+    weights = list(range(1, len(values) + 1))
+    weighted_sum = sum(v * w for v, w in zip(values, weights))
+    return weighted_sum / sum(weights)
+
+
+def _ma(values, method):
+    if method == 'ema':
+        return _ema(values)
+    if method == 'smma':
+        return _smma(values)
+    if method == 'lwma':
+        return _lwma(values)
+    return _sma(values)
+
+
+def _price_series(frame, price_type):
+    getter = PRICE_MAP.get(price_type, PRICE_MAP['close'])
+    return frame.apply(getter, axis=1).tolist()
+
+
+def compute_fractal_force_index(frame, e_period=30, normal_speed=30, ma_method='sma', price_type='close', volume_type='tick'):
+    """Compute a Fractal Force Index variant used by the legacy strategy.
+
+    Args:
+        frame: Price frame containing OHLCV columns and datetime index.
+        e_period: Window length for fractal path measurement.
+        normal_speed: Base speed for dynamic moving-average smoothing adaptation.
+        ma_method: Average type passed to helper `_ma` (``sma``, ``ema``, ``smma``, ``lwma``).
+        price_type: Price field for returns/path evaluation.
+        volume_type: Volume source used when scaling the FFI signal.
+
+    Returns:
+        A copy of ``frame`` with an additional ``ffi`` column and rows where
+        FFI is unavailable removed.
+    """
+    work = frame.copy()
+    price_values = _price_series(work, price_type)
+    volumes = work['tick_volume'].tolist() if volume_type == 'tick' else work['real_volume'].tolist()
+    ffi = [math.nan] * len(work)
+    fractal_ma_prev = None
+    log_2 = math.log(2.0)
+    g_period_minus_1 = e_period - 1
+    min_rates_total = int(max(e_period, normal_speed))
+    for index in range(len(work)):
+        if index < min_rates_total or index < e_period:
+            continue
+        window = price_values[index - e_period + 1:index + 1]
+        price_max = max(window)
+        price_min = min(window)
+        length = 0.0
+        prior_diff = None
+        if price_max - price_min > 0.0:
+            for value in reversed(window):
+                diff = (value - price_min) / (price_max - price_min)
+                if prior_diff is not None:
+                    length += math.sqrt((diff - prior_diff) ** 2 + (1.0 / (e_period ** 2)))
+                prior_diff = diff
+        if length <= 0.0:
+            continue
+        fdi = 1.0 + (math.log(length) + log_2) / math.log(2 * g_period_minus_1)
+        hurst = 2.0 - fdi
+        if hurst == 0:
+            continue
+        trail_dim = 1.0 / hurst
+        beta = trail_dim / 2.0
+        speed = max(1, int(round(normal_speed * beta)))
+        if index < speed:
+            continue
+        ma_window = price_values[index - speed + 1:index + 1]
+        fractal_ma = _ma(ma_window, ma_method)
+        if fractal_ma_prev is None:
+            fractal_ma_prev = fractal_ma
+            ffi[index] = 0.0
+            continue
+        ffi[index] = float(volumes[index]) * (fractal_ma - fractal_ma_prev)
+        fractal_ma_prev = fractal_ma
+    work['ffi'] = ffi
+    return work.dropna(subset=['ffi'])
+
+
+class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base OHLC feed mapping for backtest bars loaded from MetaTrader export."""
+    params = (
+        ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
+    )
+
+
+class FractalForceFeed(bt.feeds.PandasData):
+    """Indicator feed carrying the computed Fractal Force Index signal."""
+    lines = ('ffi',)
+    params = (
+        ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('ffi', 6),
+    )
+
+
+class ExpFractalForceIndexStrategy(bt.Strategy):
+    """Strategy implementing threshold breakout/trend logic based on FFI crossings.
+
+    The strategy supports long/short opens and closes with explicit stop-loss
+    and take-profit controls while recording key order/trade counters for
+    regression assertions.
+    """
+    params = dict(
+        stop_loss=1000,
+        take_profit=2000,
+        lots=0.1,
+        buy_pos_open=True,
+        sell_pos_open=True,
+        buy_pos_close=True,
+        sell_pos_close=True,
+        trend='direct',
+        high_level=0.0,
+        low_level=0.0,
+        point=0.01,
+        digits_adjust=10,
+        price_digits=2,
+    )
+
+    def __init__(self):
+        """Initialize strategy state, counters, and references to data feeds."""
+        self.base = self.datas[0]
+        self.ffi_feed = self.datas[1]
+
+        self.bar_num = 0
+        self.signal_count = 0
+        self.buy_count = 0
+        self.sell_count = 0
+        self.trade_count = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.completed_order_count = 0
+        self.rejected_order_count = 0
+
+        self.order = None
+        self.stop_price = None
+        self.take_profit_price = None
+        self.last_signal_dt = None
+
+    def _unit(self):
+        return float(self.p.point) * float(self.p.digits_adjust)
+
+    def _set_risk(self, side):
+        unit = self._unit()
+        price = float(self.base.close[0])
+        if side == 'buy':
+            self.stop_price = round(price - float(self.p.stop_loss) * unit, int(self.p.price_digits)) if self.p.stop_loss > 0 else None
+            self.take_profit_price = round(price + float(self.p.take_profit) * unit, int(self.p.price_digits)) if self.p.take_profit > 0 else None
+        else:
+            self.stop_price = round(price + float(self.p.stop_loss) * unit, int(self.p.price_digits)) if self.p.stop_loss > 0 else None
+            self.take_profit_price = round(price - float(self.p.take_profit) * unit, int(self.p.price_digits)) if self.p.take_profit > 0 else None
+
+    def _ffi_cross_signal(self):
+        prev_val = float(self.ffi_feed.ffi[-1])
+        curr_val = float(self.ffi_feed.ffi[0])
+        high_level = float(self.p.high_level)
+        low_level = float(self.p.low_level)
+        trend = str(self.p.trend).lower()
+        buy_open = False
+        sell_open = False
+        buy_close = False
+        sell_close = False
+        if trend == 'direct':
+            if prev_val <= high_level and curr_val > high_level:
+                if self.p.buy_pos_open:
+                    buy_open = True
+                if self.p.sell_pos_close:
+                    sell_close = True
+            if prev_val >= low_level and curr_val < low_level:
+                if self.p.sell_pos_open:
+                    sell_open = True
+                if self.p.buy_pos_close:
+                    buy_close = True
+        else:
+            if prev_val <= high_level and curr_val > high_level:
+                if self.p.sell_pos_open:
+                    sell_open = True
+                if self.p.buy_pos_close:
+                    buy_close = True
+            if prev_val >= low_level and curr_val < low_level:
+                if self.p.buy_pos_open:
+                    buy_open = True
+                if self.p.sell_pos_close:
+                    sell_close = True
+        return buy_open, sell_open, buy_close, sell_close
+
+    def _manage_position(self, buy_close, sell_close):
+        if not self.position or self.order is not None:
+            return False
+        high = float(self.base.high[0])
+        low = float(self.base.low[0])
+        if self.position.size > 0:
+            if buy_close and self.p.buy_pos_close:
+                self.order = self.close()
+                return True
+            if self.stop_price is not None and low <= self.stop_price:
+                self.order = self.close()
+                return True
+            if self.take_profit_price is not None and high >= self.take_profit_price:
+                self.order = self.close()
+                return True
+        else:
+            if sell_close and self.p.sell_pos_close:
+                self.order = self.close()
+                return True
+            if self.stop_price is not None and high >= self.stop_price:
+                self.order = self.close()
+                return True
+            if self.take_profit_price is not None and low <= self.take_profit_price:
+                self.order = self.close()
+                return True
+        return False
+
+    def next(self):
+        """Evaluate each bar and submit new orders when FFI crossover conditions match."""
+        self.bar_num += 1
+        if len(self.ffi_feed) < 2:
+            return
+        if self.order is not None:
+            return
+        signal_dt = bt.num2date(self.ffi_feed.datetime[0])
+        buy_open, sell_open, buy_close, sell_close = self._ffi_cross_signal()
+        if self.position:
+            self._manage_position(buy_close, sell_close)
+            return
+        if self.last_signal_dt == signal_dt:
+            return
+        if buy_open:
+            self.signal_count += 1
+            self._set_risk('buy')
+            self.order = self.buy(size=self.p.lots)
+            self.last_signal_dt = signal_dt
+            return
+        if sell_open:
+            self.signal_count += 1
+            self._set_risk('sell')
+            self.order = self.sell(size=self.p.lots)
+            self.last_signal_dt = signal_dt
+
+    def notify_order(self, order):
+        """Handle order lifecycle transitions and update execution counters."""
+        if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
+            return
+        if order.status == bt.Order.Completed:
+            self.completed_order_count += 1
+            if self.position:
+                if order.executed.size > 0:
+                    self.buy_count += 1
+                elif order.executed.size < 0:
+                    self.sell_count += 1
+            else:
+                self.stop_price = None
+                self.take_profit_price = None
+        elif order.status in [bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected, bt.Order.Expired]:
+            self.rejected_order_count += 1
+        if self.order is not None and order.ref == self.order.ref and order.status not in [bt.Order.Submitted, bt.Order.Accepted]:
+            self.order = None
+
+    def notify_trade(self, trade):
+        """Record win/loss counters whenever a trade is fully closed."""
+        if not trade.isclosed:
+            return
+        self.trade_count += 1
+        if trade.pnlcomm >= 0:
+            self.win_count += 1
+        else:
+            self.loss_count += 1
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
+WORKSPACE_DIR = BASE_DIR.parents[2]
+LOCAL_BACKTRADER_REPO = WORKSPACE_DIR / 'backtrader'
+if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path:
+    sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
+
+
+MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
+
+
+def resolve_data_path(filename):
+    """Resolve a local data filename and ensure it exists.
+
+    Args:
+        filename: Relative path to a required CSV/TSV fixture.
+
+    Returns:
+        An absolute ``Path`` to the file.
+    """
+    path = (BASE_DIR / filename).resolve()
+    if not path.exists():
+        raise FileNotFoundError(f'Data file not found: {path}')
+    return path
+
+
+def load_backtest_frames(config):
+    """Load and prepare both base and indicator DataFrames for the backtest.
+
+    Args:
+        config: Dictionary loaded from the migration config, containing data and
+            indicator settings.
+
+    Returns:
+        A dictionary with prepared frames, from/to dates, and helper metadata.
+    """
+    data_cfg = config['data']
+    ind_cfg = config['indicator']
+    fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
+    todate = datetime.datetime.fromisoformat(data_cfg['todate'])
+    base = load_mt5_csv(resolve_data_path(data_cfg['file']), fromdate=fromdate, todate=todate, bar_shift_minutes=data_cfg.get('bar_shift_minutes', 0))
+    if base.empty:
+        raise ValueError('Loaded data frame is empty')
+    indicator_tf = resample_frame(base, f"{data_cfg.get('indicator_timeframe_minutes', 240)}min")
+    ffi = compute_fractal_force_index(
+        indicator_tf,
+        e_period=ind_cfg.get('e_period', 30),
+        normal_speed=ind_cfg.get('normal_speed', 30),
+        ma_method=ind_cfg.get('ma_method', 'sma'),
+        price_type=ind_cfg.get('price_type', 'close'),
+        volume_type=ind_cfg.get('volume_type', 'tick'),
+    )
+    print(f'Loaded bars: base={len(base)}, indicator_tf={len(indicator_tf)}, ffi={len(ffi)}')
+    return {'base': base, 'ffi': ffi, 'fromdate': fromdate, 'todate': todate}
+
+
+def build_cerebro(config, frame):
+    """Build and configure the Backtrader Cerebro instance used by the test.
+
+    Args:
+        config: Backtest settings including cash, commission, multiplier, and
+            margin attributes.
+        frame: Prepared base/indicator frames and time range data.
+
+    Returns:
+        A configured `bt.Cerebro` instance with data feeds, strategy, observers,
+        and analyzers attached.
+    """
+    bt_cfg = config['backtest']
+    indicator_tf = config['data'].get('indicator_timeframe_minutes', 240)
+    cerebro = bt.Cerebro(stdstats=True)
+    cerebro.broker.setcash(bt_cfg['initial_cash'])
+    comm_type = bt.CommInfoBase.COMM_FIXED if bt_cfg.get('commission_type', 'fixed') == 'fixed' else bt.CommInfoBase.COMM_PERC
+    cerebro.broker.setcommission(commission=bt_cfg['commission'], margin=bt_cfg['margin'], mult=bt_cfg['multiplier'], commtype=comm_type, stocklike=bt_cfg.get('stocklike', False))
+    base_df = frame['base'].copy()
+    base_df['volume'] = base_df['tick_volume']
+    ffi_df = frame['ffi'][['open', 'high', 'low', 'close', 'volume', 'openinterest', 'ffi']]
+    cerebro.adddata(Mt5PandasFeed(dataname=base_df[['open', 'high', 'low', 'close', 'volume', 'openinterest']], timeframe=bt.TimeFrame.Minutes, compression=15), name='XAUUSD_M15')
+    cerebro.adddata(FractalForceFeed(dataname=ffi_df, timeframe=bt.TimeFrame.Minutes, compression=indicator_tf), name='FractalForceIndex')
+    cerebro.addstrategy(ExpFractalForceIndexStrategy, **config.get('params', {}))
+    trade_log_root = os.environ.get("BT_TRADE_LOG_DIR", "").strip()
+    if trade_log_root:
+        log_dir = Path(trade_log_root) / "python"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        cerebro.addobserver(
+            bt.observers.TradeLogger,
+            log_dir=str(log_dir),
+            log_orders=True,
+            log_trades=True,
+            log_positions=True,
+            log_indicators=True,
+            log_signals=True,
+            log_position_snapshot=False,
+            log_format="json",
+        )
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
+    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+    cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
+    return cerebro
+
+
+def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate strategy, broker, and analyzer outputs into regression metrics.
+
+    Args:
+        strat: Executed strategy object from ``cerebro.run()``.
+        cerebro: Cerebro engine after backtest execution.
+        frame: Backtest metadata and input frames.
+        config: Original migration config dictionary.
+
+    Returns:
+        A dictionary of scalar fields asserted by migration tests.
+    """
+    sharpe = strat.analyzers.sharpe.get_analysis()
+    returns = strat.analyzers.returns.get_analysis()
+    drawdown = strat.analyzers.drawdown.get_analysis()
+    trades = strat.analyzers.trades.get_analysis()
+    sqn = strat.analyzers.sqn.get_analysis()
+    initial_cash = config['backtest']['initial_cash']
+    final_value = cerebro.broker.getvalue()
+    won = trades.get('won', {}).get('total', 0)
+    lost = trades.get('lost', {}).get('total', 0)
+    total_trades = trades.get('total', {}).get('closed', won + lost)
+    gross_won = trades.get('won', {}).get('pnl', {}).get('total', 0) or 0
+    gross_lost = abs(trades.get('lost', {}).get('pnl', {}).get('total', 0) or 0)
+    return {
+        'fromdate': frame['fromdate'],
+        'todate': frame['todate'],
+        'bars_base': len(frame['base']),
+        'bars_ffi': len(frame['ffi']),
+        'bar_num': strat.bar_num,
+        'signal_count': strat.signal_count,
+        'trade_count': strat.trade_count,
+        'completed_orders': strat.completed_order_count,
+        'rejected_orders': strat.rejected_order_count,
+        'initial_cash': initial_cash,
+        'final_value': final_value,
+        'net_pnl': final_value - initial_cash,
+        'total_return_pct': (returns.get('rtot') or 0) * 100,
+        'total_trades': total_trades,
+        'won': won,
+        'lost': lost,
+        'win_rate': (won / total_trades * 100) if total_trades else 0,
+        'sharpe_ratio': sharpe.get('sharperatio'),
+        'annual_return_pct': (returns.get('rnorm') or 0) * 100,
+        'max_drawdown': drawdown.get('max', {}).get('drawdown', 0),
+        'sqn': sqn.get('sqn'),
+    }
+
+
+def run(plot=False):
+    """Run the configured backtest and return execution results and metrics.
+
+    Args:
+        plot: Whether to call ``cerebro.plot()`` after running.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
+    config = _bt_load_config(_CONFIG, repo=_REPO)
+    frame = load_backtest_frames(config)
+    cerebro = build_cerebro(config, frame)
+    print('\nStarting backtest...')
+    results = cerebro.run()
+    strat = results[0]
+    metrics = extract_metrics(strat, cerebro, frame, config)
+
+    if plot:
+        cerebro.plot()
+    return results, metrics, cerebro
+
+
+def _close(actual, expected, *, tol, key):
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    assert actual is not None, f"{key}: expected={expected}, got=None"
+    a = float(actual)
+    assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
+    assert abs(a - float(expected)) <= tol, (
+        f"{key}: expected={expected}, got={a} (tol={tol})"
+    )
+
+
+def _invoke_strategy_main():
+    """Call main() or run() depending on what the original script defined."""
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+    if hasattr(_mod, "main") and callable(_mod.main):
+        return _mod.main()
+    if hasattr(_mod, "run") and callable(_mod.run):
+        return _mod.run()
+    raise RuntimeError("Neither main() nor run() found in inlined module")
+
+
+def test_159_0159_0737_exp_fractal_force_index() -> None:
+    """Migrated regression test (runonce=True only).
+
+    Originally located at tests/functional/strategies_regression/mean_reversion/0159_0737_exp_fractal_force_index.
+    """
+    # Capture metrics by hooking extract_metrics() and invoking the original
+    # main() (or run()). This reuses whatever loader / build_cerebro /
+    # extract_metrics signatures the strategy used internally.
+    captured = {}
+    _orig_extract = extract_metrics
+    def _capture_em(*a, **kw):
+        m = _orig_extract(*a, **kw)
+        if isinstance(m, dict):
+            captured["metrics"] = m
+        return m
+
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+    _mod.extract_metrics = _capture_em
+
+    # Force runonce=True for the run inside main().
+    import backtrader as _bt
+    _orig_run = _bt.Cerebro.run
+    def _forced_runonce(self, *args, **kwargs):
+        kwargs["runonce"] = True
+        return _orig_run(self, *args, **kwargs)
+    _bt.Cerebro.run = _forced_runonce
+
+    # Strip pytest argv so that argparse-based main() functions don't see them.
+    _saved_argv = _sys.argv
+    _sys.argv = [_sys.argv[0]]
+
+    try:
+        try:
+            _invoke_strategy_main()
+        except SystemExit:
+            pass
+        except Exception:
+            if "metrics" not in captured:
+                raise
+    finally:
+        _bt.Cerebro.run = _orig_run
+        _mod.extract_metrics = _orig_extract
+        _sys.argv = _saved_argv
+
+    metrics = captured.get("metrics")
+    assert metrics is not None, "extract_metrics() was not called"
+
+    assert metrics.get('bar_num') == 5572, f"bar_num: expected=5572, got={metrics.get('bar_num')!r}"
+    assert metrics.get('total_trades') == 54, f"total_trades: expected=54, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 54, f"trade_count: expected=54, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 22, f"won: expected=22, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 32, f"lost: expected=32, got={metrics.get('lost')!r}"
+    _close(metrics.get('bars_base'), 6129.0, tol=6.129000e-03, key='bars_base')
+    _close(metrics.get('bars_ffi'), 369.0, tol=3.690000e-04, key='bars_ffi')
+    _close(metrics.get('signal_count'), 55.0, tol=5.500000e-05, key='signal_count')
+    _close(metrics.get('completed_orders'), 109.0, tol=1.090000e-04, key='completed_orders')
+    _close(metrics.get('rejected_orders'), 0.0, tol=1.000000e-06, key='rejected_orders')
+    _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
+    _close(metrics.get('final_value'), 1000633.6000000038, tol=1.000634e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 633.6000000038184, tol=6.336000e-04, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.06333993602695348, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 40.74074074074074, tol=4.074074e-05, key='win_rate')
+    _close(metrics.get('sharpe_ratio'), 0.9471408473473686, tol=1.000000e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 3.817569157925224, tol=3.817569e-06, key='annual_return_pct')
+    _close(metrics.get('max_drawdown'), 0.5867628083474647, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sqn'), 0.12972650693647467, tol=1.000000e-06, key='sqn')
+    _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
+    _activity = (
+        _total_trades
+        or (metrics.get("buy_count") or 0)
+        or (metrics.get("sell_count") or 0)
+        or (metrics.get("rebalance_count") or 0)
+    )
+    assert _activity > 0, f"strategy must have non-zero activity, got metrics={metrics!r}"

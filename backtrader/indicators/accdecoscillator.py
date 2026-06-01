@@ -50,7 +50,7 @@ class AccelerationDecelerationOscillator(Indicator):
         ("movav", SMA),
     )
 
-    plotlines = dict(accde=dict(_method="bar", alpha=0.50, width=1.0))
+    plotlines = {"accde": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
 
     def __init__(self):
         """Initialize the AC indicator.
@@ -86,7 +86,7 @@ class AccelerationDecelerationOscillator(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(ao_array))):
             ao_val = ao_array[i] if i < len(ao_array) else 0.0

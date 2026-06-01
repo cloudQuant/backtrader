@@ -7,6 +7,11 @@ Generates static charts for reports, distinct from interactive plotting.
 
 import base64
 import io
+import math
+
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 try:
     import matplotlib
@@ -72,17 +77,35 @@ class ReportChart:
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
 
         # Normalize to 100
-        start_value = values[0] if values[0] != 0 else 1
-        normalized_values = [100 * v / start_value for v in values]
+        start_value = 1
+        for value in values:
+            if isinstance(value, (int, float)) and math.isfinite(value) and value != 0:
+                start_value = value
+                break
+
+        normalized_values = []
+        for value in values:
+            if isinstance(value, (int, float)) and math.isfinite(value):
+                normalized_values.append(100 * value / start_value)
+            else:
+                normalized_values.append(normalized_values[-1] if normalized_values else 100)
 
         # Plot equity curve
         ax.plot(dates, normalized_values, label="Strategy", linewidth=1.5, color="#3498DB")
 
         # Plot buy-and-hold comparison line
         if benchmark_dates and benchmark_values:
+            sanitized_benchmark_values = []
+            for value in benchmark_values:
+                if isinstance(value, (int, float)) and math.isfinite(value):
+                    sanitized_benchmark_values.append(value)
+                else:
+                    sanitized_benchmark_values.append(
+                        sanitized_benchmark_values[-1] if sanitized_benchmark_values else 100
+                    )
             ax.plot(
                 benchmark_dates,
-                benchmark_values,
+                sanitized_benchmark_values,
                 label="Buy & Hold",
                 linewidth=1,
                 color="gray",
@@ -135,7 +158,7 @@ class ReportChart:
             period_map = {
                 "daily": ("Daily", "D"),
                 "weekly": ("Weekly", "W"),
-                "monthly": ("Monthly", "ME"),
+                "monthly": ("Monthly", pd.offsets.MonthEnd()),
                 "yearly": ("Yearly", "YE"),
             }
             period_name, period_code = period_map.get(period, ("Daily", "D"))
@@ -144,8 +167,26 @@ class ReportChart:
         try:
             resampled = series.resample(period_code).last()
             returns = 100 * resampled.pct_change().dropna()
-        except Exception:
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
+            logger.debug("Failed to resample returns with period %s: %s", period_code, e)
             return None
+
+        prev_values = resampled.shift(1).reindex(returns.index)
+        curr_values = resampled.reindex(returns.index)
+        invalid_mask = (
+            ~curr_values.map(lambda value: isinstance(value, (int, float)) and math.isfinite(value))
+            | ~prev_values.map(
+                lambda value: isinstance(value, (int, float)) and math.isfinite(value)
+            )
+            | prev_values.eq(0)
+            | ~returns.map(lambda value: math.isfinite(value))
+        )
+        if invalid_mask.any():
+            logger.debug(
+                "Replacing %d non-finite return bar values with 0.0",
+                int(invalid_mask.sum()),
+            )
+            returns = returns.mask(invalid_mask, 0.0)
 
         if len(returns) == 0:
             return None
@@ -196,13 +237,21 @@ class ReportChart:
             return None
 
         # Calculate drawdown
-        running_max = values[0]
-        drawdowns = []
+        running_max = 0
+        for value in values:
+            if isinstance(value, (int, float)) and math.isfinite(value):
+                running_max = value
+                break
+
+        drawdowns: list = []
 
         for v in values:
-            if v > running_max:
-                running_max = v
-            dd = (v - running_max) / running_max * 100 if running_max != 0 else 0
+            if isinstance(v, (int, float)) and math.isfinite(v):
+                if v > running_max:
+                    running_max = v
+                dd = (v - running_max) / running_max * 100 if running_max != 0 else 0
+            else:
+                dd = drawdowns[-1] if drawdowns else 0
             drawdowns.append(dd)
 
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
@@ -253,29 +302,26 @@ class ReportChart:
             start_date = dates[0]
             end_date = dates[-1]
 
-            if hasattr(start_date, "days"):
+            from datetime import datetime
+
+            if isinstance(start_date, datetime):
                 time_interval_days = (end_date - start_date).days
             else:
-                from datetime import datetime
-
-                if isinstance(start_date, datetime):
-                    time_interval_days = (end_date - start_date).days
-                else:
-                    time_interval_days = 30  # Default
+                time_interval_days = 30  # Default
 
             if time_interval_days > 5 * 365.25:
                 return ("Yearly", "YE")
-            elif time_interval_days > 365.25:
-                return ("Monthly", "ME")
-            elif time_interval_days > 50:
+            if time_interval_days > 365.25:
+                return ("Monthly", pd.offsets.MonthEnd())
+            if time_interval_days > 50:
                 return ("Weekly", "W")
-            elif time_interval_days > 5:
+            if time_interval_days > 5:
                 return ("Daily", "D")
-            elif time_interval_days > 0.5:
+            if time_interval_days > 0.5:
                 return ("Hourly", "H")
-            else:
-                return ("Per Minute", "T")
-        except Exception:
+            return ("Per Minute", "T")
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
+            logger.debug("Failed to determine periodicity: %s", e)
             return ("Daily", "D")
 
     def save_to_file(self, fig, filename, format="png"):
@@ -315,6 +361,7 @@ class ReportChart:
 
     def close_all(self):
         """Close all charts and release memory."""
-        for fig in self._figures:
-            plt.close(fig)
+        if MATPLOTLIB_AVAILABLE:
+            for fig in self._figures:
+                plt.close(fig)
         self._figures = []

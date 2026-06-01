@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -168,7 +169,8 @@ class ReplayMAStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_data_replay():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_data_replay(runonce):
     """Test Data Replay functionality.
 
     This function tests the data replay feature by replaying daily data as weekly
@@ -202,7 +204,7 @@ def test_data_replay():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run(preload=False)
+    results = cerebro.run(runonce=runonce, preload=False)
     strat = results[0]
 
     # Get analysis results

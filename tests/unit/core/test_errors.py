@@ -66,6 +66,33 @@ def test_errors(main=False):
         pass
 
 
+def test_business_exception_hierarchy():
+    """The Sprint 3 category exceptions exist and stay backward compatible.
+
+    DataError / BrokerError / OrderError / ConfigError must all derive from
+    BacktraderError (so existing ``except BacktraderError`` keeps working), and
+    OrderError must derive from BrokerError. They are exported at both
+    ``bt.errors`` and the top-level ``bt`` namespace.
+    """
+    for name in ("DataError", "BrokerError", "OrderError", "ConfigError"):
+        cls = getattr(bt.errors, name)
+        assert issubclass(cls, bt.errors.BacktraderError)
+        # exported at top level via star import
+        assert getattr(bt, name) is cls
+
+    # OrderError is a kind of BrokerError
+    assert issubclass(bt.errors.OrderError, bt.errors.BrokerError)
+
+    # legacy classes unchanged
+    assert issubclass(bt.errors.StrategySkipError, bt.errors.BacktraderError)
+
+    # instances carry their message and are catchable as the base
+    try:
+        raise bt.errors.OrderError("bad order size")
+    except bt.errors.BrokerError as e:  # caught via the parent category
+        assert str(e) == "bad order size"
+
+
 if __name__ == "__main__":
     # Run tests with main=True when executed directly
     test_errors(main=True)

@@ -1011,5 +1011,4 @@ black backtrader/
 ```bash
 
 - --
-
 - Last updated: 2026-03-01*

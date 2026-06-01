@@ -20,7 +20,7 @@ except ImportError:
     BOKEH_AVAILABLE = False
 
 # Global log storage
-_log_storage = {}
+_log_storage: dict = {}
 
 
 class LogHandler(logging.Handler):

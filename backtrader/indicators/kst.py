@@ -73,7 +73,7 @@ class KnowSureThing(Indicator):
         ("_smovav", SMA),
     )
 
-    plotinfo = dict(plothlines=[0.0])
+    plotinfo = {"plothlines": [0.0]}
 
     def __init__(self):
         """Initialize the KST indicator.
@@ -121,7 +121,7 @@ class KnowSureThing(Indicator):
 
         for arr in [kst_array, signal_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         # Calculate KST
         for i in range(
@@ -140,9 +140,7 @@ class KnowSureThing(Indicator):
         # Calculate signal (SMA of KST)
         for i in range(start, min(end, len(kst_array))):
             kst_val = kst_array[i]
-            if isinstance(kst_val, float) and math.isnan(kst_val):
-                signal_array[i] = float("nan")
-            elif i < rsignal - 1:
+            if isinstance(kst_val, float) and math.isnan(kst_val) or i < rsignal - 1:
                 signal_array[i] = float("nan")
             else:
                 kst_sum = 0.0

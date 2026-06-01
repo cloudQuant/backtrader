@@ -96,7 +96,7 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
         alpha1 = self.alpha1
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         minperiod = lag + period
         for i in range(min(minperiod - 1, len(darray))):

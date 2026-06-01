@@ -4,17 +4,43 @@ Tests the Hans123 intraday breakout strategy using rebar futures data RB889.csv
 - Uses PandasData to load single contract data
 - Intraday strategy based on breakout of high/low points from first N bars after market open,
   with moving average filter
+
+Data Used:
+    Rebar (steel) continuous futures contract RB889 loaded from
+    ``tests/datas/RB889.csv`` via resolve_data_path, capped to the most recent
+    20,000 intraday bars. The CSV provides datetime-indexed OHLCV plus open
+    interest, cleaned of zero-price rows, and is delivered through a single
+    PandasData feed priced as a futures instrument (multiplier 10, 10% margin).
+
+Strategy Principle:
+    A moving-average-filtered variant of the classic Hans123 intraday breakout.
+    The high and low of the first N bars after the open define a breakout range
+    for the session. A 200-bar SMA acts as a trend filter so breakouts are only
+    taken in the direction of the prevailing trend: an upward MA with price above
+    it and a break of the upper band goes long, while the mirror condition goes
+    short. All positions are flattened before the close to stay flat overnight.
+
+Strategy Logic:
+    load_rb889_data loads and trims the futures frame. Each bar the strategy
+    tracks the running session high/low, fixes the upper/lower breakout bands
+    once ``bar_num`` bars have elapsed, and resets daily state at the 15:00 bar.
+    During the 21:00-23:00 and 09:00-11:00 windows it opens trend-aligned
+    breakout longs/shorts sized by account equity, and closes any open position
+    at 14:55. notify_order and notify_trade log fills and PnL; stop reports final
+    counters. The parametrized test runs both runonce=True and runonce=False,
+    collecting analyzer metrics and asserting them against expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -234,7 +260,7 @@ class RbPandasFeed(bt.feeds.PandasData):
     )
 
 
-def load_rb889_data(filename: str = "RB889.csv", max_rows: int = 50000) -> pd.DataFrame:
+def load_rb889_data(filename: str = "RB889.csv", max_rows: int = 20000) -> pd.DataFrame:
     """Load rebar futures data.
 
     Maintains original data loading logic while limiting data rows to speed up testing.
@@ -264,7 +290,8 @@ def load_rb889_data(filename: str = "RB889.csv", max_rows: int = 50000) -> pd.Da
     return df
 
 
-def test_hans123_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_hans123_strategy(runonce):
     """Test Hans123 intraday breakout strategy with rebar futures data.
 
     This test function:
@@ -309,7 +336,7 @@ def test_hans123_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -333,15 +360,16 @@ def test_hans123_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # Assert test results (exact values)
-    assert strat.bar_num == 49801, f"Expected bar_num=49801, got {strat.bar_num}"
-    assert strat.buy_count == 346, f"Expected buy_count=346, got {strat.buy_count}"
-    assert strat.sell_count == 252, f"Expected sell_count=252, got {strat.sell_count}"
-    assert total_trades == 598, f"Expected total_trades=598, got {total_trades}"
-    assert abs(sharpe_ratio - (-0.38853827472284613)) < 1e-6, f"Expected sharpe_ratio=-0.38853827472284613, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.05485916735255581)) < 1e-6, f"Expected annual_return=-0.05485916735255581, got {annual_return}"
-    assert abs(max_drawdown - 0.34452640045840965) < 1e-6, f"Expected max_drawdown=0.34452640045840965, got {max_drawdown}"
-    assert abs(final_value - 844664.1285503485) < 0.01, f"Expected final_value=844664.13, got {final_value}"
+    # Assert test results (exact values) - based on max_rows=20000
+    assert strat.bar_num == 19801, f"Expected bar_num=19801, got {strat.bar_num}"
+    assert strat.buy_count == 145, f"Expected buy_count=145, got {strat.buy_count}"
+    assert strat.sell_count == 90, f"Expected sell_count=90, got {strat.sell_count}"
+    assert total_trades == 235, f"Expected total_trades=235, got {total_trades}"
+    assert total_trades > 0, "trade count must be > 0"
+    assert abs(sharpe_ratio - (-0.17830201098200318)) < 1e-6, f"Expected sharpe_ratio=-0.17830201098200318, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.03570266574496643)) < 1e-6, f"Expected annual_return=-0.03570266574496643, got {annual_return}"
+    assert abs(max_drawdown - 0.1849303886719268) < 1e-6, f"Expected max_drawdown=0.1849303886719268, got {max_drawdown}"
+    assert abs(final_value - 958610.3538280271) < 0.01, f"Expected final_value=958610.35, got {final_value}"
 
     print("\nAll tests passed!")
 

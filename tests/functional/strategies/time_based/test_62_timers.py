@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -185,7 +186,8 @@ class TimerStrategy(bt.Strategy):
         self.timer_count += 1
 
 
-def test_timers():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_timers(runonce):
     """Test the timer functionality in backtrader strategies.
 
     This test function validates that the timer system works correctly by:
@@ -252,7 +254,7 @@ def test_timers():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

@@ -128,7 +128,7 @@ class AdaptiveMovingAverage(MovingAverageBase):
         slow_sc = self.slow_sc
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # Pre-fill warmup with NaN
         for i in range(min(period, len(darray))):

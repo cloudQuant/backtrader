@@ -94,7 +94,7 @@ class TradeHistory(AutoOrderedDict):
                 self.status.pnl,
                 self.status.pnlcomm,
                 self.status.tz,
-                self.event,
+                self.get("event", None),
             ),
         )
 
@@ -256,9 +256,19 @@ class Trade:
         self.barlen = 0
 
         self.historyon = historyon
-        self.history = list()
+        self.history = []
 
         self.status = self.Created
+
+    def __repr__(self):
+        try:
+            status_name = self.status_names[self.status]
+        except (IndexError, TypeError):
+            status_name = f"Unknown({self.status})"
+        return (
+            f"Trade(ref={self.ref}, size={self.size}, price={self.price}, "
+            f"pnl={self.pnl}, status={status_name})"
+        )
 
     # Return absolute size of trade, seems slightly odd
     def __len__(self):
@@ -275,13 +285,17 @@ class Trade:
     # Return data name
     def getdataname(self):
         """Shortcut to retrieve the name of the data this trade references"""
-        return self.data._name
+        if self.data is None:
+            return ""
+        return getattr(self.data, "_name", "")
 
     # Return opening time
     def open_datetime(self, tz=None, naive=True):
         """Returns a datetime.datetime object with the datetime in which
         the trade was opened
         """
+        if self.data is None:
+            return None
         # data contains num2date method
         return self.data.num2date(self.dtopen, tz=tz, naive=naive)
 
@@ -290,6 +304,8 @@ class Trade:
         """Returns a datetime.datetime object with the datetime in which
         the trade was closed
         """
+        if self.data is None:
+            return None
         return self.data.num2date(self.dtclose, tz=tz, naive=naive)
 
     # Update trade event
@@ -333,6 +349,16 @@ class Trade:
         if not size:
             return  # empty update, skip all other calculations
 
+        try:
+            data_len = len(self.data)
+        except Exception:
+            data_len = 0
+
+        try:
+            data_dt = self.data.datetime[0]
+        except Exception:
+            data_dt = 0.0
+
         # Commission can only increase
         # Commission keeps increasing
         self.commission += commission
@@ -347,8 +373,8 @@ class Trade:
         self.justopened = bool(not oldsize and size)
         # If position just opened, update baropen, dtopen and long
         if self.justopened:
-            self.baropen = len(self.data)
-            self.dtopen = 0.0 if order.p.simulated else self.data.datetime[0]
+            self.baropen = data_len
+            self.dtopen = 0.0 if order.p.simulated else data_dt
             self.long = self.size > 0
 
         # Any size means the trade was opened
@@ -357,7 +383,7 @@ class Trade:
 
         # Update current trade length
         # Update current trade's holding bar count
-        self.barlen = len(self.data) - self.baropen
+        self.barlen = data_len - self.baropen
 
         # record if the position was closed (set to null)
         # If original position was not 0 but current position is 0, trade has been closed
@@ -367,8 +393,8 @@ class Trade:
         # If already closed, update isopen, barclose, dtclose, status attributes
         if self.isclosed:
             self.isopen = False
-            self.barclose = len(self.data)
-            self.dtclose = self.data.datetime[0]
+            self.barclose = data_len
+            self.dtclose = data_dt
 
             self.status = self.Closed
         # If currently open, update status
@@ -395,7 +421,7 @@ class Trade:
         # Update the history if needed
         # If needed, add trade's history status, save to self.history
         if self.historyon:
-            dt0 = self.data.datetime[0] if not order.p.simulated else 0.0
+            dt0 = data_dt if not order.p.simulated else 0.0
             histentry = TradeHistory(
                 self.status,
                 dt0,
@@ -405,7 +431,7 @@ class Trade:
                 self.value,
                 self.pnl,
                 self.pnlcomm,
-                self.data._tz,
+                getattr(self.data, "_tz", None),
             )
             histentry.doupdate(order, size, price, commission)
             self.history.append(histentry)

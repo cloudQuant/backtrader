@@ -7,9 +7,8 @@ cash management, and trade history.
 
 Available Brokers:
     - BackBroker: Built-in backtesting broker.
-    - IBBroker: Interactive Brokers integration (optional).
-    - OandaBroker: OANDA broker integration (optional).
-    - VCBroker: VisualChart broker integration (optional).
+    - TickBroker: Tick and order book matching backtesting broker.
+    - BtApiBroker: Unified bt_api_py live trading broker.
 
 Example:
     Setting the broker in cerebro:
@@ -22,36 +21,6 @@ Example:
 
 from backtrader.brokers.bbroker import BackBroker as BackBroker
 from backtrader.brokers.bbroker import BrokerBack as BrokerBack
-
-try:
-    from backtrader.brokers.ibbroker import IBBroker as IBBroker
-except ImportError:
-    pass  # The user may not have ibpy installed
-
-try:
-    from backtrader.brokers.vcbroker import VCBroker as VCBroker
-except ImportError:
-    pass  # The user may not have something installed
-
-try:
-    from backtrader.brokers.oandabroker import OandaBroker as OandaBroker
-except ImportError:
-    pass  # The user may not have something installed
-
-# CCXT Broker for cryptocurrency exchanges
-try:
-    from backtrader.brokers.ccxtbroker import CCXTBroker as CCXTBroker
-except ImportError:
-    pass  # ccxt not installed
-
-# CTP Broker for China futures
-try:
-    from backtrader.brokers.ctpbroker import CTPBroker as CTPBroker
-except ImportError:
-    pass  # ctpbee not installed
-
-# Futu Broker for HK/US/A-Share stocks
-try:
-    from backtrader.brokers.futubroker import FutuBroker as FutuBroker
-except ImportError:
-    pass  # futu-api not installed
+from backtrader.brokers.btapibroker import BtApiBroker as BtApiBroker
+from backtrader.brokers.mixbroker import MixBroker as MixBroker
+from backtrader.brokers.tickbroker import TickBroker as TickBroker

@@ -129,7 +129,7 @@ class TrueStrengthIndicator(Indicator):
         minperiod = pchange + self.p.period1 + self.p.period2
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(min(minperiod - 1, len(darray))):
             if i < len(larray):

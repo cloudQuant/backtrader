@@ -24,6 +24,17 @@ import math
 from . import Highest, Indicator, Lowest
 
 
+def _line_value(line, ago=0):
+    try:
+        return line[ago]
+    except (IndexError, TypeError):
+        return float("nan")
+
+
+def _valid(value):
+    return value is not None and not (isinstance(value, float) and not math.isfinite(value))
+
+
 class Ichimoku(Indicator):
     """
     Developed and published in his book in 1969 by journalist Goichi Hosoda
@@ -63,10 +74,10 @@ class Ichimoku(Indicator):
         ("chikou", 26),  # backwards push
     )
 
-    plotinfo = dict(subplot=False)
-    plotlines = dict(
-        senkou_span_a=dict(_fill_gt=("senkou_span_b", "g"), _fill_lt=("senkou_span_b", "r")),
-    )
+    plotinfo = {"subplot": False}
+    plotlines = {
+        "senkou_span_a": {"_fill_gt": ("senkou_span_b", "g"), "_fill_lt": ("senkou_span_b", "r")},
+    }
 
     def __init__(self):
         """Initialize the Ichimoku Cloud indicator.
@@ -97,39 +108,51 @@ class Ichimoku(Indicator):
     def next(self):
         """Calculate Ichimoku values for the current bar."""
         # Calculate tenkan_sen and kijun_sen
-        idx = self.lines[0].idx
-
-        hi_tenkan_val = self.hi_tenkan.lines[0].array[idx]
-        lo_tenkan_val = self.lo_tenkan.lines[0].array[idx]
-        tenkan_val = (hi_tenkan_val + lo_tenkan_val) / 2.0
+        hi_tenkan_val = _line_value(self.hi_tenkan)
+        lo_tenkan_val = _line_value(self.lo_tenkan)
+        tenkan_val = (
+            (hi_tenkan_val + lo_tenkan_val) / 2.0
+            if _valid(hi_tenkan_val) and _valid(lo_tenkan_val)
+            else float("nan")
+        )
         self.lines.tenkan_sen[0] = tenkan_val
 
-        hi_kijun_val = self.hi_kijun.lines[0].array[idx]
-        lo_kijun_val = self.lo_kijun.lines[0].array[idx]
-        kijun_val = (hi_kijun_val + lo_kijun_val) / 2.0
+        hi_kijun_val = _line_value(self.hi_kijun)
+        lo_kijun_val = _line_value(self.lo_kijun)
+        kijun_val = (
+            (hi_kijun_val + lo_kijun_val) / 2.0
+            if _valid(hi_kijun_val) and _valid(lo_kijun_val)
+            else float("nan")
+        )
         self.lines.kijun_sen[0] = kijun_val
 
         # senkou_span_a: (tenkan + kijun) / 2, shifted forward by senkou_lead
         # At current bar, we display the value calculated senkou_lead bars ago
         shift = self.p.senkou_lead
-        if idx >= shift:
-            past_idx = idx - shift
-            past_hi_tenkan = self.hi_tenkan.lines[0].array[past_idx]
-            past_lo_tenkan = self.lo_tenkan.lines[0].array[past_idx]
-            past_tenkan = (past_hi_tenkan + past_lo_tenkan) / 2.0
-            past_hi_kijun = self.hi_kijun.lines[0].array[past_idx]
-            past_lo_kijun = self.lo_kijun.lines[0].array[past_idx]
-            past_kijun = (past_hi_kijun + past_lo_kijun) / 2.0
-            self.lines.senkou_span_a[0] = (past_tenkan + past_kijun) / 2.0
+        if len(self) > shift:
+            past_hi_tenkan = _line_value(self.hi_tenkan, -shift)
+            past_lo_tenkan = _line_value(self.lo_tenkan, -shift)
+            past_hi_kijun = _line_value(self.hi_kijun, -shift)
+            past_lo_kijun = _line_value(self.lo_kijun, -shift)
+            if all(
+                _valid(v) for v in (past_hi_tenkan, past_lo_tenkan, past_hi_kijun, past_lo_kijun)
+            ):
+                past_tenkan = (past_hi_tenkan + past_lo_tenkan) / 2.0
+                past_kijun = (past_hi_kijun + past_lo_kijun) / 2.0
+                self.lines.senkou_span_a[0] = (past_tenkan + past_kijun) / 2.0
+            else:
+                self.lines.senkou_span_a[0] = float("nan")
         else:
             self.lines.senkou_span_a[0] = float("nan")
 
         # senkou_span_b: (hi_senkou + lo_senkou) / 2, shifted forward by senkou_lead
-        if idx >= shift:
-            past_idx = idx - shift
-            past_hi_senkou = self.hi_senkou.lines[0].array[past_idx]
-            past_lo_senkou = self.lo_senkou.lines[0].array[past_idx]
-            self.lines.senkou_span_b[0] = (past_hi_senkou + past_lo_senkou) / 2.0
+        if len(self) > shift:
+            past_hi_senkou = _line_value(self.hi_senkou, -shift)
+            past_lo_senkou = _line_value(self.lo_senkou, -shift)
+            if _valid(past_hi_senkou) and _valid(past_lo_senkou):
+                self.lines.senkou_span_b[0] = (past_hi_senkou + past_lo_senkou) / 2.0
+            else:
+                self.lines.senkou_span_b[0] = float("nan")
         else:
             self.lines.senkou_span_b[0] = float("nan")
 

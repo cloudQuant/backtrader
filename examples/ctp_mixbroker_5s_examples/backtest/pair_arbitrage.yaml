@@ -1,0 +1,112 @@
+strategy: pair_arbitrage
+symbols:
+- rb2605
+- hc2605
+initial_cash: 100000.0
+broker:
+  cash: 100000.0
+strategy_params:
+  symbol_a: rb2605
+  symbol_b: hc2605
+  bar_source: channel_bar
+  bar_seconds: 5
+  spread_window: 3
+  entry_edge: 1.5
+  exit_edge: 0.0
+  order_size: 1
+  max_roundtrips: 1
+  max_bar_history: 32
+  printlog: true
+  open_offset: open
+  close_offset: close_today
+scenario:
+  type: pair_bars
+  bar_seconds: 5
+  start_timestamp: 1710000000.0
+  bars:
+    rb2605:
+    - offset: 0
+      open: 100.0
+      high: 100.4
+      low: 99.7
+      close: 100.0
+      volume: 10
+    - offset: 5
+      open: 100.0
+      high: 100.4
+      low: 99.8
+      close: 100.0
+      volume: 11
+    - offset: 10
+      open: 100.2
+      high: 104.3
+      low: 100.1
+      close: 104.0
+      volume: 15
+    - offset: 15
+      open: 104.0
+      high: 106.2
+      low: 103.7
+      close: 106.0
+      volume: 16
+    - offset: 20
+      open: 105.9
+      high: 106.0
+      low: 100.7
+      close: 101.0
+      volume: 14
+    - offset: 25
+      open: 101.0
+      high: 101.2
+      low: 97.8
+      close: 98.0
+      volume: 18
+    - offset: 30
+      open: 98.0
+      high: 98.4
+      low: 96.8
+      close: 97.0
+      volume: 10
+    hc2605:
+    - offset: 0
+      open: 100.0
+      high: 100.3
+      low: 99.8
+      close: 100.0
+      volume: 9
+    - offset: 5
+      open: 100.0
+      high: 100.2
+      low: 99.8
+      close: 100.0
+      volume: 10
+    - offset: 10
+      open: 100.0
+      high: 100.3
+      low: 99.9
+      close: 100.0
+      volume: 11
+    - offset: 15
+      open: 100.0
+      high: 100.3
+      low: 99.9
+      close: 100.0
+      volume: 11
+    - offset: 20
+      open: 100.1
+      high: 101.2
+      low: 100.0
+      close: 101.0
+      volume: 12
+    - offset: 25
+      open: 101.0
+      high: 101.2
+      low: 100.8
+      close: 101.0
+      volume: 12
+    - offset: 30
+      open: 101.0
+      high: 101.2
+      low: 100.8
+      close: 101.0
+      volume: 12

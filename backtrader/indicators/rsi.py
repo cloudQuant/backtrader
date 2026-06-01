@@ -74,6 +74,9 @@ class UpDay(Indicator):
         while len(larray) < end:
             larray.append(0.0)
 
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
+
         for i in range(period, min(end, len(darray))):
             diff = darray[i] - darray[i - period]
             larray[i] = max(diff, 0.0)
@@ -124,6 +127,9 @@ class DownDay(Indicator):
 
         while len(larray) < end:
             larray.append(0.0)
+
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
 
         for i in range(period, min(end, len(darray))):
             diff = darray[i - period] - darray[i]
@@ -178,6 +184,9 @@ class UpDayBool(Indicator):
         while len(larray) < end:
             larray.append(0.0)
 
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
+
         for i in range(period, min(end, len(darray))):
             larray[i] = 1.0 if darray[i] > darray[i - period] else 0.0
 
@@ -229,6 +238,9 @@ class DownDayBool(Indicator):
 
         while len(larray) < end:
             larray.append(0.0)
+
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
 
         for i in range(period, min(end, len(darray))):
             larray[i] = 1.0 if darray[i - period] > darray[i] else 0.0
@@ -328,8 +340,7 @@ class RelativeStrengthIndex(Indicator):
             if madown_val == 0.0:
                 if maup_val == 0.0:
                     return self.p.safelow  # 0/0 case
-                else:
-                    return self.p.safehigh  # x/0 case
+                return self.p.safehigh  # x/0 case
 
         if madown_val == 0.0:
             return 100.0  # Avoid division by zero
@@ -349,6 +360,10 @@ class RelativeStrengthIndex(Indicator):
 
         Computes RSI values across all bars with safe division handling.
         """
+        for child in (self.upday, self.downday, self.maup, self.madown):
+            if hasattr(child, "once"):
+                child.once(0, end)
+
         maup_array = self.maup.lines[0].array
         madown_array = self.madown.lines[0].array
         larray = self.lines.rsi.array
@@ -357,15 +372,18 @@ class RelativeStrengthIndex(Indicator):
         safelow = self.p.safelow
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(maup_array), len(madown_array))):
             maup_val = maup_array[i] if i < len(maup_array) else 0.0
             madown_val = madown_array[i] if i < len(madown_array) else 0.0
 
-            if isinstance(maup_val, float) and math.isnan(maup_val):
-                larray[i] = float("nan")
-            elif isinstance(madown_val, float) and math.isnan(madown_val):
+            if (
+                isinstance(maup_val, float)
+                and math.isnan(maup_val)
+                or isinstance(madown_val, float)
+                and math.isnan(madown_val)
+            ):
                 larray[i] = float("nan")
             else:
                 if safediv:

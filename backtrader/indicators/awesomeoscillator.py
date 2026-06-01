@@ -51,7 +51,7 @@ class AwesomeOscillator(Indicator):
         ("movav", SMA),
     )
     # Plot parameters
-    plotlines = dict(ao=dict(_method="bar", alpha=0.50, width=1.0))
+    plotlines = {"ao": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
 
     # Create indicators during initialization
     def __init__(self):
@@ -93,7 +93,7 @@ class AwesomeOscillator(Indicator):
         slow = self.p.slow
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(min(slow - 1, len(high_array))):
             if i < len(larray):

@@ -65,7 +65,7 @@ class Position:
 
         self.adjbase = None
 
-        self.upopened = size
+        self.upopened = 0
         self.upclosed = 0
         self.set(size, price)
 
@@ -122,10 +122,9 @@ class Position:
                 # same side max(-10, -10 - -5) -> max(-10, -5) -> -5
                 # reversal max(-10, -10 - 5) -> max(-10, -15) -> -10
                 self.upclosed = max(self.size, self.size - size)
-        # If current position equals 0, both new opening and closing equal 0
-        # todo Using 0 directly instead of self.size may improve efficiency
+        # If current position equals 0, opening equals the new size being set
         else:  # self.size == 0
-            self.upopened = self.size
+            self.upopened = size
             self.upclosed = 0
         # Actual position size
         self.size = size
@@ -138,6 +137,17 @@ class Position:
             self.price = 0.0
 
         return self.size, self.price, self.upopened, self.upclosed
+
+    def __repr__(self):
+        return f"Position(size={self.size}, price={self.price})"
+
+    def __eq__(self, other):
+        if not isinstance(other, Position):
+            return NotImplemented
+        return self.size == other.size and self.price == other.price
+
+    # Explicit: Position is mutable, so it must not be hashable
+    __hash__ = None
 
     # When calling len(position), return absolute value of position
     def __len__(self):
@@ -154,9 +164,17 @@ class Position:
         """Create a copy of the current position.
 
         Returns:
-            Position: A new Position instance with the same size and price.
+            Position: A new Position instance with the same size and price,
+                including all internal state fields.
         """
-        return Position(size=self.size, price=self.price)
+        pos = Position(size=self.size, price=self.price)
+        pos.adjbase = self.adjbase
+        pos.datetime = self.datetime
+        pos.updt = self.updt
+        pos.upopened = self.upopened
+        pos.upclosed = self.upclosed
+        pos.price_orig = self.price_orig
+        return pos
 
     # Create a position instance, then update size and price
     def pseudoupdate(self, size, price):

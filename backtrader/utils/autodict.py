@@ -50,7 +50,7 @@ class AutoDictList(dict):
     # Inherits dict, when accessing missing key, will automatically generate a key value, corresponding value is an empty list
     # This newly created class is only used in collections.defaultdict(AutoDictList) line
     def __missing__(self, key):
-        value = self[key] = list()
+        value = self[key] = []
         return value
 
 
@@ -73,7 +73,8 @@ class DotDict(dict):
     # _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, '_name', '')])
     def __getattr__(self, key):
         if key.startswith("__"):
-            return super().__getattr__(key)
+            # return super().__getattr__(key)
+            raise AttributeError(key)
         return self[key]
 
 
@@ -110,28 +111,30 @@ class AutoDict(dict):
     # _open method, set _closed attribute to False
     def _open(self):
         self._closed = False
+        for key, val in self.items():
+            if isinstance(val, (AutoDict, AutoOrderedDict)):
+                val._open()
 
     # __missing__ method handles case when key doesn't exist, if _closed, return KeyError, if not, create an AutoDict() instance for this key
     def __missing__(self, key):
         if self._closed:
-            raise KeyError
+            raise KeyError(key)
 
         value = self[key] = AutoDict()
         return value
 
-    # __getattr__ method is redundant, if will never be reached, can delete if statement, even this method can be deleted
     def __getattr__(self, key):
-        if False and key.startswith("_"):
-            raise AttributeError
+        if key.startswith("_"):
+            raise AttributeError(key)
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key) from None
 
-        return self[key]
-
-    # __setattr__ method is also redundant, can consider deleting
     def __setattr__(self, key, value):
-        if False and key.startswith("_"):
+        if key.startswith("_"):
             self.__dict__[key] = value
             return
-
         self[key] = value
 
 
@@ -165,10 +168,13 @@ class AutoOrderedDict(OrderedDict):
 
     def _open(self):
         self._closed = False
+        for key, val in self.items():
+            if isinstance(val, (AutoDict, AutoOrderedDict)):
+                val._open()
 
     def __missing__(self, key):
         if self._closed:
-            raise KeyError
+            raise KeyError(key)
 
         # value = self[key] = type(self)()
         value = self[key] = AutoOrderedDict()
@@ -177,9 +183,11 @@ class AutoOrderedDict(OrderedDict):
     # __getattr__ and __setattr__ functions are much more normal compared to AutoDict
     def __getattr__(self, key):
         if key.startswith("_"):
-            raise AttributeError
-
-        return self[key]
+            raise AttributeError(key)
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key) from None
 
     def __setattr__(self, key, value):
         if key.startswith("_"):
@@ -206,19 +214,19 @@ class AutoOrderedDict(OrderedDict):
         if not isinstance(other, type(self)):
             return type(other)() * other
 
-        return self + other
+        return self * other
 
     def __idiv__(self, other):
         if not isinstance(other, type(self)):
             return type(other)() // other
 
-        return self + other
+        return self // other
 
     def __itruediv__(self, other):
         if not isinstance(other, type(self)):
             return type(other)() / other
 
-        return self + other
+        return self / other
 
     def lvalues(self):
         """Return dictionary values as a list.
@@ -234,5 +242,5 @@ class AutoOrderedDict(OrderedDict):
 if __name__ == "__main__":
     aod = AutoOrderedDict()
     print("aod", dir(aod))
-    od = OrderedDict()
+    od: dict = OrderedDict()
     print("od", dir(od))

@@ -34,7 +34,7 @@ class _PriceOscBase(Indicator):
         ("_movav", MovAv.Exponential),
     )
 
-    plotinfo = dict(plothlines=[0.0])
+    plotinfo = {"plothlines": [0.0]}
 
     def __init__(self):
         """Initialize the price oscillator base class.
@@ -56,15 +56,18 @@ class _PriceOscBase(Indicator):
         larray = self.lines[0].array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(ma1_array), len(ma2_array))):
             ma1_val = ma1_array[i] if i < len(ma1_array) else 0.0
             ma2_val = ma2_array[i] if i < len(ma2_array) else 0.0
 
-            if isinstance(ma1_val, float) and math.isnan(ma1_val):
-                larray[i] = float("nan")
-            elif isinstance(ma2_val, float) and math.isnan(ma2_val):
+            if (
+                isinstance(ma1_val, float)
+                and math.isnan(ma1_val)
+                or isinstance(ma2_val, float)
+                and math.isnan(ma2_val)
+            ):
                 larray[i] = float("nan")
             else:
                 larray[i] = ma1_val - ma2_val
@@ -120,7 +123,7 @@ class PercentagePriceOscillator(_PriceOscBase):
     lines = ("ppo", "signal", "histo")
     params = (("period_signal", 9),)
 
-    plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
+    plotlines = {"histo": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
 
     def __init__(self):
         """Initialize the PPO indicator.
@@ -140,7 +143,6 @@ class PercentagePriceOscillator(_PriceOscBase):
         """
         # Calculate base PO
         po_val = self.ma1[0] - self.ma2[0]
-        self.lines.po[0] = po_val
 
         # Calculate PPO
         den = self.ma2[0] if self._long else self.ma1[0]
@@ -165,7 +167,6 @@ class PercentagePriceOscillator(_PriceOscBase):
         """
         # Calculate base PO
         po_val = self.ma1[0] - self.ma2[0]
-        self.lines.po[0] = po_val
 
         # Calculate PPO
         den = self.ma2[0] if self._long else self.ma1[0]
@@ -185,7 +186,6 @@ class PercentagePriceOscillator(_PriceOscBase):
         """Calculate PPO in runonce mode."""
         ma1_array = self.ma1.lines[0].array
         ma2_array = self.ma2.lines[0].array
-        po_array = self.lines.po.array
         ppo_array = self.lines.ppo.array
         signal_array = self.lines.signal.array
         histo_array = self.lines.histo.array
@@ -193,9 +193,9 @@ class PercentagePriceOscillator(_PriceOscBase):
         signal_alpha1 = self.signal_alpha1
         use_long = self._long
 
-        for arr in [po_array, ppo_array, signal_array, histo_array]:
+        for arr in [ppo_array, signal_array, histo_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         prev_signal = 0.0
         for i in range(start, min(end, len(ma1_array), len(ma2_array))):
@@ -203,20 +203,17 @@ class PercentagePriceOscillator(_PriceOscBase):
             ma2_val = ma2_array[i] if i < len(ma2_array) else 0.0
 
             if isinstance(ma1_val, float) and math.isnan(ma1_val):
-                po_array[i] = float("nan")
                 ppo_array[i] = float("nan")
                 signal_array[i] = float("nan")
                 histo_array[i] = float("nan")
                 continue
             if isinstance(ma2_val, float) and math.isnan(ma2_val):
-                po_array[i] = float("nan")
                 ppo_array[i] = float("nan")
                 signal_array[i] = float("nan")
                 histo_array[i] = float("nan")
                 continue
 
             po_val = ma1_val - ma2_val
-            po_array[i] = po_val
 
             den = ma2_val if use_long else ma1_val
             if den != 0:

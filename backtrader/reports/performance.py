@@ -7,6 +7,10 @@ Extracts and calculates all performance metrics from strategies and analyzers.
 
 import math
 
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
+
 
 class PerformanceCalculator:
     """Unified performance metrics calculator.
@@ -43,8 +47,9 @@ class PerformanceCalculator:
             dict: Dictionary containing all performance metrics
         """
         metrics = {}
-        metrics.update(self.get_pnl_metrics())
-        metrics.update(self.get_risk_metrics())
+        pnl_metrics = self.get_pnl_metrics()
+        metrics.update(pnl_metrics)
+        metrics.update(self.get_risk_metrics(pnl_metrics=pnl_metrics))
         metrics.update(self.get_trade_metrics())
         metrics.update(self.get_kpi_metrics())
         return metrics
@@ -71,53 +76,95 @@ class PerformanceCalculator:
         start_cash = metrics["start_cash"]
         end_value = metrics["end_value"]
 
-        if start_cash and end_value:
-            metrics["rpl"] = end_value - start_cash
-            metrics["total_return"] = 100 * (end_value / start_cash - 1)
+        if start_cash is not None and end_value is not None:
+            if math.isfinite(start_cash) and math.isfinite(end_value):
+                metrics["rpl"] = end_value - start_cash
+                if start_cash != 0:
+                    metrics["total_return"] = 100 * (end_value / start_cash - 1)
+            else:
+                logger.debug(
+                    "Skipping basic PnL metric calculation for invalid broker values: start_cash=%s, end_value=%s",
+                    start_cash,
+                    end_value,
+                )
 
         # Get trade statistics from TradeAnalyzer
         trade_analysis = self._get_analyzer_result("tradeanalyzer")
         if trade_analysis:
-            pnl = trade_analysis.get("pnl", {})
-            net = pnl.get("net", {})
-
-            if "total" in net:
-                metrics["rpl"] = net["total"]
-
-            won = trade_analysis.get("won", {})
-            lost = trade_analysis.get("lost", {})
-
-            won_pnl = won.get("pnl", {})
-            lost_pnl = lost.get("pnl", {})
-
-            metrics["result_won_trades"] = won_pnl.get("total")
-            metrics["result_lost_trades"] = lost_pnl.get("total")
-
-            # Calculate profit factor
-            if metrics["result_won_trades"] and metrics["result_lost_trades"]:
-                if metrics["result_lost_trades"] != 0:
-                    metrics["profit_factor"] = abs(
-                        metrics["result_won_trades"] / metrics["result_lost_trades"]
-                    )
-
-            # Average profit/loss per trade
-            total = trade_analysis.get("total", {})
-            closed = total.get("closed", 0)
-            if closed > 0 and metrics["rpl"]:
-                metrics["rpl_per_trade"] = metrics["rpl"] / closed
+            self._apply_trade_metrics(metrics, trade_analysis)
 
         # Calculate annual return
         bt_period_days = self._get_backtest_days()
         if bt_period_days and bt_period_days > 0 and metrics["total_return"] is not None:
             total_return_decimal = metrics["total_return"] / 100
-            metrics["annual_return"] = 100 * (
-                (1 + total_return_decimal) ** (365.25 / bt_period_days) - 1
-            )
+            compound_ratio = 1 + total_return_decimal
+            if math.isfinite(compound_ratio) and compound_ratio > 0:
+                metrics["annual_return"] = 100 * (compound_ratio ** (365.25 / bt_period_days) - 1)
+            else:
+                logger.debug(
+                    "Skipping annual_return calculation for invalid compound ratio: %s",
+                    compound_ratio,
+                )
 
         return metrics
 
-    def get_risk_metrics(self):
+    def _apply_trade_metrics(self, metrics, trade_analysis):
+        """Fill rpl / won-lost / profit_factor / rpl_per_trade into ``metrics``
+        from a TradeAnalyzer result dict. Extracted from get_pnl_metrics."""
+        pnl = trade_analysis.get("pnl", {})
+        net = pnl.get("net", {})
+
+        if "total" in net:
+            metrics["rpl"] = net["total"]
+
+        won = trade_analysis.get("won", {})
+        lost = trade_analysis.get("lost", {})
+
+        won_pnl = won.get("pnl", {})
+        lost_pnl = lost.get("pnl", {})
+
+        metrics["result_won_trades"] = won_pnl.get("total")
+        metrics["result_lost_trades"] = lost_pnl.get("total")
+
+        # Calculate profit factor
+        result_won_trades = metrics["result_won_trades"]
+        result_lost_trades = metrics["result_lost_trades"]
+        if all(
+            isinstance(value, (int, float)) and math.isfinite(value)
+            for value in (result_won_trades, result_lost_trades)
+        ):
+            if result_lost_trades != 0:
+                metrics["profit_factor"] = abs(result_won_trades / result_lost_trades)
+        elif result_won_trades is not None or result_lost_trades is not None:
+            logger.debug(
+                "Skipping profit_factor calculation for invalid trade PnL totals: won=%s, lost=%s",
+                result_won_trades,
+                result_lost_trades,
+            )
+
+        # Average profit/loss per trade
+        total = trade_analysis.get("total", {})
+        closed = total.get("closed", 0)
+        if (
+            isinstance(closed, (int, float))
+            and math.isfinite(closed)
+            and closed > 0
+            and isinstance(metrics["rpl"], (int, float))
+            and math.isfinite(metrics["rpl"])
+        ):
+            metrics["rpl_per_trade"] = metrics["rpl"] / closed
+        elif closed not in (0, None) or metrics["rpl"] is not None:
+            logger.debug(
+                "Skipping rpl_per_trade calculation for invalid inputs: closed=%s, rpl=%s",
+                closed,
+                metrics["rpl"],
+            )
+
+    def get_risk_metrics(self, pnl_metrics=None):
         """Get risk-related metrics.
+
+        Args:
+            pnl_metrics: Pre-computed PnL metrics dict (avoids recomputation)
 
         Returns:
             dict: Risk metrics dictionary
@@ -136,11 +183,22 @@ class PerformanceCalculator:
             metrics["max_pct_drawdown"] = max_dd.get("drawdown")
 
         # Calculate Calmar ratio
-        pnl_metrics = self.get_pnl_metrics()
-        if pnl_metrics.get("annual_return") and metrics.get("max_pct_drawdown"):
-            if metrics["max_pct_drawdown"] != 0:
-                metrics["calmar_ratio"] = abs(
-                    pnl_metrics["annual_return"] / metrics["max_pct_drawdown"]
+        if pnl_metrics is None:
+            pnl_metrics = self.get_pnl_metrics()
+        annual_return = pnl_metrics.get("annual_return")
+        max_pct_drawdown = metrics.get("max_pct_drawdown")
+        if annual_return is not None and max_pct_drawdown is not None:
+            if (
+                math.isfinite(annual_return)
+                and math.isfinite(max_pct_drawdown)
+                and max_pct_drawdown > 0
+            ):
+                metrics["calmar_ratio"] = abs(annual_return / max_pct_drawdown)
+            else:
+                logger.debug(
+                    "Skipping calmar_ratio calculation for invalid inputs: annual_return=%s, max_pct_drawdown=%s",
+                    annual_return,
+                    max_pct_drawdown,
                 )
 
         return metrics
@@ -178,9 +236,23 @@ class PerformanceCalculator:
             metrics["trades_lost"] = lost.get("total", 0)
 
             # Win rate
-            if metrics["trades_closed"] > 0:
-                metrics["pct_winning"] = 100 * metrics["trades_won"] / metrics["trades_closed"]
-                metrics["pct_losing"] = 100 * metrics["trades_lost"] / metrics["trades_closed"]
+            trades_closed = metrics["trades_closed"]
+            trades_won = metrics["trades_won"]
+            trades_lost = metrics["trades_lost"]
+            if all(
+                isinstance(value, (int, float)) and math.isfinite(value)
+                for value in (trades_closed, trades_won, trades_lost)
+            ):
+                if trades_closed > 0:
+                    metrics["pct_winning"] = 100 * trades_won / trades_closed
+                    metrics["pct_losing"] = 100 * trades_lost / trades_closed
+            else:
+                logger.debug(
+                    "Skipping trade win/loss percentage calculation for invalid counts: closed=%s, won=%s, lost=%s",
+                    trades_closed,
+                    trades_won,
+                    trades_lost,
+                )
 
             # Average profit/loss
             won_pnl = won.get("pnl", {})
@@ -223,8 +295,7 @@ class PerformanceCalculator:
         if sqn:
             sqn_score = sqn.get("sqn")
             metrics["sqn_score"] = sqn_score
-            if sqn_score is not None:
-                metrics["sqn_human"] = self.sqn_to_rating(sqn_score)
+            metrics["sqn_human"] = self.sqn_to_rating(sqn_score)
 
         # Sortino ratio
         sortino = self._get_analyzer_result("sortinoratio")
@@ -239,11 +310,6 @@ class PerformanceCalculator:
         Returns:
             tuple: (dates, values) Lists of dates and equity values
         """
-        import importlib.util
-
-        if importlib.util.find_spec("pandas") is None:
-            return None, None
-
         dates = []
         values = []
 
@@ -267,17 +333,27 @@ class PerformanceCalculator:
                                     dt_num = data.datetime[idx]
                                     dates.append(num2date(dt_num))
                                     values.append(value_line[idx])
-                                except Exception:
-                                    pass
+                                except (AttributeError, IndexError, TypeError, ValueError) as e:
+                                    logger.debug("Failed to get equity data at idx %d: %s", idx, e)
                         break
 
         if not values:
             # Try to get from TimeReturn analyzer and calculate cumulative equity
             time_return = self._get_analyzer_result("timereturn")
             if time_return:
-                start_cash = self._get_start_cash() or 100000
+                start_cash = self._resolve_start_cash(self._get_start_cash())
                 cumulative_value = start_cash
                 for dt, ret in sorted(time_return.items()):
+                    if not isinstance(ret, (int, float)) or not math.isfinite(ret):
+                        logger.debug(
+                            "Skipping invalid timereturn value in equity curve: %s at %s",
+                            ret,
+                            dt,
+                        )
+                        dates.append(dt)
+                        values.append(cumulative_value)
+                        continue
+
                     cumulative_value = cumulative_value * (1 + ret)
                     dates.append(dt)
                     values.append(cumulative_value)
@@ -286,7 +362,7 @@ class PerformanceCalculator:
             # If still no data, calculate buy-and-hold equity curve from data source as fallback
             benchmark_dates, benchmark_values = self.get_buynhold_curve()
             if benchmark_dates and benchmark_values:
-                start_cash = self._get_start_cash() or 100000
+                start_cash = self._resolve_start_cash(self._get_start_cash())
                 dates = benchmark_dates
                 # Convert normalized values to actual equity values
                 values = [start_cash * v / 100 for v in benchmark_values]
@@ -304,7 +380,7 @@ class PerformanceCalculator:
 
         data = self.strategy.data
         dates = []
-        values = []
+        values: list = []
 
         try:
             length = len(data)
@@ -324,17 +400,34 @@ class PerformanceCalculator:
                     dates.append(num2date(dt_num))
 
                     price = data.open[idx]
-                    if first_price is None:
+                    if not isinstance(price, (int, float)) or not math.isfinite(price):
+                        logger.debug(
+                            "Skipping invalid buy-and-hold price at idx %d: %s", idx, price
+                        )
+                        values.append(values[-1] if values else 100)
+                        continue
+
+                    if first_price is None and price > 0:
                         first_price = price
 
                     # Normalize to 100
                     values.append(100 * price / first_price if first_price else 100)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except (AttributeError, IndexError, TypeError, ValueError, ZeroDivisionError) as e:
+                    logger.debug("Failed to get benchmark data at idx %d: %s", idx, e)
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
+            logger.debug("Failed to calculate benchmark curve: %s", e)
 
         return dates, values
+
+    @staticmethod
+    def _resolve_start_cash(value, default=100000):
+        if not isinstance(value, (int, float)) or not math.isfinite(value):
+            return default
+        return value
+
+    @staticmethod
+    def _normalize_analyzer_name(value):
+        return value.lower() if isinstance(value, str) else ""
 
     @staticmethod
     def sqn_to_rating(sqn_score):
@@ -348,34 +441,48 @@ class PerformanceCalculator:
         Returns:
             str: Human-readable rating
         """
-        if sqn_score is None or math.isnan(sqn_score):
+        if sqn_score is None or not isinstance(sqn_score, (int, float)):
+            return "N/A"
+
+        if math.isnan(sqn_score):
             return "N/A"
 
         if sqn_score < 1.6:
             return "Poor"
-        elif sqn_score < 1.9:
+        if sqn_score < 1.9:
             return "Below Average"
-        elif sqn_score < 2.4:
+        if sqn_score < 2.4:
             return "Average"
-        elif sqn_score < 2.9:
+        if sqn_score < 2.9:
             return "Good"
-        elif sqn_score < 5.0:
+        if sqn_score < 5.0:
             return "Excellent"
-        elif sqn_score < 6.9:
+        if sqn_score < 6.9:
             return "Superb"
-        else:
-            return "Holy Grail"
+        return "Holy Grail"
 
     def _get_start_cash(self):
         """Get starting cash."""
-        if self._broker:
+        if self._broker is None:
+            return None
+        try:
             return getattr(self._broker, "startingcash", None)
+        except Exception as e:
+            # Broker is a pluggable object that may raise any error type;
+            # report generation must degrade gracefully (see edge-case tests).
+            logger.debug("Failed to get starting cash: %s", e)
         return None
 
     def _get_end_value(self):
         """Get final portfolio value."""
-        if self._broker:
+        if self._broker is None:
+            return None
+        try:
             return self._broker.getvalue()
+        except Exception as e:
+            # Broker is a pluggable object that may raise any error type;
+            # report generation must degrade gracefully (see edge-case tests).
+            logger.debug("Failed to get end value: %s", e)
         return None
 
     def _get_backtest_days(self):
@@ -397,7 +504,8 @@ class PerformanceCalculator:
 
             delta = end_dt - start_dt
             return delta.days
-        except Exception:
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
+            logger.debug("Failed to calculate backtest days: %s", e)
             return None
 
     def _get_analyzer_result(self, name):
@@ -415,24 +523,27 @@ class PerformanceCalculator:
         # Try to get directly by name
         name_lower = name.lower()
 
-        # Iterate through all analyzers
+        # First pass: exact match on class name or _name attribute
         for analyzer in self._analyzers:
             analyzer_name = analyzer.__class__.__name__.lower()
+            custom_name = self._normalize_analyzer_name(getattr(analyzer, "_name", ""))
 
-            # Check name match
-            if analyzer_name == name_lower or name_lower in analyzer_name:
+            if analyzer_name == name_lower or custom_name == name_lower:
                 try:
                     return analyzer.get_analysis()
-                except Exception:
-                    pass
+                except (AttributeError, KeyError, TypeError, ValueError, IndexError) as e:
+                    logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
 
-            # Check _name attribute
-            custom_name = getattr(analyzer, "_name", "").lower()
-            if name_lower in custom_name:
+        # Second pass: substring match (less precise, used as fallback)
+        for analyzer in self._analyzers:
+            analyzer_name = analyzer.__class__.__name__.lower()
+            custom_name = self._normalize_analyzer_name(getattr(analyzer, "_name", ""))
+
+            if name_lower in analyzer_name or name_lower in custom_name:
                 try:
                     return analyzer.get_analysis()
-                except Exception:
-                    pass
+                except (AttributeError, KeyError, TypeError, ValueError, IndexError) as e:
+                    logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
 
         return None
 
@@ -456,8 +567,8 @@ class PerformanceCalculator:
                         value = getattr(params, name)
                         if not callable(value):
                             info["params"][name] = value
-                    except Exception:
-                        pass
+                    except (AttributeError, TypeError) as e:
+                        logger.debug("Failed to get param '%s': %s", name, e)
 
         return info
 
@@ -492,7 +603,7 @@ class PerformanceCalculator:
                 # Correct indexing: 0 is current (last) bar, 1-length is first bar
                 info["start_date"] = num2date(data.datetime[1 - length])
                 info["end_date"] = num2date(data.datetime[0])
-        except Exception:
-            pass
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
+            logger.debug("Failed to get data info: %s", e)
 
         return info

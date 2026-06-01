@@ -42,7 +42,10 @@ from itertools import islice, repeat
 from . import metabase
 from .lineroot import LineRoot, LineRootMixin, LineSingle
 from .utils import num2date
+from .utils.log_message import get_logger
 from .utils.py3 import range, string_types
+
+logger = get_logger(__name__)
 
 NAN = float("NaN")
 
@@ -118,7 +121,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # Mode and bindings
         self.mode = self.UnBounded  # Default unbounded mode
-        self.bindings = list()  # Binding list
+        self.bindings = []  # Binding list
 
         # Other attributes
         self._tz = None  # Timezone setting
@@ -173,6 +176,46 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Optimization A: Removed hasattr check, __init__ ensures _idx exists
         return self._idx
 
+    def _refresh_cached_line_flags(self, owner=None, ltype=None):
+        """Refresh cached owner/type-derived flags after a line is attached."""
+        if owner is not None:
+            self._owner = owner
+        if ltype is not None:
+            self._ltype = ltype
+
+        effective_ltype = getattr(self, "_ltype", None)
+        owner_obj = getattr(self, "_owner", None)
+        owner_ref = getattr(owner_obj, "_owner_ref", None)
+
+        if effective_ltype is None and owner_ref is not None:
+            effective_ltype = getattr(owner_ref, "_ltype", None)
+        if effective_ltype is None and owner_obj is not None:
+            effective_ltype = getattr(owner_obj, "_ltype", None)
+
+        try:
+            self._is_indicator = (effective_ltype == LineRoot.IndType) or (
+                "Indicator" in str(self.__class__.__name__)
+            )
+        except Exception:
+            self._is_indicator = False
+
+        try:
+            if hasattr(self, "_name"):
+                name_str = str(self._name).lower()
+                self._is_datetime_line = "datetime" in name_str
+            else:
+                class_str = str(self.__class__.__name__).lower()
+                self._is_datetime_line = "datetime" in class_str
+        except Exception:
+            self._is_datetime_line = False
+
+        if self._is_datetime_line:
+            self._default_value = 1.0
+        elif self._is_indicator:
+            self._default_value = float("nan")
+        else:
+            self._default_value = 0.0
+
     # Set the value of _idx
     def set_idx(self, idx, force=False):
         """Set the index position.
@@ -210,7 +253,6 @@ class LineBuffer(LineSingle, LineRootMixin):
         # preserve the array and lencount, only reset idx
         # Check if we're in runonce mode and array is populated
         preserve_array = False
-        saved_lencount = 0
         try:
             # Check if this is an indicator line that was processed in runonce mode
             # Line's _owner might be a Lines object, which has _owner pointing to the indicator
@@ -227,7 +269,6 @@ class LineBuffer(LineSingle, LineRootMixin):
                             array_len = len(self.array)
                             if array_len > 0:
                                 preserve_array = True
-                                saved_lencount = array_len
                 # Also check if owner itself is an indicator
                 elif hasattr(owner, "_once_called") and owner._once_called:
                     # Check if array has data
@@ -235,16 +276,16 @@ class LineBuffer(LineSingle, LineRootMixin):
                         array_len = len(self.array)
                         if array_len > 0:
                             preserve_array = True
-                            saved_lencount = array_len
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to check runonce array preservation: %s", e)
 
         if preserve_array:
-            # In runonce mode with populated array: only reset idx, preserve array and lencount
+            # In runonce mode with populated arrays, preserve the precomputed
+            # values but restart logical length so Cerebro's event replay can
+            # advance indicators according to their own clocks.
             self.idx = -1
-            # Keep lencount at saved value (array length)
             if hasattr(self, "lencount"):
-                self.lencount = saved_lencount
+                self.lencount = 0
             self.extension = 0
         else:
             # Normal reset: clear array and reset all counters
@@ -358,8 +399,12 @@ class LineBuffer(LineSingle, LineRootMixin):
             lencount = self.lencount
             if lencount > 0 and current_idx >= lencount:
                 current_idx = lencount - 1
-            return self.array[current_idx + ago]
+            value = self.array[current_idx + ago]
+            if isinstance(value, float) and not math.isfinite(value) and value == value:
+                return 0.0
+            return value
         except IndexError:
+            # Index out of buffer range; fall through to the slow-path handling.
             pass
 
         # Slow path: handle special cases
@@ -398,10 +443,22 @@ class LineBuffer(LineSingle, LineRootMixin):
         if self.useislice:
             start = self._idx + ago - size + 1
             end = self._idx + ago + 1
-            return list(islice(self.array, start, end))
+            values = list(islice(self.array, start, end))
+        else:
+            # If not using islice, directly slice the array
+            values = list(self.array[self._idx + ago - size + 1 : self._idx + ago + 1])
 
-        # If not using islice, directly slice the array
-        return self.array[self._idx + ago - size + 1 : self._idx + ago + 1]
+        return array.array(
+            "d",
+            (
+                (
+                    0.0
+                    if isinstance(value, float) and not math.isfinite(value) and value == value
+                    else value
+                )
+                for value in values
+            ),
+        )
 
     # Return the value at the actual index 0 of the array
     def getzeroval(self, idx=0):
@@ -415,7 +472,10 @@ class LineBuffer(LineSingle, LineRootMixin):
         Returns:
             A slice of the underlying buffer
         """
-        return self.array[idx]
+        value = self.array[idx]
+        if isinstance(value, float) and not math.isfinite(value) and value == value:
+            return 0.0
+        return value
 
     # Return data of size starting from idx in the array
     def getzero(self, idx=0, size=1):
@@ -429,9 +489,21 @@ class LineBuffer(LineSingle, LineRootMixin):
             A slice of the underlying buffer
         """
         if self.useislice:
-            return list(islice(self.array, idx, idx + size))
+            values = list(islice(self.array, idx, idx + size))
+        else:
+            values = list(self.array[idx : idx + size])
 
-        return self.array[idx : idx + size]
+        return array.array(
+            "d",
+            (
+                (
+                    0.0
+                    if isinstance(value, float) and not math.isfinite(value) and value == value
+                    else value
+                )
+                for value in values
+            ),
+        )
 
     # Set values to the array
     def __setitem__(self, ago, value):
@@ -459,8 +531,13 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Handle None/NaN values - use fast path for checking
         if value is None:
             value = self._default_value
-        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
+        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check.
+        # Preserve explicit NaN writes for non-datetime lines. Data feeds often
+        # use NaN as a sparse signal sentinel; converting it to 0.0 turns
+        # "no signal" into a finite tradable value.
         elif value != value:  # NaN detection without isinstance + isnan
+            value = self._default_value if self._is_datetime_line else float("nan")
+        elif isinstance(value, float) and not math.isfinite(value):
             value = self._default_value
         # datetime line value validation
         elif self._is_datetime_line and value < 1.0:
@@ -474,7 +551,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                 value = 1.0
 
         # Calculate the required index
-        required_index = self.idx + ago
+        required_index = self._idx + ago
 
         # Handle index out of bounds - fast path
         array_len = len(array)
@@ -529,16 +606,14 @@ class LineBuffer(LineSingle, LineRootMixin):
         is_dt = self._is_datetime_line
 
         # Handle None/NaN values using fast detection
-        if value is None:
-            value = self._default_value
-        elif value != value:  # NaN detection (faster than isinstance + math.isnan)
+        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
             value = self._default_value
         elif is_dt and (not isinstance(value, (int, float)) or value < 1.0):
             value = 1.0
 
         # Array is always initialized in __init__, use direct access
         arr = self.array
-        required_index = self.idx + ago
+        required_index = self._idx + ago
         arr_len = len(arr)
         if required_index >= arr_len:
             fill_value = self._default_value
@@ -584,8 +659,8 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         # NaN is the only value that's not equal to itself
-        if value is None or value != value:
-            value = NAN if is_indicator else 0.0
+        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
+            value = self._default_value
 
         # For non-indicators, follow clock synchronization
         if not is_indicator:
@@ -601,18 +676,20 @@ class LineBuffer(LineSingle, LineRootMixin):
                         size = max_advance
                     if size <= 0:
                         return
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to check clock length in forward: %s", e)
 
         # CRITICAL FIX: Ensure we have a valid size
         if size <= 0:
             return
 
-        self.idx += size
+        if self.mode == self.QBuffer:
+            self.idx = self._idx + size
+        else:
+            self._idx += size
         self.lencount += size
 
-        # Append data: use module-level 0.0 for non-indicators
-        append_val = value if is_indicator else (0.0 if value != value or value is None else value)
+        append_val = value
         if size == 1:
             self.array.append(append_val)
         else:
@@ -629,14 +706,25 @@ class LineBuffer(LineSingle, LineRootMixin):
                           regardless of the minperiod
         """
         # CRITICAL FIX: Match master behavior - use set_idx for force support and pop array elements
-        self.set_idx(self._idx - size, force=force)
+        new_idx = self._idx - size
+        if self.mode == self.QBuffer:
+            self.set_idx(new_idx, force=force)
+        else:
+            self._idx = new_idx
         self.lencount -= size
         # PERFORMANCE OPTIMIZATION: Use slice deletion instead of loop pop
         # Called 3.4M+ times, batch deletion is faster than loop
         arr = self.array
         arr_len = len(arr)
         if arr_len > 0:
-            del arr[max(0, arr_len - size) :]
+            remove_count = min(size, arr_len)
+            try:
+                del arr[arr_len - remove_count :]
+            except TypeError:
+                # qbuffer/exactbars uses deque, which does not support slice
+                # deletion. Remove newest values explicitly in that mode.
+                for _ in range(remove_count):
+                    arr.pop()
 
     # Move backward one step (original backwards was overridden)
     def safe_backwards(self, size=1):
@@ -664,7 +752,10 @@ class LineBuffer(LineSingle, LineRootMixin):
             size: Number of positions to rewind.
         """
         # PERF: idx and lencount are always initialized in __init__
-        self.idx -= size
+        if self.mode == self.QBuffer:
+            self.idx = self._idx - size
+        else:
+            self._idx -= size
         self.lencount -= size
 
     # Increase idx and lencount by size
@@ -672,7 +763,10 @@ class LineBuffer(LineSingle, LineRootMixin):
         """Advances the logical index without touching the underlying buffer"""
         # CRITICAL FIX: Remove hasattr checks - attributes are always initialized in __init__
         # The hasattr checks were preventing proper advancement
-        self.idx += size
+        if self.mode == self.QBuffer:
+            self.idx = self._idx + size
+        else:
+            self._idx += size
         self.lencount += size
 
     # Extend forward
@@ -686,6 +780,9 @@ class LineBuffer(LineSingle, LineRootMixin):
         The purpose is to allow for lookahead operations or to be able to
         set values in the buffer "future"
         """
+        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
+            value = self._default_value
+
         self.extension += size
         for i in range(size):
             self.array.append(value)
@@ -732,9 +829,18 @@ class LineBuffer(LineSingle, LineRootMixin):
             list or array: Slice of data from start to end.
         """
         if self.useislice:
-            return list(islice(self.array, start, end))
+            values = list(islice(self.array, start, end))
+        else:
+            values = list(self.array[start:end])
 
-        return self.array[start:end]
+        return [
+            (
+                0.0
+                if isinstance(value, float) and not math.isfinite(value) and value == value
+                else value
+            )
+            for value in values
+        ]
 
     # Set array values for each binding when running in once mode
     def oncebinding(self):
@@ -773,26 +879,32 @@ class LineBuffer(LineSingle, LineRootMixin):
         return LineDelay(self, ago)
 
     def _makeoperation(self, other, operation, r=False, _ownerskip=None, original_other=None):
-        # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
+        # Only set parent_a/parent_b to LineActions instances (LinesOperation, _LineDelay, etc.).
+        # Full indicators (ATR, SMA, SuperTrend, etc.) are processed separately by _lineiterators
+        # ordering in _once(), so they must never be called via _parent_a.once() which would
+        # trigger premature once_via_next() calls that corrupt the data feed index state.
         parent_a = None
         if hasattr(self, "_owner") and self._owner is not None:
             owner = self._owner
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                parent_a = owner._owner_ref
-            elif hasattr(owner, "_once"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    parent_a = ref
+            elif isinstance(owner, LineActions):
                 parent_a = owner
         parent_b_candidate = original_other if original_other is not None else other
-        parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
+        parent_b = parent_b_candidate if isinstance(parent_b_candidate, LineActions) else None
         return LinesOperation(self, other, operation, r=r, parent_a=parent_a, parent_b=parent_b)
 
     def _makeoperationown(self, operation, _ownerskip=None):
-        # CRITICAL FIX: Pass parent indicator so LineOwnOperation can call its _once
         parent_a = None
         if hasattr(self, "_owner") and self._owner is not None:
             owner = self._owner
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                parent_a = owner._owner_ref
-            elif hasattr(owner, "_once"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    parent_a = ref
+            elif isinstance(owner, LineActions):
                 parent_a = owner
         return LineOwnOperation(self, operation, parent_a=parent_a)
 
@@ -979,7 +1091,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 class LineActionsCache:
     """Cache system for LineActions to avoid repetitive calculations"""
 
-    _cache = {}
+    _cache: dict = {}
     _cache_enabled = False
 
     @classmethod
@@ -1014,10 +1126,21 @@ class LineActionsMixin:
             if not hasattr(_obj.lines, "_owner") or _obj.lines._owner is None:
                 _obj.lines._owner = _obj
 
-        # Set up clock from owner hierarchy
+        # Set up clock from explicit line arguments first, matching the
+        # original LineActions metaclass semantics. This is critical for
+        # operations built on secondary data feeds: the operation must follow
+        # the line it was created from, not the strategy's primary data clock.
         _obj._clock = None
 
-        if hasattr(_obj, "_owner") and _obj._owner is not None:
+        _obj._datas = [arg for arg in args if isinstance(arg, LineRoot)]
+        if _obj._datas:
+            data_clock = getattr(_obj._datas[0], "_clock", None)
+            if data_clock is not None and data_clock.__class__.__name__ != "MinimalClock":
+                _obj._clock = data_clock
+            else:
+                _obj._clock = _obj._datas[0]
+
+        if _obj._clock is None and hasattr(_obj, "_owner") and _obj._owner is not None:
             # Try to get clock from owner first
             if hasattr(_obj._owner, "_clock") and _obj._owner._clock is not None:
                 _obj._clock = _obj._owner._clock
@@ -1058,6 +1181,7 @@ class LineActionsMixin:
                     first_line = arg.lines[0]
                     _minperiods.append(getattr(first_line, "_minperiod", 1))
                 except (IndexError, TypeError):
+                    # Empty/non-indexable lines container; skip this arg.
                     pass
 
         # Update minperiod with max from args
@@ -1072,7 +1196,6 @@ class LineActionsMixin:
         """Post-initialization processing for LineActions"""
         # NOTE: Indicator registration is now handled in lineiterator.py dopostinit
         # with proper duplicate checking. No registration needed here.
-        pass
 
 
 class PseudoArray:
@@ -1107,7 +1230,7 @@ class PseudoArray:
         try:
             # Try normal indexing first
             return self.wrapped[key]
-        except TypeError:
+        except (TypeError, IndexError, AttributeError):
             # Handle itertools.repeat objects and other iterables that don't support indexing
             if hasattr(self.wrapped, "__iter__"):
                 # For repeat objects, all values are the same, so just get the first one
@@ -1116,18 +1239,16 @@ class PseudoArray:
                     if str(type(self.wrapped)) == "<class 'itertools.repeat'>":
                         # For repeat, all values are the same
                         return next(iter(self.wrapped))
-                    else:
-                        # Convert iterable to list and index
-                        wrapped_list = list(self.wrapped)
-                        return wrapped_list[key]
+                    # Convert iterable to list and index
+                    wrapped_list = list(self.wrapped)
+                    return wrapped_list[key]
                 except (StopIteration, IndexError):
                     return float("nan")
             else:
                 # If not iterable, return the wrapped object itself for index 0
                 if key == 0:
                     return self.wrapped
-                else:
-                    return float("nan")
+                return float("nan")
 
     @property
     def array(self):
@@ -1140,10 +1261,11 @@ class PseudoArray:
         if str(type(self.wrapped)) == "<class 'itertools.repeat'>":
             # For repeat objects, return a list with one element repeated
             return [next(iter(self.wrapped))]
-        elif hasattr(self.wrapped, "array"):
+        if hasattr(self.wrapped, "array"):
             return self.wrapped.array
-        else:
-            return self.wrapped
+        if not hasattr(self.wrapped, "__iter__"):
+            return []
+        return self.wrapped
 
 
 class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
@@ -1167,6 +1289,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         import collections
 
         instance._lineiterators = collections.defaultdict(list)
+        instance._lineaction_init_args = args
 
         # CRITICAL FIX: Define mindatas before using it
         mindatas = getattr(cls, "_mindatas", getattr(cls, "mindatas", 1))
@@ -1231,6 +1354,11 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                         line_obj._idx = -1
                         line_obj.lencount = 0
 
+                    line_obj._refresh_cached_line_flags(
+                        owner=instance.lines,
+                        ltype=getattr(instance, "_ltype", cls._ltype),
+                    )
+
                 # Set up convenience references - first line as .line
                 instance.line = instance.lines.lines[0] if instance.lines.lines else instance
                 instance.l = instance.lines  # Common shorthand
@@ -1263,13 +1391,24 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
             owner = None
 
-            # Strategy 1: Use findowner
+            # Strategy 1: Use nearest LineIterator owner. Falling back directly
+            # to Strategy can skip an enclosing indicator and bind expression
+            # clocks to the primary strategy data.
+            try:
+                from .lineiterator import LineIterator
+            except ImportError:
+                LineIterator = None
+
+            if LineIterator is not None:
+                owner = metabase.findowner(instance, LineIterator)
+
+            # Strategy 2: Use findowner for Strategy
             try:
                 from .strategy import Strategy
             except ImportError:
                 Strategy = None
 
-            if Strategy is not None:
+            if owner is None and Strategy is not None:
                 owner = metabase.findowner(instance, Strategy)
 
             # If we found an owner with data, auto-assign it
@@ -1278,7 +1417,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 data_count = 0
                 for arg in args:
                     if (
-                        hasattr(arg, "lines")
+                        isinstance(arg, LineRoot)
+                        or hasattr(arg, "lines")
                         or hasattr(arg, "_name")
                         or str(type(arg).__name__).endswith("Data")
                     ):
@@ -1297,7 +1437,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
         for i, arg in enumerate(args):
             if (
-                hasattr(arg, "lines")
+                isinstance(arg, LineRoot)
+                or hasattr(arg, "lines")
                 or hasattr(arg, "_name")
                 or str(type(arg).__name__).endswith("Data")
             ):
@@ -1353,33 +1494,55 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         # Try findowner first with different classes
         self._owner = None
 
-        # First try to find a Strategy specifically
+        # First try to find the nearest LineIterator. For LineActions created
+        # inside an indicator this keeps ownership/clock fallback local to that
+        # indicator instead of jumping to the enclosing strategy.
+        try:
+            from .lineiterator import LineIterator
+
+            self._owner = metabase.findowner(self, LineIterator)
+        except Exception as e:
+            logger.debug("Failed to find LineIterator owner: %s", e)
+
+        # If no LineIterator found, try Strategy specifically
         try:
             from .strategy import Strategy
 
-            self._owner = metabase.findowner(self, Strategy)
-        except Exception:
-            pass
-
-        # If no Strategy found, try LineIterator
-        if self._owner is None:
-            try:
-                from .lineiterator import LineIterator
-
-                self._owner = metabase.findowner(self, LineIterator)
-            except Exception:
-                pass
+            if self._owner is None:
+                self._owner = metabase.findowner(self, Strategy)
+        except Exception as e:
+            logger.debug("Failed to find Strategy owner: %s", e)
 
         # If still no owner, try a broader search
         # findowner() uses OwnerContext for owner lookup
         if self._owner is None:
             self._owner = metabase.findowner(self, None)
 
+        init_args = args or getattr(self, "_lineaction_init_args", ())
+
         # Call pre-init
-        self.__class__.dopreinit(self, *args, **kwargs)
+        self.__class__.dopreinit(self, *init_args, **kwargs)
 
         # Call parent init
         super().__init__()
+
+        # LineBuffer.__init__ initializes low-level buffer fields and resets
+        # _clock/_owner metadata. Re-apply the LineActions pre-init metadata
+        # afterwards so explicit line operands keep their own data clock.
+        self.__class__.dopreinit(self, *init_args, **kwargs)
+
+        self._refresh_cached_line_flags(
+            owner=getattr(self, "_owner", None),
+            ltype=getattr(self.__class__, "_ltype", LineRoot.IndType),
+        )
+
+        if hasattr(self, "lines") and hasattr(self.lines, "lines"):
+            for line_obj in self.lines.lines:
+                if hasattr(line_obj, "_refresh_cached_line_flags"):
+                    line_obj._refresh_cached_line_flags(
+                        owner=self.lines,
+                        ltype=getattr(self, "_ltype", LineRoot.IndType),
+                    )
 
         # Call post-init
         self.__class__.dopostinit(self, *args, **kwargs)
@@ -1411,10 +1574,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 params_str = ", ".join(f"{k}={v}" for k, v in label_dict.items())
                 if params_str:
                     return f"{self.__class__.__name__}({params_str})"
-                else:
-                    return self.__class__.__name__
-            else:
-                return str(label_dict)
+                return self.__class__.__name__
+            return str(label_dict)
         # Fallback: return class name
         return self.__class__.__name__
 
@@ -1503,10 +1664,13 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             end = start
 
         # CRITICAL FIX: Get the actual buffer length if available
+        # Skip this check if _clock is MinimalClock (always returns 0)
         if hasattr(self, "_clock") and self._clock and hasattr(self._clock, "buflen"):
-            max_len = self._clock.buflen()
-            if end > max_len:
-                end = max_len
+            clock_class_name = getattr(self._clock, "__class__", type(None)).__name__
+            if "MinimalClock" not in clock_class_name:
+                max_len = self._clock.buflen()
+                if max_len > 0 and end > max_len:
+                    end = max_len
 
         # CRITICAL FIX: Call _once() on all child line iterators first
         # This ensures dependencies are calculated before this indicator
@@ -1517,26 +1681,45 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 try:
                     if hasattr(indicator, "_once"):
                         indicator._once(start, end)
-                except Exception:
-                    # Continue processing other indicators if one fails
-                    pass
+                except Exception as e:
+                    logger.debug("Indicator _once failed: %s", e)
 
         # CRITICAL FIX: Call preonce before main processing
         try:
             if hasattr(self, "preonce"):
                 self.preonce(start, end)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("preonce failed: %s", e)
+
+        # CRITICAL FIX: Ensure operand arrays are computed before once()
+        # For Logic subclasses (bt.If, bt.And, etc.), operands (args, cond) need
+        # their arrays populated before once() reads from them.
+        if hasattr(self, "args"):
+            for arg in self.args:
+                if hasattr(arg, "once") and hasattr(arg, "array") and len(arg.array) < end:
+                    try:
+                        arg.once(0, end)
+                    except Exception:  # nosec B110
+                        # Operand may already be computed or not once()-able; continue.
+                        pass
+        if hasattr(self, "cond"):
+            cond = self.cond
+            if hasattr(cond, "once") and hasattr(cond, "array") and len(cond.array) < end:
+                try:
+                    cond.once(0, end)
+                except Exception:  # nosec B110
+                    # Condition may already be computed or not once()-able; continue.
+                    pass
 
         # CRITICAL FIX: Process the main once calculation
         # Try to call once method if it exists
         try:
             if hasattr(self, "once") and callable(self.once):
                 self.once(start, end)
-        except Exception:
+        except Exception as e:
             # If once fails or doesn't exist, skip it
             # The indicator will be calculated via next() calls during strategy execution
-            pass
+            logger.debug("once() failed: %s", e)
 
         # CRITICAL FIX: Update lencount after once processing to match the data length
         # In runonce mode, lencount should equal the number of data points processed
@@ -1547,22 +1730,25 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             if hasattr(self, "_clock") and self._clock:
                 try:
                     actual_data_len = self._clock.buflen()
-                except Exception:
+                except Exception as e:
+                    logger.debug("clock.buflen() failed: %s", e)
                     try:
                         actual_data_len = len(self._clock)
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        logger.debug("len(clock) failed: %s", e2)
             elif hasattr(self, "datas") and self.datas and len(self.datas) > 0:
                 try:
                     actual_data_len = self.datas[0].buflen()
-                except Exception:
+                except Exception as e:
+                    logger.debug("datas[0].buflen() failed: %s", e)
                     try:
                         actual_data_len = len(self.datas[0])
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        logger.debug("len(datas[0]) failed: %s", e2)
             # Use the maximum of end and actual_data_len to ensure we don't truncate
             final_len = max(end, actual_data_len) if actual_data_len > 0 else end
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to determine actual data length: %s", e)
             final_len = end
 
         if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:
@@ -1575,6 +1761,11 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 if hasattr(line, "_idx"):
                     # Set _idx to the last processed position
                     line._idx = final_len - 1 if final_len > 0 else -1
+
+        # CRITICAL FIX: Call oncebinding to propagate computed values to bound lines
+        # This is needed for bt.If, Logic subclasses etc. that compute values into
+        # their own array and need to copy them to the bound output line.
+        self.oncebinding()
 
     @classmethod
     def cleancache(cls):
@@ -1675,7 +1866,12 @@ class _LineDelay(LineActions):
         try:
             # For delay operations, get value from source with delay applied
             # ago is negative for lookback, so idx + ago gives historical index
-            return self.a[idx + self.ago]
+            value = self.a[idx + self.ago]
+            if value is None:
+                return 0.0
+            if isinstance(value, float) and not math.isfinite(value):
+                return 0.0
+            return value
         except (IndexError, TypeError):
             return 0.0
 
@@ -1693,9 +1889,11 @@ class _LineDelay(LineActions):
             delayed_val = self.a[self.ago]
 
             # Ensure value is never None or NaN
-            if delayed_val is None:
-                delayed_val = 0.0
-            elif isinstance(delayed_val, float) and math.isnan(delayed_val):
+            if (
+                delayed_val is None
+                or isinstance(delayed_val, float)
+                and not math.isfinite(delayed_val)
+            ):
                 delayed_val = 0.0
 
             self[0] = delayed_val
@@ -1714,9 +1912,10 @@ class _LineDelay(LineActions):
         dst = self.array
         ago = self.ago
 
-        # CRITICAL FIX: Ensure destination array is properly sized
+        # Ensure destination array is properly sized. Missing delayed values must
+        # remain NaN; using 0.0 would turn unavailable bars into real signals.
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(float("nan"))
 
         # CRITICAL FIX: Ensure source has computed its values before we access them
         # This is necessary for LinesOperation sources that haven't run once() yet
@@ -1748,13 +1947,10 @@ class _LineDelay(LineActions):
                     # Get the constant value from the repeat object
                     # Create a new iterator to avoid consuming it
                     constant_value = next(iter(wrapped))
-                    # Ensure constant value is not None or NaN
                     if constant_value is None:
-                        constant_value = 0.0
-                    elif isinstance(constant_value, float) and math.isnan(constant_value):
-                        constant_value = 0.0
+                        constant_value = float("nan")
                 except (StopIteration, TypeError):
-                    constant_value = 0.0
+                    constant_value = float("nan")
 
         # If not a constant, get the source array
         if not is_constant:
@@ -1771,23 +1967,12 @@ class _LineDelay(LineActions):
                 src_index = i + ago
                 if src_index >= 0 and src_index < len(src):
                     val = src[src_index]
-                    # Ensure value is never None or NaN
                     if val is None:
-                        val = 0.0
-                    elif isinstance(val, float) and math.isnan(val):
-                        val = 0.0
-                    dst[i] = val
-                elif len(src) > 0:
-                    # If index is out of bounds but we have source data, use the last available value
-                    val = src[-1]
-                    if val is None:
-                        val = 0.0
-                    elif isinstance(val, float) and math.isnan(val):
-                        val = 0.0
+                        val = float("nan")
                     dst[i] = val
                 else:
-                    # If no source data available, use 0.0
-                    dst[i] = 0.0
+                    # Out-of-range historical/future access is unavailable, not 0.
+                    dst[i] = float("nan")
 
 
 class _LineForward(LineActions):
@@ -1832,7 +2017,7 @@ class _LineForward(LineActions):
                 try:
                     a_val = self.a[0]
                 except (IndexError, TypeError):
-                    a_val = 0.0
+                    a_val = float("nan")
             else:
                 # Direct value
                 a_val = self.a
@@ -1842,31 +2027,36 @@ class _LineForward(LineActions):
                 try:
                     b_val = self.b[0]
                 except (IndexError, TypeError):
-                    b_val = 0.0
+                    b_val = float("nan")
             else:
                 # Direct value
                 b_val = self.b
 
-            # CRITICAL FIX: Ensure values are numeric and not None/NaN
-            if a_val is None:
-                a_val = 0.0
-            elif isinstance(a_val, float) and math.isnan(a_val):
+            # Preserve indicator warmup semantics. NaN/None operands must
+            # remain NaN instead of becoming valid trading signals.
+            if a_val is None or (isinstance(a_val, float) and a_val != a_val):
+                self[0] = float("nan")
+                return
+            if isinstance(a_val, float) and not math.isfinite(a_val):
                 a_val = 0.0
             elif not isinstance(a_val, (int, float)):
                 try:
                     a_val = float(a_val)
                 except (ValueError, TypeError):
-                    a_val = 0.0
+                    self[0] = float("nan")
+                    return
 
-            if b_val is None:
-                b_val = 0.0
-            elif isinstance(b_val, float) and math.isnan(b_val):
+            if b_val is None or (isinstance(b_val, float) and b_val != b_val):
+                self[0] = float("nan")
+                return
+            if isinstance(b_val, float) and not math.isfinite(b_val):
                 b_val = 0.0
             elif not isinstance(b_val, (int, float)):
                 try:
                     b_val = float(b_val)
                 except (ValueError, TypeError):
-                    b_val = 0.0
+                    self[0] = float("nan")
+                    return
 
             # CRITICAL FIX: Actually perform the operation and store the result
             # Handle both normal and reverse operations
@@ -1879,14 +2069,17 @@ class _LineForward(LineActions):
 
                 # Ensure result is a valid number
                 if result is None:
-                    result = 0.0
-                elif isinstance(result, float) and math.isnan(result):
-                    result = 0.0
+                    result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    if result != result:
+                        result = float("nan")
+                    else:
+                        result = 0.0
                 elif not isinstance(result, (int, float)):
                     try:
                         result = float(result)
                     except (ValueError, TypeError):
-                        result = 0.0
+                        result = float("nan")
 
                 # Store the result in the current position
                 self[0] = result
@@ -1895,8 +2088,8 @@ class _LineForward(LineActions):
                 self[0] = a_val
 
         except Exception:
+            logger.debug("LineOwnOperation.next fallback triggered", exc_info=True)
             # If anything fails, store 0.0 to prevent crashes
-            # print(f"LinesOperation.next() error: {e}")  # Removed for performance
             self[0] = 0.0
 
     def once(self, start, end):
@@ -1920,23 +2113,45 @@ class _LineForward(LineActions):
             # If source array is shorter than required range, only process available data
             end = min(end, len(srca))
 
+        # Fast path: process the whole range under a single try. The per-element
+        # try/except below is only entered if something raises, preserving the
+        # exact per-element 0.0 fallback semantics while avoiding per-element
+        # exception-handler setup in the common (no-error) case (R2-S4: PERF203).
+        try:
+            for i in range(start, end):
+                a_val = srca[i] if i < len(srca) else 0.0
+                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+                    a_val = 0.0
+                result = op(a_val)
+                if result is None or (isinstance(result, float) and not math.isfinite(result)):
+                    result = 0.0
+                dst[i] = result
+            return
+        except Exception:
+            logger.debug(
+                "LineOwnOperation.once fast path failed; per-element fallback", exc_info=True
+            )
+
         for i in range(start, end):
             try:
                 # CRITICAL FIX: Bounds checking for source array
                 a_val = srca[i] if i < len(srca) else 0.0
 
                 # Ensure value is numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
+                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
                     a_val = 0.0
 
                 result = op(a_val)
 
                 # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
+                if result is None or (isinstance(result, float) and not math.isfinite(result)):
                     result = 0.0
 
                 dst[i] = result
             except Exception:
+                logger.debug(
+                    "LineOwnOperation.once fallback triggered at index %d", i, exc_info=True
+                )
                 # If operation fails, store 0.0
                 dst[i] = 0.0
 
@@ -1978,6 +2193,13 @@ class LinesOperation(LineActions):
         self.a = a  # always a linebuffer-like object
         self.b = self.arrayize(b)
         self.r = r
+        self._datas = [operand for operand in (self.a, self.b) if isinstance(operand, LineRoot)]
+        if self._datas:
+            data_clock = getattr(self._datas[0], "_clock", None)
+            if data_clock is not None and data_clock.__class__.__name__ != "MinimalClock":
+                self._clock = data_clock
+            else:
+                self._clock = self._datas[0]
 
         # CRITICAL FIX: Store references to parent indicators for _once processing
         # Use passed parent references if available, otherwise try to find them
@@ -1995,44 +2217,150 @@ class LinesOperation(LineActions):
         max_minperiod = max(a_minperiod, b_minperiod)
         self.updateminperiod(max_minperiod)
 
+        self._a_minperiod = a_minperiod
+        self._b_minperiod = b_minperiod
+        self._a_guard_minperiod = self._needs_minperiod_guard(self.a)
+        self._b_guard_minperiod = self._needs_minperiod_guard(self.b)
+        self._next_operands = tuple(
+            operand
+            for operand in (self.a, self.b)
+            if operand is not self
+            and isinstance(operand, LineActions)
+            and hasattr(operand, "_next")
+        )
+
+    @staticmethod
+    def _is_constant_operand(operand):
+        """Return True for constants wrapped as LineDelay(PseudoArray)."""
+        return (
+            operand.__class__.__name__ == "_LineDelay"
+            and getattr(operand, "a", None).__class__.__name__ == "PseudoArray"
+        )
+
+    @staticmethod
+    def _is_line_delay_operand(operand):
+        return operand.__class__.__name__ == "_LineDelay"
+
+    @classmethod
+    def _needs_minperiod_guard(cls, operand):
+        return (
+            not cls._is_constant_operand(operand)
+            and not cls._is_line_delay_operand(operand)
+            and not isinstance(operand, LineActions)
+            and hasattr(operand, "__len__")
+            and hasattr(operand, "_minperiod")
+        )
+
+    @staticmethod
+    def _is_missing(value):
+        return value is None or (isinstance(value, float) and value != value)
+
+    def _operand_value(self, operand, ago=0, guard_minperiod=False, minperiod=1):
+        """Read an operand while preserving indicator warmup NaN semantics."""
+        if guard_minperiod:
+            try:
+                target_len = len(operand) + ago
+                if target_len < minperiod:
+                    return float("nan")
+            except Exception:  # nosec B110
+                # Operand without a usable length; skip the warmup guard.
+                pass
+
+        if hasattr(operand, "__getitem__"):
+            return operand[ago]
+        return operand
+
+    def _normalize_operand(self, value):
+        if self._is_missing(value):
+            return float("nan")
+        if isinstance(value, float) and not math.isfinite(value):
+            return 0.0
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return float("nan")
+
+    def _next_operand_if_due(self, operand):
+        clock = getattr(operand, "_clock", None)
+        if clock is not None:
+            try:
+                if len(clock) <= len(operand):
+                    return
+            except Exception:  # nosec B110
+                # Clock without a comparable length; advance the operand anyway.
+                pass
+
+        operand._next()
+
     def _find_parent_indicator(self, operand):
-        """Find the parent indicator that owns this operand (LineBuffer)"""
-        # If operand is already an indicator (has _once method), return it
-        if hasattr(operand, "_once") and hasattr(operand, "_lineiterators"):
+        """Find the parent indicator that owns this operand.
+
+        Only returns LineActions objects. Full Indicator/LineIterator objects are
+        never returned because they are processed separately via the _lineiterators
+        ordering in _once(). Returning a full Indicator here would cause premature
+        once_via_next() calls with incorrect data state.
+        """
+        # If operand is already a LineActions (arithmetic expression chain), return it
+        if isinstance(operand, LineActions):
             return operand
-        # If operand is a LineBuffer, try to find its owner indicator
+        # For plain LineBuffer: check if owner is a LineActions (not a full Indicator)
         if hasattr(operand, "_owner") and operand._owner is not None:
             owner = operand._owner
-            # Check if owner has _owner_ref pointing to the indicator
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                return owner._owner_ref
-            # Check if owner itself is an indicator
-            if hasattr(owner, "_once") and hasattr(owner, "_lineiterators"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    return ref
+            if isinstance(owner, LineActions):
                 return owner
         return None
 
     def __getitem__(self, ago):
-        """CRITICAL FIX: Override __getitem__ to compute value dynamically from source operands.
+        """Get value at the specified offset.
 
-        This ensures correct values in runonce mode where LinesOperation's _idx may not be
-        properly advanced because it's not registered as IndType.
+        In runonce mode, the array is pre-computed by once(), so use it directly.
+        Falls back to dynamic computation only if the array is not populated.
         """
         try:
-            # Get values from source operands at the same relative position
-            a_val = self.a[ago] if hasattr(self.a, "__getitem__") else self.a
-            b_val = self.b[ago] if hasattr(self.b, "__getitem__") else self.b
+            # Use pre-computed array if available (runonce mode)
+            current_idx = self._idx
+            if current_idx >= 0 and len(self.array) > 0:
+                target_idx = current_idx + ago
+                if 0 <= target_idx < len(self.array):
+                    value = self.array[target_idx]
+                    if value is not None:
+                        if isinstance(value, float):
+                            if value == value:
+                                if not math.isfinite(value):
+                                    return 0.0
+                                return value
+                        else:
+                            return value
 
-            # Handle None/NaN values
-            if a_val is None or (isinstance(a_val, float) and a_val != a_val):
+            # Fallback: compute value dynamically from source operands.
+            a_val = self._normalize_operand(
+                self._operand_value(self.a, ago, self._a_guard_minperiod, self._a_minperiod)
+            )
+            b_val = self._normalize_operand(
+                self._operand_value(self.b, ago, self._b_guard_minperiod, self._b_minperiod)
+            )
+
+            if self._is_missing(a_val):
                 return float("nan")
-            if b_val is None or (isinstance(b_val, float) and b_val != b_val):
+            if self._is_missing(b_val):
                 return float("nan")
 
             # Compute and return the operation result
             if self.r:
-                return self.operation(b_val, a_val)
+                result = self.operation(b_val, a_val)
             else:
-                return self.operation(a_val, b_val)
+                result = self.operation(a_val, b_val)
+            if self._is_missing(result):
+                return float("nan")
+            if isinstance(result, float) and not math.isfinite(result):
+                return 0.0
+            return result
         except (IndexError, TypeError):
             return float("nan")
 
@@ -2040,6 +2368,21 @@ class LinesOperation(LineActions):
         """CRITICAL FIX: _next() method for compatibility with LineIterator processing loop.
         This method is called by LineIterator._next() for items in _lineiterators[IndType].
         """
+        # Clock guard: skip if already advanced to the current clock position.
+        # This prevents double-advancing when a LinesOperation is both registered
+        # directly in _lineiterators AND driven via a parent's _next_operands chain.
+        clock = getattr(self, "_clock", None)
+        if clock is not None and clock.__class__.__name__ != "MinimalClock":
+            try:
+                if len(clock) <= len(self):
+                    return
+            except Exception:  # nosec B110
+                # Clock without a comparable length; proceed to advance operands.
+                pass
+
+        for operand in self._next_operands:
+            self._next_operand_if_due(operand)
+
         # Advance the line buffer
         self.advance()
         # Call next() to compute the value
@@ -2057,47 +2400,16 @@ class LinesOperation(LineActions):
         # operation(float, other) ... expecting other to be a float
         # CRITICAL FIX: Ensure we get valid numeric values for indicator calculations
         try:
-            # Get operand values with proper type checking
-            if hasattr(self.a, "__getitem__"):
-                # LineBuffer-like object - get current value
-                try:
-                    a_val = self.a[0]
-                except (IndexError, TypeError):
-                    a_val = 0.0
-            else:
-                # Direct value
-                a_val = self.a
+            a_val = self._normalize_operand(
+                self._operand_value(self.a, 0, self._a_guard_minperiod, self._a_minperiod)
+            )
+            b_val = self._normalize_operand(
+                self._operand_value(self.b, 0, self._b_guard_minperiod, self._b_minperiod)
+            )
 
-            if hasattr(self.b, "__getitem__"):
-                # LineBuffer-like object - get current value
-                try:
-                    b_val = self.b[0]
-                except (IndexError, TypeError):
-                    b_val = 0.0
-            else:
-                # Direct value
-                b_val = self.b
-
-            # CRITICAL FIX: Ensure values are numeric and not None/NaN
-            if a_val is None:
-                a_val = 0.0
-            elif isinstance(a_val, float) and math.isnan(a_val):
-                a_val = 0.0
-            elif not isinstance(a_val, (int, float)):
-                try:
-                    a_val = float(a_val)
-                except (ValueError, TypeError):
-                    a_val = 0.0
-
-            if b_val is None:
-                b_val = 0.0
-            elif isinstance(b_val, float) and math.isnan(b_val):
-                b_val = 0.0
-            elif not isinstance(b_val, (int, float)):
-                try:
-                    b_val = float(b_val)
-                except (ValueError, TypeError):
-                    b_val = 0.0
+            if self._is_missing(a_val) or self._is_missing(b_val):
+                self[0] = float("nan")
+                return
 
             # CRITICAL FIX: Actually perform the operation and store the result
             # Handle both normal and reverse operations
@@ -2110,14 +2422,17 @@ class LinesOperation(LineActions):
 
                 # Ensure result is a valid number
                 if result is None:
-                    result = 0.0
-                elif isinstance(result, float) and math.isnan(result):
-                    result = 0.0
+                    result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    if result != result:
+                        result = float("nan")
+                    else:
+                        result = 0.0
                 elif not isinstance(result, (int, float)):
                     try:
                         result = float(result)
                     except (ValueError, TypeError):
-                        result = 0.0
+                        result = float("nan")
 
                 # Store the result in the current position
                 self[0] = result
@@ -2126,9 +2441,7 @@ class LinesOperation(LineActions):
                 self[0] = a_val
 
         except Exception:
-            # If anything fails, store 0.0 to prevent crashes
-            # print(f"LinesOperation.next() error: {e}")  # Removed for performance
-            self[0] = 0.0
+            self[0] = float("nan")
 
     def once(self, start, end):
         """Calculate operation results in batch mode (runonce).
@@ -2137,10 +2450,6 @@ class LinesOperation(LineActions):
             start: Starting index.
             end: Ending index.
         """
-        # Check if array is already populated (avoid redundant work)
-        if len(self.array) >= end:
-            return
-
         # CRITICAL FIX: Always use start=0 for nested operations
         # This ensures historical values are available for indicators like SMA
         nested_start = 0
@@ -2150,31 +2459,34 @@ class LinesOperation(LineActions):
         if self._parent_a is not None and hasattr(self._parent_a, "once"):
             try:
                 self._parent_a.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("parent_a.once() failed: %s", e)
 
         if self._parent_b is not None and hasattr(self._parent_b, "once"):
             try:
                 self._parent_b.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("parent_b.once() failed: %s", e)
 
-        # CRITICAL FIX: Call once() on ALL operands that have it (not just LinesOperations)
-        # This ensures LineBuffer operands (like indicator outputs) are also computed
-        if hasattr(self.a, "once"):
+        # CRITICAL FIX: Call once() on operands that have it, but ONLY for LineActions
+        # instances (like _LineDelay, LinesOperation). Never call once() on full Indicators
+        # (ATR, SuperTrend, etc.) because those are managed by _lineiterators in _once().
+        # Calling once() on a full Indicator here would trigger premature once_via_next calls
+        # before the indicator's data state is properly set up.
+        if isinstance(self.a, LineActions) and hasattr(self.a, "once"):
             try:
                 self.a.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("operand a.once() failed: %s", e)
 
-        if hasattr(self.b, "once"):
+        if isinstance(self.b, LineActions) and hasattr(self.b, "once"):
             try:
                 self.b.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("operand b.once() failed: %s", e)
 
         # CRITICAL FIX: Always process from 0 to populate historical values
-        if hasattr(self.b, "array"):
+        if hasattr(self.b, "array") and type(self.b).__name__ != "PseudoArray":
             self._once_op(nested_start, end)
         else:
             if isinstance(self.b, float):
@@ -2191,12 +2503,12 @@ class LinesOperation(LineActions):
         self.oncebinding()
 
     def _once_op(self, start, end):
-        # CRITICAL FIX: Ensure b's array is populated if b is a _LineDelay or similar
-        if hasattr(self.b, "once") and len(self.b.array) < end:
+        # Only call once() on LineActions instances (e.g., _LineDelay), not full Indicators
+        if isinstance(self.b, LineActions) and hasattr(self.b, "once") and len(self.b.array) < end:
             try:
                 self.b.once(start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("b.once() in _once_op failed: %s", e)
 
         # cache python dictionary lookups
         dst = self.array
@@ -2228,6 +2540,32 @@ class LinesOperation(LineActions):
         # This is needed for indicators like SMA that need historical values for their calculations
         actual_start = 0
 
+        # Fast path under a single try; the per-element try/except below is only
+        # entered on error, preserving NaN-on-failure semantics while removing
+        # per-element exception-handler setup in the common case (R2-S4: PERF203).
+        try:
+            for i in range(actual_start, end):
+                a_val = srca[i]
+                b_val = self.b[i] if use_dynamic_b else srcb[i]
+                if a_val is None or a_val != a_val or b_val is None or b_val != b_val:
+                    dst[i] = float("nan")
+                    continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(b_val, float) and not math.isfinite(b_val):
+                    b_val = 0.0
+                result = op(b_val, a_val) if self.r else op(a_val, b_val)
+                if result is None or result != result:
+                    result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
+                dst[i] = result
+            return
+        except Exception:
+            logger.debug(
+                "LinesOperation._once_op fast path failed; per-element fallback", exc_info=True
+            )
+
         for i in range(actual_start, end):
             try:
                 a_val = srca[i]
@@ -2240,6 +2578,10 @@ class LinesOperation(LineActions):
                 if a_val is None or a_val != a_val or b_val is None or b_val != b_val:
                     dst[i] = float("nan")
                     continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(b_val, float) and not math.isfinite(b_val):
+                    b_val = 0.0
 
                 if self.r:
                     result = op(b_val, a_val)
@@ -2249,9 +2591,14 @@ class LinesOperation(LineActions):
                 # Preserve NaN semantics
                 if result is None or result != result:
                     result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
 
                 dst[i] = result
             except Exception:
+                logger.debug(
+                    "LinesOperation._once_op fallback triggered at index %d", i, exc_info=True
+                )
                 # If operation fails, store NaN for indicator semantics
                 dst[i] = float("nan")
 
@@ -2277,6 +2624,10 @@ class LinesOperation(LineActions):
                 if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
                     dst[i] = float("nan")
                     continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(srcb, float) and not math.isfinite(srcb):
+                    srcb = 0.0
 
                 if self.r:
                     result = op(srcb, a_val)
@@ -2285,16 +2636,21 @@ class LinesOperation(LineActions):
 
                 if result is None or result != result:
                     result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
 
                 dst[i] = result
             except Exception:
+                logger.debug(
+                    "LinesOperation._once_time_op fallback triggered at index %d", i, exc_info=True
+                )
                 dst[i] = float("nan")
 
     def _once_val_op(self, start, end):
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
-        srcb = self.b
+        srcb = self.b[0] if hasattr(self.b, "__getitem__") else self.b
         op = self.operation
 
         # Ensure destination array is sized for direct index assignment
@@ -2311,21 +2667,30 @@ class LinesOperation(LineActions):
                 if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
                     dst[i] = float("nan")
                     continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(srcb, float) and not math.isfinite(srcb):
+                    srcb = 0.0
 
                 result = op(a_val, srcb)
 
                 if result is None or result != result:
                     result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
 
                 dst[i] = result
             except Exception:
+                logger.debug(
+                    "LinesOperation._once_val_op fallback triggered at index %d", i, exc_info=True
+                )
                 dst[i] = float("nan")
 
     def _once_val_op_r(self, start, end):
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
-        srcb = self.b
+        srcb = self.b[0] if hasattr(self.b, "__getitem__") else self.b
         op = self.operation
 
         # Ensure destination array is sized for direct index assignment
@@ -2342,14 +2707,23 @@ class LinesOperation(LineActions):
                 if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
                     dst[i] = float("nan")
                     continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(srcb, float) and not math.isfinite(srcb):
+                    srcb = 0.0
 
                 result = op(srcb, a_val)
 
                 if result is None or result != result:
                     result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
 
                 dst[i] = result
             except Exception:
+                logger.debug(
+                    "LinesOperation._once_val_op_r fallback triggered at index %d", i, exc_info=True
+                )
                 dst[i] = float("nan")
 
 
@@ -2386,19 +2760,24 @@ class LineOwnOperation(LineActions):
         # CRITICAL FIX: Store reference to parent indicator for _once processing
         self._parent_a = parent_a if parent_a is not None else self._find_parent_indicator(a)
 
-        # CRITICAL FIX: Handle _minperiod attribute access more safely
         a_minperiod = getattr(a, "_minperiod", 1) if hasattr(a, "_minperiod") else 1
-        self.addminperiod(a_minperiod)
+        self.updateminperiod(a_minperiod)
 
     def _find_parent_indicator(self, operand):
-        """Find the parent indicator that owns this operand (LineBuffer)"""
-        if hasattr(operand, "_once") and hasattr(operand, "_lineiterators"):
+        """Find the parent indicator that owns this operand.
+
+        Only returns LineActions objects. Full Indicators are never returned to
+        prevent premature once_via_next() calls (see LinesOperation._find_parent_indicator).
+        """
+        if isinstance(operand, LineActions):
             return operand
         if hasattr(operand, "_owner") and operand._owner is not None:
             owner = operand._owner
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                return owner._owner_ref
-            if hasattr(owner, "_once") and hasattr(owner, "_lineiterators"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    return ref
+            if isinstance(owner, LineActions):
                 return owner
         return None
 
@@ -2408,7 +2787,12 @@ class LineOwnOperation(LineActions):
             a_val = self.a[ago] if hasattr(self.a, "__getitem__") else self.a
             if a_val is None or (isinstance(a_val, float) and a_val != a_val):
                 return float("nan")
-            return self.operation(a_val)
+            if isinstance(a_val, float) and not math.isfinite(a_val):
+                a_val = 0.0
+            result = self.operation(a_val)
+            if isinstance(result, float) and not math.isfinite(result):
+                return 0.0
+            return result
         except (IndexError, TypeError):
             return float("nan")
 
@@ -2418,7 +2802,15 @@ class LineOwnOperation(LineActions):
         Performs the unary operation on the current value of the operand
         and stores the result at position 0.
         """
-        self[0] = self.operation(self.a[0])
+        a_val = self.a[0]
+        if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+            a_val = 0.0
+
+        result = self.operation(a_val)
+        if result is None or (isinstance(result, float) and not math.isfinite(result)):
+            result = 0.0
+
+        self[0] = result
 
     def once(self, start, end):
         """Calculate unary operation results in batch mode (runonce).
@@ -2431,8 +2823,8 @@ class LineOwnOperation(LineActions):
         if self._parent_a is not None and hasattr(self._parent_a, "_once"):
             try:
                 self._parent_a._once(start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("parent_a._once() in LineOwnOperation failed: %s", e)
 
         # cache python dictionary lookups
         dst = self.array
@@ -2448,19 +2840,34 @@ class LineOwnOperation(LineActions):
             # If source array is shorter than required range, only process available data
             end = min(end, len(srca))
 
+        # Fast path under a single try; per-element fallback only on error
+        # (preserves 0.0-on-failure semantics, removes per-element handler setup; R2-S4).
+        try:
+            for i in range(start, end):
+                a_val = srca[i] if i < len(srca) else 0.0
+                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+                    a_val = 0.0
+                result = op(a_val)
+                if result is None or (isinstance(result, float) and not math.isfinite(result)):
+                    result = 0.0
+                dst[i] = result
+            return
+        except Exception:
+            logger.debug("unary once fast path failed; per-element fallback", exc_info=True)
+
         for i in range(start, end):
             try:
                 # CRITICAL FIX: Bounds checking for source array
                 a_val = srca[i] if i < len(srca) else 0.0
 
                 # Ensure value is numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
+                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
                     a_val = 0.0
 
                 result = op(a_val)
 
                 # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
+                if result is None or (isinstance(result, float) and not math.isfinite(result)):
                     result = 0.0
 
                 dst[i] = result
@@ -2472,7 +2879,6 @@ class LineOwnOperation(LineActions):
         """Return the number of lines in this LineActions object"""
         if hasattr(self, "lines") and hasattr(self.lines, "size"):
             return self.lines.size()
-        elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
+        if hasattr(self, "lines") and hasattr(self.lines, "__len__"):
             return len(self.lines)
-        else:
-            return 1  # Default to 1 line if no lines object available
+        return 1  # Default to 1 line if no lines object available

@@ -17,8 +17,11 @@ from plotly.subplots import make_subplots
 
 from ..parameters import ParameterDescriptor, ParameterizedBase
 from ..utils.date import num2date
+from ..utils.log_message import get_logger
 from ..utils.py3 import range
 from .scheme import PlotScheme
+
+logger = get_logger(__name__)
 
 # Tableau color schemes
 TABLEAU10 = [
@@ -396,7 +399,7 @@ class PlotlyPlot(ParameterizedBase):
                 name=name,
                 legendgroup=legendgroup,
                 showlegend=False,
-                line=dict(color=color, width=0),
+                line={"color": color, "width": 0},
             ),
             row=row,
             col=1,
@@ -412,7 +415,7 @@ class PlotlyPlot(ParameterizedBase):
                 legendgroup=legendgroup,
                 fill="tonexty",
                 fillcolor=color,
-                line=dict(color=color, width=0),
+                line={"color": color, "width": 0},
             ),
             row=row,
             col=1,
@@ -686,7 +689,7 @@ class PlotlyPlot(ParameterizedBase):
                     y=closes,
                     mode="lines",
                     name=datalabel,
-                    line=dict(color=self._to_plotly_color(self.p.scheme.loc)),
+                    line={"color": self._to_plotly_color(self.p.scheme.loc)},
                 ),
                 row=row,
                 col=1,
@@ -749,6 +752,55 @@ class PlotlyPlot(ParameterizedBase):
 
         return row + row_inc
 
+    @staticmethod
+    def _trim_prewarmup_zeros(lplot, plot_xdata):
+        """Trim leading pre-warmup values from an indicator line series.
+
+        Indicators emit ``0.0`` before they have enough data, then jump to
+        real values. This finds the first real (non-NaN, non-leading-zero)
+        sample and trims both the value list and its x-axis to match, then
+        replaces remaining NaNs with ``None`` so Plotly skips them.
+
+        Returns the ``(lplot, plot_xdata)`` pair, or ``(None, None)`` when the
+        trimmed series is empty (caller should skip the line). Extracted
+        verbatim from the duplicated blocks in ``_plot_indicator`` /
+        ``_plot_indicator_on_ax``; behavior unchanged.
+        """
+        # Find first valid (non-NaN and non-zero-before-real-data) value
+        # Indicators output 0.0 before they have enough data, then jump to real values
+        valid_start = 0
+        found_nonzero = False
+        for i, v in enumerate(lplot):
+            if math.isnan(v):
+                continue
+            # If we find a non-zero value, that's where real data starts
+            if v != 0.0:
+                valid_start = i
+                found_nonzero = True
+                break
+            # If all values are 0, we'll check if later values become non-zero
+
+        # If no non-zero found, check if there are any real values
+        if not found_nonzero:
+            # Find first transition from 0 to non-zero
+            for i in range(len(lplot) - 1):
+                if lplot[i] == 0.0 and lplot[i + 1] != 0.0 and not math.isnan(lplot[i + 1]):
+                    valid_start = i + 1
+                    found_nonzero = True
+                    break
+
+        # Skip leading invalid portion (zeros before real data)
+        if valid_start > 0:
+            lplot = lplot[valid_start:]
+            plot_xdata = plot_xdata[valid_start:]
+
+        if not lplot:
+            return None, None
+
+        # Replace NaN with None for Plotly to skip
+        lplot = [None if math.isnan(v) else v for v in lplot]
+        return lplot, plot_xdata
+
     def _plot_indicator(self, fig, ind, xdata, pstart, pend, row, is_observer=False):
         """Plot an indicator in its own subplot."""
         indlabel = ind.plotlabel()
@@ -769,39 +821,9 @@ class PlotlyPlot(ParameterizedBase):
             if len(lplot) != len(xdata):
                 plot_xdata = xdata[: len(lplot)]
 
-            # Find first valid (non-NaN and non-zero-before-real-data) value
-            # Indicators output 0.0 before they have enough data, then jump to real values
-            valid_start = 0
-            found_nonzero = False
-            for i, v in enumerate(lplot):
-                if math.isnan(v):
-                    continue
-                # If we find a non-zero value, that's where real data starts
-                if v != 0.0:
-                    valid_start = i
-                    found_nonzero = True
-                    break
-                # If all values are 0, we'll check if later values become non-zero
-
-            # If no non-zero found, check if there are any real values
-            if not found_nonzero:
-                # Find first transition from 0 to non-zero
-                for i in range(len(lplot) - 1):
-                    if lplot[i] == 0.0 and lplot[i + 1] != 0.0 and not math.isnan(lplot[i + 1]):
-                        valid_start = i + 1
-                        found_nonzero = True
-                        break
-
-            # Skip leading invalid portion (zeros before real data)
-            if valid_start > 0:
-                lplot = lplot[valid_start:]
-                plot_xdata = plot_xdata[valid_start:]
-
-            if not lplot:
+            lplot, plot_xdata = self._trim_prewarmup_zeros(lplot, plot_xdata)
+            if lplot is None:
                 continue
-
-            # Replace NaN with None for Plotly to skip
-            lplot = [None if math.isnan(v) else v for v in lplot]
 
             # Get line plot info
             lineplotinfo = getattr(ind.plotlines, linealias, None)
@@ -834,7 +856,7 @@ class PlotlyPlot(ParameterizedBase):
                     y=lplot,
                     mode="lines",
                     name=label,
-                    line=dict(color=self._to_plotly_color(color), dash=linestyle),
+                    line={"color": self._to_plotly_color(color), "dash": linestyle},
                 ),
                 row=row,
                 col=1,
@@ -885,33 +907,9 @@ class PlotlyPlot(ParameterizedBase):
             if len(lplot) != len(xdata):
                 plot_xdata = xdata[: len(lplot)]
 
-            # Find first valid (non-NaN and non-zero-before-real-data) value
-            valid_start = 0
-            found_nonzero = False
-            for i, v in enumerate(lplot):
-                if math.isnan(v):
-                    continue
-                if v != 0.0:
-                    valid_start = i
-                    found_nonzero = True
-                    break
-
-            if not found_nonzero:
-                for i in range(len(lplot) - 1):
-                    if lplot[i] == 0.0 and lplot[i + 1] != 0.0 and not math.isnan(lplot[i + 1]):
-                        valid_start = i + 1
-                        found_nonzero = True
-                        break
-
-            if valid_start > 0:
-                lplot = lplot[valid_start:]
-                plot_xdata = plot_xdata[valid_start:]
-
-            if not lplot:
+            lplot, plot_xdata = self._trim_prewarmup_zeros(lplot, plot_xdata)
+            if lplot is None:
                 continue
-
-            # Replace NaN with None for Plotly to skip
-            lplot = [None if math.isnan(v) else v for v in lplot]
 
             # Get color
             color = None
@@ -940,7 +938,7 @@ class PlotlyPlot(ParameterizedBase):
                         y=lplot,
                         mode="lines",
                         name=label,
-                        line=dict(color=self._to_plotly_color(color)),
+                        line={"color": self._to_plotly_color(color)},
                     ),
                     row=row,
                     col=1,
@@ -957,6 +955,7 @@ class PlotlyPlot(ParameterizedBase):
                 gray_int = int(gray * 255)
                 return f"rgb({gray_int},{gray_int},{gray_int})"
             except ValueError:
+                # Not a numeric gray string (e.g. a named color); return as-is.
                 pass
             return color
         if isinstance(color, (tuple, list)):
@@ -965,7 +964,7 @@ class PlotlyPlot(ParameterizedBase):
                 if all(0 <= c <= 1 for c in color):
                     return f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"
                 return f"rgb({r},{g},{b})"
-            elif len(color) == 4:
+            if len(color) == 4:
                 r, g, b, a = color
                 if all(0 <= c <= 1 for c in color):
                     return f"rgba({int(r * 255)},{int(g * 255)},{int(b * 255)},{a})"
@@ -985,7 +984,7 @@ class PlotlyPlot(ParameterizedBase):
             template=self.p.scheme.plotly_theme,
             height=800,
             showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
             hovermode="x unified",
             xaxis_rangeslider_visible=self.p.scheme.rangeslider,
         )
@@ -994,13 +993,13 @@ class PlotlyPlot(ParameterizedBase):
         fig.update_xaxes(rangeslider_visible=False)
 
         if self.p.scheme.rangeslider:
-            rangeslider = dict(visible=True)
+            rangeslider = {"visible": True}
             if not self.p.scheme.rangeslider_preview:
                 rangeslider.update(
                     thickness=0.05,
                     bgcolor="rgba(0,0,0,0)",
                     borderwidth=0,
-                    yaxis=dict(rangemode="fixed", range=[1e12, 1e12 + 1]),
+                    yaxis={"rangemode": "fixed", "range": [1e12, 1e12 + 1]},
                 )
 
             fig.update_xaxes(rangeslider=rangeslider, row=1, col=1)
@@ -1009,22 +1008,20 @@ class PlotlyPlot(ParameterizedBase):
         try:
             bottom_row = fig._get_subplot_rows_columns()[0][-1]
             fig.update_xaxes(
-                rangeselector=dict(
-                    buttons=list(
-                        [
-                            dict(count=1, label="1m", step="month", stepmode="backward"),
-                            dict(count=3, label="3m", step="month", stepmode="backward"),
-                            dict(count=6, label="6m", step="month", stepmode="backward"),
-                            dict(count=1, label="1y", step="year", stepmode="backward"),
-                            dict(step="all", label="All"),
-                        ]
-                    )
-                ),
+                rangeselector={
+                    "buttons": [
+                        {"count": 1, "label": "1m", "step": "month", "stepmode": "backward"},
+                        {"count": 3, "label": "3m", "step": "month", "stepmode": "backward"},
+                        {"count": 6, "label": "6m", "step": "month", "stepmode": "backward"},
+                        {"count": 1, "label": "1y", "step": "year", "stepmode": "backward"},
+                        {"step": "all", "label": "All"},
+                    ]
+                },
                 row=bottom_row,
                 col=1,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to add range selector: %s", e)
 
         # Crosshair spike lines
         fig.update_xaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1)
@@ -1098,10 +1095,24 @@ class PlotlyPlot(ParameterizedBase):
             fig.write_image(filename, width=width, height=height, scale=scale)
 
     def _collect_buysell_signals(self, strategy):
-        """Collect buy/sell signals from strategy automatically."""
+        """Collect buy/sell signals from strategy automatically.
+
+        Tries four sources in priority order, stopping at the first that
+        yields markers: Transactions analyzer, broker order history, a
+        user-defined ``_buysell`` attribute, then the BuySell observer.
+        """
         self.buysell_markers = []
 
-        # Method 1: Try to get from Transactions analyzer (most reliable)
+        if self._buysell_from_transactions(strategy):
+            return
+        if self._buysell_from_broker_orders(strategy):
+            return
+        if self._buysell_from_strategy_attr(strategy):
+            return
+        self._buysell_from_observer(strategy)
+
+    def _buysell_from_transactions(self, strategy):
+        """Method 1: Transactions analyzer (most reliable). Returns True if found."""
         if hasattr(strategy, "analyzers"):
             for analyzer in strategy.analyzers:
                 if analyzer.__class__.__name__ == "Transactions":
@@ -1119,9 +1130,11 @@ class PlotlyPlot(ParameterizedBase):
                                 }
                             )
                     if self.buysell_markers:
-                        return
+                        return True
+        return False
 
-        # Method 2: Try to get from broker's order history
+    def _buysell_from_broker_orders(self, strategy):
+        """Method 2: broker order history. Returns True if found."""
         if hasattr(strategy, "broker") and hasattr(strategy.broker, "orders"):
             for order in strategy.broker.orders:
                 if order.status == order.Completed:
@@ -1135,14 +1148,18 @@ class PlotlyPlot(ParameterizedBase):
                         }
                     )
             if self.buysell_markers:
-                return
+                return True
+        return False
 
-        # Method 3: Check if strategy has _buysell attribute (user-defined)
+    def _buysell_from_strategy_attr(self, strategy):
+        """Method 3: user-defined ``_buysell`` attribute. Returns True if found."""
         if hasattr(strategy, "_buysell") and strategy._buysell:
             self.buysell_markers = strategy._buysell
-            return
+            return True
+        return False
 
-        # Method 4: Try to get from BuySell observer
+    def _buysell_from_observer(self, strategy):
+        """Method 4: BuySell observer buy/sell lines."""
         for obs in strategy.observers:
             if obs.__class__.__name__ == "BuySell":
                 buy_line = obs.lines.buy
@@ -1209,12 +1226,12 @@ class PlotlyPlot(ParameterizedBase):
                     y=buy_y,
                     mode="markers",
                     name="Buy",
-                    marker=dict(
-                        symbol="triangle-up",
-                        size=self.p.scheme.buymarker_size,
-                        color=self.p.scheme.buymarker_color,
-                        line=dict(width=1, color="white"),
-                    ),
+                    marker={
+                        "symbol": "triangle-up",
+                        "size": self.p.scheme.buymarker_size,
+                        "color": self.p.scheme.buymarker_color,
+                        "line": {"width": 1, "color": "white"},
+                    },
                     customdata=buy_prices,
                     hovertemplate="Buy @ %{customdata:.2f}<extra></extra>",
                 ),
@@ -1230,12 +1247,12 @@ class PlotlyPlot(ParameterizedBase):
                     y=sell_y,
                     mode="markers",
                     name="Sell",
-                    marker=dict(
-                        symbol="triangle-down",
-                        size=self.p.scheme.sellmarker_size,
-                        color=self.p.scheme.sellmarker_color,
-                        line=dict(width=1, color="white"),
-                    ),
+                    marker={
+                        "symbol": "triangle-down",
+                        "size": self.p.scheme.sellmarker_size,
+                        "color": self.p.scheme.sellmarker_color,
+                        "line": {"width": 1, "color": "white"},
+                    },
                     customdata=sell_prices,
                     hovertemplate="Sell @ %{customdata:.2f}<extra></extra>",
                 ),
@@ -1305,7 +1322,7 @@ class PlotlyPlot(ParameterizedBase):
                 y=drawdowns,
                 mode="lines",
                 name=f"Drawdown (Max: {max_dd:.2f}%)",
-                line=dict(color="#E74C3C", width=1),
+                line={"color": "#E74C3C", "width": 1},
                 fill="tozeroy",
                 fillcolor="rgba(231, 76, 60, 0.3)",
                 hovertemplate="Drawdown: %{y:.2f}%<extra></extra>",
@@ -1321,7 +1338,7 @@ class PlotlyPlot(ParameterizedBase):
                 y=pct_equity,
                 mode="lines",
                 name="Return %",
-                line=dict(color=self.p.scheme.equity_color, width=2),
+                line={"color": self.p.scheme.equity_color, "width": 2},
                 hovertemplate="Return: %{y:.2f}%<extra></extra>",
             ),
             row=row,

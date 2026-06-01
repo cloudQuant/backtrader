@@ -24,10 +24,11 @@ Test Data:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -101,8 +102,8 @@ class HmaCrossoverStrategy(bt.Strategy):
 
     Parameters:
         stake (int): Number of shares/contracts per trade. Default is 10.
-        hma_fast (int): Period for the fast HMA. Default is 60.
-        hma_slow (int): Period for the slow HMA. Default is 90.
+        hma_fast (int): Period for the fast bt.indicators.HMA. Default is 60.
+        hma_slow (int): Period for the slow bt.indicators.HMA. Default is 90.
         atr_period (int): Period for the ATR indicator. Default is 14.
     """
     params = dict(
@@ -215,7 +216,8 @@ class HmaCrossoverStrategy(bt.Strategy):
         self.prev_rel = rel_now
 
 
-def test_hma_crossover_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_hma_crossover_strategy(runonce):
     """Test the HMA Crossover strategy with historical data.
 
     This function runs a backtest of the HMA Crossover strategy using
@@ -262,7 +264,7 @@ def test_hma_crossover_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

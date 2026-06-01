@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -122,7 +123,8 @@ class SizerTestStrategy(bt.Strategy):
         print(f"SizerTest: bar_num={self.bar_num}, buy={self.buy_count}, sell={self.sell_count}")
 
 
-def test_sizer():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_sizer(runonce):
     """Test Sizer position manager.
 
     This test validates that the LongOnlySizer correctly controls position
@@ -151,7 +153,7 @@ def test_sizer():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

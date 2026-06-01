@@ -998,69 +998,6 @@ plot_equity_curves(data, strategies)
 
 ## 实时数据监控
 
-### 使用 CCXT 实时数据
-
-```python
-
-# 注意：需要安装 ccxt
-
-# pip install ccxt
-
-class LiveStrategy(bt.Strategy):
-    """实时交易策略"""
-
-    params = (
-        ('symbol', 'BTC/USDT'),
-        ('interval', '1h'),
-    )
-
-    def __init__(self):
-        self.ma = bt.indicators.SMA(self.data.close, period=20)
-        self.rsi = bt.indicators.RSI(self.data.close, period=14)
-
-    def next(self):
-
-# 只在有足够数据时交易
-        if len(self.data) < 20:
-            return
-
-# 实时监控逻辑
-        if not self.position:
-            if self.data.close[0] > self.ma[0] and self.rsi[0] < 70:
-                self.buy(size=0.01)  # 小仓位测试
-        else:
-            if self.rsi[0] > 70 or self.data.close[0] < self.ma[0]:
-                self.sell(size=self.position.size)
-
-# 实时数据存储
-
-from backtrader.stores import CCXTStore
-
-# 创建实时数据源
-
-store = CCXTStore(
-    exchange='binance',
-    currency='USDT',
-    config={'apiKey': 'your_api_key', 'secret': 'your_secret'},
-    retries=5,
-    debug=False
-)
-
-# 实时数据 feed
-
-data = store.getdata(
-    dataname='BTC/USDT',
-    name='BTCUSDT',
-    timeframe=bt.TimeFrame.Minutes,
-    compression=60,
-    ohlcv_limit=100,
-    drop_newest=True
-)
-
-# 注意：实时交易需要谨慎，建议先在测试网测试
-
-```bash
-
 ### 模拟实时数据流
 
 ```python

@@ -4,6 +4,30 @@
 
 Reference: backtrader-master2/samples/writer-test/
 Tests Writer output functionality using a price and SMA crossover strategy.
+
+Data Used:
+    Daily OHLC bars from ``2005-2006-day-001.txt`` (the standard backtrader
+    sample file in BacktraderCSVData format), located via resolve_data_path and
+    clipped to the 2006-01-01 through 2006-12-31 calendar year. A single daily
+    feed drives the backtest.
+
+Strategy Principle:
+    A minimal price-versus-SMA crossover used as a vehicle to exercise the
+    WriterFile reporting component. A simple moving average tracks the trend;
+    when price closes above the SMA the trend is considered up (go long) and when
+    it closes below the SMA the trend is considered down (exit). The trading
+    logic is intentionally simple so the test can focus on verifying Writer
+    output and deterministic analyzer results.
+
+Strategy Logic:
+    WriterTestStrategy builds an SMA and a CrossOver of close versus the bt.indicators.SMA.
+    Each bar it increments the bar counter, buys when the crossover turns
+    positive while flat, and closes when the crossover turns negative while in a
+    position. notify_order increments buy/sell counters on completed orders. The
+    parametrized test attaches a WriterFile (csv=False) plus Sharpe, Returns,
+    DrawDown, and TradeAnalyzer analyzers, runs both runonce=True and
+    runonce=False, and asserts bar count, final value, Sharpe, annual return,
+    drawdown, and trade count against expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -11,6 +35,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -52,7 +77,7 @@ class WriterTestStrategy(bt.Strategy):
     - Sell and close position when price crosses below SMA
 
     Attributes:
-        crossover: CrossOver indicator tracking price vs SMA.
+        crossover: CrossOver indicator tracking price vs bt.indicators.SMA.
         bar_num: Counter for the number of bars processed.
         buy_count: Counter for buy orders executed.
         sell_count: Counter for sell orders executed.
@@ -63,7 +88,7 @@ class WriterTestStrategy(bt.Strategy):
         """Initialize the WriterTestStrategy.
 
         Sets up the Simple Moving Average (SMA) indicator and the crossover
-        indicator that tracks when the price crosses above or below the SMA.
+        indicator that tracks when the price crosses above or below the bt.indicators.SMA.
         Also initializes counters for tracking bars, buy orders, and sell orders.
         """
         sma = bt.ind.SMA(self.data, period=self.p.period)
@@ -105,7 +130,8 @@ class WriterTestStrategy(bt.Strategy):
             self.close()
 
 
-def test_writer():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_writer(runonce):
     """Test Writer output functionality.
 
     This function tests the Writer functionality by running a backtest
@@ -145,7 +171,7 @@ def test_writer():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

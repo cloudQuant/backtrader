@@ -110,7 +110,7 @@ class HurstExponent(PeriodN):
 
         # Ensure destination array is large enough
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(float("nan"))
 
         # Calculate Hurst Exponent for each index
         for i in range(start, end):
@@ -138,7 +138,7 @@ class HurstExponent(PeriodN):
                             poly = polyfit(log10lags, log10tau, 1)
                             hurst = poly[0] * 2.0
                             dst[i] = float(hurst) if not isnan(hurst) else float("nan")
-                        except Exception:
+                        except (ValueError, TypeError, FloatingPointError):
                             dst[i] = float("nan")
                     else:
                         dst[i] = float("nan")

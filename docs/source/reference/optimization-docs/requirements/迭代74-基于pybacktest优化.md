@@ -1820,7 +1820,6 @@ bt_vec.summary()
 3. **NumPy 性能**: <https://numpy.org/doc/stable/user/basics.performance.html>
 
 - --
-
 - 文档版本：v1.0*
 - 创建日期：2026-01-08*
 - 作者：Claude*

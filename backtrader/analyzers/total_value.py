@@ -13,9 +13,20 @@ Example:
     >>> print(results[0].analyzers.val.get_analysis())
 """
 
+import math
 from collections import OrderedDict
+from typing import Optional
 
 from ..analyzer import Analyzer
+
+
+def _finite_real_or_zero(value):
+    try:
+        if isinstance(value, complex) or not math.isfinite(value):
+            return 0.0
+    except TypeError:
+        return 0.0
+    return value
 
 
 class TotalValue(Analyzer):
@@ -31,7 +42,7 @@ class TotalValue(Analyzer):
     """
 
     params = ()
-    rets = None
+    rets: Optional[dict] = None
 
     def start(self):
         """Initialize the analyzer at the start of the backtest.
@@ -53,7 +64,7 @@ class TotalValue(Analyzer):
         # Calculate the return
         super().next()
         # Cache attribute access for performance
-        self.rets[self.datas[0].datetime.datetime()] = self._broker.getvalue()
+        self.rets[self.datas[0].datetime.datetime()] = _finite_real_or_zero(self._broker.getvalue())
 
     def get_analysis(self):
         """Return the total value analysis results.

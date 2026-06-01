@@ -47,50 +47,34 @@ from ..strategy import Strategy
 from ..writer import WriterFile
 
 try:
-    from ..feeds.vcdata import VCData
+    from ..feeds.btapifeed import BtApiFeed
 except ImportError:
-    VCData = None
-
-try:
-    from ..feeds.ibdata import IBData
-except ImportError:
-    IBData = None
-
-try:
-    from ..feeds.oanda import OandaData
-except ImportError:
-    OandaData = None
+    BtApiFeed = None
 
 
-DATAFORMATS = dict(
-    btcsv=BacktraderCSVData,
-    vchartcsv=VChartCSVData,
-    vcfile=VChartFile,
-    sierracsv=SierraChartCSVData,
-    mt4csv=MT4CSVData,
-    yahoocsv=YahooFinanceCSVData,
-    yahoocsv_unreversed=YahooFinanceCSVDataUnreversed,
-    yahoo=YahooFinanceData,
-)
+DATAFORMATS = {
+    "btcsv": BacktraderCSVData,
+    "vchartcsv": VChartCSVData,
+    "vcfile": VChartFile,
+    "sierracsv": SierraChartCSVData,
+    "mt4csv": MT4CSVData,
+    "yahoocsv": YahooFinanceCSVData,
+    "yahoocsv_unreversed": YahooFinanceCSVDataUnreversed,
+    "yahoo": YahooFinanceData,
+}
 
-if VCData is not None:
-    DATAFORMATS["vcdata"] = VCData
+if BtApiFeed is not None:
+    DATAFORMATS["btapi"] = BtApiFeed
 
-if IBData is not None:
-    DATAFORMATS["ibdata"] = (IBData,)
-
-if OandaData is not None:
-    DATAFORMATS["oandadata"] = (OandaData,)
-
-TIMEFRAMES = dict(
-    microseconds=TimeFrame.MicroSeconds,
-    seconds=TimeFrame.Seconds,
-    minutes=TimeFrame.Minutes,
-    days=TimeFrame.Days,
-    weeks=TimeFrame.Weeks,
-    months=TimeFrame.Months,
-    years=TimeFrame.Years,
-)
+TIMEFRAMES = {
+    "microseconds": TimeFrame.MicroSeconds,
+    "seconds": TimeFrame.Seconds,
+    "minutes": TimeFrame.Minutes,
+    "days": TimeFrame.Days,
+    "weeks": TimeFrame.Weeks,
+    "months": TimeFrame.Months,
+    "years": TimeFrame.Years,
+}
 
 
 def _safe_parse_kwargs(kwtext: str) -> dict:
@@ -122,6 +106,7 @@ def _safe_parse_kwargs(kwtext: str) -> dict:
         if isinstance(parsed, dict):
             return parsed
     except (ValueError, SyntaxError, TypeError):
+        # Not a clean dict literal; fall back to manual key=value parsing below.
         pass
 
     # Fall back to manual parsing
@@ -155,7 +140,7 @@ def _split_kwargs(kwtext: str) -> list:
         list: List of individual key=value strings.
     """
     items = []
-    current = []
+    current: list = []
     depth = 0
     in_string = False
     string_char = None
@@ -200,6 +185,7 @@ def _convert_value(value: str):
     try:
         return ast.literal_eval(value)
     except (ValueError, SyntaxError):
+        # Not a Python literal; try the explicit conversions below.
         pass
 
     # Handle boolean values (case-insensitive)
@@ -214,12 +200,14 @@ def _convert_value(value: str):
     try:
         return int(value)
     except ValueError:
+        # Not an integer; try float next.
         pass
 
     # Handle floats
     try:
         return float(value)
     except ValueError:
+        # Not a float; treat as a (possibly quoted) string below.
         pass
 
     # Remove surrounding quotes if present
@@ -266,28 +254,7 @@ def btrun(pargs=""):
 
     cerebro = Cerebro(**cer_kwargs)
 
-    if args.resample is not None or args.replay is not None:
-        if args.resample is not None:
-            tfcp = args.resample.split(":")
-        elif args.replay is not None:
-            tfcp = args.replay.split(":")
-
-        # compression may be skipped and it will default to 1
-        if len(tfcp) == 1 or tfcp[1] == "":
-            tf, cp = tfcp[0], 1
-        else:
-            tf, cp = tfcp
-
-        cp = int(cp)  # convert any value to int
-        tf = TIMEFRAMES.get(tf, None)
-
-    for data in getdatas(args):
-        if args.resample is not None:
-            cerebro.resampledata(data, timeframe=tf, compression=cp)
-        elif args.replay is not None:
-            cerebro.replaydata(data, timeframe=tf, compression=cp)
-        else:
-            cerebro.adddata(data)
+    _add_datas(args, cerebro)
 
     # get and add signals
     signals = getobjects(args.signals, Indicator, signals_module, issignal=True)
@@ -325,21 +292,10 @@ def btrun(pargs=""):
     runst = runsts[0]  # single strategy and no optimization
 
     if args.pranalyzer or args.ppranalyzer:
-        if runst.analyzers:
-            print("====================")
-            print("== Analyzers")
-            print("====================")
-            for name, analyzer in runst.analyzers.getitems():
-                if args.pranalyzer:
-                    analyzer.print()
-                elif args.ppranalyzer:
-                    print("##########")
-                    print(name)
-                    print("##########")
-                    analyzer.pprint()
+        _print_analyzers(args, runst)
 
     if args.plot:
-        pkwargs = dict(style="bar")
+        pkwargs = {"style": "bar"}
         if args.plot is not True:
             # evaluates to True but is not "True" - args were passed
             ekwargs = _safe_parse_kwargs(args.plot)
@@ -347,6 +303,50 @@ def btrun(pargs=""):
 
         # cerebro.plot(numfigs=args.plotfigs, style=args.plotstyle)
         cerebro.plot(**pkwargs)
+
+
+def _add_datas(args, cerebro):
+    """Add data feeds to cerebro, honoring --resample / --replay options."""
+    tf = cp = None
+    if args.resample is not None or args.replay is not None:
+        if args.resample is not None:
+            tfcp = args.resample.split(":")
+        elif args.replay is not None:
+            tfcp = args.replay.split(":")
+
+        # compression may be skipped and it will default to 1
+        if len(tfcp) == 1 or tfcp[1] == "":
+            tf, cp = tfcp[0], 1
+        else:
+            tf, cp = tfcp
+
+        cp = int(cp)  # convert any value to int
+        tf = TIMEFRAMES.get(tf)
+
+    for data in getdatas(args):
+        if args.resample is not None:
+            cerebro.resampledata(data, timeframe=tf, compression=cp)
+        elif args.replay is not None:
+            cerebro.replaydata(data, timeframe=tf, compression=cp)
+        else:
+            cerebro.adddata(data)
+
+
+def _print_analyzers(args, runst):
+    """Print analyzer results for the finished strategy (pranalyzer/ppranalyzer)."""
+    if not runst.analyzers:
+        return
+    print("====================")
+    print("== Analyzers")
+    print("====================")
+    for name, analyzer in runst.analyzers.getitems():
+        if args.pranalyzer:
+            analyzer.print()
+        elif args.ppranalyzer:
+            print("##########")
+            print(name)
+            print("##########")
+            analyzer.pprint()
 
 
 def setbroker(args, cerebro):
@@ -372,7 +372,7 @@ def setbroker(args, cerebro):
     if args.cash is not None:
         broker.setcash(args.cash)
 
-    commkwargs = dict()
+    commkwargs = {}
     if args.commission is not None:
         commkwargs["commission"] = args.commission
     if args.margin is not None:
@@ -427,7 +427,7 @@ def getdatas(args):
     dfcls = DATAFORMATS[args.format]
 
     # Prepare some args
-    dfkwargs = dict()
+    dfkwargs = {}
     if args.format == "yahoo_unreversed":
         dfkwargs["reverse"] = True
 
@@ -454,7 +454,7 @@ def getdatas(args):
     if args.compression is not None:
         dfkwargs["compression"] = args.compression
 
-    datas = list()
+    datas = []
     for dname in args.data:
         dfkwargs["dataname"] = dname
         data = dfcls(**dfkwargs)
@@ -481,7 +481,7 @@ def getmodclasses(mod, clstype, clsname=None):
     """
     clsmembers = inspect.getmembers(mod, inspect.isclass)
 
-    clslist = list()
+    clslist = []
     for name, cls in clsmembers:
         if not issubclass(cls, clstype):
             continue
@@ -515,7 +515,7 @@ def getmodfunctions(mod, funcname=None):
         mod, inspect.ismethod
     )
 
-    funclist = list()
+    funclist = []
     for name, member in members:
         if funcname:
             if name == funcname:
@@ -552,7 +552,9 @@ def loadmodule(modpath, modname=""):
 
     if not modname:
         chars = string.ascii_uppercase + string.digits
-        modname = "".join(random.choice(chars) for _ in range(10))
+        # Module name only needs to be unique, not cryptographically secure.
+        # This is an internal import alias, never a security boundary.
+        modname = "".join(random.choice(chars) for _ in range(10))  # nosec B311
 
     try:
         mod = _load_module_from_path(modpath, modname)
@@ -610,7 +612,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
 
     The function will call sys.exit(1) if module loading or class finding fails.
     """
-    retobjects = list()
+    retobjects: list = []
 
     for item in iterable or []:
         if issignal:
@@ -625,13 +627,13 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
         if len(tokens) == 1:
             modpath = tokens[0]
             name = ""
-            kwargs = dict()
+            kwargs: dict = {}
         else:
             modpath, name = tokens
             kwtokens = name.split(":", 1)
             if len(kwtokens) == 1:
                 # no '(' found
-                kwargs = dict()
+                kwargs = {}
             else:
                 name = kwtokens[0]
                 kwargs = _safe_parse_kwargs(kwtokens[1])
@@ -682,7 +684,7 @@ def getfunctions(iterable, modbase):
 
     The function will call sys.exit(1) if module loading or function finding fails.
     """
-    retfunctions = list()
+    retfunctions = []
 
     for item in iterable or []:
         tokens = item.split(":", 1)
@@ -690,13 +692,13 @@ def getfunctions(iterable, modbase):
         if len(tokens) == 1:
             modpath = tokens[0]
             name = ""
-            kwargs = dict()
+            kwargs: dict = {}
         else:
             modpath, name = tokens
             kwtokens = name.split(":", 1)
             if len(kwtokens) == 1:
                 # no '(' found
-                kwargs = dict()
+                kwargs = {}
             else:
                 name = kwtokens[0]
                 kwargs = _safe_parse_kwargs(kwtokens[1])

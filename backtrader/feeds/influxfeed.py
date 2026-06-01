@@ -17,10 +17,14 @@ Example:
 """
 
 import datetime as dt
+from typing import Any, Iterator, Optional
 
 from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..utils import date2num
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from influxdb import InfluxDBClient as idbclient
@@ -28,23 +32,19 @@ try:
 except Exception:  # pragma: no cover - optional dependency, handled at runtime
     idbclient = None
 
-    class InfluxDBClientError(Exception):
+    class InfluxDBClientError(Exception):  # type: ignore[no-redef]
         """Exception raised for InfluxDB client errors."""
-
-        pass
 
 
 # Time period mapping
-TIMEFRAMES = dict(
-    (
-        (TimeFrame.Seconds, "s"),
-        (TimeFrame.Minutes, "m"),
-        (TimeFrame.Days, "d"),
-        (TimeFrame.Weeks, "w"),
-        (TimeFrame.Months, "m"),
-        (TimeFrame.Years, "y"),
-    )
-)
+TIMEFRAMES = {
+    TimeFrame.Seconds: "s",
+    TimeFrame.Minutes: "m",
+    TimeFrame.Days: "d",
+    TimeFrame.Weeks: "w",
+    TimeFrame.Months: "m",
+    TimeFrame.Years: "y",
+}
 
 
 # backtrader fetches data from InfluxDB
@@ -78,7 +78,7 @@ class InfluxDB(DataBase):
 
     def __init__(self):
         """Initialize the InfluxDB data feed."""
-        self.biter = None
+        self.biter: Optional[Iterator[Any]] = None
         self.ndb = None
 
     def start(self):
@@ -93,7 +93,7 @@ class InfluxDB(DataBase):
                 self.p.host, self.p.port, self.p.username, self.p.password, self.p.database
             )
         except InfluxDBClientError as err:
-            print("Failed to establish connection to InfluxDB: %s" % err)
+            logger.error("Failed to establish connection to InfluxDB: %s", err)
         # Specific time period
         tf = "{multiple}{timeframe}".format(
             multiple=(self.p.compression if self.p.compression else 1),
@@ -108,6 +108,9 @@ class InfluxDB(DataBase):
         # The query could already consider parameters like fromdate and todate
         # to have the database skip them and not the internal code
         # Specific commands needed for database data retrieval
+        # Note: identifiers (field/measurement names) come from this feed's own
+        # configuration params, not external input; InfluxQL has no parameter
+        # binding for identifiers, so .format() is the only option here.
         qstr = (
             'SELECT mean("{open_f}") AS "open", mean("{high_f}") AS "high", '
             'mean("{low_f}") AS "low", mean("{close_f}") AS "close", '
@@ -115,7 +118,7 @@ class InfluxDB(DataBase):
             'FROM "{dataname}" '
             "WHERE time {begin} "
             "GROUP BY time({timeframe}) fill(none)"
-        ).format(
+        ).format(  # nosec B608
             open_f=self.p.open,
             high_f=self.p.high,
             low_f=self.p.low,
@@ -130,12 +133,14 @@ class InfluxDB(DataBase):
         try:
             dbars = list(self.ndb.query(qstr).get_points())
         except InfluxDBClientError as err:
-            print("InfluxDB query failed: %s" % err)
+            logger.error("InfluxDB query failed: %s", err)
         # Iterate data
         self.biter = iter(dbars)
 
     def _load(self):
         # Try to get next bar data, then add to line
+        if self.biter is None:
+            return False
         try:
             bar = next(self.biter)
         except StopIteration:

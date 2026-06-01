@@ -53,7 +53,7 @@ class Trix(Indicator):
         ("_movav", EMA),
     )
 
-    plotinfo = dict(plothlines=[0.0])
+    plotinfo = {"plothlines": [0.0]}
 
     def _plotlabel(self):
         plabels = [self.p.period]
@@ -97,7 +97,7 @@ class Trix(Indicator):
         minperiod = 3 * self.p.period + rocperiod - 2
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(min(minperiod, len(ema3_array))):
             if i < len(larray):
@@ -111,9 +111,12 @@ class Trix(Indicator):
                 else 0.0
             )
 
-            if isinstance(ema3_curr, float) and math.isnan(ema3_curr):
-                larray[i] = float("nan")
-            elif isinstance(ema3_prev, float) and math.isnan(ema3_prev):
+            if (
+                isinstance(ema3_curr, float)
+                and math.isnan(ema3_curr)
+                or isinstance(ema3_prev, float)
+                and math.isnan(ema3_prev)
+            ):
                 larray[i] = float("nan")
             elif ema3_prev != 0:
                 larray[i] = 100.0 * (ema3_curr / ema3_prev - 1.0)
@@ -175,7 +178,7 @@ class TrixSignal(Trix):
         signal_alpha1 = self.signal_alpha1
 
         while len(signal_array) < end:
-            signal_array.append(0.0)
+            signal_array.append(float("nan"))
 
         # Find first valid trix value for seed
         seed_idx = -1

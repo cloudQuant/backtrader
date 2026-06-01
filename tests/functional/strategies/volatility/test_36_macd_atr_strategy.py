@@ -1,20 +1,37 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Test Case: MACD ATR Strategy
+Data Used:
+    Yahoo historical data ``yhoo-1996-2014.txt`` loaded from repository data paths,
+    with bars covering 2005-01-01 through 2014-12-31. The strategy is exercised
+    on a single-symbol OHLC feed of 15-year stock history.
 
-Reference: backtrader-master2/samples/macd-settings/macd-settings.py
-Based on MACD crossover and SMA direction filtering, using ATR dynamic stop loss.
+Strategy Principle:
+    This strategy combines MACD momentum crossovers with a counter-trend SMA
+    direction filter and ATR-based dynamic protection. It opens long positions only
+    when MACD crosses above its signal line while short-term SMA trend is downward,
+    then maintains a trailing stop set at ``atr * atrdist`` below (or above) price.
+
+Strategy Logic:
+    ``MACDATRStrategy.__init__`` creates MACD, CrossOver, ATR, SMA, and SMA
+    direction indicators, then initializes counters/order state. On each bar,
+    ``next`` opens at crossover conditions, then exits when price breaches the active
+    ATR-based stop; the stop is raised in trend direction by max() re-anchoring.
+    ``notify_order`` and ``notify_trade`` update execution counters and win/loss
+    statistics, while ``stop`` prints final run diagnostics. The test function
+    runs both ``runonce=True`` and ``False`` and asserts deterministic backtest
+    metrics.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -193,7 +210,8 @@ class MACDATRStrategy(bt.Strategy):
         )
 
 
-def test_macd_atr_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_macd_atr_strategy(runonce):
     """Test the MACD ATR strategy.
 
     This function runs a backtest of the MACD ATR strategy on Yahoo stock data
@@ -223,7 +241,7 @@ def test_macd_atr_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

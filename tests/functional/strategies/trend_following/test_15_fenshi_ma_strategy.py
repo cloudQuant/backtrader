@@ -6,14 +6,15 @@ Test the TimeLine MA strategy using rebar futures data RB889.csv
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -36,46 +37,6 @@ def resolve_data_path(filename: str) -> Path:
             return candidate
 
     raise FileNotFoundError(f"Data file not found: {filename}")
-
-
-class TimeLine(bt.Indicator):
-    """Time average price line indicator
-
-    Calculate the cumulative average of the day's closing prices as the time average price line
-    """
-    lines = ('day_avg_price',)
-    params = (("day_end_time", (15, 0, 0)),)
-
-    def __init__(self):
-        """Initialize the TimeLine indicator.
-
-        Creates an empty list to store closing prices for the current day.
-        The cumulative average of these prices will be calculated as the
-        time average price line.
-        """
-        self.day_close_price_list = []
-
-    def next(self):
-        """Calculate the time average price for the current bar.
-
-        This method is called for each bar in the data series. It:
-        1. Appends the current bar's close price to the day's price list
-        2. Calculates the cumulative average of all prices in the list
-        3. Resets the price list at the end of the trading day
-
-        The time average price line is useful for intraday strategies as it
-        represents the average entry price of all market participants throughout
-        the day.
-        """
-        self.day_close_price_list.append(self.data.close[0])
-        self.lines.day_avg_price[0] = sum(self.day_close_price_list) / len(self.day_close_price_list)
-
-        self.current_datetime = bt.num2date(self.data.datetime[0])
-        self.current_hour = self.current_datetime.hour
-        self.current_minute = self.current_datetime.minute
-        day_end_hour, day_end_minute, _ = self.p.day_end_time
-        if self.current_hour == day_end_hour and self.current_minute == day_end_minute:
-            self.day_close_price_list = []
 
 
 class TimeLineMaStrategy(bt.Strategy):
@@ -112,7 +73,7 @@ class TimeLineMaStrategy(bt.Strategy):
         self.buy_count = 0
         self.sell_count = 0
         # Time average price line indicator
-        self.day_avg_price = TimeLine(self.datas[0])
+        self.day_avg_price = bt.indicators.TimeLine(self.datas[0])
         self.ma_value = bt.indicators.SMA(self.datas[0].close, period=self.p.ma_period)
         # Trading state
         self.marketposition = 0
@@ -302,11 +263,12 @@ def load_rb889_data(filename: str = "RB889.csv") -> pd.DataFrame:
     df = df.astype("float")
     df = df[(df["open"] > 0) & (df['close'] > 0)]
     # Shorten date range to speed up testing
-    df = df[df.index >= '2019-01-01']
+    df = df[df.index >= '2020-06-01']
     return df
 
 
-def test_timeline_ma_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_timeline_ma_strategy(runonce):
     """Test time line moving average strategy
 
     Run backtest using rebar futures data RB889.csv
@@ -334,14 +296,17 @@ def test_timeline_ma_strategy():
 
     # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="my_sharpe",
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -365,15 +330,17 @@ def test_timeline_ma_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # Assert test results (exact values) - based on data after 2019-01-01
-    assert strat.bar_num == 41306, f"Expected bar_num=41306, got {strat.bar_num}"
-    assert strat.buy_count == 337, f"Expected buy_count=337, got {strat.buy_count}"
-    assert strat.sell_count == 240, f"Expected sell_count=240, got {strat.sell_count}"
-    assert total_trades == 577, f"Expected total_trades=577, got {total_trades}"
+    # Assert test results (exact values) - based on data after 2020-06-01
+    assert strat.bar_num == 19481, f"Expected bar_num=19481, got {strat.bar_num}"
+    assert strat.buy_count == 162, f"Expected buy_count=162, got {strat.buy_count}"
+    assert strat.sell_count == 119, f"Expected sell_count=119, got {strat.sell_count}"
+    assert total_trades == 281, f"Expected total_trades=281, got {total_trades}"
+    assert total_trades > 0, "trade count must be > 0"
     # assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=0.691750545190999, got {sharpe_ratio}"
-    assert abs(annual_return - (0.04084785450929118)) < 1e-6, f"Expected annual_return=0.04084785450929118, got {annual_return}"
-    assert abs(max_drawdown - 0.17075848708181077) < 1e-6, f"Expected max_drawdown=0.17075848708181077, got {max_drawdown}"
-    assert abs(final_value - 1105093.7719086385) < 0.01, f"Expected final_value=1105093.7719086385, got {final_value}"
+    assert abs(sharpe_ratio - 0.19464996569754328) < 1e-6, f"Expected sharpe_ratio=0.195, got {sharpe_ratio}"
+    assert abs(annual_return - 0.0180465724397756) < 1e-6, f"Expected annual_return=0.0180465724397756, got {annual_return}"
+    assert abs(max_drawdown - 0.17075848708181204) < 1e-6, f"Expected max_drawdown=0.17075848708181204, got {max_drawdown}"
+    assert abs(final_value - 1020651.1042944718) < 0.01, f"Expected final_value=1020651.1042944718, got {final_value}"
 
     print("\nAll tests passed!")
 

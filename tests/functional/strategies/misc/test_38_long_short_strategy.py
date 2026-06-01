@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -48,7 +49,7 @@ class LongShortStrategy(bt.Strategy):
     """Long Short Strategy.
 
     This strategy goes long when price crosses above SMA, and goes short
-    when price crosses below SMA.
+    when price crosses below bt.indicators.SMA.
 
     Attributes:
         orderid: ID of the current pending order.
@@ -70,7 +71,7 @@ class LongShortStrategy(bt.Strategy):
         """Initialize the Long Short Strategy.
 
         Sets up the Simple Moving Average (SMA) indicator and crossover
-        signal to detect when price crosses above or below the SMA.
+        signal to detect when price crosses above or below the bt.indicators.SMA.
         Initializes all tracking variables for trade statistics.
         """
         self.orderid = None
@@ -167,7 +168,8 @@ class LongShortStrategy(bt.Strategy):
         )
 
 
-def test_long_short_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_long_short_strategy(runonce):
     """Test the Long Short Strategy.
 
     This test function runs a backtest of the LongShortStrategy with
@@ -201,7 +203,7 @@ def test_long_short_strategy():
     cerebro.addanalyzer(bt.analyzers.SQN, _name="my_sqn")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

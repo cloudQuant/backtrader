@@ -51,8 +51,11 @@ import functools
 import math
 import operator
 
+from ..utils.log_message import get_logger
 from ..utils.py3 import map, range
 from . import Indicator
+
+logger = get_logger(__name__)
 
 
 class PeriodN(Indicator):
@@ -96,7 +99,18 @@ class OperationN(PeriodN):
         """
         # CRITICAL FIX: Use proper line assignment instead of direct array manipulation
         # The line[0] assignment will handle the buffer correctly
-        value = self.func(self.data.get(size=self.p.period))
+        window = self.data.get(size=self.p.period)
+        if len(window) < self.p.period:
+            try:
+                window = [self.data[i] for i in range(-self.p.period + 1, 1)]
+            except (IndexError, TypeError):
+                window = ()
+
+        if len(window) < self.p.period:
+            self.lines[0][0] = float("nan")
+            return
+
+        value = self.func(window)
         self.lines[0][0] = value
 
     def once(self, start, end):
@@ -146,6 +160,7 @@ class OperationN(PeriodN):
                     # Not enough data yet
                     dst[i] = float("nan")
         except Exception:
+            logger.debug("OperationN.once() failed, falling back to once_via_next", exc_info=True)
             # Fallback to once_via_next if once() fails
             super().once_via_next(start, end)
 
@@ -529,7 +544,7 @@ class Average(PeriodN):
 
         # Ensure destination array is large enough
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(float("nan"))
 
         for i in range(start, end):
             if i >= period - 1:
@@ -609,7 +624,7 @@ class ExponentialSmoothing(Average):
 
         # CRITICAL FIX: Ensure array is properly sized
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # CRITICAL FIX: Pre-fill warmup period with NaN to match expected behavior
         # This prevents invalid comparisons during prenext when strategy calls next()
@@ -633,7 +648,7 @@ class ExponentialSmoothing(Average):
                     prev = sum(seed_data) / len(seed_data)
 
         # Fallback: use first data point if seed calculation failed
-        if prev is None or prev <= 0.0 or (isinstance(prev, float) and math.isnan(prev)):
+        if prev is None or (isinstance(prev, float) and math.isnan(prev)):
             if len(darray) > 0:
                 prev = float(darray[0])
             else:
@@ -661,6 +676,32 @@ class ExponentialSmoothing(Average):
                 larray[i] = prev
             elif i >= len(darray):
                 break
+
+
+class _Alpha1Line(Indicator):
+    """Helper indicator to compute 1 - alpha dynamically.
+
+    Used by ExponentialSmoothingDynamic when alpha is a LineBuffer.
+    """
+
+    lines = ("alpha1",)
+    params = (("alpha_source", None),)
+
+    def __init__(self):
+        """Initialize with alpha source reference."""
+        self.alpha_source = self.p.alpha_source
+        super().__init__()
+
+    def next(self):
+        """Calculate 1 - alpha for current bar."""
+        self.lines.alpha1[0] = 1.0 - self.alpha_source[0]
+
+    def once(self, start, end):
+        """Calculate 1 - alpha in runonce mode."""
+        alpha_array = self.alpha_source.array
+        alpha1_array = self.lines.alpha1.array
+        for i in range(start, end):
+            alpha1_array[i] = 1.0 - alpha_array[i]
 
 
 # Dynamic exponential moving average
@@ -694,86 +735,44 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         # The parent class sets self.alpha to a float value, but ExponentialSmoothingDynamic
         # expects it to be a line-like object with _minperiod and array access
 
-        if hasattr(self.alpha, "_minperiod"):
+        self._alpha_is_line = hasattr(self.alpha, "array")
+
+        if self._alpha_is_line:
             # alpha is a LineBuffer or similar object
             minperioddiff = max(0, self.alpha._minperiod - self.p.period)
             self.lines[0].incminperiod(minperioddiff)
 
-            # Set up alpha1 as a line that computes 1 - alpha
-            from . import Indicator
-
-            class Alpha1Line(Indicator):
-                """Helper class to compute 1 - alpha dynamically."""
-
-                lines = ("alpha1",)
-                params = (("alpha_source", None),)
-
-                def __init__(self):
-                    """Initialize with alpha source reference."""
-                    self.alpha_source = self.p.alpha_source
-                    super().__init__()
-
-                def next(self):
-                    """Calculate 1 - alpha for current bar."""
-                    self.lines.alpha1[0] = 1.0 - self.alpha_source[0]
-
-                def once(self, start, end):
-                    """Calculate 1 - alpha in runonce mode."""
-                    alpha_array = self.alpha_source.array
-                    alpha1_array = self.lines.alpha1.array
-                    for i in range(start, end):
-                        alpha1_array[i] = 1.0 - alpha_array[i]
-
-            self.alpha1 = Alpha1Line(alpha_source=self.alpha)
+            self.alpha1 = _Alpha1Line(alpha_source=self.alpha)
 
         else:
-            # alpha is a float value - convert it to work with dynamic smoothing
-            # In this case, we can't do true dynamic smoothing, so we fall back to static
-            # print(f"WARNING: ExponentialSmoothingDynamic received float alpha={self.alpha}, falling back to static smoothing")  # Removed for performance
+            # alpha is a float value - fall back to static smoothing
             pass
-            # No additional minperiod adjustment needed for static alpha
-            # self.alpha1 is already set in parent class as a float
 
     def next(self):
         """Calculate dynamic EMA for the current bar.
 
         Handles both float and LineBuffer alpha sources.
         """
-        # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
-        if hasattr(self.alpha, "__getitem__"):
-            # alpha is a LineBuffer - use array access
-            self.lines[0][0] = self.lines[0][-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
-        else:
-            # alpha is a float - use regular arithmetic (fall back to parent behavior)
-            self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
+        alpha = self.alpha[0] if self._alpha_is_line else self.alpha
+        alpha1 = self.alpha1[0] if self._alpha_is_line else self.alpha1
+        self.lines[0][0] = self.lines[0][-1] * alpha1 + self.data[0] * alpha
 
     def once(self, start, end):
         """Calculate dynamic EMA in runonce mode.
 
         Handles both float and LineBuffer alpha sources.
         """
-        # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
         darray = self.data.array
-        larray = self.line.array
+        larray = self.lines[0].array
 
-        if hasattr(self.alpha, "array"):
-            # alpha is a LineBuffer - use array access
-            alpha = self.alpha.array
-            alpha1 = self.alpha1.array
+        alpha = self.alpha.array if self._alpha_is_line else self.alpha
+        alpha1 = self.alpha1.array if self._alpha_is_line else self.alpha1
 
-            # Seed value from SMA calculated with the call to oncestart
-            prev = larray[start - 1]
-            for i in range(start, end):
-                larray[i] = prev = prev * alpha1[i] + darray[i] * alpha[i]
-        else:
-            # alpha is a float - use regular arithmetic (fall back to parent behavior)
-            alpha = self.alpha
-            alpha1 = self.alpha1
-
-            # Seed value from SMA calculated with the call to oncestart
-            prev = larray[start - 1]
-            for i in range(start, end):
-                larray[i] = prev = prev * alpha1 + darray[i] * alpha
+        prev = larray[start - 1]
+        for i in range(start, end):
+            alpha_i = alpha[i] if self._alpha_is_line else alpha
+            alpha1_i = alpha1[i] if self._alpha_is_line else alpha1
+            larray[i] = prev = prev * alpha1_i + darray[i] * alpha_i
 
 
 # Calculate weighted moving average
@@ -795,9 +794,9 @@ class WeightedAverage(PeriodN):
 
     alias = ("AverageWeighted",)
     lines = ("av",)
-    params = (
+    params: tuple = (
         ("coef", 1.0),
-        ("weights", tuple()),
+        ("weights", ()),
     )
 
     def __init__(self):

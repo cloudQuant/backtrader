@@ -293,7 +293,7 @@ What actually happens (include error messages).
 
 ## Code Sample
 
-```python
+```bash
 import backtrader as bt
 
 # Minimal reproducible example

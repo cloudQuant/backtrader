@@ -57,7 +57,7 @@ Backtrader 中文文档
    .. grid-item-card:: 🌐 实盘就绪
       :class-card: sd-border-0 sd-shadow-sm
 
-      支持盈透证券 (IB)、CCXT (加密货币)、
+      支持盈透证券 (IB)、
       CTP (中国期货) — 回测到实盘无缝切换。
 
    .. grid-item-card:: 🔧 高度可扩展
@@ -178,7 +178,6 @@ Backtrader 中文文档
    advanced/architecture/overview_zh
    advanced/architecture/line-system_zh
    advanced/architecture/phase-system_zh
-   advanced/live-trading/ccxt-guide_zh
    user-guide/data-feeds/live/ctp-live-trading_zh
 
 .. toctree::
@@ -190,18 +189,20 @@ Backtrader 中文文档
    tutorials/examples/strategies_zh
    tutorials/examples/cookbook_zh
 
-.. toctree::
-   :maxdepth: 1
-   :caption: API 参考
+.. only:: not offline
 
-   api/core/backtrader
-   api/analyzers/backtrader.analyzers
-   api/feeds/backtrader.feeds
-   api/indicators/backtrader.indicators
-   api/brokers/backtrader.brokers
-   api/observers/backtrader.observers
-   api/sizers/backtrader.sizers
-   api/stores/backtrader.stores
+   .. toctree::
+      :maxdepth: 1
+      :caption: API 参考
+
+      api/core/backtrader
+      api/analyzers/backtrader.analyzers
+      api/feeds/backtrader.feeds
+      api/indicators/backtrader.indicators
+      api/brokers/backtrader.brokers
+      api/observers/backtrader.observers
+      api/sizers/backtrader.sizers
+      api/stores/backtrader.stores
 
 .. toctree::
    :maxdepth: 2

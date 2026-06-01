@@ -42,13 +42,14 @@ class OscillatorMixIn(Indicator):
       - osc = self.data - XXX.lines[0]
     """
 
-    plotlines = dict(_0=dict(_name="osc"))
+    plotlines = {"_0": {"_name": "osc"}}
 
     def _plotinit(self):
         try:
             lname = self.lines._getlinealias(0)
             self.plotlines._0._name = lname + "_osc"
         except AttributeError:
+            # No line alias available; keep the default plot label.
             pass
 
     def __init__(self):
@@ -81,13 +82,14 @@ class Oscillator(Indicator):
     lines = ("osc",)
 
     # Have a default value which can be later modified if needed
-    plotlines = dict(_0=dict(_name="osc"))
+    plotlines = {"_0": {"_name": "osc"}}
 
     def _plotinit(self):
         try:
             lname = self.dataosc._getlinealias(0)
             self.plotlines._0._name = lname + "_osc"
         except AttributeError:
+            # No line alias available; keep the default plot label.
             pass
 
     def __init__(self):
@@ -127,9 +129,11 @@ for movav in MovingAverage._movavs[0:]:
         # It's a tuple/list of line names
         linename = movav.lines[0]
     else:
-        # Fallback to first line name or class name
+        # Fallback to first line name or class name. The lambda is invoked
+        # immediately within this loop iteration (no late binding), so B023 is
+        # a false positive here.
         linename = (
-            getattr(movav.lines, "_getlinealias", lambda x: movav.__name__.lower())(0)
+            getattr(movav.lines, "_getlinealias", lambda x: movav.__name__.lower())(0)  # noqa: B023
             if hasattr(movav.lines, "_getlinealias")
             else movav.__name__.lower()
         )

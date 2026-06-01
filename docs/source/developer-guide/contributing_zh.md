@@ -293,7 +293,7 @@ Related to #456
 
 ## 代码示例
 
-```python
+```bash
 import backtrader as bt
 
 # 最小可复现代码

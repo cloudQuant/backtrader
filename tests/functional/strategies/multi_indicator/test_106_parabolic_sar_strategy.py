@@ -30,10 +30,11 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -227,7 +228,8 @@ class ParabolicSarStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_parabolic_sar_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_parabolic_sar_strategy(runonce):
     """Test the Parabolic SAR strategy implementation and performance.
 
     This test function validates the ParabolicSarStrategy by running a complete
@@ -286,7 +288,7 @@ def test_parabolic_sar_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
     # Run backtest
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract performance metrics

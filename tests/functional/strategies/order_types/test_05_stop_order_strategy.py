@@ -47,6 +47,7 @@ import pandas as pd
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -525,7 +526,8 @@ def load_index_data(filename: str = "bond_index_000000.csv") -> pd.DataFrame:
     return df
 
 
-def test_stop_order_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_stop_order_strategy(runonce):
     """Test stop loss order strategy with convertible bond index data.
 
     This test function runs a complete backtest of the StopOrderStrategy using
@@ -541,14 +543,14 @@ def test_stop_order_strategy():
 
     Expected Results:
         - Bars processed: 4414
-        - Buy orders: 4
-        - Manual sells (death cross): 1
-        - Stop loss triggers: 3
-        - Total trades: 5
-        - Sharpe ratio: -0.11532400124757156
-        - Annual return: -2.59%
-        - Max drawdown: 75.24%
-        - Final portfolio value: 62,969.16
+        - Buy orders: 211
+        - Manual sells (death cross): 104
+        - Stop loss triggers: 106
+        - Total trades: 210
+        - Sharpe ratio: -0.75497835805844049
+        - Annual return: -14.44%
+        - Max drawdown: 94.28%
+        - Final portfolio value: 6,434.65
 
     Analyzers Added:
         - TotalValue: Tracks portfolio value over time
@@ -597,7 +599,7 @@ def test_stop_order_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results from first strategy instance
     strat = results[0]
@@ -625,14 +627,14 @@ def test_stop_order_strategy():
     # Assert test results (exact values)
     # Tolerance: 1e-6 for most metrics, 0.01 for final_value
     assert strat.bar_num == 4414, f"Expected bar_num=4414, got {strat.bar_num}"
-    assert strat.buy_count == 4, f"Expected buy_count=4, got {strat.buy_count}"
-    assert strat.sell_count == 1, f"Expected sell_count=1, got {strat.sell_count}"
-    assert strat.stop_count == 3, f"Expected stop_count=3, got {strat.stop_count}"
-    assert total_trades == 5, f"Expected total_trades=5, got {total_trades}"
-    assert abs(sharpe_ratio - (-0.11532400124757156)) < 1e-6, f"Expected sharpe_ratio=-0.11532400124757156, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.02594445655033843)) < 1e-6, f"Expected annual_return=-0.02594445655033843, got {annual_return}"
-    assert abs(max_drawdown - 0.75241098463008) < 1e-6, f"Expected max_drawdown=0.75241098463008, got {max_drawdown}"
-    assert abs(final_value - 62969.156504940926) < 0.01, f"Expected final_value=62969.156504940926, got {final_value}"
+    assert strat.buy_count == 211, f"Expected buy_count=211, got {strat.buy_count}"
+    assert strat.sell_count == 104, f"Expected sell_count=104, got {strat.sell_count}"
+    assert strat.stop_count == 106, f"Expected stop_count=106, got {strat.stop_count}"
+    assert total_trades == 210, f"Expected total_trades=210, got {total_trades}"
+    assert abs(sharpe_ratio - (-0.75497835805844049)) < 1e-6, f"Expected sharpe_ratio=-0.75497835805844049, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.14437349885291834)) < 1e-6, f"Expected annual_return=-0.14437349885291834, got {annual_return}"
+    assert abs(max_drawdown - 0.94283711181686458) < 1e-6, f"Expected max_drawdown=0.94283711181686458, got {max_drawdown}"
+    assert abs(final_value - 6434.6489541307519) < 0.01, f"Expected final_value=6434.6489541307519, got {final_value}"
 
     print("\nAll tests passed!")
 

@@ -31,26 +31,26 @@ pip install -e .
 
 # 6. 验证安装
 
-python -m pytest tests/new_functions/ -v
+python -c "import backtrader as bt; print(bt.__version__)"
+make test-fast        # 快速回归（约 3.5 分钟）
 
-```bash
+```
 
 ### 开发命令速查
 
 ```bash
-make test              # 运行测试
-
+make test-fast         # 快速开发回路（~3.5min）：全部非策略测试 + 最快 ~35% 策略测试
+make test-strategies   # 仅重型策略回归套件（~9min，多时间框架时钟回归网）
+make test-slow         # 仅 test-fast 跳过的最慢 ~65% 策略测试
+make test-all          # 全量并行（~10min）
 make test-coverage     # 测试 + 覆盖率
-
-make format            # 代码格式化 (Black)
-
-make lint              # 代码检查 (Pylint)
-
+make format            # 代码格式化 (Black, line-length 100)
+make format-check      # 仅检查格式
+make lint              # ruff / pylint 检查
+make type-check        # mypy 类型检查（非阻塞）
 make quality-check     # 全部质量检查
-
-make docs              # 生成文档
-
-```bash
+make docs              # 生成文档（en + zh）
+```
 
 - --
 
@@ -64,7 +64,8 @@ make docs              # 生成文档
 
 | `master` | 稳定版本，仅从 dev 合并经过验证的代码 |
 
-- *工作流程**:
+**工作流程**:
+
 1. 从 `dev` 创建功能分支: `git checkout -b feature/your-feature dev`
 2. 开发、测试、提交
 3. 向 `dev` 提交 Pull Request
@@ -105,21 +106,21 @@ class BadIndicator(bt.Indicator):
         print(self.p.period)  # 会失败!
         super().__init__()
 
-```bash
+```
 
 ### 提交信息规范
 
 使用 [Conventional Commits](<https://www.conventionalcommits.org/):>
 
 ```bash
-feat: add WebSocket health check to CCXTFeed
-fix: handle order-not-found in CCXTBroker.cancel()
+feat: add live tick aggregation to BtApiFeed
+fix: keep BtApiBroker alive before first live bar
 perf: cache broker reference in total_value.next()
-docs: update CCXT live trading guide
-test: add error handling tests for CCXTBroker
+docs: update CTP live trading guide
+test: add regression coverage for live broker startup
 refactor: extract retry logic to _retry_api_call()
 
-```bash
+```
 
 - --
 
@@ -136,41 +137,60 @@ refactor: extract retry logic to _retry_api_call()
 ```python
 import pytest
 
-@pytest.mark.priority_p1
-def test_3_1_UT_001_sma_calculation(sample_data, cerebro_engine):
-    """Test 3.1-UT-001: Verify SMA indicator calculates correctly.
 
-    Priority: P1 - High
-    """
-
-# 使用 fixtures，不要手动创建
+def test_sma_calculation(sample_data, cerebro_engine):
+    """Verify the SMA indicator calculates correctly (use fixtures, not manual setup)."""
     cerebro_engine.adddata(sample_data)
     results = cerebro_engine.run()
     assert len(results) > 0
 
+
+@pytest.mark.slow
+def test_full_year_multi_timeframe_regression(sample_data, cerebro_engine):
+    """Heavy end-to-end run; tagged `slow` so `make test-fast` can skip it."""
+    ...
+```
+
+### 测试分级（重要）
+
+策略回归套件很大，按耗时分级运行（详见 `Makefile` 与 `README`）：
+
+| 命令 | 范围 | 大致耗时 | 用途 |
+| --- | --- | --- | --- |
+| `make test-fast` | 全部非策略测试 + 最快 ~35% 策略测试 | ~3.5min | 日常开发反馈 |
+| `make test-strategies` | 全部策略回归（多时间框架时钟回归网） | ~9min | 改动 `cerebro`/`strategy`/line 系统/`_periodset` 后必跑 |
+| `make test-slow` | test-fast 跳过的最慢 ~65% 策略 | — | 补充验证 |
+| `make test-all` | 全量并行 | ~10min | 提交/发版前 |
+
+慢/快分级由 `tests/functional/strategies/.test_durations.json` 的时长百分位决定，
+阈值百分位用环境变量 `BT_SLOW_PERCENTILE`（默认 35）调整；新增策略默认归入快速档。
+
 ```bash
+# 直接用 pytest 时
+pytest tests -n 8 -q                 # 全量并行
+pytest tests -n 8 -m "not slow"      # 跳过慢速策略
+pytest tests/unit/brokers/test_btapibroker.py -v   # 单文件
 
-### 运行测试
+# 切换到 pip 安装的 backtrader 而非工作区源码
+BACKTRADER_USE_INSTALLED=1 pytest tests -q
+# 或：pytest --use-installed-backtrader tests -q
+```
 
-```bash
+### 日志规范
 
-# 快速烟雾测试 (P0 only)
+框架代码**不要直接 `import logging`**，统一走 `backtrader.utils.log_message`：
 
-pytest tests/ -v -m priority_p0
+```python
+from backtrader.utils.log_message import get_logger
+logger = get_logger(__name__)   # -> "backtrader.<module>"
+```
 
-# 预提交验证 (P0 + P1)
+- 默认静默（库导入时只挂 `NullHandler`）；用户用 `bt.configure_logging(...)` 开启。
+- 禁止静默吞异常：`except ...: pass` 必须带解释性注释，或落 `logger.debug/warning(..., exc_info=True)`。
+- 热路径（`next`/`once`/`__len__`/`__getattribute__` 等）加日志要用
+  `if logger.isEnabledFor(logging.DEBUG):` 守护，避免格式化开销。
 
-pytest tests/ -v -m "priority_p0 or priority_p1"
-
-# 完整测试
-
-pytest tests/ -v -n 4
-
-# 单个测试文件
-
-pytest tests/new_functions/test_ccxt_error_handling.py -v
-
-```bash
+完整规范见 `docs/LOGGING_GUIDELINES.md`。
 
 - --
 
@@ -209,7 +229,7 @@ pytest tests/new_functions/test_ccxt_error_handling.py -v
 
 - 列出可能受影响的模块
 
-```bash
+```
 
 ### 3. 审查标准
 
@@ -250,8 +270,6 @@ pytest tests/new_functions/test_ccxt_error_handling.py -v
 
 |------|------|----------|
 
-| `backtrader/ccxt/` | CCXT 实盘交易模块 | 🔥 高 |
-
 | `backtrader/brokers/` | Broker 实现 | 🔥 高 |
 
 | `backtrader/feeds/` | 数据源 | 中 |
@@ -260,7 +278,7 @@ pytest tests/new_functions/test_ccxt_error_handling.py -v
 
 | `backtrader/analyzers/` | 分析器 | 低 |
 
-| `tests/new_functions/` | 新功能测试 | 🔥 高 |
+| `tests/functional/strategies/` | 策略回归套件（最大、分级） | 🔥 高 |
 
 | `docs/` | 文档 | 中 |
 

@@ -16,6 +16,9 @@ import collections
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = ["LogReturnsRolling"]
 
@@ -165,12 +168,17 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         """
         # Calculate the return
         super().next()
-        # print(self._value,self._values[0])
         # When the strategy is running, if there are too many losses, self._value / self._values[0] might be 0, avoid this situation
         try:
-            self.rets[self.dtkey] = math.log(self._value / self._values[0])
-        except Exception:
-            # print(e)  # Removed for performance
-            self.rets[self.dtkey] = 0
-            # print("When calculating log returns, the corresponding value is less than 0")
+            start_value = self._values[0]
+            ratio = self._value / start_value
+            if isinstance(ratio, complex) or not math.isfinite(ratio) or ratio <= 0:
+                raise ValueError(f"invalid log return ratio: {ratio}")
+            log_return = math.log(ratio)
+            if not math.isfinite(log_return):
+                raise ValueError(f"invalid log return value: {log_return}")
+            self.rets[self.dtkey] = log_return
+        except (TypeError, ValueError, ZeroDivisionError, OverflowError) as e:
+            logger.debug("Log return calculation failed: %s", e)
+            self.rets[self.dtkey] = 0.0
         self._lastvalue = self._value  # keep last value

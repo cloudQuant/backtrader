@@ -21,13 +21,14 @@ Example:
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -385,7 +386,8 @@ def load_etf_data(filename: str) -> pd.DataFrame:
     return df
 
 
-def test_etf_rotation_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_etf_rotation_strategy(runonce):
     """Test ETF rotation strategy with historical data.
 
     This end-to-end test loads historical data for SSE 50 ETF and ChiNext ETF,
@@ -446,7 +448,7 @@ def test_etf_rotation_strategy():
 
     # Run backtest
     print("\nStarting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]

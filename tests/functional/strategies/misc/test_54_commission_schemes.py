@@ -7,6 +7,23 @@ average crossover strategy. It verifies that commission calculations work correc
 across different commission types (percentage-based, fixed, etc.) and ensures that
 the broker properly tracks and deducts commissions from trading operations.
 
+Data Used:
+    Historical OHLCV data from Backtrader samples (default ``dax.csv`` style
+    fixture), loaded through ``resolve_data_path`` to compare commission behavior
+    across broker settings.
+
+Strategy Principle:
+    A dual-SMA crossover generates entry and exit signals.
+    The module validates that broker commission models charge expected fees under
+    percent, fixed, and futures-style configurations while trade outcomes remain
+    consistent.
+
+Strategy Logic:
+    The strategy builds fast/slow moving averages and a crossover indicator; on a
+    bullish crossover it opens a buy, on a bearish crossover it closes/reverses.
+    The test parametrizes multiple brokers, runs identical trading logic under each,
+    asserts non-zero activity and checks broker-level commission totals and metrics.
+
 Reference source: backtrader-master2/samples/commission-schemes/commission-schemes.py
 """
 from __future__ import (absolute_import, division, print_function,
@@ -15,6 +32,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -117,7 +135,8 @@ class CommissionStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_commission_schemes():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_commission_schemes(runonce):
     """Test different commission schemes using a dual moving average crossover strategy.
 
     This test function sets up a complete backtesting environment with percentage-based
@@ -165,7 +184,7 @@ def test_commission_schemes():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

@@ -5,10 +5,26 @@ This module provides base classes for Store implementations, which manage
 connections to external data sources and brokers. It includes singleton
 pattern support and parameter management for store classes.
 
+.. note:: **Two Store hierarchies coexist in backtrader**
+
+   1. **Legacy ``Store``** (this module) — singleton-based, ``getbroker()`` is
+      a ``@classmethod`` that binds ``broker._store = cls`` (class-level),
+      ``start(self, data=None, broker=None)``.  Used by legacy stores
+      (IB, Oanda, VChart, etc.).
+
+   2. **``LiveStoreBase``** (``backtrader/stores/livestore.py``) — ABC-based,
+      ``getbroker()`` is an instance method, ``start(self, data=None,
+      broker=None)``.  ``BtApiStore`` inherits from this class.
+
+   The two hierarchies are **independent** — ``BtApiStore`` does *not*
+   inherit from ``Store``.  New store implementations should prefer
+   ``LiveStoreBase``.  This legacy ``Store`` is preserved for backward
+   compatibility with existing community stores.
+
 Classes:
     SingletonMixin: Mixin class to implement singleton pattern.
     StoreParams: Parameter management for Store classes.
-    Store: Base class for all Store implementations.
+    Store: Base class for all Store implementations (legacy).
 
 Example:
     Using a store to get data and broker:
@@ -18,6 +34,7 @@ Example:
 """
 
 import collections
+from typing import Any, Optional
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
@@ -30,6 +47,11 @@ class SingletonMixin:
     This mixin ensures only one instance of the class exists. The instance
     is created on first instantiation and reused on subsequent calls.
     """
+
+    # Dynamic singleton bookkeeping (set in __new__). Declared for typing only;
+    # no default value so `hasattr(cls, "_singleton")` stays False until created.
+    _singleton: "SingletonMixin"
+    _initialized: bool
 
     def __new__(cls, *args, **kwargs):
         """Create and return the singleton instance.
@@ -124,8 +146,8 @@ class Store(SingletonMixin, StoreParams):
         self.broker = None
         self._env = None
         self._cerebro = None
-        self.datas = None
-        self.notifs = None
+        self.datas: Optional[list] = None
+        self.notifs: Optional[collections.deque] = None
 
     def getdata(self, *args, **kwargs):
         """Returns ``DataCls`` with args, kwargs"""
@@ -141,8 +163,8 @@ class Store(SingletonMixin, StoreParams):
         broker._store = cls
         return broker
 
-    BrokerCls = None  # broker class will autoregister
-    DataCls = None  # data class will auto register
+    BrokerCls: Any = None  # broker class will autoregister
+    DataCls: Any = None  # data class will auto register
 
     # Start
     def start(self, data=None, broker=None):
@@ -160,11 +182,13 @@ class Store(SingletonMixin, StoreParams):
         if not self._started:
             self._started = True
             self.notifs = collections.deque()
-            self.datas = list()
+            self.datas = []
             self.broker = None
         # If data is not None
         if data is not None:
             self._cerebro = self._env = data._env
+            if self.datas is None:  # defensive: start() initializes this
+                self.datas = []
             self.datas.append(data)
             # If self.broker is not None
             if self.broker is not None:
@@ -191,10 +215,14 @@ class Store(SingletonMixin, StoreParams):
             *args: Additional positional arguments to store with the message.
             **kwargs: Additional keyword arguments to store with the message.
         """
+        if self.notifs is None:
+            self.notifs = collections.deque()
         self.notifs.append((msg, args, kwargs))
 
     # Get notification message
     def get_notifications(self):
         """Return the pending "store" notifications"""
+        if self.notifs is None:
+            return []
         self.notifs.append(None)  # put a mark / threads could still append
-        return [x for x in iter(self.notifs.popleft, None)]
+        return list(iter(self.notifs.popleft, None))

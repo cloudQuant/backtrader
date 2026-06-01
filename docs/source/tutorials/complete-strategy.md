@@ -1810,5 +1810,4 @@ Remember: There is no holy grail strategy. The key is continuous learning and im
 - [Quantitative Trading Best Practices](<https://github.com/quantopian/zipline)>
 
 - --
-
 - Last updated: 2026-03-01*

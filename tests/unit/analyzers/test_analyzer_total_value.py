@@ -17,6 +17,8 @@ Example:
 """
 
 import backtrader as bt
+import pytest
+from unittest.mock import MagicMock, patch
 
 import testcommon
 
@@ -101,6 +103,26 @@ def test_run(main=False):
             # All values should be positive
             for dt, value in analysis.items():
                 assert value > 0, f"Portfolio value {value} should be positive"
+
+
+def _build_total_value_analyzer(value):
+    analyzer = bt.analyzers.TotalValue.__new__(bt.analyzers.TotalValue)
+    analyzer.rets = {}
+    analyzer._broker = MagicMock()
+    analyzer._broker.getvalue.return_value = value
+    analyzer.datas = [MagicMock()]
+    analyzer.datas[0].datetime.datetime.return_value = "2021-01-01"
+    return analyzer
+
+
+@pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0), float("nan")])
+def test_totalvalue_invalid_broker_value_degrades_to_zero(value):
+    analyzer = _build_total_value_analyzer(value)
+
+    with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+        analyzer.next()
+
+    assert analyzer.rets["2021-01-01"] == 0.0
 
 
 if __name__ == "__main__":

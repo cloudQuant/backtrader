@@ -12,10 +12,8 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   backtrader.btrun
    backtrader.mixins
    backtrader.signals
-   backtrader.tests
 
 Submodules
 ----------

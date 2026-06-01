@@ -282,19 +282,19 @@ class _BaseResampler(ParameterizedBase):
             # Ticks is already the lowest level
             return self.bar.isopen()
         # If timeframe is less than day, call _barover_subdays(data)
-        elif tframe < TimeFrame.Days:
+        if tframe < TimeFrame.Days:
             return self._barover_subdays(data)
         # If timeframe equals day, call _barover_days(data)
-        elif tframe == TimeFrame.Days:
+        if tframe == TimeFrame.Days:
             return self._barover_days(data)
         # If timeframe equals week, call _barover_weeks(data)
-        elif tframe == TimeFrame.Weeks:
+        if tframe == TimeFrame.Weeks:
             return self._barover_weeks(data)
         # If timeframe equals month, call _barover_months(data)
-        elif tframe == TimeFrame.Months:
+        if tframe == TimeFrame.Months:
             return self._barover_months(data)
         # If timeframe equals year, call _barover_years(data)
-        elif tframe == TimeFrame.Years:
+        if tframe == TimeFrame.Years:
             return self._barover_years(data)
 
     # Set session end time
@@ -353,8 +353,7 @@ class _BaseResampler(ParameterizedBase):
             # If data's week number is greater than bar's week number, return True, otherwise return False
             return bar_yearweek > yearweek
         # If data's _calendar is not None, call last_weekday
-        else:
-            return data._calendar.last_weekday(data.datetime.date())
+        return data._calendar.last_weekday(data.datetime.date())
 
     # Check months
     def _barover_months(self, data):
@@ -454,7 +453,7 @@ class _BaseResampler(ParameterizedBase):
         deliver the already stored data
         """
         if not self.bar.isopen():
-            return
+            return None
 
         return self(data, fromcheck=True, forcedata=_forcedata)
 
@@ -514,7 +513,7 @@ class _BaseResampler(ParameterizedBase):
 
         # Code overriden by eoscheck
         # This code will not run
-        if False and self.p.sessionend:
+        if False and self.p.sessionend:  # noqa: SIM223  # intentionally dead code
             # Days scenario - get datetime to compare in output timezone
             # because p.sessionend is expected in output timezone
             bdtime = data.datetime.datetime()
@@ -711,10 +710,7 @@ class Resampler(_BaseResampler):
                 tframe = self.p.timeframe
                 if tframe == TimeFrame.Ticks:  # Ticks is already the lowest
                     dodeliver = True
-                elif tframe == TimeFrame.Minutes:
-                    dtnum = self._calcadjtime(greater=True)
-                    dodeliver = dtnum <= forcedata.datetime[0]
-                elif tframe == TimeFrame.Days:
+                elif tframe == TimeFrame.Minutes or tframe == TimeFrame.Days:
                     dtnum = self._calcadjtime(greater=True)
                     dodeliver = dtnum <= forcedata.datetime[0]
             else:

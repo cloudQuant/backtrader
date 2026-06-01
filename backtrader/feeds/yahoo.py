@@ -20,6 +20,9 @@ from datetime import date, datetime
 from .. import feed
 from ..dataseries import TimeFrame
 from ..utils import date2num
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class YahooFinanceCSVData(feed.CSVDataBase):
@@ -91,7 +94,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         # Yahoo sends data in reverse order and the file is still unreversed
         # Use deque double-ended queue, appending to left is much more efficient than list.
         # If file dates are reversed, data is reversed during transfer, so dates in new file are in correct order
-        dq = collections.deque()
+        dq: collections.deque = collections.deque()
         for line in self.f:
             dq.appendleft(line)
         # Create a string buffer object, write queue data to file, move pointer to 0th character, close file, assign file to self.f
@@ -142,14 +145,15 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         # Try to get volume, if not available, set to 0
         try:
             v = float(linetokens[next(i)])
-        except Exception as e:  # cover the case in which volume is "null"
-            print(e)
+        except (ValueError, TypeError, IndexError, StopIteration) as e:
+            # cover the case in which volume is "null" / missing
+            logger.debug("volume parse failed, defaulting to 0.0: %s", e)
             v = 0.0
         # If swapping close price and adjusted close price, perform swap
         if self.p.swapcloses:  # swap closing prices if requested
             c, adjustedclose = adjustedclose, c
         # Calculate adjustment factor, the calculation method seems different from conventional usage, but not necessarily wrong
-        adjfactor = c / adjustedclose
+        adjfactor = c / adjustedclose if adjustedclose != 0.0 else 1.0
 
         # in v7 "adjusted prices" seem to be given, scale back for non adj
         # If price adjustment is needed, divide by adjustment factor
@@ -159,8 +163,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
             low /= adjfactor
             c = adjustedclose
             # If the price goes down, volume must go up and viceversa
-            # If adjusting volume, the logic here has some issues, but shouldn't affect usage as stock mergers may exist
-            # todo pay attention to logic
+            # If adjusting volume
             if self.p.adjvolume:
                 v *= adjfactor
         # If rounding is needed, round the prices
@@ -202,7 +205,6 @@ class YahooFinanceCSV(feed.CSVFeedBase):
     DataCls = YahooFinanceCSVData
 
 
-# todo Test this class when time permits to see if it still works, if so, try to add comments
 class YahooFinanceData(YahooFinanceCSVData):
     # This is a method to directly crawl data from Yahoo
     """
@@ -252,7 +254,7 @@ class YahooFinanceData(YahooFinanceCSVData):
 
     """
 
-    params = (
+    params: tuple = (
         ("proxies", {}),
         ("period", "d"),
         ("reverse", False),
@@ -281,12 +283,12 @@ class YahooFinanceData(YahooFinanceCSVData):
                 "module installed. Please use pip install requests or "
                 "the method of your choice"
             )
-            raise Exception(msg)
+            raise ImportError(msg) from None
 
         self.error = None
         url = self.p.urlhist.format(self.p.dataname)
 
-        sesskwargs = dict()
+        sesskwargs = {}
         if self.p.proxies:
             sesskwargs["proxies"] = self.p.proxies
 
@@ -368,7 +370,7 @@ class YahooFinanceData(YahooFinanceCSVData):
                 # r.encoding = 'UTF-8'
                 f = io.StringIO(resp.text, newline=None)
             except Exception as e:
-                print(e)
+                logger.warning("Yahoo response read failed, retrying: %s", e)
                 continue  # try again if possible
 
             break

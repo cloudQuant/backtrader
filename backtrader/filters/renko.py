@@ -86,7 +86,7 @@ class Renko(Filter):
         """
         o = data.open[0]
         o = round(o / self.p.align, 0) * self.p.align  # aligned
-        self._size = self.p.size or float(o // self.p.autosize)
+        self._size = self.p.size or (float(o // self.p.autosize) if self.p.autosize else 1.0)
         if self.p.roundstart:
             o = int(o)
 
@@ -123,7 +123,7 @@ class Renko(Filter):
             self._bot = bot = self._top
 
             if self.p.size is None and self.p.dynamic:
-                self._size = float(c // self.p.autosize)
+                self._size = float(c // self.p.autosize) if self.p.autosize else 1.0
                 top = bot + self._size
                 top = round(top / self.p.align, 0) * self.p.align  # aligned
             else:
@@ -139,12 +139,12 @@ class Renko(Filter):
             data.openinterest[0] = 0.0
             return False  # length of data stream is unaltered
 
-        elif loprice <= self._bot:
+        if loprice <= self._bot:
             # deliver a renko brick from bot -> bot - size
             self._top = top = self._bot
 
             if self.p.size is None and self.p.dynamic:
-                self._size = float(c // self.p.autosize)
+                self._size = float(c // self.p.autosize) if self.p.autosize else 1.0
                 bot = top - self._size
                 bot = round(bot / self.p.align, 0) * self.p.align  # aligned
             else:

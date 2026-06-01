@@ -268,7 +268,7 @@ data.addfilter(bt.filters.SessionFilter(
 
 ### CSV 格式示例
 
-```csv
+```text
 datetime,open,high,low,close,volume
 2023-01-01,100.0,102.5,99.5,101.0,1000000
 2023-01-02,101.0,103.0,100.5,102.5,1200000

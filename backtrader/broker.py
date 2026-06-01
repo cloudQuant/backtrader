@@ -79,7 +79,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
             **kwargs: Keyword arguments passed to parent class.
         """
         super().__init__(**kwargs)
-        self.comminfo = dict()
+        self.comminfo = {}
         self.init()
 
     # This init uses None as key, commission as value
@@ -91,7 +91,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         """
         # called from init and from start
         if None not in self.comminfo:
-            self.comminfo = dict({None: self.get_param("commission")})
+            self.comminfo = {None: self.get_param("commission")}
 
     # Start
     def start(self):
@@ -104,7 +104,6 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
 
         Override this method in subclasses for cleanup operations.
         """
-        pass
 
     # Add order history
     def add_order_history(self, orders, notify=False):
@@ -156,6 +155,8 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     def setcommission(
         self,
         commission=0.0,
+        maker_commission=None,
+        taker_commission=None,
         margin=None,
         mult=1.0,
         commtype=None,
@@ -177,6 +178,8 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
 
         comm = CommInfoBase(
             commission=commission,
+            maker_commission=maker_commission,
+            taker_commission=taker_commission,
             margin=margin,
             mult=mult,
             commtype=commtype,
@@ -261,7 +264,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         Note:
             Not all brokers support fund mode.
         """
-        pass  # do nothing, not all brokers can support this
+        # do nothing, not all brokers can support this
 
     # Get fund mode
     def get_fundmode(self):
@@ -276,11 +279,13 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     fundmode = property(get_fundmode, set_fundmode)
 
     # Get position
-    def getposition(self, data):
+    def getposition(self, data, side=None):
         """Get the current position for a data feed.
 
         Args:
             data: Data feed to get position for.
+            side: Optional side selector used by brokers that support
+                dual-side position books.
 
         Returns:
             Position: Current position for the data feed.
@@ -401,7 +406,6 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         Called by the cerebro engine for each iteration.
         Override in subclasses to perform per-bar operations.
         """
-        pass
 
 
 # __all__ = ['BrokerBase', 'fillers', 'filler']

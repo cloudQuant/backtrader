@@ -6,6 +6,8 @@ Migrated CommInfo system from MetaParams to new ParameterizedBase system.
 Maintains fully backward compatible API interface.
 """
 
+import inspect
+
 from .parameters import BoolParam, Float, ParameterDescriptor, ParameterizedBase, _BoolValidator
 
 
@@ -48,6 +50,16 @@ class CommInfoBase(ParameterizedBase):
         type_=float,
         validator=Float(min_val=0.0),  # Non-negative validation
         doc="Base commission, percentage or monetary units",
+    )
+
+    maker_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional maker commission override, percentage or monetary units",
+    )
+
+    taker_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional taker commission override, percentage or monetary units",
     )
 
     mult = ParameterDescriptor(
@@ -140,18 +152,9 @@ class CommInfoBase(ParameterizedBase):
             # Directly modify parameter value to avoid duplicate conversion
             self._param_manager.set("commission", current_commission / 100.0, skip_validation=True)
 
-        # Calculate interest rate
-        self._creditrate = self.get_param("interest") / 365.0
-
-    # def __getattribute__(self, name):
-    #     """Override attribute access to return processed values for stocklike"""
-    #     if name == "stocklike":
-    #         try:
-    #             return self._stocklike
-    #         except AttributeError:
-    #             # Fall back to parameter value if _stocklike not yet set
-    #             return super().__getattribute__(name)
-    #     return super().__getattribute__(name)
+        # Calculate interest rate (guard against None interest)
+        interest = self.get_param("interest")
+        self._creditrate = (interest or 0.0) / 365.0
 
     __getattribute__ = object.__getattribute__
 
@@ -166,7 +169,7 @@ class CommInfoBase(ParameterizedBase):
         automargin = self.get_param("automargin")
         if not automargin:
             return self.get_param("margin")
-        elif automargin < 0:
+        if automargin < 0:
             return price * self.get_param("mult")
         return price * automargin
 
@@ -176,9 +179,14 @@ class CommInfoBase(ParameterizedBase):
 
     def getsize(self, price, cash):
         """Returns the needed size to meet a cash operation at a given price"""
+        if not price:
+            return 0
         leverage = self.get_param("leverage")
         if not self._stocklike:
-            return leverage * (cash // self.get_margin(price))
+            margin = self.get_margin(price)
+            if not margin:
+                return 0
+            return leverage * (cash // margin)
         return leverage * (cash // price)
 
     def getoperationcost(self, size, price):
@@ -209,23 +217,55 @@ class CommInfoBase(ParameterizedBase):
         value += (position.price - price) * size  # increased value
         return value
 
-    def _getcommission(self, size, price, pseudoexec):
+    def _resolve_commission_rate(self, role=None):
+        """Return the commission rate for the requested fill role."""
+        if role == "maker":
+            maker_commission = self.get_param("maker_commission")
+            if maker_commission is not None:
+                return maker_commission
+
+        if role == "taker":
+            taker_commission = self.get_param("taker_commission")
+            if taker_commission is not None:
+                return taker_commission
+
+        return self.get_param("commission")
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
         """Calculates the commission of an operation at a given price
 
         pseudoexec: if True the operation has not yet been executed
         """
-        commission = self.get_param("commission")
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         if self._commtype == self.COMM_PERC:
             return abs(size) * commission * price
         return abs(size) * commission
 
-    def getcommission(self, size, price):
-        """Calculates the commission of an operation at a given price"""
-        return self._getcommission(size, price, pseudoexec=True)
+    def _call_getcommission(self, size, price, pseudoexec, role=None):
+        """Call custom _getcommission overrides with backwards compatibility."""
+        accepts_role = getattr(self, "_getcommission_accepts_role", None)
+        if accepts_role is None:
+            try:
+                parameters = inspect.signature(self._getcommission).parameters
+                accepts_role = "role" in parameters or any(
+                    param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values()
+                )
+            except (TypeError, ValueError):
+                accepts_role = True
+            self._getcommission_accepts_role = accepts_role
 
-    def confirmexec(self, size, price):
-        """Confirms execution and returns commission"""
-        return self._getcommission(size, price, pseudoexec=False)
+        if accepts_role:
+            return self._getcommission(size, price, pseudoexec=pseudoexec, role=role)
+        return self._getcommission(size, price, pseudoexec)
+
+    def getcommission(self, size, price, role=None):
+        """Calculates the commission of an operation at a given price."""
+        return self._call_getcommission(size, price, pseudoexec=True, role=role)
+
+    def confirmexec(self, size, price, role=None):
+        """Confirms execution and returns commission."""
+        return self._call_getcommission(size, price, pseudoexec=False, role=role)
 
     def profitandloss(self, size, price, newprice):
         """Return actual profit and loss a position has"""
@@ -285,8 +325,9 @@ class ComminfoDC(CommInfoBase):
     percabs = ParameterDescriptor(default=True, type_=bool)
     interest = ParameterDescriptor(default=3.0, type_=float)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         mult = self.get_param("mult")
         return abs(size) * price * mult * commission
 
@@ -301,6 +342,8 @@ class ComminfoDC(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
     def get_credit_interest(self, data, pos, dt):
@@ -308,8 +351,8 @@ class ComminfoDC(CommInfoBase):
         size, price = pos.size, pos.price
         dt0 = dt
         dt1 = pos.datetime
-        gap_seconds = (dt0 - dt1).seconds
-        days = gap_seconds / (24 * 60 * 60)
+        gap_seconds = (dt0 - dt1).total_seconds()
+        days = gap_seconds / (24.0 * 60.0 * 60.0)
 
         mult = self.get_param("mult")
         position_value = size * price * mult
@@ -318,9 +361,9 @@ class ComminfoDC(CommInfoBase):
         total_value = self.broker.getvalue() if hasattr(self, "broker") else abs(position_value)
         if size > 0 and position_value > total_value:
             return days * self._creditrate * (position_value - total_value)
-        elif size > 0 and position_value <= total_value:
+        if size > 0 and position_value <= total_value:
             return 0
-        elif size < 0:
+        if size < 0:
             return days * self._creditrate * position_value
         return 0
 
@@ -335,8 +378,9 @@ class ComminfoFuturesPercent(CommInfoBase):
     commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
     percabs = ParameterDescriptor(default=True, type_=bool)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         mult = self.get_param("mult")
         return abs(size) * price * mult * commission
 
@@ -351,6 +395,8 @@ class ComminfoFuturesPercent(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
 
@@ -364,8 +410,9 @@ class ComminfoFuturesFixed(CommInfoBase):
     commtype = ParameterDescriptor(default=CommInfoBase.COMM_FIXED, type_=int)
     percabs = ParameterDescriptor(default=True, type_=bool)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         return abs(size) * commission
 
     def get_margin(self, price):
@@ -379,6 +426,8 @@ class ComminfoFuturesFixed(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
 
@@ -392,8 +441,9 @@ class ComminfoFundingRate(CommInfoBase):
     commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
     percabs = ParameterDescriptor(default=True, type_=bool)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         mult = self.get_param("mult")
         total_commission = abs(size) * price * mult * commission
         return total_commission
@@ -409,6 +459,8 @@ class ComminfoFundingRate(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
     def get_credit_interest(self, data, pos, dt):
@@ -419,7 +471,10 @@ class ComminfoFundingRate(CommInfoBase):
         try:
             current_price = data.mark_price_open[1]
         except (IndexError, AttributeError):
-            current_price = getattr(data, "mark_price_close", [price])[0]
+            try:
+                current_price = data.mark_price_close[0]
+            except (IndexError, AttributeError):
+                current_price = price
 
         mult = self.get_param("mult")
         position_value = size * current_price * mult

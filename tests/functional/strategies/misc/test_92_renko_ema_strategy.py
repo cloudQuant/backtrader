@@ -15,10 +15,11 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -81,8 +82,8 @@ class RenkoEmaStrategy(bt.Strategy):
         crossover (bt.indicators.CrossOver): Crossover indicator for the two EMAs.
         p (AutoOrderedDict): Strategy parameters containing:
             - stake (int): Number of shares per trade. Default is 10.
-            - fast_period (int): Period for fast EMA. Default is 10.
-            - slow_period (int): Period for slow EMA. Default is 20.
+            - fast_period (int): Period for fast bt.indicators.EMA. Default is 10.
+            - slow_period (int): Period for slow bt.indicators.EMA. Default is 20.
             - renko_brick_size (float): Brick size for Renko filter. Default is 1.0.
     """
     params = dict(
@@ -162,7 +163,8 @@ class RenkoEmaStrategy(bt.Strategy):
             self.order = self.close()
 
 
-def test_renko_ema_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_renko_ema_strategy(runonce):
     """Test the Renko EMA crossover strategy with historical data.
 
     This function sets up a backtest with the RenkoEmaStrategy using
@@ -209,7 +211,7 @@ def test_renko_ema_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

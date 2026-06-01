@@ -5,7 +5,7 @@ Live client.
 Manages Bokeh documents and user interactions.
 """
 
-import logging
+from backtrader.utils.log_message import get_logger
 
 try:
     from bokeh.layouts import column, layout, row
@@ -18,7 +18,7 @@ except ImportError:
 from ..utils import get_datanames
 from .datahandler import LiveDataHandler
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
 class LiveClient:

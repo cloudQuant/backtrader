@@ -34,7 +34,6 @@ class HeikinAshi:
             data: The data feed to apply the filter to.
                   No specific parameters are required.
         """
-        pass
 
     def __call__(self, data):
         """Convert standard OHLC data to Heikin Ashi candlesticks.

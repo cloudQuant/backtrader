@@ -39,11 +39,14 @@ import threading
 from collections import OrderedDict
 from contextlib import contextmanager
 
+from .utils.log_message import get_logger
 from .utils.py3 import string_types, zip
+
+logger = get_logger(__name__)
 
 # PERFORMANCE OPTIMIZATION: Cache for MRO type checks
 # This avoids repeatedly traversing __mro__ for the same classes
-_type_check_cache = {}
+_type_check_cache: dict = {}
 
 # PERFORMANCE OPTIMIZATION: One-time guard for indicator alias initialization
 _INDICATOR_ALIASES_INITIALIZED = False
@@ -266,8 +269,8 @@ def patch_strategy_clk_update():
                 try:
                     if hasattr(self, "forward"):
                         self.forward()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to forward in _clk_update: %s", e)
 
             # Update _dlens
             self._dlens = newdlens
@@ -319,7 +322,7 @@ def patch_strategy_clk_update():
     except ImportError:
         # Silently ignore - Strategy already has _clk_update method
         pass
-    except Exception:
+    except Exception:  # nosec B110
         # Silently ignore - Strategy already has _clk_update method
         pass
 
@@ -559,8 +562,8 @@ class AutoInfoClass:
     # Class methods returning empty defaults - equivalent to:
     # @classmethod
     # def _getpairsbase(cls): return OrderedDict()
-    _getpairsbase = classmethod(lambda cls: OrderedDict())
-    _getpairs = classmethod(lambda cls: OrderedDict())
+    _getpairsbase: classmethod = classmethod(lambda cls: OrderedDict())
+    _getpairs: classmethod = classmethod(lambda cls: OrderedDict())
     _getrecurse = classmethod(lambda cls: False)
 
     @classmethod
@@ -585,7 +588,7 @@ class AutoInfoClass:
         """
         # Collect the 3 sets of info: base class, other bases, and new info
         baseinfo = cls._getpairs().copy()  # Shallow copy to preserve base class params
-        obasesinfo = OrderedDict()  # Parameters from other base classes
+        obasesinfo: dict = OrderedDict()  # Parameters from other base classes
         for obase in otherbases:
             # If otherbases contains dicts/tuples, update directly
             # Otherwise, get params from class instances via _getpairs()
@@ -736,6 +739,46 @@ def _reconstruct_param_class(class_name, all_params, instance_values):
     return instance
 
 
+def _merge_class_params_into(all_params, params):
+    """Merge a class's ``params`` declaration into the ``all_params`` dict.
+
+    ``params`` may be a dict, a tuple/list of (name, value) pairs (or bare
+    string names), a dict-like with ``items()``, an object with ``__dict__``,
+    or an AutoInfoClass-style object exposing ``_getpairs``/``_gettuple``.
+    Extracted from ParameterManager._derive_params for readability; behavior
+    is unchanged.
+    """
+    if isinstance(params, dict):
+        # Direct dictionary
+        all_params.update(params)
+    elif isinstance(params, (tuple, list)):
+        # Convert tuple/list to dict
+        for item in params:
+            if isinstance(item, (tuple, list)) and len(item) >= 2:
+                key, value = item[0], item[1]
+                all_params[key] = value
+            elif isinstance(item, string_types):
+                # Just a key with None value
+                all_params[item] = None
+            elif hasattr(item, "__iter__") and not isinstance(item, string_types):
+                # Try to treat as key-value pair
+                item_list = list(item)
+                if len(item_list) >= 2:
+                    all_params[item_list[0]] = item_list[1]
+    elif hasattr(params, "items"):
+        # Dict-like object
+        all_params.update(params)
+    elif hasattr(params, "__dict__"):
+        # OPTIMIZED: Object with attributes, using __dict__ for performance
+        for attr_name, attr_value in params.__dict__.items():
+            if not attr_name.startswith("_") and not callable(attr_value):
+                all_params[attr_name] = attr_value
+    elif hasattr(params, "_getpairs"):
+        all_params.update(params._getpairs())
+    elif hasattr(params, "_gettuple"):
+        all_params.update(dict(params._gettuple()))
+
+
 class ParameterManager:
     """Manager for handling parameter operations without metaclass.
 
@@ -790,35 +833,7 @@ class ParameterManager:
                             all_params[attr_name] = attr_value
 
         # Handle current class params - could be tuple, dict, or dict-like
-        if isinstance(params, dict):
-            # Direct dictionary
-            all_params.update(params)
-        elif isinstance(params, (tuple, list)):
-            # Convert tuple/list to dict
-            for item in params:
-                if isinstance(item, (tuple, list)) and len(item) >= 2:
-                    key, value = item[0], item[1]
-                    all_params[key] = value
-                elif isinstance(item, string_types):
-                    # Just a key with None value
-                    all_params[item] = None
-                elif hasattr(item, "__iter__") and not isinstance(item, string_types):
-                    # Try to treat as key-value pair
-                    item_list = list(item)
-                    if len(item_list) >= 2:
-                        all_params[item_list[0]] = item_list[1]
-        elif hasattr(params, "items"):
-            # Dict-like object
-            all_params.update(params)
-        elif hasattr(params, "__dict__"):
-            # OPTIMIZED: Object with attributes, using __dict__ for performance
-            for attr_name, attr_value in params.__dict__.items():
-                if not attr_name.startswith("_") and not callable(attr_value):
-                    all_params[attr_name] = attr_value
-        elif hasattr(params, "_getpairs"):
-            all_params.update(params._getpairs())
-        elif hasattr(params, "_gettuple"):
-            all_params.update(dict(params._gettuple()))
+        _merge_class_params_into(all_params, params)
 
         # CRITICAL FIX: Ensure common parameter names are always available
         # Many indicators expect these standard parameters
@@ -1022,6 +1037,7 @@ class ParameterManager:
                     pmod = getattr(pmod, part)
                 setattr(clsmod, alias, pmod)
             except ImportError:
+                # Optional linked package not installed; skip aliasing it.
                 pass
 
         for packageitems in frompackages:
@@ -1043,6 +1059,7 @@ class ParameterManager:
                     pattr = getattr(pmod, fromitem)
                     setattr(clsmod, alias, pattr)
                 except (ImportError, AttributeError):
+                    # Optional linked symbol unavailable; skip aliasing it.
                     pass
 
 
@@ -1058,8 +1075,8 @@ class ParamsMixin(BaseMixin):
         if is_class_type(cls, "Indicator"):
             try:
                 _initialize_indicator_aliases()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to initialize indicator aliases: %s", e)
 
         # Set up params, packages, frompackages if they exist
         params = getattr(cls, "params", ())
@@ -1128,7 +1145,7 @@ class ParamsMixin(BaseMixin):
                                         for d, data in enumerate(potential_owner.datas):
                                             setattr(self, f"data{d}", data)
                                         break
-                                    elif (
+                                    if (
                                         hasattr(potential_owner, "data")
                                         and potential_owner.data is not None
                                     ):
@@ -1158,8 +1175,8 @@ class ParamsMixin(BaseMixin):
                             valid_param_names = set(actual_cls._params._getkeys())
                         elif hasattr(actual_cls._params, "_getpairs"):
                             valid_param_names = set(actual_cls._params._getpairs().keys())
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to get valid param names: %s", e)
 
                 # Separate kwargs into param_kwargs and other_kwargs
                 # Filter out test-specific and non-constructor kwargs
@@ -1331,9 +1348,8 @@ class ParamsMixin(BaseMixin):
                         # This class needs positional args (like _LineDelay, LinesOperation)
                         # Pass all args - they're needed
                         return original_init(self, *args, **other_kwargs)
-                    else:
-                        # Different error - re-raise it
-                        raise
+                    # Different error - re-raise it
+                    raise
 
             cls.__init__ = patched_init
 
@@ -1610,7 +1626,7 @@ class ItemCollection:
 
     def __init__(self):
         """Initialize the collection with an empty items list."""
-        self.items = list()
+        self.items = []
 
     def __len__(self):
         """Return the number of items in the collection."""
@@ -1888,10 +1904,9 @@ def _initialize_indicator_aliases():
                     def _get_method(key, default=None):
                         if hasattr(self.plotinfo, key):
                             return getattr(self.plotinfo, key)
-                        elif hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
+                        if hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
                             return self.plotinfo._data[key]
-                        else:
-                            return default
+                        return default
 
                     self.plotinfo._get = _get_method
 
@@ -1901,10 +1916,9 @@ def _initialize_indicator_aliases():
                     def get_method(key, default=None):
                         if hasattr(self.plotinfo, key):
                             return getattr(self.plotinfo, key)
-                        elif hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
+                        if hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
                             return self.plotinfo._data[key]
-                        else:
-                            return default
+                        return default
 
                     self.plotinfo.get = get_method
 
@@ -1925,14 +1939,12 @@ def _initialize_indicator_aliases():
                         # Add _plotinit method if missing
                         if not hasattr(attr, "_plotinit"):
                             attr._plotinit = universal_plotinit
-                            pass
 
                         # CRITICAL FIX: Convert plotlines dict to object with _get method
                         if hasattr(attr, "plotlines") and isinstance(attr.plotlines, dict):
                             _convert_plotlines_dict_to_object(attr)
-                            pass
 
-                except Exception:
+                except Exception:  # nosec B112
                     continue
 
         # CRITICAL FIX: Patch specific indicator classes that are known to be problematic
@@ -1941,8 +1953,8 @@ def _initialize_indicator_aliases():
 
             if not hasattr(MovingAverageSimple, "_plotinit"):
                 MovingAverageSimple._plotinit = universal_plotinit
-                pass
         except ImportError:
+            # SMA module not importable in this context; nothing to patch.
             pass
 
         # CRITICAL FIX: Search for any loaded indicator classes and ensure they have _plotinit
@@ -1958,14 +1970,12 @@ def _initialize_indicator_aliases():
                             # Ensure the class has _plotinit
                             if not hasattr(attr_value, "_plotinit"):
                                 attr_value._plotinit = universal_plotinit
-                                pass
 
                             # CRITICAL FIX: Convert plotlines dict to object with _get method
                             if hasattr(attr_value, "plotlines") and isinstance(
                                 attr_value.plotlines, dict
                             ):
                                 _convert_plotlines_dict_to_object(attr_value)
-                                pass
 
                         # CRITICAL FIX: Also handle Mixin classes that have plotlines
                         elif (
@@ -1974,22 +1984,17 @@ def _initialize_indicator_aliases():
                             and isinstance(attr_value.plotlines, dict)
                         ):
                             _convert_plotlines_dict_to_object(attr_value)
-                            pass
 
-                    except Exception:
+                    except Exception:  # nosec B112
                         continue
 
-        pass
-
-    except Exception:
-        # print(f"Warning: _initialize_indicator_aliases failed: {e}")  # Removed for performance
-        # Continue without failing completely
-        pass
+    except Exception as e:
+        logger.debug("Failed in _initialize_indicator_aliases: %s", e)
 
 
 # CRITICAL FIX: Call initialization functions when module loads
 try:
     _initialize_indicator_aliases()
     patch_strategy_clk_update()
-except Exception:
-    pass  # Silently fail during module loading
+except Exception as e:
+    logger.debug("Failed to initialize at module load: %s", e)

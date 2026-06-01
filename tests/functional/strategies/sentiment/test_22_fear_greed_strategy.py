@@ -22,6 +22,7 @@ import os
 from pathlib import Path
 
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -316,7 +317,8 @@ class FearGreedStrategy(bt.Strategy):
         )
 
 
-def test_fear_greed_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_fear_greed_strategy(runonce):
     """Test the Fear & Greed Sentiment Indicator Strategy with backtesting.
 
     This function performs a comprehensive backtest of the FearGreedStrategy
@@ -378,7 +380,7 @@ def test_fear_greed_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]

@@ -24,10 +24,11 @@ Reference:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -54,85 +55,6 @@ def resolve_data_path(filename: str) -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
-
-
-class SupertrendIndicator(bt.Indicator):
-    """SuperTrend indicator for trend-following analysis.
-
-    The SuperTrend indicator is a trend-following indicator that uses
-    Average True Range (ATR) to determine the direction of the trend.
-    It provides dynamic support and resistance levels based on price volatility.
-
-    The indicator calculates:
-        1. Basic Upper Band: (High + Low) / 2 - (ATR Multiplier * ATR)
-        2. Basic Lower Band: (High + Low) / 2 + (ATR Multiplier * ATR)
-        3. Final Bands: Incorporates previous period values for smoothness
-        4. SuperTrend Line: Switches between final bands based on price action
-
-    Attributes:
-        atr: Average True Range indicator instance
-        avg: Average of high and low prices (HL/2)
-        basic_up: Basic upper band calculation
-        basic_down: Basic lower band calculation
-
-    Args:
-        atr_period: Period for ATR calculation (default: 14)
-        atr_multiplier: Multiplier for ATR bands (default: 3)
-    """
-    lines = ('supertrend', 'final_up', 'final_down')
-    params = dict(atr_period=14, atr_multiplier=3)
-    plotinfo = dict(subplot=False)
-
-    def __init__(self):
-        """Initialize the SuperTrend indicator.
-
-        Calculates the ATR and basic bands needed for SuperTrend calculation.
-        """
-        self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-        self.avg = (self.data.high + self.data.low) / 2
-        self.basic_up = self.avg - self.p.atr_multiplier * self.atr
-        self.basic_down = self.avg + self.p.atr_multiplier * self.atr
-
-    def prenext(self):
-        """Initialize indicator values before minimum period is reached.
-
-        Sets all line values to zero during the warmup period before
-        enough data is available for ATR calculation.
-        """
-        self.l.final_up[0] = 0
-        self.l.final_down[0] = 0
-        self.l.supertrend[0] = 0
-
-    def next(self):
-        """Calculate SuperTrend values for the current bar.
-
-        The calculation logic:
-        1. Update final_up band: If previous close > previous final_up,
-           use max(basic_up, previous final_up) for continuity
-        2. Update final_down band: If previous close < previous final_down,
-           use min(basic_down, previous final_down) for continuity
-        3. Determine SuperTrend line:
-           - If current close > previous final_down: uptrend (use final_up)
-           - If current close < previous final_up: downtrend (use final_down)
-           - Otherwise: maintain previous SuperTrend value
-        """
-        if self.data.close[-1] > self.l.final_up[-1]:
-            self.l.final_up[0] = max(self.basic_up[0], self.l.final_up[-1])
-        else:
-            self.l.final_up[0] = self.basic_up[0]
-
-        if self.data.close[-1] < self.l.final_down[-1]:
-            self.l.final_down[0] = min(self.basic_down[0], self.l.final_down[-1])
-        else:
-            self.l.final_down[0] = self.basic_down[0]
-
-        if self.data.close[0] > self.l.final_down[-1]:
-            self.l.supertrend[0] = self.l.final_up[0]
-        elif self.data.close[0] < self.l.final_up[-1]:
-            self.l.supertrend[0] = self.l.final_down[0]
-        else:
-            self.l.supertrend[0] = self.l.supertrend[-1]
-
 
 class SupertrendRsiStrategy(bt.Strategy):
     """Supertrend RSI strategy.
@@ -175,7 +97,7 @@ class SupertrendRsiStrategy(bt.Strategy):
         Creates the SuperTrend and RSI indicators with configured parameters
         and initializes tracking variables for orders and statistics.
         """
-        self.supertrend = SupertrendIndicator(
+        self.supertrend = bt.indicators.SupertrendIndicator(
             self.data, atr_period=self.p.atr_period, atr_multiplier=self.p.atr_mult
         )
         self.rsi = bt.indicators.RSI(self.data, period=self.p.rsi_period)
@@ -228,7 +150,8 @@ class SupertrendRsiStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_supertrend_rsi_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_supertrend_rsi_strategy(runonce):
     """Test the Supertrend RSI strategy with historical data.
 
     This function performs a comprehensive backtest of the Supertrend RSI strategy:
@@ -269,7 +192,7 @@ def test_supertrend_rsi_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

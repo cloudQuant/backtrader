@@ -424,6 +424,5 @@ pre-commit validate-manifest
 3. 提交 Issue 或 Pull Request
 
 - --
-
 - *最后更新**: 2024-12-10
 - *维护者**: Backtrader 开发团队

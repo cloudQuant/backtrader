@@ -56,6 +56,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -126,7 +127,7 @@ class OCOOrderStrategy(bt.Strategy):
 
     Attributes:
         cross (bt.ind.CrossOver): Crossover indicator detecting when fast SMA
-            crosses above/below slow SMA. Positive values indicate bullish
+            crosses above/below slow bt.indicators.SMA. Positive values indicate bullish
             crossover (entry signal).
         orefs (list): List of order references for active OCO orders. Used to
             track pending orders and prevent duplicate order placement.
@@ -319,7 +320,8 @@ class OCOOrderStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_oco_order_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_oco_order_strategy(runonce):
     """Test the OCO (One Cancels Other) order strategy backtest execution.
 
     This test validates the OCO order functionality by running a complete
@@ -387,7 +389,7 @@ def test_oco_order_strategy():
 
     # Run backtest
     print("Running backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract performance metrics

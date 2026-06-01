@@ -1,0 +1,625 @@
+"""DSS Brechert-style trend signal regression test.
+
+Data Used:
+    - Data source: ``{repo}/tests/datas/XAUUSD_M15.csv`` resolved through
+      ``tests/functional/strategies/mean_reversion/test_0310_1227_dss_bressert.py``.
+    - Symbol / timeframe: XAUUSD, M15 in ``backtest`` window from
+      ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    - Data split: one base 15-minute feed for execution and one derived 240-minute
+      signal feed built by resampling close/high/low/open/volume from the same source.
+
+Strategy Principle:
+    The strategy builds a two-stage smoothed stochastic signal on resampled bars
+    (DSS and MIT). It opens long when DSS crosses above MIT and opens short when MIT
+    crosses above DSS. Exit is managed by fixed-point stop-loss and take-profit
+    thresholds derived from ``point`` and parameterized pip distances.
+    Position sizing follows a fixed fractional risk budget with a minimum guard for
+    non-positive prices.
+
+Strategy Logic:
+    During initialization, two feeds and a counter-heavy strategy state are created.
+    On each bar, stale signals are filtered, cross events are evaluated against the
+    latest and previous resampled signal bars, and entries are gated by configured
+    permission flags. Position lifecycle is tracked in ``notify_trade`` for buy/sell
+    and win/loss accounting. The ``run``/test helpers build the backtest engine,
+    run with ``runonce=True``, capture analyzer metrics, and assert expected
+    outputs from migration time.
+"""
+from __future__ import annotations
+import math
+from pathlib import Path
+import sys
+import argparse
+import datetime
+import backtrader.feeds as btfeeds
+import backtrader as bt
+import pandas as pd
+import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
+
+_REPO = Path(__file__).resolve().parents[4]
+
+_CONFIG = {
+    'strategy': {
+        'name': 'DSSBressert',
+        'source_ea': 'ea/1227_Exp_DSSBressert',
+    },
+    'data': {
+        'symbol': 'XAUUSD',
+        'timeframe': 'M15',
+        'file': '{repo}/tests/datas/XAUUSD_M15.csv',
+        'fromdate': '2025-12-03 01:15:00',
+        'todate': '2026-03-10 09:00:00',
+        'bar_shift_minutes': 15,
+    },
+    'params': {
+        'indicator_minutes': 240,
+        'ema_period': 8,
+        'sto_period': 13,
+        'signal_bar': 1,
+        'stop_loss_points': 1000,
+        'take_profit_points': 2000,
+        'mm': -0.1,
+        'point': 0.01,
+        'buy_pos_open': True,
+        'sell_pos_open': True,
+        'buy_pos_close': True,
+        'sell_pos_close': True,
+    },
+    'backtest': {
+        'initial_cash': 1000000,
+        'commission': 0.0,
+        'margin': 0.01,
+        'multiplier': 100.0,
+        'commission_type': 'fixed',
+        'stocklike': False,
+    },
+}
+
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
+if str(BACKTRADER_REPO) not in sys.path:
+    sys.path.insert(0, str(BACKTRADER_REPO))
+
+
+class Mt5PandasFeed(btfeeds.PandasData):
+    """Minimal feed mapping the MT5-style TSV columns into Backtrader base bars."""
+
+    params = (
+        ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
+        ('close', 3), ('volume', 4), ('openinterest', 5),
+    )
+
+
+class DssBressertFeed(btfeeds.PandasData):
+    """Feed definition adding DSS and MIT signal lines to the base OHLCV bars."""
+
+    lines = ('dss', 'mit')
+    params = (
+        ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
+        ('close', 3), ('volume', 4), ('openinterest', 5), ('dss', 6), ('mit', 7),
+    )
+
+
+def build_resampled_frame(df, indicator_minutes):
+    """Resample source bars into higher-timeframe candles used for signal generation.
+
+    Args:
+        df: Source OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Target resample granularity in minutes.
+
+    Returns:
+        DataFrame with resampled OHLCV bars and non-empty numeric bars retained.
+    """
+    rule = f'{int(indicator_minutes)}min'
+    signal_df = df.resample(rule, label='right', closed='right').agg({
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'volume': 'sum',
+        'openinterest': 'last',
+    })
+    signal_df = signal_df.dropna(subset=['open', 'high', 'low', 'close']).copy()
+    signal_df['openinterest'] = signal_df['openinterest'].fillna(0)
+    return signal_df
+
+
+def build_dss_bressert_frame(df, indicator_minutes, ema_period, sto_period):
+    """Generate DSS and MIT series from a resampled frame.
+
+    Args:
+        df: Original OHLCV DataFrame.
+        indicator_minutes: Minute interval for signal-frame resampling.
+        ema_period: EMA smoothing factor for both stochastic stages.
+        sto_period: Lookback window for stochastic calculations.
+
+    Returns:
+        Signal DataFrame containing original resampled OHLCV columns plus ``dss``
+        and ``mit`` columns.
+    """
+    signal_df = build_resampled_frame(df, indicator_minutes)
+    high = signal_df['high'].astype(float).reset_index(drop=True)
+    low = signal_df['low'].astype(float).reset_index(drop=True)
+    close = signal_df['close'].astype(float).reset_index(drop=True)
+    n = len(signal_df)
+    coeff = 2.0 / (1.0 + float(ema_period))
+
+    mit = [math.nan] * n
+    dss = [math.nan] * n
+    prev_mit = 50.0
+    prev_dss = 50.0
+
+    for idx in range(n):
+        start = max(0, idx - int(sto_period) + 1)
+        high_range = float(high.iloc[start:idx + 1].max())
+        low_range = float(low.iloc[start:idx + 1].min())
+        denom = high_range - low_range
+        if abs(denom) <= 1e-12:
+            mit_raw = prev_mit
+        else:
+            mit_raw = (float(close.iloc[idx]) - low_range) / denom * 100.0
+        mit_value = coeff * (mit_raw - prev_mit) + prev_mit
+        mit[idx] = mit_value
+        prev_mit = mit_value
+
+    mit_series = pd.Series(mit, dtype=float)
+    for idx in range(n):
+        start = max(0, idx - int(sto_period) + 1)
+        window = mit_series.iloc[start:idx + 1]
+        high_range = float(window.max())
+        low_range = float(window.min())
+        denom = high_range - low_range
+        if abs(denom) <= 1e-12:
+            dss_raw = prev_dss
+        else:
+            dss_raw = (float(mit_series.iloc[idx]) - low_range) / denom * 100.0
+        dss_value = coeff * (dss_raw - prev_dss) + prev_dss
+        dss[idx] = dss_value
+        prev_dss = dss_value
+
+    signal_df = signal_df.copy()
+    signal_df['dss'] = dss
+    signal_df['mit'] = mit
+    return signal_df
+
+
+class DssBressertStrategy(bt.Strategy):
+    """Crossover strategy driven by DSS and MIT indicator crossings with fixed risk exits.
+
+    The strategy evaluates a resampled signal feed and opens/closes positions
+    when smoothed stochastic momentum lines cross. It uses simple fixed-size
+    risk controls (stop-loss and take-profit) and optional flags that can disable
+    directional open/close actions.
+    """
+
+    params = dict(
+        signal_bar=1,
+        stop_loss_points=1000,
+        take_profit_points=2000,
+        mm=-0.1,
+        point=0.01,
+        buy_pos_open=True,
+        sell_pos_open=True,
+        buy_pos_close=True,
+        sell_pos_close=True,
+        indicator_minutes=240,
+        ema_period=8,
+        sto_period=13,
+    )
+
+    def __init__(self):
+        """Initialize strategy state, feed handles, and trade counters."""
+        self.base = self.datas[0]
+        self.signal = self.datas[1]
+        self.bar_num = 0
+        self.signal_count = 0
+        self.buy_count = 0
+        self.sell_count = 0
+        self.trade_count = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self._position_was_open = False
+        self._last_signal_len = 0
+
+    def log(self, text):
+        """Write a timestamped log line for backtest debug tracing.
+
+        Args:
+            text: Message to print with bar datetime context.
+        """
+        dt = bt.num2date(self.base.datetime[0])
+        print(f'{dt.isoformat()}, {text}')
+
+    def _line_value(self, line, ago):
+        return float(line[-ago]) if ago else float(line[0])
+
+    def _position_size(self, price):
+        if self.p.mm < 0:
+            return abs(float(self.p.mm))
+        if price <= 0:
+            return 0.0
+        cash = self.broker.getcash()
+        return round((cash * float(self.p.mm)) / price, 4)
+
+    def _check_exit_levels(self):
+        if not self.position:
+            return False
+        close_price = float(self.base.close[0])
+        point_value = float(self.p.point)
+        stop_distance = self.p.stop_loss_points * point_value if self.p.stop_loss_points > 0 else None
+        take_distance = self.p.take_profit_points * point_value if self.p.take_profit_points > 0 else None
+        entry_price = float(self.position.price)
+
+        if self.position.size > 0:
+            if stop_distance is not None and close_price <= entry_price - stop_distance:
+                self.log(f'close long by stop loss close={close_price:.2f} entry={entry_price:.2f}')
+                self.close()
+                return True
+            if take_distance is not None and close_price >= entry_price + take_distance:
+                self.log(f'close long by take profit close={close_price:.2f} entry={entry_price:.2f}')
+                self.close()
+                return True
+        elif self.position.size < 0:
+            if stop_distance is not None and close_price >= entry_price + stop_distance:
+                self.log(f'close short by stop loss close={close_price:.2f} entry={entry_price:.2f}')
+                self.close()
+                return True
+            if take_distance is not None and close_price <= entry_price - take_distance:
+                self.log(f'close short by take profit close={close_price:.2f} entry={entry_price:.2f}')
+                self.close()
+                return True
+        return False
+
+    def next(self):
+        """Execute one trading step for each incoming base bar.
+
+        The method evaluates crossovers on the derived signal feed and applies
+        entry/exit actions according to configured directional flags.
+        """
+        self.bar_num += 1
+        if len(self.base) < 2:
+            return
+
+        if self._check_exit_levels():
+            return
+
+        signal_bar = max(int(self.p.signal_bar), 1)
+        if len(self.signal) < signal_bar + 1:
+            return
+
+        current_signal_len = len(self.signal)
+        if current_signal_len == self._last_signal_len:
+            return
+        self._last_signal_len = current_signal_len
+
+        recent_ago = signal_bar - 1
+        prev_ago = signal_bar
+        dss_recent = self._line_value(self.signal.dss, recent_ago)
+        mit_recent = self._line_value(self.signal.mit, recent_ago)
+        dss_prev = self._line_value(self.signal.dss, prev_ago)
+        mit_prev = self._line_value(self.signal.mit, prev_ago)
+        if not all(math.isfinite(v) for v in [dss_recent, mit_recent, dss_prev, mit_prev]):
+            return
+
+        buy_signal = dss_recent > mit_recent and dss_prev <= mit_prev
+        sell_signal = mit_recent > dss_recent and mit_prev <= dss_prev
+        if not buy_signal and not sell_signal:
+            return
+
+        close_price = float(self.base.close[0])
+        size = self._position_size(close_price)
+        if size <= 0:
+            return
+
+        if buy_signal:
+            self.signal_count += 1
+            self.log(f'buy signal close={close_price:.2f} dss={dss_recent:.2f} mit={mit_recent:.2f}')
+            if self.position.size < 0 and self.p.sell_pos_close:
+                self.close()
+            if self.position.size <= 0 and self.p.buy_pos_open:
+                self.buy(size=size)
+            return
+
+        if sell_signal:
+            self.signal_count += 1
+            self.log(f'sell signal close={close_price:.2f} dss={dss_recent:.2f} mit={mit_recent:.2f}')
+            if self.position.size > 0 and self.p.buy_pos_close:
+                self.close()
+            if self.position.size >= 0 and self.p.sell_pos_open:
+                self.sell(size=size)
+
+    def notify_trade(self, trade):
+        """Track open/closed trade lifecycle and aggregate win/loss statistics."""
+        if trade.isopen and not self._position_was_open:
+            if trade.size > 0:
+                self.buy_count += 1
+            elif trade.size < 0:
+                self.sell_count += 1
+            self._position_was_open = True
+            return
+        if not trade.isclosed:
+            return
+        self.trade_count += 1
+        if trade.pnlcomm >= 0:
+            self.win_count += 1
+        else:
+            self.loss_count += 1
+        self._position_was_open = False
+        self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
+
+
+WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
+BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
+if str(BACKTRADER_REPO) not in sys.path:
+    sys.path.insert(0, str(BACKTRADER_REPO))
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
+MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
+
+
+def resolve_data_path(filename):
+    """Resolve and validate a data filename relative to this strategy directory.
+
+    Args:
+        filename: Relative or absolute path string to the CSV source.
+
+    Returns:
+        Resolved ``Path`` object after filesystem validation.
+    """
+    path = (BASE_DIR / filename).resolve()
+    if not path.exists():
+        raise FileNotFoundError(f'Data file not found: {path}')
+    return path
+
+
+def load_backtest_frame(config):
+    """Load and slice the MT5 CSV bar data based on configuration dates.
+
+    Args:
+        config: Strategy/backtest configuration dictionary.
+
+    Returns:
+        A dict with loaded DataFrame and applied date range bounds.
+    """
+    data_cfg = config['data']
+    fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
+    todate = datetime.datetime.fromisoformat(data_cfg['todate'])
+    df = load_mt5_csv(
+        resolve_data_path(data_cfg['file']),
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=data_cfg.get('bar_shift_minutes', 0),
+    )
+    if df.empty:
+        raise ValueError('Loaded data frame is empty')
+    print(f"Loaded {len(df)} bars: {df.index[0]} -> {df.index[-1]}")
+    return {'data': df, 'fromdate': fromdate, 'todate': todate}
+
+
+def build_cerebro(config, frame):
+    """Construct and configure a Backtrader Cerebro instance for the strategy.
+
+    Args:
+        config: Full config dictionary including strategy and backtest sections.
+        frame: Output of :func:`load_backtest_frame`.
+
+    Returns:
+        Configured ``bt.Cerebro`` object with base and signal feeds, strategy,
+        analyzers, and broker settings attached.
+    """
+    bt_cfg = config['backtest']
+    params = config.get('params', {})
+    indicator_minutes = params.get('indicator_minutes', 240)
+    signal_frame = build_dss_bressert_frame(
+        frame['data'],
+        indicator_minutes=indicator_minutes,
+        ema_period=params.get('ema_period', 8),
+        sto_period=params.get('sto_period', 13),
+    )
+    if signal_frame.empty:
+        raise ValueError('Signal frame is empty after preprocessing')
+
+    cerebro = bt.Cerebro(stdstats=True)
+    cerebro.broker.setcash(bt_cfg['initial_cash'])
+    comm_type = bt.CommInfoBase.COMM_FIXED if bt_cfg.get('commission_type', 'fixed') == 'fixed' else bt.CommInfoBase.COMM_PERC
+    cerebro.broker.setcommission(
+        commission=bt_cfg['commission'],
+        margin=bt_cfg['margin'],
+        mult=bt_cfg['multiplier'],
+        commtype=comm_type,
+        stocklike=bt_cfg.get('stocklike', False),
+    )
+
+    base_feed = Mt5PandasFeed(dataname=frame['data'], timeframe=bt.TimeFrame.Minutes, compression=15)
+    signal_feed = DssBressertFeed(dataname=signal_frame, timeframe=bt.TimeFrame.Minutes, compression=indicator_minutes)
+    cerebro.adddata(base_feed, name=f"{config['data']['symbol']}_{config['data']['timeframe']}")
+    cerebro.adddata(signal_feed, name=f"{config['data']['symbol']}_H4")
+
+    strategy_params = dict(params)
+    for key in ['indicator_minutes', 'ema_period', 'sto_period']:
+        strategy_params.pop(key, None)
+    cerebro.addstrategy(DssBressertStrategy, **strategy_params)
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
+    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+    cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
+    return cerebro
+
+
+def extract_metrics(strat, cerebro, frame, config):
+    """Collect key performance metrics after backtest execution.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Finished Cerebro engine.
+        frame: Data frame metadata from :func:`load_backtest_frame`.
+        config: Original configuration used for backtest run.
+
+    Returns:
+        Metric dictionary that is later compared against expected baseline values.
+    """
+    sharpe = strat.analyzers.sharpe.get_analysis()
+    returns = strat.analyzers.returns.get_analysis()
+    drawdown = strat.analyzers.drawdown.get_analysis()
+    trades = strat.analyzers.trades.get_analysis()
+    sqn = strat.analyzers.sqn.get_analysis()
+    initial_cash = config['backtest']['initial_cash']
+    final_value = cerebro.broker.getvalue()
+    total_trades = trades.get('total', {}).get('total', 0)
+    won = trades.get('won', {}).get('total', 0)
+    lost = trades.get('lost', {}).get('total', 0)
+    gross_won = trades.get('won', {}).get('pnl', {}).get('total', 0) or 0
+    gross_lost = abs(trades.get('lost', {}).get('pnl', {}).get('total', 0) or 0)
+    return {
+        'fromdate': frame['fromdate'],
+        'todate': frame['todate'],
+        'bars': len(frame['data']),
+        'bar_num': strat.bar_num,
+        'signal_count': strat.signal_count,
+        'buy_count': strat.buy_count,
+        'sell_count': strat.sell_count,
+        'trade_count': strat.trade_count,
+        'win_count': strat.win_count,
+        'loss_count': strat.loss_count,
+        'initial_cash': initial_cash,
+        'final_value': final_value,
+        'net_pnl': final_value - initial_cash,
+        'total_return_pct': (final_value / initial_cash - 1) * 100,
+        'total_trades': total_trades,
+        'won': won,
+        'lost': lost,
+        'win_rate': (won / total_trades * 100) if total_trades else 0,
+        'profit_factor': (gross_won / gross_lost) if gross_lost else None,
+        'max_drawdown': drawdown.get('max', {}).get('drawdown', 0),
+        'sharpe_ratio': sharpe.get('sharperatio'),
+        'annual_return_pct': (returns.get('rnorm') or 0) * 100,
+        'sqn': sqn.get('sqn'),
+    }
+
+
+def run(plot=False):
+    """Run the configured backtest and return run artifacts.
+
+    Args:
+        plot: If ``True``, render Backtrader plots after execution.
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)`` for reuse in adapters or
+        assertions.
+    """
+    config = _bt_load_config(_CONFIG, repo=_REPO)
+    frame = load_backtest_frame(config)
+    cerebro = build_cerebro(config, frame)
+    print('\nStarting backtest...')
+    results = cerebro.run()
+    strat = results[0]
+    metrics = extract_metrics(strat, cerebro, frame, config)
+
+    if plot:
+        cerebro.plot()
+    return results, metrics, cerebro
+
+
+def _close(actual, expected, *, tol, key):
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    assert actual is not None, f"{key}: expected={expected}, got=None"
+    a = float(actual)
+    assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
+    assert abs(a - float(expected)) <= tol, (
+        f"{key}: expected={expected}, got={a} (tol={tol})"
+    )
+
+
+def _invoke_strategy_main():
+    """Call main() or run() depending on what the original script defined."""
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+    if hasattr(_mod, "main") and callable(_mod.main):
+        return _mod.main()
+    if hasattr(_mod, "run") and callable(_mod.run):
+        return _mod.run()
+    raise RuntimeError("Neither main() nor run() found in inlined module")
+
+
+def test_311_0310_1227_dss_bressert() -> None:
+    """Migrated regression test (runonce=True only).
+
+    Originally located at tests/functional/strategies_regression/mean_reversion/0310_1227_dss_bressert.
+    """
+    # Capture metrics by hooking extract_metrics() and invoking the original
+    # main() (or run()). This reuses whatever loader / build_cerebro /
+    # extract_metrics signatures the strategy used internally.
+    captured = {}
+    _orig_extract = extract_metrics
+    def _capture_em(*a, **kw):
+        m = _orig_extract(*a, **kw)
+        if isinstance(m, dict):
+            captured["metrics"] = m
+        return m
+
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+    _mod.extract_metrics = _capture_em
+
+    # Force runonce=True for the run inside main().
+    import backtrader as _bt
+    _orig_run = _bt.Cerebro.run
+    def _forced_runonce(self, *args, **kwargs):
+        kwargs["runonce"] = True
+        return _orig_run(self, *args, **kwargs)
+    _bt.Cerebro.run = _forced_runonce
+
+    # Strip pytest argv so that argparse-based main() functions don't see them.
+    _saved_argv = _sys.argv
+    _sys.argv = [_sys.argv[0]]
+
+    try:
+        try:
+            _invoke_strategy_main()
+        except SystemExit:
+            pass
+        except Exception:
+            if "metrics" not in captured:
+                raise
+    finally:
+        _bt.Cerebro.run = _orig_run
+        _mod.extract_metrics = _orig_extract
+        _sys.argv = _saved_argv
+
+    metrics = captured.get("metrics")
+    assert metrics is not None, "extract_metrics() was not called"
+
+    assert metrics.get('bar_num') == 6124, f"bar_num: expected=6124, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 15, f"buy_count: expected=15, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 14, f"sell_count: expected=14, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 15, f"win_count: expected=15, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 14, f"loss_count: expected=14, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 29, f"total_trades: expected=29, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 29, f"trade_count: expected=29, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 15, f"won: expected=15, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 14, f"lost: expected=14, got={metrics.get('lost')!r}"
+    _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
+    _close(metrics.get('signal_count'), 29.0, tol=2.900000e-05, key='signal_count')
+    _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
+    _close(metrics.get('final_value'), 1001665.7000000003, tol=1.001666e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 1665.7000000003027, tol=1.665700e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.16657000000002142, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 51.724137931034484, tol=5.172414e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.8275947731902478, tol=1.827595e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.10779844555059297, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 11.378642743814462, tol=1.137864e-05, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 10.345124574987661, tol=1.034512e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 1.534251828082345, tol=1.534252e-06, key='sqn')
+    _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
+    _activity = (
+        _total_trades
+        or (metrics.get("buy_count") or 0)
+        or (metrics.get("sell_count") or 0)
+        or (metrics.get("rebalance_count") or 0)
+    )
+    assert _activity > 0, f"strategy must have non-zero activity, got metrics={metrics!r}"

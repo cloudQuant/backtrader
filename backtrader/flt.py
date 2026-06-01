@@ -68,7 +68,6 @@ class Filter(ParameterizedBase):
         Note:
             Override this method to perform one-time initialization.
         """
-        pass
 
     def next(self, data):
         """Process each data bar.
@@ -79,4 +78,3 @@ class Filter(ParameterizedBase):
         Note:
             Subclasses must override this method to implement filtering logic.
         """
-        pass

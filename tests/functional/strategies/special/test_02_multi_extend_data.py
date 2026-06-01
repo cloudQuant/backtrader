@@ -247,7 +247,7 @@ def clean_data():
         "convert_premium_rate",
     ]
     df["datetime"] = pd.to_datetime(df["datetime"])
-    df = df[df["datetime"] > pd.to_datetime("2018-01-01")]
+    df = df[df["datetime"] > pd.to_datetime("2020-06-01")]
 
     datas = {}
     for symbol, data in df.groupby("symbol", sort=True):
@@ -621,7 +621,8 @@ class BondConvertTwoFactor(bt.Strategy):
             self.log(f"open symbol is : {trade.getdataname()} , price : {trade.price} ")
 
 
-def test_strategy(max_bonds=None, stdstats=True):
+@pytest.mark.parametrize("runonce", [True, False])
+def test_strategy(runonce, max_bonds=None, stdstats=True):
     """Run convertible bond double-low strategy backtest.
 
     This function sets up and executes a backtest of the BondConvertTwoFactor
@@ -715,7 +716,7 @@ def test_strategy(max_bonds=None, stdstats=True):
     # Run backtest
     print(f"DEBUG: About to run cerebro with {len(cerebro.datas)} data feeds")
     try:
-        results = cerebro.run()
+        results = cerebro.run(runonce=runonce)
         print(f"DEBUG: Cerebro run completed, results: {results}")
     except Exception as e:
         print(f"DEBUG: Exception during cerebro.run(): {type(e).__name__}: {e}")
@@ -741,11 +742,12 @@ def test_strategy(max_bonds=None, stdstats=True):
     print("final_value:", cerebro.broker.getvalue())
     print("trade_num:", trade_num)
     # assert trade_num == 1750
-    assert results[0].bar_num == 1885, f"Expected bar_num=1885, got {results[0].bar_num}"
-    assert trade_num == 12, f"Expected trade_num=12, got {trade_num}"
-    assert abs(sharpe_ratio - (-6.232087920949364)) < 1e-6, f"Expected sharpe_ratio=-6.232087920949364, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.0006854281197833842)) < 1e-6, f"Expected annual_return=-0.0006854281197833842, got {annual_return}"
-    assert abs(max_drawdown - 0.005450401808403724) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
+    assert results[0].bar_num == 1300, f"Expected bar_num=1300, got {results[0].bar_num}"
+    assert trade_num == 89, f"Expected trade_num=89, got {trade_num}"
+    assert trade_num > 0, "trade count must be > 0"
+    assert abs(sharpe_ratio - (-2.971439727995069)) < 1e-6, f"Expected sharpe_ratio=-2.971439727995069, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.002273514363043763)) < 1e-6, f"Expected annual_return=-0.002273514363043763, got {annual_return}"
+    assert abs(max_drawdown - 0.040254221427841914) < 1e-6, f"Expected max_drawdown=0.040254221427841914, got {max_drawdown}"
     # Note: Test function should not return value, otherwise pytest will warn
 
 

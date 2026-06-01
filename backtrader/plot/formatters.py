@@ -159,7 +159,7 @@ def patch_formatter(formatter, xdates):
     """
 
     def newcall(self, x, pos=0):
-        if False and x < 0:
+        if False and x < 0:  # noqa: SIM223  # intentionally-disabled upstream guard
             raise ValueError(
                 "DateFormatter found a value of x=0, which is "
                 "an illegal date.  This usually occurs because "

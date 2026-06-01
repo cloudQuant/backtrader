@@ -15,8 +15,10 @@ import datetime
 import math
 import operator
 import random
+import types
 
 import backtrader as bt
+from backtrader import functions as btfunctions
 from backtrader import linebuffer, lineroot, lineseries
 
 
@@ -113,6 +115,41 @@ def run_cerebro(strategy_class, num_bars=50, **kwargs):
     return results[0]
 
 
+class _ClockTestDateTimeLine:
+    def __init__(self):
+        self.value = None
+
+    def __setitem__(self, index, value):
+        assert index == 0
+        self.value = value
+
+
+class _ClockTestData:
+    def __init__(self, dt_value, length=1):
+        self._length = length
+        self.datetime = [dt_value]
+
+    def __len__(self):
+        return self._length
+
+
+class _ClockTestStrategy:
+    def __init__(self, datetimes, oldsync=False):
+        self._data_assignment_pending = False
+        self._clock = object()
+        self._oldsync = oldsync
+        self.datas = [_ClockTestData(dt) for dt in datetimes]
+        self.lines = types.SimpleNamespace(datetime=_ClockTestDateTimeLine())
+        self._dlens = [0 for _ in self.datas]
+        self.forward_calls = 0
+
+    def forward(self):
+        self.forward_calls += 1
+
+    def __len__(self):
+        return 1
+
+
 # ============================================================================
 # 1. lineroot.py — operators and stage2 paths
 # ============================================================================
@@ -192,6 +229,35 @@ class TestLineRootOperators:
         strat = run_cerebro(St)
         assert len(strat.results) > 0
 
+    def test_stage2_comparison_with_non_finite_scalar_inputs(self):
+        """Non-finite line values should be sanitized to 0.0 in stage2 scalar comparisons."""
+        data_list = generate_ohlcv(10)
+        data_list[2]["close"] = float("inf")
+        data_list[5]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                self.results = []
+
+            def next(self):
+                self.results.append({
+                    "lt": self.data.close < 1.0,
+                    "gt": self.data.close > -1.0,
+                    "le": self.data.close <= 0.0,
+                    "ge": self.data.close >= 0.0,
+                })
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert strat.results[2] == {"lt": True, "gt": True, "le": True, "ge": True}
+        assert strat.results[5] == {"lt": True, "gt": True, "le": True, "ge": True}
+
     def test_stage2_comparison_with_none(self):
         """Comparison operators handle None gracefully in stage2."""
 
@@ -215,6 +281,171 @@ class TestLineRootOperators:
         strat = run_cerebro(St)
         assert strat.ok
 
+    def test_cmp_with_none_constant(self):
+        """Cmp should sanitize None constants instead of crashing in next()."""
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.cmp_line = bt.Cmp(self.data.close, None)
+                self.cmpex_line = bt.CmpEx(self.data.close, None, -1.0, 0.0, 1.0)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify comparison lines are finite."""
+                self.bar_count += 1
+                assert self.cmp_line[0] in (-1, 0, 1)
+                assert self.cmpex_line[0] in (-1.0, 0.0, 1.0)
+
+        strat = run_cerebro(St)
+        assert strat.bar_count > 0
+
+    def test_cmp_with_nan_and_none_runonce(self):
+        """Cmp/CmpEx should sanitize NaN and None in once() path under runonce."""
+
+        data_list = generate_ohlcv(30)
+        data_list[5]["close"] = float("nan")
+        data_list[10]["close"] = None
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.cmp_line = bt.Cmp(self.data.close, None)
+                self.cmpex_line = bt.CmpEx(self.data.close, None, -1.0, 0.0, 1.0)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain valid."""
+                self.bar_count += 1
+                assert self.cmp_line[0] in (-1, 0, 1)
+                assert self.cmpex_line[0] in (-1.0, 0.0, 1.0)
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+        assert results[0].bar_count > 0
+
+    def test_div_helpers_with_none_and_nan(self):
+        """DivByZero and DivZeroByZero should sanitize None/NaN in next()."""
+
+        data_list = generate_ohlcv(20)
+        data_list[4]["close"] = None
+        data_list[7]["close"] = float("nan")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.div_zero = bt.DivByZero(self.data.close, 2.0, zero=0.0)
+                self.div_zero_zero = bt.DivZeroByZero(self.data.close, 2.0, single=1.0, dual=0.0)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain finite."""
+                self.bar_count += 1
+                assert math.isfinite(self.div_zero[0])
+                assert math.isfinite(self.div_zero_zero[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+        assert results[0].bar_count > 0
+
+    def test_div_helpers_with_none_and_nan_runonce(self):
+        """DivByZero and DivZeroByZero should sanitize None/NaN in once() path."""
+
+        data_list = generate_ohlcv(30)
+        data_list[6]["close"] = None
+        data_list[11]["close"] = float("nan")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.div_zero = bt.DivByZero(self.data.close, 2.0, zero=0.0)
+                self.div_zero_zero = bt.DivZeroByZero(self.data.close, 2.0, single=1.0, dual=0.0)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain finite."""
+                self.bar_count += 1
+                assert math.isfinite(self.div_zero[0])
+                assert math.isfinite(self.div_zero_zero[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+        assert results[0].bar_count > 0
+
+    def test_max_min_sum_with_none_and_nan(self):
+        """Max/Min/Sum should sanitize None/NaN inputs in next()."""
+
+        data_list = generate_ohlcv(20)
+        data_list[3]["close"] = None
+        data_list[8]["open"] = float("nan")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.max_line = bt.Max(self.data.close, self.data.open)
+                self.min_line = bt.Min(self.data.close, self.data.open)
+                self.sum_line = bt.Sum(self.data.close, self.data.open)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain finite."""
+                self.bar_count += 1
+                assert math.isfinite(self.max_line[0])
+                assert math.isfinite(self.min_line[0])
+                assert math.isfinite(self.sum_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+        assert results[0].bar_count > 0
+
+    def test_max_min_sum_with_none_and_nan_runonce(self):
+        """Max/Min/Sum should sanitize None/NaN inputs in once() path."""
+
+        data_list = generate_ohlcv(30)
+        data_list[4]["close"] = None
+        data_list[9]["open"] = float("nan")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.max_line = bt.Max(self.data.close, self.data.open)
+                self.min_line = bt.Min(self.data.close, self.data.open)
+                self.sum_line = bt.Sum(self.data.close, self.data.open)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain finite."""
+                self.bar_count += 1
+                assert math.isfinite(self.max_line[0])
+                assert math.isfinite(self.min_line[0])
+                assert math.isfinite(self.sum_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+        assert results[0].bar_count > 0
+
     def test_unary_operators(self):
         """Test abs() and neg() operators."""
 
@@ -234,6 +465,52 @@ class TestLineRootOperators:
 
         strat = run_cerebro(St)
         assert strat.bar_count > 0
+
+    def test_unary_operators_with_non_finite_values(self):
+        """Unary operators should sanitize non-finite inputs in next()."""
+        data_list = generate_ohlcv(12)
+        data_list[3]["close"] = float("inf")
+        data_list[8]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.abs_line = abs(self.data.close)
+                self.neg_line = -self.data.close
+                self.bar_count = 0
+
+            def next(self):
+                self.bar_count += 1
+                assert math.isfinite(self.abs_line[0])
+                assert math.isfinite(self.neg_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+        assert results[0].bar_count > 0
+
+    def test_unary_operators_with_non_finite_values_runonce(self):
+        """Unary operators should sanitize non-finite inputs in once()."""
+        data_list = generate_ohlcv(12)
+        data_list[2]["close"] = float("inf")
+        data_list[9]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.abs_line = abs(self.data.close)
+                self.neg_line = -self.data.close
+                self.bar_count = 0
+
+            def next(self):
+                self.bar_count += 1
+                assert math.isfinite(self.abs_line[0])
+                assert math.isfinite(self.neg_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+        assert results[0].bar_count > 0
 
     def test_right_operators(self):
         """Test right-hand side operators (radd, rsub, rmul, etc)."""
@@ -309,6 +586,150 @@ class TestLineRootOperators:
 
         strat = run_cerebro(St)
         assert len(strat.bool_results) > 0
+
+    def test_strategy_clk_update_ignores_non_finite_datetimes(self):
+        """Strategy._clk_update should ignore non-finite datetime values."""
+        strategy = _ClockTestStrategy([float("inf"), 3.0, float("nan")], oldsync=False)
+
+        clk_len = bt.Strategy._clk_update(strategy)
+
+        assert clk_len == 1
+        assert strategy.lines.datetime.value == 3.0
+
+    def test_bool_on_non_finite_data(self):
+        """Non-finite line values should evaluate to False in bool conversion."""
+        data_list = generate_ohlcv(10)
+        data_list[3]["close"] = float("inf")
+        data_list[6]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                self.bool_results = []
+
+            def next(self):
+                self.bool_results.append(bool(self.data.close))
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert len(strat.bool_results) == len(data_list)
+        assert strat.bool_results[3] is False
+        assert strat.bool_results[6] is False
+
+    def test_lineseries_call_on_non_finite_data(self):
+        """LineSeries current-value access should sanitize non-finite values to 0.0."""
+        data_list = generate_ohlcv(10)
+        data_list[2]["close"] = float("inf")
+        data_list[7]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.current_values = []
+
+            def next(self):
+                self.current_values.append(self.data(line="close"))
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert len(strat.current_values) == len(data_list)
+        assert strat.current_values[2] == 0.0
+        assert strat.current_values[7] == 0.0
+
+    def test_lineseries_getitem_on_non_finite_data(self):
+        """LineSeries index access should sanitize non-finite values to 0.0."""
+        data_list = generate_ohlcv(10)
+        data_list[2]["close"] = float("inf")
+        data_list[7]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.current_values = []
+
+            def next(self):
+                self.current_values.append(self.data[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert len(strat.current_values) == len(data_list)
+        assert strat.current_values[2] == 0.0
+        assert strat.current_values[7] == 0.0
+
+    def test_lineseries_getitem_preserves_nan(self):
+        """LineSeries index access should preserve NaN values."""
+        class _NaNLine:
+            def __getitem__(self, key):
+                return float("nan")
+
+        class _DummySeries:
+            pass
+
+        series = _DummySeries()
+        series.lines = [_NaNLine()]
+
+        value = lineseries.LineSeries.__getitem__(series, 0)
+
+        assert math.isnan(value)
+
+    def test_linedelay_sanitizes_non_finite_data(self):
+        """Delayed line access should sanitize non-finite values to 0.0 in next()."""
+        data_list = generate_ohlcv(10)
+        data_list[2]["close"] = float("inf")
+        data_list[6]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.delayed = self.data.close(-1)
+                self.delayed_values = []
+
+            def next(self):
+                self.delayed_values.append(self.delayed[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert len(strat.delayed_values) == len(data_list) - 1
+        assert strat.delayed_values[2] == 0.0
+        assert strat.delayed_values[6] == 0.0
+
+    def test_linedelay_sanitizes_non_finite_data_runonce(self):
+        """Delayed line access should sanitize non-finite values to 0.0 in once()."""
+        data_list = generate_ohlcv(12)
+        data_list[3]["close"] = float("inf")
+        data_list[8]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.delayed = self.data.close(-1)
+                self.delayed_values = []
+
+            def next(self):
+                self.delayed_values.append(self.delayed[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+
+        strat = results[0]
+        assert len(strat.delayed_values) == len(data_list) - 1
+        assert strat.delayed_values[3] == 0.0
+        assert strat.delayed_values[8] == 0.0
 
     def test_stage_switch(self):
         """Test _stage1 and _stage2 switching."""
@@ -581,8 +1002,34 @@ class TestLineSeries:
         strat = run_cerebro(St)
         assert strat.bar_count > 0
 
+    def test_multiline_bool_operation_with_non_finite_first_line(self):
+        """LineMultiple boolean self-operation should treat non-finite first-line values as False."""
+
+        class MultiLineInd(bt.Indicator):
+            lines = ("upper", "lower")
+
+            def __init__(self):
+                self.addminperiod(1)
+
+            def next(self):
+                value = self.data.close[0]
+                self.lines.upper[0] = float("inf") if value > 0 else value
+                self.lines.lower[0] = value
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.ind = MultiLineInd(self.data)
+                self.bool_results = []
+
+            def next(self):
+                self.bool_results.append(self.ind._makeoperationown(bool))
+
+        strat = run_cerebro(St, num_bars=10)
+        assert len(strat.bool_results) > 0
+        assert all(result is False for result in strat.bool_results)
+
     def test_data_lines_size(self):
-        """Test that data feed has correct number of lines."""
+        """Test that data.lines.size() matches number of standard OHLCV lines."""
 
         class St(bt.Strategy):
             """Test strategy for line coverage."""
@@ -768,7 +1215,7 @@ class TestLineIterator:
             def next(self):
                 """Calculate SMA for current bar."""
                 self.lines.out[0] = sum(
-                    self.data.close.get(ago=-i) for i in range(self.p.period)
+                    self.data.close[-i] for i in range(self.p.period)
                 ) / self.p.period
 
         class St(bt.Strategy):
@@ -1186,6 +1633,24 @@ class TestLineRootMakeOperation:
 
         strat = run_cerebro(St, num_bars=30)
         assert strat.bar_count > 0
+
+
+class TestFunctionSanitizers:
+    """Test low-level function sanitizers for numeric edge cases."""
+
+    def test_sanitize_cmp_value_handles_infinity(self):
+        assert btfunctions._sanitize_cmp_value(float("inf")) == 0.0
+        assert btfunctions._sanitize_cmp_value(float("-inf")) == 0.0
+        assert btfunctions._sanitize_cmp_value(float("nan")) == 0.0
+        assert btfunctions._sanitize_cmp_value(None) == 0.0
+        assert btfunctions._sanitize_cmp_value(5.0) == 5.0
+
+    def test_sanitize_div_value_handles_infinity(self):
+        assert btfunctions._sanitize_div_value(float("inf")) == 0.0
+        assert btfunctions._sanitize_div_value(float("-inf")) == 0.0
+        assert btfunctions._sanitize_div_value(float("nan")) == 0.0
+        assert btfunctions._sanitize_div_value(None) == 0.0
+        assert btfunctions._sanitize_div_value(5.0) == 5.0
 
 
 # ============================================================================

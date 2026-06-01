@@ -39,6 +39,7 @@ Example:
 """
 
 import time
+import pytest
 
 try:
     time_clock = time.process_time
@@ -49,6 +50,7 @@ import testcommon
 
 import backtrader as bt
 import backtrader.indicators as btind
+from types import SimpleNamespace
 
 
 class RunStrategy(bt.Strategy):
@@ -293,6 +295,43 @@ def test_run(main=False):
                     # Handle different precision
                     assert str(analysis.sqn)[0:14] == "0.912550316439"
                     assert str(analysis.trades) == "11"
+
+
+def test_sqn_nan_pnl_returns_none():
+    analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
+    analyzer.count = 2
+    analyzer.pnl = [float("nan"), 1.0]
+    analyzer.rets = SimpleNamespace()
+
+    analyzer.stop()
+
+    assert analyzer.rets.sqn is None
+    assert analyzer.rets.trades == 2
+
+
+def test_sqn_tiny_pnl_dust_returns_none():
+    analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
+    analyzer.count = 3
+    analyzer.pnl = [0.0, 9.094947017729282e-12, 0.0]
+    analyzer.rets = SimpleNamespace()
+
+    analyzer.stop()
+
+    assert analyzer.rets.sqn is None
+    assert analyzer.rets.trades == 3
+
+
+@pytest.mark.parametrize("pnl", [[complex(1.0, 1.0), 1.0], ["bad", 1.0]])
+def test_sqn_invalid_pnl_values_return_none(pnl):
+    analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
+    analyzer.count = 2
+    analyzer.pnl = pnl
+    analyzer.rets = SimpleNamespace()
+
+    analyzer.stop()
+
+    assert analyzer.rets.sqn is None
+    assert analyzer.rets.trades == 2
 
 
 if __name__ == "__main__":

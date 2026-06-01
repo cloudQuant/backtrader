@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -241,11 +242,12 @@ def load_zn889_data(filename: str = "ZN889.csv") -> pd.DataFrame:
     df.index = pd.to_datetime(df['datetime'])
     df = df[['open', 'high', 'low', 'close', 'volume', 'openinterest']]
     # Shorten date range to speed up testing
-    df = df[df.index >= '2020-01-01']
+    df = df[df.index >= '2020-06-01']
     return df
 
 
-def test_sky_garden_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_sky_garden_strategy(runonce):
     """Test Sky Garden intraday breakout strategy.
 
     Runs backtest using zinc futures data ZN889.csv.
@@ -284,7 +286,7 @@ def test_sky_garden_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -308,16 +310,17 @@ def test_sky_garden_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # Assert test results (exact values) - based on data after 2018-01-01
-    assert strat.bar_num == 32349, f"Expected bar_num=32349, got {strat.bar_num}"
-    assert strat.buy_count == 20, f"Expected buy_count=20, got {strat.buy_count}"
-    assert strat.sell_count == 21, f"Expected sell_count=21, got {strat.sell_count}"
+    # Assert test results (exact values) - based on data after 2020-06-01
+    assert strat.bar_num == 26400, f"Expected bar_num=26400, got {strat.bar_num}"
+    assert strat.buy_count == 12, f"Expected buy_count=12, got {strat.buy_count}"
+    assert strat.sell_count == 12, f"Expected sell_count=12, got {strat.sell_count}"
+    assert total_trades == 24, f"Expected total_trades=24, got {total_trades}"
     assert total_trades > 0, f"Expected total_trades > 0, got {total_trades}"
     # final_value tolerance: 0.01, other metrics tolerance: 1e-6
-    assert abs(sharpe_ratio - (1.7399955949849073)) < 1e-6, f"Expected sharpe_ratio=0.4071392839128455, got {sharpe_ratio}"
-    assert abs(annual_return - (0.1594097201976482)) < 1e-6, f"Expected annual_return=0.05046792274087781, got {annual_return}"
-    assert abs(max_drawdown - 0.1489498258942073) < 1e-6, f"Expected max_drawdown=0.16266069999999963, got {max_drawdown}"
-    assert abs(final_value - 64961.97000000003) < 0.01, f"Expected final_value=61050.48500000002, got {final_value}"
+    assert abs(sharpe_ratio - 1.4765383630676672) < 1e-6, f"Expected sharpe_ratio=1.477, got {sharpe_ratio}"
+    assert abs(annual_return - 0.07566107100651749) < 1e-6, f"Expected annual_return=0.0757, got {annual_return}"
+    assert abs(max_drawdown - 0.17632160449386625) < 1e-6, f"Expected max_drawdown=0.1763, got {max_drawdown}"
+    assert abs(final_value - 55202.41999999998) < 0.01, f"Expected final_value=55202.42, got {final_value}"
 
     print("\nAll tests passed!")
 

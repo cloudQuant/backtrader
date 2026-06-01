@@ -57,19 +57,19 @@ def __getattr__(name):
         from .app import BacktraderBokeh
 
         return BacktraderBokeh
-    elif name == "LivePlotAnalyzer":
+    if name == "LivePlotAnalyzer":
         from .analyzers import LivePlotAnalyzer
 
         return LivePlotAnalyzer
-    elif name == "RecorderAnalyzer":
+    if name == "RecorderAnalyzer":
         from .analyzers import RecorderAnalyzer
 
         return RecorderAnalyzer
-    elif name == "LiveClient":
+    if name == "LiveClient":
         from .live import LiveClient
 
         return LiveClient
-    elif name == "LiveDataHandler":
+    if name == "LiveDataHandler":
         from .live import LiveDataHandler
 
         return LiveDataHandler

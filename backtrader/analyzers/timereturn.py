@@ -12,6 +12,8 @@ Example:
     >>> cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years)
 """
 
+import math
+
 from ..analyzer import TimeFrameAnalyzerBase
 
 
@@ -176,6 +178,15 @@ class TimeReturn(TimeFrameAnalyzerBase):
         # Calculate the return
         super().next()
         # self.dtkey is an attribute set in analyzer, usually the end date of a period
-        self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
+        if self._value_start:
+            try:
+                ret = (self._value / self._value_start) - 1.0
+                if isinstance(ret, complex) or not math.isfinite(ret):
+                    ret = 0.0
+            except (ZeroDivisionError, TypeError, ValueError):
+                ret = 0.0
+            self.rets[self.dtkey] = ret
+        else:
+            self.rets[self.dtkey] = 0.0
         # self.rets[self.dtkey] = (float(self._value) / float(self._value_start)) - 1.0
         self._lastvalue = self._value  # keep last value

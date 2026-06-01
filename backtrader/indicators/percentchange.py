@@ -34,7 +34,7 @@ class PercentChange(Indicator):
     lines = ("pctchange",)
 
     # Fancy plotting name
-    plotlines = dict(pctchange=dict(_name="%change"))
+    plotlines = {"pctchange": {"_name": "%change"}}
 
     # update value to the standard for Moving Averages
     params = (("period", 30),)
@@ -70,7 +70,7 @@ class PercentChange(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]

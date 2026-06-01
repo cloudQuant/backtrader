@@ -15,9 +15,13 @@ logs/
 
 # Distribution / packaging
 .Python
+/build/
 build/
+**/build/
 develop-eggs/
+/dist/
 dist/
+**/dist/
 downloads/
 eggs/
 .eggs/
@@ -28,10 +32,13 @@ sdist/
 var/
 wheels/
 share/python-wheels/
+/backtrader.egg-info/
 *.egg-info/
+**/*.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
+pip-wheel-metadata/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -77,6 +84,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/.mplconfig/
 
 # PyBuilder
 .pybuilder/
@@ -152,3 +160,34 @@ backtrader_master_tests_report.html
 backtrader_remove_metaprogramming_report_timing.json
 performance_comparison.json
 backtrader-master/*htmlcov/
+docs/_internal/opts/requirements/迭代3-宏源期货完成穿透式认证/
+examples/live_certification/hongyuan_penetration/reports/
+examples/003_hft_notebook_examples/data/
+examples/live_certification/simnow_penetration/reports/
+examples/live_certification/hongyuan_penetration/*.docx
+
+# Local workspace / editor artifacts
+.benchmarks/
+.claude/
+.cursor/
+.idea/
+.ruff_cache/
+.vscode/
+_bmad/
+assets/
+.readthedocs-zh.yaml
+bandit-report.json
+fix_readme.py
+optimize_code.sh
+
+tests/functional/datas/
+tests/functional/strategies_regression/
+
+# Local git worktrees for branch comparison (should not be tracked)
+.branch_compare_worktrees/
+
+# Auto-generated transient outputs from regression tests
+tests/functional/strategies/**/strategy_backtest_results.csv
+tests/functional/strategies/**/backtest_result.json
+tests/functional/strategy_backtest_results.csv
+tests/functional/**/backtest_result.json

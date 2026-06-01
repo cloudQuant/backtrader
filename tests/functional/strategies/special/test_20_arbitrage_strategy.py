@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -384,7 +385,8 @@ def load_futures_data(variety: str = "T"):
     return index_df, data
 
 
-def test_treasury_futures_spread_arbitrage_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_treasury_futures_spread_arbitrage_strategy(runonce):
     """Test treasury bond futures inter-delivery spread arbitrage strategy
 
     Backtest using CFFEX futures contract data
@@ -431,7 +433,7 @@ def test_treasury_futures_spread_arbitrage_strategy():
 
     # Run backtest
     print("\nStarting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]

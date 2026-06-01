@@ -35,6 +35,7 @@ from backtrader.cerebro import Cerebro
 from backtrader.feeds import PandasData
 from backtrader.strategy import Strategy
 import backtrader.indicators as btind
+import pytest
 
 warnings.filterwarnings("ignore")
 
@@ -521,7 +522,7 @@ def load_bond_data_multi(csv_file, max_bonds=100):
 # ============================================================
 
 
-def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verbose=False):
+def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verbose=False, runonce=True):
     """Run multi-data source moving average strategy backtest.
 
     Creates and executes a complete backtest of the simple moving average
@@ -611,7 +612,7 @@ def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verb
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results
@@ -650,10 +651,10 @@ def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verb
 # Test configuration
 # ============================================================
 
-_test_results = None
+_test_results = {}
 
 
-def get_test_results():
+def get_test_results(runonce=True):
     """Get backtest results with caching for test efficiency.
 
     Retrieves or computes the backtest results for the multi-data moving
@@ -681,11 +682,11 @@ def get_test_results():
         >>> assert metrics['buy_count'] > 0
     """
     global _test_results
-    if _test_results is None:
-        _test_results = run_strategy(
-            max_bonds=30, initial_cash=10000000.0, commission=0.0002, verbose=False
+    if runonce not in _test_results:
+        _test_results[runonce] = run_strategy(
+            max_bonds=30, initial_cash=10000000.0, commission=0.0002, verbose=False, runonce=runonce
         )
-    return _test_results
+    return _test_results[runonce]
 
 
 # ============================================================
@@ -693,7 +694,8 @@ def get_test_results():
 # ============================================================
 
 
-def test_simple_ma_multi_data_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_simple_ma_multi_data_strategy(runonce):
     """Test multi-data source moving average strategy execution and results.
 
     Pytest-compatible test function that validates the strategy backtest
@@ -728,7 +730,7 @@ def test_simple_ma_multi_data_strategy():
         ===== test session starts =====
         tests/strategies/test_04_simple_ma_multi_data.py::test_simple_ma_multi_data_strategy PASSED
     """
-    cerebro, results, metrics = get_test_results()
+    cerebro, results, metrics = get_test_results(runonce=runonce)
 
     # Print results
     print("\n" + "=" * 60)

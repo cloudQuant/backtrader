@@ -8,15 +8,16 @@ Pairs trading based on OLS transformation and Z-Score.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 import backtrader.indicators as btind
 import math
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -236,7 +237,8 @@ class PairsTradingStrategy(bt.Strategy):
         pass
 
 
-def test_pairs_trading_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_pairs_trading_strategy(runonce):
     """Test the pairs trading strategy.
 
     This test loads historical price data for Visa (V) and Mastercard (MA),
@@ -286,7 +288,7 @@ def test_pairs_trading_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

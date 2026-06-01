@@ -522,5 +522,4 @@ make format
 5.**Handle errors** in `notify_order()` for robust trading
 
 - --
-
 - *Congratulations!** You're ready to use this enhanced backtrader fork. Your existing code works, and you now have access to powerful new features for live trading and improved performance.

@@ -27,6 +27,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -93,8 +94,8 @@ class CalmarTestStrategy(bt.Strategy):
             Used for validation in test assertions.
 
     params:
-        p1 (int): Period for the fast SMA. Defaults to 15 periods.
-        p2 (int): Period for the slow SMA. Defaults to 50 periods.
+        p1 (int): Period for the fast bt.indicators.SMA. Defaults to 15 periods.
+        p2 (int): Period for the slow bt.indicators.SMA. Defaults to 50 periods.
 
     Note:
         The strategy closes any existing position before opening a new one in
@@ -173,7 +174,8 @@ class CalmarTestStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_calmar_analyzer():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_calmar_analyzer(runonce):
     """Test the Calmar Ratio analyzer with a dual moving average strategy.
 
     This test function validates the Calmar ratio analyzer by running a backtest
@@ -230,7 +232,7 @@ def test_calmar_analyzer():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

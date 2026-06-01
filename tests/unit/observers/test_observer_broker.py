@@ -19,6 +19,7 @@ Typical usage example:
 """
 
 import backtrader as bt
+from types import SimpleNamespace
 
 import testcommon
 
@@ -106,6 +107,23 @@ def test_run(main=False):
         # Verify the strategy ran successfully
         assert len(strat) > 0
         assert strat.broker.getvalue() > 0
+
+
+def test_broker_observer_updates_cash_in_fundmode():
+    observer = object.__new__(bt.observers.Broker)
+    observer._fundmode = True
+    observer._owner = SimpleNamespace(
+        broker=SimpleNamespace(
+            fundvalue=12345.0,
+            getcash=lambda: 4321.0,
+        )
+    )
+    observer.lines = SimpleNamespace(value=[None], cash=[None])
+
+    observer.next()
+
+    assert observer.lines.value[0] == 12345.0
+    assert observer.lines.cash[0] == 4321.0
 
 
 if __name__ == "__main__":

@@ -17,7 +17,10 @@ Example:
 
 from ..feed import DataBase
 from ..utils import date2num
+from ..utils.log_message import get_logger
 from ..utils.py3 import filter, integer_types, string_types
+
+logger = get_logger(__name__)
 
 
 class PandasDirectData(DataBase):
@@ -90,7 +93,6 @@ class PandasDirectData(DataBase):
 
             # get the line to be set
             line = getattr(self.lines, datafield)
-            # print(colidx,datafield,row)
             # indexing for pandas: 1st is colum, then row
             line[0] = row[colidx]
 
@@ -198,7 +200,7 @@ class PandasData(DataBase):
 
         # Where each datafield find its value
         # Define a dictionary
-        self._colmapping = dict()
+        self._colmapping = {}
 
         # Build the column mappings to internal fields in advance
         # Iterate through each column
@@ -232,22 +234,19 @@ class PandasData(DataBase):
                 # all other cases -- used given index
                 self._colmapping[datafield] = defmapping
 
-    def start(self):
-        """Start the Pandas data feed.
+    def _resolve_colmapping(self):
+        """Resolve textual column names in self._colmapping to integer indices.
 
-        Resets index and converts column names to indices.
+        Extracted from start(). Honors the ``nocase`` param; a missing column
+        falls back to None only when the param default is a negative int,
+        otherwise the original ValueError is propagated.
         """
-        super().start()
-        # Before starting, reset _idx first
-        # reset the length with each start
-        self._idx = -1
-
         # Transform names (valid for .ix) into indices (good for .iloc)
         # If case-insensitive, convert column names to lowercase, if sensitive, keep original
         if self.p.nocase:
             colnames = [x.lower() for x in self.p.dataname.columns.values]
         else:
-            colnames = [x for x in self.p.dataname.columns.values]
+            colnames = list(self.p.dataname.columns.values)
 
         # Iterate through datafield and column names
         for k, v in self._colmapping.items():
@@ -256,10 +255,7 @@ class PandasData(DataBase):
                 continue  # special marker for datetime
             # If column name is string, if case-insensitive, convert to lowercase first,
             # if sensitive, ignore, then get column index based on column name
-
             if isinstance(v, string_types):
-                # Some code below seems ineffective, can be ignored, directly use
-                # self._colmapping[k] = colnames.index(v) as replacement
                 try:
                     if self.p.nocase:
                         v = colnames.index(v.lower())
@@ -273,6 +269,19 @@ class PandasData(DataBase):
                         raise e  # let user now something failed
             # If not string, user defined specific integer, directly use user's definition
             self._colmapping[k] = v
+
+    def start(self):
+        """Start the Pandas data feed.
+
+        Resets index and converts column names to indices.
+        """
+        super().start()
+        # Before starting, reset _idx first
+        # reset the length with each start
+        self._idx = -1
+
+        # Resolve textual column names in the colmapping into integer indices
+        self._resolve_colmapping()
 
         df = self.p.dataname
         self._df_len = len(df)
@@ -293,7 +302,8 @@ class PandasData(DataBase):
         self._df_values = None
         try:
             self._df_values = df.to_numpy(copy=False)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to convert DataFrame to numpy array: %s", e)
             self._df_values = None
 
         self._dt_dtnum = None
@@ -301,14 +311,27 @@ class PandasData(DataBase):
             coldtime = self._coldtime
             ts = df.index if coldtime is None else df.iloc[:, coldtime]
             try:
-                py_dts = ts.to_pydatetime()
-            except Exception:
+                import numpy as np
+
+                py_dts = np.array(ts.to_pydatetime())
+            except Exception as e1:
+                logger.debug("ts.to_pydatetime() failed, trying .dt accessor: %s", e1)
                 try:
-                    py_dts = ts.dt.to_pydatetime()
-                except Exception:
+                    import warnings
+
+                    import numpy as np
+
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", FutureWarning)
+                        py_dts = np.array(ts.dt.to_pydatetime())
+                except Exception as e2:
+                    logger.debug(
+                        "ts.dt.to_pydatetime() failed, falling back to element-wise: %s", e2
+                    )
                     py_dts = [x.to_pydatetime() if hasattr(x, "to_pydatetime") else x for x in ts]
             self._dt_dtnum = [date2num(d) for d in py_dts]
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to pre-compute datetime numbers: %s", e)
             self._dt_dtnum = None
 
     def _load(self):

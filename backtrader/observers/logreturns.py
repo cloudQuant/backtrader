@@ -55,7 +55,7 @@ class LogReturns(Observer):
     _stclock = True
 
     lines = ("logret1",)
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
     params = (
         ("timeframe", None),
@@ -84,7 +84,7 @@ class LogReturns(Observer):
 
         Gets the log return from the analyzer.
         """
-        self.lines.logret1[0] = self.logret1.rets[self.logret1.dtkey]
+        self.lines.logret1[0] = self.logret1.rets.get(self.logret1.dtkey, float("NaN"))
 
 
 # Show log returns for the second instrument
@@ -110,4 +110,4 @@ class LogReturns2(LogReturns):
         Updates logret1 from parent and logret2 for second feed.
         """
         super().next()
-        self.lines.logret2[0] = self.logret2.rets[self.logret2.dtkey]
+        self.lines.logret2[0] = self.logret2.rets.get(self.logret2.dtkey, float("NaN"))

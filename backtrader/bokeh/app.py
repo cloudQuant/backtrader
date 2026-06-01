@@ -5,8 +5,11 @@ Bokeh Application Core Classes
 Provides integration between Backtrader and Bokeh
 """
 
-import logging
 from collections import OrderedDict
+
+from backtrader.utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 try:
     import pandas as pd
@@ -34,12 +37,13 @@ try:
         except ImportError:
             from bokeh.models import Panel
 except ImportError:
+    # Bokeh is an optional dependency; BOKEH_AVAILABLE stays False when missing.
     pass
 
 from . import tabs as default_tabs  # noqa: E402
 from .schemes import Tradimo  # noqa: E402
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
 class FigurePage:
@@ -338,6 +342,10 @@ class BacktraderBokeh:
                     try:
                         dt = num2date(exec_dt)
                     except Exception:
+                        # Skip orders whose executed datetime cannot be decoded
+                        # (e.g. uninitialised/NaN). Plot-only path, so log at
+                        # debug and move on without aborting the plot.
+                        logger.debug("skip order: bad executed dt %r", exec_dt, exc_info=True)
                         continue
 
                     # Find the corresponding DataFrame row
@@ -350,13 +358,81 @@ class BacktraderBokeh:
                         else:
                             df.loc[idx, "sell_signal"] = True
                             df.loc[idx, "sell_price"] = exec_price
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to add trade signals: %s", e)
 
         # Add equity curve data
         df = self._add_equity_data(df, strategy)
 
         return df
+
+    def _equity_from_broker_observer(self, strategy, length):
+        """Equity values from the Broker observer's value line (or all-None)."""
+        equity_values = [None] * length
+        if hasattr(strategy, "observers"):
+            for obs in strategy.observers:
+                if obs.__class__.__name__ == "Broker":
+                    if hasattr(obs.lines, "value"):
+                        value_line = obs.lines.value
+                        obs_len = len(value_line)
+                        for i in range(min(length, obs_len)):
+                            idx = 1 - obs_len + i
+                            try:
+                                equity_values[i] = value_line[idx]
+                            except Exception as e:
+                                logger.debug("Failed to get equity value at idx %d: %s", idx, e)
+                    break
+        return equity_values
+
+    def _equity_from_timereturn(self, df, strategy, equity_values):
+        """Fill equity_values in-place from a TimeReturn analyzer (fallback)."""
+        time_return = None
+        for analyzer in getattr(strategy, "analyzers", []):
+            if analyzer.__class__.__name__ == "TimeReturn":
+                try:
+                    time_return = analyzer.get_analysis()
+                except Exception as e:
+                    logger.debug("Failed to get TimeReturn analysis: %s", e)
+                break
+
+        if not time_return:
+            return
+
+        start_cash = 100000  # Default starting capital
+        if hasattr(strategy, "broker"):
+            try:
+                start_cash = strategy.broker.startingcash
+            except Exception as e:
+                logger.debug("Failed to get starting cash: %s", e)
+
+        cumulative = start_cash
+        sorted_returns = sorted(time_return.items())
+        ret_idx = 0
+
+        for i, row in df.iterrows():
+            if ret_idx < len(sorted_returns):
+                dt, ret = sorted_returns[ret_idx]
+                if row["datetime"].date() >= dt.date() if hasattr(dt, "date") else True:
+                    cumulative = cumulative * (1 + ret)
+                    ret_idx += 1
+            equity_values[i] = cumulative
+
+    @staticmethod
+    def _compute_drawdown(df, equity_values):
+        """Fill df['drawdown']/['drawdown_pct'] from the equity curve."""
+        df["drawdown"] = None
+        df["drawdown_pct"] = None
+
+        max_equity = None
+        for i, eq in enumerate(equity_values):
+            if eq is not None:
+                if max_equity is None or eq > max_equity:
+                    max_equity = eq
+                if max_equity > 0:
+                    dd = max_equity - eq
+                    dd_pct = (dd / max_equity) * 100
+                    df.loc[i, "drawdown"] = dd
+                    df.loc[i, "drawdown_pct"] = dd_pct
 
     def _add_equity_data(self, df, strategy):
         """Add equity curve data.
@@ -371,69 +447,16 @@ class BacktraderBokeh:
         length = len(df)
 
         # Get equity data from Broker observer
-        equity_values = [None] * length
-
-        if hasattr(strategy, "observers"):
-            for obs in strategy.observers:
-                if obs.__class__.__name__ == "Broker":
-                    if hasattr(obs.lines, "value"):
-                        value_line = obs.lines.value
-                        obs_len = len(value_line)
-                        for i in range(min(length, obs_len)):
-                            idx = 1 - obs_len + i
-                            try:
-                                equity_values[i] = value_line[idx]
-                            except Exception:
-                                pass
-                    break
+        equity_values = self._equity_from_broker_observer(strategy, length)
 
         # If no Broker observer, try to calculate from TimeReturn analyzer
         if all(v is None for v in equity_values):
-            time_return = None
-            for analyzer in getattr(strategy, "analyzers", []):
-                if analyzer.__class__.__name__ == "TimeReturn":
-                    try:
-                        time_return = analyzer.get_analysis()
-                    except Exception:
-                        pass
-                    break
-
-            if time_return:
-                start_cash = 100000  # Default starting capital
-                if hasattr(strategy, "broker"):
-                    try:
-                        start_cash = strategy.broker.startingcash
-                    except Exception:
-                        pass
-
-                cumulative = start_cash
-                sorted_returns = sorted(time_return.items())
-                ret_idx = 0
-
-                for i, row in df.iterrows():
-                    if ret_idx < len(sorted_returns):
-                        dt, ret = sorted_returns[ret_idx]
-                        if row["datetime"].date() >= dt.date() if hasattr(dt, "date") else True:
-                            cumulative = cumulative * (1 + ret)
-                            ret_idx += 1
-                    equity_values[i] = cumulative
+            self._equity_from_timereturn(df, strategy, equity_values)
 
         df["equity"] = equity_values
 
         # Calculate drawdown
-        df["drawdown"] = None
-        df["drawdown_pct"] = None
-
-        max_equity = None
-        for i, eq in enumerate(equity_values):
-            if eq is not None:
-                if max_equity is None or eq > max_equity:
-                    max_equity = eq
-                if max_equity > 0:
-                    dd = max_equity - eq
-                    dd_pct = (dd / max_equity) * 100
-                    df.loc[i, "drawdown"] = dd
-                    df.loc[i, "drawdown_pct"] = dd_pct
+        self._compute_drawdown(df, equity_values)
 
         return df
 

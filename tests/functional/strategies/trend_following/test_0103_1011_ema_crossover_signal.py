@@ -1,0 +1,680 @@
+"""Regression test for `tests/functional/strategies/trend_following/regression/0103_1011_ema_crossover_signal` after inline migration.
+
+Data Used:
+    - Input data file: `tests/datas/XAUUSD_M15.csv`.
+    - Market/asset: `XAUUSD` spot.
+    - Base timeframe: 15-minute bars (`M15`).
+    - Signal timeframe: hourly aggregation at 240-minute bars, internally treated as H4 for crossover calculation.
+    - Backtest date range: from `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    - Data pipeline: raw MT5 CSV is loaded, converted to timezone-naive `datetime` index, then resampled to H4 for signal generation.
+
+Strategy Principle:
+    - The strategy calculates two custom moving averages (fast and slow) on an applied price source over the H4 bars.
+    - A buy signal is triggered when the fast MA crosses above the slow MA; sell signal when it crosses below.
+    - Entry is allowed only for configured directional permissions and one active order at a time, with fixed stop-loss and take-profit protection.
+    - Trade outcome statistics are validated against known regression values.
+
+Strategy Logic:
+    - `load_mt5_csv` loads and normalizes the MT5 text file into a clean OHLCV DataFrame.
+    - `resample_frame` builds the H4 signal frame, then `compute_ema_crossover_signal` adds MA lines and binary signal flags.
+    - `Mt5PandasFeed` and `EmaCrossoverSignalFeed` provide M15 and enriched H4 data into Backtrader.
+    - `EmaCrossoverSignalStrategy` reads the latest H4 signal and places close/open orders on M15 bars.
+    - `notify_order` and `notify_trade` track completed/rejected orders and trade win/loss counts.
+    - `extract_metrics` returns deterministic metrics for the regression assertions.
+"""
+from __future__ import annotations
+import math
+from pathlib import Path
+import argparse
+import datetime
+import sys
+import backtrader as bt
+import numpy as np
+import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, load_mt5_csv
+
+_REPO = Path(__file__).resolve().parents[4]
+
+_CONFIG = {
+    'strategy': {
+        'name': 'Exp_EMA-Crossover_Signal',
+        'source_ea': 'ea/1011_Exp_EMA-Crossover_Signal',
+    },
+    'data': {
+        'symbol': 'XAUUSD',
+        'timeframe': 'M15',
+        'file': '{repo}/tests/datas/XAUUSD_M15.csv',
+        'fromdate': '2025-12-03 01:15:00',
+        'todate': '2026-03-10 09:00:00',
+        'bar_shift_minutes': 15,
+        'signal_tf_minutes': 240,
+    },
+    'params': {
+        'mm': 0.1,
+        'mm_mode': 'LOT',
+        'stop_loss': 1000,
+        'take_profit': 2000,
+        'deviation': 10,
+        'buy_pos_open': True,
+        'sell_pos_open': True,
+        'buy_pos_close': True,
+        'sell_pos_close': True,
+        'signal_bar': 1,
+        'faster_ma': 5,
+        'slower_ma': 6,
+        'ma_type': 'mode_lwma',
+        'ma_price': 'price_close',
+        'size': 0.1,
+        'point': 0.01,
+        'digits_adjust': 10,
+        'price_digits': 2,
+    },
+    'backtest': {
+        'initial_cash': 1000000,
+        'commission': 0.0,
+        'margin': 0.01,
+        'multiplier': 100.0,
+        'commission_type': 'fixed',
+        'stocklike': False,
+    },
+}
+
+
+def resample_frame(df, rule):
+    """Resample an OHLCV frame with conservative aggregation rules.
+
+    Args:
+        df: Source dataframe containing at least OHLCV/openinterest columns and a
+            datetime index.
+        rule: Pandas offset string (for example, ``'240min'``).
+
+    Returns:
+        pandas.DataFrame: Resampled bars with complete `open/high/low/close/volume/openinterest`.
+    """
+    out = df.resample(rule, label='right', closed='right').agg({
+        'open': 'first',
+        'high': 'max',
+        'low': 'min',
+        'close': 'last',
+        'volume': 'sum',
+        'openinterest': 'last',
+    })
+    out = out.dropna(subset=['open', 'high', 'low', 'close'])
+    out['openinterest'] = out['openinterest'].fillna(0)
+    return out
+
+
+def compute_applied_price(frame, mode):
+    """Select the price series used for moving-average calculation.
+
+    Args:
+        frame: DataFrame containing OHLC columns.
+        mode: Applied-price mode identifier (open/high/low/median/typical/weighted/close).
+
+    Returns:
+        pandas.Series: Selected numeric price series.
+    """
+    mode = str(mode).lower()
+    if mode in ('price_open', 'open'):
+        return frame['open'].astype(float)
+    if mode in ('price_high', 'high'):
+        return frame['high'].astype(float)
+    if mode in ('price_low', 'low'):
+        return frame['low'].astype(float)
+    if mode in ('price_median', 'median'):
+        return (frame['high'].astype(float) + frame['low'].astype(float)) / 2.0
+    if mode in ('price_typical', 'typical'):
+        return (frame['high'].astype(float) + frame['low'].astype(float) + frame['close'].astype(float)) / 3.0
+    if mode in ('price_weighted', 'weighted'):
+        return (frame['high'].astype(float) + frame['low'].astype(float) + 2.0 * frame['close'].astype(float)) / 4.0
+    return frame['close'].astype(float)
+
+
+def apply_ma(series, period, method):
+    """Apply a moving average method used by the strategy.
+
+    Args:
+        series: Numeric source series.
+        period: Window size, coerced to at least 1.
+        method: MA type, supporting SMA, EMA, SMMA, and weighted fallback.
+
+    Returns:
+        pandas.Series: Smoothed series with required history enforced.
+    """
+    period = max(1, int(period))
+    mode = str(method).lower()
+    if mode in ('mode_sma', 'sma', '0'):
+        return series.rolling(period, min_periods=period).mean()
+    if mode in ('mode_ema', 'ema', '1'):
+        return series.ewm(span=period, adjust=False, min_periods=period).mean()
+    if mode in ('mode_smma', 'smma', '2'):
+        return series.ewm(alpha=1.0 / period, adjust=False, min_periods=period).mean()
+    weights = np.arange(1, period + 1, dtype='float64')
+    weight_sum = float(weights.sum())
+    return series.rolling(period, min_periods=period).apply(lambda values: float(np.dot(values, weights)) / weight_sum, raw=True)
+
+
+def compute_ema_crossover_signal(frame, faster_ma=5, slower_ma=6, ma_type='mode_lwma', ma_price='price_close'):
+    """Generate EMA crossover buy/sell signals on the resampled signal frame.
+
+    Args:
+        frame: Resampled H4 frame with OHLC data.
+        faster_ma: Fast moving average period.
+        slower_ma: Slow moving average period.
+        ma_type: MA family used by helper `apply_ma`.
+        ma_price: Applied price selector passed to `compute_applied_price`.
+
+    Returns:
+        pandas.DataFrame: Enriched frame containing `fast_ma`, `slow_ma`,
+        `buy_signal`, and `sell_signal`; rows without complete MA values are removed.
+    """
+    price = compute_applied_price(frame, ma_price)
+    fast = apply_ma(price, faster_ma, ma_type)
+    slow = apply_ma(price, slower_ma, ma_type)
+
+    buy_signal = (fast.shift(1) > slow.shift(1)) & (fast.shift(2) < slow.shift(2)) & (fast > slow)
+    sell_signal = (fast.shift(1) < slow.shift(1)) & (fast.shift(2) > slow.shift(2)) & (fast < slow)
+
+    out = frame.copy()
+    out['fast_ma'] = fast
+    out['slow_ma'] = slow
+    out['buy_signal'] = buy_signal.astype(float)
+    out['sell_signal'] = sell_signal.astype(float)
+    return out.dropna(subset=['fast_ma', 'slow_ma'])
+
+
+class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed for base M15 bars.
+
+    Maps pandas columns into Backtrader OHLCV fields for the primary execution stream.
+    """
+
+    params = (
+        ('datetime', None),
+        ('open', 0),
+        ('high', 1),
+        ('low', 2),
+        ('close', 3),
+        ('volume', 4),
+        ('openinterest', 5),
+    )
+
+
+class EmaCrossoverSignalFeed(bt.feeds.PandasData):
+    """Backtrader feed for H4 signal-enhanced bars.
+
+    Extends the base columns with fast/slow MA lines plus buy/sell crossover flags
+    used by the strategy to trigger entries.
+    """
+
+    lines = ('fast_ma', 'slow_ma', 'buy_signal', 'sell_signal')
+    params = (
+        ('datetime', None),
+        ('open', 0),
+        ('high', 1),
+        ('low', 2),
+        ('close', 3),
+        ('volume', 4),
+        ('openinterest', 5),
+        ('fast_ma', 6),
+        ('slow_ma', 7),
+        ('buy_signal', 8),
+        ('sell_signal', 9),
+    )
+
+
+class EmaCrossoverSignalStrategy(bt.Strategy):
+    """Signal strategy that trades on H4 MA crossover flags while operating on M15 bars.
+
+    Uses one live working order at a time, applies optional stop-loss and
+    take-profit constraints, and counts execution/trade outcomes for deterministic
+    regression verification.
+    """
+
+    params = dict(
+        mm=0.1,
+        mm_mode='LOT',
+        stop_loss=1000,
+        take_profit=2000,
+        deviation=10,
+        buy_pos_open=True,
+        sell_pos_open=True,
+        buy_pos_close=True,
+        sell_pos_close=True,
+        signal_bar=1,
+        size=0.1,
+        point=0.01,
+        digits_adjust=10,
+        price_digits=2,
+        faster_ma=5,
+        slower_ma=6,
+        ma_type='mode_lwma',
+        ma_price='price_close',
+    )
+
+    def __init__(self):
+        """Bind M15 and H4 streams and initialize strategy state counters."""
+        self.m15 = self.datas[0]
+        self.h4 = self.datas[1]
+        self.fast_ma = self.h4.fast_ma
+        self.slow_ma = self.h4.slow_ma
+        self.buy_signal = self.h4.buy_signal
+        self.sell_signal = self.h4.sell_signal
+
+        self.bar_num = 0
+        self.buy_signal_count = 0
+        self.sell_signal_count = 0
+        self.buy_count = 0
+        self.sell_count = 0
+        self.trade_count = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.completed_order_count = 0
+        self.rejected_order_count = 0
+
+        self.entry_order = None
+        self.stop_price = None
+        self.take_profit_price = None
+        self.last_signal_dt = None
+
+    def log(self, text):
+        """Print a timestamped log line for debugging/backtest traceability."""
+        dt = bt.num2date(self.m15.datetime[0])
+        print('{0}, {1}'.format(dt.isoformat(), text))
+
+    def _trade_unit(self):
+        return self.p.point * self.p.digits_adjust
+
+    def _signal_flag(self, line, idx):
+        try:
+            value = float(line[-idx])
+        except (TypeError, ValueError, IndexError):
+            return False
+        return not math.isnan(value) and value > 0.5
+
+    def _enough_history(self):
+        idx = max(int(self.p.signal_bar), 1)
+        try:
+            float(self.fast_ma[-idx])
+            float(self.slow_ma[-idx])
+        except (TypeError, ValueError, IndexError):
+            return False
+        return True
+
+    def _manage_risk(self):
+        if not self.position:
+            return False
+        high = float(self.m15.high[0])
+        low = float(self.m15.low[0])
+        if self.position.size > 0:
+            if self.stop_price is not None and low <= self.stop_price:
+                self.entry_order = self.close()
+                return True
+            if self.take_profit_price is not None and high >= self.take_profit_price:
+                self.entry_order = self.close()
+                return True
+        else:
+            if self.stop_price is not None and high >= self.stop_price:
+                self.entry_order = self.close()
+                return True
+            if self.take_profit_price is not None and low <= self.take_profit_price:
+                self.entry_order = self.close()
+                return True
+        return False
+
+    def _set_risk_prices(self, side):
+        price = float(self.m15.close[0])
+        unit = self._trade_unit()
+        if side == 'buy':
+            self.stop_price = round(price - self.p.stop_loss * unit, self.p.price_digits) if self.p.stop_loss > 0 else None
+            self.take_profit_price = round(price + self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
+        else:
+            self.stop_price = round(price + self.p.stop_loss * unit, self.p.price_digits) if self.p.stop_loss > 0 else None
+            self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
+
+    def next(self):
+        """Run one bar step for risk management and crossover order execution.
+
+        The strategy:
+        1. skips if an order is pending;
+        2. updates risk exits for open positions;
+        3. ignores repeated signals on the same H4 timestamp;
+        4. opens or closes positions according to configured crossover permissions.
+        """
+        self.bar_num += 1
+        if self.entry_order is not None:
+            return
+        if not self._enough_history():
+            return
+        if self._manage_risk():
+            return
+
+        idx = max(int(self.p.signal_bar), 1)
+        signal_dt = bt.num2date(self.h4.datetime[-idx])
+        if self.last_signal_dt == signal_dt:
+            return
+        self.last_signal_dt = signal_dt
+
+        buy_open = self.p.buy_pos_open and self._signal_flag(self.buy_signal, idx)
+        sell_open = self.p.sell_pos_open and self._signal_flag(self.sell_signal, idx)
+        buy_close = self.p.buy_pos_close and sell_open
+        sell_close = self.p.sell_pos_close and buy_open
+
+        if buy_open:
+            self.buy_signal_count += 1
+        if sell_open:
+            self.sell_signal_count += 1
+
+        self.log('fast_ma={0:.6f} slow_ma={1:.6f} buy_open={2} sell_open={3}'.format(float(self.fast_ma[-idx]), float(self.slow_ma[-idx]), buy_open, sell_open))
+
+        if buy_close and self.position and self.position.size > 0:
+            self.entry_order = self.close()
+            return
+        if sell_close and self.position and self.position.size < 0:
+            self.entry_order = self.close()
+            return
+
+        if buy_open and (not self.position or self.position.size <= 0):
+            if self.position and self.position.size < 0:
+                self.entry_order = self.close()
+                return
+            self._set_risk_prices('buy')
+            self.entry_order = self.buy(size=self.p.size)
+            return
+
+        if sell_open and (not self.position or self.position.size >= 0):
+            if self.position and self.position.size > 0:
+                self.entry_order = self.close()
+                return
+            self._set_risk_prices('sell')
+            self.entry_order = self.sell(size=self.p.size)
+
+    def notify_order(self, order):
+        """Track completed/rejected order transitions for instrumentation counters."""
+        if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
+            return
+        if order.status == bt.Order.Completed:
+            self.completed_order_count += 1
+            if self.position:
+                if order.executed.size > 0:
+                    self.buy_count += 1
+                elif order.executed.size < 0:
+                    self.sell_count += 1
+            else:
+                self.stop_price = None
+                self.take_profit_price = None
+        elif order.status in [bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected, bt.Order.Expired]:
+            self.rejected_order_count += 1
+        if self.entry_order is not None and order.ref == self.entry_order.ref and order.status not in [bt.Order.Submitted, bt.Order.Accepted]:
+            self.entry_order = None
+
+    def notify_trade(self, trade):
+        """Track trade lifecycle outcomes once a trade is fully closed."""
+        if not trade.isclosed:
+            return
+        self.trade_count += 1
+        if trade.pnlcomm >= 0:
+            self.win_count += 1
+        else:
+            self.loss_count += 1
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
+WORKSPACE_DIR = BASE_DIR.parents[2]
+LOCAL_BACKTRADER_REPO = WORKSPACE_DIR / 'backtrader'
+if LOCAL_BACKTRADER_REPO.exists():
+    sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
+
+
+MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
+
+
+def resolve_data_path(filename):
+    """Resolve a test data file relative to the current strategy test directory.
+
+    Args:
+        filename: Relative filename configured in `_CONFIG['data']['file']`.
+
+    Returns:
+        pathlib.Path: Absolute path to the data file.
+    """
+    path = (BASE_DIR / filename).resolve()
+    if not path.exists():
+        raise FileNotFoundError('Data file not found: {0}'.format(path))
+    return path
+
+
+def load_backtest_frames(config):
+    """Load and prepare base and signal dataframes used by the regression run.
+
+    Args:
+        config: Strategy/backtest configuration dictionary containing `data` and `params`.
+
+    Returns:
+        dict: Dictionary with prepared `m15`, `h4`, `fromdate`, and `todate`.
+    """
+    data_cfg = config['data']
+    params = config['params']
+    fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
+    todate = datetime.datetime.fromisoformat(data_cfg['todate'])
+    base = load_mt5_csv(resolve_data_path(data_cfg['file']), fromdate=fromdate, todate=todate, bar_shift_minutes=data_cfg.get('bar_shift_minutes', 0))
+    if base.empty:
+        raise ValueError('Loaded data frame is empty')
+    h4 = resample_frame(base, '{0}min'.format(data_cfg.get('signal_tf_minutes', 240)))
+    h4 = compute_ema_crossover_signal(h4, faster_ma=params['faster_ma'], slower_ma=params['slower_ma'], ma_type=params['ma_type'], ma_price=params['ma_price'])
+    print('Loaded bars: M15={0}, H4={1}'.format(len(base), len(h4)))
+    return {'m15': base, 'h4': h4, 'fromdate': fromdate, 'todate': todate}
+
+
+def build_cerebro(config, frame):
+    """Build and configure a Backtrader `Cerebro` instance for this strategy.
+
+    Args:
+        config: Strategy/backtest configuration dictionary.
+        frame: Dict from `load_backtest_frames` containing prepared data.
+
+    Returns:
+        bt.Cerebro: Configured engine with both data feeds, strategy, and analyzers.
+    """
+    bt_cfg = config['backtest']
+    cerebro = bt.Cerebro(stdstats=True)
+    cerebro.broker.setcash(bt_cfg['initial_cash'])
+    comm_type = bt.CommInfoBase.COMM_FIXED if bt_cfg.get('commission_type', 'fixed') == 'fixed' else bt.CommInfoBase.COMM_PERC
+    cerebro.broker.setcommission(commission=bt_cfg['commission'], margin=bt_cfg['margin'], mult=bt_cfg['multiplier'], commtype=comm_type, stocklike=bt_cfg.get('stocklike', False))
+
+    feed_m15 = Mt5PandasFeed(dataname=frame['m15'], timeframe=bt.TimeFrame.Minutes, compression=15)
+    feed_h4 = EmaCrossoverSignalFeed(dataname=frame['h4'][['open', 'high', 'low', 'close', 'volume', 'openinterest', 'fast_ma', 'slow_ma', 'buy_signal', 'sell_signal']], timeframe=bt.TimeFrame.Minutes, compression=240)
+
+    cerebro.adddata(feed_m15, name='XAUUSD_M15')
+    cerebro.adddata(feed_h4, name='XAUUSD_H4_EMA_Crossover_Signal')
+    cerebro.addstrategy(EmaCrossoverSignalStrategy, **config.get('params', {}))
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
+    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+    cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
+    return cerebro
+
+
+def extract_metrics(strat, cerebro, frame, config):
+    """Extract deterministic metrics used by the inline regression assertions.
+
+    Args:
+        strat: Finished strategy instance returned by `cerebro.run()`.
+        cerebro: Cerebro object used in the run.
+        frame: Source frame dictionary for context fields such as bar counts.
+        config: Backtest configuration with initial cash and other controls.
+
+    Returns:
+        dict: Strategy execution metrics covering bar counts, trades, pnl, drawdown, and
+        analyzer outputs.
+    """
+    sharpe = strat.analyzers.sharpe.get_analysis()
+    returns = strat.analyzers.returns.get_analysis()
+    drawdown = strat.analyzers.drawdown.get_analysis()
+    trades = strat.analyzers.trades.get_analysis()
+    sqn = strat.analyzers.sqn.get_analysis()
+    initial_cash = config['backtest']['initial_cash']
+    final_value = cerebro.broker.getvalue()
+    total_trades = trades.get('total', {}).get('total', 0)
+    won = trades.get('won', {}).get('total', 0)
+    lost = trades.get('lost', {}).get('total', 0)
+    gross_won = trades.get('won', {}).get('pnl', {}).get('total', 0) or 0
+    gross_lost = abs(trades.get('lost', {}).get('pnl', {}).get('total', 0) or 0)
+    return {
+        'fromdate': frame['fromdate'],
+        'todate': frame['todate'],
+        'bars_m15': len(frame['m15']),
+        'bars_h4': len(frame['h4']),
+        'bar_num': strat.bar_num,
+        'buy_signal_count': strat.buy_signal_count,
+        'sell_signal_count': strat.sell_signal_count,
+        'buy_count': strat.buy_count,
+        'sell_count': strat.sell_count,
+        'trade_count': strat.trade_count,
+        'win_count': strat.win_count,
+        'loss_count': strat.loss_count,
+        'completed_order_count': strat.completed_order_count,
+        'rejected_order_count': strat.rejected_order_count,
+        'initial_cash': initial_cash,
+        'final_value': final_value,
+        'net_pnl': final_value - initial_cash,
+        'total_return_pct': (final_value / initial_cash - 1) * 100,
+        'total_trades': total_trades,
+        'won': won,
+        'lost': lost,
+        'win_rate': (won / total_trades * 100) if total_trades else 0,
+        'profit_factor': (gross_won / gross_lost) if gross_lost else None,
+        'max_drawdown': drawdown.get('max', {}).get('drawdown', 0),
+        'sharpe_ratio': sharpe.get('sharperatio'),
+        'annual_return_pct': (returns.get('rnorm') or 0) * 100,
+        'sqn': sqn.get('sqn'),
+    }
+
+
+def run(plot=False):
+    """Execute the inlined strategy and return raw results, metrics, and cerebro.
+
+    Args:
+        plot: If True, render the Backtrader equity/plot output.
+
+    Returns:
+        tuple: `(results, metrics, cerebro)` where metrics is generated by
+        `extract_metrics`.
+    """
+    config = _bt_load_config(_CONFIG, repo=_REPO)
+    frame = load_backtest_frames(config)
+    cerebro = build_cerebro(config, frame)
+    print('\nStarting backtest...')
+    results = cerebro.run()
+    strat = results[0]
+    metrics = extract_metrics(strat, cerebro, frame, config)
+
+    if plot:
+        cerebro.plot()
+    return results, metrics, cerebro
+
+
+def _close(actual, expected, *, tol, key):
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    assert actual is not None, f"{key}: expected={expected}, got=None"
+    a = float(actual)
+    assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
+    assert abs(a - float(expected)) <= tol, (
+        f"{key}: expected={expected}, got={a} (tol={tol})"
+    )
+
+
+def _invoke_strategy_main():
+    """Call main() or run() depending on what the original script defined."""
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+    if hasattr(_mod, "main") and callable(_mod.main):
+        return _mod.main()
+    if hasattr(_mod, "run") and callable(_mod.run):
+        return _mod.run()
+    raise RuntimeError("Neither main() nor run() found in inlined module")
+
+
+def test_103_0103_1011_ema_crossover_signal() -> None:
+    """Migrated regression test (runonce=True only).
+
+    Originally located at tests/functional/strategies_regression/trend_following/0103_1011_ema_crossover_signal.
+    """
+    # Capture metrics by hooking extract_metrics() and invoking the original
+    # main() (or run()). This reuses whatever loader / build_cerebro /
+    # extract_metrics signatures the strategy used internally.
+    captured = {}
+    _orig_extract = extract_metrics
+    def _capture_em(*a, **kw):
+        m = _orig_extract(*a, **kw)
+        if isinstance(m, dict):
+            captured["metrics"] = m
+        return m
+
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+    _mod.extract_metrics = _capture_em
+
+    # Force runonce=True for the run inside main().
+    import backtrader as _bt
+    _orig_run = _bt.Cerebro.run
+    def _forced_runonce(self, *args, **kwargs):
+        kwargs["runonce"] = True
+        return _orig_run(self, *args, **kwargs)
+    _bt.Cerebro.run = _forced_runonce
+
+    # Strip pytest argv so that argparse-based main() functions don't see them.
+    _saved_argv = _sys.argv
+    _sys.argv = [_sys.argv[0]]
+
+    try:
+        try:
+            _invoke_strategy_main()
+        except SystemExit:
+            pass
+        except Exception:
+            if "metrics" not in captured:
+                raise
+    finally:
+        _bt.Cerebro.run = _orig_run
+        _mod.extract_metrics = _orig_extract
+        _sys.argv = _saved_argv
+
+    metrics = captured.get("metrics")
+    assert metrics is not None, "extract_metrics() was not called"
+
+    assert metrics.get('bar_num') == 6044, f"bar_num: expected=6044, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 21, f"buy_count: expected=21, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 10, f"sell_count: expected=10, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 18, f"win_count: expected=18, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 13, f"loss_count: expected=13, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 31, f"total_trades: expected=31, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 31, f"trade_count: expected=31, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 18, f"won: expected=18, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 13, f"lost: expected=13, got={metrics.get('lost')!r}"
+    _close(metrics.get('bars_m15'), 6129.0, tol=6.129000e-03, key='bars_m15')
+    _close(metrics.get('bars_h4'), 400.0, tol=4.000000e-04, key='bars_h4')
+    _close(metrics.get('buy_signal_count'), 28.0, tol=2.800000e-05, key='buy_signal_count')
+    _close(metrics.get('sell_signal_count'), 27.0, tol=2.700000e-05, key='sell_signal_count')
+    _close(metrics.get('completed_order_count'), 62.0, tol=6.200000e-05, key='completed_order_count')
+    _close(metrics.get('rejected_order_count'), 0.0, tol=1.000000e-06, key='rejected_order_count')
+    _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
+    _close(metrics.get('final_value'), 1008693.9000000036, tol=1.008694e+00, key='final_value')
+    _close(metrics.get('net_pnl'), 8693.900000003632, tol=8.693900e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.8693900000003696, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 58.06451612903226, tol=5.806452e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 2.194873556899398, tol=2.194874e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.3338141159926842, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 13.880293264134803, tol=1.388029e-05, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 66.86488981007086, tol=6.686489e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 1.6334467690417676, tol=1.633447e-06, key='sqn')
+    _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
+    _activity = (
+        _total_trades
+        or (metrics.get("buy_count") or 0)
+        or (metrics.get("sell_count") or 0)
+        or (metrics.get("rebalance_count") or 0)
+    )
+    assert _activity > 0, f"strategy must have non-zero activity, got metrics={metrics!r}"

@@ -8,10 +8,11 @@ A multi-confirmation strategy combining MACD, RSI, and Bollinger Bands
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -144,7 +145,8 @@ class MacdRsiBbStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_macd_rsi_bb_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_macd_rsi_bb_strategy(runonce):
     """Test the MACD + RSI + Bollinger Bands multi-indicator strategy.
 
     This test function:
@@ -154,7 +156,7 @@ def test_macd_rsi_bb_strategy():
 
     The strategy uses a mean-reversion approach, buying when price recovers
     from below the lower Bollinger Band with oversold RSI, and selling when
-    price reaches the upper Bollinger Band with overbought RSI.
+    price reaches the upper Bollinger Band with overbought bt.indicators.RSI.
 
     Expected results:
     - bar_num: 1224
@@ -184,7 +186,7 @@ def test_macd_rsi_bb_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

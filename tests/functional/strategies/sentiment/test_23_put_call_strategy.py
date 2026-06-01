@@ -10,6 +10,21 @@ The module contains:
 - PutCallStrategy: Trading strategy implementing sentiment-based logic
 - test_put_call_strategy: Test function validating strategy behavior
 
+Data Used:
+    SPY (SPDR S&P 500 ETF) daily bars enriched with sentiment indicators, loaded
+    from ``spy-put-call-fear-greed-vix.csv`` via the custom SPYPutCallData feed
+    (columns: OHLCV plus Put/Call ratio, Fear & Greed index, and VIX). The feed
+    is located via resolve_data_path and clipped to 2011-01-01 through
+    2021-12-31.
+
+Strategy Principle:
+    A contrarian sentiment model built on the equity Put/Call ratio, which rises
+    when traders buy protective puts in fear and falls when call-buying greed
+    dominates. Because sentiment extremes tend to precede reversals, the strategy
+    fades the crowd: it buys when the ratio spikes above 1.0 (peak fear) and
+    liquidates when the ratio drops below 0.45 (complacent greed), aiming to
+    enter near capitulation lows and exit into euphoria.
+
 Strategy Logic:
 - High Put/Call ratio (> 1.0) indicates market fear -> Buy signal (contrarian)
 - Low Put/Call ratio (< 0.45) indicates market greed -> Sell signal
@@ -24,6 +39,7 @@ import os
 from pathlib import Path
 
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -312,7 +328,8 @@ class PutCallStrategy(bt.Strategy):
         )
 
 
-def test_put_call_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_put_call_strategy(runonce):
     """Run comprehensive backtest of Put/Call ratio sentiment strategy.
 
     This test function validates the PutCallStrategy implementation by running
@@ -373,7 +390,7 @@ def test_put_call_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Extract results
     strat = results[0]

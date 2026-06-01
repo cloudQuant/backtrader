@@ -13,6 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -131,7 +132,8 @@ class OrderTargetStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_order_target_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_order_target_strategy(runonce):
     """Test the Order Target strategy backtest.
 
     This test runs a backtest on Yahoo stock data (2005-2006) and validates
@@ -160,7 +162,7 @@ def test_order_target_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Running backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

@@ -71,7 +71,7 @@ docker run -it --env-file=.env -e "CONFIG=$(cat .algolia-config.json | jq -r tos
 
 ### 创建 `.env` 文件
 
-```env
+```bash
 APPLICATION_ID=YOUR_APP_ID
 API_KEY=YOUR_API_KEY
 
@@ -279,6 +279,5 @@ docker run -p 8108:8108 \
 3. 联系 Algolia 支持团队
 
 - --
-
 - *更新日期**: 2026-03-01
 - *维护者**: Backtrader 文档团队

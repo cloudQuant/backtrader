@@ -4,6 +4,34 @@
 
 Reference: backtrader-master2/samples/strategy-selection/strategy-selection.py
 Demonstrates how to select different strategies at runtime.
+
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData`` (single data feed, daily timeframe, full
+    file range, no resampling). The same data file is reused for both candidate
+    strategies, and the test is parametrized over ``runonce=True`` and
+    ``runonce=False`` to exercise the vectorized and event-driven engines.
+
+Strategy Principle:
+    The module demonstrates runtime selection between two interchangeable
+    crossover strategies. ``StrategyA`` is a dual-SMA crossover (fast SMA versus
+    slow SMA) and ``StrategyB`` is a price-versus-SMA crossover. Both assume
+    that a crossover marks a trend change worth following: cross up goes long,
+    cross down closes the position. Neither uses a stop loss; risk is bounded by
+    fixed sizing and the next opposing crossover.
+
+Strategy Logic:
+    1. Each strategy's ``__init__`` builds its SMA/crossover indicators and
+       resets bar/buy/sell counters.
+    2. Each ``next`` goes long on a positive crossover (closing any open
+       position first) and closes on a negative crossover, with a single live
+       order at a time; ``notify_order`` counts completed buys and sells.
+    3. ``run_strategy_with_analyzer`` wires cerebro with $100,000 cash, a fixed
+       stake of 10, and Sharpe/Returns/DrawDown/Trade analyzers, then returns a
+       metrics dictionary for one strategy.
+    4. ``test_strategy_selection`` runs both strategies and asserts their bar
+       counts, final values, Sharpe ratios, annual returns, max drawdowns, and
+       trade counts match the recorded expectations.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -11,6 +39,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -57,7 +86,7 @@ class StrategyA(bt.Strategy):
 
         Sets up two Simple Moving Average (SMA) indicators with periods
         defined by p1 and p2 parameters, and creates a crossover indicator
-        to detect when the fast SMA crosses the slow SMA. Also initializes
+        to detect when the fast SMA crosses the slow bt.indicators.SMA. Also initializes
         tracking variables for orders, bars, and trade counts.
         """
         sma1 = bt.ind.SMA(period=self.p.p1)
@@ -119,7 +148,7 @@ class StrategyB(bt.Strategy):
 
         Sets up a Simple Moving Average (SMA) indicator with the period
         defined by the 'period' parameter, and creates a crossover indicator
-        to detect when the price crosses above or below the SMA. Also
+        to detect when the price crosses above or below the bt.indicators.SMA. Also
         initializes tracking variables for orders, bars, and trade counts.
         """
         sma = bt.ind.SMA(period=self.p.period)
@@ -167,13 +196,15 @@ class StrategyB(bt.Strategy):
                 self.order = self.close()
 
 
-def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
+def run_strategy_with_analyzer(strategy_class, data_path, strategy_name, runonce=True):
     """Run a single strategy with analyzers and return results.
 
     Args:
         strategy_class: The strategy class to run.
         data_path: Path to the data file for backtesting.
         strategy_name: Name of the strategy for display purposes.
+        runonce: If True, run in vectorized mode; if False, run in
+            event-driven mode. Defaults to True.
 
     Returns:
         A dictionary containing strategy performance metrics including
@@ -195,7 +226,7 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results
@@ -232,7 +263,8 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
     }
 
 
-def test_strategy_selection():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_strategy_selection(runonce):
     """Test Strategy Selection.
 
     Tests two different strategies (StrategyA and StrategyB) and verifies
@@ -243,11 +275,11 @@ def test_strategy_selection():
 
     # Test StrategyA
     print("\n--- Testing StrategyA ---")
-    result_a = run_strategy_with_analyzer(StrategyA, data_path, "StrategyA")
+    result_a = run_strategy_with_analyzer(StrategyA, data_path, "StrategyA", runonce=runonce)
 
     # Test StrategyB
     print("\n--- Testing StrategyB ---")
-    result_b = run_strategy_with_analyzer(StrategyB, data_path, "StrategyB")
+    result_b = run_strategy_with_analyzer(StrategyB, data_path, "StrategyB", runonce=runonce)
 
     # Assert test results
     assert result_a['bar_num'] == 482, f"Expected bar_num=482, got {result_a['bar_num']}"

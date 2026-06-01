@@ -49,6 +49,7 @@ from .deviation import *
 
 # depend on basicops, moving averages and deviations
 from .atr import *
+from .mt5atr import *
 from .aroon import *
 from .bollinger import *
 from .cci import *
@@ -76,6 +77,12 @@ from .williams import *
 from .rmi import *
 from .awesomeoscillator import *
 from .accdecoscillator import *
+from .priceops_ext import *
+from .moneyflow import *
+from .demarker import *
+from .channels_ext import *
+from .trend_ext import *
+from .supertrend import *
 
 
 from .dv2 import *  # depends on percentrank
@@ -92,6 +99,7 @@ from .vortex import *
 
 # Add some custom indicators
 from .myind import *
+from .contrib import *
 
 # # At the end of the file, after all imports
 # from .mabase import _register_common_moving_averages

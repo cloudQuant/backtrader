@@ -83,11 +83,11 @@ class QuandlCSV(feed.CSVDataBase):
 
         if not self.params.reverse:
             return
-        elif self._online:
+        if self._online:
             return  # revers is True but also online, managed with order = asc
 
         # Quandl data can be in reverse order -> reverse
-        dq = collections.deque()
+        dq: collections.deque = collections.deque()
         for line in self.f:
             dq.appendleft(line)
 
@@ -182,7 +182,7 @@ class Quandl(QuandlCSV):
 
     _online = True  # flag to avoid double reversal
 
-    params = (
+    params: tuple = (
         ("baseurl", "https://www.quandl.com/api/v3/datasets"),
         ("proxies", {}),
         ("buffered", True),

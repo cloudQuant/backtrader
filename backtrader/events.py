@@ -25,7 +25,7 @@ Example:
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import List, Optional, Tuple
 
 
@@ -55,7 +55,14 @@ class EventData(ABC):
     @abstractmethod
     def event_type(self) -> str:
         """Return the event type identifier string."""
-        pass
+
+    def to_dict(self) -> dict:
+        """Convert event data to a dictionary for serialization."""
+        result = asdict(self)
+        # Include dynamically-set attributes (e.g. datetime set by btapifeed)
+        if hasattr(self, "datetime") and "datetime" not in result:
+            result["datetime"] = getattr(self, "datetime")
+        return result
 
     def validate(self) -> bool:
         """Validate common event fields.

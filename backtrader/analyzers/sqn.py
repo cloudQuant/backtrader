@@ -22,6 +22,8 @@ from ..utils import AutoOrderedDict
 
 __all__ = ["SQN"]
 
+_PNL_EPSILON = 1e-10
+
 
 # Get SQN indicator
 class SQN(Analyzer):
@@ -66,7 +68,7 @@ class SQN(Analyzer):
         Initializes lists to store trade P&L values for SQN calculation.
         """
         super().start()
-        self.pnl = list()
+        self.pnl = []
         self.count = 0
 
     # Trade notification, if trade is closed, add profit/loss
@@ -90,12 +92,19 @@ class SQN(Analyzer):
         trades in self.rets.trades.
         """
         if self.count > 1:
-            pnl_av = average(self.pnl)
-            pnl_stddev = standarddev(self.pnl)
             try:
-                sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
-            except ZeroDivisionError:
+                pnl_values = [0.0 if abs(value) <= _PNL_EPSILON else value for value in self.pnl]
+                pnl_av = average(pnl_values)
+                pnl_stddev = standarddev(pnl_values)
+            except (TypeError, ValueError, ZeroDivisionError):
                 sqn = None
+            else:
+                if not math.isfinite(pnl_av) or not math.isfinite(pnl_stddev) or pnl_stddev == 0.0:
+                    sqn = None
+                else:
+                    sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
+                    if not math.isfinite(sqn):
+                        sqn = None
         else:
             sqn = 0
         # Set SQN value and trades value

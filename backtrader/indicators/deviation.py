@@ -64,90 +64,171 @@ class StandardDeviation(Indicator):
         return plabels
 
     def __init__(self):
-        """Initialize the Standard Deviation indicator.
-
-        Sets minimum period and checks for external mean data source.
-        """
+        """Initialize the Standard Deviation indicator."""
         super().__init__()
         self.addminperiod(self.p.period)
-        # Store mean indicator if provided as second data
         self._use_external_mean = len(self.datas) > 1
+        self._mean_prev = None
+        self._meansq_prev = None
 
-    def next(self):
-        """Calculate standard deviation for the current bar.
+    def _movav_kind(self):
+        movav = self.p.movav
+        names = {getattr(movav, "__name__", "")}
+        aliases = getattr(movav, "alias", ())
+        if isinstance(aliases, str):
+            names.add(aliases)
+        else:
+            names.update(aliases)
 
-        Uses the formula: sqrt(E[x^2] - E[x]^2)
-        """
-        period = self.p.period
-        data_sum = 0.0
-        data_sq_sum = 0.0
-        for i in range(period):
-            val = self.data[-i]
-            data_sum += val
-            data_sq_sum += val * val
+        if names.intersection(
+            {
+                "SmoothedMovingAverage",
+                "SMMA",
+                "WilderMA",
+                "MovingAverageSmoothed",
+                "MovingAverageWilder",
+                "ModifiedMovingAverage",
+                "Smoothed",
+            }
+        ):
+            return "smoothed"
 
-        mean = data_sum / period
-        meansq = data_sq_sum / period
-        sqmean = mean * mean
+        if names.intersection(
+            {"ExponentialMovingAverage", "EMA", "MovingAverageExponential", "Exponential"}
+        ):
+            return "exponential"
 
-        diff = meansq - sqmean
+        return "simple"
+
+    def _finish(self, meansq, mean):
+        diff = meansq - mean * mean
         if self.p.safepow:
             diff = abs(diff)
+        return math.sqrt(max(0.0, diff))
 
-        self.lines.stddev[0] = math.sqrt(max(0, diff))
+    def next(self):
+        """Calculate standard deviation for the current bar."""
+        period = self.p.period
+        if len(self) < period:
+            self.lines.stddev[0] = float("nan")
+            return
+
+        kind = self._movav_kind()
+        values = [float(self.data[i]) for i in range(1 - period, 1)]
+        if any(value != value for value in values):
+            self.lines.stddev[0] = float("nan")
+            return
+
+        if kind == "smoothed":
+            alpha = 1.0 / period
+        elif kind == "exponential":
+            alpha = 2.0 / (1.0 + period)
+        else:
+            alpha = None
+
+        if alpha is None or self._meansq_prev is None:
+            meansq = math.fsum(value * value for value in values) / period
+        else:
+            meansq = (
+                self._meansq_prev * (1.0 - alpha)
+                + float(self.data[0]) * float(self.data[0]) * alpha
+            )
+
+        if self._use_external_mean:
+            mean = float(self.data1[0])
+        elif alpha is None or self._mean_prev is None:
+            mean = math.fsum(values) / period
+        else:
+            mean = self._mean_prev * (1.0 - alpha) + float(self.data[0]) * alpha
+
+        self._meansq_prev = meansq
+        if not self._use_external_mean:
+            self._mean_prev = mean
+
+        self.lines.stddev[0] = self._finish(meansq, mean)
 
     def once(self, start, end):
         """Calculate standard deviation in runonce mode."""
         darray = self.data.array
         larray = self.lines.stddev.array
         period = self.p.period
-        safepow = self.p.safepow
         actual_end = min(end, len(darray))
+        nan_val = float("nan")
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(nan_val)
 
-        # PERFORMANCE: Cache constants and functions
-        nan_val = float("nan")
-        sqrt = math.sqrt
+        for i in range(min(period - 1, len(larray), actual_end)):
+            larray[i] = nan_val
 
-        # Pre-fill warmup with NaN
-        for i in range(min(period - 1, len(darray))):
-            if i < len(larray):
-                larray[i] = nan_val
+        if self._use_external_mean:
+            if hasattr(self.data1, "once"):
+                self.data1.once(0, end)
+            mean_array = self.data1.array
+        else:
+            mean_array = None
 
-        for i in range(period - 1, actual_end):
-            data_sum = 0.0
-            data_sq_sum = 0.0
-            has_nan = False
+        kind = self._movav_kind()
+        if kind == "smoothed":
+            alpha = 1.0 / period
+        elif kind == "exponential":
+            alpha = 2.0 / (1.0 + period)
+        else:
+            alpha = None
 
-            # PERFORMANCE: Simplified loop with faster NaN check
-            for j in range(period):
-                idx = i - j
-                if 0 <= idx < len(darray):
-                    val = darray[idx]
-                    # PERFORMANCE: Use val != val for NaN check (faster)
-                    if val != val:
-                        has_nan = True
-                        break
-                    data_sum += val
-                    data_sq_sum += val * val
-
-            if has_nan:
-                if i < len(larray):
+        if alpha is None:
+            for i in range(period - 1, actual_end):
+                start_idx = i - period + 1
+                end_idx = i + 1
+                window = darray[start_idx:end_idx]
+                if len(window) != period or any(value != value for value in window):
                     larray[i] = nan_val
-                continue
+                    continue
 
-            mean = data_sum / period
-            meansq = data_sq_sum / period
-            sqmean = mean * mean
+                meansq = math.fsum(value * value for value in window) / period
+                if mean_array is not None:
+                    if i >= len(mean_array) or mean_array[i] != mean_array[i]:
+                        larray[i] = nan_val
+                        continue
+                    mean = mean_array[i]
+                else:
+                    mean = math.fsum(window) / period
 
-            diff = meansq - sqmean
-            if safepow:
-                diff = abs(diff)
+                larray[i] = self._finish(meansq, mean)
+            return
 
-            if i < len(larray):
-                larray[i] = sqrt(max(0, diff))
+        prev_mean = None
+        prev_meansq = None
+        for i in range(period - 1, actual_end):
+            if i == period - 1:
+                window = darray[0:period]
+                if len(window) != period or any(value != value for value in window):
+                    larray[i] = nan_val
+                    continue
+                prev_meansq = math.fsum(value * value for value in window) / period
+                if mean_array is None:
+                    prev_mean = math.fsum(window) / period
+            else:
+                value = float(darray[i])
+                if value != value or prev_meansq is None:
+                    larray[i] = nan_val
+                    continue
+                prev_meansq = prev_meansq * (1.0 - alpha) + value * value * alpha
+                if mean_array is None:
+                    if prev_mean is None:
+                        larray[i] = nan_val
+                        continue
+                    prev_mean = prev_mean * (1.0 - alpha) + value * alpha
+
+            if mean_array is not None:
+                if i >= len(mean_array) or mean_array[i] != mean_array[i]:
+                    larray[i] = nan_val
+                    continue
+                mean = mean_array[i]
+            else:
+                mean = prev_mean
+
+            larray[i] = self._finish(prev_meansq, mean)
 
 
 # Average deviation

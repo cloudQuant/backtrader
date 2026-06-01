@@ -83,29 +83,6 @@ venv\Scripts\activate  # Windows
 
 ```bash
 
-### Q: ccxt 安装后无法导入？
-
-- *A:** ccxt 和 ccxt.pro 是独立的包。
-
-- *解决方案：**
-
-```bash
-
-# 基础包
-
-pip install ccxt
-
-# WebSocket 支持（推荐）
-
-pip install ccxt.pro
-
-# 验证安装
-
-python -c "import ccxt; print(ccxt.__version__)"
-python -c "import ccxt.pro; print('ccxt.pro available')"
-
-```bash
-
 ### Q: CTP 相关模块无法导入？
 
 - *A:** CTP 需要 ctp-python 和特定系统库。
@@ -314,84 +291,6 @@ class MyStrategy(bt.Strategy):
 # 此时指标值可能无效
         if len(self.data) >= self.sma._minperiod:
             print(f"SMA (prenext): {self.sma[0]}")  # 需要检查
-
-```bash
-
-### Q: CCXT 连接错误怎么办？
-
-- *A:** CCXT 连接问题常见原因和解决方案：
-
-#### 问题 1: API 密钥错误
-
-```python
-
-# 错误示例
-
-store = bt.stores.CCXTStore(
-    exchange='binance',
-    config={'apiKey': 'wrong_key', 'secret': 'wrong_secret'}
-)
-
-# 正确: 使用环境变量
-
-from backtrader.ccxt import load_ccxt_config_from_env
-config = load_ccxt_config_from_env('binance')
-store = bt.stores.CCXTStore(exchange='binance', config=config)
-
-```bash
-
-#### 问题 2: 网络连接问题
-
-```python
-
-# 添加重试和超时配置
-
-store = bt.stores.CCXTStore(
-    exchange='binance',
-    config={
-        'apiKey': os.getenv('BINANCE_API_KEY'),
-        'secret': os.getenv('BINANCE_SECRET'),
-        'timeout': 30000,  # 30 秒超时
-        'enableRateLimit': True,
-    },
-    retries=5,  # 重试 5 次
-
-)
-
-```bash
-
-#### 问题 3: 交易所维护
-
-```python
-
-# 检查连接状态
-
-store = bt.stores.CCXTStore(...)
-
-# 在策略中检查
-
-class MyStrategy(bt.Strategy):
-    def notify_data(self, data, status, *args, **kwargs):
-        if status == data.DISCONNECTED:
-            print(f"[警告] {data._name} 连接断开")
-
-```bash
-
-#### 问题 4: WebSocket 不可用
-
-```bash
-
-# 安装 ccxt.pro
-
-pip install ccxtpro
-
-# 或在代码中回退到 REST
-
-data = store.getdata(
-    dataname='BTC/USDT',
-    use_websocket=False,  # 使用 REST 轮询
-
-)
 
 ```bash
 
@@ -1082,9 +981,7 @@ def run_live_trading(store, symbol, strategy_class):
 
 ## 相关文档
 
-- [CCXT 实盘交易指南](../CCXT_LIVE_TRADING_GUIDE.md)
 - [CTP 实盘交易指南](../user_guide/ctp-live-trading_zh.md)
-- [WebSocket 实时数据流指南](../WEBSOCKET_GUIDE.md)
 - [性能优化总结](../opts/performance_optimization_summary.md)
 - [架构文档](../ARCHITECTURE.md)
 - [绘图指南](../user_guide/plotting_zh.md)

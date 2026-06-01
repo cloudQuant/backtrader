@@ -8,10 +8,11 @@ Uses Chandelier Exit indicator combined with moving average crossover
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -43,42 +44,6 @@ def resolve_data_path(filename: str) -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
-
-
-class ChandelierExitIndicator(bt.Indicator):
-    """Chandelier Exit volatility-based trailing stop indicator.
-
-    This indicator calculates trailing stop levels for both long and short
-    positions based on the Highest high, Lowest low, and Average True Range (ATR).
-
-    Lines:
-        long: Long exit level (Highest high - ATR * multiplier)
-        short: Short exit level (Lowest low + ATR * multiplier)
-
-    Params:
-        period (int): Lookback period for Highest/Lowest and ATR calculation. Default is 22.
-        multip (float): Multiplier for ATR. Default is 3.
-    """
-    lines = ('long', 'short')
-    params = dict(period=22, multip=3)
-    plotinfo = dict(subplot=False)
-
-    def __init__(self):
-        """Initialize the Chandelier Exit indicator.
-
-        Sets up the calculation pipeline by:
-        1. Computing the Highest high over the lookback period
-        2. Computing the Lowest low over the lookback period
-        3. Computing Average True Range (ATR) over the lookback period
-        4. Calculating long exit as Highest high - (ATR * multiplier)
-        5. Calculating short exit as Lowest low + (ATR * multiplier)
-        """
-        highest = bt.ind.Highest(self.data.high, period=self.p.period)
-        lowest = bt.ind.Lowest(self.data.low, period=self.p.period)
-        atr = self.p.multip * bt.ind.ATR(self.data, period=self.p.period)
-        self.lines.long = highest - atr
-        self.lines.short = lowest + atr
-
 
 class ChandelierExitStrategy(bt.Strategy):
     """Chandelier Exit trailing stop strategy.
@@ -127,7 +92,7 @@ class ChandelierExitStrategy(bt.Strategy):
         """
         self.sma_fast = bt.indicators.SMA(self.data, period=self.p.sma_fast)
         self.sma_slow = bt.indicators.SMA(self.data, period=self.p.sma_slow)
-        self.ce = ChandelierExitIndicator(
+        self.ce = bt.indicators.ChandelierExitIndicator(
             self.data, period=self.p.ce_period, multip=self.p.ce_mult
         )
 
@@ -184,7 +149,8 @@ class ChandelierExitStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_chandelier_exit_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_chandelier_exit_strategy(runonce):
     """Test the Chandelier Exit strategy backtest.
 
     This function sets up and runs a backtest of the Chandelier Exit strategy
@@ -221,7 +187,7 @@ def test_chandelier_exit_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

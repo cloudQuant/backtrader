@@ -11,7 +11,7 @@
 │                    Read the Docs                         │
 ├─────────────────────────────────────────────────────────┤
 │  backtrader (英文)          backtrader-zh (中文)        │
-│  ├── .readthedocs.yaml      ├── .readthedocs-zh.yaml    │
+│  ├── .readthedocs.yaml      ├── .readthedocs.yaml       │
 │  ├── conf.py (自动检测语言)                             │
 │  ├── index.rst (英文)       index_zh.rst (中文)         │
 │  └── user_guide/            user_guide_zh/              │
@@ -49,7 +49,7 @@
    - **Language**: `Simplified Chinese`
    - **Default branch**: `development`
 1. 创建后，进入项目 **Admin**→**Advanced Settings**
-2. 设置 **Path for .readthedocs.yaml**为：`.readthedocs-zh.yaml`
+2. 保持默认配置文件为：`.readthedocs.yaml`
 3. 保存设置
 
 ### 步骤 3：禁用 stable 版本（两个项目都要设置）

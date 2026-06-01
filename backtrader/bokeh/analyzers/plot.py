@@ -6,9 +6,10 @@ Provides real-time plotting functionality based on Bokeh Server.
 """
 
 import asyncio
-import logging
 import threading
 from threading import Lock
+
+from backtrader.utils.log_message import get_logger
 
 try:
     import tornado.ioloop
@@ -24,7 +25,7 @@ from ..live.client import LiveClient
 from ..schemes import Tradimo
 from ..webapp import Webapp
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
 class LivePlotAnalyzer(bt.Analyzer):

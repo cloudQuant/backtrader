@@ -20,16 +20,42 @@ The module includes:
 Multi-Period Data Usage:
     - datas[0]: 5-minute bar data (primary timeframe for trading)
     - datas[1]: Daily bar data (used for date synchronization filtering)
+
+Data Used:
+    Two backtrader sample feeds for the 2006 calendar year, located via
+    resolve_data_path: ``2006-min-005.txt`` as 5-minute GenericCSVData bars
+    (datas[0], the trading timeframe) and ``2006-day-001.txt`` as daily
+    GenericCSVData bars (datas[1], used only for date-synchronization filtering).
+    Both are clipped to 2006-01-01 through 2006-12-31.
+
+Strategy Principle:
+    A classic dual-EMA crossover trend follower run on intraday bars with a daily
+    feed for alignment. The fast EMA reacts quickly to price while the slow EMA
+    tracks the broader trend; a golden cross (fast above slow) marks an uptrend
+    to go long and a death cross marks a downtrend to go short. Trading is gated
+    on date synchronization between the minute and daily feeds so signals only
+    fire when both timeframes agree on the current date.
+
+Strategy Logic:
+    EmaCrossStrategy builds fast/slow EMAs and a CrossOver on the 5-minute feed
+    plus a daily SMA when daily data is present. Each bar it scans the recent
+    crossover history, checks date sync, and — while flat — opens a short on a
+    net death-cross or a long on a net golden-cross, or — while positioned —
+    closes on the opposite cross. notify_order logs fills and notify_trade tracks
+    win/loss and cumulative PnL. The parametrized test runs both runonce=True and
+    runonce=False with cheat-on-close enabled, then asserts bar count, final
+    value, trade count, drawdown, and annual return against expected values.
 """
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -91,8 +117,8 @@ class EmaCrossStrategy(bt.Strategy):
     EMA and a slow EMA, while using daily data for date synchronization filtering.
 
     Strategy Parameters:
-        fast_period (int): Period for the fast EMA. Default is 80.
-        slow_period (int): Period for the slow EMA. Default is 200.
+        fast_period (int): Period for the fast bt.indicators.EMA. Default is 80.
+        slow_period (int): Period for the slow bt.indicators.EMA. Default is 200.
         short_size (int): Position size for short trades. Default is 2.
         long_size (int): Position size for long trades. Default is 1.
 
@@ -328,7 +354,8 @@ class EmaCrossStrategy(bt.Strategy):
         )
 
 
-def test_ema_cross_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_ema_cross_strategy(runonce):
     """Test EMA dual moving average crossover strategy with historical data.
 
     This test function:
@@ -436,7 +463,7 @@ def test_ema_cross_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Extract results
     strat = results[0]

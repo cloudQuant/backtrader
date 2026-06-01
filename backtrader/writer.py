@@ -15,15 +15,12 @@ Example:
     >>> results = cerebro.run()
 """
 
-import collections
 import io
 import itertools
 import sys
+from collections.abc import Iterable
+from typing import List, Optional, Union, cast
 
-try:  # For new Python versions
-    collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
-except AttributeError:  # For old Python versions
-    collectionsAbc = collections
 from .lineseries import LineSeries
 from .parameters import ParameterizedBase
 from .utils.py3 import integer_types, map, string_types
@@ -37,8 +34,6 @@ class WriterBase(ParameterizedBase):
     Subclasses should override the writing methods to provide
     custom output formatting.
     """
-
-    pass
 
 
 # WriterFile class - refactored to not use metaclass
@@ -60,7 +55,7 @@ class WriterFile(WriterBase):
         >>> cerebro.addwriter(bt.WriterFile, out='results.csv', csv=True)
     """
 
-    params = (
+    params = (  # type: ignore[assignment]
         ("out", None),
         ("close_out", False),
         ("csv", False),
@@ -88,11 +83,14 @@ class WriterFile(WriterBase):
         # _len is a counter
         # CRITICAL FIX: Change counter start value from 1 to 0 to match test expectations
         # This fixes assertion error in test_writer.py: assert count == 256
-        self._len = itertools.count(0)
+        self._len: "itertools.count[int]" = itertools.count(0)
         # headers
-        self.headers = list()
+        self.headers: List[str] = []
         # values
-        self.values = list()
+        self.values: List[str] = []
+        # out and close_out are set in _start_output when start() is called
+        self.out: Optional[Union[io.TextIOBase, io.TextIOWrapper]] = None
+        self.close_out: bool = True
 
     # Start output
     def _start_output(self):
@@ -101,15 +99,18 @@ class WriterFile(WriterBase):
         if not hasattr(self, "out") or not self.out:
             # If out parameter is None, set out to standard output, and close_out to False
             if self.p.out is None:
-                self.out = sys.stdout
+                self.out = cast(Union[io.TextIOBase, io.TextIOWrapper], sys.stdout)
                 self.close_out = False
             # If self.p.out is a string_types, open file in write mode, close_out needs to be True
             elif isinstance(self.p.out, string_types):
-                self.out = open(self.p.out, "w")
+                self.out = cast(
+                    Union[io.TextIOBase, io.TextIOWrapper],
+                    open(self.p.out, "w"),
+                )
                 self.close_out = True
-            # If self.p.out is neither None nor string format, self.out equals self.p.out, self.close_out equals self.p.close_out
+            # If self.p.out is neither None nor string format, self.out equals self.p.out
             else:
-                self.out = self.p.out
+                self.out = cast(Union[io.TextIOBase, io.TextIOWrapper], self.p.out)
                 self.close_out = self.p.close_out
 
     # Start
@@ -134,8 +135,22 @@ class WriterFile(WriterBase):
 
         Closes the output file if close_out parameter is True.
         """
-        if self.close_out:
-            self.out.close()
+        if self.close_out and self.out is not None:
+            try:
+                self.out.close()
+            except OSError:
+                # Stream already closed or not closable; nothing more to do.
+                pass
+
+    def __enter__(self):
+        """Support context manager protocol."""
+        self._start_output()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Ensure output stream is closed when exiting context."""
+        self.stop()
+        return False
 
     # If csv is True, save values to self.out each time, and set self.values to empty list
     def next(self):
@@ -146,7 +161,7 @@ class WriterFile(WriterBase):
         """
         if self.p.csv:
             self.writeiterable(self.values, func=str, counter=next(self._len))
-            self.values = list()
+            self.values = []
 
     # If csv is True, add column names
     def addheaders(self, headers):
@@ -197,6 +212,8 @@ class WriterFile(WriterBase):
         Args:
             line: The line content to write.
         """
+        if self.out is None:
+            raise RuntimeError("Writer output not initialized; call start() first")
         self.out.write(line + "\n")
 
     # Write multiple lines to self.out
@@ -206,6 +223,8 @@ class WriterFile(WriterBase):
         Args:
             lines: Iterable of line contents to write.
         """
+        if self.out is None:
+            raise RuntimeError("Writer output not initialized; call start() first")
         for line in lines:
             self.out.write(line + "\n")
 
@@ -285,8 +304,9 @@ class WriterFile(WriterBase):
                 # Write dictionary
                 self.writedict(val, level=level + 1, recurse=True)
             # If val is an iterable object
-            # elif isinstance(val, (list, tuple, collections.Iterable)):
-            elif isinstance(val, (list, tuple, collectionsAbc.Iterable)):
+            elif isinstance(val, (list, tuple)) or (
+                not isinstance(val, (str, dict)) and isinstance(val, Iterable)
+            ):
                 # Form line and save to self.out
                 line = ", ".join(map(str, val))
                 self.writeline(kline + " " + line)
@@ -314,7 +334,7 @@ class WriterStringIO(WriterFile):
     """
 
     # Parameter out set to StringIO
-    params = (("out", io.StringIO),)
+    params = (("out", io.StringIO),)  # type: ignore[assignment]
 
     def __init__(self, **kwargs):
         """Initialize the WriterStringIO instance.
@@ -336,7 +356,6 @@ class WriterStringIO(WriterFile):
     @out.setter
     def out(self, value):
         """Ignore attempts to set out - we control it."""
-        pass
 
     def stop(self):
         """Seek to beginning for reading."""

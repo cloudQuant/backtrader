@@ -22,7 +22,305 @@ from .linebuffer import LineActions, LineNum
 from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
+from .utils.log_message import get_logger
 from .utils.py3 import range, string_types, zip
+
+logger = get_logger(__name__)
+
+
+def _clock_is_replaying(clock, seen=None):
+    """Return True when a clock or one of its source clocks is replaying."""
+    if clock is None:
+        return False
+
+    if seen is None:
+        seen = set()
+
+    clock_id = id(clock)
+    if clock_id in seen:
+        return False
+    seen.add(clock_id)
+
+    try:
+        if bool(getattr(clock, "replaying", False)):
+            return True
+    except Exception:  # nosec B110
+        # Non-clock object without a usable 'replaying' flag; treat as not replaying.
+        pass
+
+    try:
+        source_clock = clock._clock
+    except AttributeError:
+        source_clock = None
+
+    if source_clock is not None and source_clock is not clock:
+        if _clock_is_replaying(source_clock, seen):
+            return True
+
+    try:
+        datas = clock.datas
+    except AttributeError:
+        datas = ()
+
+    for data in datas:
+        if _clock_is_replaying(data, seen):
+            return True
+
+    return False
+
+
+def _lineaction_source_clock(lineaction, seen=None):
+    """Resolve a LineActions object to the concrete clock that drives it."""
+    if lineaction is None:
+        return None
+
+    if seen is None:
+        try:
+            return lineaction._lineaction_source_clock_cache
+        except AttributeError:
+            # Cache not populated yet; resolve below (hot path: no logging).
+            pass
+        seen = set()
+        cache_result = True
+    else:
+        cache_result = False
+
+    def finish(result):
+        if cache_result and result is not None:
+            try:
+                lineaction._lineaction_source_clock_cache = result
+            except Exception:  # nosec B110
+                # Object rejects attribute caching (e.g. __slots__); skip caching.
+                pass
+        return result
+
+    action_id = id(lineaction)
+    if action_id in seen:
+        return None
+    seen.add(action_id)
+
+    try:
+        clock = lineaction._clock
+    except AttributeError:
+        clock = None
+
+    if clock is not None and clock.__class__.__name__ != "MinimalClock":
+        if isinstance(clock, LineActions):
+            source_clock = _lineaction_source_clock(clock, seen)
+            if source_clock is not None:
+                return finish(source_clock)
+        else:
+            return finish(clock)
+
+    for attr in ("_parent_a", "_parent_b", "a", "b", "cond"):
+        try:
+            dependency = getattr(lineaction, attr)
+        except AttributeError:
+            continue
+
+        if isinstance(dependency, LineActions):
+            source_clock = _lineaction_source_clock(dependency, seen)
+            if source_clock is not None:
+                return finish(source_clock)
+
+        try:
+            dep_clock = dependency._clock
+        except AttributeError:
+            dep_clock = None
+        if (
+            dep_clock is not None
+            and dep_clock.__class__.__name__ != "MinimalClock"
+            and not isinstance(dep_clock, LineActions)
+        ):
+            return finish(dep_clock)
+
+    try:
+        args = lineaction.args
+    except AttributeError:
+        args = ()
+
+    for dependency in args:
+        if isinstance(dependency, LineActions):
+            source_clock = _lineaction_source_clock(dependency, seen)
+            if source_clock is not None:
+                return finish(source_clock)
+
+        try:
+            dep_clock = dependency._clock
+        except AttributeError:
+            dep_clock = None
+        if (
+            dep_clock is not None
+            and dep_clock.__class__.__name__ != "MinimalClock"
+            and not isinstance(dep_clock, LineActions)
+        ):
+            return finish(dep_clock)
+
+    try:
+        datas = lineaction.datas
+    except AttributeError:
+        datas = ()
+
+    for data in datas:
+        if isinstance(data, LineActions):
+            source_clock = _lineaction_source_clock(data, seen)
+            if source_clock is not None:
+                return finish(source_clock)
+
+        try:
+            data_clock = data._clock
+        except AttributeError:
+            data_clock = None
+        if (
+            data_clock is not None
+            and data_clock.__class__.__name__ != "MinimalClock"
+            and not isinstance(data_clock, LineActions)
+        ):
+            return finish(data_clock)
+
+    return None
+
+
+def _line_like_source_clock(line_like):
+    """Resolve LineActions wrapped in LineSeriesStub-like containers."""
+    source_clock = _lineaction_source_clock(line_like)
+    if source_clock is not None:
+        return source_clock
+
+    try:
+        lines = line_like.lines
+    except AttributeError:
+        return None
+
+    try:
+        first_line = lines[0]
+    except (IndexError, TypeError, AttributeError):
+        try:
+            first_line = lines.lines[0]
+        except (IndexError, TypeError, AttributeError):
+            return None
+
+    source_clock = _lineaction_source_clock(first_line)
+    if source_clock is not None:
+        return source_clock
+
+    try:
+        return first_line._clock
+    except AttributeError:
+        return None
+
+
+def _resolve_authoritative_buflen(indicator, fallback):
+    """Resolve the maximum array length needed when scheduling once() calls."""
+    candidates = []
+    for attr in ("_clock",):
+        clock = getattr(indicator, attr, None)
+        if clock is not None and hasattr(clock, "buflen"):
+            try:
+                candidates.append(int(clock.buflen()))
+            except (TypeError, ValueError):
+                # buflen() not numeric/usable; ignore this candidate.
+                pass
+    datas = getattr(indicator, "datas", None) or []
+    for d in datas:
+        if d is None:
+            continue
+        if isinstance(d, LineActions):
+            continue
+        if hasattr(d, "buflen"):
+            try:
+                candidates.append(int(d.buflen()))
+            except (TypeError, ValueError):
+                # buflen() not numeric/usable; ignore this candidate.
+                pass
+        arr = getattr(d, "array", None)
+        if arr is not None:
+            candidates.append(len(arr))
+    candidates.append(int(fallback or 0))
+    return max(candidates)
+
+
+def _ensure_lineactions_inputs_computed(indicator, end, _seen=None):
+    """Force LineActions and orphan Indicator inputs of an indicator to populate their arrays.
+
+    Two scenarios trigger this helper:
+
+    1. Strategy-owned LineActions (e.g. ``bt.If``/``bt.And`` expressions assigned
+       to ``self.something`` inside Strategy.__init__) are intentionally excluded
+       from ``_lineiterators`` registration. Indicators built on top of such
+       expressions read directly from ``input.array`` during ``once()`` and would
+       otherwise see an empty buffer, producing all-NaN output.
+
+    2. "Orphan" sub-indicators created at module level (e.g.
+       ``cerebro.add_signal(bt.SIGNAL_LONG, bt.indicators.CrossOver,
+       bt.indicators.SMA(period=5), bt.indicators.SMA(period=10))``). These
+       indicators are constructed with ``MinimalOwner`` and are not registered
+       with the strategy's ``_lineiterators``, but they appear in another
+       indicator's ``datas``. Their ``once()`` must be triggered explicitly so
+       the consumer indicator sees populated arrays.
+    """
+    if _seen is None:
+        _seen = set()
+    end = _resolve_authoritative_buflen(indicator, end)
+    if end <= 0:
+        return
+    candidates: list = []
+    for attr in ("data", "datas"):
+        try:
+            value = getattr(indicator, attr)
+        except AttributeError:
+            continue
+        if value is None:
+            continue
+        if isinstance(value, (list, tuple)):
+            candidates.extend(value)
+        else:
+            candidates.append(value)
+    for src in candidates:
+        if src is None or id(src) in _seen:
+            continue
+        _seen.add(id(src))
+        if not hasattr(src, "once"):
+            continue
+        array = getattr(src, "array", None)
+        if isinstance(src, LineActions):
+            if array is None:
+                continue
+            if len(array) >= end and getattr(src, "_once_called", False):
+                continue
+            _ensure_lineactions_inputs_computed(src, end, _seen)
+            try:
+                src.once(0, end)
+            except Exception:
+                logger.debug("LineActions dependency once failed", exc_info=True)
+            continue
+
+        # Treat as an orphan sub-indicator only if its own array is empty AND
+        # it is not already attached to a real owner / scheduled for compute
+        # via _lineiterators. Real owners take care of their own indicators.
+        if array is None or len(array) >= end:
+            continue
+        owner = getattr(src, "_owner", None)
+        owner_cls = type(owner).__name__ if owner is not None else ""
+        if owner is not None and owner_cls != "MinimalOwner":
+            try:
+                owner_iters = owner._lineiterators
+            except AttributeError:
+                owner_iters = None
+            if owner_iters is not None:
+                attached = False
+                for ind_list in owner_iters.values():
+                    if src in ind_list:
+                        attached = True
+                        break
+                if attached:
+                    continue
+        # Recurse into its inputs first
+        _ensure_lineactions_inputs_computed(src, end, _seen)
+        try:
+            src._once(0, end)
+        except Exception:
+            logger.debug("Orphan indicator _once failed", exc_info=True)
 
 
 class LineIteratorMixin:
@@ -100,6 +398,7 @@ class LineIteratorMixin:
                                 ):
                                     is_line_object = True
                             except (AttributeError, TypeError):
+                                # Object has no inspectable MRO; treat as non-line.
                                 pass
 
                 if is_line_object:
@@ -110,15 +409,25 @@ class LineIteratorMixin:
                     try:
                         datas.append(LineSeriesMaker(LineNum(arg)))
                     except Exception:
+                        logger.debug(
+                            "Failed to coerce argument into LineNum in LineIteratorMixin.donew",
+                            exc_info=True,
+                        )
                         # Not a LineNum and is not a LineSeries - bail out
                         break
             except Exception:
+                logger.debug(
+                    "Type-checking fallback triggered in LineIteratorMixin.donew", exc_info=True
+                )
                 # If anything fails in type checking, try to treat as numeric
                 if not mindatas:
                     break
                 try:
                     datas.append(LineSeriesMaker(LineNum(arg)))
                 except Exception:
+                    logger.debug(
+                        "Numeric fallback failed in LineIteratorMixin.donew", exc_info=True
+                    )
                     break
 
             mindatas = max(0, mindatas - 1)
@@ -165,12 +474,14 @@ class LineIteratorMixin:
                             ):  # Prevent circular reference
                                 _obj.datas = owner_datas[0 : getattr(_obj, "_mindatas", 1)]
                         except AttributeError:
+                            # owner has no datas; leave _obj.datas as-is.
                             pass
             except (AttributeError, IndexError):
+                # No resolvable owner/datas during construction; skip inheritance.
                 pass
 
         # Create ddatas dictionary
-        _obj.ddatas = {x: None for x in _obj.datas}
+        _obj.ddatas = dict.fromkeys(_obj.datas)
 
         # CRITICAL FIX: Set data aliases IMMEDIATELY before any __init__ methods are called
         if _obj.datas:
@@ -295,6 +606,7 @@ class LineIteratorMixin:
                 except AttributeError:
                     _obj.ddatas = {}
         except AttributeError:
+            # _mindatas not defined on this object; nothing to adjust.
             pass
 
         # 1st data source is our ticking clock
@@ -306,6 +618,10 @@ class LineIteratorMixin:
                 _obj._clock = owner if owner is not None else None
             except AttributeError:
                 _obj._clock = None
+
+        source_clock = _line_like_source_clock(_obj._clock)
+        if source_clock is not None:
+            _obj._clock = source_clock
 
         # Calculate minimum period from datas
         if _obj.datas:
@@ -344,7 +660,10 @@ class LineIteratorMixin:
                                 # Try to call addminperiod directly
                                 line.addminperiod(_obj._minperiod)
                             except (AttributeError, Exception):
-                                pass
+                                logger.debug(
+                                    "Failed to add minperiod to iterable line in dopreinit",
+                                    exc_info=True,
+                                )
                 else:
                     # Try accessing by index if lines_list is not iterable
                     try:
@@ -356,15 +675,19 @@ class LineIteratorMixin:
                                     try:
                                         line.addminperiod(_obj._minperiod)
                                     except (AttributeError, Exception):
-                                        pass
+                                        logger.debug(
+                                            "Failed to add minperiod to indexed line in dopreinit",
+                                            exc_info=True,
+                                        )
                             except (IndexError, TypeError):
                                 break
                     except (TypeError, AttributeError):
+                        # lines object has no usable len/index access; skip.
                         pass
 
             except (AttributeError, Exception):
+                logger.debug("Minperiod propagation fallback triggered in dopreinit", exc_info=True)
                 # Continue without failing - minperiod setup is not critical for basic functionality
-                pass
         except AttributeError:
             # _obj.lines doesn't exist, skip minperiod setup
             pass
@@ -398,6 +721,7 @@ class LineIteratorMixin:
                 existing_minperiod = getattr(_obj, "_minperiod", 1)
                 _obj._minperiod = max(existing_minperiod, max(line_minperiods))
         except AttributeError:
+            # _obj has no lines collection yet; keep the existing minperiod.
             pass
 
         # CRITICAL FIX: After indicator's __init__ has set its minperiod,
@@ -410,6 +734,7 @@ class LineIteratorMixin:
                     # Update each line's minperiod to match the indicator's minperiod
                     line.updateminperiod(_obj._minperiod)
         except (AttributeError, TypeError):
+            # Lines not iterable or lack updateminperiod; propagation is best-effort.
             pass
 
         # Recalculate period
@@ -428,9 +753,32 @@ class LineIteratorMixin:
             if owner is not None and not hasattr(owner, "addindicator"):
                 owner = None  # MinimalOwner or invalid owner
         except AttributeError:
+            # _owner not set during this construction phase; resolve below.
             pass
 
-        # If no valid owner found, try OwnerContext first (preferred method)
+        # Prefer the nearest LineIterator owner from OwnerContext. This keeps
+        # top-level strategy indicators attached to the strategy, and nested
+        # indicators attached to their parent indicator so once_via_next can
+        # advance child indicator pointers correctly.
+        try:
+            is_indicator = getattr(_obj, "_ltype", None) == LineIterator.IndType
+        except Exception:
+            is_indicator = False
+
+        if is_indicator:
+            try:
+                context_owner = metabase.OwnerContext.get_current_owner(LineIterator)
+                if (
+                    context_owner is not None
+                    and context_owner is not _obj
+                    and hasattr(context_owner, "addindicator")
+                ):
+                    owner = context_owner
+                    _obj._owner = owner
+            except Exception as e:
+                logger.debug("Failed to find LineIterator owner via OwnerContext: %s", e)
+
+        # If no valid owner found, try Strategy OwnerContext as a fallback.
         # This handles indicators created in dict/list comprehensions when
         # Strategy.__init__ uses OwnerContext.set_owner()
         if owner is None:
@@ -449,8 +797,8 @@ class LineIteratorMixin:
                     if context_owner is not None and context_owner is not _obj:
                         owner = context_owner
                         _obj._owner = owner
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to find owner via OwnerContext: %s", e)
 
                 # NOTE: sys._getframe fallback removed - OwnerContext should handle all cases
                 # If owner is still None, indicator will work standalone without registration
@@ -463,7 +811,7 @@ class LineIteratorMixin:
                 if _obj not in ind_list:
                     owner.addindicator(_obj)
             except (AttributeError, Exception):
-                pass
+                logger.debug("Failed to register indicator with owner", exc_info=True)
 
         return _obj, args, kwargs
 
@@ -587,7 +935,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         def __init__(self):
             """Initialize plotlines container."""
-            pass
 
         def _get(self, key, default=None):
             """CRITICAL: _get method expected by plotting system"""
@@ -735,15 +1082,21 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # CRITICAL FIX: Auto-assign owner before processing args to help with data assignment
         if not is_strategy:
+            owner = None
+            try:
+                owner = metabase.findowner(instance, LineIterator)
+            except Exception:
+                owner = None
+
             try:
                 from .strategy import Strategy
             except ImportError:
                 Strategy = None
 
-            if Strategy is not None:
+            if owner is None and Strategy is not None:
                 owner = metabase.findowner(instance, Strategy)
-                if owner:
-                    instance._owner = owner
+            if owner:
+                instance._owner = owner
 
         # CRITICAL FIX: Initialize lines if the class has a lines definition
         # The lines attribute needs to be an instance, not the class
@@ -770,6 +1123,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if hasattr(instance, "lines") and instance.lines is not None:
             # Use object.__setattr__ to directly set _owner_ref (bypasses Lines.__setattr__)
             object.__setattr__(instance.lines, "_owner_ref", instance)
+            try:
+                ltype = getattr(cls, "_ltype", None)
+                for line in instance.lines:
+                    if hasattr(line, "_refresh_cached_line_flags"):
+                        line._refresh_cached_line_flags(owner=instance.lines, ltype=ltype)
+            except Exception as e:
+                logger.debug("Failed to refresh line flags in LineIterator.__new__: %s", e)
 
         return instance
 
@@ -851,7 +1211,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 self.data = None
 
             # Create ddatas dictionary
-            self.ddatas = {x: None for x in self.datas}
+            self.ddatas = dict.fromkeys(self.datas)
 
             # Set up dnames
             from .utils import DotDict
@@ -1109,7 +1469,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     return
 
         # If no custom stop method found, this is the default (empty) stop
-        pass
 
     def _periodrecalc(self):
         """Recalculate minimum period based on child indicators.
@@ -1187,7 +1546,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Recursion guard: track objects currently being processed to prevent infinite loops
         if not hasattr(self, "_stage1_in_progress") or self._stage1_in_progress is None:
-            self._stage1_in_progress = set()
+            self._stage1_in_progress: set = set()
 
         # Add this object to the processing set
         self_id = id(self)
@@ -1260,36 +1619,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Set up the indicator's clock to match the data feed it operates on
         if not hasattr(indicator, "_clock") or indicator._clock is None:
-            # CRITICAL FIX: Use the indicator's actual data source's parent data feed as clock
-            # This ensures proper synchronization when indicator operates on secondary data feeds
-            clock_set = False
-            if (
-                hasattr(self, "datas")
-                and self.datas
-                and hasattr(indicator, "datas")
-                and indicator.datas
-            ):
-                # Find which data feed the indicator's data source belongs to
-                ind_data = indicator.datas[0]
-                for data_feed in self.datas:
-                    # Check if ind_data is the data feed itself
-                    if ind_data is data_feed:
-                        indicator._clock = data_feed
-                        clock_set = True
-                        break
-                    # Check if ind_data is one of the lines of this data feed
-                    if hasattr(data_feed, "lines"):
-                        if ind_data in data_feed.lines:
-                            indicator._clock = data_feed
-                            clock_set = True
-                            break
-                # Fallback to datas[0] if no match found
-                if not clock_set:
-                    indicator._clock = self.datas[0]
+            if hasattr(indicator, "datas") and indicator.datas:
+                indicator._clock = indicator.datas[0]
             elif hasattr(self, "datas") and self.datas:
                 indicator._clock = self.datas[0]
             elif hasattr(self, "_clock") and self._clock is not None:
-                # Check if clock is MinimalClock (fallback), skip it
                 if not (
                     hasattr(self._clock, "__class__")
                     and "MinimalClock" in self._clock.__class__.__name__
@@ -1299,6 +1633,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     indicator._clock = self.data
             elif hasattr(self, "data") and self.data is not None:
                 indicator._clock = self.data
+
+        source_clock = _line_like_source_clock(indicator._clock)
+        if source_clock is not None:
+            indicator._clock = source_clock
 
         # CRITICAL FIX: Don't set _minperiod here - let the indicator's __init__ handle it
         # The indicator will call addminperiod() in its __init__ method
@@ -1335,17 +1673,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if not owner:
             owner = 0
 
-        if isinstance(owner, string_types):
-            owner = [owner]
-        elif not isinstance(owner, collections.abc.Iterable):
+        if isinstance(owner, string_types) or not isinstance(owner, collections.abc.Iterable):
             owner = [owner]
 
         if not own:
             own = range(len(owner))
 
-        if isinstance(own, string_types):
-            own = [own]
-        elif not isinstance(own, collections.abc.Iterable):
+        if isinstance(own, string_types) or not isinstance(own, collections.abc.Iterable):
             own = [own]
 
         for lineowner, lineown in zip(owner, own):
@@ -1377,6 +1711,15 @@ class LineIterator(LineIteratorMixin, LineSeries):
         Returns:
             int: Current clock length.
         """
+        try:
+            if self.datas:
+                source_clock = _line_like_source_clock(self.datas[0])
+                if source_clock is not None:
+                    self._clock = source_clock
+        except Exception:  # nosec B110
+            # Clock resolution is best-effort here; keep the existing clock.
+            pass
+
         # Update current time line and return length
         # CRITICAL FIX: Handle invalid clocks (e.g., MinimalOwner) that don't have len()
         try:
@@ -1398,133 +1741,66 @@ class LineIterator(LineIteratorMixin, LineSeries):
                             clock_len = len(owner)
                             self._clock = owner
                         except (TypeError, AttributeError):
+                            # Owner has no usable length either; leave clock_len at 0.
                             pass
             except AttributeError:
+                # No _owner to fall back on; leave clock_len at 0.
                 pass
 
         if clock_len != len(self):
-            self.forward()
+            if getattr(self, "_ltype", None) == LineIterator.IndType:
+                self.lines.forward(value=float("nan"))
+            else:
+                self.forward()
 
         return clock_len
 
     def _once(self, start=None, end=None):
-        """
-        Optimized batch processing method for runonce mode.
+        """Run vectorized once calculation using the original backtrader sequence."""
+        self.forward(size=self._clock.buflen())
 
-        OPTIMIZATION NOTES:
-        - Removed excessive hasattr() calls - use EAFP (try/except) instead
-        - Direct attribute access where possible
-        - Minimize conditional checks in hot path
-
-        CRITICAL: Follow original backtrader's _once sequence:
-        - preonce(0, minperiod - 1)
-        - oncestart(minperiod - 1, minperiod)
-        - once(minperiod, buflen)
-        """
-        # Get minperiod
+        # Use the master clock length as the authoritative buffer length when
+        # scheduling indicators; self.buflen() of a freshly-forwarded Strategy
+        # may not yet reflect the data feed length.
         try:
-            minperiod = self._minperiod
+            clock_buflen = self._clock.buflen()
         except AttributeError:
-            minperiod = 1
+            clock_buflen = self.buflen()
+        for indicator in self._lineiterators[LineIterator.IndType]:
+            if not hasattr(indicator, "_once"):
+                continue
+            # Ensure any LineActions inputs (bt.If/bt.And/LinesOperation/_LineDelay)
+            # have their arrays populated before the indicator reads from them.
+            # LineActions held directly by a Strategy are intentionally not
+            # auto-registered to _lineiterators (see _register_line_assignment_child
+            # in lineseries.py); without this guard a downstream Indicator such as
+            # SumN(bt.If(...)) reads an empty source array and produces all-NaN.
+            _ensure_lineactions_inputs_computed(indicator, clock_buflen)
+            if isinstance(indicator, LineActions):
+                indicator._once(0, self.buflen())
+            else:
+                indicator._once()
 
-        # CRITICAL FIX: Ensure start is not None
-        if start is None:
-            start = 0
+        for observer in self._lineiterators[LineIterator.ObsType]:
+            observer.forward(size=self.buflen())
 
-        if end is None:
-            # Try to get end from clock update
-            try:
-                end = self._clk_update()
-            except Exception:
-                end = 0
+        for data in self.datas:
+            data.home()
 
-            # If end is 0, try to get from data sources
-            if end == 0:
-                try:
-                    # EAFP: Try datas[0] directly
-                    data0 = self.datas[0]
-                    # Try buflen() first (for runonce mode)
-                    try:
-                        end = data0.buflen()
-                    except AttributeError:
-                        # Fallback to len()
-                        end = len(data0)
-                except Exception:
-                    # Try _clock as last resort
-                    try:
-                        clock = self._clock
-                        try:
-                            end = clock.buflen()
-                        except AttributeError:
-                            end = len(clock)
-                    except Exception:
-                        pass  # Give up, use 0
+        for indicator in self._lineiterators[LineIterator.IndType]:
+            indicator.home()
 
-        # OPTIMIZATION: Process lineiterators with minimal overhead
-        # Direct access to _lineiterators (should always exist)
-        try:
-            lineiterators = self._lineiterators
-            for lineiter_list in lineiterators.values():
-                for lineiterator in lineiter_list:
-                    try:
-                        lineiterator._once(start, end)
-                        # CRITICAL FIX: Call oncebinding on indicator's lines to propagate
-                        # values to any bound lines (e.g., when self.l.mid = bt.ind.EMA(...))
-                        if hasattr(lineiterator, "lines"):
-                            lines_obj = lineiterator.lines
-                            if hasattr(lines_obj, "__iter__"):
-                                for line in lines_obj:
-                                    if hasattr(line, "oncebinding"):
-                                        line.oncebinding()
-                    except Exception:
-                        pass  # Skip failed indicators
-        except AttributeError:
-            pass  # No _lineiterators
+        for observer in self._lineiterators[LineIterator.ObsType]:
+            observer.home()
 
-        # CRITICAL FIX: Follow original backtrader's _once sequence exactly
-        # preonce processes bars 0 to minperiod-2
-        try:
-            self.preonce(0, minperiod - 1)
-        except Exception:
-            pass
+        self.home()
 
-        # oncestart processes bar minperiod-1 (transition point)
-        try:
-            self.oncestart(minperiod - 1, minperiod)
-        except Exception:
-            pass
+        self.preonce(0, self._minperiod - 1)
+        self.oncestart(self._minperiod - 1, self._minperiod)
+        self.once(self._minperiod, self.buflen())
 
-        # CRITICAL FIX: once processes bars from minperiod-1 to end
-        # Bar minperiod-1 is the first bar where indicators have valid data
-        # For period=20, bar 19 (index 19) is the first valid bar
-        try:
-            self.once(minperiod - 1, end)
-        except Exception:
-            pass
-
-        # OPTIMIZATION: Reset data sources - use EAFP
-        try:
-            datas = self.datas
-            for data in datas:
-                try:
-                    data.home()
-                except Exception:
-                    pass
-        except AttributeError:
-            pass  # No datas attribute
-
-        # CRITICAL FIX: Also reset indicators after once() completes
-        # After once_via_next fills indicator arrays, the idx is at the end
-        # Reset them so the main loop can advance bar-by-bar from the beginning
-        try:
-            for lineiter_list in self._lineiterators.values():
-                for lineiterator in lineiter_list:
-                    try:
-                        lineiterator.home()
-                    except Exception:
-                        pass
-        except AttributeError:
-            pass
+        for line in self.lines:
+            line.oncebinding()
 
     def preonce(self, start, end):
         """Process bars before minimum period is reached in runonce mode.
@@ -1534,7 +1810,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
             end: Ending index.
         """
         # Default implementation - do nothing
-        pass
 
     def oncestart(self, start, end):
         """Called once when minimum period is first reached in runonce mode.
@@ -1546,31 +1821,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             start: Starting index for processing.
             end: Ending index for processing.
         """
-        # CRITICAL FIX: Set chkmin properly during nextstart for TestStrategy
-        if hasattr(self, "__class__") and "TestStrategy" in self.__class__.__name__:
-            # For test strategies, chkmin should be set to the current length when nextstart is called
-            try:
-                # Get the current actual length
-                current_len = len(self)
-                self.chkmin = current_len
-            except Exception:
-                # Fallback value expected by tests
-                self.chkmin = 30
-
-        # Check if this class has its own nextstart method defined
-        for cls in self.__class__.__mro__:
-            if cls != LineIterator and "nextstart" in cls.__dict__:
-                # Call the class's own nextstart method
-                original_nextstart = cls.__dict__["nextstart"]
-                try:
-                    original_nextstart(self)
-                    return
-                except Exception:
-                    # Continue to prevent total failure
-                    pass
-
-        # Default behavior - call next()
-        self.next()
+        self.once(start, end)
 
     def once(self, start, end):
         """Process bars in runonce mode.
@@ -1585,8 +1836,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 self.forward()
                 if hasattr(self, "next"):
                     self.next()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("once_via_next step failed: %s", e)
 
     def _next(self):
         """Internal next method called for each bar.
@@ -1594,13 +1845,48 @@ class LineIterator(LineIteratorMixin, LineSeries):
         Updates indicators and calls notification methods.
         """
         # Current clock data length
+        prev_len = len(self)
         clock_len = self._clk_update()
+
+        replaying = _clock_is_replaying(getattr(self, "_clock", None))
+
+        if (
+            self._ltype not in (LineIterator.StratType, LineIterator.IndType)
+            and clock_len == prev_len
+            and not replaying
+        ):
+            return
+
+        try:
+            datas = self.datas
+        except AttributeError:
+            datas = ()
+
+        for data in datas:
+            if not isinstance(data, LineActions) or not hasattr(data, "_next"):
+                continue
+
+            data_clock = _lineaction_source_clock(data) or getattr(data, "_clock", None)
+            if data_clock is not None:
+                try:
+                    if len(data_clock) <= len(data):
+                        continue
+                except Exception:  # nosec B110
+                    # Clock/data without comparable length; fall through and advance.
+                    pass
+
+            data._next()
+
         # Call _next for each indicator
         for indicator in self._lineiterators[LineIterator.IndType]:
-            indicator._next()
+            if hasattr(indicator, "_next"):
+                indicator._next()
 
         # Call _notify function
         self._notify()
+
+        if self._ltype == LineIterator.StratType and hasattr(self, "_next_strategy_lineactions"):
+            self._next_strategy_lineactions()
 
         # If _ltype is Strategy type
         if self._ltype == LineIterator.StratType:
@@ -1631,7 +1917,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
         to implement custom logic during this phase.
         """
         # Default implementation - do nothing
-        pass
 
     def nextstart(self):
         """Called once when minimum period is first reached.
@@ -1652,7 +1937,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
             *args: Positional arguments.
             **kwargs: Keyword arguments.
         """
-        pass
 
     def _notify(self, *args, **kwargs):
         """Process pending notifications.
@@ -1661,7 +1945,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
             *args: Positional arguments.
             **kwargs: Keyword arguments.
         """
-        pass
 
     def _plotinit(self):
         """CRITICAL FIX: Default plot initialization method for all indicators"""
@@ -1780,6 +2063,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             try:
                 return cached_line.lencount
             except AttributeError:
+                # Cached line lacks lencount; fall through to the slow path.
                 pass
 
         # Slow path: find and cache first_line
@@ -1796,12 +2080,24 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     except AttributeError:
                         try:
                             return len(first_line.array)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("Failed to get line length: %s", e)
         except (IndexError, TypeError):
+            # No lines available to measure; report length 0.
             pass
 
         return 0
+
+    def home(self):
+        """Reset lines and all sub-indicator lines to home position.
+
+        Extends LineSeries.home() to recursively reset sub-indicators so that
+        after _once() computes all arrays, every indicator in the tree is back
+        at position -1 and ready for _oncepost() replay.
+        """
+        self.lines.home()
+        for ind in self._lineiterators.get(LineIterator.IndType, []):
+            ind.home()
 
     def advance(self, size=1):
         """Advance the line position by the specified size.
@@ -1983,6 +2279,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "EMA", ExponentialMovingAverage)
             setattr(indicators_module, "ExponentialMovingAverage", ExponentialMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -1991,6 +2288,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "SMA", SimpleMovingAverage)
             setattr(indicators_module, "SimpleMovingAverage", SimpleMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -1999,6 +2297,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "WMA", WeightedMovingAverage)
             setattr(indicators_module, "WeightedMovingAverage", WeightedMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2007,6 +2306,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "HMA", HullMovingAverage)
             setattr(indicators_module, "HullMovingAverage", HullMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2017,6 +2317,7 @@ class IndicatorBase(DataAccessor):
                 indicators_module, "DoubleExponentialMovingAverage", DoubleExponentialMovingAverage
             )
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2027,6 +2328,7 @@ class IndicatorBase(DataAccessor):
                 indicators_module, "TripleExponentialMovingAverage", TripleExponentialMovingAverage
             )
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2035,6 +2337,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "TSI", TrueStrengthIndicator)
             setattr(indicators_module, "TrueStrengthIndicator", TrueStrengthIndicator)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         # Add other common indicators as needed
@@ -2044,6 +2347,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "BBands", BollingerBands)
             setattr(indicators_module, "BollingerBands", BollingerBands)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2052,6 +2356,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "CCI", CommodityChannelIndex)
             setattr(indicators_module, "CommodityChannelIndex", CommodityChannelIndex)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
 
@@ -2182,7 +2487,6 @@ class StrategyBase(DataAccessor):
         by _oncepost() in the cerebro event loop. If we call next() here, it will
         be called twice (once in _once and once in _oncepost).
         """
-        pass
 
     def oncestart(self, start, end):
         """CRITICAL FIX: Override oncestart() for strategies to do nothing.
@@ -2192,7 +2496,6 @@ class StrategyBase(DataAccessor):
         nextstart()->next() here, it will be called twice (once in _once and
         once in _oncepost).
         """
-        pass
 
     def __init__(self, *args, **kwargs):
         """Initialize strategy and handle delayed data assignment from cerebro"""
@@ -2252,7 +2555,6 @@ class StrategyBase(DataAccessor):
             except Exception as e:
                 # Store the error but continue with minimal setup
                 self._indicator_creation_errors.append(str(e))
-                # print(f"CRITICAL WARNING: Strategy __init__ error: {e}")  # Removed for performance
 
                 # Set up minimal attributes for test compatibility
                 if not hasattr(self, "cross"):
@@ -2312,8 +2614,8 @@ class StrategyBase(DataAccessor):
                             ):
                                 try:
                                     return len(self._owner.data)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.debug("CrossOver __len__ failed: %s", e)
                             return 0
 
                         def __call__(self, ago=0):
@@ -2376,8 +2678,8 @@ class StrategyBase(DataAccessor):
                             ):
                                 try:
                                     return len(self._owner.data)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.debug("SMA __len__ failed: %s", e)
                             return 0
 
                         def __call__(self, ago=0):
@@ -2427,7 +2729,7 @@ class StrategyBase(DataAccessor):
                             ltype = getattr(attr_value, "_ltype", 0)
                             if attr_value not in self._lineiterators[ltype]:
                                 self._lineiterators[ltype].append(attr_value)
-        except Exception:
+        except Exception:  # nosec B110
             # Silently ignore - this is just a safety check
             pass
 
@@ -2452,8 +2754,6 @@ class StrategyBase(DataAccessor):
 
                 # Clear the pending flag
                 self._data_assignment_pending = False
-
-                pass
 
             else:
                 # Create minimal clock for strategies without data
@@ -2481,11 +2781,9 @@ class StrategyBase(DataAccessor):
                         return 0
 
                 self._clock = MinimalClock()
-                # print("CRITICAL WARNING: Strategy has no data feeds - using minimal clock")  # Removed for performance
 
-        except Exception:
-            # print(f"CRITICAL ERROR: Failed to assign data from cerebro: {e}")  # Removed for performance
-            pass
+        except Exception as e:
+            logger.debug("StrategyBase data setup failed: %s", e)
             # Set up minimal fallbacks
             if not hasattr(self, "datas"):
                 self.datas = []
@@ -2645,5 +2943,5 @@ try:
 
     if "backtrader.indicators" in sys.modules:
         IndicatorBase._register_indicator_aliases()
-except Exception:
-    pass
+except Exception as e:
+    logger.debug("Failed to register indicator aliases at module load: %s", e)

@@ -138,9 +138,22 @@ class Calmar(TimeFrameAnalyzerBase):
         else:
             self._values.append(self.strategy.broker.fundvalue)
         # Calculate average monthly return by default
-        rann = math.log(self._values[-1] / self._values[0]) / len(self._values)
+        try:
+            ratio = self._values[-1] / self._values[0]
+            if isinstance(ratio, complex) or not math.isfinite(ratio) or ratio <= 0:
+                raise ValueError(f"invalid calmar ratio input: {ratio}")
+            rann = math.log(ratio) / len(self._values)
+            if not math.isfinite(rann):
+                raise ValueError(f"invalid calmar annualized return: {rann}")
+        except (ZeroDivisionError, TypeError, ValueError):
+            rann = 0.0
         # Calculate Calmar indicator
-        self.calmar = calmar = rann / (self._mdd or float("Inf"))
+        try:
+            self.calmar = calmar = rann / (self._mdd or float("Inf"))
+        except (ZeroDivisionError, TypeError, ValueError):
+            self.calmar = calmar = 0.0
+        if isinstance(calmar, complex) or not math.isfinite(calmar):
+            self.calmar = calmar = 0.0
         # Save result
         self.rets[self.dtkey] = calmar
 

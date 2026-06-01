@@ -261,8 +261,7 @@ class AutoDateLocator(ADLocator):
         else:
             if False:
                 raise ValueError("No sensible date limit could be found in the AutoDateLocator.")
-            else:
-                usemicro = True
+            usemicro = True
 
         if not usemicro and use_rrule_locator[i]:
             _, bymonth, bymonthday, byhour, byminute, bysecond, _ = byranges
@@ -286,7 +285,6 @@ class AutoDateLocator(ADLocator):
             locator = MicrosecondLocator(interval, tz=self.tz)
 
         locator.set_axis(self.axis)
-        # print(dir(locator))
         try:
             # try for matplotlib < 3.6.0
             locator.set_view_interval(*self.axis.get_view_interval())

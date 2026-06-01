@@ -49,6 +49,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -111,7 +112,7 @@ class CheatOnOpenStrategy(bt.Strategy):
 
     Attributes:
         signal (bt.ind.CrossOver): Crossover indicator detecting when fast SMA
-            crosses above/below slow SMA. Returns positive on bullish crossover,
+            crosses above/below slow bt.indicators.SMA. Returns positive on bullish crossover,
             negative on bearish crossover.
         order (bt.Order): Reference to the currently pending order, or None.
         bar_num (int): Counter tracking total bars processed during backtest.
@@ -258,7 +259,8 @@ class CheatOnOpenStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_cheat_on_open_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_cheat_on_open_strategy(runonce):
     """Test the Cheat On Open strategy backtest execution and performance.
 
     This test validates the cheat_on_open functionality by running a complete
@@ -323,7 +325,7 @@ def test_cheat_on_open_strategy():
 
     # Run backtest
     print("Running backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract performance metrics

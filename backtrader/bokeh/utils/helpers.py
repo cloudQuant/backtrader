@@ -4,6 +4,11 @@ Helper utility functions.
 """
 
 import re
+from typing import List
+
+from backtrader.utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_datanames(strategy):
@@ -15,7 +20,7 @@ def get_datanames(strategy):
     Returns:
         list: List of data source names
     """
-    datanames = []
+    datanames: List[str] = []
 
     if strategy is None or not hasattr(strategy, "datas"):
         return datanames
@@ -89,8 +94,8 @@ def get_indicator_label(indicator):
                     value = getattr(indicator.params, name)
                     if not callable(value):
                         params.append(f"{name}={value}")
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to get indicator param '%s': %s", name, e)
         if params:
             label += f" ({', '.join(params[:3])})"  # Show max 3 parameters
 
@@ -154,9 +159,8 @@ def get_color_from_value(value, up_color="#26a69a", down_color="#ef5350", neutra
         val = float(value)
         if val > 0:
             return up_color
-        elif val < 0:
+        if val < 0:
             return down_color
-        else:
-            return neutral_color
+        return neutral_color
     except (ValueError, TypeError):
         return neutral_color

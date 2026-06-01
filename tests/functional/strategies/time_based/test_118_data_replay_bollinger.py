@@ -13,6 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -157,7 +158,8 @@ class ReplayBollingerStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_data_replay_bollinger():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_data_replay_bollinger(runonce):
     """Test Data Replay with Bollinger Bands strategy.
 
     This test function:
@@ -191,7 +193,7 @@ def test_data_replay_bollinger():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run(preload=False)
+    results = cerebro.run(runonce=runonce, preload=False)
     strat = results[0]
 
     # Get analysis results

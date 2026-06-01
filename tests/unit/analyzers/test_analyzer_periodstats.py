@@ -12,6 +12,8 @@ Typical usage example:
 """
 
 import backtrader as bt
+import pytest
+from types import SimpleNamespace
 
 import testcommon
 
@@ -97,6 +99,68 @@ def test_run(main=False):
             if len(analysis) > 0:
                 # Check for common keys: average, stddev, positive, negative, etc
                 assert "average" in analysis or "stddev" in analysis or len(analysis) > 0
+
+
+def test_periodstats_empty_returns_produce_zeroed_stats():
+    analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
+    analyzer._tr = SimpleNamespace(get_analysis=lambda: {})
+    analyzer.p = SimpleNamespace(zeroispos=False)
+    analyzer.rets = {}
+
+    analyzer.stop()
+
+    assert analyzer.rets == {
+        "average": 0.0,
+        "stddev": 0.0,
+        "positive": 0,
+        "negative": 0,
+        "nochange": 0,
+        "best": 0.0,
+        "worst": 0.0,
+    }
+
+
+def test_periodstats_nonfinite_returns_degrade_to_zero():
+    analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
+    analyzer._tr = SimpleNamespace(get_analysis=lambda: {"a": float("nan"), "b": float("inf")})
+    analyzer.p = SimpleNamespace(zeroispos=False)
+    analyzer.rets = {}
+
+    analyzer.stop()
+
+    assert analyzer.rets == {
+        "average": 0.0,
+        "stddev": 0.0,
+        "positive": 0,
+        "negative": 0,
+        "nochange": 2,
+        "best": 0.0,
+        "worst": 0.0,
+    }
+
+
+@pytest.mark.parametrize(
+    "returns",
+    [
+        {"a": complex(1.0, 1.0), "b": "bad"},
+        {"a": complex(1.0, 1.0), "b": float("nan"), "c": "bad"},
+    ],
+)
+def test_periodstats_invalid_nonnumeric_returns_degrade_to_zero(returns):
+    analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
+    analyzer._tr = SimpleNamespace(get_analysis=lambda: returns)
+    analyzer.p = SimpleNamespace(zeroispos=False)
+    analyzer.rets = {}
+
+    analyzer.stop()
+
+    assert analyzer.rets["average"] == 0.0
+    assert analyzer.rets["stddev"] == 0.0
+    assert analyzer.rets["positive"] == 0
+    assert analyzer.rets["negative"] == 0
+    assert analyzer.rets["nochange"] == len(returns)
+    assert analyzer.rets["best"] == 0.0
+    assert analyzer.rets["worst"] == 0.0
 
 
 if __name__ == "__main__":

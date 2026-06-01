@@ -1147,7 +1147,7 @@ def next(self):
 
 ## 最小复现代码
 
-```python
+```bash
 
 # 提供可以复现问题的最小代码示例
 
@@ -1289,6 +1289,5 @@ class OrderTracker(bt.Strategy):
 ```bash
 
 - --
-
 - 最后更新: 2025 年*
 - 版本: 1.0*

@@ -6,14 +6,15 @@ Tests MACD + EMA trend strategy using rebar futures multi-contract data.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -235,8 +236,8 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
         dict: A dictionary mapping contract names to DataFrames.
     """
     data_kwargs = dict(
-        fromdate=datetime.datetime(2019, 1, 1),  # Shorten date range to speed up testing
-        todate=datetime.datetime(2020, 12, 31),
+        fromdate=datetime.datetime(2019, 1, 1),  # Shortened range to speed up testing
+        todate=datetime.datetime(2019, 12, 31),
     )
     
     data_path = resolve_data_path(data_dir)
@@ -274,7 +275,8 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
     return datas
 
 
-def test_macd_ema_true_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_macd_ema_true_strategy(runonce):
     """Tests MACD + EMA multi-contract futures strategy.
 
     Uses rebar futures multi-contract data for backtesting.
@@ -302,14 +304,17 @@ def test_macd_ema_true_strategy():
 
     # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="my_sharpe",
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -335,14 +340,16 @@ def test_macd_ema_true_strategy():
 
     # Assert test results - use precise assertions
     # final_value tolerance: 0.01, other indicators tolerance: 1e-6
-    assert strat.bar_num == 5540, f"Expected bar_num=11332, got {strat.bar_num}"
-    assert strat.buy_count == 213, f"Expected buy_count=213, got {strat.buy_count}"
-    assert strat.sell_count == 213, f"Expected sell_count=213, got {strat.sell_count}"
+    # Based on data 2019-01-01 to 2019-12-31
+    assert strat.bar_num == 2892, f"Expected bar_num=2892, got {strat.bar_num}"
+    assert strat.buy_count == 112, f"Expected buy_count=112, got {strat.buy_count}"
+    assert strat.sell_count == 112, f"Expected sell_count=112, got {strat.sell_count}"
+    assert total_trades == 113, f"Expected total_trades=113, got {total_trades}"
     assert total_trades > 0, f"Expected total_trades > 0, got {total_trades}"
-    assert abs(sharpe_ratio - (-1.4062246847166893)) < 1e-6, f"Expected sharpe_ratio=0.6258752691928109, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.0467842728314899)) < 1e-6, f"Expected annual_return=0.07557088428298599, got {annual_return}"
-    assert abs(max_drawdown - 0.1468985826746771) < 1e-6, f"Expected max_drawdown=0.20860432995832906, got {max_drawdown}"
-    assert abs(final_value - 45586.761999999995) < 0.01, f"Expected final_value=66241.75697345377, got {final_value}"
+    assert abs(sharpe_ratio - (-1.0581341890597677)) < 1e-6, f"Expected sharpe_ratio=-1.058, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.08597175700384527)) < 1e-6, f"Expected annual_return=-0.086, got {annual_return}"
+    assert abs(max_drawdown - 0.10586616093657385) < 1e-6, f"Expected max_drawdown=0.106, got {max_drawdown}"
+    assert abs(final_value - 45848.37199999998) < 0.01, f"Expected final_value=45848.37, got {final_value}"
 
     print("\nAll tests passed!")
 

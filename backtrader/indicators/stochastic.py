@@ -22,7 +22,7 @@ Example:
 
 import math
 
-from . import Highest, Indicator, Lowest, MovAv
+from . import DivByZero, Highest, Indicator, Lowest, MovAv
 
 
 class _StochasticBase(Indicator):
@@ -40,7 +40,7 @@ class _StochasticBase(Indicator):
         ("safezero", 0.0),
     )
 
-    plotlines = dict(percD=dict(_name="%D", ls="--"), percK=dict(_name="%K"))
+    plotlines = {"percD": {"_name": "%D", "ls": "--"}, "percK": {"_name": "%K"}}
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.period_dfast]
@@ -58,9 +58,13 @@ class _StochasticBase(Indicator):
         super().__init__()
         self.highesthigh = Highest(self.data.high, period=self.p.period)
         self.lowestlow = Lowest(self.data.low, period=self.p.period)
-        # CRITICAL FIX: Set minperiod based on period and period_dfast
-        # Stochastic needs 'period' bars for Highest/Lowest, plus period_dfast for %D smoothing
-        self.addminperiod(self.p.period + self.p.period_dfast)
+        knum = self.data.close - self.lowestlow
+        kden = self.highesthigh - self.lowestlow
+        if self.p.safediv:
+            self.k = 100.0 * DivByZero(knum, kden, zero=self.p.safezero)
+        else:
+            self.k = 100.0 * (knum / kden)
+        self.d = self.p.movav(self.k, period=self.p.period_dfast)
 
     def _calc_k(self):
         """Calculate %K value"""
@@ -74,6 +78,43 @@ class _StochasticBase(Indicator):
         if kden == 0:
             return 0.0
         return 100.0 * (knum / kden)
+
+    def _calc_k_at(self, ago):
+        """Calculate raw %K at a relative bar offset."""
+        try:
+            hh = self.highesthigh[ago]
+            ll = self.lowestlow[ago]
+            close = self.data.close[ago]
+        except (IndexError, TypeError):
+            return float("nan")
+
+        if isinstance(hh, float) and math.isnan(hh):
+            return float("nan")
+        if isinstance(ll, float) and math.isnan(ll):
+            return float("nan")
+
+        knum = close - ll
+        kden = hh - ll
+        if self.p.safediv and kden == 0:
+            return self.p.safezero
+        if kden == 0:
+            return 0.0
+        return 100.0 * (knum / kden)
+
+    @staticmethod
+    def _mean_or_nan(values):
+        """Return the arithmetic mean, or NaN when any component is NaN."""
+        total = 0.0
+        for value in values:
+            if isinstance(value, float) and math.isnan(value):
+                return float("nan")
+            total += value
+        return total / len(values)
+
+    def _fast_d_at(self, ago):
+        """Calculate fast %D at a relative bar offset."""
+        values = [self._calc_k_at(ago - i) for i in range(self.p.period_dfast)]
+        return self._mean_or_nan(values)
 
 
 class StochasticFast(_StochasticBase):
@@ -106,6 +147,8 @@ class StochasticFast(_StochasticBase):
         Extends base class for fast stochastic calculation.
         """
         super().__init__()
+        self.lines.percK = self.k
+        self.lines.percD = self.d
 
     def next(self):
         """Calculate Fast Stochastic for the current bar.
@@ -113,74 +156,12 @@ class StochasticFast(_StochasticBase):
         %K = 100 * (close - lowest) / (highest - lowest)
         %D = SMA(%K, period_dfast)
         """
-        k_val = self._calc_k()
-        self.lines.percK[0] = k_val
-        # Calculate %D as SMA of %K
-        period_d = self.p.period_dfast
-        k_sum = k_val
-        for i in range(1, period_d):
-            k_sum += self.lines.percK[-i]
-        self.lines.percD[0] = k_sum / period_d
 
     def once(self, start, end):
         """Calculate Fast Stochastic in runonce mode.
 
         Computes %K and %D values across all bars.
         """
-        hh_array = self.highesthigh.lines[0].array
-        ll_array = self.lowestlow.lines[0].array
-        close_array = self.data.close.array
-        percK_array = self.lines.percK.array
-        percD_array = self.lines.percD.array
-        period_d = self.p.period_dfast
-        safediv = self.p.safediv
-        safezero = self.p.safezero
-
-        for arr in [percK_array, percD_array]:
-            while len(arr) < end:
-                arr.append(0.0)
-
-        # Calculate %K
-        for i in range(start, min(end, len(hh_array), len(ll_array), len(close_array))):
-            hh = hh_array[i] if i < len(hh_array) else 0.0
-            ll = ll_array[i] if i < len(ll_array) else 0.0
-            close = close_array[i] if i < len(close_array) else 0.0
-
-            if isinstance(hh, float) and math.isnan(hh):
-                percK_array[i] = float("nan")
-                continue
-            if isinstance(ll, float) and math.isnan(ll):
-                percK_array[i] = float("nan")
-                continue
-
-            knum = close - ll
-            kden = hh - ll
-            if safediv and kden == 0:
-                percK_array[i] = safezero
-            elif kden == 0:
-                percK_array[i] = 0.0
-            else:
-                percK_array[i] = 100.0 * (knum / kden)
-
-        # Calculate %D (SMA of %K)
-        for i in range(start, min(end, len(percK_array))):
-            if i < period_d - 1:
-                percD_array[i] = float("nan")
-            else:
-                k_sum = 0.0
-                valid = True
-                for j in range(period_d):
-                    idx = i - j
-                    if idx >= 0 and idx < len(percK_array):
-                        val = percK_array[idx]
-                        if isinstance(val, float) and math.isnan(val):
-                            valid = False
-                            break
-                        k_sum += val
-                if valid:
-                    percD_array[i] = k_sum / period_d
-                else:
-                    percD_array[i] = float("nan")
 
 
 class Stochastic(_StochasticBase):
@@ -214,117 +195,20 @@ class Stochastic(_StochasticBase):
         Sets up tracking for fast %D values which become slow %K.
         """
         super().__init__()
-        self._fast_d_vals = []
-        # CRITICAL FIX: Add minperiod for period_dslow smoothing
-        self.addminperiod(self.p.period_dslow - 1)
+        self.lines.percK = self.d
+        self.lines.percD = self.p.movav(self.lines.percK, period=self.p.period_dslow)
 
     def next(self):
         """Calculate Slow Stochastic for the current bar.
 
         Fast %D becomes Slow %K, then Slow %D is SMA of Slow %K.
         """
-        k_val = self._calc_k()
-        # Fast %D becomes slow %K
-        period_d = self.p.period_dfast
-        self._fast_d_vals.append(k_val)
-        if len(self._fast_d_vals) > period_d:
-            self._fast_d_vals.pop(0)
-
-        if len(self._fast_d_vals) >= period_d:
-            fast_d = sum(self._fast_d_vals[-period_d:]) / period_d
-        else:
-            fast_d = sum(self._fast_d_vals) / len(self._fast_d_vals)
-
-        self.lines.percK[0] = fast_d
-
-        # Slow %D is SMA of slow %K
-        period_dslow = self.p.period_dslow
-        d_sum = fast_d
-        for i in range(1, period_dslow):
-            d_sum += self.lines.percK[-i]
-        self.lines.percD[0] = d_sum / period_dslow
 
     def once(self, start, end):
         """Calculate Slow Stochastic in runonce mode.
 
         Computes slow %K and %D values across all bars.
         """
-        hh_array = self.highesthigh.lines[0].array
-        ll_array = self.lowestlow.lines[0].array
-        close_array = self.data.close.array
-        percK_array = self.lines.percK.array
-        percD_array = self.lines.percD.array
-        period_d = self.p.period_dfast
-        period_dslow = self.p.period_dslow
-        safediv = self.p.safediv
-        safezero = self.p.safezero
-
-        for arr in [percK_array, percD_array]:
-            while len(arr) < end:
-                arr.append(0.0)
-
-        # Calculate raw %K first
-        raw_k = []
-        for i in range(min(end, len(hh_array), len(ll_array), len(close_array))):
-            hh = hh_array[i] if i < len(hh_array) else 0.0
-            ll = ll_array[i] if i < len(ll_array) else 0.0
-            close = close_array[i] if i < len(close_array) else 0.0
-
-            if isinstance(hh, float) and math.isnan(hh):
-                raw_k.append(float("nan"))
-                continue
-            if isinstance(ll, float) and math.isnan(ll):
-                raw_k.append(float("nan"))
-                continue
-
-            knum = close - ll
-            kden = hh - ll
-            if safediv and kden == 0:
-                raw_k.append(safezero)
-            elif kden == 0:
-                raw_k.append(0.0)
-            else:
-                raw_k.append(100.0 * (knum / kden))
-
-        # Calculate fast %D (which becomes slow %K)
-        for i in range(start, min(end, len(raw_k))):
-            if i < period_d - 1:
-                percK_array[i] = float("nan")
-            else:
-                k_sum = 0.0
-                valid = True
-                for j in range(period_d):
-                    idx = i - j
-                    if idx >= 0 and idx < len(raw_k):
-                        val = raw_k[idx]
-                        if isinstance(val, float) and math.isnan(val):
-                            valid = False
-                            break
-                        k_sum += val
-                if valid:
-                    percK_array[i] = k_sum / period_d
-                else:
-                    percK_array[i] = float("nan")
-
-        # Calculate slow %D (SMA of slow %K)
-        for i in range(start, min(end, len(percK_array))):
-            if i < period_d + period_dslow - 2:
-                percD_array[i] = float("nan")
-            else:
-                d_sum = 0.0
-                valid = True
-                for j in range(period_dslow):
-                    idx = i - j
-                    if idx >= 0 and idx < len(percK_array):
-                        val = percK_array[idx]
-                        if isinstance(val, float) and math.isnan(val):
-                            valid = False
-                            break
-                        d_sum += val
-                if valid:
-                    percD_array[i] = d_sum / period_dslow
-                else:
-                    percD_array[i] = float("nan")
 
 
 class StochasticFull(_StochasticBase):
@@ -347,7 +231,7 @@ class StochasticFull(_StochasticBase):
     lines = ("percDSlow",)
     params = (("period_dslow", 3),)
 
-    plotlines = dict(percDSlow=dict(_name="%DSlow"))
+    plotlines = {"percDSlow": {"_name": "%DSlow"}}
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.period_dfast, self.p.period_dslow]
@@ -360,6 +244,9 @@ class StochasticFull(_StochasticBase):
         Extends base class with additional %DSlow line.
         """
         super().__init__()
+        self.lines.percK = self.k
+        self.lines.percD = self.d
+        self.lines.percDSlow = self.p.movav(self.lines.percD, period=self.p.period_dslow)
 
     def next(self):
         """Calculate Full Stochastic for the current bar.
@@ -368,102 +255,9 @@ class StochasticFull(_StochasticBase):
         %D = SMA(%K, period_dfast)
         %DSlow = SMA(%D, period_dslow)
         """
-        k_val = self._calc_k()
-        self.lines.percK[0] = k_val
-
-        # %D is SMA of %K
-        period_d = self.p.period_dfast
-        k_sum = k_val
-        for i in range(1, period_d):
-            k_sum += self.lines.percK[-i]
-        d_val = k_sum / period_d
-        self.lines.percD[0] = d_val
-
-        # %DSlow is SMA of %D
-        period_dslow = self.p.period_dslow
-        d_sum = d_val
-        for i in range(1, period_dslow):
-            d_sum += self.lines.percD[-i]
-        self.lines.percDSlow[0] = d_sum / period_dslow
 
     def once(self, start, end):
         """Calculate Full Stochastic in runonce mode.
 
         Computes %K, %D, and %DSlow values across all bars.
         """
-        hh_array = self.highesthigh.lines[0].array
-        ll_array = self.lowestlow.lines[0].array
-        close_array = self.data.close.array
-        percK_array = self.lines.percK.array
-        percD_array = self.lines.percD.array
-        percDSlow_array = self.lines.percDSlow.array
-        period_d = self.p.period_dfast
-        period_dslow = self.p.period_dslow
-        safediv = self.p.safediv
-        safezero = self.p.safezero
-
-        for arr in [percK_array, percD_array, percDSlow_array]:
-            while len(arr) < end:
-                arr.append(0.0)
-
-        # Calculate %K
-        for i in range(start, min(end, len(hh_array), len(ll_array), len(close_array))):
-            hh = hh_array[i] if i < len(hh_array) else 0.0
-            ll = ll_array[i] if i < len(ll_array) else 0.0
-            close = close_array[i] if i < len(close_array) else 0.0
-
-            if isinstance(hh, float) and math.isnan(hh):
-                percK_array[i] = float("nan")
-                continue
-            if isinstance(ll, float) and math.isnan(ll):
-                percK_array[i] = float("nan")
-                continue
-
-            knum = close - ll
-            kden = hh - ll
-            if safediv and kden == 0:
-                percK_array[i] = safezero
-            elif kden == 0:
-                percK_array[i] = 0.0
-            else:
-                percK_array[i] = 100.0 * (knum / kden)
-
-        # Calculate %D
-        for i in range(start, min(end, len(percK_array))):
-            if i < period_d - 1:
-                percD_array[i] = float("nan")
-            else:
-                k_sum = 0.0
-                valid = True
-                for j in range(period_d):
-                    idx = i - j
-                    if idx >= 0 and idx < len(percK_array):
-                        val = percK_array[idx]
-                        if isinstance(val, float) and math.isnan(val):
-                            valid = False
-                            break
-                        k_sum += val
-                if valid:
-                    percD_array[i] = k_sum / period_d
-                else:
-                    percD_array[i] = float("nan")
-
-        # Calculate %DSlow
-        for i in range(start, min(end, len(percD_array))):
-            if i < period_d + period_dslow - 2:
-                percDSlow_array[i] = float("nan")
-            else:
-                d_sum = 0.0
-                valid = True
-                for j in range(period_dslow):
-                    idx = i - j
-                    if idx >= 0 and idx < len(percD_array):
-                        val = percD_array[idx]
-                        if isinstance(val, float) and math.isnan(val):
-                            valid = False
-                            break
-                        d_sum += val
-                if valid:
-                    percDSlow_array[i] = d_sum / period_dslow
-                else:
-                    percDSlow_array[i] = float("nan")

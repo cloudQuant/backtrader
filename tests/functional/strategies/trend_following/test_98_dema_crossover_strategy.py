@@ -20,10 +20,11 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -83,7 +84,7 @@ class DemaCrossoverStrategy(bt.Strategy):
         dema_fast (bt.indicators.DEMA): Fast DEMA indicator with short period.
         dema_slow (bt.indicators.DEMA): Slow DEMA indicator with long period.
         crossover (bt.indicators.CrossOver): Crossover indicator tracking the
-            relationship between fast and slow DEMA. Positive values indicate
+            relationship between fast and slow bt.indicators.DEMA. Positive values indicate
             fast DEMA is above slow DEMA, negative values indicate below.
         order (bt.Order): Current pending order, or None if no order is pending.
         bar_num (int): Counter tracking the number of bars processed.
@@ -164,7 +165,8 @@ class DemaCrossoverStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_dema_crossover_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_dema_crossover_strategy(runonce):
     """Test the DEMA Crossover Strategy with historical data.
 
     This function sets up and runs a backtest of the DemaCrossoverStrategy using
@@ -213,7 +215,7 @@ def test_dema_crossover_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

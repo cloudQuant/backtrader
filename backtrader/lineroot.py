@@ -26,7 +26,10 @@ Example:
 import operator
 
 from . import metabase
+from .utils.log_message import get_logger
 from .utils.py3 import range
+
+logger = get_logger(__name__)
 
 
 class LineRootMixin:
@@ -142,7 +145,6 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         It will be called during the "minperiod" phase of an iteration.
         """
-        pass
 
     # Called once when minimum period iteration ends, about to start next
     def nextstart(self):
@@ -158,14 +160,12 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         Called to calculate values when the minperiod is over
         """
-        pass
 
     # Call preonce during minimum period iteration
     def preonce(self, start, end):
         """
         It will be called during the "minperiod" phase of a "once" iteration
         """
-        pass
 
     # Run once when minimum period ends, call once
     def oncestart(self, start, end):
@@ -184,7 +184,6 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         Called to calculate values at "once" when the minperiod is over
 
         """
-        pass
 
     def size(self):
         """Return the number of lines in this object"""
@@ -192,10 +191,9 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         # It will be overridden by specific implementations as needed
         if hasattr(self, "lines") and hasattr(self.lines, "size"):
             return self.lines.size()
-        elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
+        if hasattr(self, "lines") and hasattr(self.lines, "__len__"):
             return len(self.lines)
-        else:
-            return 1  # Default to 1 line if no lines object available
+        return 1  # Default to 1 line if no lines object available
 
     # Arithmetic operators
     # Some arithmetic operations
@@ -214,18 +212,17 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             return LinesOperation(
                 self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
             )
-        else:
-            # If no lines, return a simple operation result
-            try:
-                if r:
-                    return operation(other, 0)  # Use 0 as default value
-                else:
-                    return operation(0, other)  # Use 0 as default value
-            except Exception:
-                # If operation fails, return False for bool operations
-                if operation is bool:
-                    return False
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            if r:
+                return operation(other, 0)  # Use 0 as default value
+            return operation(0, other)  # Use 0 as default value
+        except Exception:
+            logger.debug("Fallback operation failed in LineRoot._makeoperation", exc_info=True)
+            # If operation fails, return False for bool operations
+            if operation is bool:
+                return False
+            return 0
 
     # Perform self operation
     def _makeoperationown(self, operation, _ownerskip=None):
@@ -243,16 +240,18 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                                 # Return True if value is not None, not NaN and not 0
                                 if value is None:
                                     return False
-                                elif isinstance(value, float):
+                                if isinstance(value, float):
                                     import math
 
-                                    if math.isnan(value):
+                                    if not math.isfinite(value):
                                         return False
                                     return value != 0.0
-                                else:
-                                    return bool(value)
+                                return bool(value)
                     return False
                 except Exception:
+                    logger.debug(
+                        "Boolean operation failed in LineRoot._makeoperationown", exc_info=True
+                    )
                     return False
             elif hasattr(self, "__getitem__") and hasattr(self, "__len__"):
                 # For LineSingle objects, check the current value directly
@@ -261,16 +260,19 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                         value = self[0]
                         if value is None:
                             return False
-                        elif isinstance(value, float):
+                        if isinstance(value, float):
                             import math
 
-                            if math.isnan(value):
+                            if not math.isfinite(value):
                                 return False
                             return value != 0.0
-                        else:
-                            return bool(value)
+                        return bool(value)
                     return False
                 except Exception:
+                    logger.debug(
+                        "Direct boolean operation failed in LineRoot._makeoperationown",
+                        exc_info=True,
+                    )
                     return False
             else:
                 return False
@@ -281,13 +283,15 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             from .linebuffer import LineOwnOperation
 
             return LineOwnOperation(self.lines[0], operation)
-        else:
-            # If no lines, return a simple operation result
-            try:
-                return operation(0)  # Use 0 as default value
-            except Exception:
-                # If operation fails, return 0 for most operations
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            return operation(0)  # Use 0 as default value
+        except Exception:
+            logger.debug(
+                "Fallback self-operation failed in LineRoot._makeoperationown", exc_info=True
+            )
+            # If operation fails, return 0 for most operations
+            return 0
 
     # Self operation stage 1
     def _operationown_stage1(self, operation):
@@ -340,7 +344,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         elif isinstance(self_value, float):
             import math
 
-            if math.isnan(self_value):
+            if not math.isfinite(self_value):
                 self_value = 0.0
 
         # Also handle None in other value
@@ -349,7 +353,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         elif isinstance(other, float):
             import math
 
-            if math.isnan(other):
+            if not math.isfinite(other):
                 other = 0.0
 
         # CRITICAL FIX: Actually perform the operation and return the result
@@ -359,8 +363,14 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 result = operation(other, self_value)
             else:
                 result = operation(self_value, other)
+            if isinstance(result, float):
+                import math
+
+                if not math.isfinite(result):
+                    return 0.0
             return result
         except Exception:
+            logger.debug("Stage2 operation failed in LineRoot._operation_stage2", exc_info=True)
             # If operation fails, return appropriate default
             if operation in [
                 operator.__lt__,
@@ -371,8 +381,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 operator.__ne__,
             ]:
                 return False  # For comparison operations, return False on error
-            else:
-                return 0.0  # For arithmetic operations, return 0.0 on error
+            return 0.0  # For arithmetic operations, return 0.0 on error
 
     # Addition
     def __add__(self, other):
@@ -398,13 +407,13 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
     def __rmul__(self, other):
         return self._roperation(other, operator.__mul__)
 
-    # Division
+    # Division (Py2 alias; mapped to true division for Py3 correctness)
     def __div__(self, other):
-        return self._operation(other, operator.__div__)
+        return self._operation(other, operator.__truediv__)
 
     # Right division
     def __rdiv__(self, other):
-        return self._roperation(other, operator.__div__)
+        return self._roperation(other, operator.__truediv__)
 
     # Floor division
     def __floordiv__(self, other):
@@ -451,7 +460,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -459,7 +468,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use
@@ -484,7 +493,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -492,7 +501,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use
@@ -517,7 +526,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -525,7 +534,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use
@@ -550,7 +559,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -558,7 +567,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use
@@ -593,34 +602,32 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                             # Return True if value exists and is not 0
                             if value is None:
                                 return False
-                            elif isinstance(value, float):
+                            if isinstance(value, float):
                                 import math
 
-                                if math.isnan(value):
+                                if not math.isfinite(value):
                                     return False
                                 return value != 0.0
-                            else:
-                                return bool(value)
+                            return bool(value)
                 return False
-            elif hasattr(self, "__getitem__") and hasattr(self, "__len__"):
+            if hasattr(self, "__getitem__") and hasattr(self, "__len__"):
                 # For LineSingle objects, check the current value
                 if len(self) > 0:
                     value = self[0]
                     if value is None:
                         return False
-                    elif isinstance(value, float):
+                    if isinstance(value, float):
                         import math
 
-                        if math.isnan(value):
+                        if not math.isfinite(value):
                             return False
                         return value != 0.0
-                    else:
-                        return bool(value)
+                    return bool(value)
                 return False
-            else:
-                # Fallback: if no data available, return False
-                return False
+            # Fallback: if no data available, return False
+            return False
         except Exception:
+            logger.debug("Boolean evaluation failed in LineRoot.__nonzero__", exc_info=True)
             # If any error occurs during boolean evaluation, return False
             # This prevents crashes in strategies when doing "if self.cross > 0:"
             return False
@@ -710,8 +717,23 @@ class LineMultiple(LineRoot):
         """
         The passed minperiod is fed to the lines
         """
-        # CRITICAL FIX: Use the same accumulation logic as LineSingle
-        # This ensures nested indicators properly accumulate minperiods
+        has_child_iterators = False
+        try:
+            has_child_iterators = any(self._lineiterators.values())
+        except (AttributeError, TypeError):
+            # No sub-iterator registry yet; treat as having no child iterators.
+            pass
+
+        has_linebinding_output = any(
+            getattr(line, "_linebinding_assigned", False) for line in getattr(self, "lines", [])
+        )
+
+        if has_child_iterators and not has_linebinding_output:
+            self._minperiod = max(self._minperiod, minperiod)
+            for line in self.lines:
+                line.updateminperiod(self._minperiod)
+            return
+
         # minperiod is added with -1 to account for overlapping
         self._minperiod += minperiod - 1
 
@@ -730,27 +752,27 @@ class LineMultiple(LineRoot):
         # This provides a fallback when operations are needed
         if hasattr(self, "lines") and self.lines:
             # Use the first line for operations
-            from .linebuffer import LinesOperation
+            from .linebuffer import LineActions, LinesOperation
 
-            # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
-            parent_a = self if hasattr(self, "_once") else None
+            # Only set parent to LineActions instances — never full indicators.
+            # Full indicators are processed via _lineiterators ordering in _once().
+            parent_a = self if isinstance(self, LineActions) else None
             parent_b_candidate = original_other if original_other is not None else other
-            parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
+            parent_b = parent_b_candidate if isinstance(parent_b_candidate, LineActions) else None
             return LinesOperation(
                 self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
             )
-        else:
-            # If no lines, return a simple operation result
-            try:
-                if r:
-                    return operation(other, 0)  # Use 0 as default value
-                else:
-                    return operation(0, other)  # Use 0 as default value
-            except Exception:
-                # If operation fails, return False for bool operations
-                if operation is bool:
-                    return False
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            if r:
+                return operation(other, 0)  # Use 0 as default value
+            return operation(0, other)  # Use 0 as default value
+        except Exception:
+            logger.debug("Fallback operation failed in LineMultiple._makeoperation", exc_info=True)
+            # If operation fails, return False for bool operations
+            if operation is bool:
+                return False
+            return 0
 
     def _makeoperationown(self, operation, _ownerskip=None):
         # CRITICAL FIX: For bool operations, return a simple boolean result instead of creating objects
@@ -763,10 +785,13 @@ class LineMultiple(LineRoot):
                     # Return True if value is not NaN and not 0
                     import math
 
-                    if isinstance(value, float) and math.isnan(value):
+                    if isinstance(value, float) and not math.isfinite(value):
                         return False
                     return bool(value)
                 except Exception:
+                    logger.debug(
+                        "Boolean operation failed in LineMultiple._makeoperationown", exc_info=True
+                    )
                     return False
             else:
                 return False
@@ -777,13 +802,16 @@ class LineMultiple(LineRoot):
             from .linebuffer import LineOwnOperation
 
             return LineOwnOperation(self.lines[0], operation)
-        else:
-            # If no lines, return a simple operation result
-            try:
-                return operation(0)  # Use 0 as default value
-            except Exception:
-                # If operation fails, return 0 for most operations
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            return operation(0)  # Use 0 as default value
+        except Exception:
+            logger.debug(
+                "Fallback self-operation failed in LineMultiple._makeoperationown",
+                exc_info=True,
+            )
+            # If operation fails, return 0 for most operations
+            return 0
 
     def qbuffer(self, savemem=0):
         """Apply queued buffering to all managed lines.
@@ -858,6 +886,9 @@ def _apply_strategy_patch():
                     else:
                         clk_len = 1
                 except Exception:
+                    logger.debug(
+                        "Fallback _clk_update path triggered in safe_clk_update", exc_info=True
+                    )
                     clk_len = 1
 
                 # CRITICAL FIX: Only set datetime if we have valid data sources with length
@@ -910,6 +941,7 @@ def _apply_strategy_patch():
                     try:
                         newdlens.append(len(d) if hasattr(d, "__len__") else 0)
                     except Exception:
+                        logger.debug("Failed to read data length in safe_clk_update", exc_info=True)
                         newdlens.append(0)
             else:
                 newdlens = []
@@ -927,8 +959,8 @@ def _apply_strategy_patch():
                 try:
                     if hasattr(self, "forward"):
                         self.forward()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to forward in _clk_update: %s", e)
 
             # Update _dlens
             self._dlens = newdlens
@@ -974,6 +1006,7 @@ def _apply_strategy_patch():
             try:
                 return len(self)
             except Exception:
+                logger.debug("Failed to read strategy length in safe_clk_update", exc_info=True)
                 return 0
 
         # Import Strategy and patch it
@@ -982,13 +1015,12 @@ def _apply_strategy_patch():
 
             # Monkey patch the Strategy class
             Strategy._clk_update = safe_clk_update
-            pass
         except ImportError:
             # Strategy not imported yet, try to patch later when it's imported
             pass
 
-    except Exception:
-        pass  # Fail silently to not break imports
+    except Exception as e:
+        logger.debug("Failed to apply strategy patch: %s", e)
 
 
 # Apply the patch when this module is imported

@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -60,7 +61,7 @@ def clean_bond_data_with_premium():
     df.columns = ['symbol', 'bond_symbol', 'datetime', 'open', 'high', 'low', 'close', 'volume',
                   'pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate']
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[df['datetime'] > pd.to_datetime("2018-01-01")]
+    df = df[df['datetime'] > pd.to_datetime("2020-06-01")]
 
     datas = {}
     for symbol, data in df.groupby('symbol'):
@@ -204,7 +205,8 @@ class ConvertibleBondFridayRotationStrategy(bt.Strategy):
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 
-def test_cb_friday_rotation_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_cb_friday_rotation_strategy(runonce):
     """Test convertible bond Friday rotation strategy.
 
     Run backtest using convertible bond data.
@@ -215,7 +217,7 @@ def test_cb_friday_rotation_strategy():
     print("Loading index data...")
     index_data = pd.read_csv(resolve_data_path('bond_index_000000.csv'))
     index_data.index = pd.to_datetime(index_data['datetime'])
-    index_data = index_data[index_data.index > pd.to_datetime("2018-01-01")]
+    index_data = index_data[index_data.index > pd.to_datetime("2020-06-01")]
     index_data = index_data.drop(['datetime'], axis=1)
     # Add a premium_rate column with default value 0
     index_data['premium_rate'] = 0.0
@@ -257,7 +259,7 @@ def test_cb_friday_rotation_strategy():
 
     # Run backtest
     print("\nStarting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -281,15 +283,16 @@ def test_cb_friday_rotation_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # Assert test results (exact values)
-    assert strat.bar_num == 1885, f"Expected bar_num=1885, got {strat.bar_num}"
-    assert strat.buy_count == 1119, f"Expected buy_count=1119, got {strat.buy_count}"
-    assert strat.sell_count == 1116, f"Expected sell_count=1116, got {strat.sell_count}"
-    assert total_trades == 1117, f"Expected total_trades=1117, got {total_trades}"
-    assert abs(sharpe_ratio-(-0.13455036625145408))<1e-6, f"Expected sharpe_ratio=-0.13455036625145442, got {sharpe_ratio}"
-    assert abs(annual_return-0.005213988514988448)<1e-6, f"Expected annual_return=0.005213988514988448, got {annual_return}"
-    assert abs(max_drawdown-0.134336302193658)<1e-6, f"Expected max_drawdown=0.134336302193658, got {max_drawdown}"
-    assert abs(final_value - 1039666.6544150009)<1e-6, f"Expected final_value=1039666.6544150009, got {final_value}"
+    # Assert test results (exact values) - data filtered to > 2020-06-01
+    assert strat.bar_num == 1300, f"Expected bar_num=1300, got {strat.bar_num}"
+    assert strat.buy_count == 777, f"Expected buy_count=777, got {strat.buy_count}"
+    assert strat.sell_count == 774, f"Expected sell_count=774, got {strat.sell_count}"
+    assert total_trades == 776, f"Expected total_trades=776, got {total_trades}"
+    assert total_trades > 0, "trade count must be > 0"
+    assert abs(sharpe_ratio - (-0.8365868950011432)) < 1e-6, f"Expected sharpe_ratio=-0.8365868950011432, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.011956912936478315)) < 1e-6, f"Expected annual_return=-0.011956912936478315, got {annual_return}"
+    assert abs(max_drawdown - 0.13024459769388905) < 1e-6, f"Expected max_drawdown=0.13024459769388905, got {max_drawdown}"
+    assert abs(final_value - 939831.9281099997) < 0.01, f"Expected final_value=939831.93, got {final_value}"
 
     print("\nAll tests passed!")
 

@@ -79,6 +79,67 @@ def find_python_files(root_dir: str, exclude_dirs: Optional[List[str]] = None) -
     return sorted(python_files)
 
 
+def collect_python_files(targets: List[str], exclude_dirs: Optional[List[str]] = None) -> List[str]:
+    """Collect python files from files and directories.
+
+    Args:
+        targets: Input paths that may include both files and directories.
+        exclude_dirs: Directory names to skip when walking directories.
+
+    Returns:
+        Sorted list of python file paths.
+    """
+    if exclude_dirs is None:
+        exclude_dirs = ['docs', '__pycache__', '.git', '.tox', 'build', 'dist',
+                        'egg-info', '.eggs', 'venv', 'env', 'node_modules']
+
+    ignored_targets = {'|', '│', '├', '└', '┌', '┐', '├──', '└──'}
+    files = []
+    for target in targets:
+        if str(target).strip() in ignored_targets:
+            continue
+        target_path = Path(target)
+        if not target_path.exists():
+            continue
+        if target_path.is_dir():
+            files.extend(find_python_files(str(target_path), exclude_dirs=exclude_dirs))
+        elif target_path.is_file() and target_path.suffix == '.py':
+            files.append(str(target_path))
+    return sorted(set(files))
+
+
+def select_recommended_file(root_dir: str, target_files: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
+    """Pick one file with pending docstring/comment issues.
+
+    Args:
+        root_dir: Default directory when no targets are provided.
+        target_files: Optional list of input paths, files or dirs.
+
+    Returns:
+        The selected file analysis record, or None if no target needs optimization.
+    """
+    paths = target_files if target_files else [root_dir]
+    candidates = []
+    for result in [quick_analyze(fp) for fp in collect_python_files(paths)]:
+        if result.get('needs_work'):
+            candidates.append(result)
+
+    if not candidates:
+        return None
+
+    def is_test_file(filepath: str) -> bool:
+        return os.path.basename(filepath).startswith("test_")
+
+    candidates.sort(
+        key=lambda item: (
+            int(is_test_file(item['filepath'])),
+            -(item.get('missing_docstrings', 0) + item.get('chinese_comments', 0)),
+        ),
+        reverse=True,
+    )
+    return candidates[0]
+
+
 def quick_analyze(filepath: str) -> Dict[str, Any]:
     """Quickly analyze a file and return summary stats.
     
@@ -531,13 +592,46 @@ Examples:
         default='.',
         help='Root directory to search (default: current directory)'
     )
+    parser.add_argument(
+        '--recommend',
+        action='store_true',
+        help='Recommend one file that needs optimization and print detailed report'
+    )
     
-    args = parser.parse_args()
+    if hasattr(parser, 'parse_intermixed_args'):
+        args = parser.parse_intermixed_args()
+    else:  # pragma: no cover - fallback for older Python versions
+        args = parser.parse_args()
+
+    if args.recommend:
+        recommended = select_recommended_file(
+            args.directory,
+            target_files=args.files if args.files else None,
+        )
+
+        if recommended is None:
+            if args.files:
+                print("No files need optimization in the selected targets.")
+            else:
+                root = args.directory
+                print(f"No files need optimization in the selected targets ({root}).")
+            return
+
+        filepath = recommended['filepath']
+        print("\n" + "=" * 70)
+        print("Recommended file for optimization:")
+        print(f"{filepath}")
+        print("=" * 70 + "\n")
+        print(generate_report(filepath))
+        return
     
     if args.files:
         # Analyze specific files
         for filepath in args.files:
-            print(generate_report(filepath, verbose=args.verbose))
+            if Path(filepath).is_dir():
+                batch_analyze(filepath, summary_only=args.summary, verbose=args.verbose)
+            else:
+                print(generate_report(filepath, verbose=args.verbose))
     else:
         # Analyze all files in directory
         batch_analyze(args.directory, summary_only=args.summary, verbose=args.verbose)

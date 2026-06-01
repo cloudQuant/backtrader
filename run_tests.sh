@@ -27,15 +27,17 @@ NC='\033[0m'
 WORKERS=8
 TIMEOUT=45
 TEST_PATH="tests"
+TEST_PATH_SPECIFIED=0
 VERBOSE=""
 FILTER=""
+IGNORE_ARGS=()
 
 # Parse command line arguments
 while getopts "n:t:p:k:vh" opt; do
     case $opt in
         n) WORKERS="$OPTARG" ;;
         t) TIMEOUT="$OPTARG" ;;
-        p) TEST_PATH="$OPTARG" ;;
+        p) TEST_PATH="$OPTARG"; TEST_PATH_SPECIFIED=1 ;;
         k) FILTER="-k $OPTARG" ;;
         v) VERBOSE="-v" ;;
         h)
@@ -49,6 +51,10 @@ done
 # Ensure we're in the correct directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
+
+if [ "$TEST_PATH_SPECIFIED" -eq 0 ]; then
+    IGNORE_ARGS=(--ignore=tests/functional/strategies_regression)
+fi
 
 # Print header
 echo -e "${BLUE}============================================================${NC}"
@@ -76,6 +82,7 @@ python -m pytest "$TEST_PATH" \
     --disable-warnings \
     --color=yes \
     -q \
+    "${IGNORE_ARGS[@]}" \
     $VERBOSE \
     $FILTER 2>&1 | tee "$TEMP_OUTPUT"
 

@@ -35,17 +35,29 @@ Classes:
     SignalStrategy: Strategy subclass that responds to signal indicators.
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import collections
 import copy
 import datetime
 import itertools
-import operator
+import math
+from typing import Optional
 
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
 from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, OwnerContext, findowner
 from .order import Order
+from .position_modes import (
+    POSITION_MODE_DUAL_SIDE,
+    POSITION_OFFSET_CLOSE,
+    POSITION_SIDE_LONG,
+    POSITION_SIDE_SHORT,
+    normalize_position_mode,
+    normalize_position_side,
+    trade_key_from_order,
+)
 from .signal import (
     SIGNAL_LONG,
     SIGNAL_LONG_ANY,
@@ -64,8 +76,10 @@ from .signal import (
 from .sizers.fixedsize import FixedSize
 from .trade import Trade
 from .utils import AutoDictList, AutoOrderedDict
-from .utils.log_message import SpdLogManager
+from .utils.log_message import SpdLogManager, get_logger
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
+
+logger = get_logger(__name__)
 
 
 class Strategy(StrategyBase):
@@ -114,21 +128,22 @@ class Strategy(StrategyBase):
     """
 
     # Class-level storage for strategies
-    _indcol = dict()
+    _indcol: dict = {}
 
     @classmethod
     def _create_strategy_safely(cls, *args, **kwargs):
-        """Safely create a strategy instance with proper parameter filtering"""
-        # Call the full __new__ chain with all kwargs to ensure parameter processing
+        """Safely create a strategy instance with proper parameter filtering.
+
+        Separates __new__ (parameter setup) from __init__ (data/indicator setup)
+        to ensure parameters are fully processed before __init__ runs.
+        """
+        # __new__ processes all kwargs into _params_instance
         instance = cls.__new__(cls, *args, **kwargs)
 
-        # Now manually call the Strategy.__init__ method with filtered kwargs (no params)
-        # We need to filter out the strategy parameter kwargs for __init__
-        filtered_kwargs = {}  # TestStrategy.__init__ takes no kwargs
-
-        # Call Strategy.__init__ with filtered kwargs (which should be empty for TestStrategy)
+        # __init__ handles data setup, clock, and user subclass init.
+        # Pass original kwargs so __init__ can filter out param kwargs itself.
         if instance is not None:
-            Strategy.__init__(instance, *args, **filtered_kwargs)
+            Strategy.__init__(instance, *args, **kwargs)
 
         return instance
 
@@ -159,9 +174,10 @@ class Strategy(StrategyBase):
             # Create parameter instance
             try:
                 instance._params_instance = params_cls()
-            except Exception:
-                # If instantiation fails, create a simple object
-                instance._params_instance = type("ParamsInstance", (), {})()
+            except Exception as exc:
+                raise TypeError(
+                    f"Failed to create params instance for {cls.__name__}: {exc}"
+                ) from exc
 
             # Set all parameter values - first defaults, then custom values
             if hasattr(params_cls, "_getpairs"):
@@ -189,7 +205,6 @@ class Strategy(StrategyBase):
 
         # Create p property for parameter access
         instance.p = instance._params_instance
-        # print(f"Strategy.__new__: Set parameters for {cls.__name__}: chkind={getattr(instance.p, 'chkind', 'NOT_SET')}")
 
         # Handle method renaming like the old MetaStrategy.__new__ did
         if hasattr(cls, "notify") and not hasattr(cls, "notify_order"):
@@ -221,13 +236,13 @@ class Strategy(StrategyBase):
         instance.stats = instance.observers = ItemCollection()
         instance.analyzers = ItemCollection()
         instance._alnames = collections.defaultdict(itertools.count)
-        instance.writers = list()
-        instance._slave_analyzers = list()
+        instance.writers = []
+        instance._slave_analyzers = []
         instance._tradehistoryon = False
-        instance._orders = list()
-        instance._orderspending = list()
+        instance._orders = []
+        instance._orderspending = []
         instance._trades = collections.defaultdict(AutoDictList)
-        instance._tradespending = list()
+        instance._tradespending = []
 
         return instance
 
@@ -261,59 +276,22 @@ class Strategy(StrategyBase):
             self.data = self.datas[0]
             for d, data in enumerate(self.datas):
                 setattr(self, f"data{d}", data)
-            # print(f"Strategy.__init__: Set primary data and aliases for {len(self.datas)} datas")
         else:
             self.data = None
-            # print(f"Strategy.__init__: WARNING - No data available")
 
         # Set up clock - this is critical for strategy execution
         if not hasattr(self, "_clock") or self._clock is None:
             if self.datas:
                 self._clock = self.datas[0]
-                # print(f"Strategy.__init__: Set clock to first data")
             # CRITICAL FIX: Don't create MinimalClock fallback
             # It causes problems with indicator clock detection in _periodset()
             # If no datas, leave _clock as None and let it be set later
 
-        # CRITICAL FIX: For TestStrategy, we need to call its __init__ method directly
-        # without filtering parameters since TestStrategy.__init__ doesn't take kwargs
-        # Use OwnerContext to ensure indicators created in __init__ find this strategy as owner
-        if self.__class__.__name__ == "TestStrategy":
-            # For TestStrategy, call its __init__ directly - it takes no kwargs
-            # Look for TestStrategy's __init__ method
-            for cls in self.__class__.__mro__:
-                if (
-                    cls.__name__ == "TestStrategy"
-                    and hasattr(cls, "__init__")
-                    and "__init__" in cls.__dict__
-                ):
-                    user_init = cls.__dict__["__init__"]
-                    # Use OwnerContext so indicators find this strategy as owner
-                    with OwnerContext.set_owner(self):
-                        user_init(self)  # TestStrategy.__init__ takes only self
-                    break
-        elif self.__class__ != Strategy:
-            # For other strategy subclasses, filter kwargs before calling
-            filtered_kwargs = kwargs.copy()
-            if hasattr(self.__class__, "_params") and self.__class__._params is not None:
-                params_cls = self.__class__._params
-                param_names = set()
-
-                # Get all parameter names from the class
-                if hasattr(params_cls, "_getpairs"):
-                    param_names.update(params_cls._getpairs().keys())
-                elif hasattr(params_cls, "_gettuple"):
-                    param_names.update(key for key, value in params_cls._gettuple())
-
-                # Remove strategy parameter kwargs
-                filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-
-            # Call the user's __init__ method directly
-            # CRITICAL FIX: Exclude StrategyBase to prevent infinite recursion
+        # Call user subclass __init__ if this is a Strategy subclass
+        if self.__class__ != Strategy:
             from backtrader.lineiterator import StrategyBase
 
-            # CRITICAL FIX: Add guard to prevent recursive user_init calls
-            # When user's __init__ calls super().__init__(), we must not call user_init again
+            # Guard against recursive calls when user's __init__ calls super().__init__()
             if not getattr(self, "_user_init_called", False):
                 self._user_init_called = True
 
@@ -323,23 +301,16 @@ class Strategy(StrategyBase):
                         and hasattr(cls, "__init__")
                         and "__init__" in cls.__dict__
                     ):
-                        # CRITICAL FIX: Use _original_init if available to avoid calling patched_init
-                        # This prevents infinite recursion when ParamsMixin patches __init__
+                        # Use _original_init if available to avoid calling patched_init
+                        # (prevents infinite recursion when ParamsMixin patches __init__)
                         if hasattr(cls, "_original_init"):
                             user_init = cls._original_init
                         else:
                             user_init = cls.__dict__["__init__"]
-                        try:
-                            # Use OwnerContext so indicators find this strategy as owner
-                            with OwnerContext.set_owner(self):
-                                user_init(self)
-                            break
-                        except Exception:
-                            # If user init fails, try with filtered_kwargs
-                            if filtered_kwargs:
-                                with OwnerContext.set_owner(self):
-                                    user_init(self, **filtered_kwargs)
-                            break
+                        # Use OwnerContext so indicators find this strategy as owner
+                        with OwnerContext.set_owner(self):
+                            user_init(self)
+                        break
 
         # Initialize tick/channel callback state (auto, no manual init needed)
         if not hasattr(self, "_tick_count"):
@@ -362,8 +333,6 @@ class Strategy(StrategyBase):
         # Clean up the temporary attribute
         if hasattr(self, "_strategy_init_kwargs"):
             delattr(self, "_strategy_init_kwargs")
-
-        # print(f"Strategy.__init__: Completed initialization with {len(self.datas)} datas and clock: {type(self._clock).__name__}")
 
     # Line type is strategy type
     _ltype = LineIterator.StratType
@@ -436,6 +405,34 @@ class Strategy(StrategyBase):
                 if hasattr(observer, "notify_trade"):
                     observer.notify_trade(trade)
 
+    def _notify_store_to_observers(self, msg, *args, **kwargs):
+        """Forward store notifications to observers that support runtime events."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_store_event"):
+                    observer.notify_store_event(msg, *args, **kwargs)
+
+    def _notify_data_to_observers(self, data, status, *args, **kwargs):
+        """Forward data-feed notifications to observers that support runtime events."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_data_event"):
+                    observer.notify_data_event(data, status, *args, **kwargs)
+
+    def _notify_tick_to_observers(self, tick):
+        """Forward tick events to observers that support tick logging."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_tick_event"):
+                    observer.notify_tick_event(tick)
+
+    def _notify_bar_to_observers(self, bar):
+        """Forward bar events to observers that support bar logging."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_bar_event"):
+                    observer.notify_bar_event(bar)
+
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
 
@@ -478,6 +475,160 @@ class Strategy(StrategyBase):
         else:
             pass
 
+    def _iter_strategy_lineactions(self):
+        """Yield LineActions stored as strategy attributes."""
+        from .linebuffer import LineActions
+
+        try:
+            cache = object.__getattribute__(self, "_strategy_lineactions_cache")
+        except AttributeError:
+            cache = None
+
+        if cache is not None:
+            yield from cache
+            return
+
+        seen = set()
+        registered = set()
+
+        def mark_registered(lineiter):
+            lineiter_id = id(lineiter)
+            if lineiter_id in registered:
+                return
+            registered.add(lineiter_id)
+
+            try:
+                child_lists = lineiter._lineiterators.values()
+            except AttributeError:
+                return
+
+            for children in child_lists:
+                for child in children:
+                    mark_registered(child)
+
+        try:
+            for children in self._lineiterators.values():
+                for child in children:
+                    mark_registered(child)
+        except AttributeError:
+            # No sub-iterator registry yet; nothing to pre-mark as registered.
+            pass
+
+        def visit(value):
+            value_id = id(value)
+            if value_id in seen:
+                return
+            seen.add(value_id)
+
+            if isinstance(value, LineActions):
+                for attr_name in ("_parent_a", "_parent_b", "a", "b", "cond"):
+                    try:
+                        dependency = getattr(value, attr_name)
+                    except AttributeError:
+                        continue
+                    yield from visit(dependency)
+
+                try:
+                    args = value.args
+                except AttributeError:
+                    args = ()
+                for dependency in args:
+                    yield from visit(dependency)
+
+                if value_id not in registered:
+                    yield value
+
+                return
+
+            if isinstance(value, dict):
+                for item in value.values():
+                    yield from visit(item)
+            elif isinstance(value, (list, tuple, set, frozenset)):
+                for item in value:
+                    yield from visit(item)
+
+        try:
+            attrs = object.__getattribute__(self, "__dict__")
+        except AttributeError:
+            attrs = {}
+
+        result = []
+        for attr_name, attr_value in attrs.items():
+            if attr_name.startswith("_"):
+                continue
+            result.extend(visit(attr_value))
+
+        cache = tuple(result)
+        object.__setattr__(self, "_strategy_lineactions_cache", cache)
+        yield from cache
+
+    def _get_strategy_lineactions(self):
+        try:
+            return object.__getattribute__(self, "_strategy_lineactions_cache")
+        except AttributeError:
+            return tuple(self._iter_strategy_lineactions())
+
+    def _get_strategy_next_lineactions(self):
+        try:
+            return object.__getattribute__(self, "_strategy_next_lineactions_cache")
+        except AttributeError:
+            # Cache not built yet; compute and store it below.
+            pass
+
+        cache = tuple(
+            (lineaction, getattr(lineaction, "_clock", None))
+            for lineaction in self._get_strategy_lineactions()
+            if hasattr(lineaction, "_next")
+        )
+        object.__setattr__(self, "_strategy_next_lineactions_cache", cache)
+        return cache
+
+    def _stage2(self):
+        super()._stage2()
+        for lineaction in self._get_strategy_lineactions():
+            try:
+                lineaction._stage2()
+            except Exception:
+                logger.debug("Failed to stage2 strategy LineActions", exc_info=True)
+
+    def _stage1(self):
+        super()._stage1()
+        for lineaction in self._get_strategy_lineactions():
+            try:
+                lineaction._stage1()
+            except Exception:
+                logger.debug("Failed to stage1 strategy LineActions", exc_info=True)
+
+    def _next_strategy_lineactions(self):
+        """Advance LineActions stored directly on the strategy.
+
+        LineActions created as strategy attributes, such as bt.Cmp/bt.If/bt.Max,
+        are not LineIterator indicators. They still need to be evaluated before
+        user next/prenext/nextstart reads them.
+        """
+        for lineaction, clock in self._get_strategy_next_lineactions():
+            if clock is not None:
+                try:
+                    if len(clock) <= len(lineaction):
+                        try:
+                            current_value = lineaction[0]
+                        except Exception:  # nosec B112
+                            # Per-bar hot path: the line buffer may not be
+                            # populated yet for this index. Skipping is the
+                            # intended behaviour; logging here would fire every
+                            # bar. No control-flow change.
+                            continue
+                        if current_value == current_value:
+                            continue
+                        lineaction.next()
+                        continue
+                except Exception:  # nosec B110
+                    # Clock/value comparison unavailable; fall back to plain
+                    # _next(). Hot path, intentionally silent (no logging).
+                    pass
+
+            lineaction._next()
+
     def _periodset(self):
         """Calculate and set the minimum period required for strategy execution.
 
@@ -485,12 +636,136 @@ class Strategy(StrategyBase):
         the strategy's next() method can be called, based on the minimum
         periods of all indicators and data feeds.
         """
+
+        def iter_indicator_tree(indicators):
+            seen = set()
+            stack = list(indicators)
+            while stack:
+                lineiter = stack.pop(0)
+                lineiter_id = id(lineiter)
+                if lineiter_id in seen:
+                    continue
+                seen.add(lineiter_id)
+                yield lineiter
+
+                try:
+                    children = lineiter._lineiterators[LineIterator.IndType]
+                except (AttributeError, KeyError):
+                    continue
+                stack.extend(children)
+
         # Data IDs
         dataids = [id(data) for data in self.datas]
         # Data minimum periods
         _dminperiods = collections.defaultdict(list)
         # Loop through all indicators
-        for lineiter in self._lineiterators[LineIterator.IndType]:
+        all_indicators = list(iter_indicator_tree(self._lineiterators[LineIterator.IndType]))
+
+        # CRITICAL FIX: bind secondary-feed indicator advance clocks now that
+        # the whole indicator tree is built. During construction, an indicator
+        # built on another indicator or a LinesOperation that follows a
+        # non-primary feed (e.g. SMA((h1.high + h1.low) / 2.0) or
+        # EMA(EMA(h4.close))) often has its clock defaulted to the strategy's
+        # primary feed because the parent clocks were not yet finalized. That
+        # makes the indicator warm up and emit values on the primary (fast)
+        # clock instead of the secondary (slow) feed in runonce mode. Here every
+        # clock is final, so we resolve each indicator's data dependency to the
+        # concrete feed it follows and, when that feed is a *secondary* feed,
+        # pin _resolved_secondary_clock to it (used by the runonce advance
+        # loop and Indicator.advance). See docs/DEV_REGRESSION_FAILURES.md.
+        from .lineiterator import _line_like_source_clock as _llsc
+
+        primary_feed = self.datas[0] if self.datas else None
+
+        # Map each feed's individual lines back to the owning feed so a clock
+        # that resolves to a feed *line* (e.g. data.high) can be attributed to
+        # its feed.
+        _line_to_feed = {}
+        for _data in self.datas:
+            _dlines = getattr(_data, "lines", None)
+            if _dlines is None:
+                continue
+            try:
+                for _ln in _dlines:
+                    _line_to_feed[id(_ln)] = _data
+            except TypeError:
+                # Feed lines not iterable; skip mapping this feed's lines.
+                pass
+
+        def _feed_of(node, _seen=None):
+            """Resolve a data node to the concrete feed it ultimately follows."""
+            if _seen is None:
+                _seen = set()
+            if node is None or id(node) in _seen:
+                return None
+            _seen.add(id(node))
+            if id(node) in dataids:
+                return node
+            if id(node) in _line_to_feed:
+                return _line_to_feed[id(node)]
+            try:
+                src = _llsc(node)
+            except Exception:
+                src = None
+            if src is not None and src is not node:
+                if id(src) in dataids:
+                    return src
+                if id(src) in _line_to_feed:
+                    return _line_to_feed[id(src)]
+                found = _feed_of(src, _seen)
+                if found is not None:
+                    return found
+            nxt = getattr(node, "_clock", None)
+            if nxt is not None and nxt.__class__.__name__ != "MinimalClock":
+                found = _feed_of(nxt, _seen)
+                if found is not None:
+                    return found
+            ndatas = getattr(node, "datas", None)
+            if ndatas:
+                found = _feed_of(ndatas[0], _seen)
+                if found is not None:
+                    return found
+            # Walk owner references: a node may be an indicator output line
+            # (LineBuffer) whose owning indicator follows the target feed. The
+            # owner can be the indicator directly, or a Lines container whose
+            # _owner_ref points to it.
+            for owner_attr in ("_owner", "_owner_ref"):
+                owner = getattr(node, owner_attr, None)
+                if owner is not None and id(owner) not in _seen:
+                    # A Lines container exposes _owner_ref to the real owner.
+                    ref = getattr(owner, "_owner_ref", None)
+                    if ref is not None and id(ref) not in _seen:
+                        found = _feed_of(ref, _seen)
+                        if found is not None:
+                            return found
+                    found = _feed_of(owner, _seen)
+                    if found is not None:
+                        return found
+            # Operands of a LinesOperation.
+            for op_attr in ("a", "b", "_parent_a", "_parent_b"):
+                operand = getattr(node, op_attr, None)
+                if operand is not None and id(operand) not in _seen:
+                    found = _feed_of(operand, _seen)
+                    if found is not None:
+                        return found
+            return None
+
+        if primary_feed is not None and len(self.datas) > 1:
+            for lineiter in all_indicators:
+                idatas = getattr(lineiter, "datas", None)
+                if not idatas:
+                    continue
+                feed = _feed_of(idatas[0])
+                if feed is not None and feed is not primary_feed and id(feed) in dataids:
+                    # Pin only the advance clock used by the runonce post-phase
+                    # loop and Indicator.advance(); deliberately do NOT change
+                    # lineiter._clock here so the existing minperiod-to-feed
+                    # attribution below (and thus the strategy warmup / bar_num)
+                    # stays identical to the pre-fix behavior. Changing _clock
+                    # perturbed multi-feed warmup for unrelated strategies.
+                    lineiter._resolved_secondary_clock = feed
+
+        for lineiter in all_indicators:
             # If multiple datas are used and multiple timeframes, the larger
             # timeframe may place larger time constraints in calling next.
             # Get the indicator's _clock attribute
@@ -568,13 +843,8 @@ class Strategy(StrategyBase):
             # Save minimum period
             _dminperiods[clk].append(lineiter._minperiod)
 
-        # DEBUG: Print _dminperiods content
-        # print(f"DEBUG _periodset: _dminperiods = {dict(_dminperiods)}")
-        # for key, val in _dminperiods.items():
-        #     print(f"  {type(key).__name__}: {val}")
-
         # Set minimum periods to empty list
-        self._minperiods = list()
+        self._minperiods = []
         # Loop through all data feeds
         for data in self.datas:
             # Do not only consider the data as clock but also its lines, which
@@ -599,7 +869,7 @@ class Strategy(StrategyBase):
 
         # Set the minperiod
         # Indicator minimum periods
-        minperiods = [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
+        minperiods = [x._minperiod for x in all_indicators]
 
         # CRITICAL FIX: Also scan strategy attributes for LineActions objects
         # (like LinesOperation from sma - sma(-10)) that aren't registered as indicators
@@ -616,6 +886,7 @@ class Strategy(StrategyBase):
                     if attr not in self._lineiterators[LineIterator.IndType]:
                         minperiods.append(attr._minperiod)
             except (AttributeError, TypeError):
+                # Attribute access/typecheck failed; skip this attribute.
                 pass
 
         # Set strategy minimum period to max of indicator and data minperiods
@@ -633,21 +904,21 @@ class Strategy(StrategyBase):
                 try:
                     attr = getattr(self, attr_name)
                     if isinstance(attr, LineActions) and hasattr(attr, "_minperiod"):
-                        if attr not in self._lineiterators[LineIterator.IndType]:
-                            # Try to determine which data this LineActions is associated with
-                            # by checking its _clock or data sources
-                            data_idx = 0  # Default to data[0]
-                            if hasattr(attr, "_clock") and attr._clock is not None:
-                                for i, d in enumerate(self.datas):
-                                    if attr._clock is d or attr._clock in d.lines:
-                                        data_idx = i
-                                        break
-                            # Only update minperiod for the specific data
-                            if data_idx < len(self._minperiods):
-                                self._minperiods[data_idx] = max(
-                                    self._minperiods[data_idx], attr._minperiod
-                                )
+                        # Try to determine which data this LineActions is associated with
+                        # by checking its _clock or data sources
+                        data_idx = 0  # Default to data[0]
+                        if hasattr(attr, "_clock") and attr._clock is not None:
+                            for i, d in enumerate(self.datas):
+                                if attr._clock is d or attr._clock in d.lines:
+                                    data_idx = i
+                                    break
+                        # Only update minperiod for the specific data
+                        if data_idx < len(self._minperiods):
+                            self._minperiods[data_idx] = max(
+                                self._minperiods[data_idx], attr._minperiod
+                            )
                 except (AttributeError, TypeError):
+                    # Attribute access/typecheck failed; skip this attribute.
                     pass
 
     def _addwriter(self, writer):
@@ -742,7 +1013,7 @@ class Strategy(StrategyBase):
             self.stats.append(obs, obsname)
             return
 
-        setattr(self.stats, obsname, list())
+        setattr(self.stats, obsname, [])
         obs_list = getattr(self.stats, obsname)
 
         for data in self.datas:
@@ -783,8 +1054,19 @@ class Strategy(StrategyBase):
             int: Maximum value of (minperiod - current_length) across all data feeds.
                  Negative values indicate all minimum periods are satisfied.
         """
-        dlens = map(operator.sub, self._minperiods, map(len, self.datas))
-        self._minperstatus = minperstatus = max(dlens)
+        data_iter = iter(zip(self._minperiods, self.datas))
+        try:
+            minperiod, data = next(data_iter)
+        except StopIteration:
+            raise ValueError("max() arg is an empty sequence") from None
+
+        minperstatus = minperiod - len(data)
+        for minperiod, data in data_iter:
+            status = minperiod - len(data)
+            if status > minperstatus:
+                minperstatus = status
+
+        self._minperstatus = minperstatus
         return minperstatus
 
     def prenext_open(self):
@@ -793,7 +1075,6 @@ class Strategy(StrategyBase):
         This is a hook for strategies to take action at the open of each bar
         before minimum period is reached.
         """
-        pass
 
     def nextstart_open(self):
         """Called at the open of the first bar where minimum period is satisfied.
@@ -807,7 +1088,6 @@ class Strategy(StrategyBase):
 
         This is a hook for strategies to take action at the open of each bar.
         """
-        pass
 
     def _oncepost_open(self):
         """Prepare for _oncepost execution based on minimum period status.
@@ -845,7 +1125,10 @@ class Strategy(StrategyBase):
 
         # Loop through indicators, advance if indicator clock length exceeds indicator length
         for indicator in self._lineiterators[LineIterator.IndType]:
-            if len(indicator._clock) > len(indicator):
+            # Honor a pinned secondary-feed clock (set in _periodset) so
+            # indicators following a non-primary feed advance in sync with it.
+            adv_clock = getattr(indicator, "_resolved_secondary_clock", None) or indicator._clock
+            if len(adv_clock) > len(indicator):
                 indicator.advance()
         # If using old data sync method, call advance; otherwise call forward
         if self._oldsync:
@@ -861,11 +1144,16 @@ class Strategy(StrategyBase):
         # Notify
         self._notify()
 
+        self._next_strategy_lineactions()
+
         # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
         # This ensures len(indicator) == len(strategy) at the end of processing
         try:
             strategy_len = len(self)
+            strategy_clock = getattr(self, "_clock", None)
             for indicator in self._lineiterators[LineIterator.IndType]:
+                if getattr(indicator, "_clock", None) is not strategy_clock:
+                    continue
                 # Only update if indicator was processed in runonce mode
                 if hasattr(indicator, "_once_called") and indicator._once_called:
                     # Update lencount for all lines in the indicator
@@ -876,7 +1164,7 @@ class Strategy(StrategyBase):
                                 # Use the maximum of current lencount and strategy_len to ensure we don't decrease it
                                 line.lencount = max(line.lencount, strategy_len)
         except Exception:
-            pass
+            logger.debug("Failed to update indicator lencount in _oncepost_nextday", exc_info=True)
 
         # Get current minimum period status and route to appropriate method
         # If all data satisfied, call next()
@@ -918,11 +1206,20 @@ class Strategy(StrategyBase):
             clk_len = super()._clk_update()
             # Set datetime
             if self.datas:
-                valid_datetimes = [
-                    d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0
-                ]
-                if valid_datetimes:
-                    self.lines.datetime[0] = max(valid_datetimes)
+                max_datetime = None
+                for data in self.datas:
+                    if not len(data):
+                        continue
+                    dt_value = data.datetime[0]
+                    if (
+                        isinstance(dt_value, (int, float))
+                        and math.isfinite(dt_value)
+                        and dt_value > 0
+                    ):
+                        if max_datetime is None or dt_value > max_datetime:
+                            max_datetime = dt_value
+                if max_datetime is not None:
+                    self.lines.datetime[0] = max_datetime
             # Return data length
             return clk_len
 
@@ -930,16 +1227,24 @@ class Strategy(StrategyBase):
         if not hasattr(self, "_dlens"):
             self._dlens = [len(d) for d in self.datas]
 
-        # Current new data lengths
-        newdlens = [len(d) for d in self.datas]
+        # Current new data lengths and valid datetimes in a single pass.
+        newdlens = []
+        max_datetime = None
+        for data in self.datas:
+            data_len = len(data)
+            newdlens.append(data_len)
+            if data_len:
+                dt_value = data.datetime[0]
+                if isinstance(dt_value, (int, float)) and math.isfinite(dt_value) and dt_value > 0:
+                    if max_datetime is None or dt_value > max_datetime:
+                        max_datetime = dt_value
+
         # If new data length > old data length, forward
         if any(nl > old_len for old_len, nl in zip(self._dlens, newdlens)):
             self.forward()
         # Set datetime to max of current datetimes - only update if we have valid datetimes
-        if self.datas:
-            valid_datetimes = [d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0]
-            if valid_datetimes:
-                self.lines.datetime[0] = max(valid_datetimes)
+        if max_datetime is not None:
+            self.lines.datetime[0] = max_datetime
         # Old data length equals new data length
         self._dlens = newdlens
 
@@ -1108,7 +1413,6 @@ class Strategy(StrategyBase):
         This is a hook for strategies to perform initialization before
         the backtesting loop begins.
         """
-        pass
 
     def getwriterheaders(self):
         """Get the CSV headers for writer output.
@@ -1122,7 +1426,7 @@ class Strategy(StrategyBase):
         indobs = itertools.chain(self.getindicators_lines(), self.getobservers())
         self.indobscsv.extend(filter(lambda x: x.csv, indobs))
         # Initialize headers as empty list
-        headers = list()
+        headers = []
 
         # Prepare the indicators/observers data headers
         # Loop through indicators/observers marked for CSV output
@@ -1142,7 +1446,7 @@ class Strategy(StrategyBase):
         Returns:
             list: Current values from indicators and observers
         """
-        values = list()
+        values = []
         # Loop through indicators/observers
         for iocsv in self.indobscsv:
             name = iocsv.plotinfo.plotname or iocsv.__class__.__name__
@@ -1197,12 +1501,15 @@ class Strategy(StrategyBase):
         # This must be done BEFORE calling user's stop() method, as tests check len(indicator) == len(strategy)
         try:
             strategy_len = len(self)
+            strategy_clock = getattr(self, "_clock", None)
             # Update lencount for all indicators to match strategy length
             # This is critical for runonce mode where indicators are pre-calculated but lencount may not match
             if hasattr(self, "_lineiterators"):
                 from .lineiterator import LineIterator
 
                 for indicator in self._lineiterators.get(LineIterator.IndType, []):
+                    if getattr(indicator, "_clock", None) is not strategy_clock:
+                        continue
                     # Update lencount for all lines in the indicator to match strategy length
                     if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
                         for line in indicator.lines.lines:
@@ -1211,7 +1518,7 @@ class Strategy(StrategyBase):
                                 # This ensures len(indicator) == len(strategy) for test assertions
                                 line.lencount = strategy_len
         except Exception:
-            pass
+            logger.debug("Failed to update indicator lencount in _stop", exc_info=True)
 
         # CRITICAL FIX: Restore last valid datetime before calling user's stop()
         # This ensures datetime[0] is valid for logging in stop() method
@@ -1224,9 +1531,12 @@ class Strategy(StrategyBase):
                     try:
                         data.datetime[0] = self._last_valid_datetime
                     except Exception:
-                        pass
+                        logger.debug(
+                            "Failed to restore datetime for data %s in _stop",
+                            getattr(data, "_name", data),
+                        )
             except Exception:
-                pass
+                logger.debug("Failed to restore strategy datetime in _stop", exc_info=True)
 
         # Call user's stop() method - can be overridden in strategy subclass
         self.stop()
@@ -1240,7 +1550,11 @@ class Strategy(StrategyBase):
                 if hasattr(observer, "stop"):
                     observer.stop()
             except Exception:
-                pass
+                logger.warning(
+                    "Observer %s.stop() raised an exception",
+                    type(observer).__name__,
+                    exc_info=True,
+                )
 
         # Change operators back to stage 1 - allows reuse of datas
         self._stage1()
@@ -1250,7 +1564,6 @@ class Strategy(StrategyBase):
 
         This is a hook for strategies to perform cleanup or final logging.
         """
-        pass
 
     def set_tradehistory(self, onoff=True):
         """Enable or disable trade history tracking.
@@ -1266,8 +1579,8 @@ class Strategy(StrategyBase):
         Moves pending orders to _orders list and clears pending trades.
         """
         self._orders.extend(self._orderspending)
-        self._orderspending = list()
-        self._tradespending = list()
+        self._orderspending = []
+        self._tradespending = []
 
     def _addnotification(self, order, quicknotify=False):
         """Add order notification and process trade updates.
@@ -1282,7 +1595,7 @@ class Strategy(StrategyBase):
         # If in quick notify mode, initialize qorders and qtrades
         if quicknotify:
             qorders = [order]
-            qtrades = []
+            qtrades: list = []
         # If order has no executed volume
         if not order.executed.size:
             # If in quick notify mode, call _notify with info
@@ -1290,13 +1603,14 @@ class Strategy(StrategyBase):
                 self._notify(qorders=qorders, qtrades=qtrades)
             return
         # Get trade data - if order.data._compensate is None, use order.data; otherwise use order.data._compensate
-        tradedata = order.data._compensate
+        tradedata = getattr(order.data, "_compensate", None)
         if tradedata is None:
             tradedata = order.data
         # Get trade data - if trade exists in _trades, use the last one; otherwise create a new trade and save to datatrades
-        datatrades = self._trades[tradedata][order.tradeid]
+        tradekey = trade_key_from_order(order)
+        datatrades = self._trades[tradedata][tradekey]
         if not datatrades:
-            trade = Trade(data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon)
+            trade = Trade(data=tradedata, tradeid=tradekey, historyon=self._tradehistoryon)
             datatrades.append(trade)
         else:
             trade = datatrades[-1]
@@ -1330,9 +1644,7 @@ class Strategy(StrategyBase):
             if exbit.opened:
                 # If trade is closed, create new trade and save to datatrades
                 if trade.isclosed:
-                    trade = Trade(
-                        data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon
-                    )
+                    trade = Trade(data=tradedata, tradeid=tradekey, historyon=self._tradehistoryon)
                     datatrades.append(trade)
                 # Update trade
                 trade.update(
@@ -1366,13 +1678,17 @@ class Strategy(StrategyBase):
         if quicknotify:
             self._notify(qorders=qorders, qtrades=qtrades)
 
-    def _notify(self, qorders=[], qtrades=[]):
+    def _notify(self, qorders=None, qtrades=None):
         """Notify order and trade events to strategy and analyzers.
 
         Args:
             qorders: Quick notify orders (empty list if not in quick notify mode)
             qtrades: Quick notify trades (empty list if not in quick notify mode)
         """
+        if qorders is None:
+            qorders = []
+        if qtrades is None:
+            qtrades = []
         # If quick notify is enabled
         if self.cerebro.p.quicknotify:
             # Need to know if quicknotify is on, to not reprocess pendingorders
@@ -1431,9 +1747,9 @@ class Strategy(StrategyBase):
         when,
         offset=datetime.timedelta(),
         repeat=datetime.timedelta(),
-        weekdays=[],
+        weekdays=None,
         weekcarry=False,
-        monthdays=[],
+        monthdays=None,
         monthcarry=True,
         allow=None,
         tzdata=None,
@@ -1511,7 +1827,6 @@ class Strategy(StrategyBase):
             *args: Additional positional arguments passed to add_timer
             **kwargs: Additional keyword arguments passed to add_timer
         """
-        pass
 
     def notify_cashvalue(self, cash, value):
         """Notify the current cash and value of the strategy's broker.
@@ -1520,7 +1835,6 @@ class Strategy(StrategyBase):
             cash: Current cash amount
             value: Current portfolio value
         """
-        pass
 
     def notify_fund(self, cash, value, fundvalue, shares):
         """Notify the current cash, value, fund value, and fund shares.
@@ -1531,7 +1845,6 @@ class Strategy(StrategyBase):
             fundvalue: Current fund value
             shares: Current fund shares
         """
-        pass
 
     def notify_order(self, order):
         """Receive notification when an order status changes.
@@ -1539,7 +1852,6 @@ class Strategy(StrategyBase):
         Args:
             order: The order with changed status
         """
-        pass
 
     def notify_trade(self, trade):
         """Receive notification when a trade status changes.
@@ -1547,7 +1859,6 @@ class Strategy(StrategyBase):
         Args:
             trade: The trade with changed status
         """
-        pass
 
     def notify_store(self, msg, *args, **kwargs):
         """Receive notification from a store provider.
@@ -1557,7 +1868,6 @@ class Strategy(StrategyBase):
             *args: Additional positional arguments
             **kwargs: Additional keyword arguments
         """
-        pass
 
     def notify_data(self, data, status, *args, **kwargs):
         """Receive notification from a data feed.
@@ -1568,7 +1878,6 @@ class Strategy(StrategyBase):
             *args: Additional positional arguments
             **kwargs: Additional keyword arguments
         """
-        pass
 
     # ========== Tick/Channel Event Callbacks ==========
 
@@ -1580,7 +1889,6 @@ class Strategy(StrategyBase):
         Args:
             tick: TickEvent instance with price, volume, direction, etc.
         """
-        pass
 
     def notify_orderbook(self, orderbook):
         """Called when a new order book snapshot arrives.
@@ -1590,7 +1898,6 @@ class Strategy(StrategyBase):
         Args:
             orderbook: OrderBookSnapshot instance with bids, asks, spread, etc.
         """
-        pass
 
     def notify_funding(self, funding):
         """Called when a new funding rate event arrives.
@@ -1601,7 +1908,6 @@ class Strategy(StrategyBase):
         Args:
             funding: FundingEvent instance with rate, mark_price, etc.
         """
-        pass
 
     def notify_bar(self, bar):
         """Called when a bar event arrives from the channel system.
@@ -1613,7 +1919,6 @@ class Strategy(StrategyBase):
         Args:
             bar: BarEvent instance with open, high, low, close, volume.
         """
-        pass
 
     def get_last_tick(self, symbol=None):
         """Get the last tick for a symbol.
@@ -1704,7 +2009,7 @@ class Strategy(StrategyBase):
         parent=None,
         transmit=True,
         **kwargs,
-    ):
+    ) -> Optional[Order]:
         """Create a buy (long) order and send it to the broker.
 
         Args:
@@ -1815,7 +2120,7 @@ class Strategy(StrategyBase):
         parent=None,
         transmit=True,
         **kwargs,
-    ):
+    ) -> Optional[Order]:
         """Create a sell (short) order and send it to the broker.
 
         See the documentation for ``buy`` for an explanation of the parameters.
@@ -1867,7 +2172,7 @@ class Strategy(StrategyBase):
 
         return None
 
-    def close(self, data=None, size=None, **kwargs):
+    def close(self, data=None, size=None, **kwargs) -> Optional[Order]:
         """Close a long or short position.
 
         Creates an order that counters the existing position to close it.
@@ -1890,6 +2195,42 @@ class Strategy(StrategyBase):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
+        position_side = kwargs.pop("position_side", None)
+        position_side = normalize_position_side(position_side)
+        broker_mode = normalize_position_mode(
+            getattr(self.broker, "get_param", lambda *_args, **_kwargs: "net")(
+                "position_mode", "net"
+            )
+        )
+
+        if position_side is not None or broker_mode == POSITION_MODE_DUAL_SIDE:
+            if position_side is None:
+                long_size = abs(self.getposition(data, self.broker, side=POSITION_SIDE_LONG).size)
+                short_size = abs(self.getposition(data, self.broker, side=POSITION_SIDE_SHORT).size)
+                if long_size and short_size:
+                    raise ValueError(
+                        "close() requires position_side when both long and short legs are open"
+                    )
+                if long_size:
+                    position_side = POSITION_SIDE_LONG
+                    possize = long_size
+                elif short_size:
+                    position_side = POSITION_SIDE_SHORT
+                    possize = short_size
+                else:
+                    return None
+            else:
+                possize = abs(self.getposition(data, self.broker, side=position_side).size)
+
+            size = abs(size if size is not None else possize)
+            if not size:
+                return None
+
+            kwargs.setdefault("position_side", position_side)
+            kwargs.setdefault("offset", POSITION_OFFSET_CLOSE)
+            if position_side == POSITION_SIDE_LONG:
+                return self.sell(data=data, size=size, **kwargs)
+            return self.buy(data=data, size=size, **kwargs)
         # Get the current position size
         possize = self.getposition(data, self.broker).size
         # If size is None, close the entire position; otherwise close the specified size
@@ -1898,7 +2239,7 @@ class Strategy(StrategyBase):
         if possize > 0:
             return self.sell(data=data, size=size, **kwargs)
         # If position is short (negative), buy to close
-        elif possize < 0:
+        if possize < 0:
             return self.buy(data=data, size=size, **kwargs)
 
         return None
@@ -1914,13 +2255,13 @@ class Strategy(StrategyBase):
         tradeid=0,
         trailamount=None,
         trailpercent=None,
-        oargs={},
+        oargs=None,
         stopprice=None,
         stopexec=Order.Stop,
-        stopargs={},
+        stopargs=None,
         limitprice=None,
         limitexec=Order.Limit,
-        limitargs={},
+        limitargs=None,
         **kwargs,
     ):
         """Create a bracket order group (buy order with stop-loss and take-profit).
@@ -1988,18 +2329,23 @@ class Strategy(StrategyBase):
             High/Low side orders can be suppressed by setting limitexec=None or
             stopexec=None.
         """
+        # Normalize mutable-default placeholders (B006); these dicts are only
+        # read via kargs.update(...), never mutated, so None==empty is equivalent.
+        oargs = {} if oargs is None else oargs
+        stopargs = {} if stopargs is None else stopargs
+        limitargs = {} if limitargs is None else limitargs
         # Build parameter dictionary
-        kargs = dict(
-            size=size,
-            data=data,
-            price=price,
-            plimit=plimit,
-            exectype=exectype,
-            valid=valid,
-            tradeid=tradeid,
-            trailamount=trailamount,
-            trailpercent=trailpercent,
-        )
+        kargs = {
+            "size": size,
+            "data": data,
+            "price": price,
+            "plimit": plimit,
+            "exectype": exectype,
+            "valid": valid,
+            "tradeid": tradeid,
+            "trailamount": trailamount,
+            "trailpercent": trailpercent,
+        }
         # Update with main side order specific arguments
         kargs.update(oargs)
         # Update with general keyword arguments
@@ -2012,9 +2358,13 @@ class Strategy(StrategyBase):
         # Create stop-loss order
         if stopexec is not None:
             # low side / stop
-            kargs = dict(
-                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": stopprice,
+                "exectype": stopexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(stopargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2027,9 +2377,13 @@ class Strategy(StrategyBase):
         # Create take-profit order
         if limitexec is not None:
             # high side / limit
-            kargs = dict(
-                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": limitprice,
+                "exectype": limitexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(limitargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2052,13 +2406,13 @@ class Strategy(StrategyBase):
         tradeid=0,
         trailamount=None,
         trailpercent=None,
-        oargs={},
+        oargs=None,
         stopprice=None,
         stopexec=Order.Stop,
-        stopargs={},
+        stopargs=None,
         limitprice=None,
         limitexec=Order.Limit,
-        limitargs={},
+        limitargs=None,
         **kwargs,
     ):
         """Create a sell bracket order group (sell order with stop-loss and take-profit).
@@ -2079,18 +2433,21 @@ class Strategy(StrategyBase):
             High/Low side orders can be suppressed by setting limitexec=None or
             stopexec=None.
         """
-
-        kargs = dict(
-            size=size,
-            data=data,
-            price=price,
-            plimit=plimit,
-            exectype=exectype,
-            valid=valid,
-            tradeid=tradeid,
-            trailamount=trailamount,
-            trailpercent=trailpercent,
-        )
+        # Normalize mutable-default placeholders (B006); read-only via update().
+        oargs = {} if oargs is None else oargs
+        stopargs = {} if stopargs is None else stopargs
+        limitargs = {} if limitargs is None else limitargs
+        kargs = {
+            "size": size,
+            "data": data,
+            "price": price,
+            "plimit": plimit,
+            "exectype": exectype,
+            "valid": valid,
+            "tradeid": tradeid,
+            "trailamount": trailamount,
+            "trailpercent": trailpercent,
+        }
         kargs.update(oargs)
         kargs.update(kwargs)
         kargs["transmit"] = limitexec is None and stopexec is None
@@ -2098,9 +2455,13 @@ class Strategy(StrategyBase):
 
         if stopexec is not None:
             # high side / stop
-            kargs = dict(
-                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": stopprice,
+                "exectype": stopexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(stopargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2112,9 +2473,13 @@ class Strategy(StrategyBase):
 
         if limitexec is not None:
             # low side / limit
-            kargs = dict(
-                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": limitprice,
+                "exectype": limitexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(limitargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2126,7 +2491,7 @@ class Strategy(StrategyBase):
 
         return [o, ostop, olimit]
 
-    def order_target_size(self, data=None, target=0, **kwargs):
+    def order_target_size(self, data=None, target=0, **kwargs) -> Optional[Order]:
         """Place an order to achieve a target position size.
 
         Rebalances the current position to reach the specified target size.
@@ -2154,15 +2519,15 @@ class Strategy(StrategyBase):
         if not target and possize:
             return self.close(data=data, size=possize, **kwargs)
         # If target is greater than current position, buy to increase
-        elif target > possize:
+        if target > possize:
             return self.buy(data=data, size=target - possize, **kwargs)
         # If target is less than current position, sell to decrease
-        elif target < possize:
+        if target < possize:
             return self.sell(data=data, size=possize - target, **kwargs)
 
         return None  # no execution target == possize
 
-    def order_target_value(self, data=None, target=0.0, price=None, **kwargs):
+    def order_target_value(self, data=None, target=0.0, price=None, **kwargs) -> Optional[Order]:
         """Place an order to achieve a target position value.
 
         Rebalances the position to reach the specified target value.
@@ -2190,28 +2555,25 @@ class Strategy(StrategyBase):
         if not target and possize:  # closing a position
             return self.close(data=data, size=possize, price=price, **kwargs)
         # Otherwise, rebalance to target value
-        else:
-            # Get the current value of this data
-            value = self.broker.getvalue(datas=[data])
-            # Get commission info for size calculation
-            comminfo = self.broker.getcommissioninfo(data)
-            # Get price: use provided price or default to close price
-            # Make sure a price is there
-            price = price if price is not None else data.close[0]
-            # If target value is greater than current value, buy
-            if target > value:
-                size = comminfo.getsize(price, target - value)
-                # print(f"buy: name:{data.name},size:{size}")
-                return self.buy(data=data, size=size, price=price, **kwargs)
-            # If target value is less than current value, sell
-            elif target < value:
-                size = comminfo.getsize(price, value - target)
-                # print(f"sell: name:{data.name},size:{size}")
-                return self.sell(data=data, size=size, price=price, **kwargs)
+        # Get the current value of this data
+        value = self.broker.getvalue(datas=[data])
+        # Get commission info for size calculation
+        comminfo = self.broker.getcommissioninfo(data)
+        # Get price: use provided price or default to close price
+        # Make sure a price is there
+        price = price if price is not None else data.close[0]
+        # If target value is greater than current value, buy
+        if target > value:
+            size = comminfo.getsize(price, target - value)
+            return self.buy(data=data, size=size, price=price, **kwargs)
+        # If target value is less than current value, sell
+        if target < value:
+            size = comminfo.getsize(price, value - target)
+            return self.sell(data=data, size=size, price=price, **kwargs)
 
         return None  # no execution size == possize
 
-    def order_target_percent(self, data=None, target=0.0, **kwargs):
+    def order_target_percent(self, data=None, target=0.0, **kwargs) -> Optional[Order]:
         """Place an order to achieve a target percentage of portfolio value.
 
         Rebalances the position so its value equals the target percentage
@@ -2247,7 +2609,7 @@ class Strategy(StrategyBase):
 
         return self.order_target_value(data=data, target=target, **kwargs)
 
-    def getposition(self, data=None, broker=None):
+    def getposition(self, data=None, broker=None, side=None, **kwargs):
         """Get the current position for a data feed.
 
         Args:
@@ -2262,12 +2624,12 @@ class Strategy(StrategyBase):
         """
         data = data if data is not None else self.datas[0]
         broker = broker or self.broker
-        return broker.getposition(data)
+        return broker.getposition(data, side=side, **kwargs)
 
     # Property to access position for the default data feed
     position = property(getposition)
 
-    def getpositionbyname(self, name=None, broker=None):
+    def getpositionbyname(self, name=None, broker=None, side=None, **kwargs):
         """Get the current position for a data feed by name.
 
         Args:
@@ -2282,7 +2644,7 @@ class Strategy(StrategyBase):
         """
         data = self.datas[0] if not name else self.getdatabyname(name)
         broker = broker or self.broker
-        return broker.getposition(data)
+        return broker.getposition(data, side=side, **kwargs)
 
     # Property to access position by name
     positionbyname = property(getpositionbyname)
@@ -2460,7 +2822,7 @@ class SignalStrategy(Strategy):
     """
 
     # Parameters for signal strategy
-    params = (
+    params: tuple = (
         ("signals", []),
         ("_accumulate", False),
         ("_concurrent", False),
@@ -2559,13 +2921,17 @@ class SignalStrategy(Strategy):
         """
         self._signals[sigtype].append(signal)
 
-    def _notify(self, qorders=[], qtrades=[]):
+    def _notify(self, qorders=None, qtrades=None):
         """Process notifications and reset sentinel when order completes.
 
         Args:
             qorders: Quick notify orders
             qtrades: Quick notify trades
         """
+        if qorders is None:
+            qorders = []
+        if qtrades is None:
+            qtrades = []
         # Nullify the sentinel if done
         procorders = qorders or self._orderspending
         if self._sentinel is not None:
@@ -2582,6 +2948,108 @@ class SignalStrategy(Strategy):
         if hasattr(self, "_next_custom"):
             self._next_custom()
 
+    @staticmethod
+    def _all_pos(sig, nosig):
+        """True if every value in ``sig`` (or ``nosig`` when empty) is > 0."""
+        return all(x[0] > 0.0 for x in sig or nosig)
+
+    @staticmethod
+    def _all_neg(sig, nosig):
+        """True if every value in ``sig`` (or ``nosig`` when empty) is < 0."""
+        return all(x[0] < 0.0 for x in sig or nosig)
+
+    @staticmethod
+    def _all_any(sig, nosig):
+        """True if every value in ``sig`` (or ``nosig`` when empty) is truthy."""
+        return all(x[0] for x in sig or nosig)
+
+    def _evaluate_signals(self):
+        """Evaluate all signal collections into entry/exit/reversal flags.
+
+        Pure helper (no order side effects) extracted from _next_signal for
+        readability. Returns a tuple of booleans consumed by the position
+        decision logic:
+            (ls_long, ls_short, l_enter, s_enter, l_exit, s_exit,
+             l_rev, s_rev, l_leave, s_leave)
+        """
+        # Get signal collections
+        sigs = self._signals
+        # Default no-signal value
+        nosig = [[0.0]]
+        pos = self._all_pos
+        neg = self._all_neg
+        anyv = self._all_any
+
+        # Calculate current status of the signals
+        # If SIGNAL_LONGSHORT is empty, loop through nosig
+        ls_long = pos(sigs[SIGNAL_LONGSHORT], nosig)
+        ls_short = neg(sigs[SIGNAL_LONGSHORT], nosig)
+        # Long entry: direct (>0), inverted (<0) or any (truthy)
+        l_enter = (
+            pos(sigs[SIGNAL_LONG], nosig)
+            or neg(sigs[SIGNAL_LONG_INV], nosig)
+            or anyv(sigs[SIGNAL_LONG_ANY], nosig)
+        )
+        # Short entry: direct (<0), inverted (>0) or any (truthy)
+        s_enter = (
+            neg(sigs[SIGNAL_SHORT], nosig)
+            or pos(sigs[SIGNAL_SHORT_INV], nosig)
+            or anyv(sigs[SIGNAL_SHORT_ANY], nosig)
+        )
+        # Long exit: direct (<0), inverted (>0) or any (truthy)
+        l_exit = (
+            neg(sigs[SIGNAL_LONGEXIT], nosig)
+            or pos(sigs[SIGNAL_LONGEXIT_INV], nosig)
+            or anyv(sigs[SIGNAL_LONGEXIT_ANY], nosig)
+        )
+        # Short exit: direct (>0), inverted (<0) or any (truthy)
+        s_exit = (
+            pos(sigs[SIGNAL_SHORTEXIT], nosig)
+            or neg(sigs[SIGNAL_SHORTEXIT_INV], nosig)
+            or anyv(sigs[SIGNAL_SHORTEXIT_ANY], nosig)
+        )
+
+        # Use opposite signals to start reversal (by closing)
+        # but only if no "xxxExit" exists
+        # Long reversal: no long exit and short entry signal
+        l_rev = not self._longexit and s_enter
+        # Short reversal: no short exit and long entry signal
+        s_rev = not self._shortexit and l_enter
+
+        # Opposite of individual long and short (leave = exit on opposite signal)
+        # Long leave: direct (<0), inverted (>0) or any (truthy)
+        l_leave = (
+            neg(sigs[SIGNAL_LONG], nosig)
+            or pos(sigs[SIGNAL_LONG_INV], nosig)
+            or anyv(sigs[SIGNAL_LONG_ANY], nosig)
+        )
+        # Short leave: direct (>0), inverted (<0) or any (truthy)
+        s_leave = (
+            pos(sigs[SIGNAL_SHORT], nosig)
+            or neg(sigs[SIGNAL_SHORT_INV], nosig)
+            or anyv(sigs[SIGNAL_SHORT_ANY], nosig)
+        )
+
+        # Invalidate long leave if longexit signals are available
+        # If longexit exists, disable l_leave; otherwise keep l_leave
+        l_leave = not self._longexit and l_leave
+        # Invalidate short leave if shortexit signals are available
+        # If shortexit exists, disable s_leave; otherwise keep s_leave
+        s_leave = not self._shortexit and s_leave
+
+        return (
+            ls_long,
+            ls_short,
+            l_enter,
+            s_enter,
+            l_exit,
+            s_exit,
+            l_rev,
+            s_rev,
+            l_leave,
+            s_leave,
+        )
+
     def _next_signal(self):
         """Process signals and generate orders based on signal values.
 
@@ -2593,61 +3061,20 @@ class SignalStrategy(Strategy):
         # If concurrent orders are disabled and an order is active, return
         if self._sentinel is not None and not self.p._concurrent:
             return  # order active and more than 1 not allowed
-        # Get signal collections
-        sigs = self._signals
-        # Default no-signal value
-        nosig = [[0.0]]
 
-        # Calculate current status of the signals
-        # If SIGNAL_LONGSHORT is empty, loop through nosig
-        ls_long = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
-        ls_short = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
-        # Long entry signals
-        l_enter0 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG] or nosig)
-        l_enter1 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
-        l_enter2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
-        l_enter = l_enter0 or l_enter1 or l_enter2
-        # Short entry signals
-        s_enter0 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
-        s_enter1 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
-        s_enter2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
-        s_enter = s_enter0 or s_enter1 or s_enter2
-        # Long exit signals
-        l_ex0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGEXIT] or nosig)
-        l_ex1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGEXIT_INV] or nosig)
-        l_ex2 = all(x[0] for x in sigs[SIGNAL_LONGEXIT_ANY] or nosig)
-        l_exit = l_ex0 or l_ex1 or l_ex2
-        # Short exit signals
-        s_ex0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORTEXIT] or nosig)
-        s_ex1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORTEXIT_INV] or nosig)
-        s_ex2 = all(x[0] for x in sigs[SIGNAL_SHORTEXIT_ANY] or nosig)
-        s_exit = s_ex0 or s_ex1 or s_ex2
-
-        # Use opposite signals to start reversal (by closing)
-        # but only if no "xxxExit" exists
-        # Long reversal: no long exit and short entry signal
-        l_rev = not self._longexit and s_enter
-        # Short reversal: no short exit and long entry signal
-        s_rev = not self._shortexit and l_enter
-
-        # Opposite of individual long and short
-        # Long leave signals
-        l_leav0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG] or nosig)
-        l_leav1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
-        l_leav2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
-        l_leave = l_leav0 or l_leav1 or l_leav2
-        # Short leave signals
-        s_leav0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
-        s_leav1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
-        s_leav2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
-        s_leave = s_leav0 or s_leav1 or s_leav2
-
-        # Invalidate long leave if longexit signals are available
-        # If longexit exists, disable l_leave; otherwise keep l_leave
-        l_leave = not self._longexit and l_leave
-        # Invalidate short leave if shortexit signals are available
-        # If shortexit exists, disable s_leave; otherwise keep s_leave
-        s_leave = not self._shortexit and s_leave
+        # Evaluate all signal collections into decision flags
+        (
+            ls_long,
+            ls_short,
+            l_enter,
+            s_enter,
+            l_exit,
+            s_exit,
+            l_rev,
+            s_rev,
+            l_leave,
+            s_leave,
+        ) = self._evaluate_signals()
 
         # Take size and start logic
         # Get current position size

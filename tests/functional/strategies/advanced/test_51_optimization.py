@@ -14,6 +14,36 @@ Reference: backtrader-master2/samples/optimization/optimization.py
 
 The test uses a Simple Moving Average (SMA) and MACD crossover strategy,
 optimizing the SMA period parameter to maximize risk-adjusted returns.
+
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData``. Only the 2006-01-01 to 2006-12-31 window is
+    used (single data feed, daily timeframe, no resampling). The same file is
+    reused for the optimization sweep and the best-parameter rerun, and the test
+    is parametrized over ``runonce=True`` and ``runonce=False``.
+
+Strategy Principle:
+    The strategy is a MACD crossover system whose SMA period is treated as the
+    tunable parameter. The trade signal comes from the MACD line crossing its
+    signal line: a bullish cross opens a long, a bearish cross closes it. The
+    surrounding harness assumes the parameter combination with the highest
+    annualized Sharpe ratio is the most desirable, so optimization searches a
+    small SMA-period grid and selects the best risk-adjusted result. Risk is
+    bounded by single-position sizing and the opposing crossover.
+
+Strategy Logic:
+    1. ``OptimizeStrategy.__init__`` builds the SMA, MACD, and crossover
+       indicators and resets bar/buy/sell counters; ``next`` goes long on a
+       positive MACD crossover when flat and closes on a negative crossover.
+    2. ``run_optimization`` sweeps ``smaperiod`` over range(10, 13) with fixed
+       MACD periods using ``optstrategy`` and Returns/Sharpe analyzers.
+    3. ``run_best_strategy`` reruns a single backtest with the selected
+       parameters and full Returns/Sharpe/DrawDown/Trade analyzers, returning a
+       metrics dictionary.
+    4. ``test_optimization`` collects all sweep results, picks the max-Sharpe
+       combination, reruns it, and asserts the run count, optimal SMA period,
+       bar count, final value, Sharpe ratio, annual return, max drawdown, and
+       trade count match the recorded expectations.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -21,6 +51,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -76,10 +107,10 @@ class OptimizeStrategy(bt.Strategy):
         sell_count: Total number of completed sell orders.
 
     Args:
-        smaperiod: Period for the Simple Moving Average. Defaults to 15.
+        smaperiod: Period for the Simple Moving bt.indicators.Average. Defaults to 15.
         macdperiod1: Fast EMA period for MACD calculation. Defaults to 12.
         macdperiod2: Slow EMA period for MACD calculation. Defaults to 26.
-        macdperiod3: Signal line EMA period for MACD. Defaults to 9.
+        macdperiod3: Signal line EMA period for bt.indicators.MACD. Defaults to 9.
     """
     params = (
         ('smaperiod', 15),
@@ -151,7 +182,7 @@ class OptimizeStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def run_optimization():
+def run_optimization(runonce=True):
     """Run parameter optimization and return all results.
 
     This function sets up and executes a parameter optimization run using
@@ -160,6 +191,10 @@ def run_optimization():
 
     The optimization varies the SMA period from 10 to 12 while keeping
     MACD parameters fixed to reduce computational time.
+
+    Args:
+        runonce: If True, run in vectorized mode; if False, run in
+            event-driven mode. Defaults to True.
 
     Returns:
         A list of strategy run results from all parameter combinations.
@@ -194,11 +229,11 @@ def run_optimization():
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     return results
 
 
-def run_best_strategy(best_params):
+def run_best_strategy(best_params, runonce=True):
     """Run a complete backtest using the optimal parameter combination.
 
     This function executes a single backtest with the best-performing
@@ -209,6 +244,8 @@ def run_best_strategy(best_params):
     Args:
         best_params: Dictionary containing the optimal parameter values.
             Example: {'smaperiod': 10, 'macdperiod1': 12, ...}
+        runonce: If True, run in vectorized mode; if False, run in
+            event-driven mode. Defaults to True.
 
     Returns:
         A dictionary containing comprehensive strategy metrics:
@@ -247,7 +284,7 @@ def run_best_strategy(best_params):
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results
@@ -269,7 +306,8 @@ def run_best_strategy(best_params):
     }
 
 
-def test_optimization():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_optimization(runonce):
     """Test backtrader's parameter optimization functionality.
 
     This test performs end-to-end validation of the parameter optimization
@@ -295,7 +333,7 @@ def test_optimization():
     """
     print("Loading data...")
     print("Starting optimization...")
-    results = run_optimization()
+    results = run_optimization(runonce=runonce)
 
     # Collect results from all parameter combinations
     all_results = []
@@ -332,7 +370,7 @@ def test_optimization():
 
     # Run complete backtest with best parameters
     print("\nRunning complete backtest with best parameters...")
-    best_metrics = run_best_strategy(best_params)
+    best_metrics = run_best_strategy(best_params, runonce=runonce)
 
     # Print complete metrics for best strategy
     print("\n" + "=" * 50)

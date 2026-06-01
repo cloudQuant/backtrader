@@ -20,6 +20,33 @@ import pytest
 
 import backtrader as bt
 from backtrader import linebuffer
+from backtrader import lineroot
+
+
+class _ScalarNoArray:
+    def __init__(self, value):
+        self.value = value
+
+    def __getitem__(self, idx):
+        return self.value
+
+
+class _Stage2DummyLine(lineroot.LineRoot):
+    def __init__(self, value):
+        self.value = value
+        self._opstage = 2
+
+    def __getitem__(self, ago):
+        return self.value
+
+    def __len__(self):
+        return 1
+
+    def qbuffer(self, savemem=0):
+        pass
+
+    def minbuffer(self, size):
+        pass
 
 # ============================================================================
 # 1. LineBuffer — __setitem__ NaN/None/datetime protection (lines 526-575)
@@ -46,6 +73,36 @@ class TestLineBufferSetItem:
         # NaN gets converted to 0.0 or stays NaN depending on line type
         assert isinstance(val, float)
 
+    def test_setitem_inf_value(self):
+        """Setting inf should convert to the default finite value for regular lines."""
+        lb = linebuffer.LineBuffer()
+        lb.forward()
+        lb[0] = float("inf")
+
+        assert lb[0] == 0.0
+
+    def test_set_method_sanitizes_non_finite_value(self):
+        """set() should sanitize non-finite values using default-value semantics."""
+        lb = linebuffer.LineBuffer()
+        lb.forward()
+        lb.set(float("-inf"))
+
+        assert lb[0] == 0.0
+
+    def test_forward_sanitizes_non_finite_value(self):
+        """forward() should sanitize non-finite fill values using default-value semantics."""
+        lb = linebuffer.LineBuffer()
+        lb.forward(value=float("inf"))
+
+        assert lb[0] == 0.0
+
+    def test_extend_sanitizes_non_finite_value(self):
+        """extend() should sanitize non-finite fill values using default-value semantics."""
+        lb = linebuffer.LineBuffer()
+        lb.extend(value=float("-inf"), size=2)
+
+        assert list(lb.array) == [0.0, 0.0]
+
     def test_setitem_with_bindings(self):
         """Test __setitem__ propagates to bindings."""
         lb1 = linebuffer.LineBuffer()
@@ -55,6 +112,51 @@ class TestLineBufferSetItem:
         lb1.addbinding(lb2)
         lb1[0] = 42.0
         assert lb2[0] == 42.0
+
+    def test_getzeroval_sanitizes_non_finite_value(self):
+        """getzeroval() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("nan")])
+
+        assert lb.getzeroval(1) == 0.0
+        assert math.isnan(lb.getzeroval(2))
+
+    def test_getzero_sanitizes_non_finite_values(self):
+        """getzero() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+
+        values = list(lb.getzero(0, 4))
+
+        assert values[0] == 1.0
+        assert values[1] == 0.0
+        assert values[2] == 0.0
+        assert math.isnan(values[3])
+
+    def test_get_sanitizes_non_finite_values(self):
+        """get() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+        lb.idx = 3
+        lb.lencount = 4
+
+        values = list(lb.get(ago=0, size=4))
+
+        assert values[0] == 1.0
+        assert values[1] == 0.0
+        assert values[2] == 0.0
+        assert math.isnan(values[3])
+
+    def test_getitem_sanitizes_non_finite_values(self):
+        """__getitem__ should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+        lb.idx = 3
+        lb.lencount = 4
+
+        assert lb[-2] == 0.0
+        assert lb[-1] == 0.0
+        assert math.isnan(lb[0])
 
     def test_setitem_extends_array(self):
         """Test __setitem__ auto-extends array when needed."""
@@ -214,6 +316,23 @@ class TestLinesOperationNext:
         op.next()
         assert op[0] == 7.0
 
+    def test_lines_operation_next_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation.next should sanitize non-finite operands/results to 0.0."""
+        lb_a = linebuffer.LineBuffer()
+        lb_b = linebuffer.LineBuffer()
+        lb_a.forward()
+        lb_a[0] = float("inf")
+        lb_b.forward()
+        lb_b[0] = 5.0
+
+        op = linebuffer.LinesOperation(lb_a, lb_b, operator.__add__)
+        op.forward()
+        op.idx = lb_a.idx
+        op.next()
+
+        assert op.array[0] == 5.0
+        assert op[0] == 5.0
+
     def test_lines_operation_with_scalar(self):
         """Test LinesOperation where b is a scalar."""
         lb_a = linebuffer.LineBuffer()
@@ -290,6 +409,33 @@ class TestLineOwnOperation:
         op.next()
         assert op[0] == 7.0
 
+    def test_own_operation_getitem_sanitizes_non_finite(self):
+        """LineOwnOperation.__getitem__ should sanitize non-finite values to 0.0."""
+        lb = linebuffer.LineBuffer()
+        lb.forward()
+        lb[0] = float("inf")
+
+        op = linebuffer.LineOwnOperation(lb, operator.__neg__)
+
+        assert op[0] == 0.0
+
+    def test_own_operation_once_sanitizes_non_finite(self):
+        """LineOwnOperation.once should sanitize non-finite inputs/results to 0.0."""
+        lb = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), float("-inf")):
+            lb.forward()
+            lb[0] = value
+
+        op = linebuffer.LineOwnOperation(lb, operator.__neg__)
+        for _ in range(3):
+            op.forward()
+
+        op.once(0, 3)
+
+        assert op.array[0] == -1.0
+        assert op.array[1] == 0.0
+        assert op.array[2] == 0.0
+
 
 # ============================================================================
 # 7. LinesOperation.once() paths (lines 2276-2369)
@@ -320,6 +466,25 @@ class TestLinesOperationOnce:
             expected = float(i + 1) + float(i + 10)
             assert op.array[i] == expected or math.isnan(op.array[i]) is False
 
+    def test_once_op_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_op should sanitize non-finite operands/results."""
+        lb_a = linebuffer.LineBuffer()
+        lb_b = linebuffer.LineBuffer()
+        for a_val, b_val in ((1.0, 2.0), (float("inf"), 5.0), (3.0, 4.0)):
+            lb_a.forward()
+            lb_a[0] = a_val
+            lb_b.forward()
+            lb_b[0] = b_val
+
+        op = linebuffer.LinesOperation(lb_a, lb_b, operator.__add__)
+        op.array = []
+
+        op._once_op(0, 3)
+
+        assert op.array[0] == 3.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 7.0
+
     def test_once_line_op_scalar(self):
         """Test once() with LineBuffer and scalar operand."""
         lb_a = linebuffer.LineBuffer()
@@ -337,6 +502,22 @@ class TestLinesOperationOnce:
             actual = op.array[i]
             assert actual == expected or not math.isnan(actual)
 
+    def test_once_val_op_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_val_op should sanitize non-finite inputs/results."""
+        lb_a = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), 3.0):
+            lb_a.forward()
+            lb_a[0] = value
+
+        op = linebuffer.LinesOperation(lb_a, 5.0, operator.__add__)
+        op.array = []
+
+        op._once_val_op(0, 3)
+
+        assert op.array[0] == 6.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 8.0
+
     def test_once_reverse_operation(self):
         """Test once() with reverse operation (scalar op line)."""
         lb_a = linebuffer.LineBuffer()
@@ -353,6 +534,38 @@ class TestLinesOperationOnce:
         for i in range(5):
             actual = op.array[i]
             assert isinstance(actual, float)
+
+    def test_once_val_op_r_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_val_op_r should sanitize non-finite inputs/results."""
+        lb_a = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), 3.0):
+            lb_a.forward()
+            lb_a[0] = value
+
+        op = linebuffer.LinesOperation(lb_a, 5.0, operator.__sub__, r=True)
+        op.array = []
+
+        op._once_val_op_r(0, 3)
+
+        assert op.array[0] == 4.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 2.0
+
+    def test_once_time_op_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_time_op should sanitize non-finite inputs/results."""
+        lb_a = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), 3.0):
+            lb_a.forward()
+            lb_a[0] = value
+
+        op = linebuffer.LinesOperation(lb_a, _ScalarNoArray(5.0), operator.__add__)
+        op.array = []
+
+        op._once_time_op(0, 3)
+
+        assert op.array[0] == 6.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 8.0
 
 
 # ============================================================================
@@ -421,6 +634,18 @@ class TestLineBufferMisc:
             lb[0] = float(i)
         assert lb.buflen() >= 5
 
+    def test_plotrange_sanitizes_non_finite_values(self):
+        """plotrange() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+
+        values = list(lb.plotrange(0, 4))
+
+        assert values[0] == 1.0
+        assert values[1] == 0.0
+        assert values[2] == 0.0
+        assert math.isnan(values[3])
+
     def test_getitem_positive_ago(self):
         """Test __getitem__ with positive ago (historical)."""
         lb = linebuffer.LineBuffer()
@@ -464,6 +689,18 @@ class TestHelperFunctions:
         assert linebuffer._is_nan_or_none(0.0) is False
         assert linebuffer._is_nan_or_none(1.5) is False
         assert linebuffer._is_nan_or_none(42) is False
+
+
+class TestLineRootStage2:
+    """Test LineRoot._operation_stage2 edge paths."""
+
+    def test_operation_stage2_sanitizes_non_finite_result(self):
+        """_operation_stage2 should sanitize non-finite arithmetic results to 0.0."""
+        line = _Stage2DummyLine(1e308)
+
+        result = line._operation_stage2(1e308, operator.__mul__)
+
+        assert result == 0.0
 
 
 # ============================================================================

@@ -6,6 +6,37 @@ This module tests the multi-trade ID functionality which allows managing
 multiple concurrent trades with different trade IDs.
 
 Reference: backtrader-master2/samples/multitrades/multitrades.py
+
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData``. Only the 2006-01-01 to 2006-12-31 window is
+    used (single data feed named ``DATA``, daily timeframe, no resampling). The
+    test is parametrized over ``runonce=True`` and ``runonce=False`` to exercise
+    both the vectorized and event-driven engines on the same data.
+
+Strategy Principle:
+    The strategy is a simple SMA crossover system whose distinguishing feature
+    is the use of independent trade IDs. An SMA(period) is compared with close
+    via ``CrossOver``; a bullish cross opens a long and a bearish cross opens a
+    short (unless ``onlylong`` is set). When ``mtrade`` is enabled the strategy
+    cycles trade IDs through [0, 1, 2] so concurrent trades can be tracked and
+    closed independently, demonstrating backtrader's multi-trade bookkeeping.
+    Risk is bounded only by the crossover flipping positions; no stop loss is
+    used.
+
+Strategy Logic:
+    1. ``__init__`` builds the SMA and crossover signal, sets up the trade-ID
+       cycle, and resets bar/buy/sell/win/loss/profit counters.
+    2. ``next`` increments the bar counter, skips while an order is pending, and
+       on each crossover closes the current trade ID and opens a new long or
+       short under the next trade ID.
+    3. ``notify_order`` counts completed buys and sells; ``notify_trade``
+       accumulates realized profit and win/loss counts on close; ``stop`` prints
+       a performance summary.
+    4. ``test_multitrades_strategy`` runs cerebro with $100,000 cash, a
+       15-period SMA, stake 10, and Sharpe/Returns/DrawDown/Trade analyzers,
+       then asserts bar count, final value, Sharpe ratio, annual return, and max
+       drawdown match the recorded expectations.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -14,6 +45,7 @@ import datetime
 import itertools
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -198,7 +230,8 @@ class MultiTradesStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_multitrades_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_multitrades_strategy(runonce):
     """Test the MultiTrades strategy backtest execution.
 
     This test verifies that multiple trade IDs work correctly by running
@@ -238,14 +271,17 @@ def test_multitrades_strategy():
     cerebro.addstrategy(MultiTradesStrategy, period=15, stake=10, mtrade=True)
 
     # Add performance analyzers
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="my_sharpe",
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Running backtest...")
     # Run the backtest and get results
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract analysis results
@@ -274,7 +310,7 @@ def test_multitrades_strategy():
     # Tolerance: 0.01 for final_value, 1e-6 for other metrics
     assert strat.bar_num == 240, f"Expected bar_num=240, got {strat.bar_num}"
     assert abs(final_value - 100916.1) < 0.01, f"Expected final_value=100916.10, got {final_value}"
-    assert sharpe_ratio is None, f"Expected sharpe_ratio=None, got {sharpe_ratio}"
+    assert abs(sharpe_ratio - 0.20168236053740432) < 1e-6, f"Expected sharpe_ratio=0.202, got {sharpe_ratio}"
     assert abs(annual_return - (0.009052737167560457)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 3.195383835382446) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 

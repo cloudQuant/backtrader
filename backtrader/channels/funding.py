@@ -17,13 +17,14 @@ Example:
 import csv
 import gzip
 import json
-import logging
-from typing import Iterator
+import math
+from typing import Iterator, Optional
 
 from ..channel import DataChannel, DataValidationResult
 from ..events import FundingEvent
+from ..utils.log_message import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class FundingRateChannel(DataChannel):
@@ -125,6 +126,8 @@ class FundingRateChannel(DataChannel):
         Yields:
             FundingEvent instances.
         """
+        if self._dataname is None:
+            raise ValueError("FundingChannel requires a 'dataname' (CSV path) to load from")
         open_func = gzip.open if self._dataname.endswith(".gz") else open
         open_kwargs = (
             {"mode": "rt", "encoding": "utf-8"}
@@ -132,7 +135,9 @@ class FundingRateChannel(DataChannel):
             else {"mode": "r", "encoding": "utf-8", "newline": ""}
         )
 
-        with open_func(self._dataname, **open_kwargs) as f:
+        # open_func is gzip.open or builtin open; the conditionally-built
+        # open_kwargs dict can't be matched to a specific overload by mypy.
+        with open_func(self._dataname, **open_kwargs) as f:  # type: ignore[call-overload]
             reader = csv.DictReader(f)
 
             required = {"timestamp", "rate", "mark_price"}
@@ -146,12 +151,12 @@ class FundingRateChannel(DataChannel):
             for row in reader:
                 try:
                     fe = FundingEvent(
-                        timestamp=float(row["timestamp"]),
+                        timestamp=_parse_required_float(row["timestamp"]),
                         symbol=row.get("symbol", self.symbol),
                         exchange=row.get("exchange", ""),
                         asset_type=row.get("asset_type", "swap"),
-                        rate=float(row["rate"]),
-                        mark_price=float(row["mark_price"]),
+                        rate=_parse_required_float(row["rate"]),
+                        mark_price=_parse_required_float(row["mark_price"]),
                         next_funding_time=_parse_optional_float(row.get("next_funding_time"))
                         or 0.0,
                         predicted_rate=_parse_optional_float(row.get("predicted_rate")) or 0.0,
@@ -171,10 +176,14 @@ class FundingRateChannel(DataChannel):
         Yields:
             FundingEvent instances.
         """
+        if self._dataname is None:
+            raise ValueError("FundingChannel requires a 'dataname' (JSONL path) to load from")
         open_func = gzip.open if self._dataname.endswith(".gz") else open
         open_kwargs = {"mode": "rt", "encoding": "utf-8"}
 
-        with open_func(self._dataname, **open_kwargs) as f:
+        # open_func is gzip.open or builtin open; the kwargs dict can't be
+        # matched to a specific overload by mypy.
+        with open_func(self._dataname, **open_kwargs) as f:  # type: ignore[call-overload]
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:
@@ -182,14 +191,15 @@ class FundingRateChannel(DataChannel):
                 try:
                     data = json.loads(line)
                     fe = FundingEvent(
-                        timestamp=float(data["timestamp"]),
+                        timestamp=_parse_required_float(data["timestamp"]),
                         symbol=data.get("symbol", self.symbol),
                         exchange=data.get("exchange", ""),
                         asset_type=data.get("asset_type", "swap"),
-                        rate=float(data["rate"]),
-                        mark_price=float(data["mark_price"]),
-                        next_funding_time=float(data.get("next_funding_time", 0.0)),
-                        predicted_rate=float(data.get("predicted_rate", 0.0)),
+                        rate=_parse_required_float(data["rate"]),
+                        mark_price=_parse_required_float(data["mark_price"]),
+                        next_funding_time=_parse_optional_float(data.get("next_funding_time"))
+                        or 0.0,
+                        predicted_rate=_parse_optional_float(data.get("predicted_rate")) or 0.0,
                     )
                     yield fe
                 except (ValueError, KeyError, json.JSONDecodeError) as e:
@@ -210,7 +220,7 @@ class FundingRateChannel(DataChannel):
         )
 
 
-def _parse_optional_float(value) -> float:
+def _parse_optional_float(value) -> Optional[float]:
     """Parse an optional float value, returning None for empty/missing.
 
     Args:
@@ -223,6 +233,16 @@ def _parse_optional_float(value) -> float:
     if value is None or value == "":
         return None
     try:
-        return float(value)
+        number = float(value)
     except (ValueError, TypeError):
         return None
+    if not math.isfinite(number):
+        return None
+    return number
+
+
+def _parse_required_float(value) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"Non-finite float value: {value}")
+    return number

@@ -24,13 +24,14 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -80,69 +81,6 @@ def resolve_data_path(filename: str) -> Path:
             return candidate
 
     raise FileNotFoundError(f"Data file not found: {filename}")
-
-
-class KDJ(bt.Indicator):
-    """KDJ (Stochastic) technical indicator.
-
-    The KDJ indicator is a momentum oscillator that consists of three lines:
-    - K line: The fast stochastic line
-    - D line: The smoothed K line (signal line)
-    - J line: A derivative of K and D (J = 3*K - 2*D) that is more sensitive
-
-    This implementation uses the StochasticFull indicator as the underlying
-    calculation and extracts the K, D, and J values.
-
-    Attributes:
-        kd (bt.indicators.StochasticFull): The underlying StochasticFull indicator
-            that provides the K and D values. J is calculated from K and D.
-
-    Note:
-        This implementation uses the next() method instead of line binding
-        (self.l.K = self.kd.percD) because line binding has index synchronization
-        issues in the current architecture after metaclass removal.
-
-    Example:
-        >>> kdj = KDJ(data, period=9, period_dfast=3, period_dslow=3)
-        >>> # Access values in next():
-        >>> print(f"K={kdj.K[0]}, D={kdj.D[0]}, J={kdj.J[0]}")
-    """
-    lines = ('K', 'D', 'J')
-
-    params = (
-        ('period', 9),
-        ('period_dfast', 3),
-        ('period_dslow', 3),
-    )
-
-    def __init__(self):
-        """Initialize the KDJ indicator.
-
-        Creates a StochasticFull indicator with the specified parameters.
-        The K, D, and J values are calculated in the next() method rather than
-        using line binding to avoid index synchronization issues.
-        """
-        self.kd = bt.indicators.StochasticFull(
-            self.data,
-            period=self.p.period,
-            period_dfast=self.p.period_dfast,
-            period_dslow=self.p.period_dslow,
-        )
-
-    def next(self):
-        """Calculate KDJ values for the current bar.
-
-        Updates the K, D, and J lines based on the StochasticFull indicator values.
-        J is calculated as: J = 3*K - 2*D, which makes it more sensitive to
-        price movements than K or D alone.
-
-        Note:
-            This method is called automatically by backtrader for each bar.
-            The values are assigned directly to avoid line binding issues.
-        """
-        self.l.K[0] = self.kd.percD[0]
-        self.l.D[0] = self.kd.percDSlow[0]
-        self.l.J[0] = self.l.K[0] * 3 - self.l.D[0] * 2
 
 
 class BOLLKDJStrategy(bt.Strategy):
@@ -249,7 +187,7 @@ class BOLLKDJStrategy(bt.Strategy):
             self.data0, period=self.p.boll_period, devfactor=self.p.boll_mult
         )
         # KDJ indicator
-        self.kdj = KDJ(
+        self.kdj = bt.indicators.KDJ(
             self.data0, period=self.p.kdj_period,
             period_dfast=self.p.kdj_ma1, period_dslow=self.p.kdj_ma2
         )
@@ -484,7 +422,8 @@ class BOLLKDJStrategy(bt.Strategy):
         )
 
 
-def test_boll_kdj_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_boll_kdj_strategy(runonce):
     """Run a backtest of the BOLLKDJ strategy and verify results.
 
     This test function:
@@ -558,7 +497,7 @@ def test_boll_kdj_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")

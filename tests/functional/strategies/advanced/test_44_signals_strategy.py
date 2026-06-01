@@ -48,6 +48,34 @@ Signal vs Strategy:
 Reference:
     backtrader-master2/samples/signals-strategy/signals-strategy.py
 
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData``. Only the 2005-01-01 to 2006-12-31 window
+    is used (single data feed named ``DATA``, daily timeframe, no resampling).
+    The test is parametrized over ``runonce=True`` and ``runonce=False`` so the
+    vectorized and event-driven engines are both exercised on the same data.
+
+Strategy Principle:
+    This is a declarative, signal-driven trend-following setup rather than a
+    full ``Strategy`` subclass. The ``bt.indicators.SMACloseSignal`` indicator emits
+    ``price - SMA(period)``; a positive value means price trades above its
+    moving average (bullish) and a negative value means below (bearish). Wired
+    through ``cerebro.add_signal(bt.SIGNAL_LONG, ...)``, a positive signal opens
+    a long position and a non-positive signal exits it, with position size
+    driven by the signal magnitude. Risk control relies solely on the signal
+    sign flipping; no explicit stop loss is used.
+
+Strategy Logic:
+    1. ``resolve_data_path`` locates the CSV data file across candidate
+       directories.
+    2. ``bt.indicators.SMACloseSignal.__init__`` defines the single ``signal`` line as the
+       price minus its ``period``-length bt.indicators.SMA.
+    3. ``test_signals_strategy`` builds cerebro with $50,000 cash, adds the long
+       signal with a 30-period SMA, attaches Sharpe/Returns/DrawDown/Trade
+       analyzers, runs the backtest, and extracts the metrics.
+    4. The test asserts that total trades, final value, Sharpe ratio, annual
+       return, and max drawdown match the recorded expectations.
+
 Example:
     Run the test directly::
 
@@ -59,10 +87,11 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -91,78 +120,12 @@ def resolve_data_path(filename: str) -> Path:
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
 
-
-class SMACloseSignal(bt.Indicator):
-    """Simple Moving Average (SMA) close price signal indicator.
-
-    This indicator calculates the difference between the current price and
-    its Simple Moving Average (SMA). The resulting signal can be used with
-    cerebro.add_signal() to implement trend-following strategies.
-
-    Signal Calculation:
-        signal = price - SMA(period)
-
-    Signal Interpretation:
-        - Positive signal (> 0): Price is above SMA (bullish)
-        - Negative signal (< 0): Price is below SMA (bearish)
-        - Signal magnitude: Distance from SMA (strength of trend)
-
-    Trading Logic:
-        When used with SIGNAL_LONG:
-        - Signal > 0: Take long position (price above average = uptrend)
-        - Signal < 0: Exit position (price below average = downtrend)
-
-        The actual position size is proportional to the signal value,
-        meaning stronger trends (larger signal) result in larger positions.
-
-    Lines:
-        signal: The calculated signal value (price - SMA).
-
-    Parameters:
-        period (int): Period for the SMA calculation (default: 30).
-            Longer periods produce smoother signals with fewer crossovers.
-            Shorter periods produce more responsive signals with more noise.
-
-    Example:
-        >>> # Add SMA-based long signal to cerebro
-        >>> cerebro.add_signal(bt.SIGNAL_LONG, SMACloseSignal, period=30)
-        >>>
-        >>> # Signal is positive when price > 30-period SMA
-        >>> # Results in long position during uptrends
-
-    Note:
-        This is a simple trend-following signal. It performs well in
-        trending markets but can whipsaw in ranging markets. Consider
-        adding filters or combining with other signals for better results.
-    """
-
-    lines = ('signal',)
-    params = (('period', 30),)
-
-    def __init__(self):
-        """Calculate the SMA signal indicator.
-
-        The signal is calculated as the difference between the current
-        price and its Simple Moving Average. This provides a measure
-        of whether price is above or below its average value.
-
-        Signal = price - SMA(period)
-
-        A positive signal indicates price is trading above the moving
-        average (bullish), while negative indicates below (bearish).
-        """
-        # Calculate signal as price minus SMA
-        # Positive when price above SMA (bullish trend)
-        # Negative when price below SMA (bearish trend)
-        # Magnitude indicates distance from average (trend strength)
-        self.lines.signal = self.data - bt.indicators.SMA(period=self.p.period)
-
-
-def test_signals_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_signals_strategy(runonce):
     """Test the signal-based strategy functionality using cerebro.add_signal.
 
     This test validates the signal-based approach to trading strategies by
-    using cerebro.add_signal() with the SMACloseSignal indicator. Unlike
+    using cerebro.add_signal() with the bt.indicators.SMACloseSignal indicator. Unlike
     traditional Strategy classes, this declarative approach uses indicator
     values to drive trading decisions directly.
 
@@ -170,12 +133,12 @@ def test_signals_strategy():
         1. Initialize Cerebro backtesting engine
         2. Set initial capital to $50,000
         3. Load historical daily data (2005-2006)
-        4. Add long signal using SMACloseSignal with 30-period SMA
+        4. Add long signal using bt.indicators.SMACloseSignal with 30-period SMA
         5. Attach performance analyzers
         6. Execute backtest and validate signal-based trading
 
     Signal Logic:
-        The SMACloseSignal calculates: signal = price - SMA(30)
+        The bt.indicators.SMACloseSignal calculates: signal = price - SMA(30)
         - Signal > 0: Price above SMA → Take long position
         - Signal < 0: Price below SMA → Exit position
 
@@ -223,9 +186,9 @@ def test_signals_strategy():
 
     # Add signal-based strategy using cerebro.add_signal
     # SIGNAL_LONG: Take long position when signal is positive
-    # SMACloseSignal: Custom indicator calculating price - SMA(30)
+    # bt.indicators.SMACloseSignal: Custom indicator calculating price - SMA(30)
     # period=30: Use 30-period SMA for signal calculation
-    cerebro.add_signal(bt.SIGNAL_LONG, SMACloseSignal, period=30)
+    cerebro.add_signal(bt.SIGNAL_LONG, bt.indicators.SMACloseSignal, period=30)
 
     # Attach performance analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
@@ -235,7 +198,7 @@ def test_signals_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract performance metrics

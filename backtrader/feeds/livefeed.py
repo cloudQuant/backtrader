@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 """Live Feed Abstract Base Class.
 
-Defines the common interface that all live trading data feed implementations
-(CCXT, CTP, IB, Crypto, etc.) should conform to. Existing feeds are
-**not** required to inherit from this class immediately — it serves as
-a reference contract for new implementations and gradual migration.
+Defines the common interface for live trading data feed implementations.
+The current project direction uses ``BtApiFeed`` as the unified adapter
+and keeps this base class as the reference contract for future providers.
 
 Classes:
     LiveFeedBase: Abstract base for live-trading data feeds.

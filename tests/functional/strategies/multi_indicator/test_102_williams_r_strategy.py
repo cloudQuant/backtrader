@@ -12,13 +12,38 @@ Example:
         python test_102_williams_r_strategy.py
 
 The test uses historical Oracle Corporation (ORCL) stock data from 2010-2014.
+
+Data Used:
+    Oracle Corporation (ORCL) daily stock bars from the backtrader sample file
+    ``orcl-1995-2014.txt`` (GenericCSVData format), located via
+    resolve_data_path and clipped to 2010-01-01 through 2014-12-31. A single
+    daily feed drives the backtest with 0.1% commission.
+
+Strategy Principle:
+    A mean-reversion system built on Williams %R, a momentum oscillator that
+    measures the close relative to the recent high-low range and oscillates
+    between 0 (overbought) and -100 (oversold). The strategy buys when %R turns
+    up out of oversold territory (below -80), betting on a bounce, and exits when
+    %R climbs into overbought territory (above -20), capturing the swing back
+    toward the range high.
+
+Strategy Logic:
+    WilliamsRStrategy builds a Williams %R indicator over the configured period.
+    Each bar it skips while an order is pending or before enough history exists,
+    then — while flat — buys a fixed stake when the prior bar was oversold and %R
+    is rising, or — while long — closes when %R exceeds the overbought level.
+    notify_order counts completed buys/sells and clears the order reference. The
+    parametrized test runs both runonce=True and runonce=False, then asserts bar
+    count, final value, Sharpe, annual return, and max drawdown against expected
+    values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 from pathlib import Path
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -124,7 +149,8 @@ class WilliamsRStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_williams_r_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_williams_r_strategy(runonce):
     """Test Williams %R strategy with historical data.
 
     Sets up a backtest with ORCL data from 2010-2014, runs the strategy,
@@ -150,7 +176,7 @@ def test_williams_r_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

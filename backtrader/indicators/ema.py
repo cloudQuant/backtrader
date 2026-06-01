@@ -19,7 +19,10 @@ Example:
 
 import math
 
+from ..utils.log_message import get_logger
 from . import MovingAverageBase
+
+logger = get_logger(__name__)
 
 
 class ExponentialMovingAverage(MovingAverageBase):
@@ -81,14 +84,16 @@ class ExponentialMovingAverage(MovingAverageBase):
 
         # Ensure output array is properly sized
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
-        # CRITICAL FIX: For LinesOperation data sources, call their once() to populate array
+        # CRITICAL FIX: For line-operation data sources, calculate the full
+        # input history needed to seed the EMA. Using this EMA's ``start``
+        # would skip the operation's warmup window and delay the seed.
         if hasattr(self.data, "once") and hasattr(self.data, "operation"):
             try:
-                self.data.once(start, end)
-            except Exception:
-                pass
+                self.data.once(0, end)
+            except Exception as e:
+                logger.debug("data.once() failed in EMA: %s", e)
 
         darray = self.data.array
         data_len = len(darray)

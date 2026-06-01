@@ -139,6 +139,8 @@ class BarPointPerc(ParameterizedBase):
         if minmov:
             # high - low + minmov to account for open-ended minus op
             parts = (data.high[ago] - data.low[ago] + minmov) // minmov
+            if parts < 1:
+                parts = 1
         # Calculate how much each part can trade
         alloc_vol = ((data.volume[ago] / parts) * self.p.perc) // 100.0
         # return max possible executable volume

@@ -19,6 +19,7 @@ import collections
 import datetime
 import itertools
 from copy import copy
+from typing import Optional
 
 from .utils import AutoOrderedDict
 from .utils.py3 import iteritems, range
@@ -114,6 +115,12 @@ class OrderExecutionBit:
         self.psize = psize
         self.pprice = pprice
 
+    def __repr__(self):
+        return (
+            f"OrderExecutionBit(size={self.size}, price={self.price}, "
+            f"closed={self.closed}, opened={self.opened}, pnl={self.pnl})"
+        )
+
 
 # Store actual order information for creation and execution. When creating, it requests creation; when executing, it produces the final result
 class OrderData:
@@ -194,7 +201,7 @@ class OrderData:
             trailpercent: Trailing percent for stop orders.
         """
         self.pclose = pclose
-        self.exbits = collections.deque()  # for historical purposes
+        self.exbits: collections.deque = collections.deque()  # for historical purposes
         self.p1, self.p2 = 0, 0  # indices to pending notifications
 
         self.dt = dt
@@ -306,7 +313,7 @@ class OrderData:
         oldvalue = self.size * self.price
         newvalue = exbit.size * exbit.price
         self.size += exbit.size
-        self.price = (oldvalue + newvalue) / self.size
+        self.price = (oldvalue + newvalue) / self.size if self.size else 0.0
         self.value += exbit.value
         self.comm += exbit.comm
         self.pnl += exbit.pnl
@@ -483,7 +490,9 @@ class OrderBase:
             p = object.__getattribute__(self, "p")
             return getattr(p, name)
         except AttributeError:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            ) from None
 
     # Set order attribute - modified to work with OrderParams
     def __setattr__(self, name, value):
@@ -501,7 +510,7 @@ class OrderBase:
 
     # Content displayed when printing order
     def __str__(self):
-        tojoin = list()
+        tojoin = []
         tojoin.append(f"Ref: {self.ref}")
         tojoin.append(f"OrdType: {self.ordtype}")
         tojoin.append(f"OrdType: {self.ordtypename()}")
@@ -558,17 +567,9 @@ class OrderBase:
         if not self.isbuy():
             self.size = -self.size
 
-        # Set a reference price if price is not set using
-        # the close price
-        # # If not simulated, pclose equals closing price, otherwise equals price
-        # pclose = self.data.close[0] if not self.simulated else self.price
-        # # If self.price is None and self.pricelimit is None, price equals pclose, otherwise price equals self.price
-        # if not self.price and not self.pricelimit:
-        #     price = pclose
-        # else:
-        #     price = self.price
+        # Set a reference price if price is not set using the close price
         pclose = self.data.close[0] if not self.p.simulated else self.price
-        price = pclose if not self.price and not self.pricelimit else self.price
+        price = pclose if self.price is None and self.pricelimit is None else self.price
         # If not simulated, order creation time equals current data time, otherwise it's 0
         dcreated = self.data.datetime[0] if not self.p.simulated else 0.0
         # Order creation
@@ -625,7 +626,7 @@ class OrderBase:
             else:  # assume float
                 valid = self.data.datetime[0] + self.valid
         # If not simulated, get dteos, if simulated, dteos is 0
-        # todo need to understand better where dteos is used
+        # dteos: provisional end-of-session datetime, used by broker for order expiry checks
         if not self.p.simulated:
             # provisional end-of-session
             # get next session end
@@ -660,15 +661,33 @@ class OrderBase:
         obj.executed = self.executed.clone()
         return obj  # status could change in next to completed
 
+    @property
+    def position_side(self):
+        """Read-only alias for order.info.position_side."""
+        return getattr(self.info, "position_side", None)
+
+    @property
+    def offset(self):
+        """Read-only alias for order.info.offset."""
+        return getattr(self.info, "offset", None)
+
     # Get order status name
     def getstatusname(self, status=None):
         """Returns the name for a given status or the one of the order"""
-        return self.Status[self.status if status is None else status]
+        idx = self.status if status is None else status
+        try:
+            return self.Status[idx]
+        except (IndexError, TypeError):
+            return f"Unknown({idx})"
 
     # Get order name
     def getordername(self, exectype=None):
         """Returns the name for a given exectype or the one of the order"""
-        return self.ExecTypes[self.exectype if exectype is None else exectype]
+        idx = self.exectype if exectype is None else exectype
+        try:
+            return self.ExecTypes[idx]
+        except (IndexError, TypeError):
+            return f"Unknown({idx})"
 
     @classmethod
     def ExecType(cls, exectype):
@@ -701,17 +720,15 @@ class OrderBase:
         """Activate the order."""
         self._active = True
 
+    # Frozenset for O(1) alive status lookup
+    _ALIVE_STATUSES = frozenset(range(4))  # Created, Submitted, Accepted, Partial
+
     # Order is alive if it's in Created, Submitted, Partial, or Accepted status
     def alive(self):
         """Returns True if the order is in a status in which it can still be
         executed
         """
-        return self.status in [
-            OrderBase.Created,
-            OrderBase.Submitted,
-            OrderBase.Partial,
-            OrderBase.Accepted,
-        ]
+        return self.status in self._ALIVE_STATUSES
 
     # Add commission related information
     def addcomminfo(self, comminfo):
@@ -732,7 +749,11 @@ class OrderBase:
 
     # Check if two orders are not equal
     def __ne__(self, other):
-        return self.ref != other.ref
+        return other is None or self.ref != other.ref
+
+    # Order ref is immutable, so hash based on ref is safe
+    def __hash__(self):
+        return hash(self.ref)
 
     # Check if current order is a buy order
     def isbuy(self):
@@ -866,7 +887,7 @@ class OrderBase:
         Note:
             Generic interface - override in subclasses for specific behavior.
         """
-        pass  # generic interface
+        # generic interface
 
 
 # Modified Order class to work without metaclass
@@ -885,7 +906,7 @@ class Order(OrderBase):
     # Above is processing of OrderBase, below is processing of Order, Order inherits from OrderBase
     # Order class mainly adds dteos, ordtype and other information, also rewrites some functions, adds ordtype, a tracking price
     # ordtype variable determines whether this order is a buy order or sell order, not set by default
-    ordtype = None
+    ordtype: Optional[int] = None
 
     # Override initialization function, add processing for ordtype and dteos
     def __init__(self, **kwargs):
@@ -1021,9 +1042,12 @@ class Order(OrderBase):
         # For buy orders, if new price is less than created price, use this new price
         # For sell orders, if new price is greater than created price, use this new price
         if price_new != self.created.price:
-            if self.isbuy() and price_new < self.created.price:
-                self.created.price = price_new
-            elif self.issell() and price_new > self.created.price:
+            if (
+                self.isbuy()
+                and price_new < self.created.price
+                or self.issell()
+                and price_new > self.created.price
+            ):
                 self.created.price = price_new
 
         # For both trailing stop types, limitprice also needs adjustment
@@ -1048,8 +1072,6 @@ class StopBuyOrder(BuyOrder):
     Used for buy orders that trigger when price crosses a threshold.
     """
 
-    pass
-
 
 # Create stop limit buy order
 class StopLimitBuyOrder(BuyOrder):
@@ -1057,8 +1079,6 @@ class StopLimitBuyOrder(BuyOrder):
 
     Used for buy orders that become limit orders after stop price is triggered.
     """
-
-    pass
 
 
 # Create sell order
@@ -1078,8 +1098,6 @@ class StopSellOrder(SellOrder):
     Used for sell orders that trigger when price crosses a threshold.
     """
 
-    pass
-
 
 # Create stop limit sell order
 class StopLimitSellOrder(SellOrder):
@@ -1087,5 +1105,3 @@ class StopLimitSellOrder(SellOrder):
 
     Used for sell orders that become limit orders after stop price is triggered.
     """
-
-    pass

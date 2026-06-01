@@ -1431,8 +1431,6 @@ class Level2Strategy(bt.Strategy):
 
 ### 总时间估算：6-10 个月
 
-- --
-
 ## 五、总结
 
 ### 5.1 AutoTrade 的核心优势

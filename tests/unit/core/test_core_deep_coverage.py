@@ -322,6 +322,221 @@ class TestLineIteratorOncePaths:
         strat = run_cerebro(St, num_bars=30, runonce=False)
         assert strat.bar_count > 0
 
+    def test_runonce_parent_next_reads_current_subindicator_value(self):
+        """A parent indicator using next() must see the current child line."""
+
+        class SequenceChild(bt.Indicator):
+            lines = ("value",)
+
+            def next(self):
+                self.lines.value[0] = float(len(self.data))
+
+            def once(self, start, end):
+                dst = self.lines.value.array
+                while len(dst) < end:
+                    dst.append(0.0)
+
+                for i in range(start, end):
+                    dst[i] = float(i + 1)
+
+        class ParentIndicator(bt.Indicator):
+            lines = ("value",)
+
+            def __init__(self):
+                self.child = SequenceChild(self.data)
+                self.addminperiod(8)
+
+            def next(self):
+                self.lines.value[0] = self.child[0]
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.indicator = ParentIndicator(self.data)
+                self.values = []
+
+            def next(self):
+                self.values.append(float(self.indicator[0]))
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(num_bars=20)))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0].values
+
+        runonce_values = run(True)
+        step_values = run(False)
+
+        assert runonce_values == step_values
+        assert runonce_values == [float(i) for i in range(8, 21)]
+
+    def test_line_assignment_indicator_runs_under_parent_indicator(self):
+        """self.lines.xxx = Indicator(...) must drive the source as a child."""
+
+        from backtrader.lineiterator import LineIterator
+
+        class BoundChannel(bt.Indicator):
+            lines = ("upper", "lower")
+            params = (("period", 3),)
+
+            def __init__(self):
+                self.lines.upper = bt.indicators.Highest(self.data.high, period=self.p.period)
+                self.lines.lower = bt.indicators.Lowest(self.data.low, period=self.p.period)
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.channel = BoundChannel(self.data)
+                self.values = []
+                self.child_names = [
+                    type(ind).__name__
+                    for ind in self.channel._lineiterators[LineIterator.IndType]
+                ]
+                self.top_names = [
+                    type(ind).__name__ for ind in self._lineiterators[LineIterator.IndType]
+                ]
+
+            def next(self):
+                self.values.append(round(float(self.channel.lower[0]), 8))
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(num_bars=12)))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0]
+
+        step_strat = run(False)
+        once_strat = run(True)
+
+        assert step_strat.values == once_strat.values
+        assert all(value != 0.0 for value in step_strat.values)
+        assert step_strat.child_names == ["Highest", "Lowest"]
+        assert step_strat.top_names == ["BoundChannel"]
+
+    def test_line_assignment_operation_dependencies_run_under_parent_indicator(self):
+        """Nested line operations must drive temporary indicator dependencies."""
+
+        from backtrader.lineiterator import LineIterator
+
+        class ExprChannel(bt.Indicator):
+            lines = ("mid", "top")
+
+            def __init__(self):
+                self.lines.mid = bt.indicators.Lowest(self.data.low, period=3)
+                spread = bt.indicators.Highest(self.data.high, period=4)
+                self.lines.top = self.lines.mid + 2.0 * spread
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.channel = ExprChannel(self.data)
+                self.values = []
+                self.child_names = [
+                    type(ind).__name__
+                    for ind in self.channel._lineiterators[LineIterator.IndType]
+                ]
+                self.top_names = [
+                    type(ind).__name__ for ind in self._lineiterators[LineIterator.IndType]
+                ]
+                self.has_operation_child = any(
+                    isinstance(ind, linebuffer.LinesOperation)
+                    for ind in self.channel._lineiterators[LineIterator.IndType]
+                )
+
+            def next(self):
+                self.values.append(round(float(self.channel.top[0]), 8))
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(num_bars=16)))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0]
+
+        step_strat = run(False)
+        once_strat = run(True)
+
+        assert step_strat.values == once_strat.values
+        assert all(math.isfinite(value) and value != 0.0 for value in step_strat.values)
+        assert step_strat.child_names[:2] == ["Lowest", "Highest"]
+        assert step_strat.has_operation_child
+        assert step_strat.top_names == ["ExprChannel"]
+
+    def test_runonce_multidata_indicator_uses_own_clock_for_attr_operations(self):
+        """A data1 indicator with attr operations must replay on data1's clock."""
+
+        from backtrader.lineiterator import LineIterator
+
+        def make_bars(closes, minutes):
+            start = datetime.datetime(2024, 1, 1)
+            bars = []
+            for i, close in enumerate(closes):
+                bars.append({
+                    "datetime": start + datetime.timedelta(minutes=i * minutes),
+                    "open": close,
+                    "high": close + 1.0,
+                    "low": close - 1.0,
+                    "close": close,
+                    "volume": 1000,
+                    "openinterest": 0,
+                })
+            return bars
+
+        fast_bars = make_bars([10.0 + i * 0.1 for i in range(24)], 60)
+        slow_bars = make_bars([10.0, 11.0, 13.0, 12.0, 15.0, 20.0], 240)
+
+        class SlowSignal(bt.Indicator):
+            lines = ("signal",)
+
+            def __init__(self):
+                self.sma = bt.indicators.SMA(self.data.close, period=2)
+                self.delta = self.data.close - self.sma
+                self.addminperiod(3)
+
+            def next(self):
+                self.lines.signal[0] = float("nan")
+                if float(self.delta[0]) > float(self.delta[-1]):
+                    self.lines.signal[0] = float(self.delta[0])
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.signal = SlowSignal(self.data1)
+                self.last_slow_len = 0
+                self.events = []
+                self.top_names = [
+                    type(ind).__name__ for ind in self._lineiterators[LineIterator.IndType]
+                ]
+                self.child_names = [
+                    type(ind).__name__
+                    for ind in self.signal._lineiterators[LineIterator.IndType]
+                ]
+
+            def next(self):
+                if len(self.data1) == self.last_slow_len:
+                    return
+                self.last_slow_len = len(self.data1)
+                value = float(self.signal[0])
+                if math.isfinite(value) and value != 0.0:
+                    self.events.append((len(self.data0), len(self.data1), round(value, 8)))
+
+            def stop(self):
+                self.signal_len = len(self.signal)
+                self.data1_len = len(self.data1)
+                self.signal_uses_data1_clock = self.signal._clock is self.data1
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=fast_bars))
+            cerebro.adddata(SimpleFeed(data_list=slow_bars))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0]
+
+        step_strat = run(False)
+        once_strat = run(True)
+
+        assert step_strat.events == once_strat.events
+        assert step_strat.events == [(9, 3, 1.0), (17, 5, 1.5), (21, 6, 2.5)]
+        assert step_strat.top_names == ["SlowSignal"]
+        assert step_strat.child_names == ["MovingAverageSimple", "LinesOperation"]
+        assert once_strat.signal_len == once_strat.data1_len
+        assert once_strat.signal_uses_data1_clock
+
     def test_exactbars_true_qbuffer(self):
         """Exercise qbuffer allocation with exactbars=True.
 

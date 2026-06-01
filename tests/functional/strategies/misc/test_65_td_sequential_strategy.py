@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -339,7 +340,8 @@ class TDSequentialStrategy(bt.Strategy):
         pass
 
 
-def test_td_sequential_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_td_sequential_strategy(runonce):
     """Test TD Sequential strategy.
 
     This test function validates the TD Sequential strategy implementation
@@ -378,7 +380,7 @@ def test_td_sequential_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

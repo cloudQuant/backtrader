@@ -7,14 +7,15 @@ Tests multi-factor intraday trading strategy using convertible bond data.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -59,7 +60,7 @@ def clean_bond_data():
     df.columns = ['symbol', 'bond_symbol', 'datetime', 'open', 'high', 'low', 'close', 'volume',
                   'pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate']
     df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[df['datetime'] > pd.to_datetime("2018-01-01")]
+    df = df[df['datetime'] > pd.to_datetime("2020-06-01")]
 
     datas = {}
     for symbol, data in df.groupby('symbol'):
@@ -268,7 +269,8 @@ class ConvertibleBondIntradayStrategy(bt.Strategy):
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 
-def test_cb_intraday_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_cb_intraday_strategy(runonce):
     """Test convertible bond multi-factor intraday strategy.
 
     Performs backtesting using convertible bond data.
@@ -313,14 +315,17 @@ def test_cb_intraday_strategy():
 
     # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="my_sharpe",
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # Run backtest
     print("\nStarting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -344,15 +349,17 @@ def test_cb_intraday_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # Assert test results (exact values)
+    # Assert test results (exact values) - data filtered to > 2020-06-01
     assert strat.bar_num == 1885, f"Expected bar_num=1885, got {strat.bar_num}"
-    assert strat.buy_count == 300, f"Expected buy_count=300, got {strat.buy_count}"
-    assert strat.sell_count == 294, f"Expected sell_count=294, got {strat.sell_count}"
-    assert total_trades == 299, f"Expected total_trades=299, got {total_trades}"
-    # assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=0.23032590904888126, got {sharpe_ratio}"
-    assert abs(annual_return - (0.030084430622900046)) < 1e-6, f"Expected annual_return=0.030084430622900046, got {annual_return}"
-    assert abs(max_drawdown - 0.17750189678557882) < 1e-6, f"Expected max_drawdown=0.17750189678557882, got {max_drawdown}"
-    assert abs(final_value - 1248218.9149463978) < 0.01, f"Expected final_value=1248218.9149463978, got {final_value}"
+    assert strat.buy_count == 200, f"Expected buy_count=200, got {strat.buy_count}"
+    assert strat.sell_count == 194, f"Expected sell_count=194, got {strat.sell_count}"
+    assert total_trades == 198, f"Expected total_trades=198, got {total_trades}"
+    assert total_trades > 0, "trade count must be > 0"
+    # assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=..., got {sharpe_ratio}"
+    assert abs(sharpe_ratio - 0.2635565543999606) < 1e-6, f"Expected sharpe_ratio=0.264, got {sharpe_ratio}"
+    assert abs(annual_return - 0.020670784242367936) < 1e-6, f"Expected annual_return=0.020670784242367936, got {annual_return}"
+    assert abs(max_drawdown - 0.16014258811792462) < 1e-6, f"Expected max_drawdown=0.16014258811792462, got {max_drawdown}"
+    assert abs(final_value - 1165376.6826239964) < 0.01, f"Expected final_value=1165376.68, got {final_value}"
 
     print("\nAll tests passed!")
 

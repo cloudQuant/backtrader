@@ -13,7 +13,7 @@ principles using multiple technical indicators:
 
 The strategy enters long positions when RSI crosses above 50 while price is
 above the 200-period SMA, and enters short positions when RSI crosses below
-50 while price is below the 200-period SMA.
+50 while price is below the 200-period bt.indicators.SMA.
 
 Reference source: https://github.com/papodetrader/backtest
 
@@ -28,13 +28,14 @@ Example:
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -220,7 +221,8 @@ class ATRMomentumStrategy(bt.Strategy):
         pass
 
 
-def test_atr_momentum_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_atr_momentum_strategy(runonce):
     """Test the ATR Momentum strategy.
 
     This function tests the ATR Momentum strategy by running a backtest
@@ -267,7 +269,7 @@ def test_atr_momentum_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

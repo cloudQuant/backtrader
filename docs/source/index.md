@@ -88,8 +88,6 @@
 
 | [plotting_zh.md](user_guide/plotting_zh.md) | 绘图和可视化 | 中文 |
 
-| [CCXT 实盘交易](user_guide/ccxt-live-trading_zh.md) | CCXT 实盘交易 | 中文 ✨ |
-
 | [CTP 实盘交易](user_guide/ctp-live-trading.md) | CTP 实盘交易 | EN ✨ |
 
 | [CTP 实盘交易 中文版](user_guide/ctp-live-trading_zh.md) | CTP 实盘交易 | 中文 ✨ |
@@ -167,10 +165,6 @@
 | [Signal/Timer/Store](api_reference/signal-timer-store.md) | 信号/定时器/存储 | EN ✨ |
 
 | [Signal/Timer/Store 中文版](api_reference/signal-timer-store_zh.md) | 信号/定时器/存储 | 中文 ✨ |
-
-| [CCXT Store/Broker](api_reference/ccxt-store-broker.md) | 加密货币交易 | EN ✨ |
-
-| [CCXT Store/Broker 中文版](api_reference/ccxt-store-broker_zh.md) | 加密货币交易 | 中文 ✨ |
 
 | [CTP Store/Broker](api_reference/ctp-store-broker.md) | 中国期货交易 | EN ✨ |
 
@@ -381,7 +375,6 @@
 - 新增功能 → 更新相关指南
 
 - --
-
 - *文档生成**: BMAD 项目文档化工作流
 - *扫描模式**: 彻底扫描 (Exhaustive)
 - *生成日期**: 2025-02-28

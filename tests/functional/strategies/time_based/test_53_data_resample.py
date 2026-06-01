@@ -22,6 +22,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -66,7 +67,7 @@ class SimpleMAStrategy(bt.Strategy):
     This strategy implements a classic dual moving average crossover approach
     to test Backtrader's data resampling functionality. It generates buy and sell
     signals based on the crossover of a fast simple moving average (SMA) and a
-    slow SMA.
+    slow bt.indicators.SMA.
 
     Trading Logic:
         - Entry (Buy): When the fast SMA crosses above the slow SMA
@@ -157,7 +158,8 @@ class SimpleMAStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_data_resample():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_data_resample(runonce):
     """Test data resampling functionality with a dual moving average strategy.
 
     This function tests Backtrader's data resampling capabilities by:
@@ -224,7 +226,7 @@ def test_data_resample():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

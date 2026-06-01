@@ -23,6 +23,7 @@ import backtrader as bt
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -331,7 +332,8 @@ def load_bond_data(filename: str = "113013.csv") -> pd.DataFrame:
     return df
 
 
-def test_two_ma_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_two_ma_strategy(runonce):
     """Test the dual moving average strategy with convertible bond data.
 
     This function sets up and runs a complete backtest of the TwoMAStrategy
@@ -388,7 +390,7 @@ def test_two_ma_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]

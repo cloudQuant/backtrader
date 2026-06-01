@@ -14,10 +14,12 @@ Example::
     print(validator.get_anomaly_report())
 """
 
-import logging
+import math
 import time
 
-logger = logging.getLogger(__name__)
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = ["LiveDataValidator"]
 
@@ -46,6 +48,12 @@ class LiveDataValidator:
             max_clock_drift: Maximum allowed clock drift across symbols (seconds).
             enable_clock_check: Whether to enable clock synchronization checks.
         """
+        max_time_jump = self._coerce_number(max_time_jump)
+        max_clock_drift = self._coerce_number(max_clock_drift)
+        if max_time_jump is None or max_time_jump < 0:
+            raise ValueError("max_time_jump must be a non-negative number")
+        if max_clock_drift is None or max_clock_drift < 0:
+            raise ValueError("max_clock_drift must be a non-negative number")
         self._max_time_jump = max_time_jump
         self._max_clock_drift = max_clock_drift
         self._enable_clock_check = enable_clock_check
@@ -64,8 +72,16 @@ class LiveDataValidator:
             True if the event passes validation, False if rejected.
         """
         self._total_validated += 1
-        key = (getattr(event, "channel_type", ""), getattr(event, "channel_name", ""))
-        ts = event.timestamp
+        key = self._event_key(event)
+        if event is None:
+            self._record_anomaly(key, "invalid_event")
+            self._total_rejected += 1
+            return False
+        ts = self._coerce_number(getattr(event, "timestamp", None))
+        if ts is None or ts < 0:
+            self._record_anomaly(key, "invalid_timestamp")
+            self._total_rejected += 1
+            return False
 
         # 1. Timestamp order check
         last_ts = self._last_timestamps.get(key, 0)
@@ -129,13 +145,15 @@ class LiveDataValidator:
         Returns:
             True if the tick is valid, False otherwise.
         """
-        price = getattr(tick, "price", None)
-        volume = getattr(tick, "volume", None)
+        raw_price = getattr(tick, "price", None)
+        raw_volume = getattr(tick, "volume", None)
+        price = self._coerce_number(raw_price) if raw_price is not None else None
+        volume = self._coerce_number(raw_volume) if raw_volume is not None else None
 
-        if price is not None and price <= 0:
+        if raw_price is not None and (price is None or price <= 0):
             self._record_anomaly(key, "invalid_price")
             return False
-        if volume is not None and volume < 0:
+        if raw_volume is not None and (volume is None or volume < 0):
             self._record_anomaly(key, "invalid_volume")
             return False
         return True
@@ -163,12 +181,11 @@ class LiveDataValidator:
 
         # Check crossed book (best bid >= best ask)
         if bids and asks:
-            best_bid = (
-                bids[0][0] if isinstance(bids[0], (list, tuple)) else getattr(bids[0], "price", 0)
-            )
-            best_ask = (
-                asks[0][0] if isinstance(asks[0], (list, tuple)) else getattr(asks[0], "price", 0)
-            )
+            best_bid = self._extract_orderbook_price(bids[0])
+            best_ask = self._extract_orderbook_price(asks[0])
+            if best_bid is None or best_ask is None:
+                self._record_anomaly(key, "invalid_orderbook_price")
+                return False
             if best_bid >= best_ask:
                 self._record_anomaly(key, "crossed_book")
                 logger.warning(
@@ -190,11 +207,43 @@ class LiveDataValidator:
         Returns:
             Always returns True (warnings are logged, not rejected).
         """
-        rate = getattr(funding, "rate", None)
-        if rate is not None and abs(rate) > 0.1:
+        raw_rate = getattr(funding, "rate", None)
+        if raw_rate is None:
+            return True
+        rate = self._coerce_number(raw_rate)
+        if rate is None:
+            self._record_anomaly(key, "invalid_funding_rate")
+            return False
+        if abs(rate) > 0.1:
             self._record_anomaly(key, "extreme_funding_rate")
             logger.warning("Extreme funding rate for %s: %.6f", key, rate)
         return True
+
+    @staticmethod
+    def _coerce_number(value):
+        if isinstance(value, bool):
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(number):
+            return None
+        return number
+
+    @staticmethod
+    def _event_key(event):
+        return (
+            str(getattr(event, "channel_type", "") or ""),
+            str(getattr(event, "channel_name", "") or ""),
+        )
+
+    def _extract_orderbook_price(self, level):
+        if isinstance(level, (list, tuple)):
+            if not level:
+                return None
+            return self._coerce_number(level[0])
+        return self._coerce_number(getattr(level, "price", None))
 
     def _record_anomaly(self, key, anomaly_type):
         """Record an anomaly occurrence for later reporting.

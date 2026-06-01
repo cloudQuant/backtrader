@@ -6,10 +6,11 @@ Handles real-time data updates and pushes.
 """
 
 import importlib.util
-import logging
 import time
 from enum import Enum
 from threading import Lock, Thread
+
+from backtrader.utils.log_message import get_logger
 
 TORNADO_AVAILABLE = importlib.util.find_spec("tornado") is not None
 
@@ -20,7 +21,7 @@ try:
 except ImportError:
     PANDAS_AVAILABLE = False
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
 class UpdateType(Enum):
@@ -209,6 +210,7 @@ class LiveDataHandler:
             if self._cb_add is not None:
                 self._doc.remove_next_tick_callback(self._cb_add)
         except ValueError:
+            # Callback was already consumed/removed by Bokeh; nothing to undo.
             pass
 
         self._cb_add = self._doc.add_next_tick_callback(self._cb_push_adds)
@@ -222,6 +224,7 @@ class LiveDataHandler:
             if self._cb_patch is not None:
                 self._doc.remove_next_tick_callback(self._cb_patch)
         except ValueError:
+            # Callback was already consumed/removed by Bokeh; nothing to undo.
             pass
 
         self._cb_patch = self._doc.add_next_tick_callback(self._cb_push_patches)
@@ -328,12 +331,14 @@ class LiveDataHandler:
             if self._cb_patch is not None:
                 self._doc.remove_next_tick_callback(self._cb_patch)
         except (ValueError, AttributeError):
+            # Callback already gone or doc detached during shutdown; ignore.
             pass
 
         try:
             if self._cb_add is not None:
                 self._doc.remove_next_tick_callback(self._cb_add)
         except (ValueError, AttributeError):
+            # Callback already gone or doc detached during shutdown; ignore.
             pass
 
         # Wait for thread to finish

@@ -219,5 +219,4 @@ Drawdown is automatically plotted as a subplot.
 
 ## Next Steps
 
-- [Live Trading](../live-trading/ccxt-guide.md) - Real-time trading
 - [Analyzers](analyzers.md) - Performance analysis

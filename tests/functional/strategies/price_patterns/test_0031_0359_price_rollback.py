@@ -1,0 +1,578 @@
+"""Inlined regression test for tests/functional/strategies/price_patterns/regression/0031_0359_price_rollback.
+
+Data Used:
+    - Symbol: XAUUSD, timeframe: M15.
+    - Source file: ``{repo}/tests/datas/XAUUSD_M15.csv``.
+    - Date range: ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    - Data flow: shifted MT5 M15 bars with custom rollover/entry logic.
+
+Strategy Principle:
+    - Captures rollback opportunities using corridor and day-of-week entry filters.
+    - Enters long/short based on the opening/previous close relationship.
+    - Applies stop loss, take profit, trailing stop and time-based forced closes.
+
+Strategy Logic:
+    - ``load_mt5_csv`` loads and cleans MT5 CSV data.
+    - ``resolve_data_path`` validates and resolves the configured file path.
+    - ``load_backtest_frame`` builds the backtest dataframe and date window.
+    - ``add_default_analyzers`` registers Sharpe/return/drawdown/trade/SQN analyzers.
+    - ``build_cerebro`` wires datafeed, strategy, and analyzers.
+    - ``summarize`` extracts analyzer metrics.
+    - ``main`` runs cerebro (forced runonce in test wrapper) and emits summary values.
+"""
+from __future__ import annotations
+import math
+from pathlib import Path
+import argparse
+import datetime
+import backtrader as bt
+import pytest
+from backtrader.utils.load_data import load_config as _bt_load_config, augment_mt5_csv_columns as _augment_mt5_csv_columns, load_mt5_csv as _load_mt5_csv
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and preserve fixture-specific raw columns."""
+    frame = _load_mt5_csv(
+        filepath,
+        fromdate=fromdate,
+        todate=todate,
+        bar_shift_minutes=bar_shift_minutes,
+    )
+    return _augment_mt5_csv_columns(
+        frame,
+        filepath,
+        ("spread",),
+        bar_shift_minutes=bar_shift_minutes,
+    )
+
+_REPO = Path(__file__).resolve().parents[4]
+
+_CONFIG = {
+    'strategy': {
+        'name': 'Price Rollback',
+        'source_ea': 'ea/0359_price_rollback/price_rollback.mq5',
+    },
+    'data': {
+        'symbol': 'XAUUSD',
+        'base_timeframe': 'M15',
+        'file': '{repo}/tests/datas/XAUUSD_M15.csv',
+        'fromdate': '2025-12-03 01:15:00',
+        'todate': '2026-03-10 09:00:00',
+        'bar_shift_minutes': 15,
+        'execution_compression_minutes': 15,
+    },
+    'params': {
+        'fixed_lot': 0.1,
+        'point_size': 0.01,
+        'stoploss_pips': 50,
+        'takeprofit_pips': 50,
+        'trailing_stop_pips': 5,
+        'trailing_step_pips': 5,
+        'corridor_pips': 1,
+        'lookback_bars': 25,
+        'entry_day_of_week': 5,
+        'entry_hour': 0,
+        'entry_minute_max': 3,
+        'forced_close_hour': 22,
+        'forced_close_minute_threshold': 45,
+    },
+    'backtest': {
+        'initial_cash': 1000000,
+        'commission': 0.0,
+        'margin': 0.01,
+        'multiplier': 100.0,
+        'commission_type': 'fixed',
+        'stocklike': False,
+    },
+}
+
+
+class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed exposing spread line in addition to OHLCV columns."""
+    lines = ('spread',)
+    params = (
+        ('datetime', None),
+        ('open', 0),
+        ('high', 1),
+        ('low', 2),
+        ('close', 3),
+        ('volume', 4),
+        ('openinterest', 5),
+        ('spread', 6),
+    )
+
+
+class PriceRollbackStrategy(bt.Strategy):
+    """Price rollback strategy with trailing stop and time-window constraints."""
+    params = dict(
+        fixed_lot=0.1,
+        point_size=0.01,
+        stoploss_pips=50,
+        takeprofit_pips=50,
+        trailing_stop_pips=5,
+        trailing_step_pips=5,
+        corridor_pips=1,
+        lookback_bars=25,
+        entry_day_of_week=5,
+        entry_hour=0,
+        entry_minute_max=3,
+        forced_close_hour=22,
+        forced_close_minute_threshold=45,
+    )
+
+    def __init__(self):
+        """Initialize strategy state for entries, exits, and risk counters."""
+        self.data0_feed = self.datas[0]
+        self.entry_order = None
+        self.close_order = None
+        self.active_side = None
+        self.entry_price = None
+        self.stop_price = None
+        self.limit_price = None
+        self.buy_count = 0
+        self.sell_count = 0
+
+    def log(self, text):
+        """Print strategy event information with timestamp."""
+        dt = bt.num2date(self.data0_feed.datetime[0])
+        print(f'{dt.isoformat()}, {text}')
+
+    def _mql_day_of_week(self, dt):
+        return (dt.weekday() + 1) % 7
+
+    def _minimum_bars(self):
+        return self.p.lookback_bars + 1
+
+    def _reset_exit_levels(self):
+        self.stop_price = None
+        self.limit_price = None
+
+    def _initialize_exit_levels(self, base_price):
+        if base_price is None:
+            return
+        if self.active_side == 'long':
+            self.stop_price = None if self.p.stoploss_pips <= 0 else base_price - self.p.stoploss_pips * self.p.point_size
+            self.limit_price = None if self.p.takeprofit_pips <= 0 else base_price + self.p.takeprofit_pips * self.p.point_size
+        elif self.active_side == 'short':
+            self.stop_price = None if self.p.stoploss_pips <= 0 else base_price + self.p.stoploss_pips * self.p.point_size
+            self.limit_price = None if self.p.takeprofit_pips <= 0 else base_price - self.p.takeprofit_pips * self.p.point_size
+
+    def _submit_close(self, reason):
+        if not self.position or self.close_order is not None:
+            return
+        self.close_order = self.close()
+        self.log(f'CLOSE side={self.active_side} reason={reason}')
+
+    def _submit_entry(self, side, reason, base_price):
+        if self.entry_order is not None or self.close_order is not None or self.position:
+            return
+        size = max(0.01, float(self.p.fixed_lot))
+        self.active_side = side
+        self.entry_price = None
+        self._initialize_exit_levels(base_price)
+        if side == 'long':
+            self.entry_order = self.buy(size=size)
+            self.buy_count += 1
+            self.log(f'OPEN LONG size={size} signal_base={base_price:.5f} reason={reason}')
+        else:
+            self.entry_order = self.sell(size=size)
+            self.sell_count += 1
+            self.log(f'OPEN SHORT size={size} signal_base={base_price:.5f} reason={reason}')
+
+    def _check_exit_thresholds(self):
+        if not self.position or self.close_order is not None:
+            return False
+        bar_high = float(self.data0_feed.high[0])
+        bar_low = float(self.data0_feed.low[0])
+        if self.position.size > 0:
+            if self.stop_price is not None and bar_low <= self.stop_price:
+                self._submit_close(f'stop loss hit @{self.stop_price:.5f}')
+                return True
+            if self.limit_price is not None and bar_high >= self.limit_price:
+                self._submit_close(f'take profit hit @{self.limit_price:.5f}')
+                return True
+        else:
+            if self.stop_price is not None and bar_high >= self.stop_price:
+                self._submit_close(f'stop loss hit @{self.stop_price:.5f}')
+                return True
+            if self.limit_price is not None and bar_low <= self.limit_price:
+                self._submit_close(f'take profit hit @{self.limit_price:.5f}')
+                return True
+        return False
+
+    def _update_trailing(self):
+        if not self.position or self.p.trailing_stop_pips <= 0 or self.entry_price is None:
+            return
+        trail_distance = self.p.trailing_stop_pips * self.p.point_size
+        trail_gate = (self.p.trailing_stop_pips + self.p.trailing_step_pips) * self.p.point_size
+        close_price = float(self.data0_feed.close[0])
+        if self.position.size > 0:
+            if close_price - self.entry_price > trail_gate:
+                candidate = close_price - trail_distance
+                if self.stop_price is None or candidate > self.stop_price + 1e-12:
+                    self.stop_price = candidate
+                    self.log(f'UPDATE LONG TRAIL stop={self.stop_price:.5f}')
+        else:
+            if self.entry_price - close_price > trail_gate:
+                candidate = close_price + trail_distance
+                if self.stop_price is None or candidate < self.stop_price - 1e-12:
+                    self.stop_price = candidate
+                    self.log(f'UPDATE SHORT TRAIL stop={self.stop_price:.5f}')
+
+    def next(self):
+        """Evaluate session, corridor, and position transitions on each bar."""
+        if len(self.data0_feed) < self._minimum_bars():
+            return
+        dt = bt.num2date(self.data0_feed.datetime[0])
+        if dt.hour == self.p.forced_close_hour and dt.minute > self.p.forced_close_minute_threshold:
+            self._submit_close('late session forced close')
+            return
+        if self._check_exit_thresholds():
+            return
+        self._update_trailing()
+        if self.entry_order is not None or self.close_order is not None or self.position:
+            return
+        if self._mql_day_of_week(dt) != self.p.entry_day_of_week:
+            return
+        if dt.hour != self.p.entry_hour or dt.minute > self.p.entry_minute_max:
+            return
+        base_open = float(self.data0_feed.open[0])
+        reference_open = float(self.data0_feed.open[-(self.p.lookback_bars - 1)])
+        previous_close = float(self.data0_feed.close[-1])
+        corridor = self.p.corridor_pips * self.p.point_size
+        opcl = reference_open - previous_close
+        clop = previous_close - reference_open
+        if opcl > corridor:
+            self._submit_entry('long', 'rollback corridor buy setup', base_open)
+        elif clop > corridor:
+            self._submit_entry('short', 'rollback corridor sell setup', base_open)
+
+    def notify_order(self, order):
+        """Track pending order lifecycle and reset state when orders complete."""
+        if order.status in [order.Submitted, order.Accepted]:
+            return
+        if order.status == order.Completed:
+            if order == self.entry_order:
+                self.entry_price = order.executed.price
+                self.log(f'ENTRY FILLED side={self.active_side} price={order.executed.price:.5f} size={order.executed.size}')
+                self.entry_order = None
+            elif order == self.close_order:
+                self.log(f'CLOSE FILLED price={order.executed.price:.5f} size={order.executed.size}')
+                self.close_order = None
+                self.active_side = None
+                self.entry_price = None
+                self._reset_exit_levels()
+        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+            if order == self.entry_order:
+                self.entry_order = None
+            elif order == self.close_order:
+                self.close_order = None
+
+    def notify_trade(self, trade):
+        """Log closed trades and clear strategy state."""
+        if not trade.isclosed:
+            return
+        self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
+        if not self.position:
+            self.active_side = None
+            self.entry_price = None
+            self._reset_exit_levels()
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
+MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
+
+
+def resolve_data_path(filename):
+    """Resolve and validate configured data filename.
+
+    Args:
+        filename: Relative or absolute filename from config.
+
+    Returns:
+        Absolute resolved path.
+    """
+    path = (BASE_DIR / filename).resolve()
+    if not path.exists():
+        raise FileNotFoundError(f'Data file not found: {path}')
+    return path
+
+
+def parse_dt(value):
+    """Parse ISO datetime string into ``datetime`` object.
+
+    Args:
+        value: Input string in ISO format, or falsy value.
+
+    Returns:
+        ``datetime`` instance or ``None``.
+    """
+    if not value:
+        return None
+    return datetime.datetime.fromisoformat(value)
+
+
+def load_backtest_frame(config):
+    """Load and prepare backtest frame from configured source and dates.
+
+    Args:
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Prepared frame dict with dataframe.
+    """
+    data_cfg = config['data']
+    fromdate = parse_dt(data_cfg.get('fromdate'))
+    todate = parse_dt(data_cfg.get('todate'))
+    df = load_mt5_csv(resolve_data_path(data_cfg['file']), fromdate=fromdate, todate=todate, bar_shift_minutes=data_cfg.get('bar_shift_minutes', 0))
+    if df.empty:
+        raise ValueError('Loaded data frame is empty')
+    print(f'Loaded {len(df)} bars: {df.index[0]} -> {df.index[-1]}')
+    return {'data': df}
+
+
+def add_default_analyzers(cerebro):
+    """Attach analyzer suite used by this regression test.
+
+    Args:
+        cerebro: Configured Backtrader engine.
+    """
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
+    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+    cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
+
+
+def build_cerebro(config, frame):
+    """Create and configure ``bt.Cerebro`` for the rollback strategy.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Backtest payload.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
+    bt_cfg = config['backtest']
+    data_cfg = config['data']
+    cerebro = bt.Cerebro(stdstats=True)
+    cerebro.broker.setcash(bt_cfg['initial_cash'])
+    comm_type = bt.CommInfoBase.COMM_FIXED if bt_cfg.get('commission_type', 'fixed') == 'fixed' else bt.CommInfoBase.COMM_PERC
+    cerebro.broker.setcommission(commission=bt_cfg['commission'], margin=bt_cfg['margin'], mult=bt_cfg['multiplier'], commtype=comm_type, stocklike=bt_cfg.get('stocklike', False))
+    feed = Mt5PandasFeed(dataname=frame['data'], timeframe=bt.TimeFrame.Minutes, compression=data_cfg.get('execution_compression_minutes', 15))
+    cerebro.adddata(feed, name=f"{data_cfg['symbol']}_{data_cfg['base_timeframe']}")
+    cerebro.addstrategy(PriceRollbackStrategy, **config.get('params', {}))
+    add_default_analyzers(cerebro)
+    return cerebro
+
+
+def finite_or_none(value):
+    """Convert invalid numeric values to ``None`` while preserving valid data."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and not math.isfinite(value):
+        return None
+    return value
+
+
+def summarize(results, start_value):
+    """Collect and print summary metrics from analyzer output.
+
+    Args:
+        results: Cerebro run results.
+        start_value: Starting portfolio value.
+    """
+    strat = results[0]
+    end_value = strat.broker.getvalue()
+    drawdown = strat.analyzers.drawdown.get_analysis()
+    returns = strat.analyzers.returns.get_analysis()
+    sharpe = strat.analyzers.sharpe.get_analysis()
+    sqn = strat.analyzers.sqn.get_analysis()
+    trades = strat.analyzers.trades.get_analysis()
+    total_closed = trades.get('total', {}).get('closed', 0)
+    won = trades.get('won', {}).get('total', 0)
+    lost = trades.get('lost', {}).get('total', 0)
+    strike_rate = (won / total_closed * 100.0) if total_closed else 0.0
+    print('\n# Backtest Summary')
+    print(f'- Start Value: {start_value:.2f}')
+    print(f'- End Value: {end_value:.2f}')
+    print(f'- Net PnL: {end_value - start_value:.2f}')
+    print(f'- Max Drawdown: {drawdown.get("max", {}).get("drawdown", 0.0):.2f}%')
+    print(f'- Total Closed Trades: {total_closed}')
+    print(f'- Won Trades: {won}')
+    print(f'- Lost Trades: {lost}')
+    print(f'- Strike Rate: {strike_rate:.2f}%')
+    print(f'- Buy Entries: {strat.buy_count}')
+    print(f'- Sell Entries: {strat.sell_count}')
+    print(f'- Sharpe: {finite_or_none(sharpe.get("sharperatio"))}')
+    print(f'- SQN: {finite_or_none(sqn.get("sqn"))}')
+    print(f'- Total Return: {returns.get("rtot", 0.0):.6f}')
+
+
+def main():
+    """Run the rollback strategy backtest and print summary."""
+    parser = argparse.ArgumentParser(description='Run Price Rollback backtest')
+    parser.add_argument('--plot', action='store_true', help='Plot result chart')
+    args = parser.parse_args()
+    config = _bt_load_config(_CONFIG, repo=_REPO)
+    frame = load_backtest_frame(config)
+    cerebro = build_cerebro(config, frame)
+    start_value = cerebro.broker.getvalue()
+    results = cerebro.run(runonce=False)
+    summarize(results, start_value)
+    if args.plot:
+        cerebro.plot(style='candlestick')
+
+
+def _close(actual, expected, *, tol, key):
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    assert actual is not None, f"{key}: expected={expected}, got=None"
+    a = float(actual)
+    assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
+    assert abs(a - float(expected)) <= tol, (
+        f"{key}: expected={expected}, got={a} (tol={tol})"
+    )
+
+
+def test_31_0031_0359_price_rollback() -> None:
+    """Migrated regression test (runonce=True only).
+
+    Originally located at tests/functional/strategies_regression/price_patterns/0031_0359_price_rollback.
+    """
+    captured = {}
+
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+
+    # Hook any plausible metrics-extraction function (returns a dict).
+    _hook_targets = []
+    _metric_names = (
+        "extract_metrics", "build_metrics", "compute_metrics",
+        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
+    )
+    for _name in _metric_names:
+        _orig = getattr(_mod, _name, None)
+        if callable(_orig):
+            def _make_hook(orig):
+                def _hook(*a, **kw):
+                    m = orig(*a, **kw)
+                    if isinstance(m, dict) and m and "extracted" not in captured:
+                        captured["extracted"] = m
+                    return m
+                return _hook
+            setattr(_mod, _name, _make_hook(_orig))
+            _hook_targets.append((_name, _orig))
+
+    # Hook cerebro.run() to (a) force runonce=True and (b) capture results
+    # so we can derive metrics directly from analyzers when no extractor returns a dict.
+    import backtrader as _bt
+    _orig_run = _bt.Cerebro.run
+    def _hooked_cerebro_run(self, *args, **kwargs):
+        kwargs["runonce"] = True
+        _r = _orig_run(self, *args, **kwargs)
+        captured["cerebro"] = self
+        captured["results"] = _r
+        try:
+            captured["initial_cash"] = float(self.broker.startingcash)
+        except Exception:
+            pass
+        return _r
+    _bt.Cerebro.run = _hooked_cerebro_run
+
+    # Strip pytest argv so argparse-based main() functions don't see them.
+    _saved_argv = _sys.argv
+    _sys.argv = [_sys.argv[0]]
+
+    try:
+        try:
+            if hasattr(_mod, "main") and callable(_mod.main):
+                _mod.main()
+            elif hasattr(_mod, "run") and callable(_mod.run):
+                result = _mod.run()
+                if isinstance(result, dict) and "extracted" not in captured:
+                    captured["extracted"] = result
+                elif isinstance(result, (list, tuple)):
+                    for item in result:
+                        if isinstance(item, dict) and "extracted" not in captured:
+                            captured["extracted"] = item
+                            break
+            else:
+                raise RuntimeError("Neither main() nor run() found in inlined module")
+        except SystemExit:
+            pass
+        except Exception:
+            if "cerebro" not in captured:
+                raise
+    finally:
+        _bt.Cerebro.run = _orig_run
+        for _name, _orig in _hook_targets:
+            setattr(_mod, _name, _orig)
+        _sys.argv = _saved_argv
+
+    metrics = captured.get("extracted")
+    if metrics is None:
+        # Derive from cerebro/analyzers
+        cerebro = captured.get("cerebro")
+        results = captured.get("results") or []
+        assert cerebro is not None and results, "no metrics or cerebro captured"
+        strat = results[0] if not isinstance(results[0], list) else results[0][0]
+        metrics = {}
+        metrics["final_value"] = float(cerebro.broker.getvalue())
+        if "initial_cash" in captured:
+            metrics["initial_cash"] = captured["initial_cash"]
+        analyzers = getattr(strat, "analyzers", None)
+        if analyzers is not None:
+            for name in dir(analyzers):
+                if name.startswith("_"):
+                    continue
+                try:
+                    an = getattr(analyzers, name)
+                    analysis = an.get_analysis()
+                except Exception:
+                    continue
+                if "sharperatio" in analysis and "sharpe_ratio" not in metrics:
+                    metrics["sharpe_ratio"] = analysis.get("sharperatio")
+                if "rnorm" in analysis and "annual_return" not in metrics:
+                    metrics["annual_return"] = analysis.get("rnorm")
+                if "rtot" in analysis and "return_rate" not in metrics:
+                    metrics["return_rate"] = analysis.get("rtot")
+                if "max" in analysis and isinstance(analysis["max"], dict) and "drawdown" in analysis["max"] and "max_drawdown" not in metrics:
+                    metrics["max_drawdown"] = analysis["max"]["drawdown"]
+                if "sqn" in analysis and "sqn" not in metrics:
+                    metrics["sqn"] = analysis.get("sqn")
+                if "total" in analysis and isinstance(analysis["total"], dict) and "total_trades" not in metrics:
+                    metrics["total_trades"] = analysis["total"].get("closed", analysis["total"].get("total", 0))
+                    metrics["trade_num"] = metrics.get("total_trades", 0)
+                if "won" in analysis and isinstance(analysis["won"], dict) and "win_count" not in metrics:
+                    metrics["win_count"] = analysis["won"].get("total", 0)
+                if "lost" in analysis and isinstance(analysis["lost"], dict) and "loss_count" not in metrics:
+                    metrics["loss_count"] = analysis["lost"].get("total", 0)
+        for attr in ("bar_num", "buy_count", "sell_count", "rebalance_count"):
+            if hasattr(strat, attr) and attr not in metrics:
+                metrics[attr] = getattr(strat, attr)
+
+    assert metrics, "no metrics derived"
+
+    assert metrics.get('buy_count') == 5, f"buy_count: expected=5, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 6, f"sell_count: expected=6, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 6, f"win_count: expected=6, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 5, f"loss_count: expected=5, got={metrics.get('loss_count')!r}"
+    assert metrics.get('trade_num') == 11, f"trade_num: expected=11, got={metrics.get('trade_num')!r}"
+    assert metrics.get('total_trades') == 11, f"total_trades: expected=11, got={metrics.get('total_trades')!r}"
+    _close(metrics.get('final_value'), 999368.2000000002, tol=9.993682e-01, key='final_value')
+    _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
+    _close(metrics.get('max_drawdown'), 0.07320778912475445, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('annual_return'), -0.13346085521250595, tol=1.000000e-06, key='annual_return')
+    _close(metrics.get('return_rate'), -0.0006319996697251668, tol=1.000000e-06, key='return_rate')
+    _close(metrics.get('sharpe_ratio'), -9.944225838934543, tol=9.944226e-06, key='sharpe_ratio')
+    _close(metrics.get('sqn'), -1.4034247295150366, tol=1.403425e-06, key='sqn')
+    _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
+    _activity = (
+        _total_trades
+        or (metrics.get("buy_count") or 0)
+        or (metrics.get("sell_count") or 0)
+        or (metrics.get("rebalance_count") or 0)
+    )
+    assert _activity > 0, f"strategy must have non-zero activity, got metrics={metrics!r}"

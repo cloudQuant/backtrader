@@ -8,6 +8,9 @@ Records data during strategy execution for subsequent plotting or analysis.
 from collections import OrderedDict
 
 import backtrader as bt
+from backtrader.utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class RecorderAnalyzer(bt.Analyzer):
@@ -43,7 +46,7 @@ class RecorderAnalyzer(bt.Analyzer):
         super().__init__()
 
         # Data storage
-        self._data = OrderedDict()
+        self._data: dict = OrderedDict()
 
         # Initialize data source storage
         for i, data in enumerate(self.strategy.datas):
@@ -67,11 +70,22 @@ class RecorderAnalyzer(bt.Analyzer):
 
     def start(self):
         """Analyzer start."""
-        pass
 
     def next(self):
         """Record data for each bar."""
         # Record data sources
+        self._record_datas()
+
+        # Record indicators (IndType = 1)
+        if self.p.indicators and hasattr(self.strategy, "_lineiterators"):
+            self._record_lineiterators(self._indicators, 1)
+
+        # Record observers (ObsType = 2)
+        if self.p.observers and hasattr(self.strategy, "_lineiterators"):
+            self._record_lineiterators(self._observers, 2)
+
+    def _record_datas(self):
+        """Append the current OHLCV bar for each data feed into self._data."""
         for i, data in enumerate(self.strategy.datas):
             name = getattr(data, "_name", f"data{i}")
 
@@ -85,54 +99,33 @@ class RecorderAnalyzer(bt.Analyzer):
                     self._data[name]["volume"].append(
                         data.volume[0] if hasattr(data, "volume") else 0
                     )
+                except Exception as e:
+                    logger.debug("Failed to record data '%s': %s", name, e)
+
+    def _record_lineiterators(self, store, ltype):
+        """Append the current value of every line of each line-iterator of the
+        given type (1=indicators, 2=observers) into ``store`` keyed by class
+        name. Shared by the indicator and observer recording paths."""
+        for obj in self.strategy._lineiterators.get(ltype, []):
+            obj_name = obj.__class__.__name__
+
+            if obj_name not in store:
+                store[obj_name] = OrderedDict()
+                # Initialize line storage
+                for line_name in obj.lines._getlinealiases():
+                    store[obj_name][line_name] = []
+
+            # Record value for each line
+            for line_name in obj.lines._getlinealiases():
+                try:
+                    line = getattr(obj.lines, line_name)
+                    value = line[0] if len(line) > 0 else None
+                    store[obj_name][line_name].append(value)
                 except Exception:
-                    pass
-
-        # Record indicators
-        if self.p.indicators and hasattr(self.strategy, "_lineiterators"):
-            indicators = self.strategy._lineiterators.get(1, [])  # IndType = 1
-
-            for ind in indicators:
-                ind_name = ind.__class__.__name__
-
-                if ind_name not in self._indicators:
-                    self._indicators[ind_name] = OrderedDict()
-                    # Initialize line storage
-                    for line_name in ind.lines._getlinealiases():
-                        self._indicators[ind_name][line_name] = []
-
-                # Record value for each line
-                for line_name in ind.lines._getlinealiases():
-                    try:
-                        line = getattr(ind.lines, line_name)
-                        value = line[0] if len(line) > 0 else None
-                        self._indicators[ind_name][line_name].append(value)
-                    except Exception:
-                        self._indicators[ind_name][line_name].append(None)
-
-        # Record observers
-        if self.p.observers and hasattr(self.strategy, "_lineiterators"):
-            observers = self.strategy._lineiterators.get(2, [])  # ObsType = 2
-
-            for obs in observers:
-                obs_name = obs.__class__.__name__
-
-                if obs_name not in self._observers:
-                    self._observers[obs_name] = OrderedDict()
-                    for line_name in obs.lines._getlinealiases():
-                        self._observers[obs_name][line_name] = []
-
-                for line_name in obs.lines._getlinealiases():
-                    try:
-                        line = getattr(obs.lines, line_name)
-                        value = line[0] if len(line) > 0 else None
-                        self._observers[obs_name][line_name].append(value)
-                    except Exception:
-                        self._observers[obs_name][line_name].append(None)
+                    store[obj_name][line_name].append(None)
 
     def stop(self):
         """Analyzer stop."""
-        pass
 
     def get_analysis(self):
         """Return recorded data.

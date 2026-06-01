@@ -8,13 +8,14 @@ Classic Donchian Channel breakout strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import backtrader as bt
 
 import datetime
 import os
 from pathlib import Path
 
 import pandas as pd
-import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -42,37 +43,6 @@ def resolve_data_path(filename: str) -> Path:
         if p.exists():
             return p
     raise FileNotFoundError(f"Cannot find data file: {filename}")
-
-
-class DonchianChannelIndicator(bt.Indicator):
-    """Donchian Channel indicator.
-
-    The Donchian Channel is a trend-following indicator that calculates
-    the highest high and lowest low over a specified period.
-
-    Attributes:
-        dch: Donchian Channel High (upper band) - highest high over period.
-        dcl: Donchian Channel Low (lower band) - lowest low over period.
-        dcm: Donchian Channel Middle (middle band) - average of upper and lower.
-
-    Parameters:
-        period: Number of bars to use for calculating the channel (default: 20).
-    """
-    lines = ('dch', 'dcl', 'dcm')
-    params = dict(period=20)
-
-    def __init__(self):
-        """Initialize the Donchian Channel indicator.
-
-        Sets up the three channel lines using the Highest and Lowest indicators:
-        - Upper channel (dch): Highest high over the period
-        - Lower channel (dcl): Lowest low over the period
-        - Middle channel (dcm): Average of upper and lower channels
-        """
-        self.lines.dch = bt.indicators.Highest(self.data.high, period=self.p.period)
-        self.lines.dcl = bt.indicators.Lowest(self.data.low, period=self.p.period)
-        self.lines.dcm = (self.lines.dch + self.lines.dcl) / 2
-
 
 class DonchianChannelStrategy(bt.Strategy):
     """Donchian Channel breakout strategy.
@@ -108,7 +78,7 @@ class DonchianChannelStrategy(bt.Strategy):
         orders and statistics.
         """
         self.dataclose = self.datas[0].close
-        self.indicator = DonchianChannelIndicator(self.datas[0], period=self.p.period)
+        self.indicator = bt.indicators.DonchianChannelIndicator(self.datas[0], period=self.p.period)
 
         self.order = None
         self.last_operation = "SELL"
@@ -169,7 +139,8 @@ class DonchianChannelStrategy(bt.Strategy):
         pass
 
 
-def test_donchian_channel_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_donchian_channel_strategy(runonce):
     """Test the Donchian Channel strategy.
 
     This test function runs a backtest of the Donchian Channel strategy
@@ -206,12 +177,15 @@ def test_donchian_channel_strategy():
     cerebro.broker.setcommission(commission=0.001)
 
     # Add analyzers
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name='sharpe',
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

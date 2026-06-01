@@ -176,15 +176,45 @@ class VWR(TimeFrameAnalyzerBase):
         # skip initial placeholders for synchronization
         # Calculate return for each period (usually yearly, then save to dts)
         dts = []
+        invalid_input = False
         for n, pipn in enumerate(zip(self._pis, self._pns), 1):
             pi, pn = pipn
-            # print(n,pi,pn,pipn,ravg,rs)
-            dt = pn / (pi * math.exp(ravg * n)) - 1.0
+            try:
+                dt = pn / (pi * math.exp(ravg * n)) - 1.0
+                if isinstance(dt, complex) or not math.isfinite(dt):
+                    invalid_input = True
+                    dt = 0.0
+            except (ZeroDivisionError, TypeError, ValueError, OverflowError):
+                invalid_input = True
+                dt = 0.0
+            if not math.isfinite(dt):
+                invalid_input = True
+                dt = 0.0
             dts.append(dt)
         # Calculate standard deviation of annual returns
         sdev_p = standarddev(dts, bessel=True)
         # Calculate VWR value
-        vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
+        try:
+            invalid_output = (
+                invalid_input
+                or isinstance(sdev_p, complex)
+                or not math.isfinite(sdev_p)
+                or isinstance(rnorm100, complex)
+                or not math.isfinite(rnorm100)
+            )
+        except TypeError:
+            invalid_output = True
+        if invalid_output:
+            vwr = 0.0
+        elif self.p.sdev_max:
+            try:
+                vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
+                if isinstance(vwr, complex) or not math.isfinite(vwr):
+                    vwr = 0.0
+            except (ZeroDivisionError, TypeError, ValueError, OverflowError):
+                vwr = 0.0
+        else:
+            vwr = 0.0
         self.rets["vwr"] = vwr
 
     # Fund notification
