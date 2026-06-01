@@ -17,6 +17,7 @@ Example:
 """
 
 import datetime as dt
+from typing import Any, Iterator, Optional
 
 from ..dataseries import TimeFrame
 from ..feed import DataBase
@@ -31,7 +32,7 @@ try:
 except Exception:  # pragma: no cover - optional dependency, handled at runtime
     idbclient = None
 
-    class InfluxDBClientError(Exception):
+    class InfluxDBClientError(Exception):  # type: ignore[no-redef]
         """Exception raised for InfluxDB client errors."""
 
 
@@ -77,7 +78,7 @@ class InfluxDB(DataBase):
 
     def __init__(self):
         """Initialize the InfluxDB data feed."""
-        self.biter = None
+        self.biter: Optional[Iterator[Any]] = None
         self.ndb = None
 
     def start(self):
@@ -138,6 +139,8 @@ class InfluxDB(DataBase):
 
     def _load(self):
         # Try to get next bar data, then add to line
+        if self.biter is None:
+            return False
         try:
             bar = next(self.biter)
         except StopIteration:

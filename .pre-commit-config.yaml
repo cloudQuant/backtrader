@@ -49,6 +49,20 @@ repos:
         name: Fix mixed line endings
         args: [--fix=lf]
 
+  # Security scanning (iter12 T-3): shift the CI bandit gate left.
+  # Mirrors CI's "Medium/High blocking" policy (bandit -ll) and reuses the
+  # pyproject.toml [tool.bandit] skips/exclude_dirs. Low findings stay
+  # non-blocking here (handled by the CI Low watchdog).
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.6
+    hooks:
+      - id: bandit
+        name: bandit-security-scan
+        description: Scan backtrader/ for Medium/High security issues
+        args: ["-c", "pyproject.toml", "-r", "-ll"]
+        files: ^backtrader/
+        exclude: ^(tests/|crypto_tests/)
+
 # Configuration for specific tools
 default_language_version:
   python: python3.11

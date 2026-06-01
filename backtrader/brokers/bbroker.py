@@ -248,7 +248,8 @@ class BackBroker(BrokerBase):
         cases in which this is undesired, because different strategies are
         competing and the interest would be assigned on a non-deterministic
         basis to any of them.
-        # int2pnl, default is True. TODO: Understand literally as transferring generated interest costs to pnl
+        ``int2pnl`` defaults to True, meaning generated interest cost is
+        transferred to the PnL of the position-reducing operation.
 
       - ``shortcash`` (default: ``True``)
 
