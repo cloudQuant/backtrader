@@ -335,8 +335,10 @@ class TradeLogger(Observer):
             # No attribute named `key`; try the dict-style .get() path below.
             pass
         except Exception:
-            # Attribute access raised unexpectedly; fall back to .get() below.
-            pass
+            # Attribute access raised unexpectedly; this is a best-effort read
+            # for logging only, so fall back to the .get() path below. Logged
+            # at debug to keep the failure visible without breaking logging.
+            logger.debug("order.info attribute read failed for key %r", key, exc_info=True)
 
         get_method = getattr(info, "get", None)
         if callable(get_method):

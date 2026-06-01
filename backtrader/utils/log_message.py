@@ -88,8 +88,10 @@ def _remove_managed_handlers(logger):
             logger.removeHandler(handler)
             try:
                 handler.close()
-            except Exception:
-                # Handler may already be closed; closing is best-effort cleanup.
+            except Exception:  # nosec B110
+                # Handler may already be closed; closing is best-effort cleanup
+                # during logging reconfiguration. Logging here could recurse
+                # into the handler being torn down, so stay silent.
                 pass
 
 

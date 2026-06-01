@@ -1458,6 +1458,43 @@ class BtApiStore(LiveStoreBase):
         """Return whether the store is connected and ready."""
         return self._connected
 
+    # Credential keys that must never appear in repr/str/logs in cleartext.
+    _SENSITIVE_KEYS = frozenset(
+        {"password", "passwd", "auth_code", "secret", "token", "api_secret", "private_key"}
+    )
+
+    def __repr__(self) -> str:
+        """Return a repr with credential fields masked.
+
+        The store keeps live-trading credentials (e.g. CTP ``password`` and
+        ``auth_code``) inside ``_api_kwargs``/``_config``. A naive repr would
+        leak them into logs, tracebacks and debugger output, so this method
+        masks any sensitive key before rendering.
+        """
+        return (
+            f"{type(self).__name__}(provider={self.provider!r}, "
+            f"connected={self._connected}, started={self._started}, "
+            f"account={self._masked_account_id()!r})"
+        )
+
+    __str__ = __repr__
+
+    @classmethod
+    def _mask_sensitive(cls, mapping: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Return a copy of ``mapping`` with sensitive credential values masked.
+
+        Use this whenever store kwargs/config need to be logged or surfaced for
+        debugging so that secrets such as ``password`` and ``auth_code`` are
+        never written out in cleartext.
+        """
+        safe: Dict[str, Any] = {}
+        for key, value in (mapping or {}).items():
+            if str(key).lower() in cls._SENSITIVE_KEYS:
+                safe[key] = "***"
+            else:
+                safe[key] = value
+        return safe
+
     def start(self, data=None, broker=None):
         """Start the store and attach broker/feed instances."""
         if data is not None and data not in self._data_feeds:

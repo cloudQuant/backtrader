@@ -322,7 +322,7 @@ def patch_strategy_clk_update():
     except ImportError:
         # Silently ignore - Strategy already has _clk_update method
         pass
-    except Exception:
+    except Exception:  # nosec B110
         # Silently ignore - Strategy already has _clk_update method
         pass
 
@@ -1944,7 +1944,7 @@ def _initialize_indicator_aliases():
                         if hasattr(attr, "plotlines") and isinstance(attr.plotlines, dict):
                             _convert_plotlines_dict_to_object(attr)
 
-                except Exception:
+                except Exception:  # nosec B112
                     continue
 
         # CRITICAL FIX: Patch specific indicator classes that are known to be problematic
@@ -1985,7 +1985,7 @@ def _initialize_indicator_aliases():
                         ):
                             _convert_plotlines_dict_to_object(attr_value)
 
-                    except Exception:
+                    except Exception:  # nosec B112
                         continue
 
     except Exception as e:

@@ -1699,7 +1699,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 if hasattr(arg, "once") and hasattr(arg, "array") and len(arg.array) < end:
                     try:
                         arg.once(0, end)
-                    except Exception:
+                    except Exception:  # nosec B110
                         # Operand may already be computed or not once()-able; continue.
                         pass
         if hasattr(self, "cond"):
@@ -1707,7 +1707,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             if hasattr(cond, "once") and hasattr(cond, "array") and len(cond.array) < end:
                 try:
                     cond.once(0, end)
-                except Exception:
+                except Exception:  # nosec B110
                     # Condition may already be computed or not once()-able; continue.
                     pass
 
@@ -2262,7 +2262,7 @@ class LinesOperation(LineActions):
                 target_len = len(operand) + ago
                 if target_len < minperiod:
                     return float("nan")
-            except Exception:
+            except Exception:  # nosec B110
                 # Operand without a usable length; skip the warmup guard.
                 pass
 
@@ -2288,7 +2288,7 @@ class LinesOperation(LineActions):
             try:
                 if len(clock) <= len(operand):
                     return
-            except Exception:
+            except Exception:  # nosec B110
                 # Clock without a comparable length; advance the operand anyway.
                 pass
 
@@ -2376,7 +2376,7 @@ class LinesOperation(LineActions):
             try:
                 if len(clock) <= len(self):
                     return
-            except Exception:
+            except Exception:  # nosec B110
                 # Clock without a comparable length; proceed to advance operands.
                 pass
 

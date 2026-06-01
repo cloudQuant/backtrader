@@ -148,7 +148,7 @@ class Indicator(IndicatorBase):
                             for indicators in old_lists.values():
                                 while self in indicators:
                                     indicators.remove(self)
-                        except Exception:
+                        except Exception:  # nosec B110
                             # Best-effort detach from a previous owner; ignore failures.
                             pass
                         self._owner = parent_owner

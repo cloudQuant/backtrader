@@ -341,7 +341,11 @@ class BacktraderBokeh:
 
                     try:
                         dt = num2date(exec_dt)
-                    except Exception:
+                    except Exception:  # nosec B112
+                        # Skip orders whose executed datetime cannot be decoded
+                        # (e.g. uninitialised/NaN). Plot-only path; logging per
+                        # order would be noisy. No control-flow change.
+                        logger.debug("skip order: bad executed dt %r", exec_dt, exc_info=True)
                         continue
 
                     # Find the corresponding DataFrame row

@@ -44,7 +44,7 @@ def _clock_is_replaying(clock, seen=None):
     try:
         if bool(getattr(clock, "replaying", False)):
             return True
-    except Exception:
+    except Exception:  # nosec B110
         # Non-clock object without a usable 'replaying' flag; treat as not replaying.
         pass
 
@@ -89,7 +89,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         if cache_result and result is not None:
             try:
                 lineaction._lineaction_source_clock_cache = result
-            except Exception:
+            except Exception:  # nosec B110
                 # Object rejects attribute caching (e.g. __slots__); skip caching.
                 pass
         return result
@@ -1716,7 +1716,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 source_clock = _line_like_source_clock(self.datas[0])
                 if source_clock is not None:
                     self._clock = source_clock
-        except Exception:
+        except Exception:  # nosec B110
             # Clock resolution is best-effort here; keep the existing clock.
             pass
 
@@ -1871,7 +1871,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 try:
                     if len(data_clock) <= len(data):
                         continue
-                except Exception:
+                except Exception:  # nosec B110
                     # Clock/data without comparable length; fall through and advance.
                     pass
 
@@ -2729,7 +2729,7 @@ class StrategyBase(DataAccessor):
                             ltype = getattr(attr_value, "_ltype", 0)
                             if attr_value not in self._lineiterators[ltype]:
                                 self._lineiterators[ltype].append(attr_value)
-        except Exception:
+        except Exception:  # nosec B110
             # Silently ignore - this is just a safety check
             pass
 

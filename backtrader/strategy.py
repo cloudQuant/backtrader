@@ -612,14 +612,19 @@ class Strategy(StrategyBase):
                     if len(clock) <= len(lineaction):
                         try:
                             current_value = lineaction[0]
-                        except Exception:
+                        except Exception:  # nosec B112
+                            # Per-bar hot path: the line buffer may not be
+                            # populated yet for this index. Skipping is the
+                            # intended behaviour; logging here would fire every
+                            # bar. No control-flow change.
                             continue
                         if current_value == current_value:
                             continue
                         lineaction.next()
                         continue
-                except Exception:
-                    # Clock/value comparison unavailable; fall back to plain _next().
+                except Exception:  # nosec B110
+                    # Clock/value comparison unavailable; fall back to plain
+                    # _next(). Hot path, intentionally silent (no logging).
                     pass
 
             lineaction._next()

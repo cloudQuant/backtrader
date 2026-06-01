@@ -125,7 +125,7 @@ class Logic(LineActions):
             try:
                 if len(clock) <= len(self):
                     return
-            except Exception:
+            except Exception:  # nosec B110
                 # Clock without a comparable length; proceed to advance below.
                 pass
 
@@ -519,7 +519,7 @@ class If(Logic):
         if hasattr(self.cond, "once") and len(getattr(self.cond, "array", [])) < end:
             try:
                 self.cond.once(start, end)
-            except Exception:
+            except Exception:  # nosec B110
                 # Operand already (partially) computed or not once()-able; continue.
                 pass
 
@@ -527,7 +527,7 @@ class If(Logic):
         if hasattr(self.a, "once") and len(getattr(self.a, "array", [])) < end:
             try:
                 self.a.once(start, end)
-            except Exception:
+            except Exception:  # nosec B110
                 # Operand already (partially) computed or not once()-able; continue.
                 pass
 
@@ -542,7 +542,7 @@ class If(Logic):
             else:
                 try:
                     self.b.once(start, end)
-                except Exception:
+                except Exception:  # nosec B110
                     # Operand already (partially) computed or not once()-able; continue.
                     pass
 
@@ -558,7 +558,7 @@ class If(Logic):
             try:
                 a_constant_val = self.a[0]
                 a_is_constant = True
-            except Exception:
+            except Exception:  # nosec B110
                 # 'a' is neither array-backed nor a constant scalar; leave defaults.
                 pass
 
@@ -670,7 +670,7 @@ class If(Logic):
                 try:
                     a_constant_val = self.a[0]
                     a_is_constant = True
-                except Exception:
+                except Exception:  # nosec B110
                     # 'a' has an empty array and no scalar value; not a constant.
                     pass
         except (AttributeError, TypeError):
@@ -679,7 +679,7 @@ class If(Logic):
             try:
                 a_constant_val = self.a[0]
                 a_is_constant = True
-            except Exception:
+            except Exception:  # nosec B110
                 # 'a' is neither array-backed nor a scalar constant.
                 pass
 
@@ -692,7 +692,7 @@ class If(Logic):
                 try:
                     b_constant_val = self.b[0]
                     b_is_constant = True
-                except Exception:
+                except Exception:  # nosec B110
                     # 'b' has an empty array and no scalar value; not a constant.
                     pass
         except (AttributeError, TypeError):
@@ -701,7 +701,7 @@ class If(Logic):
             try:
                 b_constant_val = self.b[0]
                 b_is_constant = True
-            except Exception:
+            except Exception:  # nosec B110
                 # 'b' is neither array-backed nor a scalar constant.
                 pass
 

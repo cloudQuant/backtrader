@@ -48,17 +48,27 @@ def urlquote(s, *args, **kwargs):
     return _urlquote(s, *args, **kwargs)
 
 
+# Default network timeout (seconds) applied when a caller does not supply one.
+# Without it, urllib blocks indefinitely if the remote endpoint never responds,
+# which can hang the data-loading thread. Callers may override via timeout=...
+_DEFAULT_URLOPEN_TIMEOUT = 30.0
+
+
 def urlopen(*args, **kwargs):
     """Open a URL.
 
     Args:
         *args: Positional arguments passed to urllib.request.urlopen.
-        **kwargs: Keyword arguments passed to urllib.request.urlopen.
+        **kwargs: Keyword arguments passed to urllib.request.urlopen. If
+            ``timeout`` is not provided, a default of
+            ``_DEFAULT_URLOPEN_TIMEOUT`` seconds is applied to avoid
+            indefinite blocking on unresponsive endpoints.
 
     Returns:
         A file-like object representing the URL response.
     """
     # Thin py2/3 compat shim; callers supply trusted URLs.
+    kwargs.setdefault("timeout", _DEFAULT_URLOPEN_TIMEOUT)
     return _urllib_request.urlopen(*args, **kwargs)  # nosec B310
 
 

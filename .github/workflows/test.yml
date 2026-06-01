@@ -51,7 +51,7 @@ jobs:
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff 'black==26.1.0' isort mypy bandit
+          pip install ruff 'black==26.1.0' isort mypy bandit pip-audit
 
       - name: Run ruff
         run: ruff check backtrader/
@@ -95,6 +95,29 @@ jobs:
           # 已 triage 并加 # nosec 注释，当前 Medium/High = 0。
           bandit -r backtrader -ll -q
           echo "bandit Medium/High scan passed (Low findings are reported separately)"
+
+      - name: Bandit Low findings watchdog (iter12 S-1/S-4, non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: |
+          # 迭代12 把所有 Low（B110/B112 静默异常 + B311 弱随机）逐条 triage：
+          # 安全敏感路径补日志，热路径加 `# nosec <code>` 带理由，弱随机加 # nosec。
+          # 收敛后基线 = 0。任何新增未 triage 的 Low 都会让计数升过基线并告警，
+          # 防止静默异常/弱随机回流。
+          count="$(bandit -r backtrader -c pyproject.toml -f custom \
+            --msg-template '{test_id}' 2>/dev/null | grep -cE '^B[0-9]+' || true)"
+          echo "bandit Low (untriaged) finding count: ${count} (iter12 baseline 0)"
+          if [ "${count}" -gt 0 ]; then
+            echo "::warning::Untriaged bandit Low findings (${count}) increased above baseline (0). Add a reasoned # nosec or fix."
+          fi
+
+      - name: Dependency vulnerability scan (pip-audit, non-blocking)
+        continue-on-error: true
+        shell: bash
+        run: |
+          # 迭代12 T-1: 持续监控依赖已知漏洞（CVE）。当前实测
+          # "No known vulnerabilities found"。先以非阻塞看板起步，稳定后可转阻塞。
+          pip-audit -r requirements.txt || true
 
       - name: Complexity monitor (radon F-grade, non-blocking)
         continue-on-error: true
