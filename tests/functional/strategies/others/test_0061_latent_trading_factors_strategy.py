@@ -56,6 +56,15 @@ def _latent_scores(window_returns, n_factors):
         return {}
     matrix = standardized.to_numpy(dtype=float)
     _, _, vt = np.linalg.svd(matrix, full_matrices=False)
+    # Deterministic sign convention for SVD right singular vectors. LAPACK does
+    # not fix the sign of singular vectors, so vt rows may flip sign across
+    # platforms / Python builds / BLAS backends, which would flip latent scores
+    # and drift borderline trade signals. Force the largest-magnitude component
+    # of each vector positive so results are reproducible everywhere.
+    max_abs_idx = np.argmax(np.abs(vt), axis=1)
+    signs = np.sign(vt[np.arange(vt.shape[0]), max_abs_idx])
+    signs[signs == 0] = 1.0
+    vt = vt * signs[:, np.newaxis]
     loadings = vt[:n_factors]
     scores = loadings.sum(axis=0)
     return dict(zip(standardized.columns, scores))
@@ -222,14 +231,14 @@ def test_061_latent_trading_factors_strategy() -> None:
           f"trade={strat.trade_count} total={total_trades} fv={final_value:.4f}")
 
     assert strat.bar_num == 1749
-    assert strat.buy_count == 209
-    assert strat.sell_count == 211
-    assert strat.long_signal_days == 213
-    assert strat.short_signal_days == 207
+    assert strat.buy_count == 223
+    assert strat.sell_count == 197
+    assert strat.long_signal_days == 199
+    assert strat.short_signal_days == 221
     assert strat.neutral_signal_days == 0
-    assert strat.win_count == 94
-    assert strat.loss_count == 89
-    assert strat.trade_count == 183
-    assert total_trades == 183
-    assert abs(final_value - 983047.9664) < 1.0
+    assert strat.win_count == 23
+    assert strat.loss_count == 31
+    assert strat.trade_count == 54
+    assert total_trades == 54
+    assert abs(final_value - 727249.8893) < 1.0
     assert (strat.buy_count + strat.sell_count) > 0, "must have non-zero activity"

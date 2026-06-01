@@ -22,11 +22,14 @@ setup(
     long_description_content_type="text/markdown",  # Long description content type
     url="https://github.com/cloudQuant/backtrader",  # Project URL
     install_requires=[
-        # numpy pinned <2.0: strategy regression tests assert exact order/trade
-        # counts calibrated on numpy 1.x. numpy 2.x alters reduction/sort/dtype
-        # numerics that drift a few of those exact counts. Bump after recalibrating
-        # the affected regression baselines for numpy 2.x.
-        "numpy>=1.20.0,<2.0.0",
+        # numpy: pin <2.0 on Python <3.13 because the strategy regression tests
+        # assert exact order/trade counts calibrated on numpy 1.x (numpy 2.x
+        # alters reduction/sort/dtype numerics that drift a few counts). Python
+        # 3.13 has no numpy 1.x wheels (1.26.x source builds segfault on
+        # win/py3.13), so 3.13 uses numpy>=2.1 which has 3.13 wheels and on which
+        # the regression suite also passes.
+        "numpy>=1.20.0,<2.0.0; python_version < '3.13'",
+        "numpy>=2.1.0; python_version >= '3.13'",
         "pytz>=2021.1",
         "pandas>=1.3.0",
         "matplotlib>=3.3.0",
