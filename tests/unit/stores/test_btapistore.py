@@ -1765,6 +1765,9 @@ def test_ctp_provider_switches_to_gateway_from_env(monkeypatch):
 
 
 def test_create_ctp_wrapper_patches_missing_spi_callbacks():
+    # Optional live-trading dependency: skip when bt_api_py CTP support is absent
+    # (e.g. CI images without the proprietary package) instead of erroring.
+    pytest.importorskip("bt_api_py.ctp.client")
     _create_ctp_wrapper_class()
 
     import bt_api_py.ctp.client as ctp_client_module

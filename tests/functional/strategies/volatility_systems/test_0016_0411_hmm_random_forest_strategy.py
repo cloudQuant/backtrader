@@ -46,6 +46,12 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+
+# Optional ML dependencies: skip the whole module when hmmlearn/scikit-learn are
+# absent (e.g. minimal CI images) instead of failing at import/collection time.
+pytest.importorskip("hmmlearn")
+pytest.importorskip("sklearn")
+
 from hmmlearn.hmm import GaussianHMM
 from sklearn.ensemble import RandomForestClassifier
 

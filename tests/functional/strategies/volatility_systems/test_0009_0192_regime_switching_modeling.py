@@ -41,6 +41,11 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 import pytest
+
+# Optional ML dependency: skip the whole module when scikit-learn is absent
+# (e.g. minimal CI images) instead of failing at import/collection time.
+pytest.importorskip("sklearn")
+
 from sklearn.cluster import KMeans
 
 _REPO = Path(__file__).resolve().parents[4]

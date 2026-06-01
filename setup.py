@@ -22,8 +22,11 @@ setup(
     long_description_content_type="text/markdown",  # Long description content type
     url="https://github.com/cloudQuant/backtrader",  # Project URL
     install_requires=[
-        # Use flexible numpy version for Python 3.8-3.13 compatibility
-        "numpy>=1.20.0,<3.0.0",
+        # numpy pinned <2.0: strategy regression tests assert exact order/trade
+        # counts calibrated on numpy 1.x. numpy 2.x alters reduction/sort/dtype
+        # numerics that drift a few of those exact counts. Bump after recalibrating
+        # the affected regression baselines for numpy 2.x.
+        "numpy>=1.20.0,<2.0.0",
         "pytz>=2021.1",
         "pandas>=1.3.0",
         "matplotlib>=3.3.0",

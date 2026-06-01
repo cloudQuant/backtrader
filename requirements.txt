@@ -1,5 +1,9 @@
 pandas>=1.3.0
-numpy>=1.20.0
+# numpy pinned <2.0: the strategy regression suite asserts exact order/trade
+# counts calibrated on numpy 1.x. numpy 2.x changes reduction/sort/dtype-promotion
+# numerics that shift a few float boundaries and drift those exact counts.
+# Bump only after recalibrating the affected regression baselines for numpy 2.x.
+numpy>=1.20.0,<2.0.0
 matplotlib>=3.3.0
 plotly>=5.0.0
 python-dateutil>=2.8.0
