@@ -552,8 +552,8 @@ def loadmodule(modpath, modname=""):
 
     if not modname:
         chars = string.ascii_uppercase + string.digits
-        # nosec B311: module name only needs to be unique, not cryptographically
-        # secure. This is an internal import alias, never a security boundary.
+        # Module name only needs to be unique, not cryptographically secure.
+        # This is an internal import alias, never a security boundary.
         modname = "".join(random.choice(chars) for _ in range(10))  # nosec B311
 
     try:
