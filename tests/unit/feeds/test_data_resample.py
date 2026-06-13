@@ -29,6 +29,10 @@ The test loads daily price data, resamples it to weekly bars, and then verifies
 that the SMA indicator calculates expected values at specific checkpoints.
 """
 
+import datetime
+
+import pandas as pd
+
 import backtrader as bt
 
 import testcommon
@@ -79,6 +83,60 @@ def test_run(main=False):
             chkvals=chkvals,
             chkargs=chkargs,
         )
+
+
+class ResampleTailStrategy(bt.Strategy):
+    def stop(self):
+        self.daily_len = len(self.datas[1])
+        self.daily_dt = None
+        if self.daily_len:
+            self.daily_dt = self.datas[1].num2date(self.datas[1].datetime[0])
+
+
+def _run_intraday_to_daily_resample(last_timestamp):
+    index = pd.to_datetime(["2024-01-02 09:00", last_timestamp])
+    frame = pd.DataFrame(
+        {
+            "open": [1.0, 2.0],
+            "high": [1.0, 2.0],
+            "low": [1.0, 2.0],
+            "close": [1.0, 2.0],
+            "volume": [1.0, 1.0],
+            "openinterest": [0.0, 0.0],
+        },
+        index=index,
+    )
+
+    cerebro = bt.Cerebro()
+    data = bt.feeds.PandasData(
+        dataname=frame,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=15,
+        sessionend=datetime.time(9, 30),
+    )
+    cerebro.adddata(data, name="m15")
+    cerebro.resampledata(
+        data,
+        timeframe=bt.TimeFrame.Days,
+        compression=1,
+        name="d1",
+    )
+    cerebro.addstrategy(ResampleTailStrategy)
+    return cerebro.run()[0]
+
+
+def test_intraday_to_daily_resample_does_not_flush_incomplete_final_day():
+    strategy = _run_intraday_to_daily_resample("2024-01-02 09:15")
+
+    assert strategy.daily_len == 0
+    assert strategy.daily_dt is None
+
+
+def test_intraday_to_daily_resample_keeps_completed_final_day():
+    strategy = _run_intraday_to_daily_resample("2024-01-02 09:30")
+
+    assert strategy.daily_len == 1
+    assert strategy.daily_dt == datetime.datetime(2024, 1, 2, 9, 30)
 
 
 if __name__ == "__main__":

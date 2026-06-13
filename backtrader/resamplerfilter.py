@@ -212,6 +212,7 @@ class _BaseResampler(ParameterizedBase):
         # If timeframe is less than week, subweeks is True
         self.subweeks = self.p.timeframe < TimeFrame.Weeks
         # If not subdays, and data timeframe equals parameter timeframe, and parameter compression divided by data compression remainder is 0, componly is True
+        self._source_timeframe = data._timeframe
         self.componly = (
             not self.subdays
             and data._timeframe == self.p.timeframe
@@ -648,6 +649,15 @@ class Resampler(_BaseResampler):
 
     replaying = False
 
+    def _last_bar_complete(self):
+        if self.p.timeframe != TimeFrame.Days or self._source_timeframe >= TimeFrame.Days:
+            return True
+
+        if self._nexteos is None:
+            self._eosset()
+
+        return self.bar.datetime >= self._nextdteos
+
     # Called when data no longer produces bars, can be called multiple times, has chance to produce extra bars when must deliver bar
     def last(self, data):
         """Called when the data is no longer producing bars
@@ -657,6 +667,9 @@ class Resampler(_BaseResampler):
         delivered
         """
         if self.bar.isopen():
+            if not self._last_bar_complete():
+                return False
+
             if self.doadjusttime:
                 self._adjusttime()
 

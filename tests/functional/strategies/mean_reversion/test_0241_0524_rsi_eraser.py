@@ -490,7 +490,7 @@ def test_242_0241_0524_rsi_eraser() -> None:
     results = cerebro.run(runonce=True)
     metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
-    assert metrics.get('bar_num') == 6039, f"bar_num: expected=6039, got={metrics.get('bar_num')!r}"
+    assert metrics.get('bar_num') == 6038, f"bar_num: expected=6038, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 8, f"buy_count: expected=8, got={metrics.get('buy_count')!r}"
     assert metrics.get('sell_count') == 22, f"sell_count: expected=22, got={metrics.get('sell_count')!r}"
     assert metrics.get('total_trades') == 30, f"total_trades: expected=30, got={metrics.get('total_trades')!r}"
@@ -507,7 +507,7 @@ def test_242_0241_0524_rsi_eraser() -> None:
     _close(metrics.get('total_return_pct'), -99.90300999999442, tol=9.990301e-05, key='total_return_pct')
     _close(metrics.get('win_rate'), 40.0, tol=4.000000e-05, key='win_rate')
     _close(metrics.get('profit_factor'), 0.29797474768280746, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('sharpe_ratio'), 7.545557522762444, tol=7.545558e-06, key='sharpe_ratio')
+    _close(metrics.get('sharpe_ratio'), 7.546173156124532, tol=7.546173e-06, key='sharpe_ratio')
     _close(metrics.get('annual_return_pct'), -100.0, tol=1.000000e-04, key='annual_return_pct')
     _close(metrics.get('max_drawdown'), 100.7485998683796, tol=1.007486e-04, key='max_drawdown')
     _close(metrics.get('sqn'), -0.9956185791878047, tol=1.000000e-06, key='sqn')

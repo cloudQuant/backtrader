@@ -528,7 +528,7 @@ def test_210_0209_1163_gpftcpivotlimit() -> None:
     results = cerebro.run(runonce=True)
     metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
-    assert metrics.get('bar_num') == 5947, f"bar_num: expected=5947, got={metrics.get('bar_num')!r}"
+    assert metrics.get('bar_num') == 5946, f"bar_num: expected=5946, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 7, f"buy_count: expected=7, got={metrics.get('buy_count')!r}"
     assert metrics.get('sell_count') == 9, f"sell_count: expected=9, got={metrics.get('sell_count')!r}"
     assert metrics.get('win_count') == 3, f"win_count: expected=3, got={metrics.get('win_count')!r}"
@@ -549,8 +549,8 @@ def test_210_0209_1163_gpftcpivotlimit() -> None:
     _close(metrics.get('open_position_size'), 0.0, tol=1.000000e-06, key='open_position_size')
     _close(metrics.get('open_position_price'), 0.0, tol=1.000000e-06, key='open_position_price')
     _close(metrics.get('max_drawdown'), 0.40484248932553507, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 1.494010697375761, tol=1.494011e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), 5.012706046973029, tol=5.012706e-06, key='annual_return_pct')
+    _close(metrics.get('sharpe_ratio'), 1.494132573615971, tol=1.494133e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 5.0135440816407115, tol=5.013544e-06, key='annual_return_pct')
     _close(metrics.get('sqn'), 0.1376982331673875, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
