@@ -14,6 +14,7 @@ Key Components:
 """
 
 import time as _time
+from collections import OrderedDict
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union, cast
 
 from .utils.log_message import get_logger
@@ -1039,27 +1040,19 @@ class ParameterAccessor:
         """
         # Use object.__setattr__ to avoid our custom __setattr__
         object.__setattr__(self, "_param_manager", param_manager)
+        object.__setattr__(self, "params", self)
 
         # Create a dict-like interface for _getitems() compatibility
         object.__setattr__(self, "_items_cache", None)
 
     def __getattribute__(self, name):
-        if name.startswith("_") or name in {
-            "__class__",
-            "__dict__",
-            "__setattr__",
-            "__getattr__",
-            "__getattribute__",
-            "__getitem__",
-            "__setitem__",
-            "__contains__",
-            "__iter__",
-            "__len__",
-            "__repr__",
-        }:
+        if name.startswith("_") or name in {"__class__", "__dict__"}:
             return object.__getattribute__(self, name)
-        param_manager = object.__getattribute__(self, "_param_manager")
-        return param_manager.get(name)
+        try:
+            return object.__getattribute__(self, name)
+        except AttributeError:
+            param_manager = object.__getattribute__(self, "_param_manager")
+            return param_manager.get(name)
 
     def __getattr__(self, name):
         """
@@ -1072,11 +1065,19 @@ class ParameterAccessor:
         param_manager = object.__getattribute__(self, "_param_manager")
         return param_manager.get(name)
 
+    def _ensure_dynamic_parameter(self, name):
+        """Register an ad-hoc parameter name so legacy writes remain introspectable."""
+        param_manager = object.__getattribute__(self, "_param_manager")
+        if name not in param_manager._descriptors:
+            param_manager._descriptors[name] = ParameterDescriptor(default=None, name=name)
+            param_manager._defaults[name] = None
+
     def __setattr__(self, name, value):
         """Set parameter value via attribute access."""
         if name.startswith("_"):
             object.__setattr__(self, name, value)
         else:
+            self._ensure_dynamic_parameter(name)
             self._param_manager.set(name, value)
 
     def __getitem__(self, name):
@@ -1085,6 +1086,7 @@ class ParameterAccessor:
 
     def __setitem__(self, name, value):
         """Set parameter value via dict-like access."""
+        self._ensure_dynamic_parameter(name)
         self._param_manager.set(name, value)
 
     def __contains__(self, name):
@@ -1099,9 +1101,25 @@ class ParameterAccessor:
         """Get number of parameters."""
         return len(self._param_manager)
 
+    def get(self, name, default=None):
+        """Get a parameter value with a default fallback."""
+        return self._param_manager.get(name, default)
+
+    def _get(self, name, default=None):
+        """Backtrader-compatible alias for get()."""
+        return self.get(name, default)
+
     def _getitems(self):
         """Get parameter items as list of tuples (name, value) for MetaParams compatibility."""
         return list(self._param_manager.items())
+
+    def _getpairs(self):
+        """Get current parameter values as an OrderedDict for MetaParams compatibility."""
+        return OrderedDict(self._param_manager.items())
+
+    def _gettuple(self):
+        """Get current parameter values as a tuple of pairs."""
+        return tuple(self._param_manager.items())
 
     def _getkeys(self):
         """Get parameter keys for MetaParams compatibility."""
@@ -1110,6 +1128,25 @@ class ParameterAccessor:
     def _getvalues(self):
         """Get parameter values for MetaParams compatibility."""
         return list(self._param_manager.values())
+
+    def _getdefaults(self):
+        """Get parameter default values in declaration order."""
+        return [self._param_manager._defaults[name] for name in self._param_manager.keys()]
+
+    def _getkwargsdefault(self):
+        """Get parameter defaults as an OrderedDict in declaration order."""
+        return OrderedDict(
+            (name, self._param_manager._defaults[name]) for name in self._param_manager.keys()
+        )
+
+    def isdefault(self, pname):
+        """Check whether a parameter currently has its default value."""
+        defaults = self._getkwargsdefault()
+        return self._get(pname) == defaults[pname]
+
+    def notdefault(self, pname):
+        """Check whether a parameter currently differs from its default value."""
+        return not self.isdefault(pname)
 
     def _getkwargs(self, skip_=False):
         """
@@ -1128,10 +1165,180 @@ class ParameterAccessor:
             kwargs[name] = value
         return kwargs
 
+    def keys(self):
+        """Get parameter names."""
+        return list(self._param_manager.keys())
+
+    def items(self):
+        """Get parameter name-value pairs."""
+        return list(self._param_manager.items())
+
+    def values(self):
+        """Get parameter values."""
+        return list(self._param_manager.values())
+
+    def to_dict(self):
+        """Convert parameters to a plain dictionary."""
+        return dict(self._param_manager.items())
+
     def __repr__(self):
         """String representation showing parameter values."""
         items = list(self._param_manager.items())
         return f"ParameterAccessor({dict(items)})"
+
+
+def _normalize_legacy_params(params) -> "OrderedDict[str, Any]":
+    """Normalize legacy params declarations into an ordered defaults mapping."""
+    pairs: "OrderedDict[str, Any]" = OrderedDict()
+
+    if params is None:
+        return pairs
+    if isinstance(params, dict):
+        pairs.update(params)
+        return pairs
+    if hasattr(params, "_getpairs"):
+        pairs.update(params._getpairs())
+        return pairs
+    if hasattr(params, "_gettuple"):
+        pairs.update(dict(params._gettuple()))
+        return pairs
+    if hasattr(params, "_getitems"):
+        pairs.update(dict(params._getitems()))
+        return pairs
+    if isinstance(params, (tuple, list)):
+        for item in params:
+            if isinstance(item, (tuple, list)) and len(item) >= 2:
+                pairs[item[0]] = item[1]
+            elif isinstance(item, string_types):
+                pairs[item] = None
+            elif hasattr(item, "__iter__") and not isinstance(item, string_types):
+                item_list = list(item)
+                if len(item_list) >= 2:
+                    pairs[item_list[0]] = item_list[1]
+        return pairs
+    if hasattr(params, "items"):
+        pairs.update(params.items())
+        return pairs
+    if hasattr(params, "__dict__"):
+        for attr_name, attr_value in params.__dict__.items():
+            if not attr_name.startswith("_") and not callable(attr_value):
+                pairs[attr_name] = attr_value
+
+    return pairs
+
+
+class LegacyParamsSchema:
+    """Callable legacy params schema backed by the modern parameter manager.
+
+    The object keeps the old class-level params protocol (`_gettuple`,
+    `_getpairs`, `_getkeys`) while creating instance-level `ParameterAccessor`
+    objects. This removes the dynamic per-instance empty parameter classes that
+    survived the metaclass-removal migration.
+    """
+
+    _ALIASES = {
+        "period": ("periods", "window", "length"),
+        "movav": ("_movav", "ma", "moving_average"),
+        "_movav": ("movav", "ma", "moving_average"),
+        "lookback": ("look_back", "lag"),
+        "upperband": ("upper_band", "upper", "high_band"),
+        "lowerband": ("lower_band", "lower", "low_band"),
+        "fast": ("fast_period", "fastperiod"),
+        "slow": ("slow_period", "slowperiod"),
+        "signal": ("signal_period", "signalperiod"),
+        "mult": ("multiplier",),
+        "safediv": ("safe_div",),
+        "safepct": ("safe_pct",),
+    }
+
+    def __init__(self, name: str = "Params", params=(), module: Optional[str] = None):
+        self.__name__ = str(name)
+        self.__qualname__ = str(name)
+        self.__module__ = module or __name__
+        self._pairs = _normalize_legacy_params(params)
+
+    def __call__(self, **kwargs):
+        all_pairs = self._pairs.copy()
+        for name in kwargs:
+            if name not in all_pairs:
+                all_pairs[name] = None
+        descriptors = {
+            name: ParameterDescriptor(default=default, name=name)
+            for name, default in all_pairs.items()
+        }
+        return ParameterAccessor(
+            ParameterManager(
+                descriptors,
+                initial_values=kwargs,
+                enable_history=False,
+                enable_callbacks=False,
+            )
+        )
+
+    def _getpairs(self):
+        return self._pairs.copy()
+
+    def _gettuple(self):
+        return tuple(self._pairs.items())
+
+    def _getkeys(self):
+        return list(self._pairs.keys())
+
+    def _getdefaults(self):
+        return list(self._pairs.values())
+
+    def _getitems(self):
+        return self._pairs.items()
+
+    def _getkwargsdefault(self):
+        return self._getpairs()
+
+    def _get(self, name, default=None):
+        return self.get(name, default)
+
+    def get(self, name, default=None):
+        if name in self._pairs:
+            return self._pairs[name]
+        for canonical_name, aliases in self._ALIASES.items():
+            if name in aliases and canonical_name in self._pairs:
+                return self._pairs[canonical_name]
+        return default
+
+    def __getattr__(self, name):
+        value = self.get(name, None)
+        if value is not None or name in self._pairs:
+            return value
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+    def __contains__(self, name):
+        return name in self._pairs
+
+    def __getitem__(self, name):
+        return self._pairs[name]
+
+    def __iter__(self):
+        return iter(self._pairs)
+
+    def __len__(self):
+        return len(self._pairs)
+
+    def keys(self):
+        return list(self._pairs.keys())
+
+    def items(self):
+        return list(self._pairs.items())
+
+    def values(self):
+        return list(self._pairs.values())
+
+    def __repr__(self):
+        return f"LegacyParamsSchema({dict(self._pairs)!r})"
+
+
+def make_legacy_parameter_accessor(params=(), values=None, name: str = "Params"):
+    """Create a legacy-compatible parameter accessor from old params declarations."""
+    schema = LegacyParamsSchema(name=name, params=params)
+    return schema(**(values or {}))
 
 
 class ParameterizedBase:

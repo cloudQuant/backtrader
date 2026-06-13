@@ -39,6 +39,7 @@ import threading
 from collections import OrderedDict
 from contextlib import contextmanager
 
+from .parameters import LegacyParamsSchema, make_legacy_parameter_accessor
 from .utils.log_message import get_logger
 from .utils.py3 import string_types, zip
 
@@ -711,34 +712,6 @@ class AutoInfoClass:
 
         return obj
 
-
-def _reconstruct_param_class(class_name, all_params, instance_values):
-    """
-    Reconstruct a parameter class instance for unpickling.
-
-    CRITICAL FIX: This function is called during unpickling to recreate
-    parameter class instances created by ParameterManager._derive_params().
-    Required for multiprocessing support in strategy optimization.
-
-    Args:
-        class_name: Name of the parameter class
-        all_params: Dictionary of default parameter values
-        instance_values: Dictionary of instance-specific values
-
-    Returns:
-        Reconstructed parameter class instance
-    """
-    # Create the parameter class using the same logic as _derive_params
-    param_class = ParameterManager._derive_params(class_name, all_params, ())
-
-    # Create an instance with the saved values
-    instance = param_class()
-    for key, value in instance_values.items():
-        setattr(instance, key, value)
-
-    return instance
-
-
 def _merge_class_params_into(all_params, params):
     """Merge a class's ``params`` declaration into the ``all_params`` dict.
 
@@ -768,15 +741,15 @@ def _merge_class_params_into(all_params, params):
     elif hasattr(params, "items"):
         # Dict-like object
         all_params.update(params)
+    elif hasattr(params, "_getpairs"):
+        all_params.update(params._getpairs())
+    elif hasattr(params, "_gettuple"):
+        all_params.update(dict(params._gettuple()))
     elif hasattr(params, "__dict__"):
         # OPTIMIZED: Object with attributes, using __dict__ for performance
         for attr_name, attr_value in params.__dict__.items():
             if not attr_name.startswith("_") and not callable(attr_value):
                 all_params[attr_name] = attr_value
-    elif hasattr(params, "_getpairs"):
-        all_params.update(params._getpairs())
-    elif hasattr(params, "_gettuple"):
-        all_params.update(dict(params._gettuple()))
 
 
 class ParameterManager:
@@ -864,158 +837,7 @@ class ParameterManager:
             # We'll handle this lazily in the parameter getter instead
             all_params["_movav"] = None
 
-        # Create new parameter class with all necessary methods
-        class ParamClass(AutoInfoClass):
-            """Dynamically created parameter class.
-
-            This class is created dynamically with the parameters from the
-            target class. It provides access to parameter values via attributes.
-
-            Attributes:
-                params: Self-reference for backward compatibility.
-            """
-
-            @classmethod
-            def _getpairs(cls):
-                return all_params.copy()
-
-            @classmethod
-            def _gettuple(cls):
-                return tuple(all_params.items())
-
-            @classmethod
-            def _getkeys(cls):
-                return list(all_params.keys())
-
-            @classmethod
-            def _getdefaults(cls):
-                return list(all_params.values())
-
-            def __init__(self, **kwargs):
-                """Initialize the ParamClass with parameter values.
-
-                Args:
-                    **kwargs: Parameter values to override defaults.
-                """
-                super().__init__()
-                # Set default values as instance attributes
-                for key, default_value in all_params.items():
-                    # Use provided value if available, otherwise use default
-                    value = kwargs.get(key, default_value)
-                    setattr(self, key, value)
-
-                # CRITICAL FIX: Set up self-reference for backwards compatibility
-                # This allows both self.p.period and self.params.period to work
-                object.__setattr__(self, "params", self)
-
-            def __getattr__(self, name):
-                # CRITICAL FIX: Enhanced fallback for missing attributes with common parameter support
-                # First check if it's in our known parameters
-                if name in all_params:
-                    value = all_params[name]
-                    # Special handling for _movav parameter
-                    if name == "_movav" and value is None:
-                        # Try to import and return SMA as default
-                        try:
-                            from .indicators.mabase import MovAv
-
-                            return MovAv.SMA
-                        except ImportError:
-                            # If import fails, return a simple fallback
-                            try:
-                                from .indicators.sma import MovingAverageSimple
-
-                                return MovingAverageSimple
-                            except ImportError:
-                                # Final fallback - return None
-                                return None
-                    return value
-
-                # Handle common parameter name variants and aliases
-                param_aliases = {
-                    "period": ["period", "periods", "window", "length"],
-                    "movav": ["movav", "_movav", "ma", "moving_average"],
-                    "lookback": ["lookback", "look_back", "lag"],
-                    "upperband": ["upperband", "upper_band", "upper", "high_band"],
-                    "lowerband": ["lowerband", "lower_band", "lower", "low_band"],
-                    "fast": ["fast", "fast_period", "fastperiod"],
-                    "slow": ["slow", "slow_period", "slowperiod"],
-                    "signal": ["signal", "signal_period", "signalperiod"],
-                }
-
-                # Check if the requested name is an alias for a known parameter
-                for canonical_name, aliases in param_aliases.items():
-                    if name in aliases and canonical_name in all_params:
-                        value = all_params[canonical_name]
-                        # Special handling for movav aliases
-                        if canonical_name == "_movav" and value is None:
-                            try:
-                                from .indicators.mabase import MovAv
-
-                                return MovAv.SMA
-                            except ImportError:
-                                return None
-                        return value
-
-                # For period specifically, always return a sensible default
-                if name in ("period", "periods", "window", "length"):
-                    return 14
-                if name in ("_movav", "movav", "ma", "moving_average"):
-                    try:
-                        from .indicators.mabase import MovAv
-
-                        return MovAv.SMA
-                    except ImportError:
-                        return None
-                if name in ("lookback", "look_back", "lag"):
-                    return 1
-                if name in ("upperband", "upper_band", "upper", "high_band"):
-                    return 70.0
-                if name in ("lowerband", "lower_band", "lower", "low_band"):
-                    return 30.0
-                if name in ("safediv", "safe_div"):
-                    return False
-                if name in ("safepct", "safe_pct"):
-                    return False
-                if name in ("fast", "fast_period", "fastperiod"):
-                    return 5
-                if name in ("slow", "slow_period", "slowperiod"):
-                    return 34
-                if name in ("signal", "signal_period", "signalperiod"):
-                    return 9
-                if name in ("mult", "multiplier"):
-                    return 2.0
-
-                # Return None for unknown attributes instead of raising AttributeError
-                return None
-
-            def __setattr__(self, name, value):
-                # Allow setting attributes normally
-                super().__setattr__(name, value)
-
-            def __reduce__(self):
-                """
-                CRITICAL FIX: Support pickling for multiprocessing (optstrategy).
-
-                This allows the parameter class to be serialized when using
-                multiprocessing for strategy optimization.
-                """
-                # Return a tuple: (callable, args) to reconstruct the object
-                # We return the class and its current state as kwargs
-                return (
-                    _reconstruct_param_class,
-                    (
-                        class_name,
-                        all_params,
-                        {k: getattr(self, k) for k in all_params.keys() if hasattr(self, k)},
-                    ),
-                )
-
-        ParamClass.__name__ = class_name
-        ParamClass.__module__ = __name__  # CRITICAL: Set module for pickling
-        ParamClass.__qualname__ = class_name  # Set qualname for Python 3
-
-        return ParamClass
+        return LegacyParamsSchema(class_name, all_params, module=__name__)
 
     @staticmethod
     def _handle_packages(cls, packages, frompackages):
@@ -1447,32 +1269,7 @@ class ParamsMixin(BaseMixin):
         if hasattr(cls, "_params"):
             # If _params is not a proper parameter class, make it one
             if isinstance(cls._params, (tuple, list)) or not hasattr(cls._params, "_gettuple"):
-                # Create a wrapper that provides _gettuple functionality
-                class ParamsWrapper:
-                    """Wrapper for parameter data to provide _gettuple method.
-
-                    This wrapper ensures that parameter data (whether from a
-                    tuple, list, or existing params object) provides the
-                    _gettuple method expected by the framework.
-                    """
-
-                    def __init__(self, data):
-                        """Initialize the wrapper with parameter data.
-
-                        Args:
-                            data: Parameter data as tuple, list, or object with _gettuple.
-                        """
-                        if isinstance(data, (tuple, list)):
-                            self.data = data
-                        elif hasattr(data, "_gettuple"):
-                            self.data = data._gettuple()
-                        else:
-                            self.data = ()
-
-                    def _gettuple(self):
-                        return self.data if isinstance(self.data, tuple) else tuple(self.data)
-
-                cls._params = ParamsWrapper(cls._params)
+                cls._params = LegacyParamsSchema(f"Params_{cls.__name__}", cls._params)
 
             # Set class-level params attribute for compatibility
             cls.params = cls._params
@@ -1509,8 +1306,7 @@ class ParamsMixin(BaseMixin):
             try:
                 instance._params_instance = params_cls()
             except Exception:
-                # If instantiation fails, create a simple object
-                instance._params_instance = type("ParamsInstance", (), {})()
+                instance._params_instance = make_legacy_parameter_accessor(name="ParamsInstance")
 
             # Set all parameter values - first defaults, then custom values
             if hasattr(params_cls, "_getpairs"):
@@ -1530,11 +1326,9 @@ class ParamsMixin(BaseMixin):
                     setattr(instance._params_instance, key, value)
 
         else:
-            # No parameters defined, create parameter instance from kwargs
-            instance._params_instance = type("ParamsInstance", (), {})()
-            # Set all kwargs as parameters
-            for key, value in kwargs.items():
-                setattr(instance._params_instance, key, value)
+            instance._params_instance = make_legacy_parameter_accessor(
+                values=kwargs, name="ParamsInstance"
+            )
             instance._non_param_kwargs = {}
 
         return instance

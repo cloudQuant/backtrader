@@ -36,6 +36,8 @@ Example:
 import collections
 from typing import Any, Optional
 
+from .parameters import make_legacy_parameter_accessor
+
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
 
@@ -101,17 +103,8 @@ class StoreParams:
         Parses the params tuple defined at class level and creates
         a self.p object with all parameter values as attributes.
         """
-        # Initialize parameters from the class-level params tuple
-        self.p = type("Params", (), {})()
         params = getattr(self.__class__, "params", ())
-
-        # Set default values from params tuple
-        for param in params:
-            if isinstance(param, tuple) and len(param) >= 2:
-                name, default_value = param[0], param[1]
-                setattr(self.p, name, default_value)
-            elif isinstance(param, str):
-                setattr(self.p, param, None)
+        self.p = make_legacy_parameter_accessor(params, name=f"{self.__class__.__name__}Params")
 
 
 # Store base class

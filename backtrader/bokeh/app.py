@@ -8,6 +8,7 @@ Provides integration between Backtrader and Bokeh
 from collections import OrderedDict
 from typing import Any
 
+from backtrader.parameters import make_legacy_parameter_accessor
 from backtrader.utils.log_message import get_logger
 
 logger = get_logger(__name__)
@@ -173,9 +174,11 @@ class BacktraderBokeh:
                 - filter: Data filter configuration
         """
         # Process parameters
-        self.p = type("Params", (), {})()
-        for name, default in self.params:
-            setattr(self.p, name, kwargs.get(name, default))
+        self.p = make_legacy_parameter_accessor(
+            self.params,
+            values={name: kwargs[name] for name, _default in self.params if name in kwargs},
+            name=f"{self.__class__.__name__}Params",
+        )
 
         # Set theme
         self.scheme = self.p.scheme

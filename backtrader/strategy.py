@@ -49,6 +49,7 @@ from .lineroot import LineRoot, LineSingle
 from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, OwnerContext, findowner
 from .order import Order
+from .parameters import make_legacy_parameter_accessor
 from .position_modes import (
     POSITION_MODE_DUAL_SIDE,
     POSITION_OFFSET_CLOSE,
@@ -197,11 +198,9 @@ class Strategy(StrategyBase):
                     setattr(instance._params_instance, key, value)
 
         else:
-            # No parameters defined, create parameter instance from kwargs
-            instance._params_instance = type("ParamsInstance", (), {})()
-            # Set all kwargs as parameters
-            for key, value in kwargs.items():
-                setattr(instance._params_instance, key, value)
+            instance._params_instance = make_legacy_parameter_accessor(
+                values=kwargs, name="ParamsInstance"
+            )
 
         # Create p property for parameter access
         instance.p = instance._params_instance
