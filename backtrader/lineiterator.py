@@ -42,14 +42,16 @@ def _clock_is_replaying(clock, seen=None):
     seen.add(clock_id)
 
     try:
-        if bool(getattr(clock, "replaying", False)):
+        if bool(object.__getattribute__(clock, "replaying")):
             return True
-    except Exception:  # nosec B110
+    except AttributeError:
         # Non-clock object without a usable 'replaying' flag; treat as not replaying.
+        pass
+    except Exception:  # nosec B110
         pass
 
     try:
-        source_clock = clock._clock
+        source_clock = object.__getattribute__(clock, "_clock")
     except AttributeError:
         source_clock = None
 
@@ -58,7 +60,7 @@ def _clock_is_replaying(clock, seen=None):
             return True
 
     try:
-        datas = clock.datas
+        datas = object.__getattribute__(clock, "datas")
     except AttributeError:
         datas = ()
 
@@ -76,7 +78,7 @@ def _lineaction_source_clock(lineaction, seen=None):
 
     if seen is None:
         try:
-            return lineaction._lineaction_source_clock_cache
+            return object.__getattribute__(lineaction, "_lineaction_source_clock_cache")
         except AttributeError:
             # Cache not populated yet; resolve below (hot path: no logging).
             pass
@@ -183,9 +185,25 @@ def _lineaction_source_clock(lineaction, seen=None):
 
 def _line_like_source_clock(line_like):
     """Resolve LineActions wrapped in LineSeriesStub-like containers."""
-    source_clock = _lineaction_source_clock(line_like)
-    if source_clock is not None:
-        return source_clock
+    if line_like is None:
+        return None
+
+    if isinstance(line_like, LineActions):
+        source_clock = _lineaction_source_clock(line_like)
+        if source_clock is not None:
+            return source_clock
+    else:
+        try:
+            source_clock = object.__getattribute__(line_like, "_clock")
+        except AttributeError:
+            source_clock = None
+        if source_clock is not None and source_clock.__class__.__name__ != "MinimalClock":
+            if isinstance(source_clock, LineActions):
+                resolved_clock = _lineaction_source_clock(source_clock)
+                if resolved_clock is not None:
+                    return resolved_clock
+            else:
+                return source_clock
 
     try:
         lines = line_like.lines
@@ -200,12 +218,13 @@ def _line_like_source_clock(line_like):
         except (IndexError, TypeError, AttributeError):
             return None
 
-    source_clock = _lineaction_source_clock(first_line)
-    if source_clock is not None:
-        return source_clock
+    if isinstance(first_line, LineActions):
+        source_clock = _lineaction_source_clock(first_line)
+        if source_clock is not None:
+            return source_clock
 
     try:
-        return first_line._clock
+        return object.__getattribute__(first_line, "_clock")
     except AttributeError:
         return None
 

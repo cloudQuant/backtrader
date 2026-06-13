@@ -1954,11 +1954,10 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             # None check - convert None to NaN for consistent behavior
             if value is None:
                 return NAN
-            if isinstance(value, float):
-                if value != value:
-                    return value
-                if value == INF or value == NEG_INF:
-                    return 0.0
+            if value != value:
+                return value
+            if value == INF or value == NEG_INF:
+                return 0.0
             # CRITICAL FIX: Return NaN as-is, don't convert to 0.0
             # NaN values are important for indicator calculations:
             # - Comparisons with NaN always return False (e.g., close > nan is False)
@@ -2083,9 +2082,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # CRITICAL FIX: Convert None and NaN to 0.0 to prevent comparison errors
                 if value is None:
                     return 0.0
-                if isinstance(value, float):
-                    if value != value or value == INF or value == NEG_INF:
-                        return 0.0
+                if value != value or value == INF or value == NEG_INF:
+                    return 0.0
                 return value
             except (IndexError, TypeError, AttributeError):
                 # If any access fails, return 0.0 instead of None

@@ -403,7 +403,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             if lencount > 0 and current_idx >= lencount:
                 current_idx = lencount - 1
             value = self.array[current_idx + ago]
-            if isinstance(value, float) and (value == INF or value == NEG_INF):
+            if value == INF or value == NEG_INF:
                 return 0.0
             return value
         except IndexError:
