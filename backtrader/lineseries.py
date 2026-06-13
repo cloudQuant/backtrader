@@ -21,7 +21,7 @@ Example:
 import sys
 
 from . import metabase
-from .linebuffer import NAN, LineActions, LineBuffer, LineDelay
+from .linebuffer import INF, NAN, NEG_INF, LineActions, LineBuffer, LineDelay
 from .lineroot import LineMultiple
 from .utils.log_message import get_logger
 from .utils.py3 import range, string_types
@@ -1953,13 +1953,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             value = line0[key]
             # None check - convert None to NaN for consistent behavior
             if value is None:
-                return float("nan")
+                return NAN
             if isinstance(value, float):
-                import math
-
-                if math.isnan(value):
+                if value != value:
                     return value
-                if not math.isfinite(value):
+                if value == INF or value == NEG_INF:
                     return 0.0
             # CRITICAL FIX: Return NaN as-is, don't convert to 0.0
             # NaN values are important for indicator calculations:
@@ -2086,9 +2084,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 if value is None:
                     return 0.0
                 if isinstance(value, float):
-                    import math
-
-                    if not math.isfinite(value):
+                    if value != value or value == INF or value == NEG_INF:
                         return 0.0
                 return value
             except (IndexError, TypeError, AttributeError):

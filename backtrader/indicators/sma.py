@@ -50,6 +50,12 @@ class MovingAverageSimple(MovingAverageBase):
         # Before super to ensure mixins (right-hand side in subclassing)
         # can see the assignment operation and operate on the line
         super().__init__()
+        self._period = self.p.period
+        self._next_offsets = tuple(range(1 - self._period, 1))
+        data = getattr(self, "data", None)
+        self._data_getitem = data.__getitem__ if data is not None else None
+        self._sma_line = self.lines.sma
+        self._fsum = math.fsum
 
     def nextstart(self):
         """Initialize on first call after minperiod is met."""
@@ -63,12 +69,15 @@ class MovingAverageSimple(MovingAverageBase):
         values to avoid floating-point drift from incremental updates.
         """
         try:
-            period = self.p.period
-            prices = [float(self.data[i]) for i in range(1 - period, 1)]
-            self.lines.sma[0] = math.fsum(prices) / period
-        except (ValueError, TypeError, IndexError):
+            data_getitem = self._data_getitem
+            if data_getitem is None:
+                data_getitem = self.data.__getitem__
+                self._data_getitem = data_getitem
+            prices = [float(data_getitem(i)) for i in self._next_offsets]
+            self._sma_line[0] = self._fsum(prices) / self._period
+        except (AttributeError, ValueError, TypeError, IndexError):
             logger.debug("SMA next() failed", exc_info=True)
-            self.lines.sma[0] = float("nan")
+            self._sma_line[0] = float("nan")
 
     def once(self, start, end):
         """Batch calculation for runonce mode."""

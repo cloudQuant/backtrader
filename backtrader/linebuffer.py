@@ -37,6 +37,7 @@ import collections
 import datetime
 import itertools
 import math
+import operator
 from itertools import islice, repeat
 
 from . import metabase
@@ -48,6 +49,8 @@ from .utils.py3 import range, string_types
 logger = get_logger(__name__)
 
 NAN = float("NaN")
+INF = float("inf")
+NEG_INF = float("-inf")
 
 # PERFORMANCE OPTIMIZATION: Pre-create default datetime for error recovery
 # Avoids repeated datetime object creation in hot path
@@ -400,7 +403,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             if lencount > 0 and current_idx >= lencount:
                 current_idx = lencount - 1
             value = self.array[current_idx + ago]
-            if isinstance(value, float) and not math.isfinite(value) and value == value:
+            if isinstance(value, float) and (value == INF or value == NEG_INF):
                 return 0.0
             return value
         except IndexError:
@@ -453,7 +456,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             (
                 (
                     0.0
-                    if isinstance(value, float) and not math.isfinite(value) and value == value
+                    if isinstance(value, float) and (value == INF or value == NEG_INF)
                     else value
                 )
                 for value in values
@@ -473,7 +476,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             A slice of the underlying buffer
         """
         value = self.array[idx]
-        if isinstance(value, float) and not math.isfinite(value) and value == value:
+        if isinstance(value, float) and (value == INF or value == NEG_INF):
             return 0.0
         return value
 
@@ -498,7 +501,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             (
                 (
                     0.0
-                    if isinstance(value, float) and not math.isfinite(value) and value == value
+                    if isinstance(value, float) and (value == INF or value == NEG_INF)
                     else value
                 )
                 for value in values
@@ -537,7 +540,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         # "no signal" into a finite tradable value.
         elif value != value:  # NaN detection without isinstance + isnan
             value = self._default_value if self._is_datetime_line else float("nan")
-        elif isinstance(value, float) and not math.isfinite(value):
+        elif isinstance(value, float) and (value == INF or value == NEG_INF):
             value = self._default_value
         # datetime line value validation
         elif self._is_datetime_line and value < 1.0:
@@ -606,7 +609,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         is_dt = self._is_datetime_line
 
         # Handle None/NaN values using fast detection
-        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
+        if (
+            value is None
+            or value != value
+            or isinstance(value, float)
+            and (value == INF or value == NEG_INF)
+        ):
             value = self._default_value
         elif is_dt and (not isinstance(value, (int, float)) or value < 1.0):
             value = 1.0
@@ -659,7 +667,12 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         # NaN is the only value that's not equal to itself
-        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
+        if (
+            value is None
+            or value != value
+            or isinstance(value, float)
+            and (value == INF or value == NEG_INF)
+        ):
             value = self._default_value
 
         # For non-indicators, follow clock synchronization
@@ -780,7 +793,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         The purpose is to allow for lookahead operations or to be able to
         set values in the buffer "future"
         """
-        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
+        if (
+            value is None
+            or value != value
+            or isinstance(value, float)
+            and (value == INF or value == NEG_INF)
+        ):
             value = self._default_value
 
         self.extension += size
@@ -836,7 +854,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         return [
             (
                 0.0
-                if isinstance(value, float) and not math.isfinite(value) and value == value
+                if isinstance(value, float) and (value == INF or value == NEG_INF)
                 else value
             )
             for value in values
@@ -1869,7 +1887,9 @@ class _LineDelay(LineActions):
             value = self.a[idx + self.ago]
             if value is None:
                 return 0.0
-            if isinstance(value, float) and not math.isfinite(value):
+            if isinstance(value, float) and (
+                value != value or value == INF or value == NEG_INF
+            ):
                 return 0.0
             return value
         except (IndexError, TypeError):
@@ -1892,7 +1912,11 @@ class _LineDelay(LineActions):
             if (
                 delayed_val is None
                 or isinstance(delayed_val, float)
-                and not math.isfinite(delayed_val)
+                and (
+                    delayed_val != delayed_val
+                    or delayed_val == INF
+                    or delayed_val == NEG_INF
+                )
             ):
                 delayed_val = 0.0
 
@@ -1956,23 +1980,31 @@ class _LineDelay(LineActions):
         if not is_constant:
             src = self.a.array
 
-        for i in range(start, end):
-            if is_constant:
-                # For constant values, just use the constant
+        if is_constant:
+            for i in range(start, end):
                 dst[i] = constant_value
+            return
+
+        src_len = len(src)
+        valid_start = max(start, -ago)
+        valid_end = min(end, src_len - ago)
+        nan = NAN
+
+        for i in range(start, valid_start):
+            dst[i] = nan
+
+        if valid_start < valid_end:
+            src_start = valid_start + ago
+            src_end = valid_end + ago
+            if getattr(dst, "typecode", None) == "d" and getattr(src, "typecode", None) == "d":
+                dst[valid_start:valid_end] = src[src_start:src_end]
             else:
-                # CRITICAL FIX: Proper bounds checking for delayed access
-                # For ago=-26 (forward shift), we need to access src[i + ago] = src[i - 26]
-                # to get the value calculated 26 bars ago
-                src_index = i + ago
-                if src_index >= 0 and src_index < len(src):
-                    val = src[src_index]
-                    if val is None:
-                        val = float("nan")
-                    dst[i] = val
-                else:
-                    # Out-of-range historical/future access is unavailable, not 0.
-                    dst[i] = float("nan")
+                for i in range(valid_start, valid_end):
+                    val = src[i + ago]
+                    dst[i] = nan if val is None else val
+
+        for i in range(valid_end, end):
+            dst[i] = nan
 
 
 class _LineForward(LineActions):
@@ -2273,7 +2305,7 @@ class LinesOperation(LineActions):
     def _normalize_operand(self, value):
         if self._is_missing(value):
             return float("nan")
-        if isinstance(value, float) and not math.isfinite(value):
+        if isinstance(value, float) and (value == INF or value == NEG_INF):
             return 0.0
         if isinstance(value, (int, float)):
             return value
@@ -2332,7 +2364,7 @@ class LinesOperation(LineActions):
                     if value is not None:
                         if isinstance(value, float):
                             if value == value:
-                                if not math.isfinite(value):
+                                if value == INF or value == NEG_INF:
                                     return 0.0
                                 return value
                         else:
@@ -2539,6 +2571,131 @@ class LinesOperation(LineActions):
         # CRITICAL FIX: Always process from 0 to ensure historical values are available
         # This is needed for indicators like SMA that need historical values for their calculations
         actual_start = 0
+
+        if (
+            not use_dynamic_b
+            and getattr(srca, "typecode", None) == "d"
+            and getattr(srcb, "typecode", None) == "d"
+        ):
+            nan = NAN
+            inf = float("inf")
+            neg_inf = float("-inf")
+            try:
+                if op is operator.__mul__:
+                    for i in range(actual_start, end):
+                        a_val = srca[i]
+                        b_val = srcb[i]
+                        if a_val != a_val or b_val != b_val:
+                            dst[i] = nan
+                            continue
+                        if a_val == inf or a_val == neg_inf:
+                            a_val = 0.0
+                        if b_val == inf or b_val == neg_inf:
+                            b_val = 0.0
+                        result = a_val * b_val
+                        if result != result:
+                            dst[i] = nan
+                        elif result == inf or result == neg_inf:
+                            dst[i] = 0.0
+                        else:
+                            dst[i] = result
+                elif op is operator.__add__:
+                    for i in range(actual_start, end):
+                        a_val = srca[i]
+                        b_val = srcb[i]
+                        if a_val != a_val or b_val != b_val:
+                            dst[i] = nan
+                            continue
+                        if a_val == inf or a_val == neg_inf:
+                            a_val = 0.0
+                        if b_val == inf or b_val == neg_inf:
+                            b_val = 0.0
+                        result = a_val + b_val
+                        if result != result:
+                            dst[i] = nan
+                        elif result == inf or result == neg_inf:
+                            dst[i] = 0.0
+                        else:
+                            dst[i] = result
+                elif op is operator.__sub__:
+                    if self.r:
+                        for i in range(actual_start, end):
+                            a_val = srca[i]
+                            b_val = srcb[i]
+                            if a_val != a_val or b_val != b_val:
+                                dst[i] = nan
+                                continue
+                            if a_val == inf or a_val == neg_inf:
+                                a_val = 0.0
+                            if b_val == inf or b_val == neg_inf:
+                                b_val = 0.0
+                            result = b_val - a_val
+                            if result != result:
+                                dst[i] = nan
+                            elif result == inf or result == neg_inf:
+                                dst[i] = 0.0
+                            else:
+                                dst[i] = result
+                    else:
+                        for i in range(actual_start, end):
+                            a_val = srca[i]
+                            b_val = srcb[i]
+                            if a_val != a_val or b_val != b_val:
+                                dst[i] = nan
+                                continue
+                            if a_val == inf or a_val == neg_inf:
+                                a_val = 0.0
+                            if b_val == inf or b_val == neg_inf:
+                                b_val = 0.0
+                            result = a_val - b_val
+                            if result != result:
+                                dst[i] = nan
+                            elif result == inf or result == neg_inf:
+                                dst[i] = 0.0
+                            else:
+                                dst[i] = result
+                elif self.r:
+                    for i in range(actual_start, end):
+                        a_val = srca[i]
+                        b_val = srcb[i]
+                        if a_val != a_val or b_val != b_val:
+                            dst[i] = nan
+                            continue
+                        if a_val == inf or a_val == neg_inf:
+                            a_val = 0.0
+                        if b_val == inf or b_val == neg_inf:
+                            b_val = 0.0
+                        result = op(b_val, a_val)
+                        if result != result:
+                            dst[i] = nan
+                        elif result == inf or result == neg_inf:
+                            dst[i] = 0.0
+                        else:
+                            dst[i] = result
+                else:
+                    for i in range(actual_start, end):
+                        a_val = srca[i]
+                        b_val = srcb[i]
+                        if a_val != a_val or b_val != b_val:
+                            dst[i] = nan
+                            continue
+                        if a_val == inf or a_val == neg_inf:
+                            a_val = 0.0
+                        if b_val == inf or b_val == neg_inf:
+                            b_val = 0.0
+                        result = op(a_val, b_val)
+                        if result != result:
+                            dst[i] = nan
+                        elif result == inf or result == neg_inf:
+                            dst[i] = 0.0
+                        else:
+                            dst[i] = result
+                return
+            except Exception:
+                logger.debug(
+                    "LinesOperation._once_op numeric fast path failed; generic fallback",
+                    exc_info=True,
+                )
 
         # Fast path under a single try; the per-element try/except below is only
         # entered on error, preserving NaN-on-failure semantics while removing

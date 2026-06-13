@@ -198,6 +198,27 @@ class TestGenericCSVDatetime:
         assert dt.hour == 9
         assert dt.minute == 30
 
+    def test_compact_date_with_separate_time_field(self, tmp_path):
+        """Parse compact YYYYMMDD dates with a separate HH:MM:SS column."""
+        path = str(tmp_path / "test.csv")
+        with open(path, "w") as f:
+            f.write("date,time,open,high,low,close,volume,oi\n")
+            f.write("20240115,09:30:00,100.0,105.0,99.0,103.0,1000,0\n")
+
+        data = _run_feed(
+            path,
+            dtformat="%Y%m%d",
+            tmformat="%H:%M:%S",
+            datetime=0,
+            time=1,
+            open=2, high=3, low=4, close=5, volume=6, openinterest=7,
+            timeframe=bt.TimeFrame.Minutes,
+        )
+        assert len(data) == 1
+        dt = data.datetime.datetime(0)
+        assert (dt.year, dt.month, dt.day) == (2024, 1, 15)
+        assert (dt.hour, dt.minute, dt.second) == (9, 30, 0)
+
 
 class TestGenericCSVMultiBar:
     """Multi-bar data loading tests."""
