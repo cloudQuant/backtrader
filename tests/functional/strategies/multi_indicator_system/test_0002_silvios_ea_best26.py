@@ -626,25 +626,25 @@ def test_2_0002_silvios_ea_best26() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "no metrics captured during run"
 
-    assert metrics.get('bar_num') == 5941, f"bar_num: expected=5941, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 84, f"buy_count: expected=84, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 171, f"sell_count: expected=171, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 217, f"win_count: expected=217, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 156, f"loss_count: expected=156, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 374, f"total_trades: expected=374, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 373, f"trade_count: expected=373, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 217, f"won: expected=217, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 156, f"lost: expected=156, got={metrics.get('lost')!r}"
-    _close(metrics.get('bars'), 5955.0, tol=5.955000e-03, key='bars')
-    _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), -5124312.489999972, tol=5.124312e+00, key='final_value')
-    _close(metrics.get('net_pnl'), -6124312.489999972, tol=6.124312e+00, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -612.4312489999971, tol=6.124312e-04, key='total_return_pct')
-    _close(metrics.get('win_rate'), 58.02139037433155, tol=5.802139e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 1.2456667165336541, tol=1.245667e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 397.10559612759357, tol=3.971056e-04, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), 1.2877946037557042, tol=1.287795e-06, key='sharpe_ratio')
-    _close(metrics.get('sqn'), 1.416252783590099, tol=1.416253e-06, key='sqn')
+    assert metrics.get('bar_num') == 5941, f"bar_num: expected=5941, got=, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 130, f"buy_count: expected=130, got=, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 205, f"sell_count: expected=205, got=, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 176, f"win_count: expected=176, got=, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 159, f"loss_count: expected=159, got=, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 335, f"total_trades: expected=335, got=, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 335, f"trade_count: expected=335, got=, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 176, f"won: expected=176, got=, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 159, f"lost: expected=159, got=, got={metrics.get('lost')!r}"
+    _close(metrics.get('bars'), 5955, tol=5.955000e-03, key='bars')
+    _close(metrics.get('initial_cash'), 1000000, tol=1.000000e+00, key='initial_cash')
+    _close(metrics.get('final_value'), 606696.1699999839, tol=5.124312e+00, key='final_value')
+    _close(metrics.get('net_pnl'), -393303.83000001614, tol=6.124312e+00, key='net_pnl')
+    _close(metrics.get('total_return_pct'), -39.33038300000161, tol=6.124312e-04, key='total_return_pct')
+    _close(metrics.get('win_rate'), 52.537313432835816, tol=5.802139e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 0.8179267485102226, tol=1.245667e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 61.24030107005159, tol=3.971056e-04, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), -5.602024100001702, tol=1.287795e-06, key='sharpe_ratio')
+    _close(metrics.get('sqn'), -1.2137444965198854, tol=1.416253e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

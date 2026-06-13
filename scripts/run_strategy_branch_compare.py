@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+"""Install and run a strategy across multiple git branches for comparison.
+
+This script automates comparing backtest results and TradeLogger outputs across
+different branches (e.g., current, master, dev). It:
+1. Creates isolated git worktrees for each branch
+2. Installs the package and runs the strategy's run.py in each worktree
+3. Collects and normalizes TradeLogger logs for comparison
+4. Generates a JSON report with result hashes and log comparisons
+
+Typical usage:
+    python scripts/run_strategy_branch_compare.py tests/functional/strategies/my_strategy
+    python scripts/run_strategy_branch_compare.py --branch dev --branch master run.py
+"""
 from __future__ import annotations
 
 import argparse
@@ -40,6 +53,24 @@ LOG_FILE_NAMES = {
 
 @dataclass
 class BranchRunResult:
+    """Result of a single branch run for comparison.
+
+    Attributes:
+        label: Human-readable label for this branch run.
+        branch: Git branch or ref that was run.
+        root: Root directory path of the worktree.
+        run_file: Path to the strategy's run.py file.
+        output_dir: Directory where results and logs are stored.
+        install_returncode: Return code from pip install (None if skipped).
+        run_returncode: Return code from running run.py (None if not run).
+        install_seconds: Time taken for pip install in seconds.
+        run_seconds: Time taken for running the strategy in seconds.
+        result_json: Path to the copied backtest_result.json if it exists.
+        result_hash: SHA256 hash of the result JSON file.
+        copied_logs: List of relative paths to collected log files.
+        normalized_log_hashes: Mapping from log path to normalized SHA256 hash.
+        error: Error message if the run failed.
+    """
     label: str
     branch: str
     root: str
@@ -57,6 +88,11 @@ class BranchRunResult:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for the branch comparison script.
+
+    Returns:
+        Parsed arguments namespace containing all configuration options.
+    """
     parser = argparse.ArgumentParser(
         description=(
             "Install and run one strategy run.py across current/dev/master-like branches, "
@@ -117,6 +153,17 @@ def run_command(
     timeout: int,
     env: dict[str, str] | None = None,
 ) -> tuple[int, str, float]:
+    """Execute a subprocess command with timeout and environment handling.
+
+    Args:
+        cmd: Command and arguments as a list of strings.
+        cwd: Working directory for the command.
+        timeout: Maximum time to wait for command completion in seconds.
+        env: Optional environment variables to override the current process env.
+
+    Returns:
+        A tuple of (return_code, stdout_output, elapsed_seconds).
+    """
     started = time.perf_counter()
     try:
         proc = subprocess.run(
@@ -140,6 +187,16 @@ def run_command(
 
 
 def repo_root() -> Path:
+    """Find the repository root by traversing parent directories.
+
+    The repo root is identified by having a .git directory and a backtrader subdirectory.
+
+    Returns:
+        Path to the repository root directory.
+
+    Raises:
+        RuntimeError: If the repository root cannot be found.
+    """
     current = Path(__file__).resolve()
     for parent in current.parents:
         if (parent / ".git").exists() and (parent / "backtrader").is_dir():
@@ -148,6 +205,19 @@ def repo_root() -> Path:
 
 
 def git_stdout(root: Path, args: list[str], timeout: int = 60) -> str:
+    """Execute a git command and return its stdout.
+
+    Args:
+        root: Repository root directory for the git command.
+        args: Git command arguments (e.g., ["branch", "--show-current"]).
+        timeout: Maximum time for git command in seconds.
+
+    Returns:
+        The trimmed stdout from the git command.
+
+    Raises:
+        RuntimeError: If the git command fails (non-zero return code).
+    """
     proc = subprocess.run(
         ["git", *args],
         cwd=str(root),
@@ -163,6 +233,18 @@ def git_stdout(root: Path, args: list[str], timeout: int = 60) -> str:
 
 
 def safe_name(value: str) -> str:
+    """Convert a string to a safe filename by replacing unsafe characters.
+
+    Replaces any character that is not alphanumeric, hyphen, underscore, or
+    dot with an underscore. Strips leading/trailing underscores and returns
+    "unnamed" if the result is empty.
+
+    Args:
+        value: The string to convert to a safe name.
+
+    Returns:
+        A safe filename string with only allowed characters.
+    """
     cleaned = []
     for char in value:
         if char.isalnum() or char in {"-", "_", "."}:
@@ -173,6 +255,24 @@ def safe_name(value: str) -> str:
 
 
 def resolve_target(root: Path, target_text: str) -> tuple[Path, Path]:
+    """Resolve a target path to the actual run.py file to execute.
+
+    The target can be:
+    - A run.py file path
+    - A directory containing run.py
+    - A strategy implementation file (sibling run.py will be used)
+
+    Args:
+        root: Repository root directory.
+        target_text: Target specification from command line.
+
+    Returns:
+        A tuple of (run_py path, run_py relative to repo root).
+
+    Raises:
+        FileNotFoundError: If the target or sibling run.py does not exist.
+        ValueError: If the target is invalid or outside repo root.
+    """
     target = Path(target_text)
     if not target.is_absolute():
         direct = root / target
@@ -203,6 +303,17 @@ def resolve_target(root: Path, target_text: str) -> tuple[Path, Path]:
 
 
 def parse_extra_env(items: list[str]) -> dict[str, str]:
+    """Parse KEY=VALUE environment variable specifications.
+
+    Args:
+        items: List of "KEY=VALUE" strings from command line.
+
+    Returns:
+        Dictionary of environment variable names to values.
+
+    Raises:
+        ValueError: If any item is not in KEY=VALUE format or has an empty key.
+    """
     extra: dict[str, str] = {}
     for item in items:
         if "=" not in item:
@@ -215,6 +326,21 @@ def parse_extra_env(items: list[str]) -> dict[str, str]:
 
 
 def build_env(root: Path, branch_label: str, output_dir: Path, extra_env: dict[str, str], main_root: Path | None = None) -> dict[str, str]:
+    """Build the environment variables for running a branch.
+
+    Constructs a complete environment including PYTHONPATH, backtrader-specific
+    environment variables for TradeLogger, and any user-provided extras.
+
+    Args:
+        root: Root directory of the worktree.
+        branch_label: Label for this branch (used in env var values).
+        output_dir: Directory where output should be written.
+        extra_env: Additional environment variables to add.
+        main_root: Main repository root (for resolving test fixtures in worktrees).
+
+    Returns:
+        Complete environment dictionary for subprocess execution.
+    """
     env = os.environ.copy()
     pythonpath = [str(root)]
     sibling_back_trader = root.parent / "back_trader"
@@ -241,10 +367,29 @@ def build_env(root: Path, branch_label: str, output_dir: Path, extra_env: dict[s
 
 
 def sha256_bytes(data: bytes) -> str:
+    """Compute the SHA256 hex digest of binary data.
+
+    Args:
+        data: Binary data to hash.
+
+    Returns:
+        Hexadecimal string representation of the SHA256 hash.
+    """
     return hashlib.sha256(data).hexdigest()
 
 
 def normalize_json_value(value: Any) -> Any:
+    """Normalize a JSON value for comparison by removing dynamic fields.
+
+    Removes fields whose keys are in DYNAMIC_LOG_KEYS (e.g., timestamps, run IDs)
+    to enable consistent comparison across runs.
+
+    Args:
+        value: The JSON value to normalize (dict, list, or primitive).
+
+    Returns:
+        Normalized value with dynamic fields removed.
+    """
     if isinstance(value, dict):
         return {
             str(key): normalize_json_value(val)
@@ -257,11 +402,33 @@ def normalize_json_value(value: Any) -> Any:
 
 
 def normalized_log_bytes(path: Path) -> bytes:
+    """Read a log file and return normalized bytes for hashing.
+
+    Parses each line as JSON, normalizes values, and serializes back to
+    deterministic JSON lines for consistent hashing.
+
+    Args:
+        path: Path to the log file.
+
+    Returns:
+        Normalized UTF-8 encoded bytes of the log file content.
+    """
     output = [json.dumps(item, ensure_ascii=False, sort_keys=True, default=str) for item in normalized_log_items(path)]
     return ("\n".join(output) + ("\n" if output else "")).encode("utf-8")
 
 
 def normalized_log_items(path: Path) -> list[Any]:
+    """Parse a log file and return normalized JSON items.
+
+    Reads a JSON lines format log file, parsing each line. Non-JSON lines
+    are kept as raw strings. JSON values are normalized for comparison.
+
+    Args:
+        path: Path to the log file.
+
+    Returns:
+        List of normalized log items (dicts, lists, strings, or other primitives).
+    """
     output: list[Any] = []
     text = path.read_text(encoding="utf-8", errors="replace")
     for line in text.splitlines():
@@ -278,11 +445,29 @@ def normalized_log_items(path: Path) -> list[Any]:
 
 
 def file_signature(path: Path) -> tuple[int, int]:
+    """Get a file signature for change detection.
+
+    Combines modification time (nanoseconds) and file size to detect changes.
+
+    Args:
+        path: Path to the file.
+
+    Returns:
+        Tuple of (mtime_ns, size) for the file.
+    """
     stat = path.stat()
     return stat.st_mtime_ns, stat.st_size
 
 
 def snapshot_candidate_files(paths: list[Path]) -> dict[Path, tuple[int, int]]:
+    """Take a snapshot of file signatures for change detection.
+
+    Args:
+        paths: List of file or directory paths to snapshot.
+
+    Returns:
+        Dictionary mapping file paths to their signatures (mtime, size).
+    """
     snapshot: dict[Path, tuple[int, int]] = {}
     for base in paths:
         if not base.exists():
@@ -297,6 +482,19 @@ def snapshot_candidate_files(paths: list[Path]) -> dict[Path, tuple[int, int]]:
 
 
 def collect_changed_files(paths: list[Path], before: dict[Path, tuple[int, int]], output_dir: Path) -> list[Path]:
+    """Collect files that have changed since a previous snapshot.
+
+    Compares current file signatures against a previous snapshot to identify
+    which log files have been modified.
+
+    Args:
+        paths: List of file or directory paths to check.
+        before: Previous snapshot of file signatures.
+        output_dir: Output directory to exclude from collection.
+
+    Returns:
+        Sorted list of paths to files that have changed.
+    """
     changed: list[Path] = []
     trade_logger_dir = output_dir / "trade_logger"
     for base in paths:
@@ -315,6 +513,15 @@ def collect_changed_files(paths: list[Path], before: dict[Path, tuple[int, int]]
 
 
 def is_relative_to(path: Path, base: Path) -> bool:
+    """Check if a path is relative to a base path (compatible with Python <3.9).
+
+    Args:
+        path: Path to check.
+        base: Base path to check against.
+
+    Returns:
+        True if path is relative to base, False otherwise.
+    """
     try:
         path.relative_to(base)
         return True
@@ -323,6 +530,20 @@ def is_relative_to(path: Path, base: Path) -> bool:
 
 
 def stable_log_key(file_path: Path, source_root: Path, strategy_dir: Path, output_dir: Path) -> Path:
+    """Determine a stable relative key for a log file path.
+
+    Maps various log file locations to a consistent relative path structure
+    so that logs from different sources can be compared by content type.
+
+    Args:
+        file_path: Absolute path to the log file.
+        source_root: Repository root for the branch.
+        strategy_dir: Strategy directory containing the run.py.
+        output_dir: Output directory for the comparison run.
+
+    Returns:
+        A path representing the stable key for this log file.
+    """
     trade_logger_dir = output_dir / "trade_logger"
     bases = [
         (trade_logger_dir, Path("trade_logger")),
@@ -343,6 +564,17 @@ def stable_log_key(file_path: Path, source_root: Path, strategy_dir: Path, outpu
 
 
 def copy_changed_logs(changed_files: list[Path], source_root: Path, strategy_dir: Path, output_dir: Path) -> list[str]:
+    """Copy changed log files to the output directory with stable paths.
+
+    Args:
+        changed_files: List of file paths that have changed.
+        source_root: Repository root for resolving paths.
+        strategy_dir: Strategy directory for path mapping.
+        output_dir: Output directory to copy logs to.
+
+    Returns:
+        List of relative paths of the copied files.
+    """
     copied: list[str] = []
     logs_dir = output_dir / "collected_logs"
     for file_path in changed_files:
@@ -355,6 +587,18 @@ def copy_changed_logs(changed_files: list[Path], source_root: Path, strategy_dir
 
 
 def normalize_hash_copied_logs(output_dir: Path, copied: list[str]) -> dict[str, str]:
+    """Compute normalized hashes for collected log files.
+
+    For .log files, normalizes JSON content before hashing. For other files,
+    hashes the raw bytes.
+
+    Args:
+        output_dir: Output directory containing collected logs.
+        copied: List of relative paths to copied log files.
+
+    Returns:
+        Dictionary mapping relative path to SHA256 hash.
+    """
     hashes: dict[str, str] = {}
     for rel_text in copied:
         path = output_dir / "collected_logs" / rel_text
@@ -369,12 +613,26 @@ def normalize_hash_copied_logs(output_dir: Path, copied: list[str]) -> dict[str,
 
 
 def snapshot_result(result_path: Path) -> bytes | None:
+    """Take a snapshot of the backtest_result.json file.
+
+    Args:
+        result_path: Path to the backtest_result.json file.
+
+    Returns:
+        The file contents as bytes, or None if file doesn't exist.
+    """
     if result_path.exists():
         return result_path.read_bytes()
     return None
 
 
 def restore_result(result_path: Path, original: bytes | None) -> None:
+    """Restore or remove the backtest_result.json file.
+
+    Args:
+        result_path: Path to the backtest_result.json file.
+        original: Original contents to restore, or None to remove the file.
+    """
     if original is None:
         if result_path.exists():
             result_path.unlink()
@@ -383,6 +641,20 @@ def restore_result(result_path: Path, original: bytes | None) -> None:
 
 
 def create_worktree(main_root: Path, worktree_root: Path, branch: str, label: str) -> Path:
+    """Create a git worktree for a branch.
+
+    Args:
+        main_root: Repository root directory.
+        worktree_root: Parent directory for worktrees.
+        branch: Git branch or ref to create worktree from.
+        label: Label for this worktree (used in directory name).
+
+    Returns:
+        Path to the created worktree directory.
+
+    Raises:
+        RuntimeError: If git worktree creation fails.
+    """
     worktree_root.mkdir(parents=True, exist_ok=True)
     dest = worktree_root / label
     if dest.exists():
@@ -395,6 +667,12 @@ def create_worktree(main_root: Path, worktree_root: Path, branch: str, label: st
 
 
 def remove_worktree(main_root: Path, worktree_path: Path) -> None:
+    """Remove a git worktree.
+
+    Args:
+        main_root: Repository root directory.
+        worktree_path: Path to the worktree to remove.
+    """
     if not worktree_path.exists():
         return
     code, output, _seconds = run_command(
@@ -407,6 +685,15 @@ def remove_worktree(main_root: Path, worktree_path: Path) -> None:
 
 
 def sync_target_to_worktree(main_root: Path, source_root: Path, run_rel: Path) -> None:
+    """Sync the strategy directory from main repo to a worktree.
+
+    Only syncs if source_root differs from main_root (i.e., for worktree runs).
+
+    Args:
+        main_root: Main repository root.
+        source_root: Target worktree root.
+        run_rel: Relative path to the run.py file.
+    """
     if source_root == main_root:
         return
     source_dir = main_root / run_rel.parent
@@ -423,6 +710,15 @@ def sync_target_to_worktree(main_root: Path, source_root: Path, run_rel: Path) -
 
 
 def sync_auxiliary_path(main_root: Path, source_root: Path, rel_path: Path) -> None:
+    """Sync an auxiliary directory or file to a worktree.
+
+    Creates a symlink if possible, otherwise copies the content.
+
+    Args:
+        main_root: Main repository root.
+        source_root: Target worktree root.
+        rel_path: Relative path to sync.
+    """
     source_path = main_root / rel_path
     target_path = source_root / rel_path
     if not source_path.exists() or target_path.exists():
@@ -438,6 +734,17 @@ def sync_auxiliary_path(main_root: Path, source_root: Path, rel_path: Path) -> N
 
 
 def restore_current_install(main_root: Path, output_root: Path, python_exe: str, install_timeout: int) -> dict[str, Any]:
+    """Reinstall the current working tree after branch comparison runs.
+
+    Args:
+        main_root: Repository root.
+        output_root: Directory for log output.
+        python_exe: Python executable to use.
+        install_timeout: Timeout for pip install in seconds.
+
+    Returns:
+        Dictionary with returncode, seconds, and log_path.
+    """
     env = build_env(main_root, "restore_current", output_root / "restore_current", {})
     code, output, seconds = run_command(
         [python_exe, "-m", "pip", "install", "-U", "."],
@@ -472,6 +779,31 @@ def run_branch(
     extra_env: dict[str, str],
     run_args: list[str],
 ) -> BranchRunResult:
+    """Run a branch's strategy and collect results for comparison.
+
+    This function orchestrates running a strategy in a specific branch worktree,
+    including installation, execution, and log collection.
+
+    Args:
+        main_root: Main repository root (for aux path resolution).
+        source_root: Root directory of the branch to run.
+        branch: Git branch or ref name.
+        label: Human-readable label for this run.
+        run_rel: Relative path to run.py from repo root.
+        output_dir: Directory for output storage.
+        python_exe: Python executable path.
+        timeout: Timeout for run.py execution.
+        install_timeout: Timeout for pip install.
+        skip_install: Skip pip install step if True.
+        dry_run: Only plan without executing if True.
+        keep_result: Don't restore original result.json if True.
+        copy_target_to_worktree: Sync target to worktree if True.
+        extra_env: Additional environment variables.
+        run_args: Additional arguments for run.py.
+
+    Returns:
+        BranchRunResult containing all run metadata and results.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     result = BranchRunResult(
         label=label,
@@ -553,6 +885,17 @@ def run_branch(
 
 
 def compare_results(results: list[BranchRunResult]) -> dict[str, Any]:
+    """Compare results across multiple branch runs.
+
+    Analyzes result hashes and log hashes to determine if outputs match
+    across branches.
+
+    Args:
+        results: List of BranchRunResult from each branch run.
+
+    Returns:
+        Dictionary containing result_hashes, log_comparison, and summary.
+    """
     successful = [item for item in results if not item.error and item.run_returncode in {0, None}]
     result_hashes = {item.label: item.result_hash for item in results if item.result_hash}
     comparison_ready = len(result_hashes) == len(results) and len(result_hashes) > 0
@@ -581,6 +924,16 @@ def compare_results(results: list[BranchRunResult]) -> dict[str, Any]:
 
 
 def first_log_diff(results: list[BranchRunResult], log_name: str) -> dict[str, Any]:
+    """Find the first difference between two log files across results.
+
+    Args:
+        results: List of branch run results.
+        log_name: Name of the log file to compare.
+
+    Returns:
+        Dictionary describing the first difference found.
+    """
+    available = [item for item in results if log_name in item.normalized_log_hashes]
     available = [item for item in results if log_name in item.normalized_log_hashes]
     if len(available) < 2:
         return {"reason": "missing_log"}
@@ -623,6 +976,14 @@ def first_log_diff(results: list[BranchRunResult], log_name: str) -> dict[str, A
 
 
 def main() -> int:
+    """Execute the branch comparison workflow.
+
+    Parses arguments, runs the strategy across specified branches,
+    collects and compares results, and generates a JSON report.
+
+    Returns:
+        Exit code: 0 if all branches succeeded, 1 if any failed.
+    """
     args = parse_args()
     main_root = repo_root()
     branches = args.branches or DEFAULT_BRANCHES

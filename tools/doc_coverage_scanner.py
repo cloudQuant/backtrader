@@ -34,22 +34,27 @@ class DocCoverageStats:
     
     @property
     def module_coverage(self) -> float:
+        """Return module documentation coverage percentage."""
         return (self.documented_modules / self.total_modules * 100) if self.total_modules > 0 else 0.0
-    
+
     @property
     def class_coverage(self) -> float:
+        """Return class documentation coverage percentage."""
         return (self.documented_classes / self.total_classes * 100) if self.total_classes > 0 else 0.0
-    
+
     @property
     def function_coverage(self) -> float:
+        """Return function documentation coverage percentage."""
         return (self.documented_functions / self.total_functions * 100) if self.total_functions > 0 else 0.0
-    
+
     @property
     def method_coverage(self) -> float:
+        """Return method documentation coverage percentage."""
         return (self.documented_methods / self.total_methods * 100) if self.total_methods > 0 else 0.0
-    
+
     @property
     def overall_coverage(self) -> float:
+        """Return overall documentation coverage percentage across all items."""
         total = self.total_classes + self.total_functions + self.total_methods
         documented = self.documented_classes + self.documented_functions + self.documented_methods
         return (documented / total * 100) if total > 0 else 0.0
@@ -68,7 +73,12 @@ class MissingDocItem:
 class DocCoverageScanner:
     """Scanner for analyzing documentation coverage in Python code."""
     
-    def __init__(self, root_path: str = "backtrader"):
+    def __init__(self, root_path: str = "backtrader") -> None:
+        """Initialize the documentation coverage scanner.
+
+        Args:
+            root_path: Root directory path to scan for Python files.
+        """
         self.root_path = Path(root_path)
         self.stats = DocCoverageStats()
         self.missing_docs: List[MissingDocItem] = []

@@ -24,29 +24,46 @@ from backtrader import lineroot
 
 
 class _ScalarNoArray:
+    """Dummy class that returns scalar values."""
+
     def __init__(self, value):
+        """Initialize with a scalar value.
+
+        Args:
+            value: Scalar value to return.
+        """
         self.value = value
 
     def __getitem__(self, idx):
+        """Return scalar value regardless of index."""
         return self.value
 
 
 class _Stage2DummyLine(lineroot.LineRoot):
+    """Dummy line for testing stage 2 operations."""
+
     def __init__(self, value):
+        """Initialize with a value.
+
+        Args:
+            value: Value to store.
+        """
         self.value = value
         self._opstage = 2
 
     def __getitem__(self, ago):
+        """Return value for given ago index."""
         return self.value
 
     def __len__(self):
+        """Return length of 1."""
         return 1
 
     def qbuffer(self, savemem=0):
-        pass
+        """Dummy qbuffer method."""
 
     def minbuffer(self, size):
-        pass
+        """Dummy minbuffer method."""
 
 # ============================================================================
 # 1. LineBuffer — __setitem__ NaN/None/datetime protection (lines 526-575)

@@ -1,8 +1,14 @@
+"""Tests that adapted HFT backtest scenarios match backtrader results.
+
+Verifies that all HFT scenario specifications produce matching results
+between the adapted framework and native backtrader execution.
+"""
 import pytest
 from tests.test_utils.hft_scenarios import compare_scenario, get_hft_scenario_specs
 
 
 def _scenario_by_name(name):
+    """Get scenario specification by name."""
     return next(spec for spec in get_hft_scenario_specs() if spec.name == name)
 
 
@@ -23,6 +29,8 @@ def test_adapted_hftbacktest_scenarios_match_backtrader_result(
     expected_fill_count,
     expected_last_fill_price,
 ):
+    """Test that adapted HFT backtest scenarios produce matching backtrader results."""
+    result = compare_scenario(_scenario_by_name(scenario_name))
     result = compare_scenario(_scenario_by_name(scenario_name))
 
     assert result["matches"] == {

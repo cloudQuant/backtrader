@@ -1,3 +1,13 @@
+"""CTP Mixed Bar+Tick Trading Examples Common Module.
+
+This module provides strategies for mixed bar+tick CTP futures trading,
+combining bar-based signals with tick-level execution.
+
+Strategies:
+- SingleSymbolMixStrategy: Single-symbol strategy using both bars and ticks
+- PairMixArbitrageStrategy: Pair trading strategy for arbitrage opportunities
+"""
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -25,6 +35,11 @@ from ctp_example_support import (
 
 
 class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
+    """Single-symbol strategy combining bar signals with tick-level execution.
+
+    This strategy uses configurable bar windows and tick-based order execution
+    for futures trading.
+    """
     params = BASE_FUTURES_STRATEGY_PARAMS + (
         ("symbol", "rb2610"),
         ("bar_window", 3),
@@ -38,6 +53,7 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
     )
 
     def __init__(self):
+        """Initialize single symbol mix strategy."""
         super().__init__()
         self.latest_tick_price = None
         self.bar_closes = deque(maxlen=max(int(self.p.max_bar_history), int(self.p.bar_window)))
@@ -107,6 +123,11 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
         return False
 
     def notify_bar(self, bar):
+        """Handle bar data from secondary feed.
+
+        Args:
+            bar: Bar data from secondary feed.
+        """
         if self._use_tick_bars():
             return
         if bar.symbol != self.p.symbol:
@@ -114,6 +135,11 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
         self.bar_closes.append(float(bar.close))
 
     def notify_tick(self, tick):
+        """Handle tick data from primary feed.
+
+        Args:
+            tick: Tick data from primary feed.
+        """
         if tick.symbol != self.p.symbol:
             return
 
@@ -158,6 +184,11 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
             )
 
     def after_terminal_order(self, order):
+        """Handle terminal order completion.
+
+        Args:
+            order: Order that reached terminal state.
+        """
         info = getattr(order, "info", None)
         signal_tag = info.get("signal_tag", "") if hasattr(info, "get") else getattr(info, "signal_tag", "")
         if self.forced_order_mode_enabled():
@@ -203,6 +234,11 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
             self.stop_if_roundtrips_complete(self.p.max_roundtrips)
 
     def get_summary(self):
+        """Get strategy summary.
+
+        Returns:
+            dict: Summary including symbol, tick price, and bar closes.
+        """
         summary = super().get_summary()
         summary.update(
             {
@@ -215,6 +251,11 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
 
 
 class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
+    """Pair arbitrage strategy using mixed bar+tick execution.
+
+    This strategy monitors spread between two related futures contracts
+    and executes arbitrage trades based on configurable entry/exit edges.
+    """
     params = BASE_FUTURES_STRATEGY_PARAMS + (
         ("symbol_a", "rb2610"),
         ("symbol_b", "hc2610"),
@@ -229,6 +270,7 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
     )
 
     def __init__(self):
+        """Initialize pair mix arbitrage strategy."""
         super().__init__()
         self.latest_prices = {}
         self.bar_closes = defaultdict(
@@ -268,6 +310,11 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
         self._tick_bar_state[symbol] = {"bucket_start": bucket_start, "close": price}
 
     def notify_bar(self, bar):
+        """Handle bar data from secondary feed.
+
+        Args:
+            bar: Bar data from secondary feed.
+        """
         if self._use_tick_bars():
             return
         if bar.symbol not in (self.p.symbol_a, self.p.symbol_b):
@@ -356,6 +403,11 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
         return mean_a - mean_b
 
     def notify_tick(self, tick):
+        """Handle tick data from primary feed.
+
+        Args:
+            tick: Tick data from primary feed.
+        """
         if tick.symbol not in (self.p.symbol_a, self.p.symbol_b):
             return
 
@@ -428,6 +480,11 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
             )
 
     def after_terminal_order(self, order):
+        """Handle terminal order completion.
+
+        Args:
+            order: Order that reached terminal state.
+        """
         info = getattr(order, "info", None)
         signal_tag = info.get("signal_tag", "") if hasattr(info, "get") else getattr(info, "signal_tag", "")
         if self.forced_order_mode_enabled():
@@ -472,6 +529,11 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
             self.stop_if_roundtrips_complete(self.p.max_roundtrips)
 
     def get_summary(self):
+        """Get strategy summary.
+
+        Returns:
+            dict: Summary including symbols, prices, and bar closes.
+        """
         summary = super().get_summary()
         summary.update(
             {
@@ -492,7 +554,18 @@ STRATEGIES = {
 }
 
 
-def get_strategy_class(name):
+def get_strategy_class(name: str):
+    """Get strategy class by name.
+
+    Args:
+        name: Strategy name ('single_symbol' or 'pair_arbitrage').
+
+    Returns:
+        Strategy class.
+
+    Raises:
+        ValueError: If strategy name is not supported.
+    """
     normalized = str(name or "").strip().lower()
     if normalized not in STRATEGIES:
         raise ValueError(f"Unsupported mixbroker strategy: {name}")
@@ -586,7 +659,18 @@ def _build_bar_events(symbol, bar_points, start_timestamp):
     return events
 
 
-def build_backtest_channel(config):
+def build_backtest_channel(config: dict):
+    """Build a backtest channel from configuration.
+
+    Args:
+        config: Configuration dictionary containing scenario details.
+
+    Returns:
+        MixedChannel configured for backtesting.
+
+    Raises:
+        ValueError: If scenario type is not supported.
+    """
     scenario = dict(config.get("scenario") or {})
     scenario_type = str(scenario.get("type") or "").strip().lower()
     start_timestamp = float(scenario.get("start_timestamp", 1710000000.0))
@@ -624,5 +708,13 @@ def build_backtest_channel(config):
     raise ValueError(f"Unsupported mixbroker scenario: {scenario_type}")
 
 
-def format_summary(strategy):
+def format_summary(strategy) -> str:
+    """Format strategy summary as JSON string.
+
+    Args:
+        strategy: Strategy instance with get_summary method.
+
+    Returns:
+        JSON-formatted summary string.
+    """
     return json.dumps(strategy.get_summary(), ensure_ascii=False, indent=2, sort_keys=True)

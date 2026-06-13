@@ -447,10 +447,48 @@ class BackBroker(BrokerBase):
         self._cash_addition = collections.deque()
 
     def start(self):
+        """Start the broker and lock the ``position_mode`` parameter.
+
+        After the broker has been started the ``position_mode`` parameter
+        is frozen (see :meth:`_freeze_position_mode`). This mirrors the
+        behaviour of :class:`BtApiBroker` and prevents strategies from
+        silently switching between net and dual-side accounting part-way
+        through a run.
+
+        Returns:
+            None: The return value of the parent
+            :meth:`BrokerBase.start` is forwarded unchanged.
+        """
         super().start()
         self._freeze_position_mode("start()")
 
     def set_param(self, name, value, validate=True):
+        """Override :meth:`BrokerBase.set_param` to guard ``position_mode`` changes.
+
+        The ``position_mode`` parameter is treated specially: it is
+        immutable once :meth:`start` has run (frozen via
+        :meth:`_freeze_position_mode`), and its raw value is normalized
+        through :func:`normalize_position_mode` so that the broker
+        always stores one of the canonical ``"net"`` /
+        ``"dual_side"`` strings.
+
+        Args:
+            name: Name of the parameter to set.
+            value: New value for the parameter. For ``position_mode`` the
+                value is normalized before being applied.
+            validate: When ``True`` (default), delegate to the base class
+                so that the registered validator runs. Set to ``False``
+                to bypass validation (used internally when applying
+                normalized values).
+
+        Returns:
+            The return value of :meth:`BrokerBase.set_param` after the
+            value has been applied.
+
+        Raises:
+            ValueError: If ``name == "position_mode"`` and the parameter
+                has already been frozen by :meth:`start`.
+        """
         if name == "position_mode":
             self._ensure_position_mode_mutable()
             value = normalize_position_mode(value)
@@ -1290,12 +1328,13 @@ class BackBroker(BrokerBase):
         ocoref = self._ocos.get(parentref, None)
         ocol = self._ocol.pop(ocoref, None)
         if ocol:
-            for i in range(len(self.pending) - 1, -1, -1):
-                o = self.pending[i]
-                if o is not None and o.ref in ocol:
-                    del self.pending[i]
-                    o.cancel()
-                    self.notify(o)
+            for queue in (self.pending, self.submitted):
+                for i in range(len(queue) - 1, -1, -1):
+                    o = queue[i]
+                    if o is not None and o.ref in ocol:
+                        del queue[i]
+                        o.cancel()
+                        self.notify(o)
 
     def _ocoize(self, order, oco):
         """Set up OCO (One-Cancels-Other) relationship for an order.

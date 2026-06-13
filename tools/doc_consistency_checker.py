@@ -33,7 +33,12 @@ class ConsistencyIssue:
 class DocConsistencyChecker:
     """Checker for documentation consistency."""
     
-    def __init__(self, docs_root: str = "docs"):
+    def __init__(self, docs_root: str = "docs") -> None:
+        """Initialize the consistency checker.
+
+        Args:
+            docs_root: Root directory of documentation to check.
+        """
         self.docs_root = Path(docs_root)
         self.issues: List[ConsistencyIssue] = []
         

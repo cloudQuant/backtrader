@@ -32,6 +32,10 @@ from .dateintern import num2dt as num2dt
 from .dateintern import num2time as num2time
 from .dateintern import time2num as time2num
 from .dateintern import tzparse as tzparse
+from .get_metrics import STANDARD_METRIC_FIELDS as STANDARD_METRIC_FIELDS
+from .get_metrics import extract_backtest_metrics as extract_backtest_metrics
+from .get_metrics import get_backtest_metrics as get_backtest_metrics
+from .get_metrics import write_metrics as write_metrics
 from .log_message import configure_logging as configure_logging
 from .log_message import get_logger as get_logger
 from .log_message import reset_logging as reset_logging
@@ -53,6 +57,10 @@ __all__ = [
     "num2time",
     "time2num",
     "tzparse",
+    "STANDARD_METRIC_FIELDS",
+    "get_backtest_metrics",
+    "extract_backtest_metrics",
+    "write_metrics",
     "get_logger",
     "configure_logging",
     "set_level",

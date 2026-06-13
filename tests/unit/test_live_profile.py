@@ -1,3 +1,12 @@
+"""Tests for LiveProfile and build_cerebro integration.
+
+Tests cover:
+- LiveProfile backtest mode: broker/data cls customization
+- LiveProfile live mode: store/broker/feed wiring
+- Data and broker factory kwargs passthrough
+- Profile store reuse and instance management
+"""
+
 from pathlib import Path
 
 import backtrader as bt
@@ -12,10 +21,11 @@ from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_tick
 
 
 class _NoopStrategy(bt.Strategy):
-    pass
+    """No-op strategy for testing."""
 
 
 def test_build_cerebro_backtest_profile_wires_backtest_components():
+    """Test that backtest profile wires BackBroker and BacktraderCSVData correctly."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     profile = LiveProfile(
         mode="backtest",
@@ -32,6 +42,7 @@ def test_build_cerebro_backtest_profile_wires_backtest_components():
 
 
 def test_build_cerebro_backtest_profile_passes_data_kwargs_through():
+    """Test that data_kwargs are passed through to the data feed."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     profile = LiveProfile(
         mode="backtest",
@@ -47,6 +58,7 @@ def test_build_cerebro_backtest_profile_passes_data_kwargs_through():
 
 
 def test_build_cerebro_passes_cerebro_kwargs_through():
+    """Test that cerebro_kwargs are passed through to Cerebro."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     profile = LiveProfile(
         mode="backtest",
@@ -62,10 +74,15 @@ def test_build_cerebro_passes_cerebro_kwargs_through():
 
 
 def test_build_cerebro_backtest_profile_honors_custom_broker_cls_and_data_cls():
+    """Test that custom broker_cls and data_cls are used in backtest mode."""
     class CustomBackBroker(BackBroker):
+        """Custom broker for testing."""
+
         pass
 
     class CustomBackData(BacktraderCSVData):
+        """Custom data feed for testing."""
+
         pass
 
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
@@ -85,10 +102,13 @@ def test_build_cerebro_backtest_profile_honors_custom_broker_cls_and_data_cls():
 
 
 def test_build_cerebro_backtest_profile_uses_broker_factory_with_profile_only():
+    """Test that broker_factory is called with None store and profile in backtest mode."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     captured = {}
 
     class CustomBackBroker(BackBroker):
+        """Custom broker for testing."""
+
         pass
 
     def broker_factory(store, profile):
@@ -112,6 +132,7 @@ def test_build_cerebro_backtest_profile_uses_broker_factory_with_profile_only():
 
 
 def test_build_cerebro_rejects_broker_factory_returning_none():
+    """Test that broker_factory returning None raises ValueError."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     profile = LiveProfile(
         mode="backtest",
@@ -125,6 +146,7 @@ def test_build_cerebro_rejects_broker_factory_returning_none():
 
 
 def test_build_cerebro_passes_broker_kwargs_through_in_backtest_and_live():
+    """Test that broker_kwargs are passed through in both backtest and live modes."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     backtest_profile = LiveProfile(
         mode="backtest",
@@ -153,6 +175,7 @@ def test_build_cerebro_passes_broker_kwargs_through_in_backtest_and_live():
 
 
 def test_build_cerebro_applies_explicit_data_name_to_single_feed_in_backtest_and_live():
+    """Test that explicit data_name is applied to single data feed in both modes."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     backtest_profile = LiveProfile(
         mode="backtest",
@@ -183,6 +206,7 @@ def test_build_cerebro_applies_explicit_data_name_to_single_feed_in_backtest_and
 
 
 def test_build_cerebro_treats_empty_data_name_as_unset():
+    """Test that empty data_name is treated as unset and defaults to dataname."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     profile = LiveProfile(
         mode="backtest",
@@ -198,6 +222,7 @@ def test_build_cerebro_treats_empty_data_name_as_unset():
 
 
 def test_build_cerebro_uses_data_factory_output_directly():
+    """Test that data_factory output is used directly without wrapping."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     data = BacktraderCSVData(dataname=str(datapath))
     profile = LiveProfile(
@@ -214,6 +239,7 @@ def test_build_cerebro_uses_data_factory_output_directly():
 
 
 def test_build_cerebro_falls_back_to_data_dataname_when_name_is_empty():
+    """Test fallback to data.dataname when data._name is empty."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     data = BacktraderCSVData(dataname=str(datapath))
     data._name = ""
@@ -232,6 +258,7 @@ def test_build_cerebro_falls_back_to_data_dataname_when_name_is_empty():
 
 @pytest.mark.parametrize("factory_result", [None, [], [None]])
 def test_build_cerebro_rejects_invalid_data_factory_output(factory_result):
+    """Test that invalid data_factory output (None, empty list, list with None) raises ValueError."""
     profile = LiveProfile(
         mode="backtest",
         strategy=_NoopStrategy,
@@ -243,6 +270,7 @@ def test_build_cerebro_rejects_invalid_data_factory_output(factory_result):
 
 
 def test_build_cerebro_applies_data_name_to_single_data_factory_output():
+    """Test that data_name is applied to single data from data_factory."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     data = BacktraderCSVData(dataname=str(datapath))
     profile = LiveProfile(
@@ -260,6 +288,7 @@ def test_build_cerebro_applies_data_name_to_single_data_factory_output():
 
 
 def test_build_cerebro_uses_multiple_data_factory_outputs_directly():
+    """Test that multiple data outputs from data_factory are used directly."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     data_a = BacktraderCSVData(dataname=str(datapath))
     data_b = BacktraderCSVData(dataname=str(datapath))
@@ -278,6 +307,7 @@ def test_build_cerebro_uses_multiple_data_factory_outputs_directly():
 
 
 def test_build_cerebro_live_profile_wires_store_broker_and_feed():
+    """Test that live profile wires store, broker, and feed together correctly."""
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
     profile = LiveProfile(
         mode="live",
@@ -297,6 +327,7 @@ def test_build_cerebro_live_profile_wires_store_broker_and_feed():
 
 
 def test_build_cerebro_live_profile_reuses_store_factory_instance():
+    """Test that store_factory instance is reused across broker and data."""
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
     store = make_store(api=client)
     profile = LiveProfile(
@@ -315,6 +346,7 @@ def test_build_cerebro_live_profile_reuses_store_factory_instance():
 
 
 def test_build_cerebro_live_profile_passes_data_kwargs_through():
+    """Test that data_kwargs are passed through to the data feed in live mode."""
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
     profile = LiveProfile(
         mode="live",
@@ -332,6 +364,7 @@ def test_build_cerebro_live_profile_passes_data_kwargs_through():
 
 
 def test_build_cerebro_live_profile_builds_store_from_provider_and_kwargs():
+    """Test that store is built from provider and store_kwargs in live mode."""
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
     profile = LiveProfile(
         mode="live",
@@ -354,6 +387,7 @@ def test_build_cerebro_live_profile_builds_store_from_provider_and_kwargs():
 
 
 def test_build_cerebro_live_profile_rejects_missing_store_instance():
+    """Test that None store_factory raises ValueError in live mode."""
     profile = LiveProfile(
         mode="live",
         strategy=_NoopStrategy,
@@ -366,6 +400,7 @@ def test_build_cerebro_live_profile_rejects_missing_store_instance():
 
 
 def test_build_cerebro_live_profile_uses_broker_factory_with_store_and_profile():
+    """Test that broker_factory receives store and profile in live mode."""
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
     captured = {}
 
@@ -393,7 +428,10 @@ def test_build_cerebro_live_profile_uses_broker_factory_with_store_and_profile()
 
 
 def test_build_cerebro_live_profile_honors_custom_broker_cls():
+    """Test that custom broker class is honored via broker_cls in live mode."""
     class CustomLiveBroker(bt.brokers.BtApiBroker):
+        """Custom broker for testing."""
+
         pass
 
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
@@ -413,7 +451,10 @@ def test_build_cerebro_live_profile_honors_custom_broker_cls():
 
 
 def test_build_cerebro_live_profile_honors_custom_data_cls():
+    """Test that custom data class is honored via data_cls in live mode."""
     class CustomLiveFeed(BtApiFeed):
+        """Custom data feed for testing."""
+
         pass
 
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
@@ -433,6 +474,7 @@ def test_build_cerebro_live_profile_honors_custom_data_cls():
 
 
 def test_build_cerebro_live_profile_supports_multiple_symbols():
+    """Test that live profile supports multiple symbols with separate data feeds."""
     symbols = ("BTC/USDT", "ETH/USDT")
     client = FakeBtApiClient(
         live_ticks={
@@ -460,6 +502,7 @@ def test_build_cerebro_live_profile_supports_multiple_symbols():
 
 
 def test_live_profile_normalizes_string_symbols_and_validates_frequency():
+    """Test that LiveProfile normalizes string symbols to tuple and validates frequency."""
     profile = LiveProfile(
         mode="live",
         frequency="HFT",
@@ -480,8 +523,17 @@ def test_live_profile_normalizes_string_symbols_and_validates_frequency():
             store_factory=lambda: make_store(api=FakeBtApiClient()),
         )
 
+    with pytest.raises(ValueError, match="LiveProfile.mode"):
+        LiveProfile(
+            mode="paper",
+            strategy=_NoopStrategy,
+            symbols=DEFAULT_SYMBOL,
+            store_factory=lambda: make_store(api=FakeBtApiClient()),
+        )
+
 
 def test_live_profile_normalizes_and_validates_mode():
+    """Test that LiveProfile normalizes mode to lowercase and validates it."""
     profile = LiveProfile(
         mode="LIVE",
         strategy=_NoopStrategy,
@@ -502,6 +554,7 @@ def test_live_profile_normalizes_and_validates_mode():
 
 
 def test_live_profile_requires_dataname_symbols_or_data_factory():
+    """Test that LiveProfile requires at least one of dataname, symbols, or data_factory."""
     with pytest.raises(ValueError, match="LiveProfile requires dataname, symbols, or data_factory"):
         LiveProfile(
             mode="backtest",
@@ -510,6 +563,7 @@ def test_live_profile_requires_dataname_symbols_or_data_factory():
 
 
 def test_live_profile_rejects_live_store_configuration_in_backtest_mode():
+    """Test that live store configuration is rejected in backtest mode."""
     with pytest.raises(ValueError, match="Backtest profiles cannot use live store configuration"):
         LiveProfile(
             mode="backtest",
@@ -521,6 +575,7 @@ def test_live_profile_rejects_live_store_configuration_in_backtest_mode():
 
 
 def test_live_profile_rejects_data_factory_with_dataname_or_symbols():
+    """Test that data_factory cannot be used with dataname or symbols."""
     with pytest.raises(ValueError, match="LiveProfile.data_factory"):
         LiveProfile(
             mode="backtest",
@@ -540,6 +595,7 @@ def test_live_profile_rejects_data_factory_with_dataname_or_symbols():
 
 
 def test_live_profile_rejects_shared_data_name_for_multiple_symbols():
+    """Test that shared data_name for multiple symbols raises ValueError."""
     with pytest.raises(ValueError, match="LiveProfile.data_name"):
         LiveProfile(
             mode="live",
@@ -551,6 +607,7 @@ def test_live_profile_rejects_shared_data_name_for_multiple_symbols():
 
 
 def test_live_profile_rejects_dataname_and_symbols_together():
+    """Test that using both dataname and symbols raises ValueError."""
     with pytest.raises(ValueError, match="LiveProfile cannot use both dataname and symbols"):
         LiveProfile(
             mode="live",
@@ -562,6 +619,7 @@ def test_live_profile_rejects_dataname_and_symbols_together():
 
 
 def test_build_cerebro_rejects_data_name_when_data_factory_returns_multiple_datas():
+    """Test that data_name cannot be used when data_factory returns multiple datas."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
     profile = LiveProfile(
         mode="backtest",

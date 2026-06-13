@@ -11,15 +11,18 @@ This script analyzes Python source files to identify:
 Usage:
     # Check all Python files (excluding docs folder)
     python scripts/analyze_docstrings.py
-    
+
     # Check specific file
     python scripts/analyze_docstrings.py backtrader/strategy.py
-    
+
     # Check with verbose output
     python scripts/analyze_docstrings.py --verbose
-    
+
     # Only show summary
     python scripts/analyze_docstrings.py --summary
+
+    # Limit the number of non-compliant files shown
+    python scripts/analyze_docstrings.py --limit 5
 
 Example output:
     === Analysis Report for strategy.py ===
@@ -451,32 +454,40 @@ def generate_report(filepath: str, verbose: bool = False) -> str:
     return '\n'.join(report_lines)
 
 
-def batch_analyze(root_dir: str, summary_only: bool = False, verbose: bool = False) -> None:
+def batch_analyze(
+    root_dir: str,
+    summary_only: bool = False,
+    verbose: bool = False,
+    limit: Optional[int] = None,
+) -> None:
     """Analyze all Python files in a directory.
-    
+
     Args:
         root_dir: Root directory to search.
         summary_only: If True, only show summary table.
         verbose: If True, show detailed reports for files needing work.
+        limit: If set, show at most this many non-compliant files in
+            the listing table and detailed reports. Totals always
+            reflect all files.
     """
     print(f"\n{'='*70}")
     print(f"Scanning Python files in: {root_dir}")
     print(f"{'='*70}")
-    
+
     python_files = find_python_files(root_dir)
     print(f"Found {len(python_files)} Python files\n")
-    
+
     # Quick analyze all files
     results = []
     for filepath in python_files:
         result = quick_analyze(filepath)
         results.append(result)
-    
+
     # Separate files needing work
     needs_work = [r for r in results if r.get('needs_work', False)]
     has_errors = [r for r in results if 'error' in r]
     all_good = [r for r in results if not r.get('needs_work', False) and 'error' not in r]
-    
+
     # Print summary table
     print(f"{'─'*70}")
     print(f"{'FILE SUMMARY':^70}")
@@ -489,43 +500,50 @@ def batch_analyze(root_dir: str, summary_only: bool = False, verbose: bool = Fal
     print(f"{'─'*70}")
     print(f"{'Total':<12} {len(results):>8}")
     print(f"{'─'*70}\n")
-    
+
     # Show files needing work
     if needs_work:
         print(f"{'='*70}")
         print(f"FILES NEEDING OPTIMIZATION ({len(needs_work)} files)")
         print(f"{'='*70}")
-        
+
         # Sort by total issues (most issues first)
         needs_work.sort(key=lambda x: x.get('missing_docstrings', 0) + x.get('chinese_comments', 0), reverse=True)
-        
+
+        # Apply limit (clamp to >= 0; None means unlimited)
+        displayed = needs_work if limit is None else needs_work[: max(limit, 0) :]
+        hidden = len(needs_work) - len(displayed)
+
         # Print table header
         print(f"\n{'File':<50} {'Lines':>6} {'Missing':>8} {'Chinese':>8}")
         print(f"{'─'*70}")
-        
-        for r in needs_work:
+
+        for r in displayed:
             rel_path = os.path.relpath(r['filepath'], root_dir)
             if len(rel_path) > 48:
                 rel_path = '...' + rel_path[-45:]
             print(f"{rel_path:<50} {r['total_lines']:>6} {r.get('missing_docstrings', 0):>8} {r.get('chinese_comments', 0):>8}")
-        
+
         print(f"{'─'*70}")
-        
-        # Calculate totals
+
+        # Calculate totals (always over all non-compliant files)
         total_missing = sum(r.get('missing_docstrings', 0) for r in needs_work)
         total_chinese = sum(r.get('chinese_comments', 0) for r in needs_work)
         print(f"{'TOTAL':<50} {'':<6} {total_missing:>8} {total_chinese:>8}")
+
+        if hidden > 0:
+            print(f"\n... and {hidden} more file(s) not shown (increase --limit to see more)")
         print()
-        
+
         # Show detailed reports if not summary only
         if not summary_only and verbose:
             print(f"\n{'='*70}")
             print("DETAILED REPORTS")
             print(f"{'='*70}")
-            for r in needs_work[:10]:  # Limit to first 10
+            for r in displayed:
                 print(generate_report(r['filepath'], verbose=False))
-            if len(needs_work) > 10:
-                print(f"\n... and {len(needs_work) - 10} more files. Run with specific file for details.")
+            if hidden > 0:
+                print(f"\n... and {hidden} more files. Run with specific file for details.")
     
     # Show errors if any
     if has_errors:
@@ -561,15 +579,18 @@ def main():
 Examples:
   # Check all files (excluding docs folder)
   python scripts/analyze_docstrings.py
-  
+
   # Check specific file
   python scripts/analyze_docstrings.py backtrader/strategy.py
-  
+
   # Show only summary
   python scripts/analyze_docstrings.py --summary
-  
+
   # Check with verbose output
   python scripts/analyze_docstrings.py --verbose
+
+  # Limit non-compliant file list to top 5
+  python scripts/analyze_docstrings.py --limit 5
         """
     )
     parser.add_argument(
@@ -597,11 +618,21 @@ Examples:
         action='store_true',
         help='Recommend one file that needs optimization and print detailed report'
     )
-    
+    parser.add_argument(
+        '-n', '--limit',
+        type=int,
+        default=None,
+        metavar='N',
+        help='Limit the number of non-compliant files to display (default: show all)'
+    )
+
     if hasattr(parser, 'parse_intermixed_args'):
         args = parser.parse_intermixed_args()
     else:  # pragma: no cover - fallback for older Python versions
         args = parser.parse_args()
+
+    if args.limit is not None and args.limit < 0:
+        parser.error(f"--limit must be a non-negative integer (got {args.limit})")
 
     if args.recommend:
         recommended = select_recommended_file(
@@ -629,12 +660,22 @@ Examples:
         # Analyze specific files
         for filepath in args.files:
             if Path(filepath).is_dir():
-                batch_analyze(filepath, summary_only=args.summary, verbose=args.verbose)
+                batch_analyze(
+                    filepath,
+                    summary_only=args.summary,
+                    verbose=args.verbose,
+                    limit=args.limit,
+                )
             else:
                 print(generate_report(filepath, verbose=args.verbose))
     else:
         # Analyze all files in directory
-        batch_analyze(args.directory, summary_only=args.summary, verbose=args.verbose)
+        batch_analyze(
+            args.directory,
+            summary_only=args.summary,
+            verbose=args.verbose,
+            limit=args.limit,
+        )
 
 
 if __name__ == '__main__':

@@ -31,13 +31,24 @@ class DualSideBasicStrategy(bt.Strategy):
     """Walk through open/close on both legs, printing state at each bar."""
 
     def __init__(self):
+        """Initialize the strategy with an empty order log."""
         self.order_log = []
 
     def log(self, txt):
+        """Log a message with the current datetime.
+
+        Args:
+            txt: Message text to log.
+        """
         dt = self.data.datetime.datetime(0)
         print(f"{dt.strftime('%Y-%m-%d %H:%M')}  {txt}")
 
     def notify_order(self, order):
+        """Handle order completion notifications.
+
+        Args:
+            order: The order object that was completed.
+        """
         if order.status == order.Completed:
             side = getattr(order.info, "position_side", "n/a")
             offset = getattr(order.info, "offset", "n/a")
@@ -49,6 +60,11 @@ class DualSideBasicStrategy(bt.Strategy):
             )
 
     def notify_trade(self, trade):
+        """Handle trade close notifications.
+
+        Args:
+            trade: The trade object that was closed.
+        """
         if trade.isclosed:
             self.log(
                 f"TRADE CLOSED | tradeid={trade.tradeid} "
@@ -66,6 +82,11 @@ class DualSideBasicStrategy(bt.Strategy):
         )
 
     def next(self):
+        """Execute the dual-side position strategy steps on each bar.
+
+        Steps through opening/closing long and short positions independently.
+        """
+        bar = len(self)
         bar = len(self)
         if bar == 1:
             # Step 1: Open long 10 shares
@@ -100,10 +121,16 @@ class DualSideBasicStrategy(bt.Strategy):
             self._print_positions()
 
     def stop(self):
+        """Log the final portfolio value when the strategy ends."""
         self.log(f"Final portfolio value: {self.broker.getvalue():.2f}")
 
 
 def main():
+    """Run the dual-side basic operations example.
+
+    Sets up a BackBroker with dual_side position mode and demonstrates
+    opening/closing long and short positions independently.
+    """
     cerebro = bt.Cerebro()
 
     # Use built-in test data

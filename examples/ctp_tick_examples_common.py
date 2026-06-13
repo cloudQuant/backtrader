@@ -1,3 +1,12 @@
+"""CTP Tick-Based Trading Examples Common Module.
+
+This module provides strategies for pure tick-based CTP futures trading.
+
+Strategies:
+- SingleSymbolTickStrategy: Single-symbol tick-level strategy
+- PairTickArbitrageStrategy: Pair trading strategy using tick data
+"""
+
 from __future__ import annotations
 
 import json
@@ -24,6 +33,11 @@ from ctp_example_support import (
 
 
 class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
+    """Single-symbol strategy using pure tick-level data.
+
+    This strategy executes trades based on tick-level price movements
+    with configurable entry/exit biases.
+    """
     params = BASE_FUTURES_STRATEGY_PARAMS + (
         ("symbol", "rb2610"),
         ("tick_window", 4),
@@ -34,6 +48,7 @@ class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
     )
 
     def __init__(self):
+        """Initialize single symbol tick strategy."""
         super().__init__()
         self.prices = deque(maxlen=max(2, int(self.p.tick_window)))
         self._observed_open_position = False
@@ -76,6 +91,11 @@ class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
         return False
 
     def notify_tick(self, tick):
+        """Handle tick data from primary feed.
+
+        Args:
+            tick: Tick data from primary feed.
+        """
         if tick.symbol != self.p.symbol:
             return
 
@@ -120,6 +140,11 @@ class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
             )
 
     def after_terminal_order(self, order):
+        """Handle terminal order completion.
+
+        Args:
+            order: Order that reached terminal state.
+        """
         info = getattr(order, "info", None)
         signal_tag = info.get("signal_tag", "") if hasattr(info, "get") else getattr(info, "signal_tag", "")
         if self.forced_order_mode_enabled():
@@ -165,6 +190,11 @@ class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
             self.stop_if_roundtrips_complete(self.p.max_roundtrips)
 
     def get_summary(self):
+        """Get strategy summary.
+
+        Returns:
+            dict: Summary including symbol, window size, and prices.
+        """
         summary = super().get_summary()
         summary.update(
             {
@@ -177,6 +207,11 @@ class SingleSymbolTickStrategy(ConfigurableFuturesStrategyBase):
 
 
 class PairTickArbitrageStrategy(ConfigurableFuturesStrategyBase):
+    """Pair arbitrage strategy using tick-level data.
+
+    This strategy monitors spread between two related futures contracts
+    and executes arbitrage trades based on tick data with configurable edges.
+    """
     params = BASE_FUTURES_STRATEGY_PARAMS + (
         ("symbol_a", "rb2610"),
         ("symbol_b", "hc2610"),
@@ -188,6 +223,7 @@ class PairTickArbitrageStrategy(ConfigurableFuturesStrategyBase):
     )
 
     def __init__(self):
+        """Initialize pair tick arbitrage strategy."""
         super().__init__()
         self.latest_prices = {}
         self.spread_history = deque(maxlen=max(1, int(self.p.spread_window)))
@@ -266,6 +302,11 @@ class PairTickArbitrageStrategy(ConfigurableFuturesStrategyBase):
         return False
 
     def notify_tick(self, tick):
+        """Handle tick data from primary feed.
+
+        Args:
+            tick: Tick data from primary feed.
+        """
         if tick.symbol not in (self.p.symbol_a, self.p.symbol_b):
             return
 
@@ -339,6 +380,11 @@ class PairTickArbitrageStrategy(ConfigurableFuturesStrategyBase):
         self.spread_history.append(current_spread)
 
     def after_terminal_order(self, order):
+        """Handle terminal order completion.
+
+        Args:
+            order: Order that reached terminal state.
+        """
         info = getattr(order, "info", None)
         signal_tag = info.get("signal_tag", "") if hasattr(info, "get") else getattr(info, "signal_tag", "")
         if self.forced_order_mode_enabled():
@@ -383,6 +429,11 @@ class PairTickArbitrageStrategy(ConfigurableFuturesStrategyBase):
             self.stop_if_roundtrips_complete(self.p.max_roundtrips)
 
     def get_summary(self):
+        """Get strategy summary.
+
+        Returns:
+            dict: Summary including symbols, prices, and spread history.
+        """
         summary = super().get_summary()
         summary.update(
             {
@@ -400,7 +451,18 @@ STRATEGIES = {
 }
 
 
-def get_strategy_class(name):
+def get_strategy_class(name: str):
+    """Get strategy class by name.
+
+    Args:
+        name: Strategy name ('single_symbol' or 'pair_arbitrage').
+
+    Returns:
+        Strategy class.
+
+    Raises:
+        ValueError: If strategy name is not supported.
+    """
     normalized = str(name or "").strip().lower()
     if normalized not in STRATEGIES:
         raise ValueError(f"Unsupported tickbroker strategy: {name}")
@@ -447,7 +509,18 @@ def _build_tick_events(symbol, tick_points, start_timestamp, time_step):
     return events
 
 
-def build_backtest_channel(config):
+def build_backtest_channel(config: dict):
+    """Build a backtest channel from configuration.
+
+    Args:
+        config: Configuration dictionary containing scenario details.
+
+    Returns:
+        StreamingEventQueue configured for backtesting.
+
+    Raises:
+        ValueError: If scenario type is not supported.
+    """
     scenario = dict(config.get("scenario") or {})
     scenario_type = str(scenario.get("type") or "").strip().lower()
     start_timestamp = float(scenario.get("start_timestamp", 1710000000.0))
@@ -473,5 +546,13 @@ def build_backtest_channel(config):
     raise ValueError(f"Unsupported tickbroker scenario: {scenario_type}")
 
 
-def format_summary(strategy):
+def format_summary(strategy) -> str:
+    """Format strategy summary as JSON string.
+
+    Args:
+        strategy: Strategy instance with get_summary method.
+
+    Returns:
+        JSON-formatted summary string.
+    """
     return json.dumps(strategy.get_summary(), ensure_ascii=False, indent=2, sort_keys=True)

@@ -18,11 +18,16 @@ import re
 class DeepDocsReorganizer:
     """Deep reorganization of docs directory."""
     
-    def __init__(self, docs_root='docs'):
+    def __init__(self, docs_root: str = 'docs') -> None:
+        """Initialize the reorganizer.
+
+        Args:
+            docs_root: Root directory containing documentation files.
+        """
         self.docs_root = Path(docs_root)
-        self.moves = []
-        self.merges = []
-        self.deletes = []
+        self.moves: list = []
+        self.merges: list = []
+        self.deletes: list = []
     
     def merge_directory(self, src, dest, description=""):
         """Merge source directory into destination."""
