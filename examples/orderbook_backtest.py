@@ -15,7 +15,7 @@ Usage:
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import backtrader as bt
 from backtrader.channels.orderbook import OrderBookChannel
@@ -34,20 +34,15 @@ class OBSpreadStrategy(bt.Strategy):
         spreads: List of recent spread values for averaging.
         pos: Current position count (positive=long, negative=short).
         trades: Total number of trades executed.
-        _data_obj: Mock data object for order submission.
     """
 
-    params = (
-        ('symbol', 'BTC/USDT'),
-    )
+    params = (("symbol", "BTC/USDT"),)
 
     def __init__(self):
         """Initialize the strategy with empty tracking variables."""
         self.spreads = []
         self.pos = 0
         self.trades = 0
-        self._data_obj = type('Data', (), {
-            '_name': self.p.symbol, 'symbol': self.p.symbol})()
 
     def notify_order(self, order):
         """Handle order status updates.
@@ -89,14 +84,15 @@ class OBSpreadStrategy(bt.Strategy):
         depth_ratio = bid_depth / ask_depth if ask_depth > 0 else 1.0
 
         # Tight spread + strong bid depth → buy
+        data = self.get_hft_data(self.p.symbol)
         if spread < avg_spread * 0.8 and depth_ratio > 1.5 and self.pos <= 0:
-            self.buy(data=self._data_obj, size=0.05, exectype=0)
+            self.buy(data=data, size=0.05, exectype=0)
             self.pos += 1
             self.trades += 1
 
         # Wide spread + strong ask depth → sell
         elif spread > avg_spread * 1.2 and depth_ratio < 0.7 and self.pos >= 1:
-            self.sell(data=self._data_obj, size=0.05, exectype=0)
+            self.sell(data=data, size=0.05, exectype=0)
             self.pos -= 1
             self.trades += 1
 
@@ -114,9 +110,10 @@ def main():
     Raises:
         SystemExit: If the required data file is not found.
     """
-    symbol = 'BTC/USDT'
-    ob_file = os.path.join('tests', 'datas', 'tick_data',
-                           f'orderbook_{symbol.replace("/", "_")}.jsonl')
+    symbol = "BTC/USDT"
+    ob_file = os.path.join(
+        "tests", "datas", "tick_data", f'orderbook_{symbol.replace("/", "_")}.jsonl'
+    )
 
     if not os.path.exists(ob_file):
         print(f"Data file not found: {ob_file}")
@@ -136,7 +133,7 @@ def main():
     # 3. Run
     print(f"Running order book backtest on {ob_file}...")
     print(f"Initial cash: {cerebro.broker.getcash():.2f}")
-    print(f"Market impact model: LinearImpactModel(coefficient=0.0005)")
+    print("Market impact model: LinearImpactModel(coefficient=0.0005)")
 
     results = cerebro.run(channel=queue)
 
@@ -144,7 +141,7 @@ def main():
     strat = results[0]
     broker = cerebro.broker
     print(f"\n{'='*50}")
-    print(f"Order Book Backtest Results")
+    print("Order Book Backtest Results")
     print(f"{'='*50}")
     print(f"OB snapshots processed: {strat._event_count}")
     print(f"Trades executed:        {strat.trades}")
@@ -153,5 +150,5 @@ def main():
     print(f"P&L:                    {broker.getvalue() - 100000:.2f}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

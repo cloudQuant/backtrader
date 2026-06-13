@@ -39,6 +39,7 @@ from datetime import timezone
 
 from . import errors, feeds, indicator, linebuffer, observers
 from .brokers import BackBroker
+from .channel import ChannelDataRef
 from .dataseries import TimeFrame
 from .metabase import OwnerContext
 from .parameters import ParameterDescriptor, ParameterizedBase
@@ -931,9 +932,12 @@ class Cerebro(ParameterizedBase):
         """
         data = event.data
         channel_type = event.channel_type
+        data_ref = self._get_channel_data_ref(event)
 
         for strat in self.runningstrats:
             strat._event_count += 1
+            if data_ref is not None and hasattr(strat, "_register_hft_data"):
+                strat._register_hft_data(data_ref)
 
             if channel_type == "tick":
                 strat._tick_count += 1
@@ -949,6 +953,25 @@ class Cerebro(ParameterizedBase):
             elif channel_type == "bar":
                 strat.notify_bar(data)
                 strat._notify_bar_to_observers(data)
+
+    def _get_channel_data_ref(self, event):
+        """Return a stable lightweight data reference for a channel event."""
+        event_data = getattr(event, "data", None)
+        symbol = getattr(event_data, "symbol", None) or getattr(event, "channel_name", None)
+        if symbol is None:
+            return None
+
+        symbol = str(symbol)
+        if not hasattr(self, "_channel_data_refs"):
+            self._channel_data_refs = {}
+
+        data_ref = self._channel_data_refs.get(symbol)
+        if data_ref is None:
+            data_ref = ChannelDataRef(
+                symbol=symbol, channel_name=getattr(event, "channel_name", None)
+            )
+            self._channel_data_refs[symbol] = data_ref
+        return data_ref
 
     def _start_channel_strategy(self, strat):
         """Start a channel-mode strategy without assuming bar datas exist."""
@@ -1068,6 +1091,7 @@ class Cerebro(ParameterizedBase):
         self._init_stcount()
         runstrats: list = []
         self.runningstrats = runstrats
+        self._channel_data_refs = {}
 
         # Start broker
         self._broker.start()

@@ -1729,6 +1729,36 @@ class TickBroker(BrokerBase):
         """Number of ticks processed."""
         return self._tick_count
 
+    def get_last_tick(self, symbol=None):
+        """Return the latest processed tick for a symbol.
+
+        Args:
+            symbol: Symbol name. If omitted, return the first cached tick.
+
+        Returns:
+            TickEvent or None.
+        """
+        if symbol is not None:
+            return self._last_tick.get(str(symbol))
+        if self._last_tick:
+            return next(iter(self._last_tick.values()))
+        return None
+
+    def get_last_orderbook(self, symbol=None):
+        """Return the latest processed order book snapshot for a symbol.
+
+        Args:
+            symbol: Symbol name. If omitted, return the first cached snapshot.
+
+        Returns:
+            OrderBookSnapshot or None.
+        """
+        if symbol is not None:
+            return self._last_orderbook.get(str(symbol))
+        if self._last_orderbook:
+            return next(iter(self._last_orderbook.values()))
+        return None
+
     def _get_data_name(self, data):
         return getattr(data, "_name", None) or getattr(data, "symbol", str(data))
 

@@ -319,6 +319,8 @@ class Strategy(StrategyBase):
             self._last_tick = {}
             self._last_ob = {}
             self._last_funding = {}
+        if not hasattr(self, "_hft_data_refs"):
+            self._hft_data_refs = {}
 
         # Initialize critical attributes that are expected by strategy execution
         # These should be available before any user code runs
@@ -1967,6 +1969,59 @@ class Strategy(StrategyBase):
 
     # ========== Data Access Methods ==========
 
+    def _register_hft_data(self, data):
+        """Register a channel-mode data reference for HFT order routing."""
+        symbol = getattr(data, "symbol", None) or getattr(data, "_name", None)
+        if symbol is None:
+            return None
+        if not hasattr(self, "_hft_data_refs"):
+            self._hft_data_refs = {}
+        self._hft_data_refs[str(symbol)] = data
+        return data
+
+    def get_hft_data(self, symbol=None):
+        """Return a data reference suitable for channel-mode HFT orders.
+
+        In channel-only runs there may be no LineSeries data feed attached
+        to the strategy, but standard order APIs still need a data identity.
+        Cerebro registers lightweight per-symbol references before invoking
+        ``notify_tick`` / ``notify_orderbook`` / ``notify_bar`` callbacks.
+
+        Args:
+            symbol: Optional symbol to look up. If omitted and exactly one
+                HFT data reference exists, that reference is returned.
+
+        Returns:
+            A LineSeries data feed or a channel-mode data reference.
+
+        Raises:
+            KeyError: If the requested symbol is unknown or no reference has
+                been registered yet.
+            ValueError: If ``symbol`` is omitted but more than one HFT data
+                reference is available.
+        """
+        if not hasattr(self, "_hft_data_refs"):
+            self._hft_data_refs = {}
+
+        if symbol is None:
+            if len(self._hft_data_refs) == 1:
+                return next(iter(self._hft_data_refs.values()))
+            if self.datas:
+                return self.datas[0]
+            if not self._hft_data_refs:
+                raise KeyError("No HFT channel data reference is available yet")
+            raise ValueError("Multiple HFT data references exist; pass symbol explicitly")
+
+        symbol = str(symbol)
+        data = self._hft_data_refs.get(symbol)
+        if data is not None:
+            return data
+
+        if symbol in self.env.datasbyname:
+            return self.env.datasbyname[symbol]
+
+        raise KeyError(f"No HFT channel data reference for symbol {symbol!r}")
+
     def getdatanames(self):
         """Get a list of all data names in the system.
 
@@ -2068,7 +2123,7 @@ class Strategy(StrategyBase):
             else:
                 raise ValueError(
                     "No data feed available. In channel mode, pass a data "
-                    "object explicitly: self.buy(data=my_data, size=...)"
+                    "object explicitly or use self.get_hft_data(symbol)"
                 )
         # Use the provided size, otherwise calculate via getsizer
         size = size if size is not None else self.getsizing(data, isbuy=True)
@@ -2137,7 +2192,7 @@ class Strategy(StrategyBase):
             else:
                 raise ValueError(
                     "No data feed available. In channel mode, pass a data "
-                    "object explicitly: self.sell(data=my_data, size=...)"
+                    "object explicitly or use self.get_hft_data(symbol)"
                 )
         size = size if size is not None else self.getsizing(data, isbuy=False)
         if size:
