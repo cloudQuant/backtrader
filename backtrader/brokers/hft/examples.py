@@ -14,12 +14,29 @@ from pathlib import Path
 
 @dataclass(frozen=True)
 class InputRequirement:
+    """Describes a required input for an HFT example.
+
+    Attributes:
+        name: Human-readable name of the input requirement.
+        patterns: Tuple of glob patterns that matching input files must satisfy.
+    """
+
     name: str
     patterns: tuple[str, ...]
 
 
 @dataclass(frozen=True)
 class StrategyConfig:
+    """Configuration for an HFT strategy.
+
+    Attributes:
+        builder: Name of the quote builder class to use.
+        parameters: Dictionary of strategy parameter names to values.
+        interval_ns: Quote update interval in nanoseconds.
+        recorder_capacity: Capacity of the order event recorder.
+        expected_metrics: Expected performance metrics for validation.
+    """
+
     builder: str
     parameters: dict[str, float]
     interval_ns: int
@@ -29,6 +46,18 @@ class StrategyConfig:
 
 @dataclass(frozen=True)
 class HFTExampleSpec:
+    """Specification for an HFT backtest example.
+
+    Attributes:
+        name: Human-readable name of the example.
+        source_notebook: Path to the source notebook file.
+        symbol: Trading symbol for the example.
+        input_requirements: Tuple of input requirements for the example.
+        asset_parameters: Asset-specific parameters dictionary.
+        strategy: Strategy configuration for the example.
+        demo_supported: Whether demo mode is supported (default: False).
+    """
+
     name: str
     source_notebook: str
     symbol: str
@@ -99,6 +128,21 @@ def _compute_coeff(xi, gamma, delta, intensity_a, intensity_k):
 
 
 class PlainGridQuoteBuilder:
+    """Simple grid-based quote builder for market making.
+
+    Generates bid/ask quotes based on a fixed grid around the mid-price,
+    with optional skew adjustment based on position.
+
+    Attributes:
+        tick_size: Minimum price increment for quotes.
+        grid_num: Number of grid levels for each side.
+        max_position: Maximum position before reducing quote size.
+        grid_interval: Spacing between grid levels.
+        half_spread: Half spread from reservation price to first quote.
+        skew: Position skew coefficient.
+        order_qty: Base order quantity.
+    """
+
     def __init__(
         self,
         tick_size=1.0,
@@ -109,6 +153,17 @@ class PlainGridQuoteBuilder:
         skew=0.0,
         order_qty=0.1,
     ):
+        """Initialize the PlainGridQuoteBuilder.
+
+        Args:
+            tick_size: Minimum price increment (default: 1.0).
+            grid_num: Number of grid levels (default: 20).
+            max_position: Max position before reducing size (default: 5.0).
+            grid_interval: Grid level spacing (default: 10.0).
+            half_spread: Half spread from reservation price (default: 20.0).
+            skew: Position skew coefficient (default: 0.0).
+            order_qty: Base order quantity (default: 0.1).
+        """
         self.tick_size = tick_size
         self.grid_num = int(grid_num)
         self.max_position = float(max_position)
@@ -119,6 +174,16 @@ class PlainGridQuoteBuilder:
         self.current_order_qty = float(order_qty)
 
     def __call__(self, position, snapshot, context=None):
+        """Generate grid quotes based on current position and market snapshot.
+
+        Args:
+            position: Current position (positive for long, negative for short).
+            snapshot: Market snapshot with bids and asks.
+            context: Optional context dictionary.
+
+        Returns:
+            Dictionary with 'buy' and 'sell' quote price lists.
+        """
         self.current_order_qty = self.order_qty
         best_bid = snapshot.bids[0][0]
         best_ask = snapshot.asks[0][0]
@@ -143,6 +208,21 @@ class PlainGridQuoteBuilder:
 
 
 class QueueMarketMakingQuoteBuilder:
+    """Queue-aware market making quote builder.
+
+    Generates quotes based on order book pressure and queue position,
+    with grid-based quote distribution.
+
+    Attributes:
+        tick_size: Minimum price increment.
+        order_qty: Base order quantity.
+        grid_num: Number of grid levels per side.
+        max_position: Maximum position before reducing size.
+        half_spread: Half spread from reservation price.
+        grid_interval: Grid level spacing.
+        skew_adj: Skew adjustment coefficient.
+    """
+
     def __init__(
         self,
         tick_size=1.0,
@@ -153,6 +233,17 @@ class QueueMarketMakingQuoteBuilder:
         grid_interval=1.0,
         skew_adj=1.0,
     ):
+        """Initialize the QueueMarketMakingQuoteBuilder.
+
+        Args:
+            tick_size: Minimum price increment (default: 1.0).
+            order_qty: Base order quantity (default: 1.0).
+            grid_num: Number of grid levels (default: 10).
+            max_position: Max position (default: 10.0).
+            half_spread: Half spread (default: 0.49).
+            grid_interval: Grid spacing (default: 1.0).
+            skew_adj: Skew adjustment (default: 1.0).
+        """
         self.tick_size = float(tick_size)
         self.order_qty = float(order_qty)
         self.grid_num = int(grid_num)
@@ -163,6 +254,16 @@ class QueueMarketMakingQuoteBuilder:
         self.current_order_qty = float(order_qty)
 
     def __call__(self, position, snapshot, context=None):
+        """Generate quotes based on order book pressure.
+
+        Args:
+            position: Current position.
+            snapshot: Market snapshot with bids/asks.
+            context: Optional context dictionary.
+
+        Returns:
+            Dictionary with 'buy' and 'sell' quote price lists.
+        """
         self.current_order_qty = self.order_qty
         best_bid = snapshot.bids[0][0]
         best_ask = snapshot.asks[0][0]
@@ -192,6 +293,24 @@ class QueueMarketMakingQuoteBuilder:
 
 
 class OBIAlphaQuoteBuilder:
+    """Order Book Imbalance (OBI) alpha-based quote builder.
+
+    Uses order flow toxicity (imbalance) as an alpha signal to adjust quotes,
+    with statistical averaging over a rolling window.
+
+    Attributes:
+        tick_size: Minimum price increment.
+        depth_levels: Number of order book levels to consider.
+        half_spread: Half spread from reservation price.
+        skew: Position skew coefficient.
+        c1: Imbalance signal coefficient.
+        order_qty: Base order quantity.
+        max_position: Maximum position before reducing size.
+        window: Rolling window for imbalance statistics.
+        grid_num: Number of grid levels per side.
+        grid_interval: Spacing between grid levels.
+    """
+
     def __init__(
         self,
         tick_size=1.0,
@@ -205,6 +324,20 @@ class OBIAlphaQuoteBuilder:
         grid_num=1,
         grid_interval=None,
     ):
+        """Initialize the OBIAlphaQuoteBuilder.
+
+        Args:
+            tick_size: Minimum price increment (default: 1.0).
+            depth_levels: Order book levels to consider (default: 2).
+            half_spread: Half spread (default: 1.0).
+            skew: Position skew coefficient (default: 0.5).
+            c1: Imbalance signal coefficient (default: 1.0).
+            order_qty: Base order quantity (default: 1.0).
+            max_position: Max position (default: 1.0).
+            window: Rolling window size (default: 3).
+            grid_num: Grid levels per side (default: 1).
+            grid_interval: Grid spacing (default: tick_size).
+        """
         self.tick_size = float(tick_size)
         self.depth_levels = int(depth_levels)
         self.half_spread = float(half_spread)
@@ -219,6 +352,16 @@ class OBIAlphaQuoteBuilder:
         self.current_order_qty = float(order_qty)
 
     def __call__(self, position, snapshot, context=None):
+        """Generate quotes based on order book imbalance alpha.
+
+        Args:
+            position: Current position.
+            snapshot: Market snapshot with bids/asks.
+            context: Optional context dictionary.
+
+        Returns:
+            Dictionary with 'buy' and 'sell' quote price lists.
+        """
         self.current_order_qty = self.order_qty
         best_bid = snapshot.bids[0][0]
         best_ask = snapshot.asks[0][0]
@@ -255,6 +398,23 @@ class OBIAlphaQuoteBuilder:
 
 
 class BasisAlphaQuoteBuilder:
+    """Basis alpha quote builder for spread products.
+
+    Uses basis (spread between spot and futures) as an alpha signal
+    to adjust quotes for calendar spread products.
+
+    Attributes:
+        tick_size: Minimum price increment.
+        lot_size: Minimum order quantity.
+        half_spread: Half spread from fair price.
+        skew: Position skew coefficient.
+        order_qty_dollar: Dollar-based order quantity.
+        max_position_dollar: Maximum position in dollars.
+        grid_num: Number of grid levels per side.
+        grid_interval: Spacing between grid levels.
+        precompute_data: Pre-computed basis data for backtesting.
+    """
+
     def __init__(
         self,
         tick_size=0.1,
@@ -267,6 +427,19 @@ class BasisAlphaQuoteBuilder:
         grid_interval=0.1,
         precompute_data=None,
     ):
+        """Initialize the BasisAlphaQuoteBuilder.
+
+        Args:
+            tick_size: Minimum price increment (default: 0.1).
+            lot_size: Minimum order quantity (default: 0.001).
+            half_spread: Half spread (default: 0.0003).
+            skew: Position skew coefficient (default: 0.000015).
+            order_qty_dollar: Dollar-based order size (default: 50000.0).
+            max_position_dollar: Max position in dollars (default: 1000000.0).
+            grid_num: Grid levels per side (default: 1).
+            grid_interval: Grid spacing (default: 0.1).
+            precompute_data: Pre-computed [timestamp, spot, basis] data.
+        """
         self.tick_size = float(tick_size)
         self.lot_size = float(lot_size)
         self.half_spread = float(half_spread)
@@ -283,6 +456,11 @@ class BasisAlphaQuoteBuilder:
         self.current_order_qty = float(lot_size)
 
     def _advance(self, timestamp_ns):
+        """Advance the data index based on timestamp.
+
+        Args:
+            timestamp_ns: Current timestamp in nanoseconds.
+        """
         if self.precompute_data is None or timestamp_ns is None:
             return
         while self.data_index < len(self.precompute_data):
@@ -297,6 +475,16 @@ class BasisAlphaQuoteBuilder:
             self.last_basis = float(self.precompute_data[-1][2])
 
     def __call__(self, position, snapshot, context=None):
+        """Generate quotes based on basis alpha signal.
+
+        Args:
+            position: Current position.
+            snapshot: Market snapshot with bids/asks.
+            context: Optional context with timestamp_ns for basis lookup.
+
+        Returns:
+            Dictionary with 'buy' and 'sell' quote price lists.
+        """
         best_bid = float(snapshot.bids[0][0])
         best_ask = float(snapshot.asks[0][0])
         mid_price = (best_bid + best_ask) / 2.0
@@ -331,6 +519,23 @@ class BasisAlphaQuoteBuilder:
 
 
 class APTQuoteBuilder:
+    """Arbitrage Pricing Theory (APT) quote builder for futures.
+
+    Uses spot return and lagged futures price to estimate fair futures price
+    based on APT arbitrage-free pricing model.
+
+    Attributes:
+        tick_size: Minimum price increment.
+        lot_size: Minimum order quantity.
+        half_spread: Half spread from fair price.
+        skew: Position skew coefficient.
+        order_qty_dollar: Dollar-based order quantity.
+        max_position_dollar: Maximum position in dollars.
+        grid_num: Number of grid levels per side.
+        grid_interval: Base spacing between grid levels.
+        precompute_data: Pre-computed [timestamp, spot_return, ...] data.
+    """
+
     def __init__(
         self,
         tick_size=0.1,
@@ -343,6 +548,19 @@ class APTQuoteBuilder:
         grid_interval=0.1,
         precompute_data=None,
     ):
+        """Initialize the APTQuoteBuilder.
+
+        Args:
+            tick_size: Minimum price increment (default: 0.1).
+            lot_size: Minimum order quantity (default: 0.001).
+            half_spread: Half spread (default: 0.0003).
+            skew: Position skew coefficient (default: 0.000015).
+            order_qty_dollar: Dollar-based order size (default: 50000.0).
+            max_position_dollar: Max position in dollars (default: 1000000.0).
+            grid_num: Grid levels per side (default: 1).
+            grid_interval: Base grid spacing (default: 0.1).
+            precompute_data: Pre-computed [timestamp, spot_return, ...] data.
+        """
         self.tick_size = float(tick_size)
         self.lot_size = float(lot_size)
         self.half_spread = float(half_spread)
@@ -359,6 +577,11 @@ class APTQuoteBuilder:
         self.current_order_qty = float(lot_size)
 
     def _advance(self, timestamp_ns):
+        """Advance the data index based on timestamp.
+
+        Args:
+            timestamp_ns: Current timestamp in nanoseconds.
+        """
         if self.precompute_data is None or timestamp_ns is None:
             return
         while self.data_index < len(self.precompute_data):
@@ -373,6 +596,16 @@ class APTQuoteBuilder:
             self.futures_past_px = float(self.precompute_data[-1][4])
 
     def __call__(self, position, snapshot, context=None):
+        """Generate quotes based on APT arbitrage-free pricing.
+
+        Args:
+            position: Current position.
+            snapshot: Market snapshot with bids/asks.
+            context: Optional context with timestamp_ns for data lookup.
+
+        Returns:
+            Dictionary with 'buy' and 'sell' quote price lists.
+        """
         best_bid = float(snapshot.bids[0][0])
         best_ask = float(snapshot.asks[0][0])
         mid_price = (best_bid + best_ask) / 2.0
@@ -413,6 +646,23 @@ class APTQuoteBuilder:
 
 
 class GLFTQuoteBuilder:
+    """GLFT (Garman-Lucid-Frey-Li-Tou) quote builder.
+
+    Implements the GLFT market-making model which estimates fair prices using
+    a utility-maximization framework with arrival rate and order flow
+    intensity calculations.
+
+    Attributes:
+        tick_size: Minimum price increment.
+        lot_size: Minimum order quantity.
+        gamma: Risk aversion coefficient.
+        delta: Order processing time parameter.
+        order_qty: Base order quantity.
+        max_position: Maximum position before reducing size.
+        grid_num: Number of grid levels per side.
+        grid_interval: Spacing between grid levels.
+    """
+
     def __init__(
         self,
         tick_size=0.01,
@@ -424,6 +674,18 @@ class GLFTQuoteBuilder:
         grid_num=1,
         grid_interval=None,
     ):
+        """Initialize the GLFTQuoteBuilder.
+
+        Args:
+            tick_size: Minimum price increment (default: 0.01).
+            lot_size: Minimum order quantity (default: 0.001).
+            gamma: Risk aversion coefficient (default: 0.05).
+            delta: Order processing time (default: 1.0).
+            order_qty: Base order quantity (default: 1.0).
+            max_position: Max position (default: 20.0).
+            grid_num: Grid levels per side (default: 1).
+            grid_interval: Grid spacing (default: tick_size).
+        """
         self.tick_size = float(tick_size)
         self.lot_size = float(lot_size)
         self.gamma = float(gamma)
@@ -442,6 +704,16 @@ class GLFTQuoteBuilder:
         self.step = 0
 
     def __call__(self, position, snapshot, context=None):
+        """Generate quotes based on GLFT utility-maximization model.
+
+        Args:
+            position: Current position.
+            snapshot: Market snapshot with bids/asks.
+            context: Optional context with last_trades for flow analysis.
+
+        Returns:
+            Dictionary with 'buy' and 'sell' quote price lists.
+        """
         last_trades = _context_value(context, "last_trades", ()) or ()
         if math.isfinite(self.mid_price_tick):
             arrival_depth = -math.inf
@@ -524,6 +796,11 @@ class GLFTQuoteBuilder:
 
 
 def get_hftbacktest_example_specs():
+    """Get all HFT backtest example specifications.
+
+    Returns:
+        List of HFTExampleSpec objects defining available examples.
+    """
     return [
         HFTExampleSpec(
             name="plain_grid",
@@ -872,14 +1149,39 @@ def get_hftbacktest_example_specs():
 
 
 def get_hftbacktest_example_spec(name):
+    """Get a single HFT backtest example specification by name.
+
+    Args:
+        name: Name of the example spec to retrieve.
+
+    Returns:
+        HFTExampleSpec matching the given name.
+
+    Raises:
+        StopIteration: If no spec with the given name exists.
+    """
     return next(spec for spec in get_hftbacktest_example_specs() if spec.name == name)
 
 
 def get_hftbacktest_demo_example_specs():
+    """Get all demo-supported HFT backtest example specifications.
+
+    Returns:
+        Tuple of HFTExampleSpec objects that have demo_supported=True.
+    """
     return tuple(spec for spec in get_hftbacktest_example_specs() if spec.demo_supported)
 
 
 def build_input_manifest(spec, base_path):
+    """Build a manifest of resolved and missing input files for a spec.
+
+    Args:
+        spec: HFTExampleSpec to build manifest for.
+        base_path: Base directory path to search for input files.
+
+    Returns:
+        Dictionary with 'ready' (bool), 'resolved' (dict), and 'missing' (dict).
+    """
     base = Path(base_path)
     resolved = {}
     missing = {}
@@ -903,6 +1205,17 @@ def build_input_manifest(spec, base_path):
 
 
 def build_quote_builder(spec):
+    """Build a quote builder instance from a strategy specification.
+
+    Args:
+        spec: HFTExampleSpec containing the strategy configuration.
+
+    Returns:
+        Instance of the appropriate quote builder class.
+
+    Raises:
+        KeyError: If the builder name is not recognized.
+    """
     mapping = {
         "PlainGridQuoteBuilder": PlainGridQuoteBuilder,
         "QueueMarketMakingQuoteBuilder": QueueMarketMakingQuoteBuilder,

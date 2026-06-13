@@ -1,3 +1,8 @@
+"""CTP TickBroker live trading runner with SimNow.
+
+This module runs live trading examples using BtApiStore and BtApiBroker
+connected to SimNow for testing with tick-level data.
+"""
 from __future__ import annotations
 
 import argparse
@@ -34,6 +39,11 @@ def _build_parser():
 
 
 def main():
+    """Run the CTP TickBroker live trading example.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     config, config_path = load_config(args.config, _RUN_DIR, "single_symbol.yaml")
 

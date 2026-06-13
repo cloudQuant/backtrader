@@ -91,38 +91,47 @@ class TestOrderAlive:
         return obj
 
     def test_created_is_alive(self):
+        """Test that Created status is considered alive."""
         o = self._make_order_with_status(OrderBase.Created)
         assert o.alive()
 
     def test_submitted_is_alive(self):
+        """Test that Submitted status is considered alive."""
         o = self._make_order_with_status(OrderBase.Submitted)
         assert o.alive()
 
     def test_accepted_is_alive(self):
+        """Test that Accepted status is considered alive."""
         o = self._make_order_with_status(OrderBase.Accepted)
         assert o.alive()
 
     def test_partial_is_alive(self):
+        """Test that Partial status is considered alive."""
         o = self._make_order_with_status(OrderBase.Partial)
         assert o.alive()
 
     def test_completed_is_not_alive(self):
+        """Test that Completed status is not alive."""
         o = self._make_order_with_status(OrderBase.Completed)
         assert not o.alive()
 
     def test_canceled_is_not_alive(self):
+        """Test that Canceled status is not alive."""
         o = self._make_order_with_status(OrderBase.Canceled)
         assert not o.alive()
 
     def test_expired_is_not_alive(self):
+        """Test that Expired status is not alive."""
         o = self._make_order_with_status(OrderBase.Expired)
         assert not o.alive()
 
     def test_margin_is_not_alive(self):
+        """Test that Margin status is not alive."""
         o = self._make_order_with_status(OrderBase.Margin)
         assert not o.alive()
 
     def test_rejected_is_not_alive(self):
+        """Test that Rejected status is not alive."""
         o = self._make_order_with_status(OrderBase.Rejected)
         assert not o.alive()
 
@@ -147,38 +156,46 @@ class TestOrderStatusNameSafety:
         return obj
 
     def test_normal_status_name(self):
+        """Test normal status name lookup."""
         o = self._make_order_with_status(OrderBase.Created)
         assert o.getstatusname() == "Created"
 
     def test_completed_status_name(self):
+        """Test Completed status name lookup."""
         o = self._make_order_with_status(OrderBase.Completed)
         assert o.getstatusname() == "Completed"
 
     def test_invalid_status_no_crash(self):
+        """Test that invalid status returns Unknown without crashing."""
         o = self._make_order_with_status(999)
         result = o.getstatusname()
         assert "Unknown(999)" == result
 
     def test_none_status_no_crash(self):
+        """Test that None status returns Unknown without crashing."""
         o = self._make_order_with_status(None)
         result = o.getstatusname()
         assert "Unknown(None)" == result
 
     def test_explicit_status_arg(self):
+        """Test explicit status argument override."""
         o = self._make_order_with_status(OrderBase.Created)
         assert o.getstatusname(OrderBase.Canceled) == "Canceled"
 
     def test_normal_exectype_name(self):
+        """Test normal execution type name lookup."""
         o = self._make_order_with_status(OrderBase.Created)
         assert o.getordername() == "Market"
 
     def test_invalid_exectype_no_crash(self):
+        """Test that invalid exectype returns Unknown without crashing."""
         o = self._make_order_with_status(OrderBase.Created)
         o.exectype = 999
         result = o.getordername()
         assert "Unknown(999)" == result
 
     def test_none_exectype_no_crash(self):
+        """Test that None exectype returns Unknown without crashing."""
         o = self._make_order_with_status(OrderBase.Created)
         o.exectype = None
         result = o.getordername()

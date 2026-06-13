@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run T02 close order test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -40,22 +45,38 @@ def run(report_dir):
                 )
 
                 class CloseOrderStrategy(bt.Strategy):
+                    """Strategy for testing close order functionality."""
+
                     def __init__(self):
+                        """Initialize close order test strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.store_events = []
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Handle store notifications.
+
+                        Args:
+                            msg: Store message.
+                            *args: Additional positional arguments.
+                            **kwargs: Additional keyword arguments.
+                        """
                         event = kwargs.get("event")
                         if isinstance(event, dict):
                             self.store_events.append(event)
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.getstatusname() in ("Accepted", "Completed", "Canceled", "Rejected"):
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process each bar and submit close order."""
                         self.bar_count += 1
                         if self.order is not None:
                             return

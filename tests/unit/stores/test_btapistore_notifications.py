@@ -45,6 +45,7 @@ def test_store_emits_reconnect_success_after_restart():
 
 
 def test_store_stop_is_idempotent_and_does_not_emit_duplicate_disconnect_events():
+    """Test that store stop is idempotent and does not emit duplicate disconnect events."""
     client = FakeBtApiClient()
     store = make_store(api=client, provider="okx")
 
@@ -135,6 +136,7 @@ def test_store_emits_runtime_events_for_broker_updates():
 
 
 def test_store_poll_broker_update_returns_none_before_start():
+    """Test that poll_broker_update returns None before store is started."""
     client = FakeBtApiClient(
         broker_updates=[
             {
@@ -154,14 +156,20 @@ def test_store_poll_broker_update_returns_none_before_start():
 
 
 def test_store_poll_broker_update_returns_none_when_api_does_not_support_it():
+    """Test that poll_broker_update returns None when API does not support it."""
     class NoBrokerUpdateClient:
+        """Mock client that does not support broker updates."""
+
         def __init__(self):
+            """Initialize NoBrokerUpdateClient."""
             self.connected = False
 
         def connect(self):
+            """Connect to the client."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect from the client."""
             self.connected = False
 
     store = make_store(api=NoBrokerUpdateClient())
@@ -173,6 +181,7 @@ def test_store_poll_broker_update_returns_none_when_api_does_not_support_it():
 
 
 def test_store_emits_store_error_runtime_event_for_error_broker_update():
+    """Test that store emits store_error runtime event for error broker update."""
     client = FakeBtApiClient(
         broker_updates=[
             {
@@ -198,6 +207,7 @@ def test_store_emits_store_error_runtime_event_for_error_broker_update():
 
 
 def test_store_emits_order_reject_remote_runtime_event_for_rejected_broker_update():
+    """Test that store emits order_reject runtime event for rejected broker update."""
     client = FakeBtApiClient(
         broker_updates=[
             {
@@ -233,6 +243,7 @@ def test_store_emits_order_reject_remote_runtime_event_for_rejected_broker_updat
     ],
 )
 def test_store_emits_runtime_event_for_additional_order_status_broker_updates(status, expected_event_type):
+    """Test that store emits runtime event for additional order status broker updates."""
     client = FakeBtApiClient(
         broker_updates=[
             {
@@ -267,6 +278,7 @@ def test_store_emits_runtime_event_for_additional_order_status_broker_updates(st
 def test_store_emits_runtime_event_for_submitted_and_fallback_order_status_broker_updates(
     status, expected_event_type
 ):
+    """Test that store emits runtime event for submitted and fallback order status broker updates."""
     client = FakeBtApiClient(
         broker_updates=[
             {

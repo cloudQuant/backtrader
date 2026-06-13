@@ -28,6 +28,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run C01 connect and login test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         log_dir = str(report_dir / "logs")
@@ -42,10 +47,14 @@ def run(report_dir):
                 )
 
                 class MinimalStrategy(bt.Strategy):
+                    """Minimal strategy for testing connection."""
+
                     def __init__(self):
+                        """Initialize minimal strategy."""
                         self.count = 0
 
                     def next(self):
+                        """Process bar and stop after first bar."""
                         self.count += 1
                         if self.count >= 1:
                             self.cerebro.runstop()

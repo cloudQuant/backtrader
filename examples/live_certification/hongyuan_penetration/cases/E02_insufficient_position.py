@@ -56,19 +56,28 @@ def run(report_dir):
                 )
 
                 class PositionCheckStrategy(bt.Strategy):
+                    """Strategy for testing insufficient position rejection."""
+
                     def __init__(self):
+                        """Initialize position check strategy."""
                         self.bar_count = 0
                         self.checked = False
                         self.position_size = None
                         self.rejected = False
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.status == bt.Order.Rejected:
                             self.rejected = True
                         self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and check position."""
                         self.bar_count += 1
                         if self.checked:
                             return

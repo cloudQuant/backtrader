@@ -91,6 +91,7 @@ def test_run(main=False):
 
 
 def test_buysell_clears_stale_markers_without_orders():
+    """Test BuySell clears stale markers without orders."""
     observer = object.__new__(bt.observers.BuySell)
     observer._owner = SimpleNamespace(_orderspending=[])
     observer.data = SimpleNamespace(datetime=[1])
@@ -106,6 +107,7 @@ def test_buysell_clears_stale_markers_without_orders():
 
 
 def test_buysell_keeps_sell_nan_when_only_buy_order_exists():
+    """Test BuySell keeps sell NaN when only buy order exists."""
     data = SimpleNamespace(datetime=[1], low=[100.0], high=[110.0])
     observer = object.__new__(bt.observers.BuySell)
     observer._owner = SimpleNamespace(
@@ -130,6 +132,7 @@ def test_buysell_keeps_sell_nan_when_only_buy_order_exists():
 
 
 def test_buysell_accumulates_same_bar_replay_orders():
+    """Test BuySell accumulates same bar replay orders."""
     data = SimpleNamespace(datetime=[1], low=[100.0], high=[110.0])
     observer = object.__new__(bt.observers.BuySell)
     observer.data = data

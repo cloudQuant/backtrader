@@ -1,3 +1,5 @@
+"""Multi-symbol mixbroker integration tests."""
+
 import backtrader as bt
 import pytest
 
@@ -9,20 +11,33 @@ from backtrader.order import Order
 
 
 class MemoryChannel(DataChannel):
+    """In-memory data channel for testing."""
+
     def __init__(self, channel_type, symbol, events):
+        """Initialize the memory channel.
+
+        Args:
+            channel_type: Type of the channel.
+            symbol: Symbol for the channel.
+            events: Iterable of events to yield.
+        """
         super().__init__(symbol=symbol, validate=False, auto_fix=False)
         self.channel_type = channel_type
         self._events = list(events)
 
     def load(self):
+        """Yield events from the internal list."""
         for event in self._events:
             yield event
 
 
 class PairArbitrageStrategy(bt.Strategy):
+    """Strategy for pair arbitrage testing with multi-symbol."""
+
     params = (("symbol_a", "BTC/USDT"), ("symbol_b", "ETH/USDT"))
 
     def __init__(self):
+        """Initialize the strategy."""
         self.events_seen = []
         self.completed_refs = set()
         self.completed_orders = []
@@ -31,6 +46,7 @@ class PairArbitrageStrategy(bt.Strategy):
         self.data_b = type("Data", (), {"_name": self.p.symbol_b, "symbol": self.p.symbol_b})()
 
     def notify_order(self, order):
+        """Track completed orders."""
         if order.status == order.Completed and order.ref not in self.completed_refs:
             self.completed_refs.add(order.ref)
             self.completed_orders.append(
@@ -45,6 +61,7 @@ class PairArbitrageStrategy(bt.Strategy):
             self.pending_refs.discard(order.ref)
 
     def notify_tick(self, tick):
+        """Execute arbitrage based on spread and positions."""
         snapshot_all = self.context.snapshot_all()
         self.events_seen.append((tick.timestamp, tick.symbol, sorted(snapshot_all["symbols"].keys())))
 
@@ -156,6 +173,7 @@ def _build_pair_channels():
 
 
 def test_mixbroker_multi_symbol_state_isolation_and_snapshot_queries():
+    """Test multi-symbol state isolation and snapshot queries."""
     broker = MixBroker(max_ob_window=2, max_bar_history=25)
     context = broker.get_context()
 
@@ -184,6 +202,7 @@ def test_mixbroker_multi_symbol_state_isolation_and_snapshot_queries():
 
 @pytest.mark.priority_p1
 def test_mixbroker_multi_symbol_arbitrage_shares_account_and_preserves_global_order():
+    """Test arbitrage shares account and preserves global order semantics."""
     cerebro = bt.Cerebro()
     broker = MixBroker(cash=1000.0)
     broker.setcommission(commission=0.0, name="BTC/USDT")

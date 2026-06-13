@@ -1,8 +1,17 @@
+"""Tests for HFT backtest migration framework input/output.
+
+Tests cover:
+- Example specs capture original notebook inputs and parameters
+- Input manifest reports missing files when original data is absent
+- Quote builders emit correct quote grids
+- Framework builders accept runtime context and update order quantity
+"""
 from backtrader.brokers.hft import build_input_manifest, build_quote_builder, get_hftbacktest_demo_example_specs, get_hftbacktest_example_spec, get_hftbacktest_example_specs
 from backtrader.events import OrderBookSnapshot
 
 
 def test_hftbacktest_example_specs_capture_original_notebook_inputs_and_parameters():
+    """Test that example specs capture original notebook inputs and parameters."""
     specs = {spec.name: spec for spec in get_hftbacktest_example_specs()}
     demo_specs = {spec.name: spec for spec in get_hftbacktest_demo_example_specs()}
 
@@ -25,6 +34,7 @@ def test_hftbacktest_example_specs_capture_original_notebook_inputs_and_paramete
 
 
 def test_hftbacktest_input_manifest_reports_missing_files_when_original_data_is_absent(tmp_path):
+    """Test that input manifest reports missing files when original data is absent."""
     spec = get_hftbacktest_example_spec("plain_grid")
 
     manifest = build_input_manifest(spec, tmp_path)
@@ -36,6 +46,7 @@ def test_hftbacktest_input_manifest_reports_missing_files_when_original_data_is_
 
 
 def test_plain_grid_and_queue_builders_emit_multilevel_quote_grids():
+    """Test that plain_grid and queue builders emit multilevel quote grids."""
     snapshot = OrderBookSnapshot(
         timestamp=1.0,
         symbol="BTC/USDT",
@@ -58,6 +69,7 @@ def test_plain_grid_and_queue_builders_emit_multilevel_quote_grids():
 
 
 def test_obi_builder_from_framework_emits_single_level_quotes_for_original_variant():
+    """Test that OBI builder emits single level quotes for original variant."""
     snapshot = OrderBookSnapshot(
         timestamp=1.0,
         symbol="BTC/USDT",
@@ -75,6 +87,7 @@ def test_obi_builder_from_framework_emits_single_level_quotes_for_original_varia
 
 
 def test_extended_framework_builders_accept_runtime_context_and_update_order_qty():
+    """Test that extended framework builders accept runtime context and update order quantity."""
     snapshot = OrderBookSnapshot(
         timestamp=1.0,
         symbol="BTC/USDT",

@@ -86,6 +86,14 @@ def _price_series(data, mode):
 
 
 def resolve_ma_class(name):
+    """Resolve a moving average class by name.
+
+    Args:
+        name: Moving average mode name (e.g., 'sma', 'ema', 'jjma', 't3').
+
+    Returns:
+        The corresponding moving average indicator class.
+    """
     mode = str(name).lower()
     if mode in {"mode_sma", "sma"}:
         return SimpleMovingAverage

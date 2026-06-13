@@ -127,7 +127,16 @@ def case_main(run_fn, meta: dict):
     _orig_stderr = sys.stderr
 
     class _Tee:
+        """Tee stream that writes to both console and file with timestamps."""
+
         def __init__(self, stream, fh, label):
+            """Initialize tee stream.
+
+            Args:
+                stream: Original stream to write to.
+                fh: File handle to write to.
+                label: Label for log entries.
+            """
             self._stream = stream
             self._fh = fh
             self._label = label
@@ -156,6 +165,11 @@ def case_main(run_fn, meta: dict):
             self._fh.write(f"{prefix}{content}{newline}")
 
         def write(self, data):
+            """Write data to both streams.
+
+            Args:
+                data: Data to write.
+            """
             self._stream.write(data)
             if not data:
                 return
@@ -170,6 +184,7 @@ def case_main(run_fn, meta: dict):
                 self._write_formatted_line(line)
 
         def flush(self):
+            """Flush both streams."""
             if self._buffer:
                 self._write_formatted_line(self._buffer)
                 self._buffer = ""

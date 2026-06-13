@@ -1,3 +1,4 @@
+"""Tests for MixBroker enhanced functionality."""
 import pytest
 
 from backtrader.brokers.mixbroker import MixBroker
@@ -6,13 +7,17 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 def test_mixbroker_process_bar_keeps_order_pending_and_updates_bar_state():
+    """Test MixBroker process bar keeps order pending and updates bar state."""
     data = DummyData()
     broker = MixBroker(cash=1000.0)
     order = broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Market)

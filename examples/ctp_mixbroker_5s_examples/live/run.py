@@ -1,3 +1,8 @@
+"""CTP MixBroker 5-second bar live trading runner with SimNow.
+
+This module runs live trading examples using BtApiStore and BtApiBroker
+with 5-second bar data for backtesting-style frequency trading.
+"""
 from __future__ import annotations
 
 import argparse
@@ -49,6 +54,11 @@ def _validate_config(config):
 
 
 def main():
+    """Run the MixBroker 5-second bar live trading example.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     if not args.dry_run and not args.subprocess_child:
         cmd = [sys.executable, '-u', str(Path(__file__).resolve()), '--subprocess-child', *sys.argv[1:]]

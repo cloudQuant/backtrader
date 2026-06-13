@@ -1,3 +1,4 @@
+"""Tests for Binance BBO converter."""
 import csv
 import io
 import json
@@ -21,6 +22,7 @@ def _write_zip_csv(path: Path, member_name: str, rows):
 
 
 def test_convert_binance_bbo_zip_pair_writes_hft_and_backtrader_outputs(tmp_path):
+    """Test convert Binance BBO zip pair writes HFT and backtrader outputs."""
     book_zip = tmp_path / "ETHUSDT-bookTicker-2024-01-01.zip"
     trades_zip = tmp_path / "ETHUSDT-trades-2024-01-01.zip"
 

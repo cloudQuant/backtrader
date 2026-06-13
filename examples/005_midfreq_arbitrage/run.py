@@ -1,3 +1,8 @@
+"""Pair arbitrage demo using mixed bar+orderbook data.
+
+This example demonstrates a pair arbitrage strategy that trades the spread
+between two correlated assets based on orderbook ratio and price spread.
+"""
 import backtrader as bt
 
 from backtrader.channel import DataChannel
@@ -8,26 +13,48 @@ from backtrader.order import Order
 
 
 class MemoryChannel(DataChannel):
+    """In-memory data channel for demo purposes."""
+
     def __init__(self, channel_type, symbol, events):
+        """Initialize memory channel.
+
+        Args:
+            channel_type: Type of the channel (tick, orderbook, etc.).
+            symbol: Symbol for the channel.
+            events: List of events to store.
+        """
         super().__init__(symbol=symbol, validate=False, auto_fix=False)
         self.channel_type = channel_type
         self._events = list(events)
 
     def load(self):
+        """Load events from the queue.
+
+        Yields:
+            Event objects from the internal queue.
+        """
         for event in self._events:
             yield event
 
 
 class PairArbitrageStrategy(bt.Strategy):
+    """Pair arbitrage strategy using spread and orderbook ratio."""
+
     params = (("symbol_a", "BTC/USDT"), ("symbol_b", "ETH/USDT"))
 
     def __init__(self):
+        """Initialize pair arbitrage strategy."""
         self.completed_refs = set()
         self.pending_refs = set()
         self.data_a = type("Data", (), {"_name": self.p.symbol_a, "symbol": self.p.symbol_a})()
         self.data_b = type("Data", (), {"_name": self.p.symbol_b, "symbol": self.p.symbol_b})()
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: Order object with status information.
+        """
         if order.status == order.Completed and order.ref not in self.completed_refs:
             self.completed_refs.add(order.ref)
             side = "BUY" if order.isbuy() else "SELL"
@@ -37,6 +64,11 @@ class PairArbitrageStrategy(bt.Strategy):
             self.pending_refs.discard(order.ref)
 
     def notify_tick(self, tick):
+        """Handle tick data and generate pair arbitrage signals.
+
+        Args:
+            tick: Tick event data.
+        """
         snapshot_all = self.context.snapshot_all()
         if self.pending_refs:
             return
@@ -69,6 +101,11 @@ class PairArbitrageStrategy(bt.Strategy):
 
 
 def build_demo_channel():
+    """Build demo event channel with tick, orderbook, and bar events.
+
+    Returns:
+        MixedChannel: Channel containing all demo events.
+    """
     symbol_a = "BTC/USDT"
     symbol_b = "ETH/USDT"
 
@@ -127,6 +164,7 @@ def build_demo_channel():
 
 
 def main():
+    """Run the pair arbitrage demo strategy."""
     cerebro = bt.Cerebro()
     broker = MixBroker(cash=1000.0)
     broker.setcommission(commission=0.0, name="BTC/USDT")

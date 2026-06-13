@@ -163,6 +163,32 @@ class TickBroker(BrokerBase):
         self._freeze_position_mode("start()")
 
     def set_param(self, name, value, validate=True):
+        """Override :meth:`BrokerBase.set_param` to guard ``position_mode`` changes.
+
+        The ``position_mode`` parameter is treated specially: it is
+        immutable once :meth:`start` has run (frozen via
+        :meth:`_freeze_position_mode`), and its raw value is normalized
+        through :func:`normalize_position_mode` so that the broker
+        always stores one of the canonical ``"net"`` /
+        ``"dual_side"`` strings.
+
+        Args:
+            name: Name of the parameter to set.
+            value: New value for the parameter. For ``position_mode`` the
+                value is normalized before being applied.
+            validate: When ``True`` (default), delegate to the base class
+                so that the registered validator runs. Set to ``False``
+                to bypass validation (used internally when applying
+                normalized values).
+
+        Returns:
+            The return value of :meth:`BrokerBase.set_param` after the
+            value has been applied.
+
+        Raises:
+            ValueError: If ``name == "position_mode"`` and the parameter
+                has already been frozen by :meth:`start`.
+        """
         if name == "position_mode":
             self._ensure_position_mode_mutable()
             value = normalize_position_mode(value)
@@ -1765,4 +1791,16 @@ class TickBroker(BrokerBase):
 
     @property
     def recorder(self):
+        """Return the :class:`Recorder` instance owned by the broker.
+
+        The recorder captures every per-symbol event the matching core
+        produces (orders, trades, cancels) and is exposed here so that
+        callers and tests can introspect the most recent activity without
+        having to instrument the matching core directly.
+
+        Returns:
+            Recorder: The broker's recorder. Always non-``None``: if
+            no ``recorder_factory`` was provided to the broker, a
+            default :class:`Recorder` is created during :meth:`start`.
+        """
         return self._recorder

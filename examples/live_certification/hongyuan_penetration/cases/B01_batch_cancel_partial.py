@@ -30,6 +30,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run B01 batch cancel partial test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -65,7 +70,10 @@ def run(report_dir):
                 )
 
                 class BatchCancelPartialStrategy(bt.Strategy):
+                    """Strategy for testing batch cancel of partially filled orders."""
+
                     def __init__(self):
+                        """Initialize batch cancel partial strategy."""
                         self.bar_count = 0
                         self.orders = []
                         self.partial_statuses = []
@@ -73,9 +81,15 @@ def run(report_dir):
                         self.batch_cancel_count = 0
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
 
                     def next(self):
+                        """Process bar and submit batch cancel orders."""
                         self.bar_count += 1
                         if self.orders:
                             return

@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run L01 trade info log test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -40,16 +45,25 @@ def run(report_dir):
                 )
 
                 class TradeLogStrategy(bt.Strategy):
+                    """Strategy for testing trade logging."""
+
                     def __init__(self):
+                        """Initialize trade log strategy."""
                         self.bar_count = 0
                         self.order = None
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.getstatusname() in ("Accepted", "Canceled", "Rejected"):
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process each bar and submit test order."""
                         self.bar_count += 1
                         if self.order is not None:
                             return

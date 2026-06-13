@@ -1,3 +1,4 @@
+"""HFT scenario report generation."""
 import json
 import os
 import sys

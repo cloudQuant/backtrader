@@ -1,3 +1,5 @@
+"""End-to-end integration tests for live profile switching."""
+
 from pathlib import Path
 import threading
 
@@ -15,19 +17,25 @@ from tests.fixtures.fake_btapi import (
 
 
 class UnifiedProfileStrategy(bt.Strategy):
+    """Strategy that works with both backtest and live profiles."""
+
     def __init__(self):
+        """Initialize tracking counters."""
         self.next_count = 0
         self.tick_count = 0
         self.orderbook_count = 0
         self.bar_closes = []
 
     def notify_tick(self, tick):
+        """Record tick notification."""
         self.tick_count += 1
 
     def notify_orderbook(self, orderbook):
+        """Record orderbook notification."""
         self.orderbook_count += 1
 
     def next(self):
+        """Execute on each bar: count bars and stop after target."""
         self.next_count += 1
         self.bar_closes.append(float(self.datas[0].close[0]))
         profile = getattr(self.cerebro, "live_profile", None)
@@ -38,6 +46,7 @@ class UnifiedProfileStrategy(bt.Strategy):
 
 @pytest.mark.integration
 def test_build_cerebro_switches_same_strategy_between_backtest_and_live():
+    """Test that the same strategy works with backtest and live profiles."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
 
     backtest_profile = LiveProfile(
@@ -93,15 +102,20 @@ def test_build_cerebro_switches_same_strategy_between_backtest_and_live():
 
 @pytest.mark.integration
 def test_build_cerebro_runs_multi_symbol_live_profile_end_to_end():
+    """Test multi-symbol live profile runs end-to-end correctly."""
     symbol_a = "BTC/USDT"
     symbol_b = "ETH/USDT"
 
     class MultiSymbolLiveStrategy(bt.Strategy):
+        """Strategy for multi-symbol live testing."""
+
         def __init__(self):
+            """Initialize tracking lists."""
             self.next_count = 0
             self.bar_snapshots = []
 
         def next(self):
+            """Execute on each bar: record snapshots and stop."""
             self.next_count += 1
             self.bar_snapshots.append(tuple(float(data.close[0]) for data in self.datas))
             self.cerebro.runstop()
@@ -142,13 +156,18 @@ def test_build_cerebro_runs_multi_symbol_live_profile_end_to_end():
 
 @pytest.mark.integration
 def test_build_cerebro_preserves_broker_query_semantics_between_backtest_and_live():
+    """Test that broker query semantics are preserved between backtest and live."""
     datapath = Path(__file__).resolve().parents[1] / "datas" / "2006-01-02-volume-min-001.txt"
 
     class QueryContractStrategy(bt.Strategy):
+        """Strategy to test broker query semantics."""
+
         def __init__(self):
+            """Initialize snapshots list."""
             self.snapshots = []
 
         def next(self):
+            """Record broker position snapshots and stop."""
             position = self.broker.getposition(self.datas[0])
             self.snapshots.append(
                 {

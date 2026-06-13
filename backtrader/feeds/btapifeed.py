@@ -30,6 +30,28 @@ class BtApiFeed(DataBase, LiveFeedBase):
     )
 
     def __init__(self, *args, **kwargs):
+        """Initialize the feed, normalize inputs, and prepare internal state.
+
+        The constructor performs three pieces of work:
+
+        1. Resolves the :class:`BtApiStore` instance and the data provider
+           tag from the parsed parameters and stashes them on the instance
+           for quick access during :meth:`start` / :meth:`_load`.
+        2. Normalizes the optional pre-supplied ``historical_bars`` and
+           ``live_bars`` parameters into :class:`collections.deque`
+           instances so that :meth:`_load` can ``popleft`` from them in O(1).
+        3. Initializes the runtime flags that govern backfill behavior
+           (``_history_backfilled``) and bar aggregation
+           (``_bar_builder``).
+
+        Args:
+            *args: Positional arguments forwarded to the
+                :class:`backtrader.feed.DataBase` constructor. Typically
+                this is just the ``dataname`` (symbol/contract identifier).
+            **kwargs: Parameter overrides. Any key matching a name in
+                :attr:`params` overrides the corresponding default; unknown
+                keys are forwarded to the base class unchanged.
+        """
         super().__init__(*args, **kwargs)
         self.store = self.p.store
         self.provider = self.p.provider

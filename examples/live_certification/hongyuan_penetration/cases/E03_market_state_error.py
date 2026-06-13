@@ -70,18 +70,27 @@ def run(report_dir):
                 )
 
                 class MarketStateStrategy(bt.Strategy):
+                    """Strategy for testing market state error rejection."""
+
                     def __init__(self):
+                        """Initialize market state strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.rejected = False
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.status == bt.Order.Rejected:
                             self.rejected = True
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit order with market restriction."""
                         self.bar_count += 1
                         if self.order is not None:
                             self.cerebro.runstop()

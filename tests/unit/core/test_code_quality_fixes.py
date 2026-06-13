@@ -15,45 +15,55 @@ class TestIsFiniteReal:
     """Test the centralized is_finite_real utility in mathsupport."""
 
     def test_finite_int(self):
+        """Test that finite integers return True."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(42) is True
 
     def test_finite_float(self):
+        """Test that finite floats return True."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(3.14) is True
 
     def test_zero(self):
+        """Test that zero values return True."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(0) is True
         assert is_finite_real(0.0) is True
 
     def test_negative(self):
+        """Test that negative finite numbers return True."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(-1.5) is True
 
     def test_inf(self):
+        """Test that infinity values return False."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(float("inf")) is False
         assert is_finite_real(float("-inf")) is False
 
     def test_nan(self):
+        """Test that NaN values return False."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(float("nan")) is False
 
     def test_complex(self):
+        """Test that complex numbers return False."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(1 + 2j) is False
         assert is_finite_real(complex(1, 0)) is False
 
     def test_none(self):
+        """Test that None returns False."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real(None) is False
 
     def test_string(self):
+        """Test that strings return False."""
         from backtrader.mathsupport import is_finite_real
         assert is_finite_real("abc") is False
 
     def test_bool(self):
+        """Test that booleans return True (bool is subclass of int)."""
         from backtrader.mathsupport import is_finite_real
         # bool is a subclass of int, so True/False are finite reals
         assert is_finite_real(True) is True
@@ -64,33 +74,39 @@ class TestModuleImportErrorArgs:
     """Test that ModuleImportError preserves the message in args."""
 
     def test_message_in_str(self):
+        """Test that message appears in string representation."""
         from backtrader.errors import ModuleImportError
         err = ModuleImportError("test module missing")
         assert "test module missing" in str(err)
 
     def test_message_in_args(self):
+        """Test that message appears in args tuple."""
         from backtrader.errors import ModuleImportError
         err = ModuleImportError("test module missing")
         assert "test module missing" in err.args
 
     def test_message_with_extra_args(self):
+        """Test that extra args are preserved."""
         from backtrader.errors import ModuleImportError
         err = ModuleImportError("test module missing", "extra1", "extra2")
         assert err.args == ("test module missing", "extra1", "extra2")
         assert "test module missing" in str(err)
 
     def test_from_module_import_error_message(self):
+        """Test FromModuleImportError preserves message."""
         from backtrader.errors import FromModuleImportError
         err = FromModuleImportError("cannot import X from Y")
         assert "cannot import X from Y" in str(err)
         assert "cannot import X from Y" in err.args
 
     def test_from_module_import_error_with_extra_args(self):
+        """Test FromModuleImportError preserves extra args."""
         from backtrader.errors import FromModuleImportError
         err = FromModuleImportError("cannot import X", "hint1")
         assert err.args == ("cannot import X", "hint1")
 
     def test_raise_and_catch(self):
+        """Test that ModuleImportError can be raised and caught."""
         from backtrader.errors import ModuleImportError
         with pytest.raises(ModuleImportError, match="mymodule"):
             raise ModuleImportError("mymodule not found")

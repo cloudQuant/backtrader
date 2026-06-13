@@ -96,6 +96,7 @@ def test_run(main=False):
 
 
 def test_logreturns_observer_missing_dtkey_writes_nan():
+    """Test LogReturns observer missing dtkey writes NaN."""
     observer = object.__new__(bt.observers.LogReturns)
     observer.logret1 = SimpleNamespace(rets={}, dtkey="missing")
     observer.lines = SimpleNamespace(logret1=[1.0])
@@ -106,6 +107,7 @@ def test_logreturns_observer_missing_dtkey_writes_nan():
 
 
 def test_logreturns2_observer_missing_dtkey_writes_nan_for_both_lines():
+    """Test LogReturns2 observer missing dtkey writes NaN for both lines."""
     observer = object.__new__(bt.observers.LogReturns2)
     observer.logret1 = SimpleNamespace(rets={}, dtkey="missing1")
     observer.logret2 = SimpleNamespace(rets={}, dtkey="missing2")

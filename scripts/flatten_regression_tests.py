@@ -20,6 +20,15 @@ STRATEGIES = REPO / "tests" / "functional" / "strategies"
 
 
 def main() -> int:
+    """Flatten regression test directory structure.
+
+    Moves test files from tests/functional/strategies/<cat>/regression/<NNNN_name>/
+    up to tests/functional/strategies/<cat>/ and renames them to include the
+    numeric prefix. Also updates parent directory references.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     moved = 0
     skipped: list[str] = []
     folder_pattern = re.compile(r"^(\d{4})_(.+)$")

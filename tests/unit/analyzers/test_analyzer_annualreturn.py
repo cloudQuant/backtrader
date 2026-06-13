@@ -105,8 +105,12 @@ def test_run(main=False):
 
 
 def test_myannualreturn_first_year_nan_pre_value_degrades_to_zero():
+    """Test MyAnnualReturn first year NaN pre-value degrades to zero."""
     class DataStub:
+        """Stub data for testing."""
+
         def __len__(self):
+            """Return 2."""
             return 2
 
     analyzer = bt.analyzers.MyAnnualReturn.__new__(bt.analyzers.MyAnnualReturn)
@@ -129,8 +133,12 @@ def test_myannualreturn_first_year_nan_pre_value_degrades_to_zero():
 
 
 def test_myannualreturn_invalid_year_value_degrades_to_zero():
+    """Test MyAnnualReturn invalid year value degrades to zero."""
     class DataStub:
+        """Stub data for testing."""
+
         def __len__(self):
+            """Return 2."""
             return 2
 
     analyzer = bt.analyzers.MyAnnualReturn.__new__(bt.analyzers.MyAnnualReturn)
@@ -153,8 +161,12 @@ def test_myannualreturn_invalid_year_value_degrades_to_zero():
 
 
 def test_myannualreturn_complex_year_value_degrades_to_zero():
+    """Test MyAnnualReturn complex year value degrades to zero."""
     class DataStub:
+        """Stub data for testing."""
+
         def __len__(self):
+            """Return 2."""
             return 2
 
     analyzer = bt.analyzers.MyAnnualReturn.__new__(bt.analyzers.MyAnnualReturn)
@@ -179,6 +191,7 @@ def test_myannualreturn_complex_year_value_degrades_to_zero():
 
 
 def test_annualreturn_nonfinite_year_value_degrades_to_zero():
+    """Test AnnualReturn non-finite year value degrades to zero."""
     analyzer = bt.analyzers.AnnualReturn.__new__(bt.analyzers.AnnualReturn)
     analyzer._dt_cache = [1.0, 2.0]
     analyzer._value_cache = [100.0, float("nan")]
@@ -194,6 +207,7 @@ def test_annualreturn_nonfinite_year_value_degrades_to_zero():
 
 
 def test_annualreturn_invalid_year_value_degrades_to_zero():
+    """Test AnnualReturn invalid year value degrades to zero."""
     analyzer = bt.analyzers.AnnualReturn.__new__(bt.analyzers.AnnualReturn)
     analyzer._dt_cache = [1.0, 2.0]
     analyzer._value_cache = [100.0, "bad"]
@@ -209,6 +223,7 @@ def test_annualreturn_invalid_year_value_degrades_to_zero():
 
 
 def test_annualreturn_complex_year_value_degrades_to_zero():
+    """Test AnnualReturn complex year value degrades to zero."""
     analyzer = bt.analyzers.AnnualReturn.__new__(bt.analyzers.AnnualReturn)
     analyzer._dt_cache = [1.0, 2.0]
     analyzer._value_cache = [100.0, complex(1.0, 1.0)]

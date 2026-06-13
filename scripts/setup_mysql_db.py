@@ -131,6 +131,11 @@ def create_tables(cursor, prefix="bt"):
 
 
 def main():
+    """Set up MySQL database for TradeLogger persistence.
+
+    Creates the backtrder_web database and the bt_order, bt_trade, and
+    bt_position tables required for TradeLogger MySQL output.
+    """
     try:
         import pymysql
     except ImportError:

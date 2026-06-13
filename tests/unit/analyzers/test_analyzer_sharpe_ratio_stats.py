@@ -109,6 +109,7 @@ def test_run(main=False):
 
 
 def test_estimated_sharpe_ratio_stdev_accepts_series_input():
+    """Test that estimated_sharpe_ratio_stdev accepts pandas Series input."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
 
     returns = pd.Series([0.01, 0.02, 0.015, 0.018])
@@ -119,6 +120,7 @@ def test_estimated_sharpe_ratio_stdev_accepts_series_input():
 
 
 def test_estimated_sharpe_ratio_requires_returns():
+    """Test that estimated_sharpe_ratio raises ValueError when returns is None."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires returns"):
@@ -127,6 +129,7 @@ def test_estimated_sharpe_ratio_requires_returns():
 
 @pytest.mark.parametrize("returns", [pd.Series(dtype=float), pd.Series([0.01])])
 def test_estimated_sharpe_ratio_requires_at_least_two_samples(returns):
+    """Test that estimated_sharpe_ratio requires at least two return samples."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires at least 2 return samples"):
@@ -134,6 +137,7 @@ def test_estimated_sharpe_ratio_requires_at_least_two_samples(returns):
 
 
 def test_ann_estimated_sharpe_ratio_requires_returns_or_sr():
+    """Test that ann_estimated_sharpe_ratio requires either returns or sr parameter."""
     from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires returns or sr"):
@@ -142,6 +146,7 @@ def test_ann_estimated_sharpe_ratio_requires_returns_or_sr():
 
 @pytest.mark.parametrize("periods", [0, -1])
 def test_ann_estimated_sharpe_ratio_requires_positive_periods(periods):
+    """Test that ann_estimated_sharpe_ratio requires periods > 0."""
     from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires periods > 0"):
@@ -150,6 +155,7 @@ def test_ann_estimated_sharpe_ratio_requires_positive_periods(periods):
 
 @pytest.mark.parametrize("periods", [2.5, float("nan")])
 def test_ann_estimated_sharpe_ratio_requires_integer_periods(periods):
+    """Test that ann_estimated_sharpe_ratio requires integer periods."""
     from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires integer periods"):
@@ -158,6 +164,7 @@ def test_ann_estimated_sharpe_ratio_requires_integer_periods(periods):
 
 @pytest.mark.parametrize("sr", [float("nan"), float("inf")])
 def test_ann_estimated_sharpe_ratio_requires_finite_explicit_sr(sr):
+    """Test that ann_estimated_sharpe_ratio requires finite explicit sr."""
     from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires finite sr"):
@@ -166,6 +173,7 @@ def test_ann_estimated_sharpe_ratio_requires_finite_explicit_sr(sr):
 
 @pytest.mark.parametrize("returns", [pd.Series(dtype=float), pd.Series([0.01])])
 def test_ann_estimated_sharpe_ratio_requires_at_least_two_samples_without_explicit_sr(returns):
+    """Test that ann_estimated_sharpe_ratio requires at least 2 return samples when sr is None."""
     from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires at least 2 return samples when sr is None"):
@@ -173,6 +181,7 @@ def test_ann_estimated_sharpe_ratio_requires_at_least_two_samples_without_explic
 
 
 def test_estimated_sharpe_ratio_stdev_accepts_explicit_params_without_returns():
+    """Test that estimated_sharpe_ratio_stdev accepts explicit params without returns."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
 
     result = estimated_sharpe_ratio_stdev(returns=None, n=10, skew=0.0, kurtosis=3.0, sr=1.5)
@@ -182,6 +191,7 @@ def test_estimated_sharpe_ratio_stdev_accepts_explicit_params_without_returns():
 
 
 def test_estimated_sharpe_ratio_stdev_requires_explicit_params_without_returns():
+    """Test that estimated_sharpe_ratio_stdev requires all explicit params when returns is None."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
 
     with pytest.raises(ValueError, match="requires n, skew, kurtosis, and sr"):
@@ -189,6 +199,7 @@ def test_estimated_sharpe_ratio_stdev_requires_explicit_params_without_returns()
 
 
 def test_estimated_sharpe_ratio_stdev_requires_more_than_one_sample():
+    """Test that estimated_sharpe_ratio_stdev requires n > 1."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
 
     with pytest.raises(ValueError, match="requires n > 1"):
@@ -197,6 +208,7 @@ def test_estimated_sharpe_ratio_stdev_requires_more_than_one_sample():
 
 @pytest.mark.parametrize("n", [2.5, float("nan")])
 def test_estimated_sharpe_ratio_stdev_requires_integer_n(n):
+    """Test that estimated_sharpe_ratio_stdev requires integer n."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
 
     with pytest.raises(ValueError, match="requires integer n"):
@@ -212,6 +224,7 @@ def test_estimated_sharpe_ratio_stdev_requires_integer_n(n):
     ],
 )
 def test_estimated_sharpe_ratio_stdev_requires_finite_explicit_statistics(kwargs, match):
+    """Test that estimated_sharpe_ratio_stdev requires finite statistics parameters."""
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
 
     with pytest.raises(ValueError, match=match):
@@ -219,6 +232,7 @@ def test_estimated_sharpe_ratio_stdev_requires_finite_explicit_statistics(kwargs
 
 
 def test_num_independent_trials_handles_all_nan_correlations():
+    """Test that num_independent_trials handles DataFrame with constant columns (all-nan correlations)."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     trials_returns = pd.DataFrame(
@@ -236,6 +250,7 @@ def test_num_independent_trials_handles_all_nan_correlations():
 
 
 def test_num_independent_trials_handles_nonfinite_explicit_p():
+    """Test that num_independent_trials handles nonfinite (nan) explicit p parameter."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     trials_returns = pd.DataFrame(
@@ -253,6 +268,7 @@ def test_num_independent_trials_handles_nonfinite_explicit_p():
 
 @pytest.mark.parametrize("p", [[0.1], pd.Series([0.1]), True])
 def test_num_independent_trials_requires_scalar_explicit_p(p):
+    """Test that num_independent_trials requires scalar p parameter."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     with pytest.raises(ValueError, match="requires scalar p"):
@@ -261,6 +277,7 @@ def test_num_independent_trials_requires_scalar_explicit_p(p):
 
 @pytest.mark.parametrize("p", [-1.5, 1.5])
 def test_num_independent_trials_requires_correlation_domain_for_explicit_p(p):
+    """Test that num_independent_trials requires -1 <= p <= 1."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     with pytest.raises(ValueError, match="requires -1 <= p <= 1"):
@@ -268,6 +285,7 @@ def test_num_independent_trials_requires_correlation_domain_for_explicit_p(p):
 
 
 def test_num_independent_trials_accepts_explicit_m_and_p_without_trials_returns():
+    """Test that num_independent_trials accepts explicit m and p without trials_returns."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     result = num_independent_trials(trials_returns=None, m=5, p=0.25)
@@ -285,6 +303,7 @@ def test_num_independent_trials_accepts_explicit_m_and_p_without_trials_returns(
     ],
 )
 def test_num_independent_trials_requires_trials_returns_when_params_missing(kwargs):
+    """Test that num_independent_trials requires trials_returns when m or p is missing."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     with pytest.raises(ValueError, match="requires trials_returns when m or p is not provided"):
@@ -293,6 +312,7 @@ def test_num_independent_trials_requires_trials_returns_when_params_missing(kwar
 
 @pytest.mark.parametrize("m", [0, -2])
 def test_num_independent_trials_requires_positive_explicit_m(m):
+    """Test that num_independent_trials requires m > 0."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     with pytest.raises(ValueError, match="requires m > 0"):
@@ -301,6 +321,7 @@ def test_num_independent_trials_requires_positive_explicit_m(m):
 
 @pytest.mark.parametrize("m", [2.5, float("nan")])
 def test_num_independent_trials_requires_integer_explicit_m(m):
+    """Test that num_independent_trials requires integer m."""
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
     with pytest.raises(ValueError, match="requires integer m"):
@@ -308,6 +329,7 @@ def test_num_independent_trials_requires_integer_explicit_m(m):
 
 
 def test_expected_maximum_sr_single_trial_returns_expected_mean():
+    """Test that expected_maximum_sr with single trial returns the expected mean."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     result = expected_maximum_sr(independent_trials=1, expected_mean_sr=0.25, trials_sr_std=1.0)
@@ -317,6 +339,7 @@ def test_expected_maximum_sr_single_trial_returns_expected_mean():
 
 @pytest.mark.parametrize("independent_trials", [0, -1])
 def test_expected_maximum_sr_requires_at_least_one_trial(independent_trials):
+    """Test that expected_maximum_sr requires independent_trials >= 1."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     with pytest.raises(ValueError, match="requires independent_trials >= 1"):
@@ -325,6 +348,7 @@ def test_expected_maximum_sr_requires_at_least_one_trial(independent_trials):
 
 @pytest.mark.parametrize("independent_trials", [2.5, float("nan")])
 def test_expected_maximum_sr_requires_integer_trial_count(independent_trials):
+    """Test that expected_maximum_sr requires integer independent_trials."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     with pytest.raises(ValueError, match="requires integer independent_trials"):
@@ -332,6 +356,7 @@ def test_expected_maximum_sr_requires_integer_trial_count(independent_trials):
 
 
 def test_expected_maximum_sr_requires_trials_returns_or_independent_trials():
+    """Test that expected_maximum_sr requires trials_returns or independent_trials."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     with pytest.raises(ValueError, match="requires trials_returns or independent_trials"):
@@ -339,6 +364,7 @@ def test_expected_maximum_sr_requires_trials_returns_or_independent_trials():
 
 
 def test_expected_maximum_sr_rejects_trials_above_column_count():
+    """Test that expected_maximum_sr rejects independent_trials > number of trial columns."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     trials_returns = pd.DataFrame({"a": [0.01, 0.02], "b": [0.02, 0.01]})
@@ -348,6 +374,7 @@ def test_expected_maximum_sr_rejects_trials_above_column_count():
 
 
 def test_expected_maximum_sr_nonfinite_std_returns_expected_mean():
+    """Test that expected_maximum_sr returns expected_mean_sr when trials_sr_std is nan."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     result = expected_maximum_sr(independent_trials=5, expected_mean_sr=0.25, trials_sr_std=float("nan"))
@@ -356,6 +383,7 @@ def test_expected_maximum_sr_nonfinite_std_returns_expected_mean():
 
 
 def test_expected_maximum_sr_requires_nonnegative_std():
+    """Test that expected_maximum_sr requires trials_sr_std >= 0."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     with pytest.raises(ValueError, match="requires trials_sr_std >= 0"):
@@ -364,6 +392,7 @@ def test_expected_maximum_sr_requires_nonnegative_std():
 
 @pytest.mark.parametrize("expected_mean_sr", [float("nan"), float("inf")])
 def test_expected_maximum_sr_requires_finite_expected_mean(expected_mean_sr):
+    """Test that expected_maximum_sr requires finite expected_mean_sr."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     with pytest.raises(ValueError, match="requires finite expected_mean_sr"):
@@ -371,6 +400,7 @@ def test_expected_maximum_sr_requires_finite_expected_mean(expected_mean_sr):
 
 
 def test_expected_maximum_sr_requires_trials_returns_or_std_for_multiple_trials():
+    """Test that expected_maximum_sr requires trials_returns or trials_sr_std when independent_trials > 1."""
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
     with pytest.raises(ValueError, match="requires trials_returns or trials_sr_std when independent_trials > 1"):
@@ -378,6 +408,7 @@ def test_expected_maximum_sr_requires_trials_returns_or_std_for_multiple_trials(
 
 
 def test_probabilistic_sharpe_ratio_single_value_series_uses_position_not_label():
+    """Test that probabilistic_sharpe_ratio uses Series position, not label index."""
     from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
 
     result = probabilistic_sharpe_ratio(
@@ -398,6 +429,7 @@ def test_probabilistic_sharpe_ratio_single_value_series_uses_position_not_label(
     ],
 )
 def test_probabilistic_sharpe_ratio_requires_explicit_params_without_returns(kwargs):
+    """Test that probabilistic_sharpe_ratio requires both sr and sr_std when returns is None."""
     from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires sr and sr_std"):
@@ -406,6 +438,7 @@ def test_probabilistic_sharpe_ratio_requires_explicit_params_without_returns(kwa
 
 @pytest.mark.parametrize("sr_std", [0.0, -0.5, float("nan")])
 def test_probabilistic_sharpe_ratio_requires_finite_positive_std(sr_std):
+    """Test that probabilistic_sharpe_ratio requires sr_std > 0 and finite."""
     from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires finite sr_std > 0"):
@@ -414,6 +447,7 @@ def test_probabilistic_sharpe_ratio_requires_finite_positive_std(sr_std):
 
 @pytest.mark.parametrize("sr", [float("nan"), float("inf")])
 def test_probabilistic_sharpe_ratio_requires_finite_explicit_sr(sr):
+    """Test that probabilistic_sharpe_ratio requires finite sr."""
     from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires finite sr"):
@@ -422,6 +456,7 @@ def test_probabilistic_sharpe_ratio_requires_finite_explicit_sr(sr):
 
 @pytest.mark.parametrize("sr_benchmark", [float("nan"), float("inf")])
 def test_probabilistic_sharpe_ratio_requires_finite_benchmark(sr_benchmark):
+    """Test that probabilistic_sharpe_ratio requires finite sr_benchmark."""
     from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires finite sr_benchmark"):
@@ -429,6 +464,7 @@ def test_probabilistic_sharpe_ratio_requires_finite_benchmark(sr_benchmark):
 
 
 def test_min_track_record_length_single_value_series_uses_position_not_label():
+    """Test that min_track_record_length uses Series position, not label index."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     result = min_track_record_length(
@@ -451,6 +487,7 @@ def test_min_track_record_length_single_value_series_uses_position_not_label():
     ],
 )
 def test_min_track_record_length_requires_explicit_params_without_returns(kwargs):
+    """Test that min_track_record_length requires n, sr, and sr_std when returns is None."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     with pytest.raises(ValueError, match="requires n, sr, and sr_std"):
@@ -459,6 +496,7 @@ def test_min_track_record_length_requires_explicit_params_without_returns(kwargs
 
 @pytest.mark.parametrize("prob", [0.0, 1.0, -0.1, 1.1])
 def test_min_track_record_length_requires_probability_between_zero_and_one(prob):
+    """Test that min_track_record_length requires 0 < prob < 1."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     with pytest.raises(ValueError, match="requires 0 < prob < 1"):
@@ -467,6 +505,7 @@ def test_min_track_record_length_requires_probability_between_zero_and_one(prob)
 
 @pytest.mark.parametrize("n", [0, 1, -3])
 def test_min_track_record_length_requires_n_above_one(n):
+    """Test that min_track_record_length requires n > 1."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     with pytest.raises(ValueError, match="requires n > 1"):
@@ -475,6 +514,7 @@ def test_min_track_record_length_requires_n_above_one(n):
 
 @pytest.mark.parametrize("n", [2.5, float("nan")])
 def test_min_track_record_length_requires_integer_n(n):
+    """Test that min_track_record_length requires integer n."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     with pytest.raises(ValueError, match="requires integer n"):
@@ -483,6 +523,7 @@ def test_min_track_record_length_requires_integer_n(n):
 
 @pytest.mark.parametrize("sr_std", [0.0, -0.5, float("nan")])
 def test_min_track_record_length_requires_finite_positive_std(sr_std):
+    """Test that min_track_record_length requires sr_std > 0 and finite."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     with pytest.raises(ValueError, match="requires finite sr_std > 0"):
@@ -491,6 +532,7 @@ def test_min_track_record_length_requires_finite_positive_std(sr_std):
 
 @pytest.mark.parametrize("sr", [float("nan"), float("inf")])
 def test_min_track_record_length_requires_finite_explicit_sr(sr):
+    """Test that min_track_record_length requires finite sr."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     with pytest.raises(ValueError, match="requires finite sr"):
@@ -499,6 +541,7 @@ def test_min_track_record_length_requires_finite_explicit_sr(sr):
 
 @pytest.mark.parametrize("sr_benchmark", [float("nan"), float("inf")])
 def test_min_track_record_length_requires_finite_benchmark(sr_benchmark):
+    """Test that min_track_record_length requires finite sr_benchmark."""
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
     with pytest.raises(ValueError, match="requires finite sr_benchmark"):
@@ -506,6 +549,7 @@ def test_min_track_record_length_requires_finite_benchmark(sr_benchmark):
 
 
 def test_deflated_sharpe_ratio_caps_default_independent_trials_to_available_columns():
+    """Test that deflated_sharpe_ratio caps default independent_trials to available columns."""
     from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
 
     trials_returns = pd.DataFrame(
@@ -522,6 +566,7 @@ def test_deflated_sharpe_ratio_caps_default_independent_trials_to_available_colu
 
 
 def test_deflated_sharpe_ratio_requires_returns_selected():
+    """Test that deflated_sharpe_ratio requires returns_selected."""
     from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires returns_selected"):
@@ -529,6 +574,7 @@ def test_deflated_sharpe_ratio_requires_returns_selected():
 
 
 def test_deflated_sharpe_ratio_requires_trials_returns_when_expected_max_sr_missing():
+    """Test that deflated_sharpe_ratio requires trials_returns when expected_max_sr is None."""
     from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires trials_returns when expected_max_sr is None"):
@@ -537,6 +583,7 @@ def test_deflated_sharpe_ratio_requires_trials_returns_when_expected_max_sr_miss
 
 @pytest.mark.parametrize("expected_max_sr", [float("nan"), float("inf")])
 def test_deflated_sharpe_ratio_requires_finite_expected_max_sr(expected_max_sr):
+    """Test that deflated_sharpe_ratio requires finite expected_max_sr."""
     from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires finite expected_max_sr"):

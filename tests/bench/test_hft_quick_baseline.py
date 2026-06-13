@@ -1,3 +1,4 @@
+"""HFT quick baseline performance tests."""
 from pathlib import Path
 import threading
 import time
@@ -14,9 +15,12 @@ from tests.test_utils.hft_scenarios import compare_scenario, get_hft_scenario_sp
 
 
 class QuickReplayStrategy(bt.Strategy):
+    """Strategy for HFT quick replay testing."""
+
     params = (("symbol", "BTC/USDT"),)
 
     def __init__(self):
+        """Initialize strategy state."""
         self.tick_seen = 0
         self.orderbook_seen = 0
         self.completed_orders = []
@@ -24,6 +28,7 @@ class QuickReplayStrategy(bt.Strategy):
         self._data_obj = type("Data", (), {"_name": self.p.symbol, "symbol": self.p.symbol})()
 
     def notify_order(self, order):
+        """Handle order notifications."""
         if order.status == order.Completed:
             self.completed_orders.append(
                 {
@@ -36,6 +41,7 @@ class QuickReplayStrategy(bt.Strategy):
             self.pending_order = None
 
     def notify_orderbook(self, orderbook):
+        """Handle orderbook updates."""
         if orderbook.symbol != self.p.symbol:
             return
         self.orderbook_seen += 1
@@ -45,6 +51,7 @@ class QuickReplayStrategy(bt.Strategy):
             self.pending_order = self.buy(data=self._data_obj, size=0.01, exectype=0)
 
     def notify_tick(self, tick):
+        """Handle tick updates."""
         if tick.symbol != self.p.symbol:
             return
         self.tick_seen += 1
@@ -92,6 +99,7 @@ def _run_cerebro_with_timeout(cerebro, channel, timeout=5.0):
 @pytest.mark.priority_p0
 @pytest.mark.integration
 def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
+    """Test HFT quick replay baseline completes under 15 seconds."""
     root = Path(__file__).resolve().parents[1]
     data_dir = root / "datas" / "tick_data"
     tick_src = data_dir / "tick_BTC_USDT.csv"
@@ -138,6 +146,7 @@ def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
 @pytest.mark.priority_p0
 @pytest.mark.parametrize("scenario_spec", get_hft_scenario_specs(), ids=lambda spec: spec.name)
 def test_hft_strategy_scenarios_are_in_quick_baseline_and_match_reference(scenario_spec):
+    """Test HFT strategy scenarios are in quick baseline and match reference."""
     start = time.perf_counter()
     result = compare_scenario(scenario_spec)
     elapsed = time.perf_counter() - start

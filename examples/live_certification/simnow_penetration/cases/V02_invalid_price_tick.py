@@ -29,6 +29,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run V02 invalid price tick test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -54,18 +59,27 @@ def run(report_dir):
                 )
 
                 class InvalidPriceStrategy(bt.Strategy):
+                    """Strategy for testing invalid price tick rejection."""
+
                     def __init__(self):
+                        """Initialize invalid price strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.rejected = False
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.status == bt.Order.Rejected:
                             self.rejected = True
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit invalid price order."""
                         self.bar_count += 1
                         if self.order is not None:
                             self.cerebro.runstop()

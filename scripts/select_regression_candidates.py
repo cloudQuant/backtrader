@@ -36,6 +36,14 @@ def find_strategies():
 
 
 def file_size_mb(path: Path) -> float:
+    """Get file size in megabytes.
+
+    Args:
+        path: Path to the file.
+
+    Returns:
+        File size in MB, or 0.0 if the file cannot be accessed.
+    """
     try:
         return path.stat().st_size / 1024 / 1024
     except OSError:
@@ -143,6 +151,12 @@ def evaluate(strategy_dir: Path) -> dict | None:
 
 
 def main():
+    """Scan regression strategies and select candidates for migration.
+
+    Scans all strategies in tests/functional/strategies_regression/, evaluates
+    them based on data availability and strategy complexity, and writes the
+    selected candidates to regression_migration_selection.json.
+    """
     candidates_by_category: dict[str, list[dict]] = defaultdict(list)
     skipped = {"no_config": 0, "no_expected": 0, "needs_features": 0,
                "missing_data": 0, "zero_trades": 0}

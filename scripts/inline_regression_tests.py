@@ -37,6 +37,15 @@ TARGET_ROOT = REPO / "tests" / "functional" / "strategies"
 
 
 def find_migrated_dirs() -> list[Path]:
+    """Find all migrated strategy directories that need inlining.
+
+    Searches under TARGET_ROOT (tests/functional/strategies/) for directories
+    matching the pattern: category/regression/<number>_name/ containing both
+    run.py and config.yaml.
+
+    Returns:
+        Sorted list of Path objects for directories that need processing.
+    """
     out = []
     for cat_reg in TARGET_ROOT.glob("*/regression"):
         for strat_dir in cat_reg.iterdir():
@@ -47,6 +56,18 @@ def find_migrated_dirs() -> list[Path]:
 
 
 def yaml_to_python_repr(value, indent: int = 0) -> str:
+    """Convert a YAML value to its Python literal representation.
+
+    Recursively converts Python dicts and lists to their Python literal syntax
+    for use in generated test files.
+
+    Args:
+        value: The YAML value to convert.
+        indent: Current indentation level for nested structures.
+
+    Returns:
+        String representation of the Python literal.
+    """
     pad = "    " * indent
     if isinstance(value, dict):
         if not value:
@@ -68,6 +89,18 @@ def yaml_to_python_repr(value, indent: int = 0) -> str:
 
 
 def make_repo_relative(value, repo_str: str):
+    """Replace absolute repository paths with {repo} placeholder.
+
+    Recursively processes a data structure to replace string values that
+    start with repo_str + "/" with the placeholder "{repo}/".
+
+    Args:
+        value: The value to process (dict, list, or string).
+        repo_str: The repository path string to replace.
+
+    Returns:
+        Value with absolute paths replaced by {repo} placeholders.
+    """
     if isinstance(value, dict):
         return {k: make_repo_relative(v, repo_str) for k, v in value.items()}
     if isinstance(value, list):
@@ -102,6 +135,18 @@ PATTERNS_TO_STRIP = [
 
 
 def clean_source(src: str, *, drop_modules: set[str] | None = None) -> str:
+    """Clean source code by stripping unnecessary patterns.
+
+    Removes vendored benchmark hooks, __main__ blocks, and optionally
+    specified module imports.
+
+    Args:
+        src: Source code string to clean.
+        drop_modules: Optional set of module names whose imports should be removed.
+
+    Returns:
+        Cleaned source code string.
+    """
     for pat, repl in PATTERNS_TO_STRIP:
         src = pat.sub(repl, src)
     if drop_modules:
@@ -159,6 +204,17 @@ def extract_imports(src: str) -> tuple[list[str], str]:
 
 
 def merge_imports(imports_groups: list[list[str]]) -> list[str]:
+    """Merge and deduplicate import statements from multiple groups.
+
+    Combines import lines from multiple sources, removes duplicates, and
+    sorts them by category: stdlib, third-party, local.
+
+    Args:
+        imports_groups: List of import statement groups to merge.
+
+    Returns:
+        Deduplicated, sorted list of import statements.
+    """
     seen: set[str] = set()
     out: list[str] = []
     for group in imports_groups:
@@ -695,6 +751,18 @@ migration time.
 # ---- Main migrate-one ------------------------------------------------------
 
 def inline_one(strategy_dir: Path) -> tuple[bool, str]:
+    """Inline a single migrated strategy directory into a self-contained test file.
+
+    Reads the config.yaml, expected.json, run.py, and strategy_*.py files,
+    runs the strategy to capture metrics, generates an inlined test file,
+    verifies it passes, and on success removes the original files.
+
+    Args:
+        strategy_dir: Path to the strategy directory to inline.
+
+    Returns:
+        Tuple of (success: bool, message: str) indicating result.
+    """
     strategy_dir = Path(strategy_dir).resolve()
     config_path = strategy_dir / "config.yaml"
     expected_path = strategy_dir / "expected.json"
@@ -777,6 +845,11 @@ def inline_one(strategy_dir: Path) -> tuple[bool, str]:
 
 
 def main():
+    """Main entry point for the inline regression test script.
+
+    Parses arguments, finds migrated strategy directories, and processes
+    them in batches according to --limit and --from-index options.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--from-index", type=int, default=0)

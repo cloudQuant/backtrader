@@ -29,6 +29,14 @@ class AlligatorIndicator(Indicator):
     )
 
     def __init__(self):
+        """Build the three smoothed moving-average Alligator lines.
+
+        Selects the source series based on ``applied_price`` (``median``
+        uses ``(high + low) / 2``, everything else uses the close)
+        and then binds a :class:`SmoothedMovingAverage` to the
+        ``jaw``/``teeth``/``lips`` output lines. The shift/ma_method
+        parameters are accepted for API compatibility but not applied.
+        """
         if self.p.applied_price == "median":
             src = (self.data.high + self.data.low) / 2.0
         else:
@@ -46,6 +54,15 @@ class VortexIndicator(Indicator):
     params = (("period", 14),)
 
     def next(self):
+        """Compute the Vortex Indicator plus/minus values for the current bar.
+
+        Sums ``|high - prev_low|`` (plus), ``|low - prev_high|``
+        (minus) and the true range ``max(high - low, |high - prev_close|,
+        |low - prev_close|)`` over the configured period. The two Vortex
+        values are ``sum_plus / tr_sum`` and ``sum_minus / tr_sum``
+        (both default to ``0.0`` when the true-range sum is zero).
+        During the warmup window every output line is set to ``0.0``.
+        """
         p = int(self.p.period)
         if len(self.data) < p + 2:
             for line in self.lines:
@@ -84,4 +101,5 @@ class VortexSystemIndicator(VortexIndicator):
     """Vortex variant preserving the historical strategy-system warm-up."""
 
     def __init__(self):
+        """Reserve the extra warm-up bar required by the original system variant."""
         self.addminperiod(int(self.p.period) + 1)

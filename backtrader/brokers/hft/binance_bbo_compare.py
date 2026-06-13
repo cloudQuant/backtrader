@@ -28,6 +28,18 @@ from backtrader.order import Order
 
 @dataclass(frozen=True)
 class ComparisonFill:
+    """Represents a fill (trade) for comparison purposes.
+
+    Attributes:
+        side: Order side ('buy' or 'sell').
+        price: Fill price.
+        size: Fill quantity.
+        timestamp_ns: Timestamp in nanoseconds.
+        local_timestamp_ns: Local timestamp in nanoseconds.
+        exch_timestamp_ns: Exchange timestamp in nanoseconds.
+        order_ref: Order reference ID.
+    """
+
     side: str
     price: float
     size: float
@@ -39,6 +51,15 @@ class ComparisonFill:
 
 @dataclass(frozen=True)
 class EngineResult:
+    """Result from a backtesting engine.
+
+    Attributes:
+        balance: Final account balance.
+        position: Final position quantity.
+        num_trades: Total number of trades.
+        fills: List of all comparison fills.
+    """
+
     balance: float
     position: float
     num_trades: int
@@ -47,6 +68,17 @@ class EngineResult:
 
 @dataclass(frozen=True)
 class StrategyComparisonResult:
+    """Comparison result between backtrader and hftbacktest engines.
+
+    Attributes:
+        strategy: Strategy name.
+        decision_interval_ns: Decision interval in nanoseconds.
+        backtrader: Engine result from backtrader.
+        hftbacktest: Engine result from hftbacktest.
+        matches: Dictionary of match status by field.
+        deltas: Dictionary of delta values by field.
+    """
+
     strategy: str
     decision_interval_ns: int
     backtrader: EngineResult
@@ -56,7 +88,14 @@ class StrategyComparisonResult:
 
 
 class _DataRef:
+    """Reference data object for market data symbols."""
+
     def __init__(self, symbol: str):
+        """Initialize a data reference.
+
+        Args:
+            symbol: Trading symbol.
+        """
         self._name = symbol
         self.name = symbol
         self.symbol = symbol
@@ -113,15 +152,42 @@ def _builder_order_qty(builder) -> float:
 
 
 class _NoPartialQueueExchangeModel(QueueExchangeModel):
+    """Exchange model that simulates no partial fills.
+
+    Used for comparing backtrader against hftbacktest which uses
+    no-partial-fill exchange semantics.
+
+    Attributes:
+        queue_model_power: Power parameter for probability queue model.
+        lot_size: Minimum order quantity.
+        tick_size: Minimum price increment.
+    """
+
     def __init__(
         self, queue_model_power: float = 2.0, lot_size: float = 1.0, tick_size: float = None
     ):
+        """Initialize the no-partial-fill exchange model.
+
+        Args:
+            queue_model_power: Queue model power parameter (default: 2.0).
+            lot_size: Minimum lot size (default: 1.0).
+            tick_size: Minimum price increment (default: None).
+        """
         super().__init__(
             queue_model=ProbQueueModel(power=queue_model_power, lot_size=lot_size),
             tick_size=tick_size,
         )
 
     def on_new_order(self, order, ob_snapshot):
+        """Handle a new order event.
+
+        Args:
+            order: The incoming order.
+            ob_snapshot: Current order book snapshot.
+
+        Returns:
+            OrderResult indicating the order action.
+        """
         if getattr(order, "_fill_role", None) == FillRole.MAKER:
             return OrderResult(action="PENDING")
         result = super().on_new_order(order, ob_snapshot)
@@ -162,6 +228,15 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
         return trade_price <= order_price if is_buy_order else trade_price >= order_price
 
     def on_trade(self, trade_event, pending_orders):
+        """Handle a trade event and determine fills.
+
+        Args:
+            trade_event: Trade event with price and direction.
+            pending_orders: List of pending maker orders.
+
+        Returns:
+            List of (order, price, remaining_size, role) tuples for fills.
+        """
         fills: list = []
         trade_price = getattr(trade_event, "price", None)
         direction = str(getattr(trade_event, "direction", "")).lower()
@@ -203,6 +278,15 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
         return fills
 
     def on_depth_update(self, ob_event, pending_orders):
+        """Handle an order book depth update event.
+
+        Args:
+            ob_event: Order book event with bids/asks.
+            pending_orders: List of pending maker orders.
+
+        Returns:
+            List of (order, price, remaining_size, role) tuples for fills.
+        """
         fills: list = []
         prev_bids = getattr(ob_event, "previous_bids", None) or []
         prev_asks = getattr(ob_event, "previous_asks", None) or []
@@ -273,6 +357,25 @@ def compare_binance_bbo_strategy(
     queue_model_power: Optional[float] = None,
     max_decisions: Optional[int] = None,
 ) -> StrategyComparisonResult:
+    """Compare backtrader HFT engine against hftbacktest on Binance BBO data.
+
+    Args:
+        strategy_name: Name of the HFT strategy to compare.
+        orderbook_path: Path to orderbook depth data file.
+        tick_path: Path to tick trade data file.
+        market_data_path: Base path for market data.
+        tick_size: Minimum price increment.
+        lot_size: Minimum order quantity.
+        symbol: Trading symbol (default: "ETH/USDT").
+        decision_interval_ns: Decision interval in nanoseconds.
+        maker_commission: Maker commission rate (overrides spec).
+        taker_commission: Taker commission rate (overrides spec).
+        queue_model_power: Queue model power (overrides spec).
+        max_decisions: Maximum number of decisions to process.
+
+    Returns:
+        StrategyComparisonResult with backtrader and hftbacktest results.
+    """
     spec = get_hftbacktest_example_spec(strategy_name)
     interval_ns = int(decision_interval_ns or spec.strategy.interval_ns)
     maker_fee = float(
@@ -352,11 +455,27 @@ def compare_binance_bbo_strategy(
 
 
 def comparison_to_json(result: StrategyComparisonResult) -> str:
+    """Convert a strategy comparison result to JSON string.
+
+    Args:
+        result: StrategyComparisonResult to serialize.
+
+    Returns:
+        JSON-formatted string representation.
+    """
     payload = asdict(result)
     return json.dumps(payload, indent=2)
 
 
 def engine_result_to_json(result: EngineResult) -> str:
+    """Convert an engine result to JSON string.
+
+    Args:
+        result: EngineResult to serialize.
+
+    Returns:
+        JSON-formatted string representation.
+    """
     payload = asdict(result)
     return json.dumps(payload, indent=2)
 
@@ -375,6 +494,25 @@ def run_binance_bbo_backtrader_strategy(
     queue_model_power: Optional[float] = None,
     max_decisions: Optional[int] = None,
 ) -> EngineResult:
+    """Run backtrader HFT strategy on Binance BBO data.
+
+    Args:
+        strategy_name: Name of the HFT strategy to run.
+        orderbook_path: Path to orderbook depth data file.
+        tick_path: Path to tick trade data file.
+        market_data_path: Base path for market data.
+        tick_size: Minimum price increment.
+        lot_size: Minimum order quantity.
+        symbol: Trading symbol (default: "ETH/USDT").
+        decision_interval_ns: Decision interval in nanoseconds.
+        maker_commission: Maker commission rate (overrides spec).
+        taker_commission: Taker commission rate (overrides spec).
+        queue_model_power: Queue model power (overrides spec).
+        max_decisions: Maximum number of decisions to process.
+
+    Returns:
+        EngineResult with backtrader backtest results.
+    """
     spec = get_hftbacktest_example_spec(strategy_name)
     interval_ns = int(decision_interval_ns or spec.strategy.interval_ns)
     maker_fee = float(
@@ -427,6 +565,25 @@ def run_binance_bbo_hftbacktest_strategy(
     queue_model_power: Optional[float] = None,
     max_decisions: Optional[int] = None,
 ) -> EngineResult:
+    """Run hftbacktest strategy on Binance BBO data.
+
+    Args:
+        strategy_name: Name of the HFT strategy to run.
+        orderbook_path: Path to orderbook depth data file (unused, for API compat).
+        tick_path: Path to tick trade data file (unused, for API compat).
+        market_data_path: Base path for market data.
+        tick_size: Minimum price increment.
+        lot_size: Minimum order quantity.
+        symbol: Trading symbol (default: "ETH/USDT").
+        decision_interval_ns: Decision interval in nanoseconds.
+        maker_commission: Maker commission rate (overrides spec).
+        taker_commission: Taker commission rate (overrides spec).
+        queue_model_power: Queue model power (overrides spec).
+        max_decisions: Maximum number of decisions to process.
+
+    Returns:
+        EngineResult with hftbacktest results.
+    """
     _ = (orderbook_path, tick_path, symbol)
     spec = get_hftbacktest_example_spec(strategy_name)
     interval_ns = int(decision_interval_ns or spec.strategy.interval_ns)

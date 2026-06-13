@@ -1,3 +1,4 @@
+"""Tests for latency models."""
 import pytest
 
 from backtrader.brokers.hft import ConstantLatencyModel, IntpLatencyModel, LatencyEngine
@@ -5,6 +6,7 @@ from backtrader.events import TickEvent
 
 
 def test_constant_latency_model_returns_fixed_values():
+    """Test ConstantLatencyModel returns fixed values."""
     model = ConstantLatencyModel(
         feed_latency_ms=100,
         order_entry_latency_ms=200,
@@ -17,6 +19,7 @@ def test_constant_latency_model_returns_fixed_values():
 
 
 def test_latency_engine_applies_feed_latency_and_activates_delayed_orders():
+    """Test LatencyEngine applies feed latency and activates delayed orders."""
     engine = LatencyEngine(ConstantLatencyModel(feed_latency_ms=50, order_entry_latency_ms=200))
     event = TickEvent(timestamp=1.0, symbol="BTC/USDT", price=100.0, volume=1.0)
 
@@ -31,6 +34,7 @@ def test_latency_engine_applies_feed_latency_and_activates_delayed_orders():
 
 
 def test_intp_latency_model_interpolates_between_points():
+    """Test IntpLatencyModel interpolates between points."""
     model = IntpLatencyModel(
         [
             (1.0, 0.1, 0.2, 0.3),

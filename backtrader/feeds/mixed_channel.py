@@ -12,6 +12,16 @@ __all__ = ["MixedChannel", "build_mixed_channel"]
 
 
 class MixedChannel(StreamingEventQueue):
+    """Streaming event queue that merges multiple channel groups into one stream.
+
+    The constructor flattens the per-group channel lists
+    (``channels``, ``tick_channels``, ``orderbook_channels``,
+    ``funding_channels``) into a single ``merged_channels`` list and
+    delegates to :class:`StreamingEventQueue`. The remaining keyword
+    arguments (``preload_window``, ``max_memory_mb``, ``adaptive``,
+    ``batch_size``) are forwarded unchanged.
+    """
+
     def __init__(
         self,
         channels=None,
@@ -24,6 +34,26 @@ class MixedChannel(StreamingEventQueue):
         adaptive=True,
         batch_size=10000,
     ):
+        """Build a merged-channel streaming queue.
+
+        Args:
+            channels: Optional iterable of generic event channels.
+            bars: Optional iterable of pre-built bar objects. Copied
+                into a list before being forwarded to the base class.
+            tick_channels: Optional iterable of tick event channels.
+            orderbook_channels: Optional iterable of order-book event
+                channels.
+            funding_channels: Optional iterable of funding-rate event
+                channels.
+            preload_window: Preload window size in seconds, forwarded
+                to :class:`StreamingEventQueue`.
+            max_memory_mb: Soft memory cap (in MB) for the queue,
+                forwarded to the base class.
+            adaptive: Whether the queue should adapt its batching
+                strategy, forwarded to the base class.
+            batch_size: Default batch size, forwarded to the base
+                class.
+        """
         merged_channels: list = []
         for group in (
             channels or [],
@@ -51,6 +81,23 @@ def build_mixed_channel(
     funding_channels=None,
     **kwargs,
 ):
+    """Construct a :class:`MixedChannel` with the standard per-group arguments.
+
+    All extra keyword arguments are forwarded to :class:`MixedChannel`
+    so callers can pass ``preload_window``, ``max_memory_mb``,
+    ``adaptive`` and ``batch_size`` without listing them explicitly.
+
+    Args:
+        channels: Optional iterable of generic event channels.
+        bars: Optional iterable of pre-built bar objects.
+        tick_channels: Optional iterable of tick event channels.
+        orderbook_channels: Optional iterable of order-book channels.
+        funding_channels: Optional iterable of funding-rate channels.
+        **kwargs: Forwarded to :class:`MixedChannel`.
+
+    Returns:
+        MixedChannel: A new :class:`MixedChannel` instance.
+    """
     return MixedChannel(
         channels=channels,
         bars=bars,

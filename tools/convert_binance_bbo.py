@@ -1,3 +1,12 @@
+"""Conversion tool for Binance bookTicker and trades data to hftbacktest format.
+
+This module converts Binance bookTicker and trades zip files from the official
+Binance API into hftbacktest and backtrader replay input formats.
+
+Example:
+    python convert_binance_bbo.py --book-ticker-zip data.zip --trades-zip trades.zip --output-dir out/
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -7,6 +16,7 @@ from backtrader.brokers.hft import convert_binance_bbo_zip_pair, generate_latenc
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build and return the argument parser for this tool."""
     parser = argparse.ArgumentParser(description="Convert Binance bookTicker + trades zip files into hftbacktest/backtrader replay inputs")
     parser.add_argument("--book-ticker-zip", required=True, help="Path to Binance bookTicker zip file")
     parser.add_argument("--trades-zip", required=True, help="Path to Binance trades zip file")
@@ -28,6 +38,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run the conversion and return exit code.
+
+    Parses command line arguments, converts the Binance data files,
+    and optionally generates latency files.
+    """
     args = _build_parser().parse_args()
     result = convert_binance_bbo_zip_pair(
         book_ticker_zip_path=args.book_ticker_zip,

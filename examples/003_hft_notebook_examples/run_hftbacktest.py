@@ -1,3 +1,8 @@
+"""Run hftbacktest on migrated notebook strategies.
+
+This script runs the hftbacktest side of the migrated hftbacktest
+notebook strategies on prepared Binance BBO data.
+"""
 from __future__ import annotations
 
 import argparse
@@ -13,6 +18,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run hftbacktest strategy on prepared Binance BBO data.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     paths = resolve_paths(args)
     runtime = resolve_runtime(args)

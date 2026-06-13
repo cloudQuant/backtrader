@@ -1,3 +1,12 @@
+"""CTP Bar-Based Trading Examples Common Module.
+
+This module provides base strategies and utilities for bar-based CTP futures
+trading examples. It includes:
+- FiveSecondBarStrategyBase: Base class for 5-second bar aggregation strategies
+- SingleSymbolMaStrategy: Single-symbol moving average strategy
+- PairSpreadStrategy: Pair trading strategy based on spread analysis
+"""
+
 from __future__ import annotations
 
 import json
@@ -38,9 +47,15 @@ BAR_STRATEGY_PARAMS = BASE_FUTURES_STRATEGY_PARAMS + (
 
 
 class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
+    """Base strategy for 5-second bar generation from tick data.
+
+    This strategy aggregates tick data into fixed-interval bars and provides
+    callbacks for bar completion events.
+    """
     params = BAR_STRATEGY_PARAMS
 
     def __init__(self):
+        """Initialize bar strategy state."""
         super().__init__()
         self.bar_history = defaultdict(
             lambda: deque(maxlen=max(int(self.p.max_bar_history), 8))
@@ -51,15 +66,42 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
         self._tick_bars = {}
 
     def _bar_source(self):
+        """Get bar source setting.
+
+        Returns:
+            'datafeed' or 'broker' as lowercase string.
+        """
         return str(self.p.bar_source or "datafeed").strip().lower()
 
     def _bar_key(self, timestamp):
+        """Convert timestamp to bar key for deduplication.
+
+        Args:
+            timestamp: Timestamp value.
+
+        Returns:
+            Integer millisecond timestamp or original value.
+        """
         try:
             return int(round(float(timestamp) * 1000.0))
         except (TypeError, ValueError):
             return timestamp
 
     def _record_completed_bar(self, symbol, timestamp, open_, high, low, close, volume):
+        """Record a completed bar to history.
+
+        Args:
+            symbol: Symbol name.
+            timestamp: Bar timestamp.
+            open_: Open price.
+            high: High price.
+            low: Low price.
+            close: Close price.
+            volume: Volume.
+
+        Returns:
+            Bar dict if completed, None if duplicate.
+        """
         symbol = str(symbol)
         key = self._bar_key(timestamp)
         if self._last_bar_keys.get(symbol) == key:
@@ -81,6 +123,14 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
         return bar
 
     def _ingest_tick_as_bar(self, tick):
+        """Ingest tick and aggregate into bar if interval complete.
+
+        Args:
+            tick: Tick object with symbol, price, volume, timestamp.
+
+        Returns:
+            Completed bar dict or None if interval not complete.
+        """
         bar_seconds = max(int(self.p.bar_seconds or 5), 1)
         symbol = str(tick.symbol)
         tick_timestamp = float(getattr(tick, "timestamp", getattr(tick, "local_time", 0.0)) or 0.0)
@@ -122,6 +172,11 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
         return completed
 
     def notify_tick(self, tick):
+        """Handle incoming tick notification.
+
+        Args:
+            tick: Tick object.
+        """
         self.reconcile_pending_order_states()
         if self._bar_source() != "ticks":
             return
@@ -130,6 +185,11 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
             self.on_completed_bar(completed_bar)
 
     def notify_bar(self, bar):
+        """Handle incoming bar notification.
+
+        Args:
+            bar: Bar object.
+        """
         self.reconcile_pending_order_states()
         if self._bar_source() not in {"channel_bar", "bar_event"}:
             return
@@ -146,6 +206,7 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
             self.on_completed_bar(completed_bar)
 
     def next(self):
+        """Process next bar for datafeed source."""
         if self._bar_source() != "datafeed":
             return
 
@@ -167,6 +228,11 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
                 self.on_completed_bar(completed_bar)
 
     def maybe_stop_after_bar_limit(self):
+        """Stop strategy if bar limit reached and no pending orders.
+
+        Returns:
+            True if strategy was stopped.
+        """
         limit = int(self.p.stop_after_bars or 0)
         if limit > 0 and self.total_completed_bars() >= limit and not self.pending_refs:
             self.log(f"bar limit reached ({limit}), stopping")
@@ -175,15 +241,46 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
         return False
 
     def total_completed_bars(self):
+        """Get total count of completed bars across all symbols.
+
+        Returns:
+            Total bar count.
+        """
         return sum(int(value) for value in self.bar_counts.values())
 
     def symbol_bar_count(self, symbol):
+        """Get completed bar count for a symbol.
+
+        Args:
+            symbol: Symbol name.
+
+        Returns:
+            Bar count for symbol.
+        """
         return int(self.bar_counts.get(str(symbol), 0))
 
     def pair_bar_progress(self, symbol_a, symbol_b):
+        """Get minimum bar count for a symbol pair.
+
+        Args:
+            symbol_a: First symbol.
+            symbol_b: Second symbol.
+
+        Returns:
+            Minimum bar count of the pair.
+        """
         return min(self.symbol_bar_count(symbol_a), self.symbol_bar_count(symbol_b))
 
     def mean_close(self, symbol, window):
+        """Calculate mean close price over window.
+
+        Args:
+            symbol: Symbol name.
+            window: Number of bars to average.
+
+        Returns:
+            Mean close or None if insufficient data.
+        """
         history = self.bar_history[str(symbol)]
         window = int(window)
         if window <= 0 or len(history) < window:
@@ -192,9 +289,22 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
         return sum(values) / float(window)
 
     def on_completed_bar(self, bar):
+        """Handle completed bar - override in subclass.
+
+        Args:
+            bar: Completed bar dictionary.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclass.
+        """
         raise NotImplementedError
 
     def get_summary(self):
+        """Get strategy summary including bar statistics.
+
+        Returns:
+            Summary dictionary.
+        """
         summary = super().get_summary()
         summary.update(
             {
@@ -212,6 +322,11 @@ class FiveSecondBarStrategyBase(ConfigurableFuturesStrategyBase):
 
 
 class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
+    """Single symbol moving average crossover strategy.
+
+    This strategy trades a single symbol using fast and slow moving average
+    crossovers with optional forced entry after a configurable number of bars.
+    """
     params = BAR_STRATEGY_PARAMS + (
         ("symbol", "rb2605"),
         ("fast_window", 2),
@@ -223,6 +338,7 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
     )
 
     def __init__(self):
+        """Initialize single symbol MA strategy state."""
         super().__init__()
         self._observed_open_position = False
         self._open_bar_at = None
@@ -231,6 +347,14 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
         self._forced_exit_terminal_refs = set()
 
     def _handle_forced_signals(self, position):
+        """Handle forced entry/exit signals based on bar count.
+
+        Args:
+            position: Current position dict.
+
+        Returns:
+            True if a forced signal was generated.
+        """
         current_bar = self.symbol_bar_count(self.p.symbol)
         if (
             self._forced_phase == "idle"
@@ -266,6 +390,11 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
         return False
 
     def on_completed_bar(self, bar):
+        """Handle completed bar for MA crossover logic.
+
+        Args:
+            bar: Completed bar dictionary.
+        """
         if bar["symbol"] != self.p.symbol:
             self.maybe_stop_after_bar_limit()
             return
@@ -313,6 +442,11 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
         self.maybe_stop_after_bar_limit()
 
     def after_terminal_order(self, order):
+        """Handle terminal order for single symbol strategy.
+
+        Args:
+            order: Terminal order instance.
+        """
         def _maybe_stop_after_open_position():
             if bool(getattr(self.p, "stop_after_open_position", False)) and not self.pending_refs:
                 self.log("open position observed, stopping")
@@ -365,6 +499,11 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
 
 
 class PairSpreadStrategy(FiveSecondBarStrategyBase):
+    """Pair spread strategy for two-symbol arbitrage.
+
+    This strategy monitors the spread between two symbols and enters/exits
+    positions when the spread crosses configurable thresholds.
+    """
     params = BAR_STRATEGY_PARAMS + (
         ("symbol_a", "rb2605"),
         ("symbol_b", "hc2605"),
@@ -376,6 +515,7 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
     )
 
     def __init__(self):
+        """Initialize pair spread strategy state."""
         super().__init__()
         self._observed_open_pair = False
         self._pair_open_bar_at = None
@@ -384,17 +524,37 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         self._forced_exit_terminal_refs = set()
 
     def _pair_positions(self):
+        """Get positions for both symbols.
+
+        Returns:
+            Tuple of (position_a, position_b).
+        """
         return self._position_size(self.p.symbol_a), self._position_size(self.p.symbol_b)
 
     def _pair_is_flat(self):
+        """Check if both positions are flat.
+
+        Returns:
+            True if both positions are near zero.
+        """
         pos_a, pos_b = self._pair_positions()
         return abs(pos_a) < 1e-12 and abs(pos_b) < 1e-12
 
     def _pair_is_open(self):
+        """Check if pair is open (short A, long B).
+
+        Returns:
+            True if pair position is open.
+        """
         pos_a, pos_b = self._pair_positions()
         return pos_a < -1e-12 and pos_b > 1e-12
 
     def _mean_spread(self):
+        """Calculate mean spread over window.
+
+        Returns:
+            Mean spread or None if insufficient data.
+        """
         window = int(self.p.spread_window)
         bars_a = self.bar_history[self.p.symbol_a]
         bars_b = self.bar_history[self.p.symbol_b]
@@ -406,6 +566,11 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         return sum(spreads) / float(window)
 
     def _handle_forced_signals(self):
+        """Handle forced entry/exit signals based on bar count.
+
+        Returns:
+            True if a forced signal was generated.
+        """
         current_bar = self.pair_bar_progress(self.p.symbol_a, self.p.symbol_b)
         if (
             self._forced_phase == "idle"
@@ -458,6 +623,11 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         return False
 
     def on_completed_bar(self, bar):
+        """Handle completed bar for pair spread strategy.
+
+        Args:
+            bar: Completed bar dictionary.
+        """
         if bar["symbol"] not in (self.p.symbol_a, self.p.symbol_b):
             self.maybe_stop_after_bar_limit()
             return
@@ -523,6 +693,11 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         self.maybe_stop_after_bar_limit()
 
     def after_terminal_order(self, order):
+        """Handle terminal order for pair spread strategy.
+
+        Args:
+            order: Terminal order instance.
+        """
         def _maybe_stop_after_open_position():
             if bool(getattr(self.p, "stop_after_open_position", False)) and not self.pending_refs:
                 self.log("open position observed, stopping")
@@ -580,6 +755,17 @@ STRATEGIES = {
 
 
 def get_strategy_class(name):
+    """Get strategy class by name.
+
+    Args:
+        name: Strategy name ('single_symbol' or 'pair_spread').
+
+    Returns:
+        Strategy class.
+
+    Raises:
+        ValueError: If strategy name is not supported.
+    """
     normalized = str(name or "").strip().lower()
     if normalized not in STRATEGIES:
         raise ValueError(f"Unsupported 5s bar strategy: {name}")
@@ -611,6 +797,16 @@ def _parse_bar_point(raw_point):
 
 
 def _build_bar_events(symbol, bar_points, start_timestamp):
+    """Build bar events from configuration.
+
+    Args:
+        symbol: Symbol name.
+        bar_points: List of bar point dictionaries.
+        start_timestamp: Base timestamp for events.
+
+    Returns:
+        List of BarEvent objects.
+    """
     events = []
     for index, raw_point in enumerate(bar_points):
         offset, open_, high, low, close, volume = _parse_bar_point(raw_point)
@@ -634,6 +830,18 @@ def _build_bar_events(symbol, bar_points, start_timestamp):
 
 
 def _build_ticks_from_bars(symbol, bar_points, start_timestamp, bar_seconds, extra_tick=True):
+    """Build tick events from bar points.
+
+    Args:
+        symbol: Symbol name.
+        bar_points: List of bar point dictionaries.
+        start_timestamp: Base timestamp.
+        bar_seconds: Bar interval in seconds.
+        extra_tick: Whether to add final tick after bars.
+
+    Returns:
+        List of TickEvent objects.
+    """
     ticks = []
     parsed_points = [_parse_bar_point(point) for point in bar_points]
     for index, (offset, _open, _high, _low, close, volume) in enumerate(parsed_points):
@@ -671,6 +879,17 @@ def _build_ticks_from_bars(symbol, bar_points, start_timestamp, bar_seconds, ext
 
 
 def build_tick_backtest_channel(config):
+    """Build tick backtest channel from configuration.
+
+    Args:
+        config: Configuration dictionary with scenario details.
+
+    Returns:
+        StreamingEventQueue configured for tick backtesting.
+
+    Raises:
+        ValueError: If scenario type is not supported.
+    """
     scenario = dict(config.get("scenario") or {})
     scenario_type = str(scenario.get("type") or "").strip().lower()
     start_timestamp = float(scenario.get("start_timestamp", 1710000000.0))
@@ -696,6 +915,17 @@ def build_tick_backtest_channel(config):
 
 
 def build_mix_backtest_channel(config):
+    """Build mixed tick/bar backtest channel from configuration.
+
+    Args:
+        config: Configuration dictionary with scenario details.
+
+    Returns:
+        MixedChannel configured for mixed backtesting.
+
+    Raises:
+        ValueError: If scenario type is not supported.
+    """
     scenario = dict(config.get("scenario") or {})
     scenario_type = str(scenario.get("type") or "").strip().lower()
     start_timestamp = float(scenario.get("start_timestamp", 1710000000.0))
@@ -730,6 +960,12 @@ def build_mix_backtest_channel(config):
 
 
 def add_bbroker_backtest_feeds(cerebro, config):
+    """Add backtest feeds to cerebro from configuration.
+
+    Args:
+        cerebro: Cerebro instance.
+        config: Configuration dictionary with scenario details.
+    """
     scenario = dict(config.get("scenario") or {})
     scenario_type = str(scenario.get("type") or "").strip().lower()
     start_timestamp = float(scenario.get("start_timestamp", 1710000000.0))
@@ -773,4 +1009,12 @@ def _add_single_dataframe(cerebro, symbol, bar_points, start_timestamp):
 
 
 def format_summary(strategy):
+    """Format strategy summary as JSON string.
+
+    Args:
+        strategy: Strategy instance with get_summary method.
+
+    Returns:
+        JSON-formatted summary string.
+    """
     return json.dumps(strategy.get_summary(), ensure_ascii=False, indent=2, sort_keys=True)

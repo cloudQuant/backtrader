@@ -188,15 +188,23 @@ class SimNowTestStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize SimNow test strategy."""
         self.bar_count = 0
         self.order_placed = False
 
     def log(self, txt, dt=None):
+        """Log message with timestamp.
+
+        Args:
+            txt: Message to log.
+            dt: Optional datetime for the log entry.
+        """
         if self.p.printlog:
             dt = dt or self.datas[0].datetime.date(0)
             print(f"[{dt.isoformat()}] {txt}")
 
     def next(self):
+        """Process each bar."""
         self.bar_count += 1
 
         self.log(
@@ -293,7 +301,10 @@ def _case_order_placement():
         cerebro.adddata(data)
 
         class OrderTestStrategy(bt.Strategy):
+            """Strategy for testing live order flow."""
+
             def __init__(self):
+                """Initialize order test strategy."""
                 self.bar_count = 0
                 self.order = None
                 self.order_statuses = []
@@ -301,6 +312,13 @@ def _case_order_placement():
                 self.remote_event_types = set()
 
             def notify_store(self, msg, *args, **kwargs):
+                """Handle store notifications.
+
+                Args:
+                    msg: Store message.
+                    *args: Additional positional arguments.
+                    **kwargs: Additional keyword arguments including 'event'.
+                """
                 event = kwargs.get("event")
                 if not isinstance(event, dict):
                     return
@@ -329,6 +347,11 @@ def _case_order_placement():
                     self.cerebro.runstop()
 
             def notify_order(self, order):
+                """Handle order status updates.
+
+                Args:
+                    order: Order instance.
+                """
                 status_name = order.getstatusname()
                 self.order_statuses.append(status_name)
                 print(
@@ -341,6 +364,7 @@ def _case_order_placement():
                 )
 
             def next(self):
+                """Process each bar and submit test order."""
                 self.bar_count += 1
                 if self.order is not None:
                     return
@@ -414,7 +438,10 @@ def _case_real_tick_subscription():
         cerebro.adddata(data)
 
         class RealTickStrategy(bt.Strategy):
+            """Strategy for testing real tick and bar notifications."""
+
             def __init__(self):
+                """Initialize real tick strategy."""
                 self.tick_count = 0
                 self.bar_count = 0
                 self.next_count = 0
@@ -422,6 +449,11 @@ def _case_real_tick_subscription():
                 self.last_bar = None
 
             def notify_tick(self, tick):
+                """Handle tick notification.
+
+                Args:
+                    tick: Tick object.
+                """
                 self.tick_count += 1
                 self.last_tick = tick
                 if self.tick_count <= 5:
@@ -437,6 +469,11 @@ def _case_real_tick_subscription():
                     )
 
             def notify_bar(self, bar):
+                """Handle bar notification.
+
+                Args:
+                    bar: Bar object.
+                """
                 self.bar_count += 1
                 self.last_bar = bar
                 print(
@@ -454,6 +491,7 @@ def _case_real_tick_subscription():
                 )
 
             def next(self):
+                """Process bar and stop after receiving tick and bar."""
                 self.next_count += 1
                 if self.bar_count >= 1 and self.tick_count >= 1:
                     self.cerebro.runstop()
@@ -679,41 +717,49 @@ def _run_subprocess_case(case_name):
 
 @pytest.mark.live
 def test_simnow_connection():
+    """Test SimNow broker connection."""
     _run_live_case("connection")
 
 
 @pytest.mark.live
 def test_simnow_market_data():
+    """Test SimNow market data subscription and feed."""
     _run_live_case("market_data")
 
 
 @pytest.mark.live
 def test_simnow_account_balance():
+    """Test SimNow account balance queries."""
     _run_live_case("account_balance")
 
 
 @pytest.mark.live
 def test_simnow_order_placement():
+    """Test SimNow order placement and management."""
     _run_live_case("order_placement")
 
 
 @pytest.mark.live
 def test_simnow_real_tick_subscription():
+    """Test SimNow real-time tick data subscription."""
     _run_live_case("real_tick_subscription")
 
 
 @pytest.mark.live
 def test_simnow_positions():
+    """Test SimNow position queries."""
     _run_live_case("positions")
 
 
 @pytest.mark.live
 def test_simnow_full_trading_cycle():
+    """Test complete SimNow trading cycle from order to fill."""
     _run_live_case("full_trading_cycle")
 
 
 @pytest.mark.live
 def test_all_simnow_environments():
+    """Test all configured SimNow environments."""
     _run_live_case("all_environments")
 
 

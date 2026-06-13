@@ -30,6 +30,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run EM02 pause strategy test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -77,12 +82,16 @@ def run(report_dir):
                 )
 
                 class PauseStrategy(bt.Strategy):
+                    """Strategy for testing pause functionality via runstop."""
+
                     def __init__(self):
+                        """Initialize pause strategy."""
                         self.bar_count = 0
                         self.paused = False
                         self.orders_after_pause = 0
 
                     def next(self):
+                        """Process bar and trigger pause after first bar."""
                         self.bar_count += 1
 
                         if not self.paused:

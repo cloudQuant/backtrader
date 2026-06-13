@@ -19,6 +19,52 @@ from .stores.btapistore import BtApiStore
 
 @dataclass
 class LiveProfile:
+    """Declarative description of a single Cerebro run.
+
+    Captures the run mode (``backtest`` or ``live``), the strategy
+    class plus its args/kwargs, the data source description
+    (``dataname``, ``symbols`` or a custom ``data_factory``), the
+    broker construction knobs and the optional live store
+    configuration. ``__post_init__`` normalizes the inputs and runs
+    a set of consistency checks so that :func:`build_cerebro` can
+    produce a fully wired Cerebro without further validation.
+
+    Attributes:
+        mode: ``"backtest"`` or ``"live"``. Validated in
+            ``__post_init__``.
+        strategy: The strategy class to register on the Cerebro.
+        frequency: One of ``"lowfreq"``, ``"midfreq"`` or ``"hft"``.
+            Used by downstream broker/feed wiring to pick the right
+            defaults.
+        dataname: Optional single-source identifier (e.g. CSV path).
+        symbols: Optional tuple of symbol identifiers for multi-feed
+            runs.
+        strategy_args: Positional arguments forwarded to the
+            strategy constructor.
+        strategy_kwargs: Keyword arguments forwarded to the strategy
+            constructor.
+        data_cls: Optional explicit data feed class.
+        data_factory: Optional callable returning one or more
+            pre-built data instances. Mutually exclusive with
+            ``dataname``/``symbols``.
+        data_kwargs: Keyword arguments forwarded to the data feed
+            constructor.
+        data_name: Optional explicit name attached to the (single)
+            data feed.
+        broker_cls: Optional explicit broker class.
+        broker_factory: Optional callable returning a broker instance.
+        broker_kwargs: Keyword arguments forwarded to the broker
+            constructor.
+        store_factory: Optional callable returning a live store
+            instance.
+        store_kwargs: Keyword arguments forwarded to the live store
+            constructor.
+        store_provider: Live-store provider name (``"btapi"`` by
+            default).
+        cerebro_kwargs: Keyword arguments forwarded to the
+            :class:`Cerebro` constructor.
+    """
+
     mode: str
     strategy: type
     frequency: str = "lowfreq"
@@ -39,6 +85,7 @@ class LiveProfile:
     cerebro_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
+        """Run every input-normalization and validation pass."""
         self._normalize_mode_frequency()
         self._validate_store_config()
         self._normalize_symbols()
@@ -80,10 +127,32 @@ class LiveProfile:
 
     @property
     def is_live(self) -> bool:
+        """Return ``True`` when the profile's ``mode`` is ``"live"``.
+
+        Used by :func:`build_cerebro` and friends to branch between
+        the live (store-backed) and backtest (CSV-backed) wiring
+        paths without re-comparing the raw ``mode`` string.
+        """
         return self.mode == "live"
 
 
 def build_cerebro(profile: LiveProfile) -> Cerebro:
+    """Construct a fully wired-up :class:`Cerebro` from ``profile``.
+
+    The function instantiates the store (for live profiles), the
+    broker and the data feeds according to ``profile``, attaches
+    them to a fresh :class:`Cerebro`, and registers the strategy.
+    The profile and store are exposed back on the Cerebro as
+    ``live_profile`` and ``profile_store`` for downstream
+    introspection.
+
+    Args:
+        profile: The :class:`LiveProfile` describing the run.
+
+    Returns:
+        Cerebro: A Cerebro instance with the broker, data feed(s)
+        and strategy attached.
+    """
     cerebro = Cerebro(**dict(profile.cerebro_kwargs))
     store = _build_store(profile) if profile.is_live else None
     broker = _build_broker(profile, store)
@@ -108,12 +177,27 @@ def build_cerebro(profile: LiveProfile) -> Cerebro:
 
 
 def _build_store(profile: LiveProfile):
+    """Instantiate the live store declared by ``profile``.
+
+    When ``profile.store_factory`` is set it is called with no
+    arguments and its return value is used. Otherwise a
+    :class:`BtApiStore` is constructed using
+    ``profile.store_provider`` and ``profile.store_kwargs``.
+    """
     if profile.store_factory is not None:
         return profile.store_factory()
     return BtApiStore(provider=profile.store_provider, **dict(profile.store_kwargs))
 
 
 def _build_broker(profile: LiveProfile, store):
+    """Instantiate the broker declared by ``profile``.
+
+    ``profile.broker_factory`` short-circuits the standard flow
+    when set (and must return a non-``None`` broker). For live
+    profiles the broker is obtained via ``store.getbroker``; for
+    backtest profiles a :class:`BackBroker` (or
+    ``profile.broker_cls``) is constructed directly.
+    """
     if profile.broker_factory is not None:
         broker = profile.broker_factory(store=store, profile=profile)
         if broker is None:
@@ -133,6 +217,14 @@ def _build_broker(profile: LiveProfile, store):
 
 
 def _build_datas(profile: LiveProfile, store) -> Iterable[Any]:
+    """Instantiate the data feed(s) declared by ``profile``.
+
+    ``profile.data_factory`` short-circuits the standard flow when
+    set; the factory may return a single data instance or a list /
+    tuple of them. Otherwise the data feeds are constructed via the
+    store (live) or via :class:`BacktraderCSVData` (backtest), one
+    per ``dataname``/``symbol``.
+    """
     if profile.data_factory is not None:
         data_obj = profile.data_factory()
         if isinstance(data_obj, (list, tuple)):

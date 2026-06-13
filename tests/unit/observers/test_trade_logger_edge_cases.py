@@ -98,13 +98,17 @@ class TestCollectIndicatorsLogging:
 
         # Create an owner with a problematic attribute
         class BadOwner:
+            """Mock owner that raises on bad_attr access."""
+
             _lineiterators = {}
             IndType = 0
 
             def __dir__(self):
+                """Return list of attributes."""
                 return ["good_attr", "bad_attr"]
 
             def __getattr__(self, name):
+                """Raise on bad_attr, return value on good_attr."""
                 if name == "bad_attr":
                     raise RuntimeError("attr explosion")
                 if name == "good_attr":
@@ -128,22 +132,31 @@ class TestExtractIndicatorValuesLogging:
         tl = _make_bare_logger()
 
         class BadLine:
+            """Mock line that raises on access."""
+
             def __len__(self):
+                """Return 1."""
                 return 1
 
             def __getitem__(self, idx):
+                """Raise IndexError."""
                 raise IndexError("no data")
 
         class FakeLines:
+            """Mock lines object."""
+
             def getlinealiases(self):
+                """Return line aliases."""
                 return ["value"]
 
             def __getattr__(self, name):
+                """Return BadLine for 'value', raise otherwise."""
                 if name == "value":
                     return BadLine()
                 raise AttributeError(name)
 
         class FakeIndicator:
+            """Mock indicator with FakeLines."""
             lines = FakeLines()
 
         indicators_dict = {}
@@ -196,8 +209,11 @@ class TestDefensiveAccessors:
         tl = _make_bare_logger()
 
         class BadOwner:
+            """Mock owner that raises on broker property access."""
+
             @property
             def broker(self):
+                """Raise RuntimeError."""
                 raise RuntimeError("broker boom")
 
         tl._owner = BadOwner()
@@ -213,8 +229,11 @@ class TestDefensiveAccessors:
         tl = _make_bare_logger()
 
         class BadOwner:
+            """Mock owner that raises on broker property access."""
+
             @property
             def broker(self):
+                """Raise RuntimeError."""
                 raise RuntimeError("broker boom")
 
         tl._owner = BadOwner()
@@ -241,8 +260,11 @@ class TestDefensiveAccessors:
         tl = _make_bare_logger()
 
         class BrokenOwner:
+            """Mock owner that raises on __class__ access."""
+
             @property
             def __class__(self):
+                """Raise RuntimeError."""
                 raise RuntimeError("class boom")
 
         tl._owner = BrokenOwner()
@@ -263,36 +285,49 @@ class TestSafeOrderInfo:
     """Test _safe_order_info with various info shapes."""
 
     def test_none_info(self):
+        """Test that None info returns None."""
         order = SimpleNamespace(info=None)
         assert TradeLogger._safe_order_info(order, "key") is None
 
     def test_dict_like_info(self):
+        """Test that dict-like info is accessed correctly."""
         order = SimpleNamespace(info={"error_code": "test_err"})
         assert TradeLogger._safe_order_info(order, "error_code") == "test_err"
 
     def test_attr_based_info(self):
+        """Test that attr-based info is accessed correctly."""
         order = SimpleNamespace(info=SimpleNamespace(error_code="attr_err"))
         assert TradeLogger._safe_order_info(order, "error_code") == "attr_err"
 
     def test_missing_key_returns_default(self):
+        """Test that missing key returns default value."""
         order = SimpleNamespace(info={})
         assert TradeLogger._safe_order_info(order, "missing", "fallback") == "fallback"
 
     def test_broken_get_returns_default(self):
+        """Test that broken get() returns default value."""
         class BrokenInfo:
+            """Mock info that raises on get()."""
+
             def get(self, key, default=None):
+                """Raise TypeError."""
                 raise TypeError("broken")
         order = SimpleNamespace(info=BrokenInfo())
         assert TradeLogger._safe_order_info(order, "key", "safe") == "safe"
 
     def test_broken_attr_access_falls_back_to_get(self):
+        """Test that broken attr access falls back to get()."""
         class BrokenAttrInfo:
+            """Mock info that raises on attr access but get() works."""
+
             def __getattr__(self, name):
+                """Raise on error_code, AttributeError otherwise."""
                 if name == "error_code":
                     raise RuntimeError("attr boom")
                 raise AttributeError(name)
 
             def get(self, key, default=None):
+                """Return from-get for error_code."""
                 if key == "error_code":
                     return "from-get"
                 return default
@@ -301,6 +336,7 @@ class TestSafeOrderInfo:
         assert TradeLogger._safe_order_info(order, "error_code", "safe") == "from-get"
 
     def test_empty_auto_ordered_dict_is_treated_as_missing(self):
+        """Test that empty AutoOrderedDict is treated as missing."""
         order = SimpleNamespace(info=AutoOrderedDict())
         assert TradeLogger._safe_order_info(order, "external_order_id") is None
         assert TradeLogger._safe_order_info(order, "error_code", "") == ""
@@ -315,6 +351,7 @@ class TestMakeDuplicateKey:
     """Test duplicate key generation with edge values."""
 
     def test_all_none_details(self):
+        """Test that all None details produces correct key."""
         key = TradeLogger._make_duplicate_key(None, "submit", {})
         assert isinstance(key, tuple)
         assert len(key) == 7
@@ -356,6 +393,7 @@ class TestBaseEvent:
     """Test base event payload structure."""
 
     def test_base_event_has_required_fields(self):
+        """Test that base_event has all required fields."""
         tl = _make_bare_logger()
         payload = tl._base_event("test_event", level="WARNING", custom_field="value")
 

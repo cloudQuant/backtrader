@@ -113,6 +113,11 @@ def edit_test_py(target_test_py: Path) -> None:
 
 
 def make_init(path: Path) -> None:
+    """Create an empty __init__.py file if it doesn't exist.
+
+    Args:
+        path: Path to the __init__.py file to create.
+    """
     if not path.exists():
         path.touch()
 
@@ -177,6 +182,12 @@ def migrate_one(strategy_path: str) -> tuple[bool, str]:
 
 
 def main():
+    """Migrate regression strategies to the new directory structure.
+
+    Parses command-line arguments, reads the migration selection file,
+    and migrates each selected strategy from tests/functional/strategies_regression/
+    to tests/functional/strategies/<category>/regression/<name>/.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--from-index", type=int, default=0)

@@ -298,6 +298,7 @@ def test_run(main=False):
 
 
 def test_sqn_nan_pnl_returns_none():
+    """Test SQN NaN PnL returns None."""
     analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
     analyzer.count = 2
     analyzer.pnl = [float("nan"), 1.0]
@@ -310,6 +311,7 @@ def test_sqn_nan_pnl_returns_none():
 
 
 def test_sqn_tiny_pnl_dust_returns_none():
+    """Test SQN tiny PnL dust returns None."""
     analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
     analyzer.count = 3
     analyzer.pnl = [0.0, 9.094947017729282e-12, 0.0]
@@ -323,6 +325,7 @@ def test_sqn_tiny_pnl_dust_returns_none():
 
 @pytest.mark.parametrize("pnl", [[complex(1.0, 1.0), 1.0], ["bad", 1.0]])
 def test_sqn_invalid_pnl_values_return_none(pnl):
+    """Test SQN invalid PnL values return None."""
     analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
     analyzer.count = 2
     analyzer.pnl = pnl

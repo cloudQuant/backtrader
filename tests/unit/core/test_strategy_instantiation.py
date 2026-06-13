@@ -37,12 +37,14 @@ class ParamStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy and store params."""
         self.init_called = True
         self.received_period = self.p.period
         self.received_factor = self.p.factor
         self.received_name = self.p.name
 
     def next(self):
+        """Strategy logic - no-op for instantiation tests."""
         pass
 
 
@@ -52,12 +54,14 @@ class InitTrackingStrategy(bt.Strategy):
     params = (("marker", "unset"),)
 
     def __init__(self):
+        """Initialize and track strategy state."""
         self.init_was_called = True
         self.marker_at_init = self.p.marker
         self.had_datas_at_init = len(self.datas) > 0
         self.had_broker_at_init = self.broker is not None
 
     def next(self):
+        """Strategy logic - no-op for instantiation tests."""
         pass
 
 
@@ -67,10 +71,12 @@ class IndicatorStrategy(bt.Strategy):
     params = (("sma_period", 15),)
 
     def __init__(self):
+        """Initialize strategy with SMA indicator."""
         self.sma = bt.indicators.SMA(self.data, period=self.p.sma_period)
         self.order = None
 
     def next(self):
+        """Strategy logic - no-op for instantiation tests."""
         pass
 
 
@@ -80,10 +86,12 @@ class FailingInitStrategy(bt.Strategy):
     params = (("should_fail", True),)
 
     def __init__(self):
+        """Initialize strategy, raising if should_fail is True."""
         if self.p.should_fail:
             raise ValueError("Intentional init failure")
 
     def next(self):
+        """Strategy logic - no-op for instantiation tests."""
         pass
 
 
@@ -93,6 +101,7 @@ class NoInitStrategy(bt.Strategy):
     params = (("value", 42),)
 
     def next(self):
+        """Strategy logic - no-op for instantiation tests."""
         pass
 
 
@@ -102,10 +111,12 @@ class MultiInheritStrategy(ParamStrategy):
     params = (("extra", "bonus"),)
 
     def __init__(self):
+        """Initialize and call parent init."""
         super().__init__()
         self.extra_value = self.p.extra
 
     def next(self):
+        """Strategy logic - no-op for instantiation tests."""
         pass
 
 
@@ -309,10 +320,14 @@ class TestStrategyFailure:
         """StrategySkipError in standard mode skips that strategy."""
 
         class SkipStrategy(bt.Strategy):
+            """Strategy that raises StrategySkipError."""
+
             def __init__(self):
+                """Raise StrategySkipError to skip this strategy."""
                 raise errors.StrategySkipError()
 
             def next(self):
+                """Strategy logic - not executed."""
                 pass
 
         cerebro_with_data.addstrategy(SkipStrategy)

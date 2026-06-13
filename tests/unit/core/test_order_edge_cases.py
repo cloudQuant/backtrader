@@ -23,12 +23,14 @@ class TestOrderBaseNoneComparison:
         from backtrader.order import OrderBase
         # OrderBase.__init__ requires data/params; create a lightweight stub
         class FakeOrder:
+            """Fake order for testing OrderBase comparison methods."""
             ref = 42
             __eq__ = OrderBase.__eq__
             __ne__ = OrderBase.__ne__
         return FakeOrder()
 
     def test_eq_none_returns_false(self):
+        """Test that equality with None returns False."""
         order = self._make_order()
         assert (order == None) is False  # noqa: E711
 
@@ -38,11 +40,13 @@ class TestOrderBaseNoneComparison:
         assert (order != None) is True  # noqa: E711
 
     def test_eq_same_ref(self):
+        """Test that orders with same ref are equal."""
         order1 = self._make_order()
         order2 = self._make_order()
         assert order1 == order2  # same ref=42
 
     def test_ne_different_ref(self):
+        """Test that orders with different refs are not equal."""
         order1 = self._make_order()
         order2 = self._make_order()
         order2.ref = 99

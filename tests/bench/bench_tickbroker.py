@@ -1,3 +1,4 @@
+"""TickBroker benchmark tests."""
 import os
 import sys
 import time
@@ -11,7 +12,14 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data class for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data.
+
+        Args:
+            name: Symbol name.
+        """
         self._name = name
         self.name = name
         self.symbol = name

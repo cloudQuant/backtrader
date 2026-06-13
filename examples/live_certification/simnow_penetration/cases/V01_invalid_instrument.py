@@ -29,6 +29,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run V01 invalid instrument test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -56,24 +61,40 @@ def run(report_dir):
                 )
 
                 class InvalidInstrumentStrategy(bt.Strategy):
+                    """Strategy for testing invalid instrument rejection."""
+
                     def __init__(self):
+                        """Initialize invalid instrument strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.rejected = False
                         self.store_events = []
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Handle store notification events.
+
+                        Args:
+                            msg: Store message.
+                            *args: Additional positional arguments.
+                            **kwargs: Additional keyword arguments.
+                        """
                         event = kwargs.get("event")
                         if isinstance(event, dict):
                             self.store_events.append(event)
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.status == bt.Order.Rejected:
                             self.rejected = True
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit invalid instrument order."""
                         self.bar_count += 1
                         if self.order is not None:
                             self.cerebro.runstop()

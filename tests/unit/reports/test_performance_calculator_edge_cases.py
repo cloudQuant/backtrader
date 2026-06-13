@@ -306,21 +306,27 @@ class TestSqnRatingBoundaries:
         (100.0, "Holy Grail"),
     ])
     def test_rating_boundaries(self, score, expected):
+        """Test that SQN score returns expected rating."""
         assert PerformanceCalculator.sqn_to_rating(score) == expected
 
     def test_none_returns_na(self):
+        """Test that None returns N/A."""
         assert PerformanceCalculator.sqn_to_rating(None) == "N/A"
 
     def test_non_numeric_returns_na(self):
+        """Test that non-numeric string returns N/A."""
         assert PerformanceCalculator.sqn_to_rating("not-a-number") == "N/A"
 
     def test_nan_returns_na(self):
+        """Test that NaN returns N/A."""
         assert PerformanceCalculator.sqn_to_rating(float("nan")) == "N/A"
 
     def test_inf_returns_holy_grail(self):
+        """Test that positive infinity returns Holy Grail rating."""
         assert PerformanceCalculator.sqn_to_rating(float("inf")) == "Holy Grail"
 
     def test_negative_inf_returns_poor(self):
+        """Test that negative infinity returns Poor rating."""
         assert PerformanceCalculator.sqn_to_rating(float("-inf")) == "Poor"
 
 
@@ -512,11 +518,15 @@ class TestBrokerAccessFailures:
         analyzer = _make_analyzer("TimeReturn", {1: 0.1})
 
         class BrokenBroker:
+            """Mock broker that fails on startingcash access."""
+
             @property
             def startingcash(self):
+                """Raise RuntimeError to simulate unavailable cash."""
                 raise RuntimeError("cash unavailable")
 
             def getvalue(self):
+                """Return 110000.0."""
                 return 110000.0
 
         strategy = _make_strategy(analyzers=[analyzer])
@@ -538,18 +548,26 @@ class TestBuyAndHoldCurveEdgeCases:
         """Invalid open prices should not poison the normalized buy-and-hold curve."""
 
         class _Line:
+            """Mock line object for testing."""
+
             def __init__(self, values):
+                """Initialize with list of values."""
                 self._values = list(values)
 
             def __getitem__(self, idx):
+                """Get value at index."""
                 return self._values[idx]
 
         class _Data:
+            """Mock data object for testing."""
+
             def __init__(self):
+                """Initialize with mock datetime and open price lines."""
                 self.datetime = _Line([1.0, 2.0, 3.0, 4.0, 5.0])
                 self.open = _Line([100.0, float("nan"), None, float("inf"), 110.0])
 
             def __len__(self):
+                """Return length of data."""
                 return 5
 
         strategy = _make_strategy()

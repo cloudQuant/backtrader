@@ -14,6 +14,7 @@ from backtrader import mathsupport as ms
 
 
 def test_is_finite_real():
+    """Test is_finite_real function for various inputs."""
     assert ms.is_finite_real(1.0)
     assert ms.is_finite_real(-3)
     assert not ms.is_finite_real(float("nan"))
@@ -24,12 +25,14 @@ def test_is_finite_real():
 
 
 def test_average_basic():
+    """Test basic average calculations."""
     assert ms.average([2.0, 4.0, 6.0]) == 4.0
     # single element
     assert ms.average([5.0]) == 5.0
 
 
 def test_average_bessel_and_guard():
+    """Test average with Bessel correction and edge case guards."""
     # bessel divides by len-1
     assert ms.average([2.0, 4.0], bessel=True) == 6.0  # fsum=6 / (2-1)
     # denominator <= 0 guarded -> 0.0 (single element with bessel)
@@ -39,6 +42,7 @@ def test_average_bessel_and_guard():
 
 
 def test_variance():
+    """Test variance calculation."""
     assert ms.variance([]) == []
     # variance terms around the mean (mean of [1,3] is 2 -> [1.0, 1.0])
     assert ms.variance([1.0, 3.0]) == [1.0, 1.0]
@@ -47,6 +51,7 @@ def test_variance():
 
 
 def test_standarddev():
+    """Test standard deviation calculation."""
     assert ms.standarddev([]) == 0.0
     # population std of [1,3] is 1.0
     assert ms.standarddev([1.0, 3.0]) == pytest.approx(1.0)

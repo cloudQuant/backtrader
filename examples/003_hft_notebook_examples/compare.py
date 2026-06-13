@@ -1,3 +1,8 @@
+"""Compare migrated hftbacktest notebook strategies on prepared Binance data.
+
+This script compares backtrader and hftbacktest results on the prepared
+Binance BBO demo data for the notebook examples.
+"""
 from __future__ import annotations
 
 import argparse
@@ -15,6 +20,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run comparison of backtrader and hftbacktest on Binance data.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     paths = resolve_paths(args)
     runtime = resolve_runtime(args)

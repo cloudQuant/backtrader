@@ -1,3 +1,4 @@
+"""Tests for maker/taker commission model."""
 import pytest
 
 from backtrader.comminfo import CommissionInfo
@@ -8,18 +9,25 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data source for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 class LegacyCommissionInfo(CommissionInfo):
+    """Legacy commission info with _getcommission override."""
+
     def _getcommission(self, size, price, pseudoexec):
+        """Calculate commission using legacy method."""
         return abs(size) * price * self.p.commission
 
 
 def test_comminfo_uses_role_specific_commission_rates_with_fallback():
+    """Test CommissionInfo uses role-specific rates with fallback."""
     comminfo = CommissionInfo(
         commission=0.001,
         maker_commission=-0.0005,
@@ -32,6 +40,7 @@ def test_comminfo_uses_role_specific_commission_rates_with_fallback():
 
 
 def test_comminfo_supports_legacy_getcommission_override_without_role():
+    """Test legacy CommissionInfo with _getcommission override."""
     comminfo = LegacyCommissionInfo(commission=0.001)
 
     assert comminfo.getcommission(2.0, 100.0, role="maker") == pytest.approx(0.2)
@@ -39,6 +48,7 @@ def test_comminfo_supports_legacy_getcommission_override_without_role():
 
 
 def test_broker_setcommission_supports_role_specific_rates():
+    """Test broker setcommission supports role-specific rates."""
     data = DummyData()
     broker = TickBroker(cash=1000.0)
     broker.setcommission(
@@ -55,6 +65,7 @@ def test_broker_setcommission_supports_role_specific_rates():
 
 
 def test_tickbroker_applies_maker_and_taker_commission_roles():
+    """Test TickBroker applies maker and taker commission roles."""
     data = DummyData()
     broker = TickBroker(cash=1000.0, exchange_model=QueueExchangeModel())
     broker.setcommission(

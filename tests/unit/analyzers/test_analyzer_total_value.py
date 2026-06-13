@@ -117,6 +117,7 @@ def _build_total_value_analyzer(value):
 
 @pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0), float("nan")])
 def test_totalvalue_invalid_broker_value_degrades_to_zero(value):
+    """Test TotalValue invalid broker value degrades to zero."""
     analyzer = _build_total_value_analyzer(value)
 
     with patch.object(type(analyzer).__mro__[1], "next", return_value=None):

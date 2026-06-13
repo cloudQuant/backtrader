@@ -32,6 +32,13 @@ class FakeAnalyzer:
     """Minimal analyzer mock with configurable name and result."""
 
     def __init__(self, cls_name, result, custom_name=""):
+        """Initialize fake analyzer with name and result.
+
+        Args:
+            cls_name: Name for the analyzer class.
+            result: Result to return from get_analysis.
+            custom_name: Optional custom name.
+        """
         # Dynamically create a type with the given class name
         self.__class__ = type(cls_name, (), {
             "get_analysis": lambda self_: result,
@@ -41,6 +48,7 @@ class FakeAnalyzer:
         self._result = result
 
     def get_analysis(self):
+        """Return the configured result."""
         return self._result
 
 
@@ -266,18 +274,23 @@ class TestSqnToRating:
     """Additional edge cases for sqn_to_rating."""
 
     def test_negative_score(self):
+        """Test that negative SQN scores return 'Poor' rating."""
         assert PerformanceCalculator.sqn_to_rating(-5.0) == "Poor"
 
     def test_zero_score(self):
+        """Test that zero SQN score returns 'Poor' rating."""
         assert PerformanceCalculator.sqn_to_rating(0.0) == "Poor"
 
     def test_infinity(self):
+        """Test that positive infinity returns 'Holy Grail' rating."""
         assert PerformanceCalculator.sqn_to_rating(float("inf")) == "Holy Grail"
 
     def test_negative_infinity(self):
+        """Test that negative infinity returns 'Poor' rating."""
         assert PerformanceCalculator.sqn_to_rating(float("-inf")) == "Poor"
 
     def test_nan_returns_na(self):
+        """Test that NaN returns 'N/A' rating."""
         assert PerformanceCalculator.sqn_to_rating(float("nan")) == "N/A"
 
 
@@ -285,6 +298,7 @@ class TestNoAnalyzersScenario:
     """Strategy with no analyzers — all metrics should be safe defaults."""
 
     def test_all_metrics_with_no_analyzers(self):
+        """Test that all metrics have safe defaults when no analyzers are present."""
         strategy = _make_strategy(start_cash=50000, end_value=55000, analyzers=[])
         calc = PerformanceCalculator(strategy)
         metrics = calc.get_all_metrics()
@@ -307,33 +321,42 @@ class TestFmtMetric:
     """Test the _fmt_metric static helper."""
 
     def test_none_returns_na(self):
+        """Test that None returns 'N/A'."""
         assert ReportGenerator._fmt_metric(None) == "N/A"
 
     def test_non_finite_returns_na(self):
+        """Test that NaN and infinity return 'N/A'."""
         assert ReportGenerator._fmt_metric(float("nan")) == "N/A"
         assert ReportGenerator._fmt_metric(float("inf")) == "N/A"
         assert ReportGenerator._fmt_metric(float("-inf")) == "N/A"
 
     def test_zero_is_formatted(self):
+        """Test that zero is formatted as '0.00'."""
         result = ReportGenerator._fmt_metric(0.0)
         assert result == "0.00"
 
     def test_positive_with_suffix(self):
+        """Test that positive values can have a suffix appended."""
         result = ReportGenerator._fmt_metric(12.34, ".2f", "%")
         assert result == "12.34%"
 
     def test_negative_value(self):
+        """Test that negative values are formatted correctly."""
         result = ReportGenerator._fmt_metric(-500.5, ",.2f")
         assert result == "-500.50"
 
     def test_non_numeric_fallback(self):
+        """Test that non-numeric values are returned unchanged."""
         result = ReportGenerator._fmt_metric("not-a-number", ".2f")
         assert result == "not-a-number"
 
 
 @pytest.mark.skipif(not MATPLOTLIB_AVAILABLE, reason="matplotlib not available")
 class TestReportChart:
+    """Test ReportChart plotting functions with edge cases."""
+
     def test_plot_equity_curve_skips_invalid_initial_values(self):
+        """Test that plot_equity_curve skips invalid initial values."""
         chart = ReportChart()
         dates = [datetime(2024, 1, d) for d in range(1, 6)]
         values = [float("nan"), None, float("inf"), 100.0, 110.0]
@@ -349,6 +372,7 @@ class TestReportChart:
         assert plotted[4] == pytest.approx(110.0)
 
     def test_plot_equity_curve_sanitizes_invalid_benchmark_values(self):
+        """Test that plot_equity_curve sanitizes invalid benchmark values."""
         chart = ReportChart()
         dates = [datetime(2024, 1, d) for d in range(1, 6)]
         values = [100.0, 101.0, 102.0, 103.0, 104.0]
@@ -365,6 +389,7 @@ class TestReportChart:
         assert benchmark_line[4] == pytest.approx(105.0)
 
     def test_plot_drawdown_skips_invalid_values(self):
+        """Test that plot_drawdown skips invalid values."""
         chart = ReportChart()
         dates = [datetime(2024, 1, d) for d in range(1, 6)]
         values = [float("nan"), 100.0, None, float("inf"), 90.0]
@@ -380,6 +405,7 @@ class TestReportChart:
         assert plotted[4] == pytest.approx(-10.0)
 
     def test_plot_return_bars_replaces_non_finite_returns(self):
+        """Test that plot_return_bars replaces non-finite returns with 0."""
         chart = ReportChart()
         dates = [datetime(2024, 1, d) for d in range(1, 6)]
         values = [100.0, 0.0, 100.0, float("inf"), 90.0]
@@ -399,31 +425,39 @@ class TestMakeJsonSerializable:
 
     @pytest.fixture
     def generator(self):
+        """Create a ReportGenerator fixture."""
         strategy = _make_strategy()
         return ReportGenerator(strategy)
 
     def test_nan_becomes_none(self, generator):
+        """Test that NaN becomes None."""
         assert generator._make_json_serializable(float("nan")) is None
 
     def test_inf_becomes_none(self, generator):
+        """Test that positive and negative infinity become None."""
         assert generator._make_json_serializable(float("inf")) is None
         assert generator._make_json_serializable(float("-inf")) is None
 
     def test_normal_float_unchanged(self, generator):
+        """Test that normal floats are unchanged."""
         assert generator._make_json_serializable(3.14) == 3.14
 
     def test_datetime_to_isoformat(self, generator):
+        """Test that datetime objects are converted to ISO format strings."""
         dt = datetime(2024, 1, 15, 10, 30)
         result = generator._make_json_serializable(dt)
         assert result == "2024-01-15T10:30:00"
 
     def test_nested_dict(self, generator):
+        """Test that nested dicts with non-finite values are sanitized."""
         data = {"a": float("nan"), "b": [1.0, float("inf")], "c": "text"}
         result = generator._make_json_serializable(data)
         assert result == {"a": None, "b": [1.0, None], "c": "text"}
 
     def test_object_with_dict_becomes_str(self, generator):
+        """Test that objects without dict are converted to strings."""
         class Custom:
+            """Custom class without dict method."""
             pass
         obj = Custom()
         result = generator._make_json_serializable(obj)
@@ -434,6 +468,7 @@ class TestBuildContextNoInstanceState:
     """Verify _build_context receives user/memo as parameters, not from instance."""
 
     def test_user_memo_passed_through(self):
+        """Test that user and memo are passed through to context."""
         strategy = _make_strategy()
         gen = ReportGenerator(strategy)
 
@@ -442,6 +477,7 @@ class TestBuildContextNoInstanceState:
         assert ctx["memo"] == "Test note"
 
     def test_no_user_memo(self):
+        """Test that default user and memo are None."""
         strategy = _make_strategy()
         gen = ReportGenerator(strategy)
 
@@ -450,6 +486,7 @@ class TestBuildContextNoInstanceState:
         assert ctx["memo"] is None
 
     def test_no_state_leak_between_calls(self):
+        """Test that context values don't leak between calls."""
         strategy = _make_strategy()
         gen = ReportGenerator(strategy)
 
@@ -464,6 +501,7 @@ class TestBuildContextNoInstanceState:
         assert not hasattr(gen, "_user")
 
     def test_non_finite_values_are_sanitized(self):
+        """Test that non-finite metric values are sanitized to None."""
         strategy = _make_strategy()
         gen = ReportGenerator(strategy)
         gen.calculator.get_all_metrics = MagicMock(return_value={

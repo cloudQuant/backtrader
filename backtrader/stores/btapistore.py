@@ -513,6 +513,18 @@ def _create_ctp_wrapper_class():
         """Wrapper for CTP market and trade clients."""
 
         def __init__(self, **kwargs):
+            """Initialize the CTP client wrapper.
+
+            Args:
+                **kwargs: Configuration parameters including:
+                    - md_address/md_front: Market data server address
+                    - td_address/td_front: Trading server address
+                    - broker_id: Broker identifier
+                    - investor_id/user_id: Investor identifier
+                    - password: Account password
+                    - app_id: Application identifier (default: simnow_client_test)
+                    - auth_code: Authentication code (default: 0000000000000000)
+            """
             self.md_front = kwargs.get("md_address") or kwargs.get("md_front")
             self.td_front = kwargs.get("td_address") or kwargs.get("td_front")
             self.broker_id = kwargs.get("broker_id", "")
@@ -1185,54 +1197,150 @@ def _create_ctp_gateway_wrapper_class():
         raise BtApiMissingDependencyError("bt_api_py gateway support is not available") from exc
 
     class CtpGatewayClientWrapper:
+        """Gateway-based wrapper for CTP trading via bt_api_py.
+
+        This wrapper provides a unified interface to the bt_api_py GatewayClient
+        for CTP (China Futures Exchange) trading operations including market
+        data subscription, order management, and account queries.
+
+        Args:
+            **kwargs: Gateway configuration parameters including exchange_type,
+                asset_type, and other gateway-specific settings.
+        """
+
         def __init__(self, **kwargs):
+            """Initialize the CTP gateway client wrapper.
+
+            Args:
+                **kwargs: Gateway configuration parameters passed to GatewayClient.
+            """
             self._kwargs = dict(kwargs)
             self._kwargs.setdefault("exchange_type", "CTP")
             self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
             self._client = GatewayClient(**self._kwargs)
 
         def connect(self):
+            """Connect to the CTP gateway."""
             self._client.connect()
 
         def start(self):
+            """Start the gateway client (alias for connect)."""
             self.connect()
 
         def disconnect(self):
+            """Disconnect from the CTP gateway."""
             self._client.disconnect()
 
         def stop(self):
+            """Stop the gateway client (alias for disconnect)."""
             self.disconnect()
 
         def subscribe(self, symbols):
+            """Subscribe to market data for the given symbols.
+
+            Args:
+                symbols: Symbol or list of symbols to subscribe to.
+
+            Returns:
+                Subscription result from the gateway client.
+            """
             return self._client.subscribe(symbols)
 
         def poll_tick(self, symbol):
+            """Poll and return the next available tick for the symbol.
+
+            Args:
+                symbol: The trading symbol to poll tick for.
+
+            Returns:
+                Tick data or None if no tick is available.
+            """
             return self._client.poll_tick(symbol)
 
         def get_next_tick(self, symbol):
+            """Get the next tick for the symbol.
+
+            Args:
+                symbol: The trading symbol.
+
+            Returns:
+                Next tick data from the gateway client.
+            """
             return self._client.get_next_tick(symbol)
 
         def has_pending_tick(self, symbol):
+            """Check if there is a pending tick for the symbol.
+
+            Args:
+                symbol: The trading symbol.
+
+            Returns:
+                True if a tick is available, False otherwise.
+            """
             return self._client.has_pending_tick(symbol)
 
         def supports_live_ticks(self, symbol):
+            """Check if live ticks are supported for the symbol.
+
+            Args:
+                symbol: The trading symbol.
+
+            Returns:
+                True if live ticks are supported, False otherwise.
+            """
             return self._client.supports_live_ticks(symbol)
 
         def supports_live_streaming(self, _symbol=None):
+            """Check if live streaming is supported.
+
+            Args:
+                _symbol: Unused parameter.
+
+            Returns:
+                True (live streaming is always supported).
+            """
             return True
 
         def get_balance(self):
+            """Get the account balance.
+
+            Returns:
+                Account balance data from the gateway client.
+            """
             return self._client.get_balance()
 
         def get_account(self):
+            """Get the account information.
+
+            Returns:
+                Account data from the gateway client.
+            """
             return self._client.get_account()
 
         def get_positions(self):
+            """Get all open positions.
+
+            Returns:
+                List of position data from the gateway client.
+            """
             return self._client.get_positions()
 
         def fetch_bars(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
         ):
+            """Fetch historical bar data for the symbol.
+
+            Args:
+                symbol: Trading symbol to fetch bars for.
+                timeframe: Timeframe for the bars (e.g., '1m', '1h', '1d').
+                compression: Compression type for the timeframe.
+                since: Start time for the bars (ISO format string).
+                limit: Maximum number of bars to return (default: 200).
+                **kwargs: Additional keyword arguments.
+
+            Returns:
+                List of bar data from the gateway client.
+            """
             tf = self._resolve_timeframe(timeframe, compression)
             count = int(limit or 200)
             if hasattr(self._client, "fetch_bars"):
@@ -1245,6 +1353,19 @@ def _create_ctp_gateway_wrapper_class():
         def fetch_ohlcv(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
         ):
+            """Fetch OHLCV (candlestick) data for the symbol.
+
+            Args:
+                symbol: Trading symbol to fetch OHLCV for.
+                timeframe: Timeframe for the candles.
+                compression: Compression type for the timeframe.
+                since: Start time for the candles (ISO format string).
+                limit: Maximum number of candles to return.
+                **kwargs: Additional keyword arguments.
+
+            Returns:
+                List of OHLCV data from fetch_bars.
+            """
             return self.fetch_bars(
                 symbol,
                 timeframe=timeframe,
@@ -1255,34 +1376,93 @@ def _create_ctp_gateway_wrapper_class():
             )
 
         def fetch_symbol_info(self, symbol):
+            """Fetch information about a trading symbol.
+
+            Args:
+                symbol: Trading symbol to get info for.
+
+            Returns:
+                Symbol information dict, or empty dict if unavailable.
+            """
             if hasattr(self._client, "fetch_symbol_info"):
                 return self._client.fetch_symbol_info(symbol)
             return {}
 
         def fetch_open_orders(self):
+            """Fetch all open (unfilled) orders.
+
+            Returns:
+                List of open order data, or empty list if unavailable.
+            """
             if hasattr(self._client, "fetch_open_orders"):
                 return self._client.fetch_open_orders()
             return []
 
         def poll_bar(self, symbol):
+            """Poll and return the next available bar for the symbol.
+
+            Args:
+                symbol: Trading symbol to poll bar for.
+
+            Returns:
+                None (bars not supported in this wrapper).
+            """
             return None
 
         def get_next_bar(self, symbol):
+            """Get the next bar for the symbol.
+
+            Args:
+                symbol: Trading symbol.
+
+            Returns:
+                None (bars not supported in this wrapper).
+            """
             return None
 
         def submit_order(self, payload):
+            """Submit an order to the gateway.
+
+            Args:
+                payload: Order payload dict containing order parameters.
+
+            Returns:
+                Response from the gateway client.
+            """
             response = self._client.submit_order(payload)
             if "data_name" in payload and "data_name" not in response:
                 response["data_name"] = payload["data_name"]
             return response
 
         def create_order(self, **kwargs):
+            """Create and submit an order.
+
+            Args:
+                **kwargs: Order parameters.
+
+            Returns:
+                Response from submit_order.
+            """
             return self.submit_order(kwargs)
 
         def cancel_order(self, order_ref, dataname=None):
+            """Cancel an order by its reference.
+
+            Args:
+                order_ref: Order reference ID to cancel.
+                dataname: Optional data name for the order.
+
+            Returns:
+                Response from the gateway client.
+            """
             return self._client.cancel_order(order_ref, dataname=dataname)
 
         def poll_broker_update(self):
+            """Poll for broker updates.
+
+            Returns:
+                Broker update data from the gateway client.
+            """
             return self._client.poll_broker_update()
 
         @staticmethod
@@ -1381,6 +1561,26 @@ class BtApiStore(LiveStoreBase):
         autostart: bool = False,
         **kwargs: Any,
     ):
+        """Initialize the BtApiStore.
+
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
         self.provider = self._resolve_provider(provider)
         self._api = api
         self._api_cls = api_cls

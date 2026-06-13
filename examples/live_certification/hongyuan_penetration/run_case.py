@@ -169,6 +169,7 @@ def print_summary(results: list[dict], report_root: Path):
 
 
 def main():
+    """Main entry point for running Hongyuan certification cases."""
     parser = argparse.ArgumentParser(
         description="Run Hongyuan penetration certification cases",
     )

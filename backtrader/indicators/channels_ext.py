@@ -22,6 +22,7 @@ class DonchianChannel(Indicator):
     params = {"period": 20}
 
     def __init__(self):
+        """Compute the highest/lowest/median series and bind them to the five output lines."""
         period = max(2, int(self.p.period))
         upper = Highest(self.data.high, period=period)
         lower = Lowest(self.data.low, period=period)
@@ -41,6 +42,7 @@ class DonchianChannelWarmup(DonchianChannel):
     """Donchian channel variant preserving historical extra warm-up behavior."""
 
     def __init__(self):
+        """Inherit the parent's lines and re-declare the minimum period explicitly."""
         super().__init__()
         self.addminperiod(max(2, int(self.p.period)))
 
@@ -52,6 +54,7 @@ class KeltnerChannelIndicator(Indicator):
     params = {"period": 20, "atr_mult": 2.0, "atr_period": 14}
 
     def __init__(self):
+        """Compute the EMA midline and the ATR-scaled top/bot envelopes."""
         self.l.mid = EMA(self.data.close, period=self.p.period)
         atr = ATR(self.data, period=self.p.atr_period)
         self.l.top = self.l.mid + self.p.atr_mult * atr
@@ -66,6 +69,13 @@ class ChandelierExitIndicator(Indicator):
     plotinfo = {"subplot": False}
 
     def __init__(self):
+        """Build the long/short Chandelier Exit stop levels.
+
+        The long stop is the highest high over the configured
+        ``period`` minus ``multip * ATR`` (a long trailing stop
+        that sits below recent highs by a volatility buffer). The
+        short stop mirrors that, sitting above the recent low.
+        """
         highest = Highest(self.data.high, period=self.p.period)
         lowest = Lowest(self.data.low, period=self.p.period)
         atr = self.p.multip * ATR(self.data, period=self.p.period)

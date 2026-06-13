@@ -25,9 +25,18 @@ class DeMarker(Indicator):
     params = (("period", 14), ("zero_value", 0.5))
 
     def __init__(self):
+        """Register the rolling window needed by the DeMarker formula."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute the DeMarker value for the current bar.
+
+        Sums the positive high-deltas (``max(high_now - high_prev, 0)``)
+        and positive low-deltas (``max(low_prev - low_now, 0)``) across
+        the configured period, then writes ``de_max_sum / (de_max_sum +
+        de_min_sum)`` to both output lines. When the denominator is
+        zero the configurable ``zero_value`` is used instead.
+        """
         de_max_sum = 0.0
         de_min_sum = 0.0
         for i in range(self.p.period):
@@ -56,11 +65,19 @@ class DeMarkerRollingIndicator(Indicator):
     params = {"period": 14}
 
     def __init__(self):
+        """Register the minimum period and prepare the rolling move buffers."""
         self.addminperiod(int(self.p.period) + 1)
         self._up_moves = []
         self._down_moves = []
 
     def next(self):
+        """Append today's up/down move and emit the rolling DeMarker value.
+
+        Maintains two Python lists capped at ``period`` entries. Until
+        the buffer is full, both output lines are set to ``NaN``;
+        afterwards the DeMarker formula is applied and the result is
+        written to both lines. A zero denominator falls back to ``0.5``.
+        """
         up_move = max(float(self.data.high[0]) - float(self.data.high[-1]), 0.0)
         down_move = max(float(self.data.low[-1]) - float(self.data.low[0]), 0.0)
         self._up_moves.append(up_move)
@@ -88,9 +105,17 @@ class WilliamsPercentR(Indicator):
     params = {"period": 14}
 
     def __init__(self):
+        """Register the minimum period needed for the lookback window."""
         self.addminperiod(self.p.period)
 
     def next(self):
+        """Compute Williams %R using the highest-high / lowest-low window.
+
+        When the denominator ``highest - lowest`` is zero (flat window)
+        the value is forced to ``0.0``; otherwise the classic
+        ``-100 * (highest - close) / (highest - lowest)`` formula is
+        written to ``self.lines.wpr``.
+        """
         period = int(self.p.period)
         highest = max(float(self.data.high[-i]) for i in range(period))
         lowest = min(float(self.data.low[-i]) for i in range(period))
@@ -108,6 +133,7 @@ class DeltaRSI(Indicator):
     params = {"rsi_period1": 14, "rsi_period2": 50, "level": 50}
 
     def __init__(self):
+        """Set up the fast/slow RSI sub-indicators and regime thresholds."""
         self.addminperiod(max(int(self.p.rsi_period1), int(self.p.rsi_period2)) + 3)
         self.rsi1 = RSI(self.data, period=int(self.p.rsi_period1))
         self.rsi2 = RSI(self.data, period=int(self.p.rsi_period2))
@@ -116,6 +142,14 @@ class DeltaRSI(Indicator):
         self.min_level = 100 - lvl
 
     def next(self):
+        """Compute the RSI delta and assign a regime color.
+
+        The fast RSI is subtracted from the slow RSI and written to
+        ``self.lines.delta``. The color is ``0.0`` when the slow RSI is
+        above its upper threshold and the fast RSI is climbing,
+        ``2.0`` when the slow RSI is below its lower threshold and the
+        fast RSI is falling, and ``1.0`` (neutral) otherwise.
+        """
         r1 = float(self.rsi1[0])
         r2 = float(self.rsi2[0])
         self.lines.delta[0] = r1 - r2
@@ -134,6 +168,7 @@ class DeltaWPR(Indicator):
     params = {"wpr_period1": 14, "wpr_period2": 30, "level": -50}
 
     def __init__(self):
+        """Set up the fast/slow Williams %R sub-indicators and thresholds."""
         self.addminperiod(max(int(self.p.wpr_period1), int(self.p.wpr_period2)) + 3)
         self.wpr1 = WilliamsR(self.data, period=int(self.p.wpr_period1))
         self.wpr2 = WilliamsR(self.data, period=int(self.p.wpr_period2))
@@ -141,6 +176,14 @@ class DeltaWPR(Indicator):
         self.min_level = int(-100 - self.p.level)
 
     def next(self):
+        """Compute the Williams %R delta and assign a regime color.
+
+        The fast WPR is subtracted from the slow WPR and written to
+        ``self.lines.delta``. The color is ``0.0`` when the slow WPR
+        is above its upper threshold and the fast WPR is climbing,
+        ``2.0`` when the slow WPR is below its lower threshold and the
+        fast WPR is falling, and ``1.0`` (neutral) otherwise.
+        """
         w1 = float(self.wpr1[0])
         w2 = float(self.wpr2[0])
         self.lines.delta[0] = w1 - w2
@@ -159,11 +202,21 @@ class WPRSlowdown(Indicator):
     params = {"wpr_period": 12, "level_max": -20.0, "level_min": -80.0, "seek_slowdown": True}
 
     def __init__(self):
+        """Set up the Williams %R and ATR sub-indicators and the min period."""
         self.addminperiod(max(int(self.p.wpr_period) + 2, 18))
         self.wpr = WilliamsR(self.data, period=int(self.p.wpr_period))
         self.atr = ATR(self.data, period=15)
 
     def next(self):
+        """Emit ATR-buffered stop levels when WPR touches an extreme.
+
+        When ``seek_slowdown`` is enabled, a signal is only emitted if
+        the WPR value at the previous bar differs from the current
+        value by less than ``1.0`` (i.e. the WPR is stalling at the
+        extreme). The buy line is placed ``atr * 3/8`` below the low,
+        and the sell line ``atr * 3/8`` above the high. Lines are
+        ``NaN`` when no signal is produced.
+        """
         self.lines.buy[0] = float("nan")
         self.lines.sell[0] = float("nan")
         w0 = float(self.wpr[0])
@@ -184,9 +237,18 @@ class WPRHistogramIndicator(Indicator):
     params = {"wpr_period": 14, "high_level": -30, "low_level": -70}
 
     def __init__(self):
+        """Register the minimum period needed for the WPR lookback."""
         self.addminperiod(self.p.wpr_period)
 
     def next(self):
+        """Write the WPR value, the -50 midline and the regime color.
+
+        The ``value`` line carries the standard Williams %R formula
+        (with a ``-50`` fallback when the lookback is flat). The
+        ``midline`` is fixed at ``-50``. The ``color_state`` is ``0.0``
+        when the value is above ``high_level``, ``2.0`` when it is
+        below ``low_level``, and ``1.0`` (neutral) in between.
+        """
         period = int(self.p.wpr_period)
         highest_high = max(float(self.data.high[-i]) for i in range(period))
         lowest_low = min(float(self.data.low[-i]) for i in range(period))

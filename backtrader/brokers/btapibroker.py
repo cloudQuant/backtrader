@@ -44,6 +44,20 @@ class BtApiBroker(BrokerBase):
     )
 
     def __init__(self, **kwargs):
+        """Initialize the broker, set up order/position state and freeze position mode.
+
+        The constructor wires the broker to its underlying
+        :class:`BtApiStore`, allocates the in-memory collections used to
+        track orders, positions (split by long/short leg in dual-side
+        mode) and outbound notifications, and seeds the cash/value
+        snapshots that :meth:`getcash` / :meth:`getvalue` will report
+        before the first :meth:`start`.
+
+        Args:
+            **kwargs: Parameter overrides. Any key matching a name in
+                :attr:`params` overrides the corresponding default; unknown
+                keys are forwarded to the :class:`BrokerBase` constructor.
+        """
         super().__init__(**kwargs)
         self.store = self.p.store
         self.provider = self.p.provider
@@ -101,6 +115,32 @@ class BtApiBroker(BrokerBase):
         self._freeze_position_mode("start()")
 
     def set_param(self, name, value, validate=True):
+        """Override :meth:`BrokerBase.set_param` to guard ``position_mode`` changes.
+
+        The ``position_mode`` parameter is treated specially: it is
+        immutable once :meth:`start` has run (frozen via
+        :meth:`_freeze_position_mode`), and its raw value is normalized
+        through :func:`normalize_position_mode` so that the broker
+        always stores one of the canonical ``"net"`` /
+        ``"dual_side"`` strings.
+
+        Args:
+            name: Name of the parameter to set.
+            value: New value for the parameter. For ``position_mode`` the
+                value is normalized before being applied.
+            validate: When ``True`` (default), delegate to the base class
+                so that the registered validator runs. Set to ``False``
+                to bypass validation (used internally when applying
+                normalized values).
+
+        Returns:
+            The return value of :meth:`BrokerBase.set_param` after the
+            value has been applied.
+
+        Raises:
+            ValueError: If ``name == "position_mode"`` and the parameter
+                has already been frozen by :meth:`start`.
+        """
         if name == "position_mode":
             self._ensure_position_mode_mutable()
             value = normalize_position_mode(value)
@@ -121,6 +161,25 @@ class BtApiBroker(BrokerBase):
         return normalize_position_mode(self.get_param("position_mode")) == POSITION_MODE_DUAL_SIDE
 
     def supports_position_mode(self, mode):
+        """Return whether the broker can operate in the requested position mode.
+
+        Any non-dual-side mode (``"net"`` or its aliases) is always
+        supported because it does not require special handling from the
+        underlying store. Dual-side mode is supported when:
+
+        * the underlying store advertises it via
+          ``store.supports_position_mode("dual_side")``, or
+        * the broker-level contract metadata declares
+          ``supports_dual_side`` / ``position_mode == "dual_side"``.
+
+        Args:
+            mode: Position mode to check. Any value accepted by
+                :func:`normalize_position_mode` may be passed.
+
+        Returns:
+            bool: ``True`` if the broker can run in ``mode``, ``False``
+            otherwise.
+        """
         mode = normalize_position_mode(mode)
         if mode != POSITION_MODE_DUAL_SIDE:
             return True

@@ -22,10 +22,21 @@ class SuperTrendIndicator(Indicator):
     params = {"period": 10, "multiplier": 3.0}
 
     def __init__(self):
+        """Build the ATR and ``(high + low) / 2`` series used by ``next``."""
         self.atr = ATR(self.data, period=self.p.period)
         self.hl2 = (self.data.high + self.data.low) / 2.0
 
     def next(self):
+        """Update the SuperTrend value and direction for the current bar.
+
+        Until the lookback window is full the SuperTrend equals
+        ``hl2`` and the direction is ``1`` (up). Afterwards the
+        standard SuperTrend state machine is applied: when previously
+        bullish and the close dips below the prior SuperTrend, the
+        band flips to ``upper_band`` and direction becomes ``-1``;
+        otherwise the SuperTrend tracks the rising lower band. The
+        mirror logic applies when previously bearish.
+        """
         if len(self) < self.p.period + 1:
             self.lines.supertrend[0] = self.hl2[0]
             self.lines.direction[0] = 1
@@ -61,12 +72,23 @@ class SuperTrendBandIndicator(Indicator):
     params = (("atr_period", 10), ("multiplier", 3.0))
 
     def __init__(self):
+        """Set up the ATR sub-indicator and the persistent band/direction state."""
         self.atr = ATR(self.data, period=self.p.atr_period)
         self._upper = None
         self._lower = None
         self._dir = 1
 
     def next(self):
+        """Update the persistent bands and direction for the current bar.
+
+        Upper and lower bands start as ``hl2 ± multiplier * ATR``,
+        then shrink when the previous close was on the opposite side
+        of the prior band (a classic SuperTrend non-widening rule).
+        The direction flips when the close crosses ``dn`` (was
+        bullish) or ``up`` (was bearish); the SuperTrend line itself
+        is the lower band in bullish mode and the upper band in
+        bearish mode.
+        """
         hl2 = (float(self.data.high[0]) + float(self.data.low[0])) / 2.0
         atr_val = float(self.atr[0])
         up = hl2 + self.p.multiplier * atr_val
@@ -97,6 +119,7 @@ class SuperTrendBandsIndicator(Indicator):
     params = {"period": 20, "multiplier": 3.0}
 
     def __init__(self):
+        """Build the basic ATR bands and reserve the min-period for warmup."""
         self.atr = ATR(self.data, period=self.p.period)
         hl2 = (self.data.high + self.data.low) / 2.0
         self.basic_up = hl2 + self.p.multiplier * self.atr
@@ -104,6 +127,19 @@ class SuperTrendBandsIndicator(Indicator):
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Refresh the final bands, the trend flag and the SuperTrend line.
+
+        On the first bar of the warmup window the final bands are
+        seeded from the basic bands and the trend defaults to ``1``.
+        Afterwards ``final_up`` only drops when the basic upper band
+        is lower than the prior final upper band, or when the
+        previous close poked above the prior final upper band; the
+        mirror rule applies to ``final_dn``. The trend flag is
+        derived from where the current close sits relative to the
+        previous final bands, and the SuperTrend line is the
+        lower-band value when bullish and the upper-band value when
+        bearish.
+        """
         if len(self) == self.p.period + 1:
             self.final_up[0] = self.basic_up[0]
             self.final_dn[0] = self.basic_dn[0]
@@ -142,17 +178,30 @@ class SupertrendIndicator(Indicator):
     plotinfo = {"subplot": False}
 
     def __init__(self):
+        """Build the basic upper/lower ATR bands for the SuperTrend state machine."""
         self.atr = ATR(self.data, period=self.p.atr_period)
         self.avg = (self.data.high + self.data.low) / 2
         self.basic_up = self.avg - self.p.atr_multiplier * self.atr
         self.basic_down = self.avg + self.p.atr_multiplier * self.atr
 
     def prenext(self):
+        """Zero-fill the output lines during the warmup window."""
         self.l.final_up[0] = 0
         self.l.final_down[0] = 0
         self.l.supertrend[0] = 0
 
     def next(self):
+        """Update the final bands and pick a SuperTrend value for the current bar.
+
+        ``final_up`` carries the larger of the basic upper band and
+        the prior final upper when the previous close was above the
+        prior final upper; otherwise it falls back to the basic
+        upper band. ``final_down`` follows the mirror rule. The
+        SuperTrend value is the final-up band when the close is
+        above the prior final-down band, the final-down band when
+        the close is below the prior final-up band, and the prior
+        SuperTrend otherwise.
+        """
         if self.data.close[-1] > self.l.final_up[-1]:
             self.l.final_up[0] = max(self.basic_up[0], self.l.final_up[-1])
         else:
@@ -178,6 +227,7 @@ class SuperTrendCCIIndicator(Indicator):
     params = {"cci_period": 50, "atr_period": 5, "level": 0}
 
     def __init__(self):
+        """Cache the parameter values, prime the previous-bar state and reserve min period."""
         self._cci_period = int(self.p.cci_period)
         self._atr_period = int(self.p.atr_period)
         self._level = int(self.p.level)
@@ -187,6 +237,13 @@ class SuperTrendCCIIndicator(Indicator):
         self.addminperiod(max(self._cci_period, self._atr_period) + 2)
 
     def _calc_cci(self):
+        """Compute a manual CCI for the configured period.
+
+        Builds the typical-price array over the configured period,
+        takes its mean and mean absolute deviation, and returns
+        ``(tp_current - mean) / (0.015 * mean_dev)``. Returns ``0.0``
+        when the deviation is zero (flat window).
+        """
         period = self._cci_period
         tp_vals = []
         for i in range(period):
@@ -201,6 +258,13 @@ class SuperTrendCCIIndicator(Indicator):
         return (tp_vals[0] - mean_tp) / (0.015 * mean_dev)
 
     def _calc_atr(self):
+        """Compute a manual average true range over the configured period.
+
+        The first iteration falls back to the bar's high-low range
+        (no previous close available); subsequent iterations use the
+        classic ``max(high - low, |high - prev_close|, |low - prev_close|)``
+        formula. The mean of the true ranges is returned.
+        """
         period = self._atr_period
         total = 0.0
         for i in range(period):
@@ -215,6 +279,18 @@ class SuperTrendCCIIndicator(Indicator):
         return total / period
 
     def next(self):
+        """Run the CCI-driven SuperTrend state machine for the current bar.
+
+        On the bar where the CCI crosses above ``level`` the
+        trend-up value is initialised to the previous trend-down
+        value, and vice versa. While the CCI is above ``level`` the
+        trend-up band is ``current_low - ATR`` (capped at the prior
+        value when both bars agree on the regime). The trend-down
+        band is built mirror-symmetrically. ``sign_up`` /
+        ``sign_down`` simply forward the current trend value when a
+        prior trend was already established, so they only change
+        after the first transition.
+        """
         cci = self._calc_cci()
         atr = self._calc_atr()
         level = self._level
@@ -265,12 +341,23 @@ class AdaptiveSuperTrendIndicator(Indicator):
     }
 
     def __init__(self):
+        """Wire up the ATR, EMA-of-ATR and ``hl2`` sub-series and sync the min period."""
         self.atr = ATR(self.data, period=self.p.period)
         self.avg_atr = EMA(self.atr, period=self.p.vol_lookback)
         self.hl2 = (self.data.high + self.data.low) / 2.0
         self.updateminperiod(self.avg_atr._minperiod)
 
     def _calc_bands(self):
+        """Return the dynamically-scaled upper and lower bands for the current bar.
+
+        The base multiplier is ``a_coef + b_coef * avg_atr`` clamped
+        to ``[min_mult, max_mult]``. The dynamic multiplier further
+        scales it by ``avg_atr / atr`` (and re-clamps), so calm
+        regimes use a larger multiplier and volatile regimes use a
+        smaller one. Bands are then ``hl2 ± dyn_mult * atr``; the
+        ``atr <= 0`` case falls back to a tiny epsilon to keep the
+        division defined.
+        """
         atr_val = float(self.atr[0])
         avg_atr_val = float(self.avg_atr[0])
         if atr_val <= 0:
@@ -283,10 +370,18 @@ class AdaptiveSuperTrendIndicator(Indicator):
         return hl2 + dyn_mult * atr_val, hl2 - dyn_mult * atr_val
 
     def nextstart(self):
+        """Seed the SuperTrend line with the upper band on the first ready bar."""
         upper, _lower = self._calc_bands()
         self.l.st[0] = upper
 
     def next(self):
+        """Update the SuperTrend value with the standard up/down state machine.
+
+        When the close is above the prior SuperTrend the new value
+        is the larger of the lower band and the prior value
+        (tracking the rising lower band). Otherwise the value falls
+        to the smaller of the upper band and the prior value.
+        """
         upper, lower = self._calc_bands()
         prev_st = self.l.st[-1]
         if self.data.close[0] > prev_st:
@@ -295,12 +390,22 @@ class AdaptiveSuperTrendIndicator(Indicator):
             self.l.st[0] = min(upper, prev_st)
 
     def preonce(self, start, end):
+        """No-op: vectorised path uses the same per-bar logic as ``once``."""
         pass
 
     def oncestart(self, start, end):
+        """No-op: vectorised path uses the same per-bar logic as ``once``."""
         pass
 
     def once(self, start, end):
+        """Vectorised implementation of the adaptive SuperTrend.
+
+        Walks the ATR, EMA-of-ATR, ``hl2`` and close arrays from the
+        warmup boundary to the end of the input. The first ready bar
+        seeds the SuperTrend with the upper band; every subsequent
+        bar applies the same state machine as :meth:`next` but
+        inlined for the ``once`` path.
+        """
         atr_array = self.atr.lines[0].array
         avg_atr_array = self.avg_atr.lines[0].array
         hl2_array = self.hl2.array

@@ -102,6 +102,11 @@ def transform_file(path: Path) -> tuple[bool, str, list[str]]:
 
 
 def main() -> int:
+    """Parametrize runonce strategy tests for improved test isolation.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     apply = "--apply" in sys.argv
 
     files = sorted(TARGET_DIR.rglob("test_*.py"))

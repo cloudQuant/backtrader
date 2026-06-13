@@ -30,6 +30,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run T01 open order test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -65,16 +70,31 @@ def run(report_dir):
                 )
 
                 class OpenOrderStrategy(bt.Strategy):
+                    """Strategy for testing open order functionality."""
+
                     def __init__(self):
+                        """Initialize open order strategy."""
                         self.order = None
                         self.bar_count = 0
                         self.order_statuses = []
                         self.submit_status = ""
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Handle store notification events.
+
+                        Args:
+                            msg: Store message.
+                            *args: Additional positional arguments.
+                            **kwargs: Additional keyword arguments.
+                        """
                         pass
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         status = order.getstatusname()
                         self.order_statuses.append(status)
                         print(f"  order_notify: ref={order.ref} status={status}")
@@ -82,6 +102,7 @@ def run(report_dir):
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit open order."""
                         self.bar_count += 1
                         if self.order is not None:
                             return

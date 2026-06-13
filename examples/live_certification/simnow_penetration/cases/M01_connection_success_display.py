@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run M01 connection success display test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     log_dir = str(report_dir / "logs")
 
@@ -40,7 +45,10 @@ def run(report_dir):
                 )
 
                 class StopAfterOneBar(bt.Strategy):
+                    """Minimal strategy that stops after first bar."""
+
                     def next(self):
+                        """Process bar and immediately stop."""
                         self.cerebro.runstop()
 
                 cerebro.addstrategy(StopAfterOneBar)

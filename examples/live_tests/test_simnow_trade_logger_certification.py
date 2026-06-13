@@ -61,13 +61,23 @@ def _case_runtime_audit():
             cerebro.adddata(data)
 
             class RuntimeAuditStrategy(bt.Strategy):
+                """Strategy for runtime audit of live trading events."""
+
                 def __init__(self):
+                    """Initialize runtime audit strategy."""
                     self.bar_count = 0
                     self.order = None
                     self.order_statuses = []
                     self.remote_event_types = set()
 
                 def notify_store(self, msg, *args, **kwargs):
+                    """Handle store notifications.
+
+                    Args:
+                        msg: Store message.
+                        *args: Additional positional arguments.
+                        **kwargs: Additional keyword arguments including 'event'.
+                    """
                     event = kwargs.get("event")
                     if not isinstance(event, dict):
                         return
@@ -83,6 +93,11 @@ def _case_runtime_audit():
                         self.remote_event_types.add(event_type)
 
                 def notify_order(self, order):
+                    """Handle order status updates.
+
+                    Args:
+                        order: Order instance.
+                    """
                     self.order_statuses.append(order.getstatusname())
                     if self.remote_event_types and order.getstatusname() in {
                         "Accepted",
@@ -94,6 +109,7 @@ def _case_runtime_audit():
                         self.cerebro.runstop()
 
                 def next(self):
+                    """Process each bar and submit test order."""
                     self.bar_count += 1
                     if self.order is not None:
                         return
@@ -197,11 +213,15 @@ def _case_local_error_audit():
             cerebro.adddata(data)
 
             class ErrorAuditStrategy(bt.Strategy):
+                """Strategy for testing error order rejection logging."""
+
                 def __init__(self):
+                    """Initialize error audit strategy."""
                     self.bar_count = 0
                     self.order = None
 
                 def next(self):
+                    """Process each bar and submit invalid order."""
                     self.bar_count += 1
                     if self.order is not None:
                         self.cerebro.runstop()
@@ -218,6 +238,11 @@ def _case_local_error_audit():
                     assert self.order is not None, "Expected a rejected local order object"
 
                 def notify_order(self, order):
+                    """Handle order status updates.
+
+                    Args:
+                        order: Order instance.
+                    """
                     if order.status == bt.Order.Rejected:
                         self.cerebro.runstop()
 
@@ -320,11 +345,13 @@ def _run_subprocess_case(case_name):
 
 @pytest.mark.live
 def test_simnow_trade_logger_runtime_audit():
+    """Test live trade logger runtime audit with SimNow."""
     _run_live_case("runtime_audit")
 
 
 @pytest.mark.live
 def test_simnow_trade_logger_local_error_audit():
+    """Test live trade logger local error audit with SimNow."""
     _run_live_case("local_error_audit")
 
 

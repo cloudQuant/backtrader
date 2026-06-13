@@ -57,18 +57,27 @@ def run(report_dir):
                 )
 
                 class InsufficientFundsStrategy(bt.Strategy):
+                    """Strategy for testing insufficient funds rejection."""
+
                     def __init__(self):
+                        """Initialize insufficient funds strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.rejected = False
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.status == bt.Order.Rejected:
                             self.rejected = True
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit oversized order."""
                         self.bar_count += 1
                         if self.order is not None:
                             self.cerebro.runstop()

@@ -115,6 +115,7 @@ def _build_positions_analyzer(position_value, cash_value=None):
 
 @pytest.mark.parametrize("position_value", ["bad", complex(1.0, 1.0), float("nan")])
 def test_positionsvalue_invalid_position_value_degrades_to_zero(position_value):
+    """Test PositionsValue invalid position value degrades to zero."""
     analyzer = _build_positions_analyzer(position_value)
 
     analyzer.next()
@@ -124,6 +125,7 @@ def test_positionsvalue_invalid_position_value_degrades_to_zero(position_value):
 
 @pytest.mark.parametrize("cash_value", ["bad", complex(1.0, 1.0), float("nan")])
 def test_positionsvalue_invalid_cash_value_degrades_to_zero(cash_value):
+    """Test PositionsValue invalid cash value degrades to zero."""
     analyzer = _build_positions_analyzer(100.0, cash_value=cash_value)
 
     analyzer.next()

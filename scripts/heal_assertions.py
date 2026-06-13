@@ -204,6 +204,11 @@ def find_failing_tests() -> list[Path]:
 
 
 def main():
+    """Heal failing assertions in regression tests by running them and fixing assertions.
+
+    Discovers failing tests, runs each one, and attempts to heal the assertions
+    by finding the expected values from actual run results.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", help="Specific test file or directory to heal")
     parser.add_argument("--limit", type=int, default=10000)

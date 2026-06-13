@@ -7,13 +7,16 @@ class RecordingObserver:
     """Collect forwarded observer runtime notifications."""
 
     def __init__(self):
+        """Initialize the recording observer."""
         self.store_events = []
         self.data_events = []
 
     def notify_store_event(self, msg, *args, **kwargs):
+        """Record store events."""
         self.store_events.append((msg, args, kwargs))
 
     def notify_data_event(self, data, status, *args, **kwargs):
+        """Record data events."""
         self.data_events.append((data, status, args, kwargs))
 
 
@@ -24,14 +27,21 @@ class DummyStrategy:
     _notify_data_to_observers = bt.Strategy._notify_data_to_observers
 
     def __init__(self, observer):
+        """Initialize the dummy strategy.
+
+        Args:
+            observer: Observer to add to stats.
+        """
         self.stats = [observer]
         self.store_calls = []
         self.data_calls = []
 
     def notify_store(self, msg, *args, **kwargs):
+        """Record store notifications."""
         self.store_calls.append((msg, args, kwargs))
 
     def notify_data(self, data, status, *args, **kwargs):
+        """Record data notifications."""
         self.data_calls.append((data, status, args, kwargs))
 
 
@@ -39,9 +49,15 @@ class DummyStore:
     """Minimal store wrapper that serves queued notifications once."""
 
     def __init__(self, notifications):
+        """Initialize the dummy store.
+
+        Args:
+            notifications: List of notifications to serve.
+        """
         self._notifications = list(notifications)
 
     def get_notifications(self):
+        """Get and clear notifications."""
         items = list(self._notifications)
         self._notifications = []
         return items
@@ -53,10 +69,16 @@ class DummyData:
     _NOTIFNAMES = ["CONNECTED", "DISCONNECTED", "CONNBROKEN", "DELAYED", "LIVE"]
 
     def __init__(self, notifications):
+        """Initialize the dummy data.
+
+        Args:
+            notifications: List of notifications to serve.
+        """
         self._notifications = list(notifications)
         self._name = "rb2610"
 
     def get_notifications(self):
+        """Get and clear notifications."""
         items = list(self._notifications)
         self._notifications = []
         return items

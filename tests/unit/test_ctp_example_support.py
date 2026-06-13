@@ -1,10 +1,14 @@
+"""Tests for CTP example support."""
 from examples import ctp_example_support as support
 
 
 class _FakeStore:
+    """Fake store for testing."""
+
     instances = []
 
     def __init__(self, **kwargs):
+        """Initialize fake store."""
         self.kwargs = dict(kwargs)
         self.started = False
         self.stopped = False
@@ -13,15 +17,18 @@ class _FakeStore:
         _FakeStore.instances.append(self)
 
     def start(self):
+        """Start the store."""
         self.start_calls += 1
         self.started = True
 
     def stop(self):
+        """Stop the store."""
         self.stop_calls += 1
         self.stopped = True
 
 
 def _patch_store_construction(monkeypatch):
+    """Patch store construction."""
     def _build_store(**kwargs):
         return _FakeStore(**kwargs)
 
@@ -29,6 +36,7 @@ def _patch_store_construction(monkeypatch):
 
 
 def _patch_connection(monkeypatch):
+    """Patch connection creation."""
     def _connection(env_key):
         return {
             "td_address": f"td://{env_key}",
@@ -46,6 +54,7 @@ def _patch_connection(monkeypatch):
 
 
 def test_create_live_store_returns_unstarted_store_for_first_candidate(monkeypatch):
+    """Test create_live_store returns unstarted store for first candidate."""
     _FakeStore.instances = []
     _patch_store_construction(monkeypatch)
     _patch_connection(monkeypatch)
@@ -63,6 +72,7 @@ def test_create_live_store_returns_unstarted_store_for_first_candidate(monkeypat
 
 
 def test_create_live_store_prefers_first_candidate_without_eager_probe(monkeypatch):
+    """Test create_live_store prefers first candidate without eager probe."""
     _FakeStore.instances = []
     _patch_store_construction(monkeypatch)
     _patch_connection(monkeypatch)

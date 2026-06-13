@@ -1,10 +1,18 @@
+"""Tests for TradeLogger internal error handling.
+
+Tests that TradeLogger properly records internal errors when
+serialization fails during tick and bar event notification.
+"""
 from types import SimpleNamespace
 
 from backtrader.observers.trade_logger import TradeLogger
 
 
 class _BrokenSerializable:
+    """Mock class that fails on to_dict() for testing error handling."""
+
     def to_dict(self):
+        """Raise RuntimeError to simulate serialization failure."""
         raise RuntimeError("boom")
 
 
@@ -35,6 +43,7 @@ def _make_logger():
 
 
 def test_notify_tick_event_records_internal_error():
+    """Test that notify_tick_event records internal error when serialization fails."""
     logger, events = _make_logger()
 
     logger.notify_tick_event(_BrokenSerializable())
@@ -46,6 +55,7 @@ def test_notify_tick_event_records_internal_error():
 
 
 def test_notify_bar_event_records_internal_error():
+    """Test that notify_bar_event records internal error when serialization fails."""
     logger, events = _make_logger()
 
     logger.notify_bar_event(_BrokenSerializable())

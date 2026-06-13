@@ -1,3 +1,8 @@
+"""CTP TickBroker 5-second bar live trading runner with SimNow.
+
+This module runs live trading examples using BtApiStore and BtApiBroker
+with tick-level data aggregated into 5-second bars for high-frequency trading.
+"""
 from __future__ import annotations
 
 import argparse
@@ -49,6 +54,11 @@ def _validate_config(config):
 
 
 def main():
+    """Run the TickBroker 5-second bar live trading example.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     if not args.dry_run and not args.subprocess_child:
         cmd = [sys.executable, '-u', str(Path(__file__).resolve()), '--subprocess-child', *sys.argv[1:]]

@@ -1,3 +1,4 @@
+"""Tests for TickBroker enhanced features."""
 import pytest
 
 from backtrader.brokers.hft import ConstantLatencyModel, QueueExchangeModel
@@ -7,13 +8,17 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 def test_tickbroker_delays_order_visibility_with_latency_model():
+    """Test TickBroker delays order visibility with latency model."""
     data = DummyData()
     broker = TickBroker(cash=1000.0, latency_model=ConstantLatencyModel(order_entry_latency_ms=500))
     order = broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Market)
@@ -32,6 +37,7 @@ def test_tickbroker_delays_order_visibility_with_latency_model():
 
 
 def test_tickbroker_tracks_state_values_and_realized_pnl():
+    """Test TickBroker tracks state values and realized PnL."""
     data = DummyData()
     broker = TickBroker(cash=1000.0)
     broker.setcommission(commission=0.0, name=data.name)
@@ -57,6 +63,7 @@ def test_tickbroker_tracks_state_values_and_realized_pnl():
 
 
 def test_tickbroker_rejects_open_when_margin_is_insufficient():
+    """Test TickBroker rejects open when margin is insufficient."""
     data = DummyData("FUTURES")
     broker = TickBroker(cash=100.0)
     broker.setcommission(commission=0.0, margin=1000.0, mult=1.0, leverage=1.0, name=data.name)
@@ -71,6 +78,7 @@ def test_tickbroker_rejects_open_when_margin_is_insufficient():
 
 
 def test_tickbroker_rejects_gtx_limit_order_with_queue_exchange_model():
+    """Test TickBroker rejects GTX limit order with queue exchange model."""
     data = DummyData()
     broker = TickBroker(cash=1000.0, exchange_model=QueueExchangeModel())
     order = broker.buy(owner=None, data=data, size=1, price=101.0, exectype=Order.Limit)
@@ -92,6 +100,7 @@ def test_tickbroker_rejects_gtx_limit_order_with_queue_exchange_model():
 
 
 def test_tickbroker_fills_maker_limit_after_trade_consumes_queue():
+    """Test TickBroker fills maker limit after trade consumes queue."""
     data = DummyData()
     broker = TickBroker(cash=1000.0, exchange_model=QueueExchangeModel())
     broker.setcommission(commission=0.0, name=data.name)

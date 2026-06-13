@@ -124,15 +124,29 @@ def case_main(run_fn, meta: dict):
     _orig_stderr = sys.stderr
 
     class _Tee:
+        """Tee stream that writes to both console and file."""
+
         def __init__(self, stream, fh):
+            """Initialize tee stream.
+
+            Args:
+                stream: Original stream to write to.
+                fh: File handle to write to.
+            """
             self._stream = stream
             self._fh = fh
 
         def write(self, data):
+            """Write data to both streams.
+
+            Args:
+                data: Data to write.
+            """
             self._stream.write(data)
             self._fh.write(data)
 
         def flush(self):
+            """Flush both streams."""
             self._stream.flush()
             self._fh.flush()
 

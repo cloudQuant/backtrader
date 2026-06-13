@@ -116,25 +116,46 @@ def run_cerebro(strategy_class, num_bars=50, **kwargs):
 
 
 class _ClockTestDateTimeLine:
+    """Mock datetime line for clock testing."""
+
     def __init__(self):
+        """Initialize with None value."""
         self.value = None
 
     def __setitem__(self, index, value):
+        """Set the datetime value at index."""
         assert index == 0
         self.value = value
 
 
 class _ClockTestData:
+    """Mock data feed for clock testing."""
+
     def __init__(self, dt_value, length=1):
+        """Initialize with datetime value and length.
+
+        Args:
+            dt_value: Datetime value for the data.
+            length: Length of the data.
+        """
         self._length = length
         self.datetime = [dt_value]
 
     def __len__(self):
+        """Return the length of the data."""
         return self._length
 
 
 class _ClockTestStrategy:
+    """Mock strategy for clock testing."""
+
     def __init__(self, datetimes, oldsync=False):
+        """Initialize with datetime list.
+
+        Args:
+            datetimes: List of datetime values.
+            oldsync: Whether to use old synchronization.
+        """
         self._data_assignment_pending = False
         self._clock = object()
         self._oldsync = oldsync
@@ -144,9 +165,11 @@ class _ClockTestStrategy:
         self.forward_calls = 0
 
     def forward(self):
+        """Track forward calls."""
         self.forward_calls += 1
 
     def __len__(self):
+        """Return strategy length."""
         return 1
 
 
@@ -239,9 +262,11 @@ class TestLineRootOperators:
             """Test strategy for line coverage."""
 
             def __init__(self):
+                """Initialize with empty results list."""
                 self.results = []
 
             def next(self):
+                """Record comparison results for each bar."""
                 self.results.append({
                     "lt": self.data.close < 1.0,
                     "gt": self.data.close > -1.0,
@@ -473,12 +498,16 @@ class TestLineRootOperators:
         data_list[8]["close"] = float("-inf")
 
         class St(bt.Strategy):
+            """Test strategy for unary operators with non-finite values."""
+
             def __init__(self):
+                """Initialize with abs and negation operations."""
                 self.abs_line = abs(self.data.close)
                 self.neg_line = -self.data.close
                 self.bar_count = 0
 
             def next(self):
+                """Verify both lines are finite."""
                 self.bar_count += 1
                 assert math.isfinite(self.abs_line[0])
                 assert math.isfinite(self.neg_line[0])
@@ -496,12 +525,16 @@ class TestLineRootOperators:
         data_list[9]["close"] = float("-inf")
 
         class St(bt.Strategy):
+            """Test strategy for runonce unary operators."""
+
             def __init__(self):
+                """Initialize with abs and negation operations."""
                 self.abs_line = abs(self.data.close)
                 self.neg_line = -self.data.close
                 self.bar_count = 0
 
             def next(self):
+                """Verify both lines are finite."""
                 self.bar_count += 1
                 assert math.isfinite(self.abs_line[0])
                 assert math.isfinite(self.neg_line[0])
@@ -603,12 +636,14 @@ class TestLineRootOperators:
         data_list[6]["close"] = float("-inf")
 
         class St(bt.Strategy):
-            """Test strategy for line coverage."""
+            """Test strategy for boolean conversion of non-finite values."""
 
             def __init__(self):
+                """Initialize with empty bool results list."""
                 self.bool_results = []
 
             def next(self):
+                """Record boolean conversion results."""
                 self.bool_results.append(bool(self.data.close))
 
         cerebro = bt.Cerebro()
@@ -628,10 +663,14 @@ class TestLineRootOperators:
         data_list[7]["close"] = float("-inf")
 
         class St(bt.Strategy):
+            """Test strategy for lineseries call on non-finite data."""
+
             def __init__(self):
+                """Initialize with empty current values list."""
                 self.current_values = []
 
             def next(self):
+                """Record current values from data call."""
                 self.current_values.append(self.data(line="close"))
 
         cerebro = bt.Cerebro()
@@ -651,10 +690,14 @@ class TestLineRootOperators:
         data_list[7]["close"] = float("-inf")
 
         class St(bt.Strategy):
+            """Test strategy for lineseries getitem on non-finite data."""
+
             def __init__(self):
+                """Initialize with empty current values list."""
                 self.current_values = []
 
             def next(self):
+                """Record current values from data."""
                 self.current_values.append(self.data[0])
 
         cerebro = bt.Cerebro()
@@ -690,11 +733,15 @@ class TestLineRootOperators:
         data_list[6]["close"] = float("-inf")
 
         class St(bt.Strategy):
+            """Test strategy for line delay sanitization in next()."""
+
             def __init__(self):
+                """Initialize with delayed line and values list."""
                 self.delayed = self.data.close(-1)
                 self.delayed_values = []
 
             def next(self):
+                """Record delayed values."""
                 self.delayed_values.append(self.delayed[0])
 
         cerebro = bt.Cerebro()
@@ -714,11 +761,15 @@ class TestLineRootOperators:
         data_list[8]["close"] = float("-inf")
 
         class St(bt.Strategy):
+            """Test strategy for line delay sanitization in once()."""
+
             def __init__(self):
+                """Initialize with delayed line and values list."""
                 self.delayed = self.data.close(-1)
                 self.delayed_values = []
 
             def next(self):
+                """Record delayed values."""
                 self.delayed_values.append(self.delayed[0])
 
         cerebro = bt.Cerebro()
@@ -1006,22 +1057,30 @@ class TestLineSeries:
         """LineMultiple boolean self-operation should treat non-finite first-line values as False."""
 
         class MultiLineInd(bt.Indicator):
+            """Multi-line indicator for testing boolean operations."""
+
             lines = ("upper", "lower")
 
             def __init__(self):
+                """Initialize with minperiod of 1."""
                 self.addminperiod(1)
 
             def next(self):
+                """Set upper/lower lines based on close value."""
                 value = self.data.close[0]
                 self.lines.upper[0] = float("inf") if value > 0 else value
                 self.lines.lower[0] = value
 
         class St(bt.Strategy):
+            """Test strategy for multiline boolean operations."""
+
             def __init__(self):
+                """Initialize with multiline indicator."""
                 self.ind = MultiLineInd(self.data)
                 self.bool_results = []
 
             def next(self):
+                """Record boolean operation results."""
                 self.bool_results.append(self.ind._makeoperationown(bool))
 
         strat = run_cerebro(St, num_bars=10)
@@ -1639,6 +1698,7 @@ class TestFunctionSanitizers:
     """Test low-level function sanitizers for numeric edge cases."""
 
     def test_sanitize_cmp_value_handles_infinity(self):
+        """Test that comparison sanitizer handles inf, -inf, nan, and None correctly."""
         assert btfunctions._sanitize_cmp_value(float("inf")) == 0.0
         assert btfunctions._sanitize_cmp_value(float("-inf")) == 0.0
         assert btfunctions._sanitize_cmp_value(float("nan")) == 0.0
@@ -1646,6 +1706,7 @@ class TestFunctionSanitizers:
         assert btfunctions._sanitize_cmp_value(5.0) == 5.0
 
     def test_sanitize_div_value_handles_infinity(self):
+        """Test that division sanitizer handles inf, -inf, nan, and None correctly."""
         assert btfunctions._sanitize_div_value(float("inf")) == 0.0
         assert btfunctions._sanitize_div_value(float("-inf")) == 0.0
         assert btfunctions._sanitize_div_value(float("nan")) == 0.0

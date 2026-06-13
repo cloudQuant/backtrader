@@ -1,3 +1,8 @@
+"""Prepare Binance BBO data for hftbacktest notebook examples.
+
+This script downloads, processes, and prepares Binance BBO demo data
+for use in the hftbacktest notebook examples.
+"""
 from __future__ import annotations
 
 import argparse
@@ -399,6 +404,11 @@ def _prepare_glft_dataset(data_root: Path, source_root: Path, project_root: Path
 
 
 def main() -> int:
+    """Prepare Binance BBO data for notebook examples.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     data_root = Path(args.data_root)
     source_root = Path(args.binance_source_root)

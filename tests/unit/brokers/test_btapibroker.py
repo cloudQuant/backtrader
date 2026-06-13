@@ -57,6 +57,7 @@ def test_buy_and_cancel_order_roundtrip(started_stack):
 
 
 def test_sell_submits_sell_side_payload(started_stack):
+    """Test that sell submits sell-side payload."""
     client, _store, data, broker = started_stack
 
     order = broker.sell(
@@ -74,6 +75,7 @@ def test_sell_submits_sell_side_payload(started_stack):
 
 
 def test_sell_accepts_close_today_offset_and_passes_it_to_store(started_stack):
+    """Test that sell accepts close today offset and passes it to store."""
     client, _store, data, broker = started_stack
 
     order = broker.sell(
@@ -91,24 +93,33 @@ def test_sell_accepts_close_today_offset_and_passes_it_to_store(started_stack):
 
 
 def test_buy_uses_store_create_order_alias_when_submit_order_is_unavailable():
+    """Test that buy uses store create_order alias when submit_order is unavailable."""
     class CreateOrderOnlyClient:
+        """Client that only supports create_order (alias for submit_order)."""
+
         def __init__(self):
+            """Initialize the client."""
             self.connected = False
             self.created_orders = []
 
         def connect(self):
+            """Connect to the client."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect from the client."""
             self.connected = False
 
         def get_balance(self):
+            """Get account balance."""
             return {"cash": 1000.0, "value": 1200.0}
 
         def get_positions(self):
+            """Get positions."""
             return []
 
         def create_order(self, **payload):
+            """Create an order using the alias method."""
             self.created_orders.append(dict(payload))
             return {"order_ref": "alias-ref-1"}
 
@@ -142,34 +153,45 @@ def test_buy_uses_store_create_order_alias_when_submit_order_is_unavailable():
 
 
 def test_ctp_style_submit_only_attaches_order_ref_until_server_id_arrives():
+    """Test that CTP style submit only attaches order ref until server ID arrives."""
     class CtpStyleClient:
+        """Client with CTP-style order reference handling."""
+
         def __init__(self):
+            """Initialize the CTP-style client."""
             self.connected = False
             self.created_orders = []
             self.updates = collections.deque()
 
         def connect(self):
+            """Connect to the client."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect from the client."""
             self.connected = False
 
         def get_balance(self):
+            """Get account balance."""
             return {"cash": 1000.0, "value": 1200.0}
 
         def get_positions(self):
+            """Get positions."""
             return []
 
         def create_order(self, **payload):
+            """Create an order with CTP-style order reference."""
             self.created_orders.append(dict(payload))
             return {"order_ref": "ctp-ref-1"}
 
         def poll_broker_update(self):
+            """Poll for broker updates."""
             if not self.updates:
                 return None
             return self.updates.popleft()
 
         def push_broker_update(self, update):
+            """Push a broker update to the queue."""
             self.updates.append(dict(update))
 
     client = CtpStyleClient()
@@ -228,6 +250,7 @@ def test_ctp_style_submit_only_attaches_order_ref_until_server_id_arrives():
 
 
 def test_buy_is_rejected_locally_when_trading_is_disabled(started_stack):
+    """Test that buy is rejected locally when trading is disabled."""
     client, _store, data, broker = started_stack
 
     broker.disable_trading(reason="test")
@@ -246,6 +269,7 @@ def test_buy_is_rejected_locally_when_trading_is_disabled(started_stack):
 
 
 def test_buy_is_rejected_locally_when_strategy_is_paused(started_stack):
+    """Test that buy is rejected locally when strategy is paused."""
     client, _store, data, broker = started_stack
 
     broker.pause_strategy(reason="test")
@@ -264,6 +288,7 @@ def test_buy_is_rejected_locally_when_strategy_is_paused(started_stack):
 
 
 def test_buy_submission_resumes_after_strategy_resume(started_stack):
+    """Test that buy submission resumes after strategy resume."""
     client, _store, data, broker = started_stack
 
     broker.pause_strategy(reason="test")
@@ -290,6 +315,7 @@ def test_buy_submission_resumes_after_strategy_resume(started_stack):
 
 
 def test_buy_raises_clear_error_when_broker_has_no_store(started_stack):
+    """Test that buy raises clear error when broker has no store."""
     _client, store, data, broker = started_stack
 
     broker.store = None
@@ -311,20 +337,28 @@ def test_buy_raises_clear_error_when_broker_has_no_store(started_stack):
 
 
 def test_buy_raises_when_store_client_has_no_submit_api_and_marks_order_rejected():
+    """Test that buy raises when store client has no submit API and marks order rejected."""
     class NoSubmitClient:
+        """Client without submit_order API."""
+
         def __init__(self):
+            """Initialize the no-submit client."""
             self.connected = False
 
         def connect(self):
+            """Connect to the client."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect from the client."""
             self.connected = False
 
         def get_balance(self):
+            """Get account balance."""
             return {"cash": 1000.0, "value": 1200.0}
 
         def get_positions(self):
+            """Get positions."""
             return []
 
     client = NoSubmitClient()
@@ -356,24 +390,33 @@ def test_buy_raises_when_store_client_has_no_submit_api_and_marks_order_rejected
 
 
 def test_cancel_raises_when_store_client_has_no_cancel_api_and_leaves_order_alive():
+    """Test that cancel raises when store client has no cancel API and leaves order alive."""
     class NoCancelClient:
+        """Client without cancel_order API."""
+
         def __init__(self):
+            """Initialize the no-cancel client."""
             self.connected = False
             self.submitted_orders = []
 
         def connect(self):
+            """Connect to the client."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect from the client."""
             self.connected = False
 
         def get_balance(self):
+            """Get account balance."""
             return {"cash": 1000.0, "value": 1200.0}
 
         def get_positions(self):
+            """Get positions."""
             return []
 
         def submit_order(self, payload):
+            """Submit an order."""
             self.submitted_orders.append(dict(payload))
             return {"id": "alias-1"}
 
@@ -408,6 +451,7 @@ def test_cancel_raises_when_store_client_has_no_cancel_api_and_leaves_order_aliv
 
 
 def test_cancel_none_returns_none_without_remote_call(started_stack):
+    """Test that cancel None returns None without remote call."""
     client, _store, _data, broker = started_stack
 
     assert broker.cancel(None) is None
@@ -415,6 +459,7 @@ def test_cancel_none_returns_none_without_remote_call(started_stack):
 
 
 def test_cancel_raises_clear_error_when_broker_has_no_store(started_stack):
+    """Test that cancel raises clear error when broker has no store."""
     _client, store, data, broker = started_stack
 
     order = broker.buy(
@@ -457,7 +502,10 @@ def test_cancel_preserves_local_order_state_when_remote_cancel_fails():
     """Remote cancel failures should leave the local order alive for later retry."""
 
     class FailingCancelClient(FakeBtApiClient):
+        """Client that fails cancel_order to test error handling."""
+
         def cancel_order(self, order_ref, dataname=None):
+            """Cancel order that always fails."""
             raise RuntimeError("remote cancel rejected")
 
     client = FailingCancelClient(
@@ -495,6 +543,7 @@ def test_cancel_preserves_local_order_state_when_remote_cancel_fails():
 
 
 def test_cancel_wait_remote_keeps_order_alive_until_remote_cancel_confirmation():
+    """Test that cancel wait remote keeps order alive until remote cancel confirmation."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
     )
@@ -545,6 +594,7 @@ def test_cancel_wait_remote_keeps_order_alive_until_remote_cancel_confirmation()
 
 
 def test_late_trade_update_after_local_cancel_recovers_completed_order():
+    """Test that late trade update after local cancel recovers completed order."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
     )
@@ -618,6 +668,7 @@ def test_getposition_reads_positions_from_store(started_stack):
 
 
 def test_getposition_returns_clone_by_default_and_cached_position_when_requested(started_stack):
+    """Test that getposition returns clone by default and cached position when requested."""
     _client, _store, data, broker = started_stack
 
     cloned_position = broker.getposition(data)
@@ -630,6 +681,7 @@ def test_getposition_returns_clone_by_default_and_cached_position_when_requested
 
 
 def test_getposition_returns_empty_position_for_untracked_data(started_stack):
+    """Test that getposition returns empty position for untracked data."""
     _client, store, _data, broker = started_stack
     other_data = store.getdata(dataname="OTHER", backfill_start=False)
 
@@ -640,6 +692,7 @@ def test_getposition_returns_empty_position_for_untracked_data(started_stack):
 
 
 def test_get_orders_open_returns_empty_lists_when_no_local_orders_exist():
+    """Test that get_orders_open returns empty lists when no local orders exist."""
     broker = BtApiBroker(store=None)
 
     assert broker.get_orders_open() == []
@@ -647,6 +700,7 @@ def test_get_orders_open_returns_empty_lists_when_no_local_orders_exist():
 
 
 def test_get_orders_open_safe_returns_clones(started_stack):
+    """Test that get_orders_open safe returns clones."""
     _client, _store, data, broker = started_stack
 
     order = broker.buy(
@@ -667,6 +721,7 @@ def test_get_orders_open_safe_returns_clones(started_stack):
 
 
 def test_orderstatus_supports_order_instance_and_reference_lookup(started_stack):
+    """Test that orderstatus supports order instance and reference lookup."""
     _client, _store, data, broker = started_stack
 
     order = broker.buy(
@@ -684,6 +739,7 @@ def test_orderstatus_supports_order_instance_and_reference_lookup(started_stack)
 
 
 def test_broker_proxies_remote_open_order_queries():
+    """Test that broker proxies remote open order queries."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
         open_orders=[
@@ -707,6 +763,7 @@ def test_broker_proxies_remote_open_order_queries():
 
 
 def test_broker_open_order_queries_do_not_expose_mutable_snapshot():
+    """Test that broker open order queries do not expose mutable snapshot."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
         open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy", "price": 101.0}],
@@ -735,6 +792,7 @@ def test_broker_open_order_queries_do_not_expose_mutable_snapshot():
 
 
 def test_remote_order_cancel_updates_clear_cached_identifier_mappings():
+    """Test that remote order cancel updates clear cached identifier mappings."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
     )
@@ -775,6 +833,7 @@ def test_remote_order_cancel_updates_clear_cached_identifier_mappings():
 
 
 def test_remote_error_updates_reject_matching_live_orders():
+    """Test that remote error updates reject matching live orders."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
     )
@@ -831,10 +890,14 @@ def test_cerebro_run_uses_broker_startingcash_for_writer_output():
     cerebro = bt.Cerebro()
 
     class NoOpStrategy(bt.Strategy):
+        """Strategy that does nothing and stops after first bar."""
+
         def __init__(self):
+            """Initialize the strategy."""
             self.bar_count = 0
 
         def next(self):
+            """Process each bar and stop."""
             self.bar_count += 1
             self.cerebro.runstop()
 
@@ -855,16 +918,21 @@ def test_next_throttles_live_account_queries():
     """BtApiBroker.next should not spam balance/position queries in the live loop."""
 
     class CountingClient(FakeBtApiClient):
+        """Client that counts balance and position calls."""
+
         def __init__(self):
+            """Initialize the counting client."""
             super().__init__(balance={"cash": 1000.0, "value": 1200.0}, positions=[])
             self.balance_calls = 0
             self.position_calls = 0
 
         def get_balance(self):
+            """Get balance and count the call."""
             self.balance_calls += 1
             return super().get_balance()
 
         def get_positions(self):
+            """Get positions and count the call."""
             self.position_calls += 1
             return super().get_positions()
 
@@ -892,8 +960,13 @@ def test_next_throttles_live_account_queries():
 
 
 def test_force_refresh_queries_can_be_disabled_for_hot_read_paths():
+    """Test that force refresh queries can be disabled for hot read paths."""
+
     class CountingClient(FakeBtApiClient):
+        """Client that counts balance and position calls for testing throttling."""
+
         def __init__(self):
+            """Initialize the counting client."""
             super().__init__(
                 balance={"cash": 1000.0, "value": 1200.0},
                 positions=[{"instrument": DEFAULT_SYMBOL, "volume": 2, "price": 99.5}],
@@ -903,10 +976,12 @@ def test_force_refresh_queries_can_be_disabled_for_hot_read_paths():
             self.position_calls = 0
 
         def get_balance(self):
+            """Get balance and count the call."""
             self.balance_calls += 1
             return super().get_balance()
 
         def get_positions(self):
+            """Get positions and count the call."""
             self.position_calls += 1
             return super().get_positions()
 
@@ -946,12 +1021,18 @@ def test_force_refresh_queries_can_be_disabled_for_hot_read_paths():
 
 
 def test_next_throttles_remote_open_order_sync_and_seeds_snapshot_on_start():
+    """Test that next throttles remote open order sync and seeds snapshot on start."""
+
     class CountingClient(FakeBtApiClient):
+        """Client that counts open order fetch calls."""
+
         def __init__(self):
+            """Initialize the counting client."""
             super().__init__(open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}])
             self.open_order_calls = 0
 
         def fetch_open_orders(self):
+            """Fetch open orders and count the call."""
             self.open_order_calls += 1
             return super().fetch_open_orders()
 
@@ -994,16 +1075,21 @@ def test_next_ignores_transient_refresh_failures():
     """Transient store query failures during the live loop should keep cached state intact."""
 
     class FlakyClient(FakeBtApiClient):
+        """Client that can simulate transient failures."""
+
         def __init__(self):
+            """Initialize the flaky client."""
             super().__init__(balance={"cash": 800.0, "value": 900.0}, positions=[])
             self.fail = False
 
         def get_balance(self):
+            """Get balance or raise if fail is True."""
             if self.fail:
                 raise RuntimeError("temporary balance failure")
             return super().get_balance()
 
         def get_positions(self):
+            """Get positions or raise if fail is True."""
             if self.fail:
                 raise RuntimeError("temporary positions failure")
             return super().get_positions()
@@ -1024,12 +1110,18 @@ def test_next_ignores_transient_refresh_failures():
 
 
 def test_next_falls_back_to_cached_remote_open_orders_on_sync_failure():
+    """Test that next falls back to cached remote open orders on sync failure."""
+
     class FlakyOpenOrdersClient(FakeBtApiClient):
+        """Client that can simulate open order fetch failures."""
+
         def __init__(self):
+            """Initialize the flaky open orders client."""
             super().__init__(open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}])
             self.fail = False
 
         def fetch_open_orders(self):
+            """Fetch open orders or raise if fail is True."""
             if self.fail:
                 raise RuntimeError("temporary open order failure")
             return super().fetch_open_orders()
@@ -1080,6 +1172,7 @@ def test_next_falls_back_to_cached_remote_open_orders_on_sync_failure():
 
 
 def test_broker_restart_rehydrates_account_positions_and_remote_open_orders():
+    """Test that broker restart rehydrates account positions and remote open orders."""
     client = FakeBtApiClient(
         balance={"cash": 1000.0, "value": 1200.0},
         positions=[{"instrument": DEFAULT_SYMBOL, "volume": 1, "price": 100.0}],
@@ -1124,8 +1217,13 @@ def test_broker_restart_rehydrates_account_positions_and_remote_open_orders():
 
 
 def test_broker_start_tolerates_initial_open_order_sync_failure():
+    """Test that broker start tolerates initial open order sync failure."""
+
     class FlakyOpenOrdersClient(FakeBtApiClient):
+        """Client that fails to fetch open orders for testing startup tolerance."""
+
         def fetch_open_orders(self):
+            """Fetch open orders that always fails."""
             raise RuntimeError("open orders unavailable during startup")
 
     client = FlakyOpenOrdersClient(
@@ -1157,8 +1255,13 @@ def test_broker_start_tolerates_initial_open_order_sync_failure():
 
 
 def test_broker_start_is_idempotent_while_store_remains_connected():
+    """Test that broker start is idempotent while store remains connected."""
+
     class CountingClient(FakeBtApiClient):
+        """Client that counts API calls for testing idempotency."""
+
         def __init__(self):
+            """Initialize the counting client."""
             super().__init__(
                 balance={"cash": 1000.0, "value": 1200.0},
                 positions=[{"instrument": DEFAULT_SYMBOL, "volume": 1, "price": 100.0}],
@@ -1169,14 +1272,17 @@ def test_broker_start_is_idempotent_while_store_remains_connected():
             self.open_order_calls = 0
 
         def get_balance(self):
+            """Get balance and count the call."""
             self.balance_calls += 1
             return super().get_balance()
 
         def get_positions(self):
+            """Get positions and count the call."""
             self.position_calls += 1
             return super().get_positions()
 
         def fetch_open_orders(self):
+            """Fetch open orders and count the call."""
             self.open_order_calls += 1
             return super().fetch_open_orders()
 
@@ -1203,6 +1309,7 @@ def test_broker_start_is_idempotent_while_store_remains_connected():
 
 
 def test_broker_start_raises_clear_error_when_store_is_missing():
+    """Test that broker start raises clear error when store is missing."""
     broker = BtApiBroker(store=None)
 
     with pytest.raises(ValueError, match="requires a BtApiStore instance"):
@@ -1210,6 +1317,7 @@ def test_broker_start_raises_clear_error_when_store_is_missing():
 
 
 def test_broker_queries_return_seeded_values_before_start():
+    """Test that broker queries return seeded values before start."""
     broker = BtApiBroker(store=None, cash=321.0, value=654.0)
 
     assert broker.getcash() == pytest.approx(321.0)
@@ -1218,6 +1326,7 @@ def test_broker_queries_return_seeded_values_before_start():
 
 
 def test_broker_getposition_returns_seeded_position_before_start():
+    """Test that broker getposition returns seeded position before start."""
     broker = BtApiBroker(store=None)
     data = type("SeededData", (), {"_name": DEFAULT_SYMBOL})()
     broker.positions[DEFAULT_SYMBOL] = bt.position.Position(size=2.0, price=99.5)
@@ -1232,6 +1341,7 @@ def test_broker_getposition_returns_seeded_position_before_start():
 
 
 def test_broker_getposition_returns_empty_position_for_untracked_data_before_start():
+    """Test that broker getposition returns empty position for untracked data before start."""
     broker = BtApiBroker(store=None)
     data = type("UntrackedData", (), {"_name": "OTHER"})()
 
@@ -1242,6 +1352,7 @@ def test_broker_getposition_returns_empty_position_for_untracked_data_before_sta
 
 
 def test_broker_open_order_queries_return_cached_snapshot_before_start():
+    """Test that broker open order queries return cached snapshot before start."""
     broker = BtApiBroker(store=None)
     broker._remote_open_orders_snapshot = [{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}]
 
@@ -1258,6 +1369,7 @@ def test_broker_open_order_queries_return_cached_snapshot_before_start():
 
 
 def test_broker_open_order_queries_return_empty_list_before_start_when_snapshot_is_empty():
+    """Test that broker open order queries return empty list before start when snapshot is empty."""
     broker = BtApiBroker(store=None)
 
     assert broker.fetch_open_orders() == []
@@ -1266,6 +1378,7 @@ def test_broker_open_order_queries_return_empty_list_before_start_when_snapshot_
 
 
 def test_broker_stop_is_silent_noop_when_store_is_missing():
+    """Test that broker stop is silent noop when store is missing."""
     broker = BtApiBroker(store=None)
     broker._live_started = True
 
@@ -1275,12 +1388,18 @@ def test_broker_stop_is_silent_noop_when_store_is_missing():
 
 
 def test_broker_stop_is_silent_noop_when_store_is_already_disconnected():
+    """Test that broker stop is a silent noop when store is already disconnected."""
+
     class DisconnectedStore:
+        """Store that is already disconnected."""
+
         def __init__(self):
+            """Initialize the disconnected store."""
             self.is_connected = False
             self.stop_calls = 0
 
         def stop(self):
+            """Stop the store."""
             self.stop_calls += 1
 
     store = DisconnectedStore()
@@ -1294,6 +1413,7 @@ def test_broker_stop_is_silent_noop_when_store_is_already_disconnected():
 
 
 def test_broker_runtime_helpers_update_local_state_without_store():
+    """Test that broker runtime helpers update local state without store."""
     broker = BtApiBroker(store=None)
     broker._live_started = True
 
@@ -1318,12 +1438,14 @@ def test_broker_runtime_helpers_update_local_state_without_store():
 
 
 def test_get_notification_returns_none_when_queue_is_empty():
+    """Test that get_notification returns None when queue is empty."""
     broker = BtApiBroker(store=None)
 
     assert broker.get_notification() is None
 
 
 def test_get_notification_returns_queued_order_clone_and_drains_queue(started_stack):
+    """Test that get_notification returns queued order clone and drains queue."""
     _client, _store, data, broker = started_stack
 
     order = broker.buy(
@@ -1344,6 +1466,7 @@ def test_get_notification_returns_queued_order_clone_and_drains_queue(started_st
 
 
 def test_broker_stop_is_idempotent_and_does_not_duplicate_store_disconnect_events():
+    """Test that broker stop is idempotent and does not duplicate store disconnect events."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
     )
@@ -1472,6 +1595,7 @@ def test_trading_controls_batch_cancel_and_force_logout():
 
 
 def test_batch_cancel_returns_empty_summary_when_no_orders_are_open(started_stack):
+    """Test that batch cancel returns empty summary when no orders are open."""
     client, store, _data, broker = started_stack
 
     try:
@@ -1498,6 +1622,7 @@ def test_batch_cancel_returns_empty_summary_when_no_orders_are_open(started_stac
 
 
 def test_batch_cancel_skips_non_alive_orders_without_remote_cancel(started_stack):
+    """Test that batch cancel skips non-alive orders without remote cancel."""
     client, store, data, broker = started_stack
 
     try:
@@ -1528,6 +1653,7 @@ def test_batch_cancel_skips_non_alive_orders_without_remote_cancel(started_stack
 
 
 def test_force_logout_followed_by_stop_does_not_duplicate_store_disconnect_events():
+    """Test that force logout followed by stop does not duplicate store disconnect events."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
     )
@@ -1549,16 +1675,23 @@ def test_force_logout_followed_by_stop_does_not_duplicate_store_disconnect_event
 
 
 def test_force_logout_is_noop_for_disconnected_store_but_still_emits_runtime_event():
+    """Test that force logout is noop for disconnected store but still emits runtime event."""
+
     class DisconnectedStore:
+        """Store that is disconnected for testing."""
+
         def __init__(self):
+            """Initialize the disconnected store."""
             self.is_connected = False
             self.stop_calls = 0
             self.events = []
 
         def stop(self):
+            """Stop the store."""
             self.stop_calls += 1
 
         def emit_runtime_event(self, event_type, **kwargs):
+            """Emit a runtime event."""
             self.events.append((event_type, kwargs))
 
     store = DisconnectedStore()
@@ -1633,6 +1766,7 @@ def test_remote_trade_updates_complete_orders_and_positions():
 
 
 def test_remote_trade_updates_split_commission_when_a_fill_reverses_position():
+    """Test that remote trade updates split commission when a fill reverses position."""
     client = FakeBtApiClient(
         positions=[{"instrument": DEFAULT_SYMBOL, "direction": "short", "volume": 1, "price": 100.0}],
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},

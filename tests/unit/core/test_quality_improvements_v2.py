@@ -618,11 +618,18 @@ class TestTimezoneUtils:
     def test_localizer_adds_localize(self):
         """Localizer adds localize method to tz without one."""
         class SimpleTZ(datetime.tzinfo):
+            """Simple timezone for testing."""
+
             def utcoffset(self, dt):
+                """Return UTC offset."""
                 return datetime.timedelta(hours=5)
+
             def dst(self, dt):
+                """Return DST offset."""
                 return datetime.timedelta(0)
+
             def tzname(self, dt):
+                """Return timezone name."""
                 return "TEST"
 
         tz = SimpleTZ()

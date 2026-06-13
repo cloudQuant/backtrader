@@ -1,3 +1,5 @@
+"""Mid-frequency integration tests for channel-based data feeding."""
+
 import backtrader as bt
 import pytest
 
@@ -9,20 +11,33 @@ from backtrader.order import Order
 
 
 class MemoryChannel(DataChannel):
+    """In-memory data channel for testing."""
+
     def __init__(self, channel_type, symbol, events):
+        """Initialize the memory channel.
+
+        Args:
+            channel_type: Type of the channel.
+            symbol: Symbol for the channel.
+            events: Iterable of events to yield.
+        """
         super().__init__(symbol=symbol, validate=False, auto_fix=False)
         self.channel_type = channel_type
         self._events = list(events)
 
     def load(self):
+        """Yield events from the internal list."""
         for event in self._events:
             yield event
 
 
 class MidFreqIntegrationStrategy(bt.Strategy):
+    """Strategy for mid-frequency integration testing."""
+
     params = (("symbol", "BTC/USDT"),)
 
     def __init__(self):
+        """Initialize the strategy."""
         self.context_available = False
         self.completed_sides = []
         self.completed_refs = set()
@@ -30,9 +45,11 @@ class MidFreqIntegrationStrategy(bt.Strategy):
         self._data_obj = type("Data", (), {"_name": self.p.symbol, "symbol": self.p.symbol})()
 
     def start(self):
+        """Mark if context is available."""
         self.context_available = hasattr(self, "context")
 
     def notify_order(self, order):
+        """Track completed orders."""
         if order.status == order.Completed and order.ref not in self.completed_refs:
             self.completed_refs.add(order.ref)
             self.completed_sides.append("buy" if order.isbuy() else "sell")
@@ -40,6 +57,7 @@ class MidFreqIntegrationStrategy(bt.Strategy):
             self.pending_order = None
 
     def notify_tick(self, tick):
+        """Execute orders based on tick, context, and ratio."""
         if tick.symbol != self.p.symbol or self.pending_order is not None:
             return
 
@@ -59,6 +77,7 @@ class MidFreqIntegrationStrategy(bt.Strategy):
 
 
 def test_midfreq_single_symbol_channel_run_uses_context_and_tick_execution():
+    """Test midfreq single symbol channel run uses context and tick execution."""
     symbol = "BTC/USDT"
     tick_channel = MemoryChannel(
         "tick",

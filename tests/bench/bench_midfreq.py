@@ -1,3 +1,4 @@
+"""Mid-frequency benchmark tests."""
 import time
 
 import pytest
@@ -8,6 +9,7 @@ from backtrader.events import BarEvent, OrderBookSnapshot, TickEvent
 
 @pytest.mark.slow
 def test_midfreq_runtime_baseline_100k_ticks_1000_bars_under_30_seconds():
+    """Test midfreq runtime baseline 100k ticks 1000 bars under 30 seconds."""
     broker = MixBroker(cash=100000.0, max_ob_window=100, max_bar_history=200)
 
     start = time.perf_counter()
@@ -39,6 +41,7 @@ def test_midfreq_runtime_baseline_100k_ticks_1000_bars_under_30_seconds():
 
 @pytest.mark.slow
 def test_midfreq_get_ob_ratio_average_latency_under_1ms():
+    """Test midfreq get_ob_ratio average latency under 1ms."""
     broker = MixBroker(cash=100000.0, max_ob_window=100)
     context = broker.get_context()
 

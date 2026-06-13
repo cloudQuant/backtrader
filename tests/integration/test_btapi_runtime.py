@@ -17,6 +17,15 @@ from tests.fixtures.fake_btapi import (
 
 
 def _run_cerebro_with_timeout(cerebro, timeout=0.5):
+    """Run cerebro with a timeout that stops it after the specified seconds.
+
+    Args:
+        cerebro: Cerebro instance to run.
+        timeout: Seconds before stopping cerebro.
+
+    Returns:
+        Cerebro run results.
+    """
     stop_timer = threading.Timer(timeout, cerebro.runstop)
     stop_timer.daemon = True
     stop_timer.start()
@@ -78,7 +87,10 @@ def test_btapi_feed_dispatches_tick_and_bar_events_before_next():
     cerebro = bt.Cerebro()
 
     class TickBarStrategy(bt.Strategy):
+        """Strategy to test tick and bar event dispatch ordering."""
+
         def __init__(self):
+            """Initialize tracking counters."""
             self.tick_count = 0
             self.bar_count = 0
             self.next_count = 0
@@ -87,16 +99,19 @@ def test_btapi_feed_dispatches_tick_and_bar_events_before_next():
             self.last_bar = None
 
         def notify_tick(self, tick):
+            """Record tick event."""
             self.tick_count += 1
             self.last_tick = tick
             self.event_order.append("tick")
 
         def notify_bar(self, bar):
+            """Record bar event."""
             self.bar_count += 1
             self.last_bar = bar
             self.event_order.append("bar")
 
         def next(self):
+            """Stop on first bar."""
             self.next_count += 1
             self.event_order.append("next")
             self.cerebro.runstop()
@@ -122,6 +137,7 @@ def test_btapi_feed_dispatches_tick_and_bar_events_before_next():
 
 @pytest.mark.integration
 def test_btapi_feed_dispatches_orderbook_events_to_strategy():
+    """Orderbook events should be dispatched to the strategy via notify_orderbook."""
     client = FakeBtApiClient(
         live_ticks={
             DEFAULT_SYMBOL: [
@@ -147,16 +163,21 @@ def test_btapi_feed_dispatches_orderbook_events_to_strategy():
     cerebro = bt.Cerebro()
 
     class OrderBookStrategy(bt.Strategy):
+        """Strategy to test orderbook event dispatch."""
+
         def __init__(self):
+            """Initialize tracking counters."""
             self.orderbook_count = 0
             self.last_orderbook = None
             self.next_count = 0
 
         def notify_orderbook(self, orderbook):
+            """Record orderbook event."""
             self.orderbook_count += 1
             self.last_orderbook = orderbook
 
         def next(self):
+            """Stop on first bar."""
             self.next_count += 1
             self.cerebro.runstop()
 
@@ -207,14 +228,19 @@ def test_btapi_multidata_waits_for_all_completed_bars_before_next():
     cerebro = bt.Cerebro()
 
     class MultiDataStrategy(bt.Strategy):
+        """Strategy to test multi-data bar event dispatch."""
+
         def __init__(self):
+            """Initialize tracking lists."""
             self.bar_symbols = []
             self.next_count = 0
 
         def notify_bar(self, bar):
+            """Record bar symbol."""
             self.bar_symbols.append(bar.symbol)
 
         def next(self):
+            """Stop on first bar."""
             self.next_count += 1
             self.cerebro.runstop()
 
@@ -246,10 +272,14 @@ def test_btapi_broker_keeps_live_run_waiting_before_first_tick():
     cerebro = bt.Cerebro()
 
     class WaitingStrategy(bt.Strategy):
+        """Strategy to test waiting behavior before first tick."""
+
         def __init__(self):
+            """Initialize counter."""
             self.next_count = 0
 
         def next(self):
+            """Count bars."""
             self.next_count += 1
 
     cerebro.setbroker(broker)
@@ -290,15 +320,20 @@ def test_btapi_remote_trade_updates_reach_strategy_notifications():
     cerebro = bt.Cerebro()
 
     class RemoteFillStrategy(bt.Strategy):
+        """Strategy to test remote fill handling."""
+
         def __init__(self):
+            """Initialize tracking lists."""
             self.submitted = False
             self.order_statuses = []
             self.trade_events = []
 
         def notify_order(self, order):
+            """Record order status."""
             self.order_statuses.append(order.getstatusname())
 
         def notify_trade(self, trade):
+            """Record trade event."""
             self.trade_events.append(
                 {
                     "isopen": trade.isopen,
@@ -309,6 +344,7 @@ def test_btapi_remote_trade_updates_reach_strategy_notifications():
             )
 
         def next(self):
+            """Execute on each bar: submit order and push remote fill on first bar."""
             if not self.submitted:
                 self.submitted = True
                 order = self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)

@@ -1,3 +1,4 @@
+"""Tests for MixBroker mid-frequency operations."""
 import pytest
 
 from backtrader.brokers.mixbroker import MixBroker
@@ -6,13 +7,17 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 def test_mixbroker_process_bar_only_updates_low_frequency_state():
+    """Test MixBroker process bar only updates low frequency state."""
     data = DummyData()
     broker = MixBroker(cash=1000.0)
     order = broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Market)
@@ -36,6 +41,7 @@ def test_mixbroker_process_bar_only_updates_low_frequency_state():
 
 
 def test_mixbroker_maintains_orderbook_window_and_bar_indicators():
+    """Test MixBroker maintains orderbook window and bar indicators."""
     symbol = "BTC/USDT"
     broker = MixBroker(max_ob_window=2, max_bar_history=25)
 
@@ -69,6 +75,7 @@ def test_mixbroker_maintains_orderbook_window_and_bar_indicators():
 
 
 def test_mixbroker_keeps_tick_as_only_execution_path():
+    """Test MixBroker keeps tick as only execution path."""
     data = DummyData()
     broker = MixBroker(cash=1000.0)
     broker.setcommission(commission=0.0, name=data.name)

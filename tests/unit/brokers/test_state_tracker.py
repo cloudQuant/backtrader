@@ -1,9 +1,11 @@
+"""Tests for StateTracker functionality."""
 import pytest
 
 from backtrader.brokers.hft import StateTracker
 
 
 def test_state_tracker_tracks_fill_aggregates_and_snapshot():
+    """Test StateTracker tracks fill aggregates and snapshot."""
     tracker = StateTracker()
     tracker.on_fill("BTC/USDT", 100.0, 2.0, 0.5)
     tracker.on_fill("BTC/USDT", 110.0, -1.0, 0.25)
@@ -18,6 +20,7 @@ def test_state_tracker_tracks_fill_aggregates_and_snapshot():
 
 
 def test_state_tracker_snapshot_all_and_reset():
+    """Test StateTracker snapshot all and reset."""
     tracker = StateTracker()
     tracker.on_fill("BTC/USDT", 100.0, 1.0, 0.1)
     tracker.on_fill("ETH/USDT", 200.0, 2.0, 0.2)

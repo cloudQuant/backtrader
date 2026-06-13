@@ -16,45 +16,77 @@ from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar,
 
 
 def _read_json_lines(path):
+    """Read JSON lines from a file and return a list of parsed objects."""
     with open(path, "r", encoding="utf-8") as handle:
         return [json.loads(line) for line in handle if line.strip()]
 
 
 class MemoryChannel(DataChannel):
+    """In-memory data channel for testing."""
+
     def __init__(self, channel_type, symbol, events):
+        """Initialize the memory channel.
+
+        Args:
+            channel_type: Type of the channel.
+            symbol: Symbol for the channel.
+            events: Iterable of events to yield.
+        """
         super().__init__(symbol=symbol, validate=False, auto_fix=False)
         self.channel_type = channel_type
         self._events = list(events)
 
     def load(self):
+        """Yield events from the internal list."""
         for event in self._events:
             yield event
 
 
 class _ScalarLine:
+    """Minimal line-like object for testing."""
+
     def __init__(self, value=0.0):
+        """Initialize with a scalar value.
+
+        Args:
+            value: Scalar value to return for all indices.
+        """
         self.value = value
 
     def __getitem__(self, index):
+        """Return the scalar value."""
         return self.value
 
     def __setitem__(self, index, value):
+        """Set the scalar value."""
         self.value = value
 
     def datetime(self, index=0):
+        """Convert value to datetime using backtrader's num2date."""
         return bt.num2date(self.value)
 
     def date(self, index=0):
+        """Return date portion of datetime."""
         return self.datetime(index).date()
 
 
 class _PlaceholderParams:
+    """Placeholder params object with a default sessionend time."""
+
     def __init__(self):
+        """Initialize with default session end time."""
         self.sessionend = dt.time(23, 59, 59, 999990)
 
 
 class ChannelPlaceholderData:
+    """Minimal data feed placeholder for testing."""
+
     def __init__(self, symbol):
+        """Initialize with the given symbol.
+
+        Args:
+            symbol: The symbol name.
+        """
         self._name = symbol
         self.symbol = symbol
         self._compensate = None
@@ -64,17 +96,21 @@ class ChannelPlaceholderData:
         self.close = _ScalarLine(0.0)
 
     def __len__(self):
+        """Return the current length."""
         return int(self._len)
 
     def __bool__(self):
+        """Always return True."""
         return True
 
     @staticmethod
     def date2num(value):
+        """Convert date to backtrader numeric format."""
         return bt.date2num(value)
 
     @staticmethod
     def num2date(value):
+        """Convert backtrader numeric format to date."""
         return bt.num2date(value)
 
 
@@ -101,10 +137,14 @@ def test_trade_logger_records_store_and_data_runtime_events(tmp_path):
     cerebro = bt.Cerebro()
 
     class RuntimeStrategy(bt.Strategy):
+        """Strategy for testing runtime event recording."""
+
         def __init__(self):
+            """Initialize the strategy."""
             self._routed = False
 
         def next(self):
+            """Execute on each bar: submit and cancel a limit order, then stop."""
             if not self._routed:
                 self._routed = True
                 order = self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
@@ -164,10 +204,14 @@ def test_trade_logger_records_local_rejects_in_error_log(tmp_path):
     cerebro = bt.Cerebro()
 
     class RejectingStrategy(bt.Strategy):
+        """Strategy that submits an order expected to be rejected."""
+
         def __init__(self):
+            """Initialize the strategy."""
             self._sent = False
 
         def next(self):
+            """Execute on each bar: submit a limit order that will be rejected, then stop."""
             if not self._sent:
                 self._sent = True
                 self.buy(data=self.datas[0], size=1, price=100.3, exectype=bt.Order.Limit)
@@ -210,11 +254,15 @@ def test_trade_logger_records_monitor_thresholds_and_duplicates(tmp_path):
     cerebro = bt.Cerebro()
 
     class MonitoringStrategy(bt.Strategy):
+        """Strategy for testing threshold warnings and duplicate detection."""
+
         def __init__(self):
+            """Initialize the strategy."""
             self.bar_count = 0
             self.orders = []
 
         def next(self):
+            """Execute on each bar: submit orders and test duplicate detection."""
             self.bar_count += 1
             if self.bar_count == 1:
                 self.orders.append(
@@ -277,11 +325,15 @@ def test_trade_logger_records_batch_cancel_runtime_events(tmp_path):
     cerebro = bt.Cerebro()
 
     class BatchCancelStrategy(bt.Strategy):
+        """Strategy for testing batch order cancellation."""
+
         def __init__(self):
+            """Initialize the strategy."""
             self.orders = []
             self.bar_count = 0
 
         def next(self):
+            """Execute on each bar: submit orders and batch cancel on bar 2."""
             self.bar_count += 1
             if self.bar_count == 1:
                 self.orders.append(
@@ -320,7 +372,10 @@ def test_trade_logger_records_batch_cancel_failures_in_error_log(tmp_path):
     """Batch-cancel failures should be persisted into error.log."""
 
     class FailingCancelClient(FakeBtApiClient):
+        """Fake client that fails cancel for specific order."""
+
         def cancel_order(self, order_ref, dataname=None):
+            """Cancel order, failing for btapi-2."""
             if order_ref == "btapi-2":
                 raise RuntimeError("remote cancel rejected")
             return super().cancel_order(order_ref, dataname=dataname)
@@ -340,11 +395,15 @@ def test_trade_logger_records_batch_cancel_failures_in_error_log(tmp_path):
     cerebro = bt.Cerebro()
 
     class BatchCancelFailureStrategy(bt.Strategy):
+        """Strategy for testing batch cancel failure handling."""
+
         def __init__(self):
+            """Initialize the strategy."""
             self.orders = []
             self.bar_count = 0
 
         def next(self):
+            """Execute on each bar: submit orders and trigger batch cancel on bar 2."""
             self.bar_count += 1
             if self.bar_count == 1:
                 self.orders.append(
@@ -398,7 +457,10 @@ def test_trade_logger_records_reconnect_success_in_system_log(tmp_path):
     cerebro = bt.Cerebro()
 
     class ReconnectStrategy(bt.Strategy):
+        """Strategy for testing reconnect event recording."""
+
         def next(self):
+            """Stop on first bar."""
             self.cerebro.runstop()
 
     cerebro.setbroker(broker)
@@ -433,9 +495,12 @@ def test_trade_logger_records_channel_mode_runtime_logs_without_datas(tmp_path):
     queue = StreamingEventQueue(channels=[tick_channel], preload_window=1.0, adaptive=False)
 
     class ChannelTradeLoggerStrategy(bt.Strategy):
+        """Strategy for testing channel mode TradeLogger logging."""
+
         params = (("symbol", symbol),)
 
         def __init__(self):
+            """Initialize the strategy."""
             self.pending_order = None
             self.completed_orders = 0
             self._last_order_status = {}
@@ -445,9 +510,11 @@ def test_trade_logger_records_channel_mode_runtime_logs_without_datas(tmp_path):
 
         @property
         def data_obj(self):
+            """Return placeholder data for the symbol."""
             return self.placeholder_data[self.p.symbol]
 
         def notify_tick(self, tick):
+            """Handle tick events: submit orders based on position."""
             if tick.symbol != self.p.symbol or self.pending_order is not None:
                 return
 
@@ -458,6 +525,7 @@ def test_trade_logger_records_channel_mode_runtime_logs_without_datas(tmp_path):
                 self.pending_order = self.sell(data=self.data_obj, size=1, exectype=bt.Order.Market)
 
         def notify_order(self, order):
+            """Track order status changes and count completions."""
             previous_status = self._last_order_status.get(order.ref)
             if previous_status == order.status:
                 return

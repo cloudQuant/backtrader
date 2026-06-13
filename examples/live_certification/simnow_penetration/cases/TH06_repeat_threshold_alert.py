@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run TH06 repeat threshold alert test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -42,16 +47,25 @@ def run(report_dir):
                 )
 
                 class RepeatOrderStrategy(bt.Strategy):
+                    """Strategy for testing repeat order threshold alert."""
+
                     def __init__(self):
+                        """Initialize repeat order strategy."""
                         self.bar_count = 0
                         self.orders_placed = 0
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         if order.getstatusname() in ("Canceled", "Rejected"):
                             if self.orders_placed >= 3:
                                 self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and place repeat orders to trigger threshold."""
                         self.bar_count += 1
                         if self.orders_placed >= 3:
                             return

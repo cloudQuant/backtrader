@@ -1,3 +1,4 @@
+"""Tests for TickBroker order semantics (IOC, FOK, modify, stop)."""
 import pytest
 
 from backtrader.brokers.hft import QueueExchangeModel
@@ -7,13 +8,17 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 def test_tickbroker_ioc_cancels_remainder_after_partial_fill():
+    """Test TickBroker IOC cancels remainder after partial fill."""
     data = DummyData()
     broker = TickBroker(cash=1000.0, exchange_model=QueueExchangeModel())
     broker.setcommission(commission=0.0, name=data.name)
@@ -36,6 +41,7 @@ def test_tickbroker_ioc_cancels_remainder_after_partial_fill():
 
 
 def test_tickbroker_fok_rejects_when_liquidity_is_insufficient():
+    """Test TickBroker FOK rejects when liquidity is insufficient."""
     data = DummyData()
     broker = TickBroker(cash=1000.0, exchange_model=QueueExchangeModel())
     order = broker.buy(owner=None, data=data, size=3, price=101.0, exectype=Order.Limit)
@@ -55,6 +61,7 @@ def test_tickbroker_fok_rejects_when_liquidity_is_insufficient():
 
 
 def test_tickbroker_modify_replaces_pending_order():
+    """Test TickBroker modify replaces pending order."""
     data = DummyData()
     broker = TickBroker(cash=1000.0)
     order = broker.buy(owner=None, data=data, size=1, price=99.0, exectype=Order.Limit)
@@ -69,6 +76,7 @@ def test_tickbroker_modify_replaces_pending_order():
 
 
 def test_tickbroker_stop_and_stoplimit_paths_execute():
+    """Test TickBroker stop and stop-limit paths execute."""
     data = DummyData()
     broker = TickBroker(cash=1000.0)
     broker.setcommission(commission=0.0, name=data.name)
@@ -93,6 +101,7 @@ def test_tickbroker_stop_and_stoplimit_paths_execute():
 
 
 def test_tickbroker_recorder_tracks_fill_timeline():
+    """Test TickBroker recorder tracks fill timeline."""
     data = DummyData()
     broker = TickBroker(cash=1000.0)
     broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Market)
