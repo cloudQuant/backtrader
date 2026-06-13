@@ -447,7 +447,9 @@ class MatchingCore:
         remaining = getattr(getattr(order, "executed", None), "remsize", None)
         if remaining is None:
             remaining = getattr(order, "size", 0.0)
-        return abs(remaining)
+        if remaining is None:
+            remaining = 0.0
+        return abs(float(remaining))
 
     @staticmethod
     def _aggregate_exchange_fills(fills):

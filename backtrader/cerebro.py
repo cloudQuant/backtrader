@@ -36,6 +36,7 @@ import datetime
 import itertools
 import multiprocessing
 from datetime import timezone
+from typing import Dict
 
 from . import errors, feeds, indicator, linebuffer, observers
 from .brokers import BackBroker
@@ -424,6 +425,7 @@ class Cerebro(ParameterizedBase):
         self.feeds = []  # Data feeds
         self.datas = []  # Data objects
         self.datasbyname = collections.OrderedDict()  # Data lookup by name
+        self._channel_data_refs: Dict[str, ChannelDataRef] = {}
         self.strats = []  # Strategy classes/instances
         self.optcbs = []  # Optimization callbacks
         self.observers = []  # Observer classes
@@ -695,10 +697,8 @@ class Cerebro(ParameterizedBase):
 
         """
         # NOTE: *args (extra notify_timer args) are forwarded positionally after
-        # the named timer kwargs. mypy flags a potential owner/when collision,
-        # but _add_timer collects these into its own *args; ignore the false
-        # positive rather than reorder (which would change call semantics).
-        return self._add_timer(  # type: ignore[misc]
+        # the named timer kwargs; _add_timer collects them into its own *args.
+        return self._add_timer(
             owner=self,
             when=when,
             offset=offset,
@@ -1612,7 +1612,7 @@ class Cerebro(ParameterizedBase):
         channel = kwargs.pop("channel", None)
         if channel is not None:
             # _run_channel is dynamically typed; run() advertises -> list.
-            return self._run_channel(channel, **kwargs)  # type: ignore[no-any-return]
+            return self._run_channel(channel, **kwargs)
 
         # If no data, return empty list immediately
         if not self.datas:
@@ -1717,7 +1717,7 @@ class Cerebro(ParameterizedBase):
         # If not optimization parameters
         if not self._dooptimize:
             # avoid a list of list for regular cases
-            return self.runstrats[0]  # type: ignore[no-any-return]
+            return self.runstrats[0]
 
         return self.runstrats
 

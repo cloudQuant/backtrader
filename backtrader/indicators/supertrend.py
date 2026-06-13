@@ -391,11 +391,9 @@ class AdaptiveSuperTrendIndicator(Indicator):
 
     def preonce(self, start, end):
         """No-op: vectorised path uses the same per-bar logic as ``once``."""
-        pass
 
     def oncestart(self, start, end):
         """No-op: vectorised path uses the same per-bar logic as ``once``."""
-        pass
 
     def once(self, start, end):
         """Vectorised implementation of the adaptive SuperTrend.

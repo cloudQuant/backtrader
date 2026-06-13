@@ -1407,7 +1407,6 @@ def _create_ctp_gateway_wrapper_class():
             Returns:
                 None (bars not supported in this wrapper).
             """
-            return None
 
         def get_next_bar(self, symbol):
             """Get the next bar for the symbol.
@@ -1418,7 +1417,6 @@ def _create_ctp_gateway_wrapper_class():
             Returns:
                 None (bars not supported in this wrapper).
             """
-            return None
 
         def submit_order(self, payload):
             """Submit an order to the gateway.

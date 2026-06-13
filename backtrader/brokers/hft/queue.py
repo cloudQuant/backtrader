@@ -27,8 +27,10 @@ class NoQueueModel:
         remaining = getattr(getattr(order, "executed", None), "remsize", None)
         if remaining is None:
             remaining = getattr(order, "size", 0.0)
+        if remaining is None:
+            remaining = 0.0
         trade_volume = abs(getattr(trade_event, "volume", 0.0))
-        fillable = min(abs(remaining), trade_volume)
+        fillable = min(abs(float(remaining)), trade_volume)
         order._queue_fillable = fillable
         return fillable
 

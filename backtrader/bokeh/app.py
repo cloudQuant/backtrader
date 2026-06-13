@@ -6,6 +6,7 @@ Provides integration between Backtrader and Bokeh
 """
 
 from collections import OrderedDict
+from typing import Any
 
 from backtrader.utils.log_message import get_logger
 
@@ -19,7 +20,7 @@ except ImportError:
     PANDAS_AVAILABLE = False
 
 BOKEH_AVAILABLE = False
-Panel = None
+Panel: Any = None
 
 try:
     from bokeh.layouts import gridplot
@@ -30,12 +31,13 @@ try:
 
     # Handle different Bokeh versions for Panel
     try:
-        from bokeh.models import TabPanel as Panel
+        from bokeh.models import TabPanel as _Panel
     except ImportError:
         try:
-            from bokeh.models.widgets import Panel
+            from bokeh.models.widgets import Panel as _Panel
         except ImportError:
-            from bokeh.models import Panel
+            from bokeh.models import Panel as _Panel
+    Panel = _Panel
 except ImportError:
     # Bokeh is an optional dependency; BOKEH_AVAILABLE stays False when missing.
     pass

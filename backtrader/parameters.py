@@ -88,7 +88,7 @@ class ParameterDescriptor:
             return obj._param_manager.get(self.name, self.default)
 
         # Fallback: get from object attribute. _attr_name is a str post __set_name__.
-        return getattr(obj, self._attr_name, self.default)  # type: ignore[arg-type]
+        return getattr(obj, self._attr_name, self.default)
 
     def __set__(self, obj, value):
         """Set parameter value on object instance with validation."""
@@ -123,14 +123,14 @@ class ParameterDescriptor:
             obj._param_manager.set(self.name, value)
         else:
             # Fallback: set as object attribute (_attr_name is str post __set_name__).
-            setattr(obj, self._attr_name, value)  # type: ignore[arg-type]
+            setattr(obj, self._attr_name, value)
 
     def __delete__(self, obj):
         """Delete parameter value, reverting to default."""
         if hasattr(obj, "_param_manager"):
             obj._param_manager.reset(self.name)
-        elif hasattr(obj, self._attr_name):  # type: ignore[arg-type]
-            delattr(obj, self._attr_name)  # type: ignore[arg-type]
+        elif hasattr(obj, self._attr_name):
+            delattr(obj, self._attr_name)
 
     def validate(self, value: Any) -> bool:
         """

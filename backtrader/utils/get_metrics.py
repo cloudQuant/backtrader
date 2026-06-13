@@ -8,14 +8,12 @@ result as JSON). An alias
 :data:`extract_backtest_metrics` is also provided for callers that
 prefer the longer name.
 """
-from __future__ import absolute_import, division, print_function, unicode_literals
 
-from __future__ import annotations
+from __future__ import absolute_import, annotations, division, print_function, unicode_literals
 
 import json
 from pathlib import Path
 from typing import Any
-
 
 STANDARD_METRIC_FIELDS = (
     "bar_num",

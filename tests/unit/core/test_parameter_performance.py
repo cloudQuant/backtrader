@@ -351,6 +351,9 @@ class TestParameterAccessPerformance:
         Raises:
             AssertionError: If parameter access is slower than expected thresholds.
         """
+        if os.environ.get("COV_CORE_SOURCE"):
+            pytest.skip("coverage tracing makes microbenchmark timing unreliable")
+
         small_obj = self.SmallClass()
         medium_obj = self.MediumClass()
         large_obj = self.LargeClass()

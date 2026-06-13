@@ -1054,7 +1054,7 @@ class BackBroker(BrokerBase):
         if not self._fundhist:
             # _cash is a float here (init() ran before any backtest step);
             # None is only the pre-init sentinel used by get_cash().
-            self._value = self._cash + pos_value_unlever  # type: ignore[operator]
+            self._value = self._cash + pos_value_unlever
             self._fundval = (
                 self._value / self._fundshares
                 if self._fundshares
@@ -1084,7 +1084,7 @@ class BackBroker(BrokerBase):
         # Unleveraged position value
         self._valuemkt = pos_value_unlever
         # Leveraged account value
-        self._valuelever = self._cash + pos_value  # type: ignore[operator]
+        self._valuelever = self._cash + pos_value
         # Leveraged position value
         self._valuemktlever = pos_value
         # Leverage ratio
@@ -2287,7 +2287,7 @@ class BackBroker(BrokerBase):
                     credit += dcredit
                     pos.datetime = dt0  # mark last credit operation
 
-        self._cash -= credit  # type: ignore[operator]
+        self._cash -= credit
         # Process order history
         self._process_order_history()
 

@@ -462,6 +462,9 @@ class TestBrokerPerformance:
         Raises:
             AssertionError: If parameter access is slower than expected thresholds.
         """
+        if os.environ.get("COV_CORE_SOURCE"):
+            pytest.skip("coverage tracing makes microbenchmark timing unreliable")
+
         import time
 
         broker = bbroker.BackBroker()

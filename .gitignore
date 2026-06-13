@@ -168,9 +168,16 @@ examples/live_certification/hongyuan_penetration/*.docx
 
 # Local workspace / editor artifacts
 .benchmarks/
+.agent/
+.agents/
 .claude/
+.codebuddy/
 .cursor/
 .idea/
+.kiro/skills/
+.opencode/
+.qoder/
+.qwen/
 .ruff_cache/
 .vscode/
 _bmad/

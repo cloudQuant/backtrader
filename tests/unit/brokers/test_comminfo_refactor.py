@@ -520,6 +520,9 @@ class TestCommInfoPerformance:
         Raises:
             AssertionError: If performance is below threshold.
         """
+        if os.environ.get("COV_CORE_SOURCE"):
+            pytest.skip("coverage tracing makes microbenchmark timing unreliable")
+
         import time
 
         comm = refactored_comminfo.CommissionInfo(

@@ -93,16 +93,17 @@ class ResampleTailStrategy(bt.Strategy):
             self.daily_dt = self.datas[1].num2date(self.datas[1].datetime[0])
 
 
-def _run_intraday_to_daily_resample(last_timestamp):
-    index = pd.to_datetime(["2024-01-02 09:00", last_timestamp])
+def _run_intraday_to_daily_resample(timestamps):
+    index = pd.to_datetime(timestamps)
+    prices = [float(i + 1) for i in range(len(index))]
     frame = pd.DataFrame(
         {
-            "open": [1.0, 2.0],
-            "high": [1.0, 2.0],
-            "low": [1.0, 2.0],
-            "close": [1.0, 2.0],
-            "volume": [1.0, 1.0],
-            "openinterest": [0.0, 0.0],
+            "open": prices,
+            "high": prices,
+            "low": prices,
+            "close": prices,
+            "volume": [1.0] * len(index),
+            "openinterest": [0.0] * len(index),
         },
         index=index,
     )
@@ -126,14 +127,14 @@ def _run_intraday_to_daily_resample(last_timestamp):
 
 
 def test_intraday_to_daily_resample_does_not_flush_incomplete_final_day():
-    strategy = _run_intraday_to_daily_resample("2024-01-02 09:15")
+    strategy = _run_intraday_to_daily_resample(["2024-01-02 09:00"])
 
     assert strategy.daily_len == 0
     assert strategy.daily_dt is None
 
 
 def test_intraday_to_daily_resample_keeps_completed_final_day():
-    strategy = _run_intraday_to_daily_resample("2024-01-02 09:30")
+    strategy = _run_intraday_to_daily_resample(["2024-01-02 09:00", "2024-01-02 09:15"])
 
     assert strategy.daily_len == 1
     assert strategy.daily_dt == datetime.datetime(2024, 1, 2, 9, 30)

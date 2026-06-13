@@ -298,7 +298,7 @@ class Timer(ParameterizedBase):
         if dtwhen is None:
             # dwhen represents minimum time of current day
             # _when is the timer's time-of-day (a datetime.time from params).
-            dwhen = datetime.combine(ddate, self._when)  # type: ignore[arg-type]
+            dwhen = datetime.combine(ddate, self._when)
             # If there is time offset, dwhen is minimum time of current day plus time offset
             if self.get_param("offset"):
                 dwhen += self.get_param("offset")
