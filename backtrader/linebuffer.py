@@ -443,20 +443,36 @@ class LineBuffer(LineSingle, LineRootMixin):
             A slice of the underlying buffer
         """
         # Whether to use islice, use following syntax if true
+        start = self._idx + ago - size + 1
+        end = self._idx + ago + 1
         if self.useislice:
-            start = self._idx + ago - size + 1
-            end = self._idx + ago + 1
             values = list(islice(self.array, start, end))
         else:
             # If not using islice, directly slice the array
-            values = list(self.array[self._idx + ago - size + 1 : self._idx + ago + 1])
+            values = self.array[start:end]
+            if getattr(values, "typecode", None) == "d":
+                try:
+                    idx = values.index(INF)
+                    while True:
+                        values[idx] = 0.0
+                        idx = values.index(INF, idx + 1)
+                except ValueError:
+                    pass
+                try:
+                    idx = values.index(NEG_INF)
+                    while True:
+                        values[idx] = 0.0
+                        idx = values.index(NEG_INF, idx + 1)
+                except ValueError:
+                    pass
+                return values
 
         return array.array(
             "d",
             (
                 (
                     0.0
-                    if isinstance(value, float) and (value == INF or value == NEG_INF)
+                    if value == INF or value == NEG_INF
                     else value
                 )
                 for value in values

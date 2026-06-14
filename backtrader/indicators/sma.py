@@ -54,6 +54,7 @@ class MovingAverageSimple(MovingAverageBase):
         self._next_offsets = tuple(range(1 - self._period, 1))
         data = getattr(self, "data", None)
         self._data_getitem = data.__getitem__ if data is not None else None
+        self._data_get = data.get if data is not None else None
         self._sma_line = self.lines.sma
         self._fsum = math.fsum
 
@@ -69,11 +70,20 @@ class MovingAverageSimple(MovingAverageBase):
         values to avoid floating-point drift from incremental updates.
         """
         try:
-            data_getitem = self._data_getitem
-            if data_getitem is None:
-                data_getitem = self.data.__getitem__
-                self._data_getitem = data_getitem
-            prices = [float(data_getitem(i)) for i in self._next_offsets]
+            data_get = self._data_get
+            if data_get is None:
+                data = self.data
+                data_get = data.get
+                self._data_get = data_get
+                self._data_getitem = data.__getitem__
+
+            prices = data_get(size=self._period)
+            if len(prices) != self._period:
+                data_getitem = self._data_getitem
+                if data_getitem is None:
+                    data_getitem = self.data.__getitem__
+                    self._data_getitem = data_getitem
+                prices = [float(data_getitem(i)) for i in self._next_offsets]
             self._sma_line[0] = self._fsum(prices) / self._period
         except (AttributeError, ValueError, TypeError, IndexError):
             logger.debug("SMA next() failed", exc_info=True)
