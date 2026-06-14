@@ -22,6 +22,19 @@ from .utils.py3 import string_types
 
 logger = get_logger(__name__)
 
+_PARAMETER_ACCESSOR_DIRECT_ATTRS = frozenset(
+    {
+        "get",
+        "isdefault",
+        "items",
+        "keys",
+        "notdefault",
+        "params",
+        "to_dict",
+        "values",
+    }
+)
+
 
 class ParameterDescriptor:
     """
@@ -1046,12 +1059,18 @@ class ParameterAccessor:
         object.__setattr__(self, "_items_cache", None)
 
     def __getattribute__(self, name):
-        if name.startswith("_") or name in {"__class__", "__dict__"}:
+        if name.startswith("_") or name in _PARAMETER_ACCESSOR_DIRECT_ATTRS:
             return object.__getattribute__(self, name)
+        param_manager = object.__getattribute__(self, "_param_manager")
+        if (
+            name in param_manager._descriptors
+            or name in param_manager._values
+            or name in param_manager._lazy_defaults
+        ):
+            return param_manager.get(name)
         try:
             return object.__getattribute__(self, name)
         except AttributeError:
-            param_manager = object.__getattribute__(self, "_param_manager")
             return param_manager.get(name)
 
     def __getattr__(self, name):

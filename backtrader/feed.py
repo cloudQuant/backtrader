@@ -39,6 +39,9 @@ from .utils.py3 import range, string_types, zip
 
 logger = get_logger(__name__)
 
+_INF = float("inf")
+_NEG_INF = float("-inf")
+
 
 # Refactor: Remove metaclass, use normal class and initialization method
 class AbstractDataBase(dataseries.OHLCDateTime):
@@ -597,10 +600,12 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             tick_line_cache = []
             alias0 = self._getlinealias(0)
             self._tick_alias0 = "tick_" + alias0
-            self._line_alias0 = getattr(self.lines, alias0)
+            self._tick_last_line = getattr(self.lines, alias0)
             for lalias in self.getlinealiases():
                 if lalias != "datetime":
-                    tick_line_cache.append(("tick_" + lalias, getattr(self.lines, lalias)))
+                    tick_line_cache.append(
+                        ("tick_" + lalias, getattr(self.lines, lalias), lalias == alias0)
+                    )
             self._tick_line_cache = tick_line_cache
 
         if force:
@@ -613,10 +618,30 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         if should_fill:
             set_attr = object.__setattr__
-            for tick_name, line in self._tick_line_cache:
-                set_attr(self, tick_name, line[0])
+            tick_last = None
+            for tick_name, line, is_last in self._tick_line_cache:
+                current_idx = line._idx
+                lencount = line.lencount
+                if lencount > 0 and current_idx >= lencount:
+                    current_idx = lencount - 1
+                value = line.array[current_idx]
+                if value == _INF or value == _NEG_INF:
+                    value = 0.0
+                set_attr(self, tick_name, value)
+                if is_last:
+                    tick_last = value
 
-            set_attr(self, "tick_last", self._line_alias0[0])
+            if tick_last is None:
+                line = self._tick_last_line
+                current_idx = line._idx
+                lencount = line.lencount
+                if lencount > 0 and current_idx >= lencount:
+                    current_idx = lencount - 1
+                tick_last = line.array[current_idx]
+                if tick_last == _INF or tick_last == _NEG_INF:
+                    tick_last = 0.0
+
+            set_attr(self, "tick_last", tick_last)
 
     # Get time of next bar
     # PERFORMANCE OPTIMIZATION: Cache float("inf") as module-level constant

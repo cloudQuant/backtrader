@@ -679,6 +679,24 @@ class LineBuffer(LineSingle, LineRootMixin):
             value (variable): value to be set in new positions
             size (int): How many extra positions to enlarge the buffer
         """
+        if value is NAN and size == 1:
+            if not self._is_indicator:
+                clock = self._clock
+                if clock is not None:
+                    try:
+                        if self.lencount >= len(clock):
+                            return
+                    except Exception as e:
+                        logger.debug("Failed to check clock length in forward: %s", e)
+
+            if self.mode == self.QBuffer:
+                self.idx = self._idx + 1
+            else:
+                self._idx += 1
+            self.lencount += 1
+            self.array.append(self._default_value)
+            return
+
         # PERFORMANCE OPTIMIZATION: Direct attribute access (faster than __dict__.get)
         # Attributes are guaranteed to exist after __init__
         is_indicator = self._is_indicator
