@@ -390,9 +390,12 @@ class BackBroker(BrokerBase):
         self.short_positions = collections.defaultdict(Position)
         self._position_mode_frozen = False
         self._position_mode_frozen_reason = None
-        BrokerBase.set_param(
-            self, "position_mode", normalize_position_mode(self.get_param("position_mode"))
-        )
+        position_mode = normalize_position_mode(self.get_param("position_mode"))
+        BrokerBase.set_param(self, "position_mode", position_mode)
+        self._dual_side_mode = position_mode == POSITION_MODE_DUAL_SIDE
+        self._shortcash = self.get_param("shortcash")
+        self._checksubmit = self.get_param("checksubmit")
+        self._int2pnl = self.get_param("int2pnl")
 
     def init(self):
         """Initialize broker state and internal data structures.
@@ -492,7 +495,16 @@ class BackBroker(BrokerBase):
         if name == "position_mode":
             self._ensure_position_mode_mutable()
             value = normalize_position_mode(value)
-        return super().set_param(name, value, validate=validate)
+        result = super().set_param(name, value, validate=validate)
+        if name == "position_mode":
+            self._dual_side_mode = value == POSITION_MODE_DUAL_SIDE
+        elif name == "shortcash":
+            self._shortcash = value
+        elif name == "checksubmit":
+            self._checksubmit = value
+        elif name == "int2pnl":
+            self._int2pnl = value
+        return result
 
     def _freeze_position_mode(self, reason):
         self._position_mode_frozen = True
@@ -506,7 +518,12 @@ class BackBroker(BrokerBase):
             )
 
     def _is_dual_side_mode(self):
-        return normalize_position_mode(self.get_param("position_mode")) == POSITION_MODE_DUAL_SIDE
+        try:
+            return self._dual_side_mode
+        except AttributeError:
+            position_mode = normalize_position_mode(self.get_param("position_mode"))
+            self._dual_side_mode = position_mode == POSITION_MODE_DUAL_SIDE
+            return self._dual_side_mode
 
     def _normalize_order_meta(self, isbuy, kwargs):
         local_kwargs = dict(kwargs)
@@ -1028,7 +1045,7 @@ class BackBroker(BrokerBase):
         Returns:
             float: Portfolio value
         """
-        shortcash = self.get_param("shortcash")
+        shortcash = self._shortcash
         positions = self.positions
         getcommissioninfo = self.getcommissioninfo
 
@@ -1213,7 +1230,7 @@ class BackBroker(BrokerBase):
         """
         self._freeze_position_mode("first order submission")
         # If check is True and checksubmit is True
-        if check and self.get_param("checksubmit"):
+        if check and self._checksubmit:
             # Orderssubmit
             order.submit()
             # Append order to submitted
@@ -1589,7 +1606,7 @@ class BackBroker(BrokerBase):
             # Adjust to returned value for closed items & acquired opened items
             # If shortcash is True, closing value is calculated using comminfo.getvaluesize,
             # If shortcash is False, closing value is calculated using comminfo.getoperationcost
-            if self.get_param("shortcash"):
+            if self._shortcash:
                 closedvalue = comminfo.getvaluesize(-closed, pprice_orig)
             else:
                 closedvalue = comminfo.getoperationcost(closed, pprice_orig)
@@ -1623,7 +1640,7 @@ class BackBroker(BrokerBase):
         popened = opened
         if opened:
             # Calculate opening value
-            if self.get_param("shortcash"):
+            if self._shortcash:
                 openedvalue = comminfo.getvaluesize(opened, price)
             else:
                 openedvalue = comminfo.getoperationcost(opened, price)
@@ -1685,7 +1702,7 @@ class BackBroker(BrokerBase):
             # Update position
             position.update(execsize, price, data.datetime.datetime())
             # If closed and transferring interest to pnl, closing commission includes interest charges
-            if closed and self.get_param("int2pnl"):  # Assign accumulated interest data
+            if closed and self._int2pnl:  # Assign accumulated interest data
                 closedcomm += self.d_credit.pop(data, 0.0)
 
             # Execute and notify the order
@@ -1775,7 +1792,7 @@ class BackBroker(BrokerBase):
             psize, pprice, opened, closed = signed_position.update(size, price)
 
         if closed:
-            if self.get_param("shortcash"):
+            if self._shortcash:
                 closedvalue = comminfo.getvaluesize(-closed, pprice_orig)
             else:
                 closedvalue = comminfo.getoperationcost(closed, pprice_orig)
@@ -1794,7 +1811,7 @@ class BackBroker(BrokerBase):
 
         popened = opened
         if opened:
-            if self.get_param("shortcash"):
+            if self._shortcash:
                 openedvalue = comminfo.getvaluesize(opened, price)
             else:
                 openedvalue = comminfo.getoperationcost(opened, price)
@@ -1824,7 +1841,7 @@ class BackBroker(BrokerBase):
         if execsize:
             comminfo.confirmexec(execsize, price)
             signed_position.update(execsize, price, data.datetime.datetime())
-            if closed and self.get_param("int2pnl"):
+            if closed and self._int2pnl:
                 closedcomm += self.d_credit.pop(self._credit_key(data, position_side), 0.0)
 
             if actual_leg_position is not None:
@@ -2260,7 +2277,7 @@ class BackBroker(BrokerBase):
         while toactivate:
             toactivate.popleft().activate()
 
-        checksubmit = self.get_param("checksubmit")
+        checksubmit = self._checksubmit
         if checksubmit:
             self.check_submitted()
 

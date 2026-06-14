@@ -18,7 +18,7 @@ import sys
 
 from . import metabase
 from .dataseries import DataSeries
-from .linebuffer import LineActions, LineNum
+from .linebuffer import NAN, LineActions, LineNum
 from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
@@ -1768,7 +1768,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         if clock_len != len(self):
             if getattr(self, "_ltype", None) == LineIterator.IndType:
-                self.lines.forward(value=float("nan"))
+                self.lines.forward(value=NAN)
             else:
                 self.forward()
 

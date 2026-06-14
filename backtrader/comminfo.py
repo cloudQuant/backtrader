@@ -155,8 +155,31 @@ class CommInfoBase(ParameterizedBase):
         # Calculate interest rate (guard against None interest)
         interest = self.get_param("interest")
         self._creditrate = (interest or 0.0) / 365.0
+        self._margin = self.get_param("margin")
+        self._automargin = self.get_param("automargin")
+        self._leverage_param = self.get_param("leverage")
+        self._interest_long = self.get_param("interest_long")
 
     __getattribute__ = object.__getattribute__
+
+    def set_param(self, name, value, validate=True):
+        super().set_param(name, value, validate=validate)
+        if name == "margin":
+            self._margin = value
+        elif name == "automargin":
+            self._automargin = value
+        elif name == "leverage":
+            self._leverage_param = value
+        elif name == "interest_long":
+            self._interest_long = value
+        elif name == "interest":
+            self._creditrate = (value or 0.0) / 365.0
+        elif name == "mult":
+            self._mult = value
+        elif name == "stocklike":
+            self._stocklike = value
+        elif name == "commtype":
+            self._commtype = value
 
     def get_margin(self, price):
         """Returns the actual margin/guarantees needed for a single item of the
@@ -166,22 +189,22 @@ class CommInfoBase(ParameterizedBase):
           - Use param ``mult`` * ``price`` if ``automargin < 0``
           - Use param ``automargin`` * ``price`` if ``automargin > 0``
         """
-        automargin = self.get_param("automargin")
+        automargin = self._automargin
         if not automargin:
-            return self.get_param("margin")
+            return self._margin
         if automargin < 0:
-            return price * self.get_param("mult")
+            return price * self._mult
         return price * automargin
 
     def get_leverage(self):
         """Returns the level of leverage allowed for this commission scheme"""
-        return self.get_param("leverage")
+        return self._leverage_param
 
     def getsize(self, price, cash):
         """Returns the needed size to meet a cash operation at a given price"""
         if not price:
             return 0
-        leverage = self.get_param("leverage")
+        leverage = self._leverage_param
         if not self._stocklike:
             margin = self.get_margin(price)
             if not margin:
@@ -283,7 +306,7 @@ class CommInfoBase(ParameterizedBase):
         """Calculates the credit due for short selling or product specific"""
         size, price = pos.size, pos.price
 
-        if size > 0 and not self.get_param("interest_long"):
+        if size > 0 and not self._interest_long:
             return 0.0  # long positions not charged
 
         dt0 = dt.date()

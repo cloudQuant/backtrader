@@ -625,7 +625,9 @@ class LineBuffer(LineSingle, LineRootMixin):
         is_dt = self._is_datetime_line
 
         # Handle None/NaN values using fast detection
-        if (
+        if value is NAN:
+            value = self._default_value
+        elif (
             value is None
             or value != value
             or isinstance(value, float)
@@ -683,7 +685,9 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         # NaN is the only value that's not equal to itself
-        if (
+        if value is NAN:
+            value = self._default_value
+        elif (
             value is None
             or value != value
             or isinstance(value, float)
@@ -719,11 +723,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.lencount += size
 
         append_val = value
+        array = self.array
         if size == 1:
-            self.array.append(append_val)
+            array.append(append_val)
         else:
             # Batch extend for multiple positions
-            self.array.extend([append_val] * size)
+            array.extend([append_val] * size)
 
     # Move backward one step
     def backwards(self, size=1, force=False):
