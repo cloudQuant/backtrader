@@ -22,6 +22,28 @@ _HOURS_PER_DAY = 24.0
 _MINUTES_PER_DAY = 1440.0
 _SECONDS_PER_DAY = 86400.0
 _MICROSECONDS_PER_DAY = 86400000000.0
+_INF = float("inf")
+_NEG_INF = float("-inf")
+
+
+def _set_current_value(line, value):
+    """Set the current line slot, falling back when binding propagation is needed."""
+    if value == _INF or value == _NEG_INF:
+        value = line._default_value
+
+    if line.bindings:
+        line[0] = value
+        return
+
+    idx = line._idx
+    if idx < 0:
+        line[0] = value
+        return
+
+    try:
+        line.array[idx] = value
+    except IndexError:
+        line[0] = value
 
 
 class BacktraderCSVData(feed.CSVDataBase):
@@ -102,14 +124,70 @@ class BacktraderCSVData(feed.CSVDataBase):
                 )
             )
             offset = 1
-        # Set each line separately
-        line_datetime[0] = dtnum
-        line_open[0] = float(linetokens[offset])
-        line_high[0] = float(linetokens[offset + 1])
-        line_low[0] = float(linetokens[offset + 2])
-        line_close[0] = float(linetokens[offset + 3])
-        line_volume[0] = float(linetokens[offset + 4])
-        line_openinterest[0] = float(linetokens[offset + 5])
+        open_value = float(linetokens[offset])
+        high_value = float(linetokens[offset + 1])
+        low_value = float(linetokens[offset + 2])
+        close_value = float(linetokens[offset + 3])
+        volume_value = float(linetokens[offset + 4])
+        openinterest_value = float(linetokens[offset + 5])
+
+        idx_datetime = line_datetime._idx
+        idx_open = line_open._idx
+        idx_high = line_high._idx
+        idx_low = line_low._idx
+        idx_close = line_close._idx
+        idx_volume = line_volume._idx
+        idx_openinterest = line_openinterest._idx
+        if (
+            idx_datetime >= 0
+            and idx_open >= 0
+            and idx_high >= 0
+            and idx_low >= 0
+            and idx_close >= 0
+            and idx_volume >= 0
+            and idx_openinterest >= 0
+            and not line_datetime.bindings
+            and not line_open.bindings
+            and not line_high.bindings
+            and not line_low.bindings
+            and not line_close.bindings
+            and not line_volume.bindings
+            and not line_openinterest.bindings
+        ):
+            if open_value == _INF or open_value == _NEG_INF:
+                open_value = line_open._default_value
+            if high_value == _INF or high_value == _NEG_INF:
+                high_value = line_high._default_value
+            if low_value == _INF or low_value == _NEG_INF:
+                low_value = line_low._default_value
+            if close_value == _INF or close_value == _NEG_INF:
+                close_value = line_close._default_value
+            if volume_value == _INF or volume_value == _NEG_INF:
+                volume_value = line_volume._default_value
+            if openinterest_value == _INF or openinterest_value == _NEG_INF:
+                openinterest_value = line_openinterest._default_value
+
+            try:
+                line_datetime.array[idx_datetime] = dtnum
+                line_open.array[idx_open] = open_value
+                line_high.array[idx_high] = high_value
+                line_low.array[idx_low] = low_value
+                line_close.array[idx_close] = close_value
+                line_volume.array[idx_volume] = volume_value
+                line_openinterest.array[idx_openinterest] = openinterest_value
+                return True
+            except IndexError:
+                pass
+
+        # Fallback preserves binding propagation and LineBuffer boundary handling.
+        set_current = _set_current_value
+        set_current(line_datetime, dtnum)
+        set_current(line_open, open_value)
+        set_current(line_high, high_value)
+        set_current(line_low, low_value)
+        set_current(line_close, close_value)
+        set_current(line_volume, volume_value)
+        set_current(line_openinterest, openinterest_value)
 
         return True
 

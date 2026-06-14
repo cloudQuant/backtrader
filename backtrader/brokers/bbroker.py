@@ -365,6 +365,7 @@ class BackBroker(BrokerBase):
         self.notifs: collections.deque = collections.deque()
         self.d_credit = collections.defaultdict(float)
         self.positions = collections.defaultdict(Position)
+        self._no_open_positions = True
         self._toactivate: collections.deque = collections.deque()
         self.pending: collections.deque = collections.deque()
         self.orders = []
@@ -426,6 +427,7 @@ class BackBroker(BrokerBase):
         self._toactivate = collections.deque()  # to activate in next cycle
         # Position
         self.positions = collections.defaultdict(Position)
+        self._no_open_positions = True
         self.long_positions = collections.defaultdict(Position)
         self.short_positions = collections.defaultdict(Position)
         # Interest rate
@@ -1048,6 +1050,7 @@ class BackBroker(BrokerBase):
         shortcash = self._shortcash
         positions = self.positions
         getcommissioninfo = self.getcommissioninfo
+        dual_side_mode = self._dual_side_mode
 
         # If cash is added, add the cash to self._cash
         cash_addition = self._cash_addition
@@ -1056,7 +1059,27 @@ class BackBroker(BrokerBase):
             self._fundshares += c / self._fundval if self._fundval else 0.0
             self._cash += c
 
-        if self._is_dual_side_mode():
+        if datas is None and not self._fundhist and not dual_side_mode:
+            has_position = False
+            for pos in positions.values():
+                if pos:
+                    has_position = True
+                    break
+            if not has_position:
+                self._value = self._cash
+                self._fundval = (
+                    self._value / self._fundshares
+                    if self._fundshares
+                    else self.get_param("fundstartval")
+                )
+                self._valuemkt = 0.0
+                self._valuelever = self._cash
+                self._valuemktlever = 0.0
+                self._leverage = 0.0
+                self._unrealized = 0.0
+                return self._value if not lever else self._valuelever
+
+        if dual_side_mode:
             direct, pos_value, unrealized, pos_value_unlever = self._get_value_dual_side(
                 datas, lever, shortcash, getcommissioninfo
             )
@@ -2272,21 +2295,30 @@ class BackBroker(BrokerBase):
         ococheck = self._ococheck
         bracketize = self._bracketize
         try_exec = self._try_exec
+        dual_side_mode = self._dual_side_mode
 
         toactivate = self._toactivate
         while toactivate:
             toactivate.popleft().activate()
 
+        no_open_positions = False
+        if not dual_side_mode and not pending and not self.submitted and not self._userhist:
+            try:
+                no_open_positions = self._no_open_positions
+            except AttributeError:
+                no_open_positions = False
+
         checksubmit = self._checksubmit
-        if checksubmit:
+        if checksubmit and self.submitted:
             self.check_submitted()
 
         # Discount any cash for positions hold
         # Interest charges
         credit = 0.0
-        if self._is_dual_side_mode():
+        has_position = dual_side_mode
+        if dual_side_mode:
             for data, position_side, pos in self._iter_dual_side_positions():
-                if pos:
+                if pos.size:
                     comminfo = getcommissioninfo(data)
                     dt0 = data.datetime.datetime()
                     signed_position = self._make_signed_position(position_side, pos)
@@ -2294,9 +2326,10 @@ class BackBroker(BrokerBase):
                     d_credit[self._credit_key(data, position_side)] += dcredit
                     credit += dcredit
                     pos.datetime = dt0
-        else:
+        elif not no_open_positions:
             for data, pos in self.positions.items():
-                if pos:
+                if pos.size:
+                    has_position = True
                     comminfo = getcommissioninfo(data)
                     dt0 = data.datetime.datetime()
                     dcredit = comminfo.get_credit_interest(data, pos, dt0)
@@ -2306,40 +2339,43 @@ class BackBroker(BrokerBase):
 
         self._cash -= credit
         # Process order history
-        self._process_order_history()
+        if self._userhist:
+            self._process_order_history()
 
         # Iterate once over all elements of the pending queue
         # Add a None to pending orders
-        pending.append(None)
-        # Loop through pending orders once, break when reaching None
-        while True:
-            order = pending.popleft()
-            if order is None:
-                break
+        pending_processed = bool(pending)
+        if pending:
+            pending.append(None)
+            # Loop through pending orders once, break when reaching None
+            while True:
+                order = pending.popleft()
+                if order is None:
+                    break
 
-            if order.expire():
-                notify(order)
-                ococheck(order)
-                bracketize(order, cancel=True)
+                if order.expire():
+                    notify(order)
+                    ococheck(order)
+                    bracketize(order, cancel=True)
 
-            elif not order.active():
-                pending.append(order)  # cannot yet be processed
+                elif not order.active():
+                    pending.append(order)  # cannot yet be processed
 
-            else:
-                try_exec(order)
-                if order.alive():
-                    pending.append(order)
+                else:
+                    try_exec(order)
+                    if order.alive():
+                        pending.append(order)
 
-                elif order.status == Order.Completed:
-                    # a bracket parent order may have been executed
-                    bracketize(order)
+                    elif order.status == Order.Completed:
+                        # a bracket parent order may have been executed
+                        bracketize(order)
 
         # Operations have been executed ... adjust cash end of bar
         # At the end of bar, adjust cash based on position info
         cash = self._cash
-        if self._is_dual_side_mode():
+        if dual_side_mode:
             for data, position_side, pos in self._iter_dual_side_positions():
-                if pos:
+                if pos.size:
                     comminfo = getcommissioninfo(data)
                     close0 = data.close[0]
                     signed_position = self._make_signed_position(position_side, pos)
@@ -2350,18 +2386,47 @@ class BackBroker(BrokerBase):
             for data in set(self.long_positions) | set(self.short_positions) | set(self.positions):
                 self._sync_net_position(data)
         else:
-            for data, pos in self.positions.items():
-                # futures change cash every bar
-                if pos:
-                    comminfo = getcommissioninfo(data)
-                    close0 = data.close[0]
-                    cash += comminfo.cashadjust(pos.size, pos.adjbase, close0)
-                    # record the last adjustment price
-                    pos.adjbase = close0
+            if has_position or pending_processed or self._userhist:
+                for data, pos in self.positions.items():
+                    # futures change cash every bar
+                    if pos.size:
+                        comminfo = getcommissioninfo(data)
+                        close0 = data.close[0]
+                        cash += comminfo.cashadjust(pos.size, pos.adjbase, close0)
+                        # record the last adjustment price
+                        pos.adjbase = close0
 
         self._cash = cash
 
-        self._get_value()  # update value
+        if not has_position and (pending_processed or self._userhist):
+            if dual_side_mode:
+                for _data, _position_side, pos in self._iter_dual_side_positions():
+                    if pos.size:
+                        has_position = True
+                        break
+            else:
+                for pos in self.positions.values():
+                    if pos.size:
+                        has_position = True
+                        break
+
+        if not dual_side_mode:
+            self._no_open_positions = not has_position
+
+        if not has_position and not self._cash_addition and not self._fundhist:
+            self._value = self._cash
+            self._fundval = (
+                self._value / self._fundshares
+                if self._fundshares
+                else self.get_param("fundstartval")
+            )
+            self._valuemkt = 0.0
+            self._valuelever = self._cash
+            self._valuemktlever = 0.0
+            self._leverage = 0.0
+            self._unrealized = 0.0
+        else:
+            self._get_value()  # update value
 
 
 # Alias

@@ -1863,14 +1863,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         Updates indicators and calls notification methods.
         """
-        # Current clock data length
-        prev_len = len(self)
+        ltype = self._ltype
+        prev_len = None
+        if ltype not in (LineIterator.StratType, LineIterator.IndType):
+            prev_len = len(self)
         clock_len = self._clk_update()
 
-        if (
-            self._ltype not in (LineIterator.StratType, LineIterator.IndType)
-            and clock_len == prev_len
-        ):
+        if prev_len is not None and clock_len == prev_len:
             try:
                 clock = object.__getattribute__(self, "_clock")
             except AttributeError:
@@ -1878,13 +1877,18 @@ class LineIterator(LineIteratorMixin, LineSeries):
             if not _clock_is_replaying(clock):
                 return
 
+        filter_lineactions = False
         try:
-            datas = self.datas
+            datas = self._lineaction_datas
         except AttributeError:
-            datas = ()
+            try:
+                datas = self.datas
+            except AttributeError:
+                datas = ()
+            filter_lineactions = True
 
         for data in datas:
-            if not isinstance(data, LineActions) or not hasattr(data, "_next"):
+            if filter_lineactions and (not isinstance(data, LineActions) or not hasattr(data, "_next")):
                 continue
 
             data_clock = _lineaction_source_clock(data) or getattr(data, "_clock", None)
@@ -1904,16 +1908,40 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 indicator._next()
 
         # Call _notify function
-        self._notify()
+        skip_notify = False
+        if ltype == LineIterator.StratType:
+            try:
+                skip_notify = (
+                    self._skip_empty_notify
+                    and not self._orderspending
+                    and not self._tradespending
+                )
+            except AttributeError:
+                skip_notify = False
+        if not skip_notify:
+            self._notify()
 
-        if self._ltype == LineIterator.StratType and hasattr(self, "_next_strategy_lineactions"):
-            self._next_strategy_lineactions()
+        if ltype == LineIterator.StratType:
+            try:
+                has_strategy_next_lineactions = self._has_strategy_next_lineactions
+            except AttributeError:
+                has_strategy_next_lineactions = hasattr(self, "_next_strategy_lineactions")
+            if has_strategy_next_lineactions:
+                self._next_strategy_lineactions()
 
         # If _ltype is Strategy type
-        if self._ltype == LineIterator.StratType:
+        if ltype == LineIterator.StratType:
             # Support data feeds with different lengths
             # Get minperstatus, if < 0 call next, if == 0 call nextstart, if > 0 call prenext
-            minperstatus = self._getminperstatus()
+            try:
+                minperstatus = self._single_minperiod - self._single_minperiod_len_line.lencount
+                object.__setattr__(self, "_minperstatus", minperstatus)
+            except AttributeError:
+                minperstatus = self._getminperstatus()
+                try:
+                    object.__setattr__(self, "_minperstatus", minperstatus)
+                except AttributeError:
+                    pass
             if minperstatus < 0:
                 self.next()
             elif minperstatus == 0:

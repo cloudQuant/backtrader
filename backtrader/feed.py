@@ -590,12 +590,23 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             set_attr(self, tick_name, None)
 
         set_attr(self, "tick_last", None)
+        set_attr(self, "_tick_direct_filled", False)
 
     # If tick_xxx related attribute value is None, need to consider using bar data to fill
     def _tick_fill(self, force=False):
         # If nothing filled the tick_xxx attributes, the bar is the tick
         # PERFORMANCE OPTIMIZATION: Cache tick name/line pairs for faster access
-        tick_line_cache = getattr(self, "_tick_line_cache", None)
+        if not force:
+            try:
+                if object.__getattribute__(self, "_tick_direct_filled"):
+                    return
+            except AttributeError:
+                pass
+
+        try:
+            tick_line_cache = self._tick_line_cache
+        except AttributeError:
+            tick_line_cache = None
         if tick_line_cache is None:
             tick_line_cache = []
             alias0 = self._getlinealias(0)
@@ -621,10 +632,15 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             tick_last = None
             for tick_name, line, is_last in self._tick_line_cache:
                 current_idx = line._idx
-                lencount = line.lencount
-                if lencount > 0 and current_idx >= lencount:
-                    current_idx = lencount - 1
-                value = line.array[current_idx]
+                line_array = line.array
+                try:
+                    value = line_array[current_idx]
+                except IndexError:
+                    lencount = line.lencount
+                    if lencount > 0 and current_idx >= lencount:
+                        value = line_array[lencount - 1]
+                    else:
+                        raise
                 if value == _INF or value == _NEG_INF:
                     value = 0.0
                 set_attr(self, tick_name, value)
@@ -634,10 +650,15 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             if tick_last is None:
                 line = self._tick_last_line
                 current_idx = line._idx
-                lencount = line.lencount
-                if lencount > 0 and current_idx >= lencount:
-                    current_idx = lencount - 1
-                tick_last = line.array[current_idx]
+                line_array = line.array
+                try:
+                    tick_last = line_array[current_idx]
+                except IndexError:
+                    lencount = line.lencount
+                    if lencount > 0 and current_idx >= lencount:
+                        tick_last = line_array[lencount - 1]
+                    else:
+                        raise
                 if tick_last == _INF or tick_last == _NEG_INF:
                     tick_last = 0.0
 
@@ -719,7 +740,13 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # If data length is greater than cached data length, if it's ticks data, call _tick_nullify to generate tick_xxx attributes, then call load to try getting next bar; if ret is empty
         # return ret. If master data is None, if it's ticks data, need to call _tick_fill.
         # If own length is less than cached data length, move forward
-        if len(self) >= self.buflen():
+        try:
+            line_datetime = self._datetime_line
+            needs_load = line_datetime.lencount >= (len(line_datetime.array) - line_datetime.extension)
+        except AttributeError:
+            needs_load = len(self) >= self.buflen()
+
+        if needs_load:
             if ticks:
                 self._tick_nullify()
 
@@ -732,7 +759,12 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             if datamaster is None:
                 # bar is there and no master ... return load's result
                 if ticks:
-                    self._tick_fill()
+                    try:
+                        tick_direct_filled = self._tick_direct_filled
+                    except AttributeError:
+                        tick_direct_filled = False
+                    if not tick_direct_filled:
+                        self._tick_fill()
                 return ret
         else:
             self.advance(ticks=ticks)
@@ -747,11 +779,21 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 self.rewind()
                 return False
             if ticks:
-                self._tick_fill()
+                try:
+                    tick_direct_filled = self._tick_direct_filled
+                except AttributeError:
+                    tick_direct_filled = False
+                if not tick_direct_filled:
+                    self._tick_fill()
 
         else:
             if ticks:
-                self._tick_fill()
+                try:
+                    tick_direct_filled = self._tick_direct_filled
+                except AttributeError:
+                    tick_direct_filled = False
+                if not tick_direct_filled:
+                    self._tick_fill()
 
         # tell the world there is a bar (either the new or the previous
         # Indicate current bar exists
@@ -813,13 +855,34 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         while True:
             # move a data pointer forward for new bar
             # Move data pointer forward by one
-            self.forward()
+            try:
+                forward_lines = self._load_forward_lines
+            except AttributeError:
+                try:
+                    lines = self.lines.lines
+                    if any(line.mode == line.QBuffer or line._clock is not None for line in lines):
+                        self._load_forward_lines = None
+                        forward_lines = None
+                    else:
+                        forward_lines = tuple(lines)
+                        self._load_forward_lines = forward_lines
+                except AttributeError:
+                    self._load_forward_lines = None
+                    forward_lines = None
+
+            if forward_lines is None:
+                self.forward()
+            else:
+                for line in forward_lines:
+                    line._idx += 1
+                    line.lencount += 1
+                    line.array.append(line._default_value)
 
             # If data has been retrieved from self._barstack and saved to line, directly return True
-            if self._fromstack():  # bar is available
+            if self._barstack and self._fromstack():  # bar is available
                 return True
             # If data cannot be retrieved from self._barstash, run the following code
-            if not self._fromstack(stash=True):
+            if not self._barstash:
                 # _load() returns False, following code must run, but seems unnecessary to call this function or check following result, these two statements seem redundant
                 ###  Cannot be 100% certain for now, will review after code comments are completed    #fix
                 _loadret = self._load()
@@ -834,11 +897,24 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     # signal no bar is available, but the data feed is not
                     # done. False means game over
                     return _loadret
+            else:
+                self._fromstack(stash=True)
 
             # If bar was not retrieved from self._barstack but bar was retrieved from self._barstash, need to process bar
             # Get a reference to current loaded time
             # Get current time
-            dt = self.lines.datetime[0]
+            try:
+                line_datetime = self._datetime_line
+            except AttributeError:
+                line_datetime = self.lines.datetime
+            try:
+                datetime_idx = line_datetime._idx
+                if datetime_idx >= 0:
+                    dt = line_datetime.array[datetime_idx]
+                else:
+                    dt = line_datetime[0]
+            except (AttributeError, IndexError):
+                dt = line_datetime[0]
 
             # A bar has been loaded, adapt the time
             # If timezone processing is needed for input time, convert number to time, localize time, convert time to number, update current time
@@ -848,7 +924,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 dtime = num2date(dt)  # get it in a naive datetime
                 # localize it
                 dtime = self._tzinput.localize(dtime)  # pytz compatible-ized
-                self.lines.datetime[0] = dt = date2num(dtime)  # keep UTC val
+                line_datetime[0] = dt = date2num(dtime)  # keep UTC val
 
             # Check standard date from/to filters
             # If current time is less than start time, move backward to discard bar and continue

@@ -395,6 +395,23 @@ class LineBuffer(LineSingle, LineRootMixin):
         Returns:
             Value at the specified position
         """
+        if ago == 0:
+            try:
+                current_idx = self._idx
+                if current_idx == self.lencount - 1:
+                    value = self.array[current_idx]
+                    if value == INF or value == NEG_INF:
+                        return 0.0
+                    return value
+                if self.lencount > 0 and current_idx >= self.lencount:
+                    current_idx = self.lencount - 1
+                value = self.array[current_idx]
+                if value == INF or value == NEG_INF:
+                    return 0.0
+                return value
+            except IndexError:
+                pass
+
         # PERFORMANCE OPTIMIZATION: Fast path for common case (ago <= 0)
         # Avoid __dict__ access for majority of calls
         try:

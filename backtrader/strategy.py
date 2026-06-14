@@ -41,7 +41,6 @@ import collections
 import copy
 import datetime
 import itertools
-import math
 from typing import Optional
 
 from .lineiterator import LineIterator, StrategyBase
@@ -81,6 +80,36 @@ from .utils.log_message import SpdLogManager, get_logger
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 logger = get_logger(__name__)
+_INF = float("inf")
+
+
+def _set_current_datetime(line, value):
+    """Set current datetime line slot directly when no bindings need propagation."""
+    try:
+        bindings = line.bindings
+    except AttributeError:
+        line[0] = value
+        return
+
+    if bindings:
+        line[0] = value
+        return
+
+    try:
+        idx = line._idx
+        array = line.array
+    except AttributeError:
+        line[0] = value
+        return
+
+    if idx < 0:
+        line[0] = value
+        return
+
+    try:
+        array[idx] = value if value >= 1.0 else 1.0
+    except IndexError:
+        line[0] = value
 
 
 class Strategy(StrategyBase):
@@ -277,11 +306,14 @@ class Strategy(StrategyBase):
                 setattr(self, f"data{d}", data)
         else:
             self.data = None
+        self._data_assignment_pending = False
 
         # Set up clock - this is critical for strategy execution
         if not hasattr(self, "_clock") or self._clock is None:
             if self.datas:
                 self._clock = self.datas[0]
+            else:
+                self._clock = None
             # CRITICAL FIX: Don't create MinimalClock fallback
             # It causes problems with indicator clock detection in _periodset()
             # If no datas, leave _clock as None and let it be set later
@@ -1055,15 +1087,15 @@ class Strategy(StrategyBase):
             int: Maximum value of (minperiod - current_length) across all data feeds.
                  Negative values indicate all minimum periods are satisfied.
         """
-        data_iter = iter(zip(self._minperiods, self.datas))
-        try:
-            minperiod, data = next(data_iter)
-        except StopIteration:
+        datas = self.datas
+        minperiods = self._minperiods
+        data_count = len(datas)
+        if not data_count:
             raise ValueError("max() arg is an empty sequence") from None
 
-        minperstatus = minperiod - len(data)
-        for minperiod, data in data_iter:
-            status = minperiod - len(data)
+        minperstatus = minperiods[0] - len(datas[0])
+        for index in range(1, data_count):
+            status = minperiods[index] - len(datas[index])
             if status > minperstatus:
                 minperstatus = status
 
@@ -1139,13 +1171,18 @@ class Strategy(StrategyBase):
             # strategy has been reset to beginning. advance step by step
             self.forward()
         # Set datetime - and save it as the last valid datetime for use in stop()
-        self.lines.datetime[0] = dt
+        _set_current_datetime(self.lines.datetime, dt)
         if dt > 0:
             self._last_valid_datetime = dt
         # Notify
         self._notify()
 
-        self._next_strategy_lineactions()
+        try:
+            has_strategy_next_lineactions = self._has_strategy_next_lineactions
+        except AttributeError:
+            has_strategy_next_lineactions = True
+        if has_strategy_next_lineactions:
+            self._next_strategy_lineactions()
 
         # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
         # This ensures len(indicator) == len(strategy) at the end of processing
@@ -1171,7 +1208,11 @@ class Strategy(StrategyBase):
         # If all data satisfied, call next()
         # If first bar with all data satisfied, call nextstart()
         # If not all data satisfied, call prenext()
-        minperstatus = self._getminperstatus()
+        try:
+            minperstatus = self._single_minperiod - len(self._single_minperiod_data)
+            self._minperstatus = minperstatus
+        except AttributeError:
+            minperstatus = self._getminperstatus()
         if minperstatus < 0:
             self.next()
         elif minperstatus == 0:
@@ -1179,11 +1220,22 @@ class Strategy(StrategyBase):
         else:
             self.prenext()
         # Update analyzers with minimum period status
-        self._next_analyzers(minperstatus, once=True)
+        try:
+            has_analyzers = self._has_analyzers
+        except AttributeError:
+            has_analyzers = bool(self.analyzers)
+        if has_analyzers:
+            self._next_analyzers(minperstatus, once=True)
         # Update observers with minimum period status
-        self._next_observers(minperstatus, once=True)
+        try:
+            has_observers = self._has_observers
+        except AttributeError:
+            has_observers = bool(self.stats.items)
+        if has_observers:
+            self._next_observers(minperstatus, once=True)
         # Clear pending orders and trades
-        self.clear()
+        if self._orderspending or self._tradespending:
+            self.clear()
 
     def _clk_update(self):
         """Update the clock and advance strategy state if needed.
@@ -1192,14 +1244,14 @@ class Strategy(StrategyBase):
             int: Current length of the strategy
         """
         # CRITICAL FIX: Ensure data is available before clock operations
-        if (
-            getattr(self, "_data_assignment_pending", True)
-            or not hasattr(self, "_clock")
-            or self._clock is None
-        ):
+        data_assignment_pending = self._data_assignment_pending
+        clock = self._clock
+
+        if data_assignment_pending or clock is None:
             # Try to get data assignment from cerebro if not already done
-            if hasattr(self, "_ensure_data_available"):
-                self._ensure_data_available()
+            ensure_data_available = self.__dict__.get("_ensure_data_available")
+            if ensure_data_available is not None:
+                ensure_data_available()
 
         # If using old data sync method
         if self._oldsync:
@@ -1212,44 +1264,117 @@ class Strategy(StrategyBase):
                     if not len(data):
                         continue
                     dt_value = data.datetime[0]
-                    if (
-                        isinstance(dt_value, (int, float))
-                        and math.isfinite(dt_value)
-                        and dt_value > 0
-                    ):
+                    try:
+                        valid_dt = dt_value > 0 and dt_value < _INF
+                    except TypeError:
+                        valid_dt = False
+                    if valid_dt:
                         if max_datetime is None or dt_value > max_datetime:
                             max_datetime = dt_value
                 if max_datetime is not None:
-                    self.lines.datetime[0] = max_datetime
+                    _set_current_datetime(self.lines.datetime, max_datetime)
             # Return data length
             return clk_len
 
         # CRITICAL FIX: Initialize _dlens if not present
-        if not hasattr(self, "_dlens"):
-            self._dlens = [len(d) for d in self.datas]
+        datas = self.datas
+        try:
+            olddlens = self._dlens
+        except AttributeError:
+            olddlens = [len(d) for d in datas]
+            self._dlens = olddlens
+        try:
+            datetime_line = self._datetime_line
+        except AttributeError:
+            datetime_line = self.lines.datetime
+        try:
+            datetime_line_direct = self._datetime_line_direct
+        except AttributeError:
+            datetime_line_direct = False
+
+        try:
+            data = self._single_clock_data
+        except AttributeError:
+            data = None
+
+        if data is not None:
+            try:
+                data_len = self._single_clock_len_line.lencount
+            except AttributeError:
+                data_len = len(data)
+            if data_len > olddlens[0]:
+                try:
+                    forward_line = self._single_line_forward_line
+                except AttributeError:
+                    forward_line = None
+                if forward_line is not None and forward_line.mode != forward_line.QBuffer:
+                    if forward_line.lencount < data_len:
+                        forward_line._idx += 1
+                        forward_line.lencount += 1
+                        forward_line.array.append(forward_line._default_value)
+                else:
+                    self.forward()
+            if data_len:
+                try:
+                    data_datetime_line = self._single_clock_datetime_line
+                    data_datetime_idx = data_datetime_line._idx
+                    if data_datetime_idx >= 0:
+                        dt_value = data_datetime_line.array[data_datetime_idx]
+                    else:
+                        dt_value = data_datetime_line[0]
+                except (AttributeError, IndexError):
+                    dt_value = data.datetime[0]
+                try:
+                    valid_dt = dt_value > 0 and dt_value < _INF
+                except TypeError:
+                    valid_dt = False
+                if valid_dt:
+                    if datetime_line_direct:
+                        idx = datetime_line._idx
+                        if idx >= 0:
+                            try:
+                                datetime_line.array[idx] = dt_value if dt_value >= 1.0 else 1.0
+                            except IndexError:
+                                _set_current_datetime(datetime_line, dt_value)
+                        else:
+                            _set_current_datetime(datetime_line, dt_value)
+                    else:
+                        _set_current_datetime(datetime_line, dt_value)
+            olddlens[0] = data_len
+            try:
+                return datetime_line.lencount
+            except AttributeError:
+                return len(self)
 
         # Current new data lengths and valid datetimes in a single pass.
         newdlens = []
         max_datetime = None
-        for data in self.datas:
+        for data in datas:
             data_len = len(data)
             newdlens.append(data_len)
             if data_len:
                 dt_value = data.datetime[0]
-                if isinstance(dt_value, (int, float)) and math.isfinite(dt_value) and dt_value > 0:
+                try:
+                    valid_dt = dt_value > 0 and dt_value < _INF
+                except TypeError:
+                    valid_dt = False
+                if valid_dt:
                     if max_datetime is None or dt_value > max_datetime:
                         max_datetime = dt_value
 
         # If new data length > old data length, forward
-        if any(nl > old_len for old_len, nl in zip(self._dlens, newdlens)):
+        if any(nl > old_len for old_len, nl in zip(olddlens, newdlens)):
             self.forward()
         # Set datetime to max of current datetimes - only update if we have valid datetimes
         if max_datetime is not None:
-            self.lines.datetime[0] = max_datetime
+            _set_current_datetime(datetime_line, max_datetime)
         # Old data length equals new data length
         self._dlens = newdlens
 
-        return len(self)
+        try:
+            return datetime_line.lencount
+        except AttributeError:
+            return len(self)
 
     def _next_open(self):
         """Execute next_open phase based on minimum period status.
@@ -1264,19 +1389,171 @@ class Strategy(StrategyBase):
         else:
             self.prenext_open()
 
+    def _next_fast_simple(self):
+        """Fast _next implementation for simple single-strategy runs."""
+        if self._orderspending or self._tradespending:
+            Strategy._next(self)
+            return
+
+        if self._fast_simple_clock_update:
+            olddlens = self._dlens
+            data_len = self._single_clock_len_line.lencount
+            datetime_line = self._datetime_line
+            forward_line = self._single_line_forward_line
+            needs_forward = data_len > olddlens[0] and forward_line.lencount < data_len
+            if data_len:
+                data_datetime_line = self._single_clock_datetime_line
+                data_datetime_idx = data_datetime_line._idx
+                try:
+                    dt_value = data_datetime_line.array[data_datetime_idx]
+                except IndexError:
+                    dt_value = data_datetime_line[0]
+                try:
+                    valid_dt = dt_value > 0 and dt_value < _INF
+                except TypeError:
+                    valid_dt = False
+                if needs_forward:
+                    forward_line._idx += 1
+                    forward_line.lencount += 1
+                    forward_line.array.append(
+                        dt_value if valid_dt and dt_value >= 1.0 else forward_line._default_value
+                    )
+                elif valid_dt:
+                    idx = datetime_line._idx
+                    if idx >= 0:
+                        try:
+                            datetime_line.array[idx] = dt_value if dt_value >= 1.0 else 1.0
+                        except IndexError:
+                            _set_current_datetime(datetime_line, dt_value)
+                    else:
+                        _set_current_datetime(datetime_line, dt_value)
+            elif needs_forward:
+                forward_line._idx += 1
+                forward_line.lencount += 1
+                forward_line.array.append(forward_line._default_value)
+            olddlens[0] = data_len
+        else:
+            self._clk_update()
+        minperstatus = self._single_minperiod - self._single_minperiod_len_line.lencount
+        object.__setattr__(self, "_minperstatus", minperstatus)
+        if minperstatus < 0:
+            self.next()
+        elif minperstatus == 0:
+            self.nextstart()
+        else:
+            self.prenext()
+        if self._orderspending or self._tradespending:
+            self.clear()
+
+    def _next_fast_simple_direct_clock(self):
+        """Fast _next for trusted direct single-data clocks."""
+        if self._orderspending or self._tradespending:
+            Strategy._next(self)
+            return
+
+        data_datetime_line = self._single_clock_datetime_line
+        dt_value = data_datetime_line.array[data_datetime_line._idx]
+        forward_line = self._single_line_forward_line
+        forward_line._idx += 1
+        forward_line.lencount += 1
+        forward_line.array.append(dt_value)
+        self._dlens[0] = data_datetime_line.lencount
+
+        minperstatus = self._single_minperiod - self._single_minperiod_len_line.lencount
+        object.__setattr__(self, "_minperstatus", minperstatus)
+        if minperstatus < 0:
+            self.next()
+        elif minperstatus == 0:
+            self.nextstart()
+        else:
+            self.prenext()
+        if self._orderspending or self._tradespending:
+            self.clear()
+
     def _next(self):
         """Execute next() method and update analyzers and observers.
 
         Gets minimum period status and passes it to analyzers and observers,
         then clears pending orders and trades.
         """
+        try:
+            fast_simple_next = self._fast_simple_next
+        except AttributeError:
+            fast_simple_next = False
+        if fast_simple_next and not self._orderspending and not self._tradespending:
+            if self._fast_simple_clock_update:
+                olddlens = self._dlens
+                data_len = self._single_clock_len_line.lencount
+                datetime_line = self._datetime_line
+                forward_line = self._single_line_forward_line
+                needs_forward = data_len > olddlens[0] and forward_line.lencount < data_len
+                if data_len:
+                    data_datetime_line = self._single_clock_datetime_line
+                    data_datetime_idx = data_datetime_line._idx
+                    try:
+                        dt_value = data_datetime_line.array[data_datetime_idx]
+                    except IndexError:
+                        dt_value = data_datetime_line[0]
+                    try:
+                        valid_dt = dt_value > 0 and dt_value < _INF
+                    except TypeError:
+                        valid_dt = False
+                    if needs_forward:
+                        forward_line._idx += 1
+                        forward_line.lencount += 1
+                        forward_line.array.append(
+                            dt_value if valid_dt and dt_value >= 1.0 else forward_line._default_value
+                        )
+                    elif valid_dt:
+                        idx = datetime_line._idx
+                        if idx >= 0:
+                            try:
+                                datetime_line.array[idx] = dt_value if dt_value >= 1.0 else 1.0
+                            except IndexError:
+                                _set_current_datetime(datetime_line, dt_value)
+                        else:
+                            _set_current_datetime(datetime_line, dt_value)
+                elif needs_forward:
+                    forward_line._idx += 1
+                    forward_line.lencount += 1
+                    forward_line.array.append(forward_line._default_value)
+                olddlens[0] = data_len
+            else:
+                self._clk_update()
+            minperstatus = self._single_minperiod - self._single_minperiod_len_line.lencount
+            object.__setattr__(self, "_minperstatus", minperstatus)
+            if minperstatus < 0:
+                self.next()
+            elif minperstatus == 0:
+                self.nextstart()
+            else:
+                self.prenext()
+            if self._orderspending or self._tradespending:
+                self.clear()
+            return
+
         super()._next()
 
-        minperstatus = self._getminperstatus()
-        self._next_analyzers(minperstatus)
-        self._next_observers(minperstatus)
+        try:
+            minperstatus = self._single_minperiod - self._single_minperiod_len_line.lencount
+            object.__setattr__(self, "_minperstatus", minperstatus)
+        except AttributeError:
+            minperstatus = self._getminperstatus()
+        try:
+            has_analyzers = self._has_analyzers
+        except AttributeError:
+            has_analyzers = bool(self.analyzers)
+        if has_analyzers:
+            self._next_analyzers(minperstatus)
+        try:
+            has_observers = self._has_observers
+        except AttributeError:
+            has_observers = bool(self.stats.items)
+        if has_observers:
+            self._next_observers(minperstatus)
 
-        self.clear()
+        if self._orderspending or self._tradespending:
+            self.clear()
 
     def _get_all_observers(self):
         """Get all observer instances from self.stats.
@@ -1403,10 +1680,80 @@ class Strategy(StrategyBase):
         self._stage2()
         # Current length of each data
         self._dlens = [len(data) for data in self.datas]
+        self._datetime_line = self.lines.datetime
+        try:
+            self._datetime_line_direct = not self._datetime_line.bindings
+        except AttributeError:
+            self._datetime_line_direct = False
+        try:
+            strategy_lines = self.lines.lines
+            if (
+                len(strategy_lines) == 1
+                and strategy_lines[0] is self._datetime_line
+                and self._datetime_line_direct
+                and self._datetime_line.mode != self._datetime_line.QBuffer
+            ):
+                self._single_line_forward_line = self._datetime_line
+            else:
+                self._single_line_forward_line = None
+        except AttributeError:
+            self._single_line_forward_line = None
+        if len(self.datas) == 1:
+            self._single_clock_data = self.datas[0]
+            self._single_clock_datetime_line = self._single_clock_data.datetime
+            self._single_clock_len_line = self._single_clock_datetime_line
+        if len(self.datas) == 1 and len(self._minperiods) == 1:
+            self._single_minperiod_data = self.datas[0]
+            self._single_minperiod = self._minperiods[0]
+            self._single_minperiod_len_line = self._single_minperiod_data.lines[0]
+        from .linebuffer import LineActions
+
+        self._lineaction_datas = tuple(
+            data for data in self.datas if isinstance(data, LineActions) and hasattr(data, "_next")
+        )
         # Current minimum period status defaults to MAXINT (start in prenext)
         self._minperstatus = MAXINT
         # Call user's start()
         self.start()
+        self._quicknotify = self.cerebro.p.quicknotify
+        self._strategy_next_lineactions_cache = self._get_strategy_next_lineactions()
+        self._has_strategy_next_lineactions = bool(self._strategy_next_lineactions_cache)
+        self._all_analyzers_cache = list(self.analyzers) + list(self._slave_analyzers)
+        self._has_analyzers = bool(self.analyzers)
+        self._has_observers = bool(self.stats.items)
+        self._notify_cashvalue_default = (
+            "notify_cashvalue" not in self.__dict__
+            and type(self).notify_cashvalue is Strategy.notify_cashvalue
+        )
+        self._notify_fund_default = (
+            "notify_fund" not in self.__dict__
+            and type(self).notify_fund is Strategy.notify_fund
+        )
+        self._skip_empty_notify = (
+            not self._quicknotify
+            and not self._all_analyzers_cache
+            and self._notify_cashvalue_default
+            and self._notify_fund_default
+        )
+        self._fast_simple_next = (
+            not self._lineiterators[LineIterator.IndType]
+            and not self._lineaction_datas
+            and not self._has_strategy_next_lineactions
+            and self._skip_empty_notify
+            and not self._has_analyzers
+            and not self._has_observers
+        )
+        self._fast_simple_clock_update = (
+            self._fast_simple_next
+            and not self._oldsync
+            and len(self.datas) == 1
+            and self._single_line_forward_line is self._datetime_line
+            and self._single_clock_len_line is self._single_clock_datetime_line
+            and not self._data_assignment_pending
+            and self._clock is not None
+        )
+        if self._fast_simple_next and type(self)._next is Strategy._next:
+            object.__setattr__(self, "_next", self._next_fast_simple)
 
     def start(self):
         """Called right before the backtesting is about to be started.
@@ -1686,12 +2033,17 @@ class Strategy(StrategyBase):
             qorders: Quick notify orders (empty list if not in quick notify mode)
             qtrades: Quick notify trades (empty list if not in quick notify mode)
         """
-        if qorders is None:
-            qorders = []
-        if qtrades is None:
-            qtrades = []
         # If quick notify is enabled
-        if self.cerebro.p.quicknotify:
+        try:
+            quicknotify_enabled = self._quicknotify
+        except AttributeError:
+            quicknotify_enabled = self.cerebro.p.quicknotify
+
+        if quicknotify_enabled:
+            if qorders is None:
+                qorders = []
+            if qtrades is None:
+                qtrades = []
             # Need to know if quicknotify is on, to not reprocess pendingorders
             # and pendingtrades, which have to exist for things like observers
             # which look into it
@@ -1700,15 +2052,44 @@ class Strategy(StrategyBase):
             proctrades = qtrades
         # Otherwise use orders and trades saved in _orderspending and _tradespending
         else:
+            if qorders is None:
+                qorders = ()
             procorders = self._orderspending
             proctrades = self._tradespending
 
         # PERFORMANCE OPTIMIZATION: Cache merged analyzer list to avoid repeated itertools.chain
         # This is called 688K+ times, so caching makes a significant difference
-        all_analyzers = getattr(self, "_all_analyzers_cache", None)
-        if all_analyzers is None:
+        try:
+            all_analyzers = self._all_analyzers_cache
+        except AttributeError:
             all_analyzers = list(self.analyzers) + list(self._slave_analyzers)
             self._all_analyzers_cache = all_analyzers
+
+        try:
+            notify_cashvalue_default = self._notify_cashvalue_default
+        except AttributeError:
+            notify_cashvalue_default = (
+                "notify_cashvalue" not in self.__dict__
+                and type(self).notify_cashvalue is Strategy.notify_cashvalue
+            )
+        try:
+            notify_fund_default = self._notify_fund_default
+        except AttributeError:
+            notify_fund_default = (
+                "notify_fund" not in self.__dict__
+                and type(self).notify_fund is Strategy.notify_fund
+            )
+
+        if (
+            not quicknotify_enabled
+            and not qorders
+            and not procorders
+            and not proctrades
+            and not all_analyzers
+            and notify_cashvalue_default
+            and notify_fund_default
+        ):
+            return
 
         # Loop through pending orders
         for order in procorders:
@@ -1736,9 +2117,11 @@ class Strategy(StrategyBase):
         fundvalue = self.broker.fundvalue
         fundshares = self.broker.fundshares
         # Notify cash and value values, and notify analyzers
-        self.notify_cashvalue(cash, value)
+        if not notify_cashvalue_default:
+            self.notify_cashvalue(cash, value)
         # Notify fund values, and notify analyzers
-        self.notify_fund(cash, value, fundvalue, fundshares)
+        if not notify_fund_default:
+            self.notify_fund(cash, value, fundvalue, fundshares)
         for analyzer in all_analyzers:
             analyzer._notify_cashvalue(cash, value)
             analyzer._notify_fund(cash, value, fundvalue, fundshares)
