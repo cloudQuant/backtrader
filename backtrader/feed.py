@@ -582,10 +582,11 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             tick_cache = ["tick_" + alias for alias in self.getlinealiases() if alias != "datetime"]
             self._tick_cache = tick_cache
 
+        set_attr = object.__setattr__
         for tick_name in tick_cache:
-            setattr(self, tick_name, None)
+            set_attr(self, tick_name, None)
 
-        self.tick_last = None
+        set_attr(self, "tick_last", None)
 
     # If tick_xxx related attribute value is None, need to consider using bar data to fill
     def _tick_fill(self, force=False):
@@ -602,11 +603,20 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     tick_line_cache.append(("tick_" + lalias, getattr(self.lines, lalias)))
             self._tick_line_cache = tick_line_cache
 
-        if force or getattr(self, self._tick_alias0, None) is None:
-            for tick_name, line in self._tick_line_cache:
-                setattr(self, tick_name, line[0])
+        if force:
+            should_fill = True
+        else:
+            try:
+                should_fill = object.__getattribute__(self, self._tick_alias0) is None
+            except AttributeError:
+                should_fill = True
 
-            self.tick_last = self._line_alias0[0]
+        if should_fill:
+            set_attr = object.__setattr__
+            for tick_name, line in self._tick_line_cache:
+                set_attr(self, tick_name, line[0])
+
+            set_attr(self, "tick_last", self._line_alias0[0])
 
     # Get time of next bar
     # PERFORMANCE OPTIMIZATION: Cache float("inf") as module-level constant
