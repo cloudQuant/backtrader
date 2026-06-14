@@ -1867,14 +1867,16 @@ class LineIterator(LineIteratorMixin, LineSeries):
         prev_len = len(self)
         clock_len = self._clk_update()
 
-        replaying = _clock_is_replaying(getattr(self, "_clock", None))
-
         if (
             self._ltype not in (LineIterator.StratType, LineIterator.IndType)
             and clock_len == prev_len
-            and not replaying
         ):
-            return
+            try:
+                clock = object.__getattribute__(self, "_clock")
+            except AttributeError:
+                clock = None
+            if not _clock_is_replaying(clock):
+                return
 
         try:
             datas = self.datas
