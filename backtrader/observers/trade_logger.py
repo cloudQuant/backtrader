@@ -324,6 +324,44 @@ class TradeLogger(Observer):
         """Return the current Shanghai (UTC+8) timestamp as an ISO string."""
         return datetime.now(_SHANGHAI_TZ).isoformat(timespec="milliseconds")
 
+    @staticmethod
+    def _event_time_str(event_time, fallback):
+        """Return an ISO event timestamp with an explicit timezone offset."""
+        if event_time in (None, ""):
+            return fallback
+
+        if isinstance(event_time, datetime):
+            dt_value = event_time
+        elif isinstance(event_time, (int, float)):
+            try:
+                dt_value = datetime.fromtimestamp(float(event_time), timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return str(event_time)
+        elif isinstance(event_time, str):
+            value = event_time.strip()
+            if not value:
+                return fallback
+            try:
+                normalized = f"{value[:-1]}+00:00" if value.endswith("Z") else value
+                dt_value = datetime.fromisoformat(normalized)
+            except ValueError:
+                return value
+        else:
+            return str(event_time)
+
+        if dt_value.tzinfo is None or dt_value.utcoffset() is None:
+            dt_value = dt_value.replace(tzinfo=timezone.utc)
+        return dt_value.isoformat(timespec="milliseconds")
+
+    def _normalize_event_time_fields(self, payload, fallback=None):
+        """Normalize human-facing event time fields without touching epoch timestamps."""
+        normalized = dict(payload)
+        fallback = fallback or self._log_time_str()
+        for key in ("datetime", "time", "local_time"):
+            if key in normalized:
+                normalized[key] = self._event_time_str(normalized.get(key), fallback)
+        return normalized
+
     def _store_provider(self):
         """Return the active live provider when available."""
         try:
@@ -381,9 +419,10 @@ class TradeLogger(Observer):
 
     def _base_event(self, event_type, level="INFO", event_time=None, **fields):
         """Create a common structured event payload."""
+        log_time = self._log_time_str()
         payload = {
-            "log_time": self._log_time_str(),
-            "event_time": event_time or self._get_datetime_str(),
+            "log_time": log_time,
+            "event_time": self._event_time_str(event_time, log_time),
             "event_type": event_type,
             "level": str(level).upper(),
             "run_id": self._run_id,
@@ -734,13 +773,93 @@ class TradeLogger(Observer):
         cursor.close()
 
     def _get_datetime_str(self):
-        """Get current datetime as string."""
+        """Get current strategy datetime as an ISO string with an explicit offset."""
+        fallback = self._log_time_str()
         try:
             dt = self._owner.datetime.datetime()
-            return str(dt)
         except Exception as e:
             logger.debug("Failed to read strategy datetime: %s", e)
-            return str(datetime.now(_SHANGHAI_TZ))
+            return fallback
+        return self._event_time_str(dt, fallback)
+
+    @staticmethod
+    def _is_epoch_zero_text(value):
+        """Return True when a normalized timestamp is the platform zero date."""
+        text = str(value or "").strip()
+        return text.startswith(("1970-01-01T00:00:00", "1970-01-01 00:00:00"))
+
+    def _event_time_str_or_none(self, event_time, fallback):
+        """Normalize an event time, treating empty/zero dates as missing."""
+        if event_time in (None, "", 0, 0.0):
+            return None
+        text = self._event_time_str(event_time, fallback)
+        if self._is_epoch_zero_text(text):
+            return None
+        return text
+
+    def _trade_numdate_str(self, trade, value, fallback):
+        """Convert a backtrader numeric trade date into an ISO timestamp."""
+        if value in (None, "", 0, 0.0):
+            return None
+        data = getattr(trade, "data", None)
+        try:
+            if data is None or not hasattr(data, "num2date"):
+                return None
+            dt_value = data.num2date(value)
+        except Exception as e:
+            logger.debug("Failed to convert trade datetime: %s", e)
+            return None
+        return self._event_time_str_or_none(dt_value, fallback)
+
+    def _data_current_datetime_str(self, data, fallback):
+        """Return the current data timestamp as an ISO string when available."""
+        if data is None:
+            return None
+
+        data_datetime = getattr(data, "datetime", None)
+        datetime_reader = getattr(data_datetime, "datetime", None)
+        if callable(datetime_reader):
+            for args in ((), (0,)):
+                try:
+                    text = self._event_time_str_or_none(datetime_reader(*args), fallback)
+                except Exception as e:
+                    logger.debug("Failed to read data datetime: %s", e)
+                    continue
+                if text is not None:
+                    return text
+
+        try:
+            numeric_dt = data_datetime[0]
+        except Exception:
+            return None
+
+        try:
+            if hasattr(data, "num2date"):
+                return self._event_time_str_or_none(data.num2date(numeric_dt), fallback)
+        except Exception as e:
+            logger.debug("Failed to convert current data datetime: %s", e)
+        return None
+
+    def _trade_time_fields(self, trade, log_time=None):
+        """Return event/open/close timestamps for a trade without zero-date leaks."""
+        fallback = log_time or self._log_time_str()
+        data = getattr(trade, "data", None)
+
+        dtopen = self._trade_numdate_str(trade, getattr(trade, "dtopen", None), fallback)
+        dtclose = self._trade_numdate_str(trade, getattr(trade, "dtclose", None), fallback)
+        data_current = self._data_current_datetime_str(data, fallback)
+        owner_current = self._event_time_str_or_none(self._get_datetime_str(), fallback)
+
+        if getattr(trade, "isclosed", False):
+            event_time = dtclose or data_current or owner_current or fallback
+            dtclose = dtclose or event_time
+        else:
+            event_time = dtopen or data_current or owner_current or fallback
+
+        if getattr(trade, "isopen", False):
+            dtopen = dtopen or event_time
+
+        return event_time, dtopen, dtclose
 
     def _get_strategy_name(self):
         """Get the strategy class name."""
@@ -1021,6 +1140,7 @@ class TradeLogger(Observer):
                     if val is not None:
                         tick_dict[attr] = val
 
+            tick_dict = self._normalize_event_time_fields(tick_dict)
             log_data = {
                 "log_time": self._log_time_str(),
                 "event_type": "tick",
@@ -1083,6 +1203,7 @@ class TradeLogger(Observer):
                     if val is not None:
                         bar_dict[attr] = val
 
+            bar_dict = self._normalize_event_time_fields(bar_dict)
             broker_value = self._get_broker_value()
             broker_cash = self._get_broker_cash()
             log_data = {
@@ -1395,7 +1516,7 @@ class TradeLogger(Observer):
                 snapshot["positions"][data_name] = {
                     "size": position.size,
                     "price": round(position.price, 4),
-                    "value": round(self._position_market_value(data, position), 2),
+                    "value": round(self._position_market_value(data, position), 8),
                     "current_price": current_price,
                 }
 
@@ -1445,9 +1566,13 @@ class TradeLogger(Observer):
 
     def _format_trade(self, trade):
         """Format trade data for logging."""
+        log_time = self._log_time_str()
+        event_time, dtopen, dtclose = self._trade_time_fields(trade, log_time)
         return {
-            "log_time": self._log_time_str(),
-            "datetime": self._get_datetime_str(),
+            "log_time": log_time,
+            "datetime": event_time,
+            "dtopen": dtopen,
+            "dtclose": dtclose if trade.isclosed else None,
             "ref": trade.ref,
             "data_name": trade.data._name,
             "size": trade.size,
@@ -1467,9 +1592,12 @@ class TradeLogger(Observer):
     def _format_trade_text(self, trade):
         """Format trade data as text."""
         status = "CLOSED" if trade.isclosed else ("OPEN" if trade.isopen else "UPDATE")
+        log_time = self._log_time_str()
+        event_time, dtopen, dtclose = self._trade_time_fields(trade, log_time)
         return (
-            f"{self._log_time_str()} | {status} | "
-            f"datetime={self._get_datetime_str()} | ref={trade.ref} | data={trade.data._name} | "
+            f"{log_time} | {status} | "
+            f"datetime={event_time} | dtopen={dtopen or ''} | "
+            f"dtclose={dtclose or ''} | ref={trade.ref} | data={trade.data._name} | "
             f"size={trade.size} | price={trade.price:.4f} | value={trade.value:.4f} | "
             f"commission={trade.commission:.4f} | pnl={trade.pnl:.2f} | pnlcomm={trade.pnlcomm:.2f}"
         )

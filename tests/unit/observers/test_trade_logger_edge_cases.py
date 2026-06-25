@@ -13,6 +13,8 @@ Tests cover:
 - _base_event structure
 """
 
+import datetime as dt
+import json
 import logging
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -196,6 +198,19 @@ class TestDefensiveAccessors:
         result = TradeLogger._get_datetime_str(tl)
         assert isinstance(result, str)
         assert len(result) > 0
+        parsed = dt.datetime.fromisoformat(result)
+        assert parsed.tzinfo is not None
+
+    def test_get_datetime_str_normalizes_naive_strategy_time(self):
+        """Strategy datetimes should not be logged as ambiguous naive strings."""
+        tl = _make_bare_logger()
+        tl._owner = SimpleNamespace(
+            datetime=SimpleNamespace(datetime=lambda: dt.datetime(2026, 6, 23, 3, 31))
+        )
+
+        result = TradeLogger._get_datetime_str(tl)
+
+        assert result == "2026-06-23T03:31:00.000+00:00"
 
     def test_get_strategy_name_no_owner(self):
         """When _owner is None, should return the stable fallback name."""
@@ -253,6 +268,8 @@ class TestDefensiveAccessors:
             result = TradeLogger._get_datetime_str(tl)
 
         assert isinstance(result, str)
+        parsed = dt.datetime.fromisoformat(result)
+        assert parsed.tzinfo is not None
         assert any("Failed to read strategy datetime" in record.message for record in caplog.records)
 
     def test_get_strategy_name_failure_logged(self, caplog):
@@ -404,3 +421,151 @@ class TestBaseEvent:
         assert payload["custom_field"] == "value"
         assert "log_time" in payload
         assert "event_time" in payload
+
+    def test_base_event_defaults_event_time_to_log_time(self):
+        """System events before the first bar should use wall-clock time."""
+        tl = _make_bare_logger()
+
+        payload = tl._base_event("session_started")
+
+        assert payload["log_time"] == "2024-01-01T00:00:00+08:00"
+        assert payload["event_time"] == payload["log_time"]
+
+    def test_base_event_normalizes_naive_explicit_event_time_to_utc(self):
+        """Gateway/store events should not write ambiguous naive timestamps."""
+        tl = _make_bare_logger()
+
+        payload = tl._base_event(
+            "store_connected",
+            event_time="2026-06-24T17:15:06.535",
+        )
+
+        assert payload["event_time"] == "2026-06-24T17:15:06.535+00:00"
+
+    def test_base_event_preserves_explicit_aware_event_time(self):
+        """Gateway/store events should keep source timestamps with offsets."""
+        tl = _make_bare_logger()
+
+        payload = tl._base_event(
+            "store_connected",
+            event_time="2026-06-24T17:15:06.535+08:00",
+        )
+
+        assert payload["event_time"] == "2026-06-24T17:15:06.535+08:00"
+
+
+class TestTradeDatetimeFields:
+    """Test trade log timestamp selection."""
+
+    class _FakeDateLine:
+        def __init__(self, current_dt):
+            self.current_dt = current_dt
+
+        def datetime(self, *args):
+            return self.current_dt
+
+    class _FakeData:
+        _name = "XAUUSD"
+
+        def __init__(self, current_dt, numdates=None):
+            self.datetime = TestTradeDatetimeFields._FakeDateLine(current_dt)
+            self._numdates = dict(numdates or {})
+
+        def num2date(self, value):
+            return self._numdates[value]
+
+    def test_open_trade_zero_dtopen_uses_current_data_datetime(self):
+        """Simulated/open trades with dtopen=0 must not write a 1970 timestamp."""
+        tl = _make_bare_logger()
+        tl._get_datetime_str = lambda: "1970-01-01T00:00:00.000+00:00"
+        trade = SimpleNamespace(
+            ref=1,
+            data=self._FakeData(dt.datetime(2026, 6, 25, 4, 6)),
+            size=-0.01,
+            price=3983.9903186,
+            value=-39.839903186,
+            pnl=0.0,
+            pnlcomm=-0.00278879322302,
+            commission=0.00278879322302,
+            isclosed=False,
+            isopen=True,
+            baropen=25,
+            barclose=0,
+            barlen=0,
+            dtopen=0.0,
+            dtclose=0.0,
+        )
+
+        payload = TradeLogger._format_trade(tl, trade)
+
+        assert payload["datetime"] == "2026-06-25T04:06:00.000+00:00"
+        assert payload["dtopen"] == "2026-06-25T04:06:00.000+00:00"
+        assert payload["dtclose"] is None
+        assert not payload["datetime"].startswith("1970-01-01")
+
+    def test_closed_trade_prefers_backtrader_open_close_numdates(self):
+        """Closed trade logs should use trade dtopen/dtclose before data current time."""
+        tl = _make_bare_logger()
+        trade = SimpleNamespace(
+            ref=2,
+            data=self._FakeData(
+                dt.datetime(2026, 6, 25, 4, 30),
+                {
+                    101.0: dt.datetime(2026, 6, 25, 4, 6),
+                    102.0: dt.datetime(2026, 6, 25, 4, 12),
+                },
+            ),
+            size=0.0,
+            price=3984.0,
+            value=0.0,
+            pnl=1.0,
+            pnlcomm=0.9,
+            commission=0.1,
+            isclosed=True,
+            isopen=False,
+            baropen=25,
+            barclose=31,
+            barlen=6,
+            dtopen=101.0,
+            dtclose=102.0,
+        )
+
+        payload = TradeLogger._format_trade(tl, trade)
+
+        assert payload["datetime"] == "2026-06-25T04:12:00.000+00:00"
+        assert payload["dtopen"] == "2026-06-25T04:06:00.000+00:00"
+        assert payload["dtclose"] == "2026-06-25T04:12:00.000+00:00"
+
+
+class TestMarketEventTimeFields:
+    """Test tick/bar event timestamp normalization for JSON logs."""
+
+    def test_notify_bar_event_normalizes_datetime_and_local_time(self):
+        """Bar logs should expose timezone-aware ISO strings for datetime fields."""
+        tl = _make_bare_logger()
+        messages = []
+        tl._bar_logger = SimpleNamespace(info=messages.append)
+
+        TradeLogger.notify_bar_event(
+            tl,
+            {
+                "symbol": "rb2610",
+                "open": 100.0,
+                "high": 101.0,
+                "low": 99.0,
+                "close": 100.5,
+                "volume": 10,
+                "timestamp": 1782156719.0,
+                "local_time": 1782329081.1869645,
+                "datetime": "2026-06-23 03:31:00",
+            },
+        )
+
+        assert len(messages) == 1
+        payload = json.loads(messages[0])
+        assert payload["datetime"] == "2026-06-23T03:31:00.000+00:00"
+        assert payload["timestamp"] == 1782156719.0
+
+        local_time = dt.datetime.fromisoformat(payload["local_time"])
+        assert local_time.tzinfo is not None
+        assert local_time.timestamp() == pytest.approx(1782329081.1869645, abs=0.002)

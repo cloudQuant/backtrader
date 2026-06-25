@@ -175,6 +175,19 @@ def test_trade_logger_records_store_and_data_runtime_events(tmp_path):
     assert "data_status" in system_events
     assert "session_stopped" in system_events
 
+    session_started = next(
+        entry for entry in system_entries if entry["event_type"] == "session_started"
+    )
+    assert session_started["event_time"] == session_started["log_time"]
+    assert not str(session_started["event_time"]).startswith("1970-01-01")
+
+    store_connected = next(
+        entry for entry in system_entries if entry["event_type"] == "store_connected"
+    )
+    store_event_time = dt.datetime.fromisoformat(store_connected["event_time"])
+    assert store_event_time.tzinfo is not None
+    assert store_event_time.utcoffset() == dt.timedelta(0)
+
     assert any(entry["status"] == "LIVE" for entry in system_entries if entry["event_type"] == "data_status")
     assert "order_submit_request" in monitor_events
     assert "order_submit_accepted" in monitor_events

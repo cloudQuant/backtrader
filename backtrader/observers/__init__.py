@@ -22,14 +22,24 @@ Example:
     >>> cerebro.addobserver(bt.observers.TradeLogger, log_dir='./logs')
 """
 
+import os as _os
+
 # The modules below should/must define __all__ with the Indicator objects
 # of prepend an "_" (underscore) to private classes/variables
 
-from .benchmark import *
-from .broker import *
-from .buysell import *
-from .drawdown import *
-from .logreturns import *
-from .timereturn import *
-from .trade_logger import TradeLogger as TradeLogger
-from .trades import *
+if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}:
+    from .trade_logger import TradeLogger as TradeLogger
+else:
+    from .benchmark import *
+    from .broker import *
+    from .buysell import *
+    from .drawdown import *
+    from .logreturns import *
+    from .timereturn import *
+    from .trade_logger import TradeLogger as TradeLogger
+    from .trades import *

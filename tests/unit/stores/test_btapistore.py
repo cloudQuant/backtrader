@@ -1,5 +1,6 @@
 """Unit tests for the unified BtApiStore."""
 
+import datetime as dt
 import time
 
 import pytest
@@ -11,7 +12,10 @@ from backtrader.stores.btapistore import (
     BtApiProviderNotImplementedError,
     BtApiStoreError,
     BtApiStore,
+    _build_ctp_tick_datetime,
     _create_ctp_wrapper_class,
+    _normalize_bar,
+    _normalize_datetime,
     _split_ctp_symbol,
 )
 from tests.fixtures.fake_btapi import (
@@ -37,6 +41,52 @@ def fake_client():
         },
         live={DEFAULT_SYMBOL: [make_bar(2, 101.5, 103.0, 101.0, 102.5)]},
     )
+
+
+def test_normalize_datetime_converts_aware_values_to_utc_naive():
+    """Store datetime normalization should keep internal values UTC-naive."""
+    shanghai = dt.timezone(dt.timedelta(hours=8))
+
+    assert _normalize_datetime(dt.datetime(2026, 6, 25, 11, 15, 59, tzinfo=shanghai)) == (
+        dt.datetime(2026, 6, 25, 3, 15, 59)
+    )
+    assert _normalize_datetime("2026-06-25T11:15:59+08:00") == dt.datetime(
+        2026, 6, 25, 3, 15, 59
+    )
+    assert _normalize_datetime(1782357359000) == dt.datetime(2026, 6, 25, 3, 15, 59)
+
+
+def test_ctp_tick_datetime_normalizes_to_utc_naive():
+    """CTP market data timestamps are exchange-local and must normalize to UTC."""
+    payload = type(
+        "Payload",
+        (),
+        {
+            "ActionDay": "20260623",
+            "TradingDay": "20260623",
+            "UpdateTime": "08:22:00",
+            "UpdateMillisec": 500,
+        },
+    )()
+
+    assert _normalize_datetime(_build_ctp_tick_datetime(payload)) == dt.datetime(
+        2026, 6, 23, 0, 22, 0, 500000
+    )
+
+
+def test_normalize_bar_prefers_epoch_timestamp_over_provider_datetime():
+    """Bar payloads can carry mislabeled provider datetimes; epoch is canonical."""
+    bar = {
+        "timestamp": 1782357359.0,
+        "datetime": "2026-06-25T11:15:00+00:00",
+        "open": 100.0,
+        "high": 101.0,
+        "low": 99.0,
+        "close": 100.5,
+        "volume": 1.0,
+    }
+
+    assert _normalize_bar(bar)["datetime"] == dt.datetime(2026, 6, 25, 3, 15, 59)
 
 
 def test_store_uses_injected_api_client(fake_client):

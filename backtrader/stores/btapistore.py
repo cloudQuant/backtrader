@@ -60,6 +60,7 @@ _CZCE_PRODUCT_PREFIXES = frozenset(
     }
 )
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
+_UTC = _dt.timezone.utc
 _CTP_OFFSET_FLAG = {
     "open": "0",
     "close": "1",
@@ -408,7 +409,9 @@ def _ctp_extract_fields(field: Any, attrs: Iterable[str]) -> Dict[str, Any]:
 def _normalize_bar(bar: Any) -> Dict[str, Any]:
     """Normalize historical/live bar payloads into a common dict."""
     if isinstance(bar, dict):
-        dt_value = bar.get("datetime") or bar.get("dt") or bar.get("time") or bar.get("timestamp")
+        dt_value = bar.get("timestamp")
+        if dt_value in (None, ""):
+            dt_value = bar.get("datetime") or bar.get("dt") or bar.get("time")
         return {
             "datetime": _normalize_datetime(dt_value),
             "open": _coerce_float(bar.get("open")),
@@ -433,10 +436,16 @@ def _normalize_bar(bar: Any) -> Dict[str, Any]:
     raise ValueError(f"Unsupported bar payload: {bar!r}")
 
 
+def _datetime_to_utc_naive(value: _dt.datetime) -> _dt.datetime:
+    if value.tzinfo is not None and value.utcoffset() is not None:
+        return value.astimezone(_UTC).replace(tzinfo=None)
+    return value.replace(tzinfo=None)
+
+
 def _normalize_datetime(value: Any) -> _dt.datetime:
     """Normalize timestamps to naive UTC datetimes."""
     if isinstance(value, _dt.datetime):
-        return value.replace(tzinfo=None) if value.tzinfo else value
+        return _datetime_to_utc_naive(value)
 
     if isinstance(value, _dt.date):
         return _dt.datetime.combine(value, _dt.time.min)
@@ -445,11 +454,13 @@ def _normalize_datetime(value: Any) -> _dt.datetime:
         ts = float(value)
         if ts > 10_000_000_000:
             ts /= 1000.0
-        return _dt.datetime.utcfromtimestamp(ts)
+        return _dt.datetime.fromtimestamp(ts, _UTC).replace(tzinfo=None)
 
     if isinstance(value, str):
         try:
-            return _dt.datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+            return _datetime_to_utc_naive(
+                _dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            )
         except ValueError as exc:
             raise ValueError(f"Unsupported datetime string: {value!r}") from exc
 
@@ -1114,7 +1125,7 @@ def _create_ctp_wrapper_class():
                     bid_volume=_coerce_float(getattr(payload, "BidVolume1", None), 0.0) or None,
                     ask_volume=_coerce_float(getattr(payload, "AskVolume1", None), 0.0) or None,
                 )
-                event.datetime = tick_dt.replace(tzinfo=None)
+                event.datetime = _normalize_datetime(tick_dt)
                 event.instrument_id = instrument
                 event.exchange_id = exchange_id
                 event.openinterest = _coerce_float(getattr(payload, "OpenInterest", None))
@@ -2314,11 +2325,9 @@ class BtApiStore(LiveStoreBase):
     ) -> Dict[str, Any]:
         """Emit a structured runtime event into the store notification queue."""
         payload = {
-            # Naive UTC ISO string (no tz suffix) preserves the prior utcnow()
-            # output format for any downstream consumers. utcnow() is deprecated 3.12+.
-            "timestamp": _dt.datetime.now(_dt.timezone.utc)
-            .replace(tzinfo=None)
-            .isoformat(timespec="milliseconds"),
+            "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(
+                timespec="milliseconds"
+            ),
             "event_type": str(event_type),
             "level": str(level).upper(),
             "status": status,

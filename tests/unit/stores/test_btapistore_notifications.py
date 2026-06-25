@@ -1,5 +1,7 @@
 """Notification-focused unit tests for BtApiStore."""
 
+import datetime as dt
+
 import pytest
 
 from tests.fixtures.fake_btapi import FakeBtApiClient, make_store
@@ -7,6 +9,10 @@ from tests.fixtures.fake_btapi import FakeBtApiClient, make_store
 
 def _event_types(store):
     return [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+
+
+def _events(store):
+    return [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
 
 
 def test_store_emits_lifecycle_runtime_events():
@@ -24,6 +30,20 @@ def test_store_emits_lifecycle_runtime_events():
     assert "store_ready" in event_types
     assert "store_disconnect_requested" in event_types
     assert "store_disconnected" in event_types
+
+
+def test_store_runtime_event_timestamp_is_timezone_aware_utc():
+    """Runtime event timestamps should be unambiguous UTC ISO strings."""
+    client = FakeBtApiClient()
+    store = make_store(api=client, provider="okx")
+
+    store.start()
+
+    event = _events(store)[0]
+    timestamp = dt.datetime.fromisoformat(event["timestamp"])
+
+    assert timestamp.tzinfo is not None
+    assert timestamp.utcoffset() == dt.timedelta(0)
 
 
 def test_store_emits_reconnect_success_after_restart():

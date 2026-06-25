@@ -14,10 +14,19 @@ Example:
     >>> data = store.getdata(dataname='BTC/USDT')
 """
 
+import os as _os
+
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 
 from .btapistore import BtApiMissingDependencyError as BtApiMissingDependencyError
 from .btapistore import BtApiProviderNotImplementedError as BtApiProviderNotImplementedError
 from .btapistore import BtApiStore as BtApiStore
-from .vchartfile import VChartFile as VChartFile
+
+if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() not in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}:
+    from .vchartfile import VChartFile as VChartFile

@@ -1,10 +1,12 @@
 """Unit tests for the unified BtApiFeed."""
 
+import datetime as dt
 import logging
 
 import backtrader as bt
 import pytest
 
+from backtrader.feeds import btapifeed as btapifeed_module
 from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import (
@@ -35,6 +37,35 @@ def feed_stack():
     feed = store.getdata(dataname=DEFAULT_SYMBOL)
     feed._start()
     return client, store, feed
+
+
+def test_tick_datetime_prefers_epoch_timestamp_over_provider_datetime():
+    """Provider datetime fields may be mislabeled; epoch timestamp is canonical."""
+    timestamp = 1782357359.0
+    tick = {
+        "timestamp": timestamp,
+        "datetime": "2026-06-25T11:15:00.000+00:00",
+        "price": 100.0,
+    }
+
+    assert btapifeed_module._tick_datetime(tick) == dt.datetime(2026, 6, 25, 3, 15, 59)
+    assert btapifeed_module._tick_timestamp(tick) == pytest.approx(timestamp)
+
+
+def test_tick_datetime_converts_aware_values_to_utc_naive_without_timestamp():
+    """Timezone-aware tick datetimes should enter backtrader as UTC-naive values."""
+    shanghai = dt.timezone(dt.timedelta(hours=8))
+    tick = {"datetime": dt.datetime(2026, 6, 25, 11, 15, 59, tzinfo=shanghai)}
+
+    assert btapifeed_module._tick_datetime(tick) == dt.datetime(2026, 6, 25, 3, 15, 59)
+    assert btapifeed_module._tick_timestamp(tick) == pytest.approx(1782357359.0)
+
+
+def test_tick_timestamp_treats_naive_datetime_as_utc():
+    """Naive tick datetimes are already normalized UTC values."""
+    tick = {"datetime": dt.datetime(2026, 6, 25, 3, 15, 59)}
+
+    assert btapifeed_module._tick_timestamp(tick) == pytest.approx(1782357359.0)
 
 
 def test_feed_loads_history_then_live(feed_stack):
@@ -324,7 +355,7 @@ def test_feed_reports_live_when_orderbook_source_is_available():
     feed._start()
 
     assert feed.islive() is True
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
 
 def test_feed_reports_live_for_attribute_only_live_orderbooks():
@@ -352,7 +383,7 @@ def test_feed_reports_live_for_attribute_only_live_orderbooks():
     feed._start()
 
     assert feed.islive() is True
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
 
 def test_feed_reports_live_when_tick_source_is_available():
@@ -366,7 +397,7 @@ def test_feed_reports_live_when_tick_source_is_available():
     feed._start()
 
     assert feed.islive() is True
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
 
 def test_feed_reports_live_for_attribute_only_live_ticks():
@@ -394,7 +425,7 @@ def test_feed_reports_live_for_attribute_only_live_ticks():
     feed._start()
 
     assert feed.islive() is True
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
 
 def test_feed_reports_live_with_api_cls_even_before_any_live_data_is_available():
@@ -473,8 +504,8 @@ def test_feed_live_detection_falls_back_to_bound_store_attribute_when_store_para
     assert feed.haslivedata() is True
 
 
-def test_feed_haslivedata_falls_back_to_bound_store_pending_orderbook_when_store_param_is_missing():
-    """Test that feed haslivedata falls back to bound store pending orderbook when store param is missing."""
+def test_feed_haslivedata_ignores_bound_store_pending_orderbook_when_store_param_is_missing():
+    """Pending orderbook traffic is not a completed live bar."""
 
     class FallbackStore:
         """Store with fallback pending orderbook."""
@@ -489,11 +520,11 @@ def test_feed_haslivedata_falls_back_to_bound_store_pending_orderbook_when_store
     feed = BtApiFeed(dataname=DEFAULT_SYMBOL, backfill_start=False)
     feed._store = FallbackStore()
 
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
 
-def test_feed_haslivedata_falls_back_to_bound_store_pending_tick_when_store_param_is_missing():
-    """Test that feed haslivedata falls back to bound store pending tick when store param is missing."""
+def test_feed_haslivedata_ignores_bound_store_pending_tick_when_store_param_is_missing():
+    """Pending tick traffic is not a completed live bar."""
 
     class FallbackStore:
         """Store with fallback pending tick."""
@@ -508,12 +539,12 @@ def test_feed_haslivedata_falls_back_to_bound_store_pending_tick_when_store_para
     feed = BtApiFeed(dataname=DEFAULT_SYMBOL, backfill_start=False)
     feed._store = FallbackStore()
 
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
 
 @pytest.mark.parametrize("helper_name", ["has_pending_tick", "has_pending_orderbook"])
-def test_feed_haslivedata_uses_explicit_store_pending_helpers(helper_name):
-    """Test that feed haslivedata uses explicit store pending helpers."""
+def test_feed_haslivedata_ignores_explicit_store_pending_helpers(helper_name):
+    """Pending tick/orderbook helpers must not bypass qcheck."""
 
     class ExplicitStore:
         """Store with explicit pending helpers."""
@@ -526,7 +557,7 @@ def test_feed_haslivedata_uses_explicit_store_pending_helpers(helper_name):
 
     feed = BtApiFeed(dataname=DEFAULT_SYMBOL, store=store, backfill_start=False)
 
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
 
 def test_feed_start_without_store_is_silent_and_preserves_local_live_queue():
@@ -782,13 +813,66 @@ def test_feed_drains_live_ticks_into_channel_events():
     feed._start()
 
     assert feed.islive() is True
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
     feed._check()
 
     assert [event.channel_type for event in dispatched] == ["tick", "tick"]
     assert dispatched[0].data.price == pytest.approx(100.0)
     assert dispatched[1].data.price == pytest.approx(101.0)
+    assert feed.haslivedata() is False
+
+
+def test_feed_can_disable_raw_tick_channel_dispatch_while_building_bars():
+    """Raw tick callbacks can be disabled without disabling tick-to-bar aggregation."""
+    client = FakeBtApiClient(
+        live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0), make_tick(1, 101.0)]}
+    )
+    store = make_store(api=client)
+    feed = store.getdata(
+        dataname=DEFAULT_SYMBOL,
+        backfill_start=False,
+        dispatch_ticks=False,
+        timeframe=bt.TimeFrame.Ticks,
+    )
+    dispatched = []
+
+    class _Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, event):
+            dispatched.append(event)
+
+    feed.setenvironment(_Env())
+    feed._start()
+
+    feed._check()
+
+    assert [event.channel_type for event in dispatched] == ["bar", "bar"]
+    assert feed.haslivedata() is True
+    assert feed.load() is True
+    assert feed.close[0] == pytest.approx(100.0)
+
+
+def test_feed_waits_qcheck_when_realtime_ticks_do_not_complete_a_bar(monkeypatch):
+    """A pending tick is realtime traffic, not a completed bar; qcheck must throttle it."""
+    client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
+    store = make_store(api=client)
+    feed = store.getdata(
+        dataname=DEFAULT_SYMBOL,
+        backfill_start=False,
+        qcheck=0.25,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
+    sleeps = []
+    monkeypatch.setattr(btapifeed_module._time, "sleep", sleeps.append)
+
+    feed._start()
+    feed.do_qcheck(True, 0.0)
+
+    assert feed.load() is None
+    assert sleeps == [pytest.approx(0.25)]
     assert feed.haslivedata() is False
 
 
@@ -829,6 +913,28 @@ def test_feed_tick_timeframe_turns_live_ticks_into_immediate_bars():
     assert feed.haslivedata() is False
 
 
+def test_feed_tick_timeframe_loads_bar_datetime_from_epoch_timestamp():
+    """Loaded tick bars should use UTC-naive datetime derived from epoch timestamp."""
+    tick = make_tick(0, 100.0)
+    tick.timestamp = 1782357359.0
+    tick.datetime = "2026-06-25T11:15:00.000+00:00"
+    client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [tick]})
+    store = make_store(api=client)
+    feed = store.getdata(
+        dataname=DEFAULT_SYMBOL,
+        backfill_start=False,
+        timeframe=bt.TimeFrame.Ticks,
+    )
+
+    feed._start()
+    feed._check()
+
+    assert feed.load() is True
+    assert bt.num2date(feed.lines.datetime[0]).replace(microsecond=0) == dt.datetime(
+        2026, 6, 25, 3, 15, 59
+    )
+
+
 def test_feed_drains_live_orderbooks_into_channel_events():
     """Feed should dispatch queued live orderbooks through the channel callback surface."""
     client = FakeBtApiClient(
@@ -854,7 +960,7 @@ def test_feed_drains_live_orderbooks_into_channel_events():
     feed._start()
 
     assert feed.islive() is True
-    assert feed.haslivedata() is True
+    assert feed.haslivedata() is False
 
     feed._check()
 
