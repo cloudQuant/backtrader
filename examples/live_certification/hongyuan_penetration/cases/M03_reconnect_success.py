@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
@@ -16,8 +17,6 @@ for _p in (_SUITE, _REPO):
 from common import config as cfg, helpers
 from common.result import CaseTimer
 from common.runtime import started_store
-
-from backtrader.stores.btapistore import BtApiStore
 
 CASE_META = {
     "case_id": "M03",
@@ -33,28 +32,38 @@ def run(report_dir):
 
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
-            config = cfg.create_config(env_key)
+            with started_store(env_key, stop_on_exit=False) as (store, config, ek):
+                assert store.is_connected, "First connection failed"
+                print("✓ 第一次连接成功")
 
-            # First connection
-            store = BtApiStore(provider="ctp", **config)
-            store.start()
-            assert store.is_connected, "First connection failed"
-            print("✓ 第一次连接成功")
+                first_events = store.get_notifications()
+                store.stop()
+                disconnected_events = store.get_notifications()
+                print("  已断开连接")
+                time.sleep(2)
 
-            # Disconnect
-            store.stop()
-            print("  已断开连接")
-            time.sleep(2)
+                store.start()
+                assert store.is_connected, "Reconnection failed"
+                reconnect_events = store.get_notifications()
+                print("✓ 重连成功")
 
-            # Reconnect
-            store2 = BtApiStore(provider="ctp", **config)
-            store2.start()
-            assert store2.is_connected, "Reconnection failed"
-            print("✓ 重连成功")
-            store2.stop()
+            events = [
+                event.get("event_type")
+                for _msg, _args, kwargs in (
+                    first_events + disconnected_events + reconnect_events
+                )
+                for event in [kwargs.get("event")]
+                if isinstance(event, dict)
+            ]
 
             return timer.pass_result(
-                details={"first_connect": True, "reconnect": True},
+                details={
+                    "events": sorted(set(events)),
+                    "first_connect": True,
+                    "reconnect": True,
+                    "gateway_key": env_key,
+                    "timestamp": datetime.now().isoformat(),
+                },
             )
 
         except Exception as exc:

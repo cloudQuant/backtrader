@@ -182,6 +182,33 @@ class TradeLogger(Observer):
             level="INFO",
             details={"observer": self.__class__.__name__},
         )
+        self._log_configured_risk_thresholds()
+
+    def _configured_risk_thresholds(self):
+        """Return enabled monitoring thresholds for certification evidence."""
+        thresholds = {
+            "submit_count": int(self.p.submit_count_warn_threshold or 0),
+            "cancel_count": int(self.p.cancel_count_warn_threshold or 0),
+            "submit_cancel_total": int(self.p.submit_cancel_total_warn_threshold or 0),
+            "duplicate_order": int(self.p.duplicate_order_warn_threshold or 0),
+        }
+        return {name: value for name, value in thresholds.items() if value > 0}
+
+    def _log_configured_risk_thresholds(self):
+        """Record threshold configuration using the canonical certification event."""
+        thresholds = self._configured_risk_thresholds()
+        if not thresholds:
+            return
+
+        self._log_event(
+            "monitor",
+            "risk_threshold_configured",
+            level="INFO",
+            details={
+                "thresholds": thresholds,
+                "repeat_window_sec": float(self.p.duplicate_order_window_seconds or 0.0),
+            },
+        )
 
     def _ensure_loggers_initialized(self):
         """Ensure loggers are initialized (lazy initialization)."""
@@ -437,12 +464,34 @@ class TradeLogger(Observer):
             level="WARNING",
             details={"counter": counter_name, "value": value, "threshold": threshold},
         )
+        self._log_event(
+            "monitor",
+            "risk_threshold_triggered",
+            level="WARNING",
+            details={
+                "counter": counter_name,
+                "value": value,
+                "threshold": threshold,
+                "source_event_type": event_type,
+            },
+        )
 
     def _make_duplicate_key(self, action_type, details):
         """Build a duplicate-request key within the configured time window."""
 
         def normalize(value):
             return "" if value is None else str(value)
+
+        if action_type == "cancel":
+            return (
+                action_type,
+                normalize(details.get("data_name")),
+                "",
+                "",
+                "",
+                "",
+                "",
+            )
 
         return (
             action_type,
@@ -459,6 +508,17 @@ class TradeLogger(Observer):
         if action_type == "submit":
             self._monitoring["submit_count"] += 1
             self._monitoring["submit_cancel_total"] += 1
+            self._log_event(
+                "monitor",
+                "risk_monitor_event",
+                level="INFO",
+                details={
+                    "metric": "submitted_order_count",
+                    "value": int(self._monitoring["submit_count"]),
+                    "action_type": action_type,
+                    **details,
+                },
+            )
             self._monitor_threshold(
                 "submit_count",
                 int(self.p.submit_count_warn_threshold or 0),
@@ -472,6 +532,17 @@ class TradeLogger(Observer):
         elif action_type == "cancel":
             self._monitoring["cancel_count"] += 1
             self._monitoring["submit_cancel_total"] += 1
+            self._log_event(
+                "monitor",
+                "risk_monitor_event",
+                level="INFO",
+                details={
+                    "metric": "cancel_order_count",
+                    "value": int(self._monitoring["cancel_count"]),
+                    "action_type": action_type,
+                    **details,
+                },
+            )
             self._monitor_threshold(
                 "cancel_count",
                 int(self.p.cancel_count_warn_threshold or 0),
@@ -506,6 +577,22 @@ class TradeLogger(Observer):
             details={
                 "action_type": action_type,
                 "duplicate_count": len(queue),
+                **details,
+            },
+        )
+        repeat_event_type = (
+            "risk_repeat_cancel_detected"
+            if action_type == "cancel"
+            else "risk_repeat_order_detected"
+        )
+        self._log_event(
+            "monitor",
+            repeat_event_type,
+            level="WARNING",
+            details={
+                "action_type": action_type,
+                "repeat_key": "|".join(str(part) for part in key),
+                "repeat_count": len(queue),
                 **details,
             },
         )

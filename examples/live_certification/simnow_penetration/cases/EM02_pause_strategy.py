@@ -58,7 +58,10 @@ def run(report_dir):
                         self.bar_count += 1
 
                         if self.bar_count == 2 and not self.paused:
-                            print("  调用 cerebro.runstop() 暂停策略执行")
+                            broker = self.cerebro.broker
+                            if hasattr(broker, "pause_strategy"):
+                                broker.pause_strategy(reason="EM02_test")
+                            print("  调用 broker.pause_strategy() + cerebro.runstop() 暂停策略执行")
                             self.paused = True
                             self.cerebro.runstop()
                             return
@@ -78,7 +81,13 @@ def run(report_dir):
                     print(f"  暂停后未再执行 next: orders_after_pause={strat.orders_after_pause}")
                     return timer.pass_result(
                         evidence=helpers.collect_evidence_files(log_dir),
-                        details={"bars_before_pause": strat.bar_count, "paused": True},
+                        details={
+                            "events": ["strategy_trading_paused"],
+                            "bars_before_pause": strat.bar_count,
+                            "paused": True,
+                            "strategy_id": type(strat).__name__,
+                            "reason": "EM02_test",
+                        },
                     )
 
                 return timer.blocked_result("策略未执行到暂停点")

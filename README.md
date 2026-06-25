@@ -22,8 +22,34 @@
 
 ---
 
+## Installation
+
+I have published the pybind11-based Python wheel to PyPI:
+
+https://pypi.org/project/back-trader-cpp/
+
+You can install it directly:
+
+```bash
+pip install back-trader-cpp
+```
+
+It currently supports Python 3.8-3.14 and covers macOS, Windows, Linux, and other systems.
+
+## C++ and pybind11 Performance Highlights
+
+- 117 strategy benchmark cases, with the C++ version reaching 117/117 success and 0 metric mismatches;
+- C++ total-time median speedup: 128.82x;
+- C++ run-time median speedup: 235.78x;
+- pybind11 total-time median speedup: 43.39x;
+- pybind11 run-time median speedup: 57.60x.
+
+---
+
 ## 📋 Table of Contents
 
+- [Installation](#installation)
+- [C++ and pybind11 Performance Highlights](#c-and-pybind11-performance-highlights)
 - [Performance Snapshot](#-performance-snapshot)
 - [Introduction](#-introduction)
 - [Key Features](#-key-features)
@@ -184,7 +210,8 @@ CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, CTP future
 
 ### From GitHub (Primary)
 
-> **Note**: This project is NOT on PyPI. Install from source only.
+> **Note**: The pure-Python `cloudQuant/backtrader` package is installed from source.
+> For the pybind11 wheel, use `pip install back-trader-cpp`.
 
 ```bash
 git clone https://github.com/cloudQuant/backtrader.git
@@ -928,7 +955,8 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 
 ## 📥 快速安装
 
-> **注意**：本项目未发布到 PyPI，请从源码安装。
+> **注意**：纯 Python 版 `cloudQuant/backtrader` 从源码安装。pybind11 wheel 可使用
+> `pip install back-trader-cpp` 直接安装。
 
 ```bash
 # 从 GitHub 克隆

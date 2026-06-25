@@ -14,11 +14,9 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 
 CASE_META = {
     "case_id": "V03",
@@ -41,21 +39,13 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
-                broker = BtApiBroker(
-                    store=store,
+                cerebro = create_cerebro(
+                    store,
+                    symbol=symbol,
+                    bar_seconds=5,
+                    with_trade_logger=True,
+                    log_dir=log_dir,
                     contract_metadata={symbol: {"max_order_size": 10}},
-                )
-                data = BtApiFeed(
-                    store=store, dataname=symbol,
-                    timeframe=bt.TimeFrame.Seconds, compression=5,
-                    backfill_start=False,
-                )
-                cerebro = bt.Cerebro()
-                cerebro.setbroker(broker)
-                cerebro.adddata(data)
-                cerebro.addobserver(
-                    bt.observers.TradeLogger,
-                    log_dir=log_dir, log_format="json",
                 )
 
                 class ExceedVolumeStrategy(bt.Strategy):
@@ -101,7 +91,7 @@ def run(report_dir):
             error_entries = helpers.read_json_lines(Path(log_dir) / "error.log")
             error_codes = {e.get("error_code", "") for e in error_entries}
 
-            if strat.rejected or "exceed_max_volume" in error_codes:
+            if strat.rejected or "max_order_size_exceeded" in error_codes:
                 print("✓ 超量订单已被拒绝")
                 return timer.pass_result(
                     evidence=helpers.collect_evidence_files(log_dir),

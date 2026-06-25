@@ -1939,6 +1939,8 @@ class Cerebro(ParameterizedBase):
             feed.stop()
         # Iterate each store and stop store
         for store in self.stores:
+            if getattr(store, "_cerebro_managed_lifecycle", True) is False:
+                continue
             store.stop()
         # Stop writer
         self.stop_writers(runstrats)

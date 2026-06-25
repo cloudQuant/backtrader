@@ -15,11 +15,9 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 
 CASE_META = {
     "case_id": "B01",
@@ -51,22 +49,13 @@ def run(report_dir):
                     "volume": 1.0,
                     "openinterest": 0.0,
                 }
-                broker = BtApiBroker(store=store)
-                data = BtApiFeed(
-                    store=store,
-                    dataname=symbol,
-                    timeframe=bt.TimeFrame.Seconds,
-                    compression=5,
-                    backfill_start=False,
-                    historical_bars=[seed_bar],
-                )
-                cerebro = bt.Cerebro()
-                cerebro.setbroker(broker)
-                cerebro.adddata(data)
-                cerebro.addobserver(
-                    bt.observers.TradeLogger,
+                store.set_history(symbol, [seed_bar])
+                cerebro = create_cerebro(
+                    store,
+                    symbol=symbol,
+                    bar_seconds=5,
+                    with_trade_logger=True,
                     log_dir=log_dir,
-                    log_format="json",
                 )
 
                 class BatchCancelPartialStrategy(bt.Strategy):

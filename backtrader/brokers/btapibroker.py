@@ -269,7 +269,11 @@ class BtApiBroker(BrokerBase):
     def stop(self):
         """Stop the broker."""
         self._live_started = False
-        if self.store is not None and self.store.is_connected:
+        if (
+            self.store is not None
+            and self.store.is_connected
+            and getattr(self.store, "_cerebro_managed_lifecycle", True) is not False
+        ):
             self.store.stop()
 
     def getcash(self) -> float:
@@ -522,6 +526,11 @@ class BtApiBroker(BrokerBase):
             details={"reason": reason},
             status="disabled",
         )
+        self._emit_runtime_event(
+            "account_trading_disabled",
+            details={"reason": reason},
+            status="disabled",
+        )
 
     def enable_trading(self, reason="manual"):
         """Re-enable order submissions."""
@@ -540,6 +549,11 @@ class BtApiBroker(BrokerBase):
             details={"reason": reason},
             status="paused",
         )
+        self._emit_runtime_event(
+            "strategy_trading_paused",
+            details={"reason": reason},
+            status="paused",
+        )
 
     def resume_strategy(self, reason="manual"):
         """Resume strategy-driven order routing."""
@@ -552,6 +566,11 @@ class BtApiBroker(BrokerBase):
 
     def force_logout(self, reason="manual"):
         """Force the underlying store session to disconnect."""
+        self._emit_runtime_event(
+            "gateway_force_logout_requested",
+            details={"reason": reason},
+            status="disconnecting",
+        )
         self._emit_runtime_event(
             "force_logout_requested",
             details={"reason": reason},
@@ -821,6 +840,16 @@ class BtApiBroker(BrokerBase):
         order.reject(self)
         self.orders[order.ref] = order
         self.notify(order)
+        details = {
+            "data_name": self._position_key(order.data),
+            "side": "buy" if order.isbuy() else "sell",
+            "size": abs(float(order.size or 0.0)),
+            "price": (
+                order.price
+                if order.price is not None
+                else getattr(order.created, "price", None)
+            ),
+        }
         self._emit_runtime_event(
             "order_reject_local",
             level="ERROR",
@@ -828,16 +857,16 @@ class BtApiBroker(BrokerBase):
             error_code=error_code,
             error_msg=error_msg,
             status="rejected",
-            details={
-                "data_name": self._position_key(order.data),
-                "side": "buy" if order.isbuy() else "sell",
-                "size": abs(float(order.size or 0.0)),
-                "price": (
-                    order.price
-                    if order.price is not None
-                    else getattr(order.created, "price", None)
-                ),
-            },
+            details=details,
+        )
+        self._emit_runtime_event(
+            "order_validation_rejected",
+            level="ERROR",
+            order_ref=order.ref,
+            error_code=error_code,
+            error_msg=error_msg,
+            status="rejected",
+            details=details,
         )
         return order
 

@@ -1475,6 +1475,104 @@ def test_store_start_is_idempotent_and_does_not_duplicate_connect_events():
     assert event_types.count("store_ready") == 1
 
 
+def test_ctp_store_emits_auth_login_success_from_session_state():
+    """CTP auth/login success events should use real session metadata."""
+
+    class AuthenticatedCtpClient(FakeBtApiClient):
+        def get_session_state(self):
+            return {
+                "auth_state": "authenticated",
+                "login_state": "logged_in",
+                "front_id": 7,
+                "session_id": 8801,
+                "trading_day": "20260618",
+            }
+
+    store = make_store(api=AuthenticatedCtpClient(), provider="ctp")
+
+    store.start()
+
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [event["event_type"] for event in runtime_events]
+    assert "store_auth_request" in event_types
+    assert "store_auth_success" in event_types
+    assert "store_login_success" in event_types
+    assert event_types.index("store_login_success") < event_types.index("store_ready")
+    login_event = next(event for event in runtime_events if event["event_type"] == "store_login_success")
+    assert login_event["details"]["front_id"] == 7
+    assert login_event["details"]["session_id"] == 8801
+    assert login_event["details"]["trading_day"] == "20260618"
+
+
+def test_ctp_store_prefers_inner_trader_session_state_over_unknown_wrapper_state():
+    """Wrapper-level unknown state should not hide inner CTP trader metadata."""
+
+    class InnerTrader:
+        def get_session_state(self):
+            return {
+                "connected": True,
+                "ready": True,
+                "auth_state": "authenticated",
+                "login_state": "logged_in",
+                "front_id": 8,
+                "session_id": 8802,
+                "trading_day": "20260619",
+            }
+
+    class WrapperCtpClient(FakeBtApiClient):
+        def __init__(self):
+            super().__init__()
+            self.trader_client = InnerTrader()
+
+        def get_session_state(self):
+            return {
+                "connected": True,
+                "ready": False,
+                "auth_state": "unknown",
+                "login_state": "unknown",
+            }
+
+    store = make_store(api=WrapperCtpClient(), provider="ctp")
+
+    store.start()
+
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    login_event = next(event for event in runtime_events if event["event_type"] == "store_login_success")
+
+    assert login_event["details"]["front_id"] == 8
+    assert login_event["details"]["session_id"] == 8802
+    assert login_event["details"]["trading_day"] == "20260619"
+
+
+def test_ctp_store_blocks_ready_when_authentication_failed():
+    """CTP auth failure must not be reported as store_ready/auth_success."""
+
+    class FailedAuthCtpClient(FakeBtApiClient):
+        def get_session_state(self):
+            return {
+                "auth_state": "failed",
+                "login_state": "blocked",
+                "last_auth_error": {"error_id": 63, "error_msg": "auth failed"},
+            }
+
+    store = make_store(api=FailedAuthCtpClient(), provider="ctp")
+
+    with pytest.raises(BtApiStoreError, match="CTP authentication failed"):
+        store.start()
+
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [event["event_type"] for event in runtime_events]
+    assert "store_auth_request" in event_types
+    assert "store_auth_failed" in event_types
+    assert "store_auth_success" not in event_types
+    assert "store_login_success" not in event_types
+    assert "store_ready" not in event_types
+    failed_event = next(event for event in runtime_events if event["event_type"] == "store_auth_failed")
+    assert failed_event["error_code"] == "63"
+    assert failed_event["error_msg"] == "auth failed"
+    assert store.is_connected is False
+
+
 def test_store_start_does_not_duplicate_same_data_feed_binding():
     """Test that start does not duplicate same data feed binding."""
     store = make_store(api=FakeBtApiClient())
@@ -2173,15 +2271,101 @@ def test_create_ctp_wrapper_patches_missing_spi_callbacks():
     """Test that create CTP wrapper patches missing SPI callbacks."""
     # Optional live-trading dependency: skip when bt_api_py CTP support is absent
     # (e.g. CI images without the proprietary package) instead of erroring.
-    pytest.importorskip("bt_api_py.ctp.client")
+    pytest.importorskip("bt_api_ctp.ctp.client")
     _create_ctp_wrapper_class()
 
-    import bt_api_py.ctp.client as ctp_client_module
+    import bt_api_ctp.ctp.client as ctp_client_module
 
     assert hasattr(ctp_client_module._MdSpi, "OnRspQryInvestorPositionDetail")
     assert hasattr(ctp_client_module._MdSpi, "OnRspQryNotice")
     assert hasattr(ctp_client_module._TraderSpi, "OnRspQryInvestorPositionDetail")
     assert hasattr(ctp_client_module._TraderSpi, "OnRspQryNotice")
+
+
+def test_ctp_wrapper_accepts_dict_snapshots_from_trader_client():
+    """CTP query callbacks return dict snapshots; wrapper must read them directly."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def query_account(self, timeout=5):
+            return {"Available": 80000.0, "Balance": 100000.0}
+
+        def query_positions(self, timeout=5):
+            return [
+                {
+                    "InstrumentID": "IF2506",
+                    "PosiDirection": "2",
+                    "Position": 2,
+                    "PositionCost": 7000.0,
+                }
+            ]
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+
+    assert client.get_balance() == {"cash": 80000.0, "value": 100000.0}
+    assert client.get_positions() == [
+        {
+            "instrument": "IF2506",
+            "direction": "long",
+            "volume": 2.0,
+            "price": 3500.0,
+        }
+    ]
+
+
+def test_ctp_wrapper_polls_order_insert_error_events_with_order_ref():
+    """CTP order-insert errors must retain OrderRef for broker reconciliation."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def __init__(self):
+            self._events = [
+                {
+                    "event": "order_insert_error",
+                    "error_id": 31,
+                    "error_msg": "资金不足",
+                    "field": {
+                        "OrderRef": "bt-7",
+                        "InstrumentID": "rb2610",
+                        "ExchangeID": "SHFE",
+                    },
+                }
+            ]
+
+        def wait_error_event(self, timeout=0):
+            return self._events.pop(0) if self._events else None
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+
+    update = client.poll_broker_update()
+
+    assert update["kind"] == "error"
+    assert update["order_ref"] == "bt-7"
+    assert update["data_name"] == "rb2610"
+    assert update["error_code"] == 31
+    assert update["error_msg"] == "资金不足"
+    assert update["details"]["ErrorID"] == 31
+    assert update["details"]["ErrorMsg"] == "资金不足"
 
 
 def test_ctp_provider_switches_to_generic_gateway_from_env(monkeypatch):

@@ -209,6 +209,46 @@ def test_cerebro_observer(main=False):
         pass
 
 
+def test_cerebro_does_not_stop_externally_managed_store():
+    """Externally managed live stores should still receive notifications but not stop."""
+
+    class ExternalStore:
+        _cerebro_managed_lifecycle = False
+
+        def __init__(self):
+            self.start_calls = 0
+            self.stop_calls = 0
+
+        def start(self):
+            self.start_calls += 1
+
+        def stop(self):
+            self.stop_calls += 1
+
+        def get_notifications(self):
+            return []
+
+    cerebro = bt.Cerebro()
+    store = ExternalStore()
+    cerebro.addstore(store)
+
+    modpath = os.path.dirname(os.path.abspath(__file__))
+    datapath = os.path.join(modpath, "../../datas/2006-day-001.txt")
+    data = bt.feeds.BacktraderCSVData(
+        dataname=datapath,
+        fromdate=datetime.datetime(2006, 1, 1),
+        todate=datetime.datetime(2006, 1, 31),
+    )
+
+    cerebro.adddata(data)
+    cerebro.addstrategy(SimpleStrategy)
+
+    cerebro.run()
+
+    assert store.start_calls == 1
+    assert store.stop_calls == 0
+
+
 if __name__ == "__main__":
     test_cerebro_basic(main=True)
     test_cerebro_analyzer(main=True)

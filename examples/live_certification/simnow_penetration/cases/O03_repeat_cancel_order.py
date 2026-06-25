@@ -83,14 +83,29 @@ def run(report_dir):
 
             monitor_entries = helpers.read_json_lines(Path(log_dir) / "monitor.log")
             cancel_count = sum(1 for e in monitor_entries if e.get("event_type") == "order_cancel_request")
+            event_types = helpers.extract_event_type_set(monitor_entries)
+            repeat_events = [
+                e for e in monitor_entries
+                if e.get("event_type") == "risk_repeat_cancel_detected"
+            ]
+            repeat_details = repeat_events[-1].get("details", {}) if repeat_events else {}
 
-            if cancel_count >= 3:
-                print(f"✓ 成功统计 {cancel_count} 笔重复撤单")
+            if "risk_repeat_cancel_detected" in event_types:
+                print(f"✓ 成功统计 {cancel_count} 笔重复撤单，并触发重复撤单风险事件")
                 return timer.pass_result(
                     evidence=helpers.collect_evidence_files(log_dir),
-                    details={"repeat_cancel_count": cancel_count},
+                    details={
+                        "events": sorted(event_types),
+                        "repeat_cancel_count": cancel_count,
+                        "repeat_key": repeat_details.get("repeat_key"),
+                        "repeat_count": repeat_details.get("repeat_count"),
+                    },
                 )
-            return timer.blocked_result(f"撤单笔数不足: {cancel_count}")
+            return timer.blocked_result(
+                f"未观察到 risk_repeat_cancel_detected，撤单笔数: {cancel_count}",
+                evidence=helpers.collect_evidence_files(log_dir),
+                details={"events": sorted(event_types), "repeat_cancel_count": cancel_count},
+            )
 
         except Exception as exc:
             return timer.fail_result(str(exc), evidence=helpers.collect_evidence_files(log_dir))

@@ -15,11 +15,9 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 
 CASE_META = {
     "case_id": "EM02",
@@ -63,22 +61,13 @@ def run(report_dir):
                         "openinterest": 0.0,
                     },
                 ]
-                broker = BtApiBroker(store=store)
-                data = BtApiFeed(
-                    store=store,
-                    dataname=symbol,
-                    timeframe=bt.TimeFrame.Seconds,
-                    compression=5,
-                    backfill_start=False,
-                    historical_bars=seed_bars,
-                )
-                cerebro = bt.Cerebro()
-                cerebro.setbroker(broker)
-                cerebro.adddata(data)
-                cerebro.addobserver(
-                    bt.observers.TradeLogger,
+                store.set_history(symbol, seed_bars)
+                cerebro = create_cerebro(
+                    store,
+                    symbol=symbol,
+                    bar_seconds=5,
+                    with_trade_logger=True,
                     log_dir=log_dir,
-                    log_format="json",
                 )
 
                 class PauseStrategy(bt.Strategy):
@@ -95,7 +84,9 @@ def run(report_dir):
                         self.bar_count += 1
 
                         if not self.paused:
-                            print("  调用 cerebro.runstop() 暂停策略执行")
+                            if hasattr(self.cerebro.broker, "pause_strategy"):
+                                self.cerebro.broker.pause_strategy(reason="EM02_test")
+                            print("  调用 broker.pause_strategy() + cerebro.runstop() 暂停策略执行")
                             self.paused = True
                             self.cerebro.runstop()
                             return
@@ -115,7 +106,13 @@ def run(report_dir):
                     print(f"  暂停后未再执行 next: orders_after_pause={strat.orders_after_pause}")
                     return timer.pass_result(
                         evidence=helpers.collect_evidence_files(log_dir),
-                        details={"bars_before_pause": strat.bar_count, "paused": True},
+                        details={
+                            "events": ["strategy_trading_paused"],
+                            "bars_before_pause": strat.bar_count,
+                            "paused": True,
+                            "strategy_id": type(strat).__name__,
+                            "reason": "EM02_test",
+                        },
                     )
 
                 return timer.blocked_result("策略未执行到暂停点")

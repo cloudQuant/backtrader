@@ -94,9 +94,7 @@ def run(report_dir):
                         elif not self.cancels_issued:
                             # Batch cancel all pending orders
                             print(f"  批量撤单 {len(self.orders)} 笔")
-                            for o in self.orders:
-                                if o.alive():
-                                    self.cancel(o)
+                            self.broker.batch_cancel([o for o in self.orders if o.alive()])
                             self.cancels_issued = True
 
                 cerebro.addstrategy(BatchCancelPartialStrategy)

@@ -1412,6 +1412,24 @@ def test_broker_stop_is_silent_noop_when_store_is_already_disconnected():
     assert store.stop_calls == 0
 
 
+def test_broker_stop_does_not_disconnect_shared_live_store():
+    """Cerebro broker teardown should not own the shared store lifecycle."""
+    client = FakeBtApiClient()
+    store = make_store(api=client)
+    store._cerebro_managed_lifecycle = False
+    store.start()
+    broker = BtApiBroker(store=store)
+    broker._live_started = True
+
+    broker.stop()
+
+    assert broker._live_started is False
+    assert store.is_connected is True
+    assert client.connected is True
+
+    store.stop()
+
+
 def test_broker_runtime_helpers_update_local_state_without_store():
     """Test that broker runtime helpers update local state without store."""
     broker = BtApiBroker(store=None)
@@ -1521,6 +1539,11 @@ def test_local_validation_rejects_invalid_tick_size():
             and event["error_code"] == "invalid_price_tick"
             for event in events
         )
+        assert any(
+            event["event_type"] == "order_validation_rejected"
+            and event["error_code"] == "invalid_price_tick"
+            for event in events
+        )
     finally:
         broker.stop()
 
@@ -1585,9 +1608,12 @@ def test_trading_controls_batch_cancel_and_force_logout():
 
         events = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
         assert "trading_disabled" in events
+        assert "account_trading_disabled" in events
         assert "trading_enabled" in events
         assert "strategy_paused" in events
+        assert "strategy_trading_paused" in events
         assert "strategy_resumed" in events
+        assert "gateway_force_logout_requested" in events
         assert "force_logout_requested" in events
         assert "store_disconnected" in events
     finally:

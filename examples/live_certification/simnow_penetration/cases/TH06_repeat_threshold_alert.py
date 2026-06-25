@@ -53,6 +53,7 @@ def run(report_dir):
                         """Initialize repeat order strategy."""
                         self.bar_count = 0
                         self.orders_placed = 0
+                        self.limit_price = None
 
                     def notify_order(self, order):
                         """Handle order status updates.
@@ -70,8 +71,9 @@ def run(report_dir):
                         if self.orders_placed >= 3:
                             return
                         ref_price = float(self.data.close[0])
-                        limit_price = max(ref_price - 20, 1.0)
-                        order = self.buy(size=1, exectype=bt.Order.Limit, price=limit_price, offset="open")
+                        if self.limit_price is None:
+                            self.limit_price = max(ref_price - 20, 1.0)
+                        order = self.buy(size=1, exectype=bt.Order.Limit, price=self.limit_price, offset="open")
                         if order:
                             self.orders_placed += 1
                             self.cancel(order)
@@ -85,15 +87,32 @@ def run(report_dir):
 
             monitor_entries = helpers.read_json_lines(Path(log_dir) / "monitor.log")
             submit_count = sum(1 for e in monitor_entries if e.get("event_type") == "order_submit_request")
-            has_warning = any(e.get("level") == "WARNING" for e in monitor_entries)
+            event_types = helpers.extract_event_type_set(monitor_entries)
+            threshold_events = [
+                e for e in monitor_entries
+                if e.get("event_type") == "risk_threshold_triggered"
+            ]
+            threshold_details = threshold_events[-1].get("details", {}) if threshold_events else {}
 
-            if submit_count >= 2 or has_warning:
+            if (
+                "risk_threshold_triggered" in event_types
+                and "duplicate_order_threshold_reached" in event_types
+            ):
                 print(f"✓ 重复报单 {submit_count} 笔，阈值=2，预警条件已满足")
                 return timer.pass_result(
                     evidence=helpers.collect_evidence_files(log_dir),
-                    details={"submit_count": submit_count, "has_warning": has_warning},
+                    details={
+                        "events": sorted(event_types),
+                        "submit_count": submit_count,
+                        "repeat_threshold": threshold_details.get("threshold"),
+                        "repeat_count": threshold_details.get("value"),
+                    },
                 )
-            return timer.blocked_result(f"报单笔数不足: {submit_count}")
+            return timer.blocked_result(
+                f"未观察到 risk_threshold_triggered，报单笔数: {submit_count}",
+                evidence=helpers.collect_evidence_files(log_dir),
+                details={"events": sorted(event_types), "submit_count": submit_count},
+            )
 
         except Exception as exc:
             return timer.fail_result(str(exc), evidence=helpers.collect_evidence_files(log_dir))

@@ -70,8 +70,21 @@ def run(report_dir):
             assert "store_login_success" in events, "Missing store_login_success event"
             print("✓ system.log 包含 store_auth_success 和 store_login_success")
 
+            auth_entry = next(
+                (entry for entry in system_entries if entry.get("event_type") == "store_auth_success"),
+                {},
+            )
+            auth_details = dict(auth_entry.get("details") or {})
             evidence = helpers.collect_evidence_files(log_dir)
-            return timer.pass_result(evidence=evidence, details={"events": sorted(events)})
+            return timer.pass_result(
+                evidence=evidence,
+                details={
+                    "events": sorted(events),
+                    "front_id": auth_details.get("front_id"),
+                    "session_id": auth_details.get("session_id"),
+                    "trading_day": auth_details.get("trading_day"),
+                },
+            )
 
         except Exception as exc:
             evidence = helpers.collect_evidence_files(log_dir)

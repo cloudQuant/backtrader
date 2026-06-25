@@ -300,11 +300,15 @@ def test_trade_logger_records_monitor_thresholds_and_duplicates(tmp_path):
     monitor_entries = _read_json_lines(tmp_path / "monitor.log")
     monitor_events = [entry["event_type"] for entry in monitor_entries]
 
+    assert "risk_monitor_event" in monitor_events
     assert "duplicate_order_detected" in monitor_events
+    assert "risk_repeat_order_detected" in monitor_events
     assert "submit_count_threshold_reached" in monitor_events
     assert "cancel_count_threshold_reached" in monitor_events
     assert "submit_cancel_total_threshold_reached" in monitor_events
     assert "duplicate_order_threshold_reached" in monitor_events
+    assert "risk_threshold_configured" in monitor_events
+    assert "risk_threshold_triggered" in monitor_events
 
 
 @pytest.mark.integration
