@@ -816,7 +816,12 @@ def _unwrap_contract_metadata_payload(raw: Any, symbol: Any) -> Dict[str, Any]:
     return _flatten_contract_metadata_payload(data)
 
 
-def _normalise_exchange_commission_rate(key: str, value: Any) -> Optional[float]:
+def _normalise_exchange_commission_rate(
+    key: str,
+    value: Any,
+    *,
+    okx_fee_sign: bool = False,
+) -> Optional[float]:
     number = _coerce_float(value, None)
     if number is None:
         return None
@@ -825,11 +830,24 @@ def _normalise_exchange_commission_rate(key: str, value: Any) -> Optional[float]
         return number / 10000.0
     if key_lower in {"makercommissionrate", "takercommissionrate"} and abs(number) > 1:
         return number / 10000.0
-    if key_lower in {"makeru", "takeru"}:
+    if key_lower in {"makeru", "takeru"} or (
+        okx_fee_sign and key_lower in {"maker", "taker"}
+    ):
         return -number
     if abs(number) > 1:
         return number / 100.0
     return number
+
+
+def _first_metadata_item(metadata: Dict[str, Any], *keys: str) -> Tuple[str, Any]:
+    for key in keys:
+        if key not in metadata:
+            continue
+        value = metadata.get(key)
+        if value in (None, ""):
+            continue
+        return key, value
+    return "", None
 
 
 def _normalise_contract_metadata(raw: Any, symbol: Any, *, source: str = "") -> Dict[str, Any]:
@@ -883,23 +901,46 @@ def _normalise_contract_metadata(raw: Any, symbol: Any, *, source: str = "") -> 
         metadata["multiplier"] = 1.0
         metadata["contract_size"] = 1.0
 
-    maker_rate = _normalise_exchange_commission_rate(
+    okx_fee_sign = "okx" in " ".join(
+        str(metadata.get(key) or "")
+        for key in ("source", "fee_source", "exchange", "exchange_id")
+    ).lower() or any(
+        key in metadata
+        for key in (
+            "makerU",
+            "takerU",
+            "makerUSDC",
+            "takerUSDC",
+            "feeGroup",
+        )
+    )
+    maker_key, maker_value = _first_metadata_item(
+        metadata,
+        "maker_commission_rate",
+        "maker_fee_rate",
         "makerCommissionRate",
-        metadata.get("maker_commission_rate")
-        or metadata.get("maker_fee_rate")
-        or metadata.get("makerCommissionRate")
-        or metadata.get("makerCommission")
-        or metadata.get("makerU")
-        or metadata.get("maker"),
+        "makerCommission",
+        "makerU",
+        "maker",
+    )
+    taker_key, taker_value = _first_metadata_item(
+        metadata,
+        "taker_commission_rate",
+        "taker_fee_rate",
+        "takerCommissionRate",
+        "takerCommission",
+        "takerU",
+        "taker",
+    )
+    maker_rate = _normalise_exchange_commission_rate(
+        maker_key,
+        maker_value,
+        okx_fee_sign=okx_fee_sign,
     )
     taker_rate = _normalise_exchange_commission_rate(
-        "takerCommissionRate",
-        metadata.get("taker_commission_rate")
-        or metadata.get("taker_fee_rate")
-        or metadata.get("takerCommissionRate")
-        or metadata.get("takerCommission")
-        or metadata.get("takerU")
-        or metadata.get("taker"),
+        taker_key,
+        taker_value,
+        okx_fee_sign=okx_fee_sign,
     )
     if maker_rate is not None:
         metadata["maker_commission_rate"] = maker_rate

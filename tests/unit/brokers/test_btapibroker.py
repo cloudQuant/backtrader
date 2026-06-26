@@ -6,7 +6,7 @@ import pytest
 import backtrader as bt
 
 from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.stores.btapistore import BtApiStoreError
+from backtrader.stores.btapistore import BtApiStoreError, _normalise_contract_metadata
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
 
 
@@ -2323,6 +2323,35 @@ def test_store_contract_metadata_falls_back_to_exchange_info_payload():
     assert comminfo.get_margin(60000.0) == pytest.approx(1200.0)
     assert comminfo.getcommission(0.5, 60000.0) == pytest.approx(18.0)
     assert comminfo.getcommission(0.5, 60000.0, role="maker") == pytest.approx(6.0)
+
+
+def test_contract_metadata_normalizes_okx_raw_fee_signs_without_touching_plain_rates():
+    """OKX raw fee signs are opposite to internal commission signs."""
+    okx_metadata = _normalise_contract_metadata(
+        {
+            "instType": "SWAP",
+            "maker": "-0.0002",
+            "taker": "-0.0005",
+            "makerU": "0.00018",
+            "takerU": "-0.00045",
+        },
+        "BTC-USDT-SWAP",
+        source="okx_get_fee",
+    )
+
+    assert okx_metadata["maker_commission_rate"] == pytest.approx(-0.00018)
+    assert okx_metadata["taker_commission_rate"] == pytest.approx(0.00045)
+    assert okx_metadata["commission_rate"] == pytest.approx(0.00045)
+    assert okx_metadata["open_commission_rate"] == pytest.approx(0.00045)
+
+    plain_metadata = _normalise_contract_metadata(
+        {"maker": "0.0002", "taker": "0.0006"},
+        "BTCUSDT",
+        source="get_fee",
+    )
+
+    assert plain_metadata["maker_commission_rate"] == pytest.approx(0.0002)
+    assert plain_metadata["taker_commission_rate"] == pytest.approx(0.0006)
 
 
 def test_contract_metadata_auto_materializes_fixed_margin_amount():
