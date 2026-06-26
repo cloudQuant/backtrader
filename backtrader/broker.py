@@ -132,7 +132,31 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         # Add fund history. See cerebro for details
         raise NotImplementedError
 
-    # Get commission info, if data._name is in commission info dict, get corresponding value, otherwise use default self.p.commission
+    @staticmethod
+    def _commission_lookup_keys(data):
+        """Return stable symbol/name candidates for commission lookup."""
+        keys = []
+        seen = set()
+        for attr in ("name", "_name", "_dataname", "symbol"):
+            value = getattr(data, attr, None)
+            if value in (None, ""):
+                continue
+            text = str(value)
+            for key in (value, text, text.upper(), text.lower()):
+                try:
+                    marker = ("hashable", key)
+                    if marker in seen:
+                        continue
+                    seen.add(marker)
+                except TypeError:
+                    marker = ("repr", repr(key))
+                    if marker in seen:
+                        continue
+                    seen.add(marker)
+                keys.append(key)
+        return keys
+
+    # Get commission info, if data name is in commission info dict, get corresponding value, otherwise use default self.p.commission
     def getcommissioninfo(self, data):
         """Get the commission info for a given data.
 
@@ -145,9 +169,9 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         # PERFORMANCE OPTIMIZATION: Use getattr instead of hasattr+access
         # Called 2.1M+ times, avoid double attribute lookup
         comminfo = self.comminfo
-        name = getattr(data, "name", None)
-        if name is not None and name in comminfo:
-            return comminfo[name]
+        for name in self._commission_lookup_keys(data):
+            if name in comminfo:
+                return comminfo[name]
 
         return comminfo[None]
 
@@ -157,6 +181,10 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         commission=0.0,
         maker_commission=None,
         taker_commission=None,
+        open_commission=None,
+        close_commission=None,
+        close_today_commission=None,
+        close_yesterday_commission=None,
         margin=None,
         mult=1.0,
         commtype=None,
@@ -180,6 +208,10 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
             commission=commission,
             maker_commission=maker_commission,
             taker_commission=taker_commission,
+            open_commission=open_commission,
+            close_commission=close_commission,
+            close_today_commission=close_today_commission,
+            close_yesterday_commission=close_yesterday_commission,
             margin=margin,
             mult=mult,
             commtype=commtype,

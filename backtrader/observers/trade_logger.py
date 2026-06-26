@@ -916,15 +916,171 @@ class TradeLogger(Observer):
         return []
 
     @staticmethod
-    def _position_market_value(data, position):
-        """Best-effort mark-to-market value for data-less strategies."""
+    def _float_or_none(value):
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _positive_float(value, default=1.0):
+        number = TradeLogger._float_or_none(value)
+        if number is None or number <= 0:
+            return default
+        return number
+
+    def _current_position_price(self, data, position):
+        """Best-effort current price for position valuation."""
+        try:
+            return float(data.close[0])
+        except Exception:
+            return float(getattr(position, "price", 0.0) or 0.0)
+
+    def _commission_info_for_data(self, data):
+        """Return broker commission info for a data feed when available."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            getter = getattr(broker, "getcommissioninfo", None)
+            if callable(getter):
+                return getter(data)
+        except Exception as exc:
+            logger.debug("Failed to read commission info: %s", exc)
+        return None
+
+    @staticmethod
+    def _comminfo_param(comminfo, name, default=None):
+        if comminfo is None:
+            return default
+        getter = getattr(comminfo, "get_param", None)
+        if callable(getter):
+            try:
+                value = getter(name)
+                if value is not None:
+                    return value
+            except Exception:
+                pass
+        params = getattr(comminfo, "p", None)
+        if params is not None:
+            try:
+                value = getattr(params, name)
+                if value is not None:
+                    return value
+            except Exception:
+                pass
+        return getattr(comminfo, name, default)
+
+    def _contract_metadata_for_data(self, data, data_name):
+        """Return configured contract metadata from broker/store if present."""
+        metadata = {}
+        try:
+            broker = getattr(self._owner, "broker", None)
+            resolver = getattr(broker, "_contract_rules_for", None)
+            if callable(resolver):
+                value = resolver(data_name)
+                if isinstance(value, dict):
+                    metadata.update(value)
+
+            broker_metadata = getattr(broker, "_contract_metadata", None)
+            if isinstance(broker_metadata, dict):
+                value = broker_metadata.get(str(data_name))
+                if isinstance(value, dict):
+                    metadata.update(value)
+
+            store = getattr(broker, "store", None) if broker is not None else None
+            getter = getattr(store, "get_contract_metadata", None)
+            if callable(getter):
+                value = getter(data_name)
+                if isinstance(value, dict):
+                    metadata.update(value)
+        except Exception as exc:
+            logger.debug("Failed to read contract metadata for %s: %s", data_name, exc)
+        return metadata
+
+    def _position_contract_fields(self, data, position, data_name):
+        """Build valuation metadata for position logs and snapshots."""
+        current_price = self._current_position_price(data, position)
+        comminfo = self._commission_info_for_data(data)
+        metadata = self._contract_metadata_for_data(data, data_name)
+
+        multiplier = self._positive_float(
+            metadata.get("multiplier")
+            or metadata.get("mult")
+            or metadata.get("contract_multiplier")
+            or metadata.get("contract_size")
+            or self._comminfo_param(comminfo, "mult"),
+            1.0,
+        )
+
+        margin_rate = self._float_or_none(
+            metadata.get("margin_rate") or metadata.get("margin") or metadata.get("margin_ratio")
+        )
+        if margin_rate is None:
+            margin_param = self._float_or_none(self._comminfo_param(comminfo, "margin"))
+            class_name = comminfo.__class__.__name__ if comminfo is not None else ""
+            if margin_param is not None and (
+                0.0 <= margin_param <= 1.0 or class_name.startswith("ComminfoFutures")
+            ):
+                margin_rate = margin_param
+
+        commission_rate = self._float_or_none(
+            metadata.get("commission_rate")
+            or metadata.get("fee_rate")
+            or metadata.get("open_fee_rate")
+            or self._comminfo_param(comminfo, "commission")
+        )
+        margin_value = None
+        if abs(float(position.size or 0.0)) > 0:
+            margin_getter = getattr(comminfo, "get_margin", None)
+            if callable(margin_getter):
+                try:
+                    margin_value = abs(float(position.size)) * float(margin_getter(current_price))
+                except Exception:
+                    margin_value = None
+            if margin_value is None and margin_rate is not None:
+                margin_value = abs(float(position.size)) * current_price * multiplier * margin_rate
+
+        fields = {
+            "current_price": current_price,
+            "multiplier": multiplier,
+            "contract_multiplier": multiplier,
+            "contract_size": multiplier,
+        }
+        if margin_rate is not None:
+            fields["margin"] = margin_rate
+            fields["margin_rate"] = margin_rate
+        if margin_value is not None:
+            fields["margin_value"] = margin_value
+        if commission_rate is not None:
+            fields["commission_rate"] = commission_rate
+        for key in (
+            "commission_method",
+            "commission_amount",
+            "open_commission_rate",
+            "open_fee_rate",
+            "open_fee_amount",
+            "long_margin_rate",
+            "short_margin_rate",
+            "exchange",
+            "exchange_id",
+            "asset_type",
+        ):
+            value = metadata.get(key)
+            if value not in (None, ""):
+                fields[key] = value
+        return fields
+
+    def _position_market_value(self, data, position):
+        """Best-effort mark-to-market notional exposure for position logs."""
         if position.size == 0:
             return 0.0
 
-        try:
-            return float(position.size) * float(data.close[0])
-        except Exception:
-            return float(position.size) * float(getattr(position, "price", 0.0) or 0.0)
+        data_name = getattr(data, "_name", str(data))
+        fields = self._position_contract_fields(data, position, data_name)
+        current_price = fields.get("current_price", 0.0)
+        multiplier = fields.get("multiplier", 1.0)
+        return float(position.size) * float(current_price or 0.0) * float(multiplier or 1.0)
 
     def _log_bar_snapshots(self):
         """Log per-bar OHLC snapshots during regular backtests."""
@@ -1346,7 +1502,12 @@ class TradeLogger(Observer):
         for data in position_datas:
             position = self._owner.getposition(data)
             data_name = getattr(data, "_name", str(data))
-            market_value = self._position_market_value(data, position)
+            contract_fields = self._position_contract_fields(data, position, data_name)
+            market_value = (
+                float(position.size)
+                * float(contract_fields.get("current_price") or 0.0)
+                * float(contract_fields.get("multiplier") or 1.0)
+            )
 
             log_data = {
                 "log_time": self._log_time_str(),
@@ -1355,6 +1516,7 @@ class TradeLogger(Observer):
                 "size": position.size,
                 "price": position.price,
                 "value": market_value,
+                **contract_fields,
                 "broker_value": broker_value,
                 "broker_cash": broker_cash,
                 "strategy_name": self._get_strategy_name(),
@@ -1507,17 +1669,26 @@ class TradeLogger(Observer):
         for data in self._iter_position_datas():
             position = self._owner.getposition(data)
             data_name = getattr(data, "_name", str(data))
+            contract_fields = self._position_contract_fields(data, position, data_name)
 
             if position.size != 0:
-                try:
-                    current_price = round(float(data.close[0]), 4)
-                except Exception:
-                    current_price = round(float(getattr(position, "price", 0.0) or 0.0), 4)
+                current_price = round(float(contract_fields.get("current_price") or 0.0), 4)
+                market_value = (
+                    float(position.size)
+                    * float(contract_fields.get("current_price") or 0.0)
+                    * float(contract_fields.get("multiplier") or 1.0)
+                )
+                snapshot_fields = {
+                    key: round(value, 8) if isinstance(value, float) else value
+                    for key, value in contract_fields.items()
+                    if key != "current_price"
+                }
                 snapshot["positions"][data_name] = {
                     "size": position.size,
                     "price": round(position.price, 4),
-                    "value": round(self._position_market_value(data, position), 8),
+                    "value": round(market_value, 8),
                     "current_price": current_price,
+                    **snapshot_fields,
                 }
 
         snapshot_path = os.path.join(self.p.log_dir, self.p.snapshot_file)

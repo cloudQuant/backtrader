@@ -550,6 +550,22 @@ class BackBroker(BrokerBase):
         return order
 
     @staticmethod
+    def _close_commission_role(offset):
+        offset_text = str(offset or "").strip().lower()
+        if offset_text in {"close_today", "closetoday"}:
+            return "close_today"
+        if offset_text in {"close_yesterday", "closeyesterday"}:
+            return "close_yesterday"
+        return "close"
+
+    @staticmethod
+    def _getcommission_role(comminfo, size, price, role):
+        try:
+            return comminfo.getcommission(size, price, role=role)
+        except TypeError:
+            return comminfo.getcommission(size, price)
+
+    @staticmethod
     def _position_storage_key(data):
         return data
 
@@ -1643,7 +1659,12 @@ class BackBroker(BrokerBase):
             cash += closecash + pnl * comminfo.stocklike
             # Calculate and subtract commission
             # Commission when closing position
-            closedcomm = comminfo.getcommission(closed, price)
+            closedcomm = self._getcommission_role(
+                comminfo,
+                closed,
+                price,
+                self._close_commission_role(getattr(order.info, "offset", None)),
+            )
             # Cash equals cash minus closing commission
             cash -= closedcomm
             # If ago is not None
@@ -1675,7 +1696,7 @@ class BackBroker(BrokerBase):
             # Subtract cash obtained after opening
             cash -= opencash  # original behavior
             # Commission for opening
-            openedcomm = cinfocomp.getcommission(opened, price)
+            openedcomm = self._getcommission_role(cinfocomp, opened, price, "open")
             # Cash obtained after subtracting opening commission
             cash -= openedcomm
             # If cash is less than 0, opening position is not possible
@@ -1824,7 +1845,12 @@ class BackBroker(BrokerBase):
             if closedvalue > 0:
                 closecash /= comminfo.get_leverage()
             cash += closecash + pnl * comminfo.stocklike
-            closedcomm = comminfo.getcommission(closed, price)
+            closedcomm = self._getcommission_role(
+                comminfo,
+                closed,
+                price,
+                self._close_commission_role(getattr(order.info, "offset", None)),
+            )
             cash -= closedcomm
             if ago is not None:
                 cash += comminfo.cashadjust(-closed, signed_position.adjbase, price)
@@ -1843,7 +1869,7 @@ class BackBroker(BrokerBase):
             if openedvalue > 0:
                 opencash /= comminfo.get_leverage()
             cash -= opencash
-            openedcomm = cinfocomp.getcommission(opened, price)
+            openedcomm = self._getcommission_role(cinfocomp, opened, price, "open")
             cash -= openedcomm
             if cash < 0.0:
                 opened = 0
