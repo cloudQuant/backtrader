@@ -10,6 +10,14 @@ from backtrader.stores.btapistore import BtApiStoreError
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
 
 
+class _FakeBalanceContainer:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def get_all_data(self):
+        return self.payload
+
+
 @pytest.fixture
 def started_stack():
     """Create a started store, feed, and broker with one loaded bar."""
@@ -2771,6 +2779,85 @@ def test_opening_order_cash_validation_uses_margin_adjusted_account_cash():
         assert client.submitted_orders == []
     finally:
         broker.stop()
+
+
+def test_store_get_balance_unwraps_bybit_v5_result_list():
+    """Store account refresh should consume raw Bybit wallet-balance wrappers."""
+    client = FakeBtApiClient(
+        balance={
+            "retCode": 0,
+            "retMsg": "OK",
+            "result": {
+                "list": [
+                    {
+                        "accountType": "UNIFIED",
+                        "totalEquity": "1,250.5",
+                        "totalWalletBalance": "1,200.0",
+                        "totalAvailableBalance": "950.25",
+                        "totalInitialMargin": "300.25",
+                    }
+                ]
+            },
+        }
+    )
+    store = make_store(api=client)
+
+    try:
+        balance = store.get_balance(force=True)
+
+        assert balance == {"cash": 950.25, "value": 1250.5}
+    finally:
+        store.stop()
+
+
+def test_store_get_balance_unwraps_okx_account_data():
+    """Store account refresh should consume raw OKX account wrappers."""
+    client = FakeBtApiClient(
+        balance={
+            "code": "0",
+            "msg": "",
+            "data": [
+                {
+                    "totalEq": "2500",
+                    "availEq": "2100",
+                    "imr": "400",
+                }
+            ],
+        }
+    )
+    store = make_store(api=client)
+
+    try:
+        balance = store.get_balance(force=True)
+
+        assert balance == {"cash": 2100.0, "value": 2500.0}
+    finally:
+        store.stop()
+
+
+def test_store_get_balance_reads_balance_container():
+    """Store account refresh should consume bt_api_py container objects."""
+
+    class ContainerBalanceClient(FakeBtApiClient):
+        def get_balance(self):
+            return _FakeBalanceContainer(
+                {
+                    "exchange_name": "OKX",
+                    "total_margin": "2500",
+                    "total_used_margin": "400",
+                    "total_wallet_balance": "2500",
+                }
+            )
+
+    client = ContainerBalanceClient()
+    store = make_store(api=client)
+
+    try:
+        balance = store.get_balance(force=True)
+
+        assert balance == {"cash": 2100.0, "value": 2500.0}
+    finally:
+        store.stop()
 
 
 def test_ctp_offset_inference_rejects_when_pretrade_position_refresh_fails():

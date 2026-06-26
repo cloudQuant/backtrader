@@ -274,6 +274,197 @@ def _first_float(mapping: Dict[str, Any], keys: tuple[str, ...]) -> Optional[flo
     return None
 
 
+_ACCOUNT_CASH_KEYS = (
+    "cash",
+    "available_cash",
+    "available",
+    "Available",
+    "available_funds",
+    "AvailableFunds",
+    "availablefunds",
+    "available_balance",
+    "availableBalance",
+    "available_bal",
+    "availableBal",
+    "available_equity",
+    "availableEquity",
+    "avail_eq",
+    "availEq",
+    "avail_bal",
+    "availBal",
+    "total_available_balance",
+    "totalAvailableBalance",
+    "total_available_margin",
+    "totalAvailableMargin",
+    "free_collateral",
+    "freeCollateral",
+    "free_margin",
+    "freeMargin",
+    "marginFree",
+    "margin_free",
+    "withdraw_available",
+    "withdrawAvailable",
+    "available_to_withdraw",
+    "availableToWithdraw",
+)
+
+_ACCOUNT_VALUE_KEYS = (
+    "value",
+    "equity",
+    "Equity",
+    "eq",
+    "total_eq",
+    "totalEq",
+    "total_equity",
+    "totalEquity",
+    "account_value",
+    "accountValue",
+    "net_liquidation",
+    "NetLiquidation",
+    "netliquidation",
+    "NetLiquidationValue",
+    "total_margin",
+    "totalMargin",
+    "total_margin_balance",
+    "totalMarginBalance",
+    "margin_balance",
+    "marginBalance",
+    "total_wallet_balance",
+    "totalWalletBalance",
+    "wallet_balance",
+    "walletBalance",
+    "balance",
+    "Balance",
+    "total",
+)
+
+_ACCOUNT_MARGIN_KEYS = (
+    "margin",
+    "used_margin",
+    "usedMargin",
+    "margin_used",
+    "marginUsed",
+    "curr_margin",
+    "CurrMargin",
+    "initial_margin",
+    "initialMargin",
+    "initial_margin_requirement",
+    "initialMarginRequirement",
+    "total_initial_margin",
+    "totalInitialMargin",
+    "total_used_margin",
+    "totalUsedMargin",
+    "total_position_initial_margin",
+    "totalPositionInitialMargin",
+    "total_open_order_initial_margin",
+    "totalOpenOrderInitialMargin",
+    "imr",
+    "maintain_margin",
+    "maintenance_margin",
+    "maintMargin",
+)
+
+_ACCOUNT_WRAPPER_KEYS = (
+    "account",
+    "accounts",
+    "balance",
+    "wallet",
+    "data",
+    "result",
+    "list",
+    "items",
+    "rows",
+    "payload",
+)
+
+
+def _materialize_account_payload(raw: Any) -> Any:
+    for method_name in ("get_all_data", "get_data"):
+        method = getattr(raw, method_name, None)
+        if callable(method):
+            try:
+                return method()
+            except Exception:
+                return raw
+    return raw
+
+
+def _account_error_message(row: Dict[str, Any]) -> Optional[str]:
+    status = str(row.get("status") or "").strip().lower()
+    if status == "error":
+        return str(row.get("message") or row.get("error") or "account query failed")
+
+    if "retCode" in row:
+        ret_code = str(row.get("retCode") or "").strip()
+        if ret_code and ret_code != "0":
+            return str(
+                row.get("retMsg")
+                or row.get("message")
+                or row.get("error")
+                or f"account query failed: retCode={ret_code}"
+            )
+
+    if "code" in row and any(key in row for key in ("msg", "message", "data")):
+        code = str(row.get("code") or "").strip()
+        if code and code not in {"0", "200", "00000"}:
+            return str(
+                row.get("msg")
+                or row.get("message")
+                or row.get("error")
+                or f"account query failed: code={code}"
+            )
+
+    return None
+
+
+def _account_payload_candidates(raw: Any, *, depth: int = 0) -> List[Dict[str, Any]]:
+    if depth > 8:
+        return []
+
+    raw = _materialize_account_payload(raw)
+    if isinstance(raw, dict):
+        message = _account_error_message(raw)
+        if message:
+            raise RuntimeError(message)
+
+        candidates = [raw]
+        for key in _ACCOUNT_WRAPPER_KEYS:
+            if key not in raw:
+                continue
+            value = raw.get(key)
+            if key == "accounts" and isinstance(value, dict):
+                for item in value.values():
+                    candidates.extend(_account_payload_candidates(item, depth=depth + 1))
+            else:
+                candidates.extend(_account_payload_candidates(value, depth=depth + 1))
+        return candidates
+
+    if isinstance(raw, (list, tuple)):
+        candidates: List[Dict[str, Any]] = []
+        for item in raw:
+            candidates.extend(_account_payload_candidates(item, depth=depth + 1))
+        return candidates
+
+    return []
+
+
+def _normalise_account_balance_payload(raw: Any) -> Optional[Tuple[float | None, float | None]]:
+    for payload in _account_payload_candidates(raw):
+        cash = _first_float(payload, _ACCOUNT_CASH_KEYS)
+        value = _first_float(payload, _ACCOUNT_VALUE_KEYS)
+        margin = _first_float(payload, _ACCOUNT_MARGIN_KEYS)
+        if cash is None and value is None and margin is None:
+            continue
+        if cash is None and value is not None and margin is not None:
+            cash = value - margin
+        if cash is None:
+            cash = _first_float(payload, ("balance", "Balance"))
+        if value is None:
+            value = _first_float(payload, ("balance", "Balance"))
+        return cash, value if value is not None else cash
+    return None
+
+
 def _coerce_int(value: Any, default: int = 0) -> int:
     """Convert a value to int with a stable fallback."""
     if value is None:
@@ -2393,79 +2584,9 @@ class BtApiStore(LiveStoreBase):
                 return {"cash": self._cash, "value": self._value}
             raise
 
-        if isinstance(balance, dict):
-            cash = _first_float(
-                balance,
-                (
-                    "cash",
-                    "available_cash",
-                    "available",
-                    "Available",
-                    "available_funds",
-                    "AvailableFunds",
-                    "availablefunds",
-                    "available_balance",
-                    "availableBalance",
-                    "total_available_balance",
-                    "totalAvailableBalance",
-                    "free_margin",
-                    "freeMargin",
-                    "marginFree",
-                    "margin_free",
-                    "withdraw_available",
-                    "withdrawAvailable",
-                    "available_to_withdraw",
-                    "availableToWithdraw",
-                ),
-            )
-            value = _first_float(
-                balance,
-                (
-                    "value",
-                    "equity",
-                    "Equity",
-                    "total_equity",
-                    "totalEquity",
-                    "account_value",
-                    "accountValue",
-                    "net_liquidation",
-                    "NetLiquidation",
-                    "netliquidation",
-                    "NetLiquidationValue",
-                    "total_margin_balance",
-                    "totalMarginBalance",
-                    "margin_balance",
-                    "marginBalance",
-                    "total_wallet_balance",
-                    "totalWalletBalance",
-                    "wallet_balance",
-                    "walletBalance",
-                    "total",
-                ),
-            )
-            margin = _first_float(
-                balance,
-                (
-                    "margin",
-                    "used_margin",
-                    "margin_used",
-                    "curr_margin",
-                    "CurrMargin",
-                    "initial_margin",
-                    "initialMargin",
-                    "total_initial_margin",
-                    "totalInitialMargin",
-                    "maintain_margin",
-                    "maintenance_margin",
-                    "maintMargin",
-                ),
-            )
-            if cash is None and value is not None and margin is not None:
-                cash = value - margin
-            if cash is None:
-                cash = _first_float(balance, ("balance", "Balance"))
-            if value is None:
-                value = _first_float(balance, ("balance", "Balance"))
+        normalized_balance = _normalise_account_balance_payload(balance)
+        if normalized_balance is not None:
+            cash, value = normalized_balance
             if cash is not None:
                 self._cash = cash
             if value is not None:
