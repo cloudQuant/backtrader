@@ -3566,6 +3566,107 @@ def test_remote_trade_update_accepts_raw_okx_trade_aliases_and_fee():
         broker.stop()
 
 
+def test_remote_trade_update_accepts_raw_bybit_v5_execution_aliases_and_fee():
+    """Raw Bybit V5 execution events must use exchange fill fields and exact fees."""
+    symbol = "BTCUSDT"
+    client = FakeBtApiClient(
+        history={symbol: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client, provider="bybit")
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    broker.setcommission(
+        commission=10.0,
+        commtype=bt.CommInfoBase.COMM_FIXED,
+    )
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "exchange": "Bybit",
+                "orderId": "btapi-1",
+                "orderLinkId": "btapi-1",
+                "execID": "bybit-exec-1",
+                "symbol": symbol,
+                "side": "Buy",
+                "execQty": "1",
+                "execPrice": "101.5",
+                "execFee": "0.15",
+                "feeCurrency": "USDT",
+                "isMaker": False,
+            }
+        )
+        broker.next()
+
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(101.5)
+        assert order.executed.comm == pytest.approx(0.15)
+        assert broker.positions[symbol].size == pytest.approx(1.0)
+        assert broker.positions[symbol].price == pytest.approx(101.5)
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "exchange": "Bybit",
+                "orderId": "btapi-1",
+                "orderLinkId": "btapi-1",
+                "execID": "bybit-exec-1",
+                "symbol": symbol,
+                "side": "Buy",
+                "execQty": "1",
+                "execPrice": "102.0",
+                "execFee": "9.99",
+                "feeCurrency": "USDT",
+                "isMaker": False,
+            }
+        )
+        broker.next()
+
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.comm == pytest.approx(0.15)
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "exchange": "Bybit",
+                "orderId": "btapi-1",
+                "orderLinkId": "btapi-1",
+                "execID": "bybit-exec-2",
+                "symbol": symbol,
+                "side": "Buy",
+                "execQty": "1",
+                "execPrice": "102.0",
+                "execFee": "0.20",
+                "feeCurrency": "USDT",
+                "isMaker": False,
+            }
+        )
+        broker.next()
+
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(2.0)
+        assert order.executed.price == pytest.approx(101.75)
+        assert order.executed.comm == pytest.approx(0.35)
+        assert broker.positions[symbol].size == pytest.approx(2.0)
+        assert broker.positions[symbol].price == pytest.approx(101.75)
+    finally:
+        broker.stop()
+
+
 def test_remote_trade_update_without_price_is_ignored_not_zero_filled():
     """Malformed fills must not execute locally at price zero."""
     client = FakeBtApiClient(
