@@ -33,6 +33,14 @@ _LINE = re.compile(r"\s*([0-9.]+)s\s+(call|setup|teardown)\s+(\S+)")
 
 
 def parse_log(text: str) -> dict[str, float]:
+    """Parse pytest --durations output into a dict of file -> total_seconds.
+
+    Args:
+        text: The stdout/stderr output from pytest --durations=0.
+
+    Returns:
+        Dict mapping test file paths to their total duration in seconds.
+    """
     agg: dict[str, float] = defaultdict(float)
     for line in text.splitlines():
         m = _LINE.match(line)
@@ -62,6 +70,11 @@ def measure() -> dict[str, float]:
 
 
 def main() -> int:
+    """Regenerate the test durations JSON file.
+
+    Returns:
+        int: Exit code (0 for success, 1 for error).
+    """
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--from-log", type=Path, default=None,
                     help="Parse an existing pytest --durations log instead of re-running.")

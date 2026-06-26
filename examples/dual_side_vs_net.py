@@ -31,9 +31,14 @@ class NetModeStrategy(bt.Strategy):
     """Standard net-mode strategy: buy and sell reduce each other."""
 
     def __init__(self):
+        """Initialize the strategy with an empty records list."""
         self.records = []
 
     def next(self):
+        """Execute net-mode trading logic: buy/sell reduces net position.
+
+        Same logical trades as DualSideModeStrategy but in net mode.
+        """
         bar = len(self)
         if bar == 1:
             self.buy(size=10)
@@ -48,6 +53,7 @@ class NetModeStrategy(bt.Strategy):
         self.records.append((bar, pos))
 
     def stop(self):
+        """Log final net-mode positions and portfolio value."""
         print("NET MODE positions per bar (showing bars 1-10 only):")
         for bar_num, pos in self.records[:10]:
             print(f"  bar {bar_num:2d}: net_position = {pos:+.0f}")
@@ -60,9 +66,14 @@ class DualSideModeStrategy(bt.Strategy):
     """Dual-side strategy: same logical intent, explicit open/close."""
 
     def __init__(self):
+        """Initialize the strategy with an empty records list."""
         self.records = []
 
     def next(self):
+        """Execute dual-side mode trading logic with independent legs.
+
+        Same logical trades as NetModeStrategy but with explicit long/short legs.
+        """
         bar = len(self)
         if bar == 1:
             # Same as net buy(10): open long 10
@@ -83,6 +94,7 @@ class DualSideModeStrategy(bt.Strategy):
         self.records.append((bar, long_pos.size, short_pos.size, net))
 
     def stop(self):
+        """Log final dual-side mode positions and portfolio value."""
         print("DUAL_SIDE MODE positions per bar (showing bars 1-10 only):")
         for bar_num, lp, sp, net in self.records[:10]:
             print(
@@ -115,6 +127,11 @@ def run_backtest(strategy_class, position_mode):
 
 
 def main():
+    """Run the net vs dual_side position mode comparison.
+
+    Runs both NetModeStrategy and DualSideModeStrategy with the same logical
+    trades to demonstrate how position accounting differs between modes.
+    """
     print("=" * 60)
     print("Position Mode Comparison: NET vs DUAL_SIDE")
     print("=" * 60)

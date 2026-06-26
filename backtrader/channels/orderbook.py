@@ -19,7 +19,7 @@ import csv
 import gzip
 import json
 import math
-from typing import Iterator, List, Tuple
+from typing import IO, Iterator, List, Tuple
 
 from ..channel import DataChannel, DataValidationResult
 from ..events import OrderBookSnapshot
@@ -117,10 +117,11 @@ class OrderBookChannel(DataChannel):
         Yields:
             OrderBookSnapshot instances.
         """
-        if self._dataname is None:
+        dataname = self._dataname
+        if dataname is None:
             raise ValueError("dataname (file path) is required for loading")
 
-        if self._dataname.endswith(".jsonl") or self._dataname.endswith(".jsonl.gz"):
+        if dataname.endswith((".jsonl", ".jsonl.gz")):
             yield from self._load_jsonl()
         else:
             yield from self._load_csv()
@@ -135,14 +136,17 @@ class OrderBookChannel(DataChannel):
         Yields:
             OrderBookSnapshot instances.
         """
-        open_func = gzip.open if self._dataname.endswith(".gz") else open
-        open_kwargs = (
-            {"mode": "rt", "encoding": "utf-8"}
-            if self._dataname.endswith(".gz")
-            else {"mode": "r", "encoding": "utf-8", "newline": ""}
-        )
+        dataname = self._dataname
+        if dataname is None:
+            raise ValueError("dataname (file path) is required for loading")
 
-        with open_func(self._dataname, **open_kwargs) as f:
+        csv_file: IO[str]
+        if dataname.endswith(".gz"):
+            csv_file = gzip.open(dataname, mode="rt", encoding="utf-8")
+        else:
+            csv_file = open(dataname, mode="r", encoding="utf-8", newline="")
+
+        with csv_file as f:
             reader = csv.DictReader(f)
 
             required = {"timestamp", "bids", "asks"}
@@ -181,10 +185,17 @@ class OrderBookChannel(DataChannel):
         Yields:
             OrderBookSnapshot instances.
         """
-        open_func = gzip.open if self._dataname.endswith(".gz") else open
-        open_kwargs = {"mode": "rt", "encoding": "utf-8"}
+        dataname = self._dataname
+        if dataname is None:
+            raise ValueError("dataname (file path) is required for loading")
 
-        with open_func(self._dataname, **open_kwargs) as f:
+        jsonl_file: IO[str] = (
+            gzip.open(dataname, mode="rt", encoding="utf-8")
+            if dataname.endswith(".gz")
+            else open(dataname, mode="r", encoding="utf-8")
+        )
+
+        with jsonl_file as f:
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:

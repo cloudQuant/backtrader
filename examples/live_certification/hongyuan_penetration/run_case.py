@@ -25,6 +25,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from common.certification import (
+    build_certification_coverage,
+    enrich_result_payload,
+    get_certification_scenario,
+)
+
 _SUITE_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = _SUITE_DIR.parents[2]
 _CASES_DIR = _SUITE_DIR / "cases"
@@ -102,7 +108,11 @@ def run_case(case_id: str, report_root: Path, timeout: int = DEFAULT_TIMEOUT) ->
         )
     except subprocess.TimeoutExpired:
         print(f"  [TIMEOUT] {case_id} exceeded {timeout}s")
-        return {"case_id": case_id, "status": "BLOCKED", "failure_reason": f"Timeout {timeout}s"}
+        return enrich_result_payload({
+            "case_id": case_id,
+            "status": "BLOCKED",
+            "failure_reason": f"Timeout {timeout}s",
+        })
 
     # Relay output
     if completed.stdout:
@@ -114,11 +124,15 @@ def run_case(case_id: str, report_root: Path, timeout: int = DEFAULT_TIMEOUT) ->
     result_path = report_dir / "result.json"
     if result_path.exists():
         with open(result_path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
+            return enrich_result_payload(json.load(fh))
 
     # Fallback
     status = {0: "PASS", 1: "FAIL", 2: "BLOCKED"}.get(completed.returncode, "FAIL")
-    return {"case_id": case_id, "status": status, "failure_reason": f"exit_code={completed.returncode}"}
+    return enrich_result_payload({
+        "case_id": case_id,
+        "status": status,
+        "failure_reason": f"exit_code={completed.returncode}",
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +142,7 @@ def run_case(case_id: str, report_root: Path, timeout: int = DEFAULT_TIMEOUT) ->
 
 def print_summary(results: list[dict], report_root: Path):
     """Print and save a summary table."""
+    results = [enrich_result_payload(result) for result in results]
     print(f"\n{'='*60}")
     print("  CERTIFICATION SUMMARY")
     print(f"{'='*60}\n")
@@ -139,14 +154,26 @@ def print_summary(results: list[dict], report_root: Path):
     for r in results:
         status = r.get("status", "?")
         case_id = r.get("case_id", "?")
+        scenario_id = r.get("scenario_id", "")
         reason = r.get("failure_reason", "")
         icon = {"PASS": "✓", "FAIL": "✗", "BLOCKED": "◉"}.get(status, "?")
         line = f"  {icon} [{status:7s}] {case_id}"
+        if scenario_id:
+            line += f" -> {scenario_id}"
         if reason:
             line += f"  -- {reason[:80]}"
         print(line)
 
     print(f"\n  Total: {len(results)}  PASS: {pass_count}  FAIL: {fail_count}  BLOCKED: {blocked_count}")
+    certification = build_certification_coverage(
+        case_order=CASE_ORDER,
+        case_registry=CASE_REGISTRY,
+        results=results,
+    )
+    print(
+        "  Scenarios: "
+        f"{certification['covered_scenarios']}/{certification['total_scenarios']} covered"
+    )
 
     # Save summary JSON
     summary_path = report_root / "summary.json"
@@ -156,6 +183,7 @@ def print_summary(results: list[dict], report_root: Path):
         "pass": pass_count,
         "fail": fail_count,
         "blocked": blocked_count,
+        "certification": certification,
         "results": results,
     }
     with open(summary_path, "w", encoding="utf-8") as fh:
@@ -169,6 +197,7 @@ def print_summary(results: list[dict], report_root: Path):
 
 
 def main():
+    """Main entry point for running Hongyuan certification cases."""
     parser = argparse.ArgumentParser(
         description="Run Hongyuan penetration certification cases",
     )
@@ -198,8 +227,12 @@ def main():
         print("Available cases:")
         for cid in CASE_ORDER:
             path = CASE_REGISTRY.get(cid)
+            scenario = get_certification_scenario(cid)
             tag = " (not found)" if path is None else ""
-            print(f"  {cid}: {path.stem if path else '?'}{tag}")
+            print(
+                f"  {cid} -> {scenario.scenario_id}: "
+                f"{path.stem if path else '?'}{tag}"
+            )
         return
 
     report_root = (

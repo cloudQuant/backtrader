@@ -15,11 +15,9 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 
 CASE_META = {
     "case_id": "V03",
@@ -30,6 +28,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run V03 exceed max volume test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -46,37 +49,38 @@ def run(report_dir):
                     "volume": 1.0,
                     "openinterest": 0.0,
                 }
-                broker = BtApiBroker(
-                    store=store,
+                store.set_history(symbol, [seed_bar])
+                cerebro = create_cerebro(
+                    store,
+                    symbol=symbol,
+                    bar_seconds=5,
+                    with_trade_logger=True,
+                    log_dir=log_dir,
                     contract_metadata={symbol: {"max_order_size": 10}},
-                )
-                data = BtApiFeed(
-                    store=store, dataname=symbol,
-                    timeframe=bt.TimeFrame.Seconds, compression=5,
-                    backfill_start=False,
-                    historical_bars=[seed_bar],
-                )
-                cerebro = bt.Cerebro()
-                cerebro.setbroker(broker)
-                cerebro.adddata(data)
-                cerebro.addobserver(
-                    bt.observers.TradeLogger,
-                    log_dir=log_dir, log_format="json",
                 )
 
                 class ExceedVolumeStrategy(bt.Strategy):
+                    """Strategy for testing exceed max volume validation."""
+
                     def __init__(self):
+                        """Initialize exceed volume strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.rejected = False
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.status == bt.Order.Rejected:
                             self.rejected = True
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit oversized order."""
                         self.bar_count += 1
                         if self.order is not None:
                             self.cerebro.runstop()

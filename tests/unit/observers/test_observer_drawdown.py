@@ -94,10 +94,12 @@ def test_run(main=False):
 
 
 def test_drawdownold_plotlines_use_boolean_plotskip():
+    """Test DrawDownOld plotlines use boolean plotskip."""
     assert bt.observers.DrawDownOld.plotlines.maxdrawdown["_plotskip"] is True
 
 
 def test_drawdownlength_plotlines_match_maxlen_line_name():
+    """Test DrawDownLength plotlines match maxlen line name."""
     assert bt.observers.DrawDownLength.plotlines.maxlen["_plotskip"] is True
 
 

@@ -32,7 +32,10 @@ def _run_once_workload(n=50000):
     )
 
     class _S(bt.Strategy):
+        """Strategy for benchmarking line operations."""
+
         def __init__(self):
+            """Initialize indicators for line operation benchmarking."""
             sma = bt.indicators.SMA(self.data.close, period=20)
             ema = bt.indicators.EMA(self.data.close, period=20)
             # binary + unary line operations -> the once() hot loops
@@ -41,6 +44,7 @@ def _run_once_workload(n=50000):
             self.absd = abs(self.data.close - sma)
 
         def next(self):
+            """Process each bar."""
             pass
 
     cerebro = bt.Cerebro(runonce=True, preload=True, stdstats=False)

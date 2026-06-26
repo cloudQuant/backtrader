@@ -41,7 +41,10 @@ def run(report_dir):
                 )
 
                 class StopAfterOneBar(bt.Strategy):
+                    """Minimal strategy that stops after one bar."""
+
                     def next(self):
+                        """Process bar and stop immediately."""
                         self.cerebro.runstop()
 
                 cerebro.addstrategy(StopAfterOneBar)

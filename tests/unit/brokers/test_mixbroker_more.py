@@ -1,3 +1,4 @@
+"""Tests for MixBroker additional scenarios."""
 import pytest
 
 from backtrader.brokers.mixbroker import MixBroker
@@ -6,13 +7,17 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 def test_mixbroker_prefers_tick_over_bar_and_no_double_fill():
+    """Test MixBroker prefers tick over bar and no double fill."""
     data = DummyData()
     broker = MixBroker(cash=1000.0)
     broker.setcommission(commission=0.0, name=data.name)
@@ -37,6 +42,7 @@ def test_mixbroker_prefers_tick_over_bar_and_no_double_fill():
 
 
 def test_mixbroker_bar_does_not_act_as_timeout_fallback():
+    """Test MixBroker bar does not act as timeout fallback."""
     data = DummyData()
     broker = MixBroker(cash=1000.0)
     order = broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Limit)

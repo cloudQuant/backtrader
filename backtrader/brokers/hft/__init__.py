@@ -1,3 +1,26 @@
+"""HFT (high-frequency trading) broker components.
+
+This package bundles the building blocks for the tick-level
+backtesting engine:
+
+* ``exchange``: maker/taker fill rules, queue models and
+  :class:`OrderResult` containers.
+* ``latency``: feed/order-entry/order-response latency models and
+  the priority-queue-driven :class:`LatencyEngine`.
+* ``matching_core``: order matching, fill reporting and cancel
+  results.
+* ``queue``: queue-position models used by
+  :class:`backtrader.brokers.hft.exchange.QueueExchangeModel`.
+* ``state`` / ``recorder``: per-symbol state tracking and bounded
+  event recording.
+* ``binance_bbo``: Binance BBO zip-pair conversion and latency
+  generation helpers.
+* ``examples``: strategy specs and quote builders used by the HFT
+  example suite.
+
+The ``__all__`` list below is the public surface of the package.
+"""
+
 from .binance_bbo import (
     BinanceBBOConversionResult,
     BinanceBBOLatencyResult,

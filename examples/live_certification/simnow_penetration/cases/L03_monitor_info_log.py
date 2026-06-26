@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run L03 monitor info log test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -40,14 +45,23 @@ def run(report_dir):
                 )
 
                 class OrderThenStop(bt.Strategy):
+                    """Strategy that submits order then stops."""
+
                     def __init__(self):
+                        """Initialize order then stop strategy."""
                         self.done = False
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         if order.getstatusname() in ("Accepted", "Canceled", "Rejected"):
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit order."""
                         if self.done:
                             return
                         ref_price = float(self.data.close[0])

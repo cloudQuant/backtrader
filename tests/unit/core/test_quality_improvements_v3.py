@@ -338,6 +338,7 @@ class TestAutoDictRobustness:
         assert isinstance(nested, AutoDict)
 
     def test_autodict_open_reopens_nested_children(self):
+        """Test that _open reopens nested children after _close."""
         ad = AutoDict()
         ad["parent"]["child"] = 1
         ad._close()
@@ -362,6 +363,7 @@ class TestAutoDictRobustness:
         assert isinstance(nested, AutoOrderedDict)
 
     def test_autoordered_open_reopens_nested_children(self):
+        """Test that _open reopens nested children after _close for AutoOrderedDict."""
         aod = AutoOrderedDict()
         aod["parent"]["child"] = 1
         aod._close()

@@ -83,9 +83,13 @@ def _needs_cleaned_read(df):
 
 def _read_mt5_csv(filepath, bar_shift_minutes=0):
     """Read MT5 data and keep standard plus known raw columns."""
+    return _read_mt5_csv_cached(*_mt5_cache_args(filepath, bar_shift_minutes))
+
+
+def _mt5_cache_args(filepath, bar_shift_minutes):
     path = Path(filepath)
     stat = path.stat()
-    return _read_mt5_csv_cached(
+    return (
         str(path),
         stat.st_mtime_ns,
         stat.st_size,
@@ -93,7 +97,15 @@ def _read_mt5_csv(filepath, bar_shift_minutes=0):
     )
 
 
-@lru_cache(maxsize=32)
+def _datetime_cache_key(value):
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+@lru_cache(maxsize=64)
 def _read_mt5_csv_cached(filepath, mtime_ns, size, bar_shift_minutes):
     """Read MT5 data once per file version and timestamp shift."""
     import pandas as pd
@@ -149,27 +161,49 @@ def _read_mt5_csv_cached(filepath, mtime_ns, size, bar_shift_minutes):
     return df[columns].dropna(subset=["datetime"]).set_index("datetime").sort_index()
 
 
+@lru_cache(maxsize=64)
+def _slice_mt5_csv_cached(filepath, mtime_ns, size, bar_shift_minutes, fromdate, todate):
+    """Return a cached OHLCV slice for repeated functional-test date windows."""
+    import pandas as pd
+
+    df = _read_mt5_csv_cached(filepath, mtime_ns, size, bar_shift_minutes)
+    start = 0
+    stop = len(df)
+    if fromdate is not None:
+        start = df.index.searchsorted(pd.Timestamp(fromdate), side="left")
+    if todate is not None:
+        stop = df.index.searchsorted(pd.Timestamp(todate), side="right")
+    return df.iloc[start:stop].loc[:, _BASE_COLUMNS]
+
+
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
     """Load MT5 CSV data into a normalized OHLCV DataFrame."""
-    df = _read_mt5_csv(filepath, bar_shift_minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df.loc[:, _BASE_COLUMNS].copy()
+    df = _slice_mt5_csv_cached(
+        *_mt5_cache_args(filepath, bar_shift_minutes),
+        _datetime_cache_key(fromdate),
+        _datetime_cache_key(todate),
+    )
+    return df.copy()
 
 
 def augment_mt5_csv_columns(frame, filepath, columns, bar_shift_minutes=0):
     """Add selected raw MT5 columns to a DataFrame returned by ``load_mt5_csv``."""
+    columns = tuple(columns)
+    if not columns:
+        return frame.copy()
+
+    unsupported = [column for column in columns if column not in _AUGMENT_COLUMNS]
+    if unsupported:
+        raise ValueError("Unsupported MT5 augment column: %s" % unsupported[0])
+
     raw = _read_mt5_csv(filepath, bar_shift_minutes=bar_shift_minutes)
     result = frame.copy()
+    available = [column for column in columns if column in raw.columns]
+    if available:
+        result.loc[:, available] = raw.loc[:, available].reindex(result.index).fillna(0)
 
     for column in columns:
-        if column not in _AUGMENT_COLUMNS:
-            raise ValueError("Unsupported MT5 augment column: %s" % column)
-        if column in raw.columns:
-            result[column] = raw[column].reindex(result.index).fillna(0)
-        else:
+        if column not in raw.columns:
             result[column] = 0
 
     return result

@@ -75,6 +75,7 @@ class TestGrossLeverageZeroValue:
         ],
     )
     def test_invalid_account_values_downgrade_to_zero(self, value, cash):
+        """Test that invalid account values downgrade to zero leverage."""
         analyzer = self._make_analyzer(value=value, cash=cash)
         analyzer.next()
         assert analyzer.rets["2021-01-01"] == 0.0
@@ -127,6 +128,7 @@ class TestLogReturnsRollingLogging:
         ],
     )
     def test_invalid_ratio_inputs_are_logged(self, value, start_value):
+        """Test that invalid ratio inputs are logged and degrade to zero."""
         analyzer = self._make_analyzer(value=value, start_value=start_value)
 
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
@@ -141,6 +143,7 @@ class TestAnnualReturnLogging:
     """Test AnnualReturn defensive behavior on invalid cached dates."""
 
     def test_all_invalid_dates_do_not_create_negative_year_entry(self):
+        """Test that invalid dates do not create negative year entry in AnnualReturn."""
         analyzer = AnnualReturn.__new__(AnnualReturn)
         analyzer._dt_cache = ["bad-date-1", "bad-date-2"]
         analyzer._value_cache = [100.0, 110.0]

@@ -14,11 +14,9 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 
 CASE_META = {
     "case_id": "L04",
@@ -29,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run L04 error info log test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -37,33 +40,34 @@ def run(report_dir):
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 # Trigger a local rejection via invalid price tick
-                broker = BtApiBroker(
-                    store=store,
+                cerebro = create_cerebro(
+                    store,
+                    symbol=symbol,
+                    bar_seconds=5,
+                    with_trade_logger=True,
+                    log_dir=log_dir,
                     contract_metadata={symbol: {"min_price_tick": 1.0}},
-                )
-                data = BtApiFeed(
-                    store=store, dataname=symbol,
-                    timeframe=bt.TimeFrame.Seconds, compression=5,
-                    backfill_start=False,
-                )
-                cerebro = bt.Cerebro()
-                cerebro.setbroker(broker)
-                cerebro.adddata(data)
-                cerebro.addobserver(
-                    bt.observers.TradeLogger,
-                    log_dir=log_dir, log_format="json",
                 )
 
                 class ErrorTriggerStrategy(bt.Strategy):
+                    """Strategy for triggering error log entries."""
+
                     def __init__(self):
+                        """Initialize error trigger strategy."""
                         self.bar_count = 0
                         self.order = None
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         if order.status == bt.Order.Rejected:
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and trigger error condition."""
                         self.bar_count += 1
                         if self.order is not None:
                             self.cerebro.runstop()

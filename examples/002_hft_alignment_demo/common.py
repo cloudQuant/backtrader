@@ -1,3 +1,8 @@
+"""Common utilities for hft alignment demo.
+
+Provides shared configuration, argument parsing, and path resolution
+for Binance BBO alignment comparison strategies.
+"""
 from __future__ import annotations
 
 import argparse
@@ -21,8 +26,15 @@ DEFAULT_QUEUE_MODEL_POWER = 3.0
 
 
 def default_paths(data_dir: Path) -> dict[str, Path]:
+    """Build paths to data files for the alignment demo.
+
+    Args:
+        data_dir: Root directory containing demo data files.
+
+    Returns:
+        Dict with paths to orderbook, ticks, market_data, and latency files.
+    """
     return {
-        "orderbook": data_dir / "orderbook_ETHUSDT_20240101.jsonl",
         "ticks": data_dir / "tick_ETHUSDT_20240101.csv",
         "market_data": data_dir / "ETHUSDT_20240101.npz",
         "latency": data_dir / "latency_20240101.npz",
@@ -30,6 +42,15 @@ def default_paths(data_dir: Path) -> dict[str, Path]:
 
 
 def add_common_arguments(parser: argparse.ArgumentParser, include_strategy: bool = True) -> argparse.ArgumentParser:
+    """Add common command-line arguments for alignment demo scripts.
+
+    Args:
+        parser: ArgumentParser instance to add arguments to.
+        include_strategy: Whether to include --strategy argument.
+
+    Returns:
+        The same parser instance for chaining.
+    """
     if include_strategy:
         parser.add_argument("--strategy", default=DEFAULT_STRATEGY, choices=STRATEGY_NAMES)
     parser.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR))
@@ -45,8 +66,24 @@ def add_common_arguments(parser: argparse.ArgumentParser, include_strategy: bool
 
 
 def resolve_paths(args) -> dict[str, Path]:
+    """Resolve data file paths from command-line arguments.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Dict of paths to data files.
+    """
     return default_paths(Path(args.data_dir))
 
 
 def fill_counter(fills) -> Counter:
+    """Build a Counter of (side, price, size) tuples from fill events.
+
+    Args:
+        fills: Iterable of fill event objects with side, price, and size attributes.
+
+    Returns:
+        Counter mapping (side, price, size) to occurrence count.
+    """
     return Counter((item.side, round(float(item.price), 8), round(float(item.size), 8)) for item in fills)

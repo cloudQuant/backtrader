@@ -114,6 +114,7 @@ def test_run(main=False):
 
 
 def test_trades_observer_clears_negative_line_on_positive_trade():
+    """Test Trades observer clears negative line on positive trade."""
     observer = object.__new__(bt.observers.Trades)
     data = object()
     observer._owner = SimpleNamespace(
@@ -130,6 +131,7 @@ def test_trades_observer_clears_negative_line_on_positive_trade():
 
 
 def test_trades_observer_clears_positive_line_on_negative_trade():
+    """Test Trades observer clears positive line on negative trade."""
     observer = object.__new__(bt.observers.Trades)
     data = object()
     observer._owner = SimpleNamespace(
@@ -146,7 +148,10 @@ def test_trades_observer_clears_positive_line_on_negative_trade():
 
 
 def test_datatrades_plotlines_are_configured_as_dict_entries():
+    """Test DataTrades plotlines are configured as dict entries."""
     class FakeLines(list):
+        """Fake lines for testing."""
+
         def _getlinealias(self, index):
             return f"data{index}"
 
@@ -165,6 +170,7 @@ def test_datatrades_plotlines_are_configured_as_dict_entries():
 
 
 def test_datatrades_clears_stale_line_values_without_new_trades():
+    """Test DataTrades clears stale line values without new trades."""
     observer = object.__new__(bt.observers.DataTrades)
     observer._owner = SimpleNamespace(_tradespending=[])
     data0 = SimpleNamespace(_id=1)
@@ -179,6 +185,7 @@ def test_datatrades_clears_stale_line_values_without_new_trades():
 
 
 def test_datatrades_writes_only_matching_data_line():
+    """Test DataTrades writes only matching data line."""
     observer = object.__new__(bt.observers.DataTrades)
     data0 = SimpleNamespace(_id=1)
     data1 = SimpleNamespace(_id=2)

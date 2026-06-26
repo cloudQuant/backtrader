@@ -72,6 +72,11 @@ def fix_file(path: Path) -> bool:
 
 
 def main() -> int:
+    """Fix data path resolution in migrated regression run.py files.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     fixed = []
     for run_py in ROOT.glob("*/regression/*/run.py"):
         if fix_file(run_py):

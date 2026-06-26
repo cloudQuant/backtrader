@@ -1,3 +1,4 @@
+"""Tests for dual-side position support in strategies."""
 import backtrader as bt
 import pytest
 
@@ -6,9 +7,12 @@ from tests.unit.core.test_core_deep_coverage import SimpleFeed, generate_ohlcv
 
 
 class DualSideLifecycleStrategy(bt.Strategy):
+    """Strategy for testing dual-side position lifecycle."""
+
     params = (("tradeid", 7),)
 
     def __init__(self):
+        """Initialize strategy state."""
         self.ambiguous_close_rejected = False
         self.long_seen = 0.0
         self.short_seen = 0.0
@@ -16,10 +20,12 @@ class DualSideLifecycleStrategy(bt.Strategy):
         self.closed_tradeids = []
 
     def notify_trade(self, trade):
+        """Handle trade completion events."""
         if trade.isclosed:
             self.closed_tradeids.append(trade.tradeid)
 
     def next(self):
+        """Execute strategy logic on each bar."""
         if len(self) == 1:
             self.buy(size=2, tradeid=self.p.tradeid, position_side="long", offset="open")
         elif len(self) == 2:
@@ -38,6 +44,7 @@ class DualSideLifecycleStrategy(bt.Strategy):
 
 
 def test_strategy_close_and_trade_grouping_support_dual_side_positions():
+    """Test strategy close and trade grouping support dual side positions."""
     cerebro = bt.Cerebro()
     broker = BackBroker(position_mode="dual_side")
     broker.setcommission(commission=0.0)

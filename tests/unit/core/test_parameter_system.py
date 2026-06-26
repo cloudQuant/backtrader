@@ -13,6 +13,8 @@ import pytest
 from backtrader.parameters import (
     Float,
     Int,
+    LegacyParamsSchema,
+    make_legacy_parameter_accessor,
     OneOf,
     ParameterAccessor,
     ParameterDescriptor,
@@ -703,6 +705,68 @@ class TestComplexScenarios:
         assert int_info["default_value"] == 10
         assert int_info["has_validator"] == True
         assert int_info["doc"] == "An integer parameter"
+
+
+class TestLegacyParamsSchema:
+    """Tests for the legacy params compatibility schema."""
+
+    def test_schema_preserves_class_level_tuple_api(self):
+        schema = LegacyParamsSchema("DemoParams", (("period", 14), ("name", "demo")))
+
+        assert schema._gettuple() == (("period", 14), ("name", "demo"))
+        assert schema._getkeys() == ["period", "name"]
+        assert schema._getdefaults() == [14, "demo"]
+        assert dict(schema._getitems()) == {"period": 14, "name": "demo"}
+        assert schema["period"] == 14
+        assert schema.keys() == ["period", "name"]
+        assert schema.items() == [("period", 14), ("name", "demo")]
+        assert schema.values() == [14, "demo"]
+
+    def test_schema_instances_use_parameter_accessor(self):
+        schema = LegacyParamsSchema("DemoParams", (("period", 14), ("name", "demo")))
+        params = schema(period=20)
+
+        assert isinstance(params, ParameterAccessor)
+        assert params.period == 20
+        assert params.params is params
+        assert params.get("period") == 20
+        assert params._get("missing", "fallback") == "fallback"
+        assert params._getkwargs() == {"period": 20, "name": "demo"}
+
+        params.name = "custom"
+        assert params["name"] == "custom"
+        assert dict(params.items()) == {"period": 20, "name": "custom"}
+
+    def test_schema_instances_preserve_default_introspection_api(self):
+        schema = LegacyParamsSchema("DemoParams", (("period", 14), ("name", "demo")))
+        params = schema(period=20)
+
+        assert params._getpairs() == {"period": 20, "name": "demo"}
+        assert params._gettuple() == (("period", 20), ("name", "demo"))
+        assert params._getdefaults() == [14, "demo"]
+        assert params._getkwargsdefault() == {"period": 14, "name": "demo"}
+        assert params.notdefault("period")
+        assert not params.isdefault("period")
+        assert params.isdefault("name")
+        assert not params.notdefault("name")
+
+    def test_factory_keeps_unknown_values_for_no_params_fallback(self):
+        params = make_legacy_parameter_accessor(values={"log_file_name": "strategy.log"})
+
+        assert params.log_file_name == "strategy.log"
+        assert params.get("log_file_name") == "strategy.log"
+        assert params._getkwargs() == {"log_file_name": "strategy.log"}
+
+    def test_legacy_accessor_keeps_late_dynamic_writes_introspectable(self):
+        params = make_legacy_parameter_accessor()
+
+        params.runtime_flag = True
+        params["threshold"] = 3
+
+        assert params.runtime_flag is True
+        assert params.threshold == 3
+        assert params._getkwargs() == {"runtime_flag": True, "threshold": 3}
+        assert params._getkwargsdefault() == {"runtime_flag": None, "threshold": None}
 
 
 if __name__ == "__main__":

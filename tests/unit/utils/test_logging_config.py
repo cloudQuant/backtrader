@@ -25,6 +25,7 @@ def _clean_logging():
 
 
 def test_get_logger_namespacing():
+    """Test get_logger namespacing behavior."""
     assert bt.get_logger("mymod").name == "backtrader.mymod"
     assert bt.get_logger("backtrader.x").name == "backtrader.x"
     assert bt.get_logger(None).name == "backtrader"
@@ -32,6 +33,7 @@ def test_get_logger_namespacing():
 
 
 def test_exposed_at_top_level():
+    """Test logging functions are exposed at top level."""
     assert bt.get_logger is log_message.get_logger
     assert bt.configure_logging is log_message.configure_logging
     assert bt.set_level is log_message.set_level
@@ -47,6 +49,7 @@ def test_default_is_silent():
 
 
 def test_configure_logging_adds_console_handler_and_level():
+    """Test configure_logging adds console handler and sets level."""
     logger = bt.configure_logging(level="DEBUG", console=True)
     assert logger.level == logging.DEBUG
     managed = [h for h in logger.handlers if getattr(h, "_backtrader_managed", False)]
@@ -57,6 +60,7 @@ def test_configure_logging_adds_console_handler_and_level():
 
 
 def test_configure_logging_is_idempotent():
+    """Test configure_logging is idempotent."""
     bt.configure_logging(level="INFO")
     bt.configure_logging(level="INFO")
     logger = logging.getLogger("backtrader")
@@ -76,6 +80,7 @@ def test_configure_logging_does_not_remove_host_handlers():
 
 
 def test_configure_logging_file_output(tmp_path):
+    """Test configure_logging file output."""
     log_file = tmp_path / "logs" / "run.log"
     logger = bt.configure_logging(level="INFO", log_file=str(log_file), console=False)
     bt.get_logger("filetest").info("hello-file")
@@ -89,6 +94,7 @@ def test_configure_logging_file_output(tmp_path):
 
 
 def test_set_level_runtime():
+    """Test set_level runtime control."""
     bt.configure_logging(level="WARNING")
     bt.set_level("DEBUG")
     assert logging.getLogger("backtrader").level == logging.DEBUG
@@ -97,11 +103,13 @@ def test_set_level_runtime():
 
 
 def test_invalid_level_raises():
+    """Test invalid level raises ValueError."""
     with pytest.raises(ValueError):
         bt.configure_logging(level="NOPE")
 
 
 def test_reset_logging_restores_nullhandler():
+    """Test reset_logging restores null handler."""
     bt.configure_logging(level="DEBUG")
     log_message.reset_logging()
     logger = logging.getLogger("backtrader")

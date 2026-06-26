@@ -123,6 +123,7 @@ def test_run(main=False):
 
 
 def test_legacyannual_zero_variance_returns_none():
+    """Test legacy annual zero variance returns None."""
     analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
     analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=0.0)
     analyzer.anret = SimpleNamespace(rets=[0.1, 0.1])
@@ -135,6 +136,7 @@ def test_legacyannual_zero_variance_returns_none():
 
 
 def test_legacyannual_nan_returns_none():
+    """Test legacy annual NaN returns None."""
     analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
     analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=0.0)
     analyzer.anret = SimpleNamespace(rets=[float("nan"), 0.1])
@@ -148,6 +150,7 @@ def test_legacyannual_nan_returns_none():
 
 @pytest.mark.parametrize("riskfreerate", ["bad", complex(0.01, 0.01)])
 def test_legacyannual_invalid_riskfreerate_returns_none(riskfreerate):
+    """Test legacy annual invalid risk-free rate returns None."""
     analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
     analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=riskfreerate)
     analyzer.anret = SimpleNamespace(rets=[0.1, 0.2])
@@ -161,6 +164,7 @@ def test_legacyannual_invalid_riskfreerate_returns_none(riskfreerate):
 
 @pytest.mark.parametrize("returns", [["bad", 0.1], [complex(0.1, 0.1), 0.1]])
 def test_legacyannual_invalid_returns_none(returns):
+    """Test legacy annual invalid returns returns None."""
     analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
     analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=0.0)
     analyzer.anret = SimpleNamespace(rets=returns)
@@ -173,6 +177,7 @@ def test_legacyannual_invalid_returns_none(returns):
 
 
 def test_nonlegacy_nan_returns_none():
+    """Test non-legacy NaN returns None."""
     analyzer = _build_nonlegacy_sharpe_analyzer()
     analyzer.timereturn = SimpleNamespace(get_analysis=lambda: {"a": float("nan"), "b": 0.1})
 
@@ -184,6 +189,7 @@ def test_nonlegacy_nan_returns_none():
 
 @pytest.mark.parametrize("riskfreerate", ["bad", complex(0.01, 0.01)])
 def test_nonlegacy_invalid_riskfreerate_returns_none(riskfreerate):
+    """Test non-legacy invalid risk-free rate returns None."""
     analyzer = _build_nonlegacy_sharpe_analyzer(riskfreerate=riskfreerate)
 
     with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
@@ -194,6 +200,7 @@ def test_nonlegacy_invalid_riskfreerate_returns_none(riskfreerate):
 
 @pytest.mark.parametrize("returns", [["bad", 0.1], [complex(0.1, 0.1), 0.1]])
 def test_nonlegacy_invalid_returns_none(returns):
+    """Test non-legacy invalid returns returns None."""
     analyzer = _build_nonlegacy_sharpe_analyzer()
     analyzer.timereturn = SimpleNamespace(get_analysis=lambda: {"a": returns[0], "b": returns[1]})
 
@@ -215,6 +222,7 @@ def test_nonlegacy_invalid_returns_none(returns):
     ],
 )
 def test_nonlegacy_invalid_factor_inputs_return_none(overrides):
+    """Test non-legacy invalid factor inputs return None."""
     analyzer = _build_nonlegacy_sharpe_analyzer(**overrides)
 
     with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
@@ -224,6 +232,7 @@ def test_nonlegacy_invalid_factor_inputs_return_none(overrides):
 
 
 def test_nonlegacy_invalid_riskfreerate_conversion_returns_none():
+    """Test non-legacy invalid risk-free rate conversion returns None."""
     analyzer = _build_nonlegacy_sharpe_analyzer(timeframe=bt.TimeFrame.Days, factor=252, riskfreerate=-2.0)
 
     with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):

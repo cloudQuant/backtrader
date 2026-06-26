@@ -20,9 +20,19 @@ class MoneyFlowIndex(Indicator):
     params = (("period", 14),)
 
     def __init__(self):
+        """Register the rolling window size needed for the MFI calculation."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute the Money Flow Index for the current bar.
+
+        Walks the most recent ``period`` bars (current inclusive), sums
+        the positive raw money flow (typical price rising) and the
+        negative raw money flow (typical price falling) where the raw
+        flow is ``typical_price * volume``. The MFI is then written as
+        ``100 - 100 / (1 + positive/negative)``; when no negative flow
+        is observed, the indicator is saturated at ``100.0``.
+        """
         positive_flow = 0.0
         negative_flow = 0.0
         for i in range(self.p.period):
@@ -59,9 +69,18 @@ class MFI(Indicator):
     params = (("period", 14),)
 
     def __init__(self):
+        """Register the rolling window size needed for the MFI calculation."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute MFI over the previous ``period`` bars (not the current bar).
+
+        Unlike :class:`MoneyFlowIndex`, the loop indexes
+        ``range(-period, 0)`` so the current bar is excluded from the
+        window. The positive/negative flow split and saturation rule
+        are otherwise identical. This preserves the historical
+        functional-strategy behavior.
+        """
         period = self.p.period
         pos_flow = 0.0
         neg_flow = 0.0
@@ -94,6 +113,7 @@ class DeltaMFI(Indicator):
     params = {"mfi_period1": 14, "mfi_period2": 50, "level": 50}
 
     def __init__(self):
+        """Set up the two MFI sub-indicators and the regime thresholds."""
         self.addminperiod(max(int(self.p.mfi_period1), int(self.p.mfi_period2)) + 3)
         self.mfi1 = MoneyFlowIndex(self.data, period=int(self.p.mfi_period1))
         self.mfi2 = MoneyFlowIndex(self.data, period=int(self.p.mfi_period2))
@@ -102,6 +122,14 @@ class DeltaMFI(Indicator):
         self.min_level = 100 - lvl
 
     def next(self):
+        """Compute the MFI delta and assign a regime color.
+
+        Writes ``mfi_fast - mfi_slow`` to ``self.lines.delta`` and
+        colors ``0.0`` when the slow MFI is above the upper threshold
+        and the fast MFI is climbing, ``2.0`` when the slow MFI is
+        below the lower threshold and the fast MFI is falling, and
+        ``1.0`` (neutral) otherwise.
+        """
         m1 = float(self.mfi1[0])
         m2 = float(self.mfi2[0])
         self.lines.delta[0] = m1 - m2
@@ -120,11 +148,21 @@ class MFISlowdown(Indicator):
     params = {"mfi_period": 2, "level_max": 90.0, "level_min": 10.0, "seek_slowdown": True}
 
     def __init__(self):
+        """Set up the MFI and ATR sub-indicators and the minimum period."""
         self.addminperiod(max(int(self.p.mfi_period) + 2, 18))
         self.mfi = MoneyFlowIndex(self.data, period=int(self.p.mfi_period))
         self.atr = ATR(self.data, period=15)
 
     def next(self):
+        """Emit ATR-buffered stop levels when MFI touches an extreme.
+
+        When ``seek_slowdown`` is enabled, a signal is only produced if
+        the MFI's previous bar value differs from the current value by
+        less than ``1.0`` (i.e. the MFI is stalling at the extreme).
+        The buy line is placed ``atr * 3/8`` below the low, and the
+        sell line ``atr * 3/8`` above the high. Lines are ``NaN`` when
+        no signal is produced.
+        """
         self.lines.buy[0] = float("nan")
         self.lines.sell[0] = float("nan")
         m0 = float(self.mfi[0])
@@ -145,9 +183,19 @@ class MFIHistogramIndicator(Indicator):
     params = {"mfi_period": 14, "high_level": 60, "low_level": 40}
 
     def __init__(self):
+        """Register the minimum period needed for the MFI lookback."""
         self.addminperiod(self.p.mfi_period + 1)
 
     def next(self):
+        """Write the MFI value, the 50 midline and the regime color.
+
+        For the first ``mfi_period`` bars the output is the neutral
+        ``(50.0, 50.0, 1.0)`` triple. After the buffer is warm, the
+        MFI is computed from typical prices and volume, falling back to
+        ``50.0`` when there is no flow information. The color is
+        ``0.0`` above ``high_level``, ``2.0`` below ``low_level``, and
+        ``1.0`` (neutral) in between.
+        """
         if len(self.data) <= self.p.mfi_period:
             self.lines.value[0] = 50.0
             self.lines.midline[0] = 50.0

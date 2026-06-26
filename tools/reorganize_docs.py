@@ -13,10 +13,15 @@ from pathlib import Path
 class DocsReorganizer:
     """Reorganize docs directory."""
     
-    def __init__(self, docs_root='docs'):
+    def __init__(self, docs_root: str = 'docs') -> None:
+        """Initialize the docs reorganizer.
+
+        Args:
+            docs_root: Root directory of documentation to reorganize.
+        """
         self.docs_root = Path(docs_root)
-        self.moves = []
-        self.created_dirs = []
+        self.moves: list = []
+        self.created_dirs: list = []
     
     def create_new_structure(self):
         """Create new directory structure."""

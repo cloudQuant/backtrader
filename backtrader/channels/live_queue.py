@@ -20,7 +20,7 @@ Example::
 import heapq
 import threading
 import time
-from typing import Optional
+from typing import Optional, cast
 
 from ..channel import Event, EventPriority
 from ..utils.log_message import get_logger
@@ -126,23 +126,23 @@ class LiveEventQueue:
             if timeout == 0:
                 if not self._heap:
                     return None
-            else:
-                end_time = None if timeout is None else time.monotonic() + timeout
+            elif timeout is None:
                 while not self._heap and not self._closed:
-                    if timeout is None:
-                        self._not_empty.wait()
-                    else:
-                        remaining = end_time - time.monotonic()
-                        if remaining <= 0:
-                            return None
-                        self._not_empty.wait(timeout=remaining)
+                    self._not_empty.wait()
+            else:
+                end_time = time.monotonic() + timeout
+                while not self._heap and not self._closed:
+                    remaining = end_time - time.monotonic()
+                    if remaining <= 0:
+                        return None
+                    self._not_empty.wait(timeout=remaining)
 
             if not self._heap:
                 return None
 
             event = heapq.heappop(self._heap)
             self._total_get += 1
-            return event
+            return cast(Event, event)
 
     def peek(self) -> Optional[Event]:
         """Peek at the next event without removing it (thread-safe)."""

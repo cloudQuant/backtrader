@@ -15,31 +15,127 @@ from .queue import ProbQueueModel
 
 
 class FillRole(Enum):
+    """Side of liquidity the order provided when it got filled.
+
+    Attributes:
+        MAKER: The order was resting on the book and provided liquidity.
+        TAKER: The order aggressed against the book and consumed liquidity.
+    """
+
     MAKER = "maker"
     TAKER = "taker"
 
 
 @dataclass
 class OrderResult:
+    """Outcome of an exchange model's processing of an order.
+
+    Attributes:
+        action: High-level outcome keyword. One of ``"FILL"`` (the order was
+            fully or partially filled), ``"PENDING"`` (the order is resting on
+            the book and may fill later) or ``"REJECT"`` (the order was
+            rejected, see ``reject_reason`` for the reason code).
+        fills: List of fill tuples produced for this order. Each tuple's
+            shape is model-specific; for example,
+            :class:`SimpleExchangeModel` uses ``(price, quantity, role)``
+            while :class:`QueueExchangeModel` prepends the originating
+            ``order`` object.
+        reject_reason: Short code explaining the rejection, populated when
+            ``action == "REJECT"``. Empty otherwise.
+    """
+
     action: str
     fills: list = field(default_factory=list)
     reject_reason: str = ""
 
 
 class ExchangeModel:
+    """Abstract interface for exchange matching behavior.
+
+    Subclasses describe how an incoming order interacts with the current
+    order book and trade stream, and how subsequent market data updates
+    drive fills. All three hook methods receive a snapshot/pending-orders
+    view from the matching core.
+    """
+
     def on_new_order(self, order, ob_snapshot):
+        """Handle a newly accepted order against ``ob_snapshot``.
+
+        Subclasses must implement this and return an :class:`OrderResult`
+        describing whether the order was filled, pended, or rejected.
+
+        Args:
+            order: The newly accepted order. Provides ``exectype``,
+                ``isbuy()``, ``price`` and ``size`` accessors.
+            ob_snapshot: Order book snapshot at the time the order was
+                accepted. Provides ``bids`` and ``asks``.
+
+        Returns:
+            OrderResult: Outcome of the matching attempt.
+        """
         raise NotImplementedError
 
     def on_trade(self, trade_event, pending_orders):
+        """Process a trade event for any resting pending orders.
+
+        Subclasses may consume the trade and emit maker-style fills when
+        one of the ``pending_orders`` was at the trade price.
+
+        Args:
+            trade_event: The trade event to consume. Provides ``price`` and
+                ``volume``.
+            pending_orders: Iterable of resting orders that may be filled by
+                this trade.
+
+        Returns:
+            list: Fill tuples produced by the subclass (possibly empty).
+        """
         raise NotImplementedError
 
     def on_depth_update(self, ob_event, pending_orders):
+        """Process a depth update to refresh queue-ahead estimates.
+
+        The default implementation is a no-op. Models that track per-order
+        queue position (e.g. :class:`QueueExchangeModel`) override this to
+        reconcile each resting order's queue-ahead against the new depth.
+
+        Args:
+            ob_event: Depth update event. May carry ``previous_bids`` /
+                ``previous_asks`` and ``bids`` / ``asks``.
+            pending_orders: Iterable of resting orders that may be affected
+                by the depth update.
+
+        Returns:
+            list: Fill tuples produced by the subclass (possibly empty).
+        """
         _ = (ob_event, pending_orders)
         return []
 
 
 class SimpleExchangeModel(ExchangeModel):
+    """Exchange model that walks the book level-by-level with no queueing.
+
+    Market orders sweep liquidity against the opposite side of the book.
+    Limit orders either fill immediately if they cross the spread or sit
+    pending without any queue-position tracking. This model is the right
+    choice when queue dynamics are not needed (e.g. fast smoke tests).
+    """
+
     def on_new_order(self, order, ob_snapshot):
+        """Match a new order against the current book with no queueing.
+
+        Market orders are filled against the opposite side; limit orders
+        that cross the spread are matched as takers. Limit orders that do
+        not cross the spread are returned as ``PENDING``.
+
+        Args:
+            order: The newly accepted order.
+            ob_snapshot: Order book snapshot at acceptance.
+
+        Returns:
+            OrderResult: ``"FILL"`` with taker fills when the order matches
+            against depth, otherwise ``"PENDING"``.
+        """
         if order.exectype == Order.Market:
             return self._match_against_depth(order, ob_snapshot, FillRole.TAKER)
         if order.exectype == Order.Limit and self._crosses_spread(order, ob_snapshot):
@@ -47,10 +143,34 @@ class SimpleExchangeModel(ExchangeModel):
         return OrderResult(action="PENDING")
 
     def on_trade(self, trade_event, pending_orders):
+        """Ignore trade events (queueing is not simulated).
+
+        Args:
+            trade_event: The trade event (unused).
+            pending_orders: The resting orders (unused).
+
+        Returns:
+            list: Always empty for this model.
+        """
         _ = (trade_event, pending_orders)
         return []
 
     def _crosses_spread(self, order, ob_snapshot):
+        """Return True when the order's limit price crosses the best quote.
+
+        A buy limit crosses when its price is greater than or equal to the
+        best ask; a sell limit crosses when its price is less than or equal
+        to the best bid.
+
+        Args:
+            order: The order being evaluated. Must expose ``isbuy()`` and
+                ``price``.
+            ob_snapshot: Order book snapshot providing ``bids`` and
+                ``asks``.
+
+        Returns:
+            bool: ``True`` if the limit order can be filled immediately.
+        """
         if order.isbuy():
             best_ask = ob_snapshot.asks[0][0] if ob_snapshot.asks else None
             return best_ask is not None and order.price >= best_ask
@@ -58,6 +178,23 @@ class SimpleExchangeModel(ExchangeModel):
         return best_bid is not None and order.price <= best_bid
 
     def _match_against_depth(self, order, ob_snapshot, role):
+        """Walk the book and fill the order as a taker up to its size.
+
+        Market orders consume every level until the size is met; limit
+        orders stop when the next level's price is on the wrong side of
+        ``order.price``.
+
+        Args:
+            order: The aggressive order to fill. Provides ``isbuy()``,
+                ``size`` and, for limits, ``price``.
+            ob_snapshot: Order book snapshot to consume.
+            role: The :class:`FillRole` to attach to each fill produced
+                (typically :attr:`FillRole.TAKER`).
+
+        Returns:
+            OrderResult: ``"FILL"`` with the per-level fills when at least
+            one level matched, otherwise ``"PENDING"``.
+        """
         levels = ob_snapshot.asks if order.isbuy() else ob_snapshot.bids
         remaining = abs(getattr(order, "size", 0.0))
         fills = []
@@ -80,6 +217,15 @@ class SimpleExchangeModel(ExchangeModel):
 
 
 class QueueExchangeModel(SimpleExchangeModel):
+    """Exchange model that maintains per-order queue position for maker fills.
+
+    Limit orders that cross the spread follow :class:`SimpleExchangeModel`'s
+    taker semantics (with extra handling for ``GTX``/``FOK`` time-in-force
+    flags). Limit orders that do not cross the spread are parked as maker
+    orders and their queue-ahead is tracked via the injected queue model
+    as trades and depth updates arrive.
+    """
+
     def __init__(
         self,
         queue_model=None,
@@ -87,12 +233,44 @@ class QueueExchangeModel(SimpleExchangeModel):
         lot_size: float = 1.0,
         tick_size: float = None,
     ):
+        """Initialize the queue-aware exchange model.
+
+        Args:
+            queue_model: Optional pre-built queue model. When ``None``, a
+                :class:`backtrader.brokers.hft.queue.ProbQueueModel` is
+                constructed from ``queue_model_power`` and ``lot_size``.
+            queue_model_power: Power exponent forwarded to the default
+                :class:`ProbQueueModel` when ``queue_model`` is ``None``.
+            lot_size: Default lot size forwarded to the default
+                :class:`ProbQueueModel` when ``queue_model`` is ``None``.
+            tick_size: Optional price tick size. When provided, price
+                equality is computed after rounding to this granularity so
+                floating-point noise does not break maker/trade matching.
+                ``None`` disables tick-based matching.
+        """
         self._queue_model = queue_model or ProbQueueModel(
             power=queue_model_power, lot_size=lot_size
         )
         self._tick_size = float(tick_size) if tick_size is not None else None
 
     def on_new_order(self, order, ob_snapshot):
+        """Park the order as a maker or fill it as a taker.
+
+        Market orders are filled against depth. Crossing limit orders
+        follow the taker path and honor ``GTX`` (reject when crossing)
+        and ``FOK`` (reject when the full size cannot be filled) flags.
+        Non-crossing limit orders are recorded by the queue model and
+        returned as ``PENDING`` with the ``_fill_role`` tag set to
+        :attr:`FillRole.MAKER`.
+
+        Args:
+            order: The newly accepted order.
+            ob_snapshot: Order book snapshot at acceptance.
+
+        Returns:
+            OrderResult: ``"FILL"`` for takers, ``"PENDING"`` for resting
+            makers, or ``"REJECT"`` for ``GTX``/``FOK`` violations.
+        """
         if order.exectype == Order.Market:
             return self._match_against_depth(order, ob_snapshot, FillRole.TAKER)
 
@@ -115,6 +293,23 @@ class QueueExchangeModel(SimpleExchangeModel):
         return OrderResult(action="PENDING")
 
     def on_trade(self, trade_event, pending_orders):
+        """Drive maker fills from incoming trade events.
+
+        For each resting maker order, check whether the trade price
+        matches the order's price (within ``_tick_size`` if configured) and,
+        if so, delegate to the queue model's ``update_on_trade``. Any
+        resulting fill is appended in the form
+        ``(order, price, quantity, role)``.
+
+        Args:
+            trade_event: The trade event to consume. Provides ``price`` and
+                ``volume``.
+            pending_orders: Resting orders that may be filled by this trade.
+
+        Returns:
+            list: ``(order, price, fillable_qty, FillRole.MAKER)`` tuples
+            for orders that filled, possibly empty.
+        """
         fills = []
         for order in pending_orders:
             if getattr(order, "_fill_role", None) != FillRole.MAKER:
@@ -136,6 +331,21 @@ class QueueExchangeModel(SimpleExchangeModel):
         return fills
 
     def on_depth_update(self, ob_event, pending_orders):
+        """Refresh each maker order's queue-ahead from the new depth.
+
+        For every resting maker order, compute the previous and current
+        depth at the order's price (respecting ``_tick_size``) and forward
+        the pair to the queue model's ``update_on_depth``.
+
+        Args:
+            ob_event: Depth update event providing ``previous_bids`` /
+                ``previous_asks`` (or empty) and ``bids`` / ``asks``.
+            pending_orders: Resting orders to reconcile.
+
+        Returns:
+            list: Always empty in the current implementation; the method
+            is called for its side effect of updating queue-ahead state.
+        """
         fills: list = []
         prev_bids = getattr(ob_event, "previous_bids", None) or []
         prev_asks = getattr(ob_event, "previous_asks", None) or []

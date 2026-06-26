@@ -27,10 +27,14 @@ class TestOrderStatus:
 
     class _FakeOrder:
         """Minimal order-like object with ref-based equality."""
+
         def __init__(self, ref, status):
+            """Initialize fake order with ref and status."""
             self.ref = ref
             self.status = status
+
         def __eq__(self, other):
+            """Compare orders by ref."""
             return other is not None and self.ref == other.ref
 
     def _make_fake_order(self, ref, status):
@@ -166,11 +170,15 @@ class TestSubmittedOrderCashProjection:
     """Rejected submitted orders must not consume cash for later orders."""
 
     class _SequentialOrderStrategy(bt.Strategy):
+        """Strategy for testing sequential order submissions."""
+
         def __init__(self):
+            """Initialize strategy state."""
             self.ordered = False
             self.statuses = []
 
         def next(self):
+            """Execute orders on first bar."""
             if self.ordered:
                 return
             self.ordered = True
@@ -178,9 +186,11 @@ class TestSubmittedOrderCashProjection:
             self.buy(data=self.datas[1], size=50)
 
         def notify_order(self, order):
+            """Track order statuses."""
             self.statuses.append((order.data._name, order.getstatusname()))
 
     def test_margin_rejected_order_does_not_reserve_cash_for_next_submission(self):
+        """Test margin rejected order does not reserve cash for next submission."""
         index = pd.date_range("2020-01-01", periods=3, freq="D")
         frame = pd.DataFrame(
             {
@@ -208,23 +218,98 @@ class TestSubmittedOrderCashProjection:
         assert ("affordable", "Completed") in statuses
 
 
+class TestSubmittedOcoCancellation:
+    """Submitted OCO siblings should be canceled together."""
+
+    class _CancelSubmittedOcoStrategy(bt.Strategy):
+        """Cancel one submitted OCO exit before the broker accepts it."""
+
+        def __init__(self):
+            """Initialize order references and notification log."""
+            self.entry_order = None
+            self.stop_order = None
+            self.limit_order = None
+            self.cancel_requested = False
+            self.order_events = []
+
+        def next(self):
+            """Submit an entry, then cancel the submitted stop after entry fill."""
+            if self.entry_order is None:
+                self.entry_order = self.buy(size=1)
+                return
+
+            if self.position and self.stop_order is not None and not self.cancel_requested:
+                self.cancel_requested = True
+                self.cancel(self.stop_order)
+
+        def notify_order(self, order):
+            """Record order notifications and place submitted OCO exits."""
+            label = (
+                "entry" if order == self.entry_order else
+                "stop" if order == self.stop_order else
+                "limit" if order == self.limit_order else
+                "unknown"
+            )
+            self.order_events.append((label, order.getstatusname()))
+
+            if order == self.entry_order and order.status == Order.Completed:
+                self.stop_order = self.sell(size=1, exectype=bt.Order.Stop, price=90.0)
+                self.limit_order = self.sell(size=1, exectype=bt.Order.Limit, price=110.0, oco=self.stop_order)
+
+    def test_cancel_submitted_oco_member_cancels_submitted_sibling(self):
+        """Canceling a submitted OCO stop should cancel its submitted limit sibling."""
+        index = pd.date_range("2020-01-01", periods=3, freq="D")
+        frame = pd.DataFrame(
+            {
+                "open": [100.0, 100.0, 112.0],
+                "high": [100.0, 120.0, 120.0],
+                "low": [100.0, 100.0, 80.0],
+                "close": [100.0, 120.0, 116.0],
+                "volume": [0.0, 0.0, 0.0],
+                "openinterest": [0.0, 0.0, 0.0],
+            },
+            index=index,
+        )
+
+        cerebro = bt.Cerebro(stdstats=False)
+        cerebro.broker.setcash(100000.0)
+        cerebro.adddata(bt.feeds.PandasData(dataname=frame))
+        cerebro.addstrategy(self._CancelSubmittedOcoStrategy)
+
+        result = cerebro.run(runonce=False)
+        strat = result[0]
+
+        assert strat.stop_order.status == Order.Canceled
+        assert strat.limit_order.status == Order.Canceled
+        assert ("stop", "Canceled") in strat.order_events
+        assert ("limit", "Canceled") in strat.order_events
+        assert ("limit", "Accepted") not in strat.order_events
+        assert ("limit", "Completed") not in strat.order_events
+
+
 class TestStackedBarTickRefresh:
     """Stacked/resampled bars must not execute orders with stale tick prices."""
 
     class _MarketOnPenultimateResampledBar(bt.Strategy):
+        """Strategy for testing market order on resampled bar."""
+
         def __init__(self):
+            """Initialize strategy state."""
             self.order = None
             self.executed_prices = []
 
         def next(self):
+            """Execute buy on second bar."""
             if len(self.data) == 2 and self.order is None:
                 self.order = self.buy(size=1)
 
         def notify_order(self, order):
+            """Track executed prices."""
             if order.status == order.Completed:
                 self.executed_prices.append(order.executed.price)
 
     def test_market_order_uses_final_stacked_bar_open_not_stale_tick_open(self):
+        """Test market order uses final stacked bar open, not stale tick open."""
         index = pd.to_datetime(
             [
                 "2020-01-01 00:00:00",

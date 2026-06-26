@@ -12,6 +12,7 @@ from backtrader import position_modes as pm
 
 
 def test_normalize_position_mode():
+    """Test normalize_position_mode handles various inputs correctly."""
     assert pm.normalize_position_mode(None) == pm.POSITION_MODE_NET
     assert pm.normalize_position_mode("") == pm.POSITION_MODE_NET
     assert pm.normalize_position_mode("DUAL_SIDE") == pm.POSITION_MODE_DUAL_SIDE
@@ -21,6 +22,7 @@ def test_normalize_position_mode():
 
 
 def test_normalize_position_side_and_offset():
+    """Test normalize_position_side and normalize_position_offset."""
     assert pm.normalize_position_side(None) is None
     assert pm.normalize_position_side("LONG") == pm.POSITION_SIDE_LONG
     with pytest.raises(ValueError):
@@ -33,6 +35,7 @@ def test_normalize_position_side_and_offset():
 
 
 def test_validate_dual_side_action():
+    """Test validate_dual_side_action combinations."""
     # buy + long + open is a valid opening combo
     assert pm.validate_dual_side_action(True, "long", "open") == ("long", "open")
     # sell + long + close is valid (closing a long)
@@ -47,6 +50,7 @@ def test_validate_dual_side_action():
 
 
 def test_normalize_order_position_meta():
+    """Test normalize_order_position_meta in net and dual-side modes."""
     # net mode: passes side/offset through (normalized), no combo validation
     assert pm.normalize_order_position_meta("net", True, None, None) == (None, None)
     # dual-side mode: validates the combo
@@ -57,6 +61,7 @@ def test_normalize_order_position_meta():
 
 
 def test_infer_position_side():
+    """Test infer_position_side from buy/sell and open/close."""
     assert pm.infer_position_side(True, "open") == pm.POSITION_SIDE_LONG
     assert pm.infer_position_side(False, "open") == pm.POSITION_SIDE_SHORT
     assert pm.infer_position_side(True, "close") == pm.POSITION_SIDE_SHORT
@@ -65,18 +70,27 @@ def test_infer_position_side():
 
 
 def test_signed_position_size():
+    """Test signed_position_size returns correct sign."""
     assert pm.signed_position_size("long", 3) == 3.0
     assert pm.signed_position_size("short", 3) == -3.0
     assert pm.signed_position_size("long", 0) == 0.0
 
 
 def test_trade_key_from_order():
+    """Test trade_key_from_order returns correct key format."""
+
     class _Info:
+        """Info with position_side."""
+
         def __init__(self, side):
+            """Initialize info with side."""
             self.position_side = side
 
     class _Order:
+        """Order with tradeid and info."""
+
         def __init__(self, tradeid, side):
+            """Initialize order with tradeid and side."""
             self.tradeid = tradeid
             self.info = _Info(side)
 

@@ -107,35 +107,47 @@ def test_run(main=False):
 
 
 class ManualChildMinPeriod(bt.Indicator):
+    """Manual child indicator with explicit minperiod."""
+
     lines = ("value",)
     params = dict(period=8)
 
     def __init__(self):
+        """Initialize with SMA and add minperiod."""
         self.sma = btind.SMA(self.data, period=self.p.period)
         self.addminperiod(self.p.period + 2)
 
     def next(self):
+        """Set value to SMA value."""
         self.lines.value[0] = self.sma[0]
 
 
 class ManualParentMinPeriod(bt.Indicator):
+    """Manual parent indicator with child and explicit minperiod."""
+
     lines = ("value",)
     params = dict(period=8)
 
     def __init__(self):
+        """Initialize with child indicator and add minperiod."""
         self.child = ManualChildMinPeriod(self.data, period=self.p.period)
         self.addminperiod(self.p.period + 2)
 
     def next(self):
+        """Set value to child value."""
         self.lines.value[0] = self.child.value[0]
 
 
 class ManualParentMinPeriodStrategy(bt.Strategy):
+    """Strategy using manual parent minperiod indicator."""
+
     def __init__(self):
+        """Initialize with indicator."""
         self.indicator = ManualParentMinPeriod(self.data)
 
 
 def test_manual_next_child_indicator_addminperiod_is_not_stacked():
+    """Test that addminperiod is not stacked for child indicator."""
     cerebro = bt.Cerebro(runonce=False, preload=False, exactbars=False)
     cerebro.adddata(testcommon.getdata(0))
     cerebro.addstrategy(ManualParentMinPeriodStrategy)

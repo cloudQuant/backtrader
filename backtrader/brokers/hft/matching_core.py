@@ -14,6 +14,25 @@ from .exchange import FillRole
 
 @dataclass
 class FillReport:
+    """Single execution report produced by the matching engine.
+
+    Attributes:
+        order: The :class:`backtrader.order.Order` instance that was
+            filled (kept by reference so callers can correlate the fill
+            back to the originating strategy order).
+        fill_price: Trade price at which this fill leg executed.
+        fill_size: Signed quantity executed on this fill leg. Always
+            positive; the side (buy/sell) is carried by ``order``.
+        role: Whether this fill came from a taker or maker execution.
+            ``"taker"`` for liquidity-taking orders and ``"maker"`` for
+            passive orders that were resting in the book.
+        timestamp: Simulation timestamp at which the fill happened
+            (typically the upstream exchange or local-receive timestamp).
+        source: Origin tag of the event that triggered the fill — usually
+            ``"tick"`` for trade prints or ``"orderbook_depth"`` for
+            top-of-book updates.
+    """
+
     order: object
     fill_price: float
     fill_size: float
@@ -24,6 +43,19 @@ class FillReport:
 
 @dataclass
 class MatchResult:
+    """Outcome of an operation against the matching engine.
+
+    Attributes:
+        action: One of ``"ACCEPTED"``, ``"REJECT"``, ``"MODIFIED"``,
+            ``"CANCELED"``, ``"FILL"`` or ``"PENDING"`` describing what
+            the matching engine did with the request/event.
+        fills: List of :class:`FillReport` entries produced by this
+            operation. Empty when no fill happened (e.g. an order was
+            accepted but no market data was available yet).
+        reject_reason: Human-readable explanation populated when
+            ``action == "REJECT"``. Empty otherwise.
+    """
+
     action: str
     fills: list = field(default_factory=list)
     reject_reason: str = ""
@@ -31,12 +63,68 @@ class MatchResult:
 
 @dataclass
 class CancelResult:
+    """Outcome of an order cancellation request.
+
+    Attributes:
+        success: ``True`` if the order was found and removed from the
+            matching engine's pending book; ``False`` otherwise.
+        reason: Human-readable explanation populated when ``success`` is
+            ``False`` (currently ``"ORDER_NOT_FOUND"`` when the order
+            is not in the pending set). Empty for successful cancels.
+    """
+
     success: bool
     reason: str = ""
 
 
 class MatchingCore:
+    """Tick/depth matching engine for the HFT broker.
+
+    The matching core owns the pending-order book (per symbol) and
+    reacts to incoming tick and order-book events by matching them
+    against pending orders. The actual fill logic (price-time priority,
+    slippage, queue position, etc.) is delegated to two pluggable
+    helpers:
+
+    * ``latency_engine`` — when provided, decides when a freshly
+      submitted order becomes "visible" to the matching engine. While
+      invisible the order is parked in the latency engine rather than
+      in the core's pending buckets, and :meth:`activate_orders`
+      promotes it once it becomes visible.
+    * ``exchange_model`` — when provided, decides whether an incoming
+      tick or order-book event actually triggers a fill for a pending
+      order. The default internal matcher (``_match_tick_order`` /
+      ``_match_orderbook_order``) implements a simple limit/market
+      price-time matching, which is bypassed when the exchange model
+      returns ``"FILL"`` or ``"REJECT"`` for the order.
+
+    Attributes:
+        _latency: Pluggable latency engine (``None`` to skip latency).
+        _exchange_model: Pluggable exchange model (``None`` to use the
+            built-in matcher).
+        _pending_by_symbol: Mapping ``symbol -> list[Order]`` of orders
+            that are currently sitting in the matching engine's book.
+        _order_to_symbol: Mapping ``id(order) -> symbol`` used to look
+            up the symbol of an order that the caller hands back via
+            :meth:`cancel_order` / :meth:`remove_order` (the order
+            itself does not always expose its symbol).
+    """
+
     def __init__(self, latency_engine=None, exchange_model=None):
+        """Initialize the matching core.
+
+        Args:
+            latency_engine: Optional pluggable latency engine. When
+                supplied, freshly submitted orders are routed through it
+                and only become visible to the matcher after the
+                configured entry latency elapses (see
+                :meth:`activate_orders`).
+            exchange_model: Optional pluggable exchange model. When
+                supplied, ``on_tick`` and ``on_orderbook`` delegate the
+                fill decision to ``exchange_model.on_trade`` /
+                ``exchange_model.on_new_order`` instead of using the
+                built-in limit/market matcher.
+        """
         self._latency = latency_engine
         self._exchange_model = exchange_model
         self._pending_by_symbol = {}
@@ -61,6 +149,28 @@ class MatchingCore:
         self._order_to_symbol[id(order)] = symbol
 
     def submit_order(self, order, current_ts=0.0):
+        """Submit a new order to the matching engine.
+
+        If a latency engine is configured the order is first routed
+        through it; orders that have not yet become visible (latency
+        still pending) are kept inside the latency engine and will
+        be promoted to the matching book later via
+        :meth:`activate_orders`. Orders that are immediately visible —
+        or for which no latency engine is configured — are appended
+        to the per-symbol pending bucket.
+
+        Args:
+            order: Order object to submit. ``order.data`` is consulted
+                to derive its trading symbol.
+            current_ts: Simulation timestamp at which the submission
+                happens. Forwarded to ``latency_engine.delay_order``
+                when a latency engine is configured.
+
+        Returns:
+            MatchResult: ``MatchResult(action="ACCEPTED")``. The result
+            is always ``ACCEPTED`` — rejections are signalled by the
+            caller (e.g. broker) after inspecting fill notifications.
+        """
         symbol = self._get_symbol(order)
         if self._latency is not None:
             visible_ts = self._latency.delay_order(order, current_ts, symbol)
@@ -71,6 +181,31 @@ class MatchingCore:
         return MatchResult(action="ACCEPTED")
 
     def modify_order(self, order, replacement_order, current_ts=0.0):
+        """Replace ``order`` with ``replacement_order``.
+
+        Modification is implemented as "cancel + resubmit": the original
+        order is removed from the matching book and, if a replacement
+        was supplied, it is re-submitted using the same
+        :meth:`submit_order` path so that latency-engine rules apply
+        uniformly.
+
+        Args:
+            order: Existing order to replace. Looked up in the pending
+                book (and the latency engine when relevant).
+            replacement_order: New order to submit in place of
+                ``order``. ``None`` means "cancel only" — the operation
+                succeeds but no replacement is queued.
+            current_ts: Simulation timestamp at which the modification
+                is being applied. Forwarded to :meth:`submit_order` for
+                the replacement.
+
+        Returns:
+            MatchResult: ``MODIFIED`` when the original was successfully
+            cancelled and the replacement was queued, ``CANCELED`` when
+            no replacement was supplied, ``REJECT`` if the original
+            could not be found in either the pending book or the
+            latency engine.
+        """
         cancel_result = self.cancel_order(order)
         if not cancel_result.success:
             return MatchResult(action="REJECT", reject_reason=cancel_result.reason)
@@ -80,6 +215,24 @@ class MatchingCore:
         return MatchResult(action="MODIFIED")
 
     def activate_orders(self, current_ts):
+        """Promote orders whose entry latency has elapsed into the matching book.
+
+        For every order that the latency engine reports as having
+        become visible at ``current_ts``, the order is moved into the
+        per-symbol pending bucket and returned in the activation list
+        so that the caller (typically the broker) can run post-activation
+        hooks (queue-position computation, etc.).
+
+        Args:
+            current_ts: Current simulation timestamp. Compared against
+                the visibility timestamp returned by the latency
+                engine.
+
+        Returns:
+            list[Order]: Orders that were activated at ``current_ts``.
+            Empty when no latency engine is configured or when nothing
+            has yet become visible.
+        """
         if self._latency is None:
             return []
         activated = []
@@ -89,6 +242,27 @@ class MatchingCore:
         return activated
 
     def cancel_order(self, order):
+        """Remove ``order`` from the matching engine (pending book or latency engine).
+
+        The method first looks up the order's symbol via the
+        ``_order_to_symbol`` cache (falling back to deriving it from
+        ``order.data``), then attempts to remove it from the per-symbol
+        pending bucket. If the order is not in the pending bucket but a
+        latency engine is configured, the latency engine is asked to
+        cancel it instead — useful for orders that have been submitted
+        but not yet become visible.
+
+        Args:
+            order: Order to cancel. Must be the same object that was
+                passed to :meth:`submit_order` / :meth:`modify_order`,
+                because the engine identifies orders by ``id(order)``.
+
+        Returns:
+            CancelResult: ``CancelResult(success=True)`` when the order
+            was removed from either the pending book or the latency
+            engine; ``CancelResult(success=False,
+            reason="ORDER_NOT_FOUND")`` otherwise.
+        """
         symbol = self._order_to_symbol.get(id(order), self._get_symbol(order))
         bucket = self._pending_by_symbol.get(symbol, [])
         try:
@@ -105,6 +279,18 @@ class MatchingCore:
         return CancelResult(success=False, reason="ORDER_NOT_FOUND")
 
     def remove_order(self, order):
+        """Silently drop ``order`` from the matching book without raising.
+
+        Used by the broker when an order transitions to a terminal state
+        (rejected, expired, margin-called) and the matching engine
+        should forget about it. Unlike :meth:`cancel_order`, this method
+        never returns a result and never raises — the absence of the
+        order is not an error condition.
+
+        Args:
+            order: Order to forget. Looked up by ``id(order)`` first and
+                falls back to deriving the symbol from ``order.data``.
+        """
         symbol = self._order_to_symbol.pop(id(order), self._get_symbol(order))
         bucket = self._pending_by_symbol.get(symbol, [])
         try:
@@ -115,15 +301,56 @@ class MatchingCore:
             del self._pending_by_symbol[symbol]
 
     def pending_for_symbol(self, symbol):
+        """Return a copy of the pending book for ``symbol``.
+
+        The returned list is a snapshot; mutating it does not affect
+        the engine's internal state.
+
+        Args:
+            symbol: Trading symbol to look up.
+
+        Returns:
+            list[Order]: Pending orders in arrival order for ``symbol``.
+            Empty list if the symbol has no pending orders.
+        """
         return list(self._pending_by_symbol.get(symbol, []))
 
     def pending_orders(self):
+        """Return a flat snapshot of every pending order across all symbols.
+
+        Returns:
+            list[Order]: Pending orders across all symbols, in an
+            unspecified but stable order (one bucket after another, in
+            ``_pending_by_symbol`` insertion order).
+        """
         result = []
         for bucket in self._pending_by_symbol.values():
             result.extend(bucket)
         return result
 
     def on_tick(self, tick_event):
+        """Match a single trade tick against the pending book of its symbol.
+
+        When an exchange model is configured, its
+        ``on_trade(tick_event, pending_orders)`` is consulted first to
+        generate fills; when no exchange model is set, the built-in
+        limit/market matcher (:meth:`_match_tick_order`) is used
+        instead. Orders whose ``_fill_role`` is :data:`FillRole.MAKER`
+        are skipped from the built-in matcher because the exchange
+        model is expected to drive their lifecycle.
+
+        Args:
+            tick_event: Tick-like object exposing ``symbol``,
+                ``timestamp`` and ``price``. The exact type is not
+                enforced — the engine only relies on these three
+                attributes.
+
+        Returns:
+            MatchResult: ``MatchResult(action="FILL", fills=[...])`` if
+            at least one fill was produced; otherwise
+            ``MatchResult(action="PENDING", fills=[])``. The fills list
+            holds one :class:`FillReport` per matched order.
+        """
         symbol = getattr(tick_event, "symbol", "")
         fills = []
         pending = list(self.pending_for_symbol(symbol))
@@ -150,6 +377,32 @@ class MatchingCore:
         return MatchResult(action="FILL" if fills else "PENDING", fills=fills)
 
     def on_orderbook(self, ob_event):
+        """Match a single order-book snapshot against the pending book of its symbol.
+
+        For each pending order of ``ob_event.symbol`` the method first
+        consults the configured exchange model (``on_new_order``). If
+        the model reports ``"REJECT"`` the engine short-circuits and
+        returns a :class:`MatchResult` with that reject reason; if it
+        reports ``"FILL"`` the aggregated fill price/size is recorded
+        and the loop continues with the next order. Otherwise the
+        built-in order-book matcher (:meth:`_match_orderbook_order`)
+        runs and may produce a fill.
+
+        Args:
+            ob_event: Order-book event exposing ``symbol``,
+                ``timestamp``, ``asks`` and ``bids``. ``asks``/``bids``
+                are expected to be sequences of ``(price, qty)`` tuples
+                sorted from best to worst.
+
+        Returns:
+            MatchResult: ``MatchResult(action="FILL", fills=[...])``
+            when at least one fill was produced;
+            ``MatchResult(action="REJECT", reject_reason=...)`` when
+            the exchange model rejected an order;
+            ``MatchResult(action="PENDING", fills=[])`` when no fill
+            happened. The ``"REJECT"`` path returns immediately, so any
+            remaining orders are not processed in the same call.
+        """
         symbol = getattr(ob_event, "symbol", "")
         fills = []
         for order in list(self.pending_for_symbol(symbol)):
@@ -194,7 +447,9 @@ class MatchingCore:
         remaining = getattr(getattr(order, "executed", None), "remsize", None)
         if remaining is None:
             remaining = getattr(order, "size", 0.0)
-        return abs(remaining)
+        if remaining is None:
+            remaining = 0.0
+        return abs(float(remaining))
 
     @staticmethod
     def _aggregate_exchange_fills(fills):

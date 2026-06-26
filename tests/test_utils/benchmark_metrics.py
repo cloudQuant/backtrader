@@ -1,3 +1,10 @@
+"""Benchmark metrics collection and analysis utilities for backtrader performance testing.
+
+This module provides utilities for extracting, canonicalizing, and comparing
+benchmark metrics from backtrader strategy runs, including support for both
+Python engine and C++ engine metrics.
+"""
+
 from __future__ import annotations
 
 import atexit
@@ -71,7 +78,24 @@ _BenchmarkAnalyzerBase = bt.Analyzer if bt is not None else object
 
 
 class BenchmarkMetricsAnalyzer(_BenchmarkAnalyzerBase):
+    """Analyzer that collects basic benchmark metrics during a backtest run.
+
+    Tracks bar count, trade counts, win/loss statistics, and profit/loss
+    during strategy execution.
+
+    Attributes:
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        win_count: Number of closed trades with positive PnL.
+        loss_count: Number of closed trades with negative PnL.
+        sum_profit: Sum of all trade PnL values.
+        trade_num: Number of closed trades.
+        stop_count: Number of stop orders triggered.
+    """
+
     def start(self) -> None:
+        """Initialize all metrics to zero."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -82,9 +106,15 @@ class BenchmarkMetricsAnalyzer(_BenchmarkAnalyzerBase):
         self.stop_count = 0
 
     def next(self) -> None:
+        """Increment bar count on each new bar."""
         self.bar_num += 1
 
     def notify_order(self, order: bt.Order) -> None:
+        """Track buy/sell and stop order counts.
+
+        Args:
+            order: The order that was updated.
+        """
         if order.status != order.Completed:
             return
         if order.isbuy():
@@ -95,6 +125,11 @@ class BenchmarkMetricsAnalyzer(_BenchmarkAnalyzerBase):
             self.stop_count += 1
 
     def notify_trade(self, trade: bt.Trade) -> None:
+        """Track closed trade statistics.
+
+        Args:
+            trade: The trade that was closed.
+        """
         if not trade.isclosed:
             return
         self.trade_num += 1
@@ -105,6 +140,11 @@ class BenchmarkMetricsAnalyzer(_BenchmarkAnalyzerBase):
         self.sum_profit += trade.pnl
 
     def get_analysis(self) -> dict[str, Any]:
+        """Return the collected metrics as a dictionary.
+
+        Returns:
+            Dictionary containing all tracked metrics.
+        """
         return {
             "bar_num": self.bar_num,
             "buy_count": self.buy_count,
@@ -118,12 +158,32 @@ class BenchmarkMetricsAnalyzer(_BenchmarkAnalyzerBase):
 
 
 def add_benchmark_analyzer(cerebro: Any, name: str = "benchmark") -> None:
+    """Add the BenchmarkMetricsAnalyzer to the cerebro instance.
+
+    Args:
+        cerebro: The Cerebro instance to add the analyzer to.
+        name: Name for the analyzer instance.
+
+    Raises:
+        RuntimeError: If backtrader is not installed.
+    """
     if bt is None:
         raise RuntimeError("backtrader is required to install Python benchmark analyzers")
     cerebro.addanalyzer(BenchmarkMetricsAnalyzer, _name=name)
 
 
 def clean_metric_value(value: Any) -> Any:
+    """Clean a metric value for JSON serialization.
+
+    Converts datetime objects to ISO format strings, filters out
+    non-finite float values, and passes through primitive types unchanged.
+
+    Args:
+        value: The value to clean.
+
+    Returns:
+        The cleaned value suitable for JSON serialization, or None for invalid values.
+    """
     if value is None:
         return None
     if isinstance(value, bool):
@@ -142,14 +202,40 @@ def clean_metric_value(value: Any) -> Any:
 
 
 def compare_only_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
+    """Extract only the metrics defined in the comparison schema.
+
+    Args:
+        metrics: Dictionary of raw metrics.
+
+    Returns:
+        Dictionary containing only the metrics defined in COMPARE_ONLY_SCHEMA.
+    """
     return {key: clean_metric_value(metrics.get(key)) for key in COMPARE_ONLY_SCHEMA}
 
 
 def compact_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
+    """Alias for compare_only_metrics for backward compatibility.
+
+    Args:
+        metrics: Dictionary of raw metrics.
+
+    Returns:
+        Dictionary containing only the metrics defined in COMPARE_ONLY_SCHEMA.
+    """
     return compare_only_metrics(metrics)
 
 
 def nested_get(mapping: Any, *keys: str, default: Any = None) -> Any:
+    """Safely navigate nested dictionary or object attributes.
+
+    Args:
+        mapping: Dictionary or object to traverse.
+        *keys: Sequence of keys/attributes to navigate.
+        default: Default value if any key is not found.
+
+    Returns:
+        The value at the nested path, or default if not found.
+    """
     current = mapping
     for key in keys:
         if current is None:
@@ -164,6 +250,14 @@ def nested_get(mapping: Any, *keys: str, default: Any = None) -> Any:
 
 
 def finite_or_none(value: Any) -> float | None:
+    """Convert a value to a finite float or None.
+
+    Args:
+        value: The value to convert.
+
+    Returns:
+        The value as a finite float, or None if conversion fails or result is infinite.
+    """
     if value is None:
         return None
     try:
@@ -268,6 +362,18 @@ def _normalize_annual_return_value(
 
 
 def canonicalize_metric_payload(payload: Any, *, engine: str | None = None) -> dict[str, Any]:
+    """Canonicalize a metric payload into a standard comparison format.
+
+    Handles alias mappings, normalizes units (percentages vs ratios),
+    and computes derived metrics like trade counts from win/loss counts.
+
+    Args:
+        payload: Raw metric data from a backtest run.
+        engine: Optional engine identifier ('cpp' or 'python') for unit normalization.
+
+    Returns:
+        Canonicalized metrics dictionary conforming to COMPARE_ONLY_SCHEMA.
+    """
     source = _flatten_metric_payload(payload)
     if not source:
         return {}
@@ -331,6 +437,14 @@ def canonicalize_metric_payload(payload: Any, *, engine: str | None = None) -> d
 
 
 def infer_rows(frame: Any) -> int | None:
+    """Infer the number of rows (bars) from a data frame.
+
+    Args:
+        frame: Data frame or similar structure to extract row count from.
+
+    Returns:
+        The number of rows, or None if it cannot be determined.
+    """
     if frame is None:
         return None
     if isinstance(frame, dict):
@@ -354,6 +468,15 @@ def infer_rows(frame: Any) -> int | None:
 
 
 def infer_initial_cash(config: Any, cerebro: Any = None) -> float | None:
+    """Infer the initial cash from config dict or cerebro broker.
+
+    Args:
+        config: Optional configuration dict with 'backtest.initial_cash'.
+        cerebro: Optional Cerebro instance to extract broker cash from.
+
+    Returns:
+        The initial cash value, or None if not found.
+    """
     if isinstance(config, dict):
         backtest_cfg = config.get("backtest")
         if isinstance(backtest_cfg, dict) and backtest_cfg.get("initial_cash") is not None:
@@ -369,6 +492,14 @@ def infer_initial_cash(config: Any, cerebro: Any = None) -> float | None:
 
 
 def infer_rows_from_cerebro(cerebro: Any) -> int | None:
+    """Infer the number of rows from a cerebro instance's first data feed.
+
+    Args:
+        cerebro: The Cerebro instance to extract row count from.
+
+    Returns:
+        The number of rows, or None if it cannot be determined.
+    """
     datas = getattr(cerebro, "datas", None)
     if not datas:
         return None
@@ -395,6 +526,23 @@ def extract_benchmark_metrics(
     run_time_sec: float | None = None,
     total_time_sec: float | None = None,
 ) -> dict[str, Any]:
+    """Extract benchmark metrics from a strategy run.
+
+    Collects metrics from the strategy's analyzers including benchmark,
+    trades, sharpe, returns, and drawdown analyzers.
+
+    Args:
+        strategy: The strategy instance with analyzers.
+        cerebro: The Cerebro instance.
+        rows: Optional row count override.
+        initial_cash: Optional initial cash override.
+        read_time_sec: Optional data reading time.
+        run_time_sec: Optional backtest execution time.
+        total_time_sec: Optional total elapsed time.
+
+    Returns:
+        Dictionary of extracted benchmark metrics.
+    """
     metrics: dict[str, Any] = {"engine": "python"}
     for key, value in {
         "read_time_sec": read_time_sec,
@@ -485,6 +633,12 @@ def extract_benchmark_metrics(
 
 
 def write_benchmark_result(path: str | Path, metrics: dict[str, Any]) -> None:
+    """Write benchmark metrics to a JSON file.
+
+    Args:
+        path: File path to write to.
+        metrics: Dictionary of metrics to write.
+    """
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     canonical = canonicalize_metric_payload(metrics)
@@ -495,6 +649,15 @@ def write_benchmark_result(path: str | Path, metrics: dict[str, Any]) -> None:
 
 
 def load_benchmark_result(path: str | Path, fallback: Any = None) -> dict[str, Any]:
+    """Load benchmark metrics from a JSON file.
+
+    Args:
+        path: File path to read from.
+        fallback: Optional fallback metrics to return if file doesn't exist.
+
+    Returns:
+        Dictionary of loaded and canonicalized metrics.
+    """
     if fallback is not None:
         metrics = canonicalize_metric_payload(fallback)
         if metrics:
@@ -519,6 +682,21 @@ def collect_benchmark_metrics(
     total_time_sec: float | None = None,
     result_path: str | Path | None = None,
 ) -> dict[str, Any]:
+    """Collect and optionally save benchmark metrics from a strategy run.
+
+    Args:
+        strategy: The strategy instance.
+        cerebro: The Cerebro instance.
+        frame: Optional data frame for row inference.
+        config: Optional config dict for initial cash inference.
+        read_time_sec: Optional data reading time.
+        run_time_sec: Optional backtest execution time.
+        total_time_sec: Optional total elapsed time.
+        result_path: Optional path to save metrics to.
+
+    Returns:
+        Dictionary of extracted benchmark metrics.
+    """
     metrics = extract_benchmark_metrics(
         strategy,
         cerebro,
@@ -615,6 +793,17 @@ def _write_latest_or_canonicalized(base_dir: Path) -> None:
 
 
 def install_benchmark_metrics_hook(base_dir: str | Path, result_filename: str = "backtest_result.json") -> None:
+    """Install a hook to automatically capture benchmark metrics on cerebro.run().
+
+    Monkey-patches Cerebro.run() to extract and save metrics after each run.
+
+    Args:
+        base_dir: Directory to save results to.
+        result_filename: Name of the result JSON file.
+
+    Raises:
+        RuntimeError: If backtrader is not installed.
+    """
     if bt is None:
         raise RuntimeError("backtrader is required to install Python benchmark metrics hook")
     base_path = Path(base_dir).resolve()
@@ -778,6 +967,15 @@ def _restore_cpp_python_benchmark(context: dict[str, Any]) -> None:
 
 
 def install_cpp_result_contract_hook(base_dir: str | Path, result_filename: str = "cpp_result.json") -> None:
+    """Install a hook to capture C++ engine benchmark results from subprocess output.
+
+    Monkey-patches subprocess.run and subprocess.check_call to extract
+    metrics from C++ backtest engine stdout.
+
+    Args:
+        base_dir: Directory containing the Python result to protect.
+        result_filename: Name of the C++ result JSON file.
+    """
     base_path = Path(base_dir).resolve()
     python_result_path = base_path / "backtest_result.json"
     python_result_existed = python_result_path.exists()

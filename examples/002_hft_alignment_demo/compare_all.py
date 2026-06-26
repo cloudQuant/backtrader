@@ -1,3 +1,8 @@
+"""Compare backtrader and hftbacktest across all Binance BBO alignment demo strategies.
+
+This script runs both backtrader and hftbacktest on all available strategies
+and outputs a comparison of the results for each.
+"""
 from __future__ import annotations
 
 import argparse
@@ -19,6 +24,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run the comparison across all strategies.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     paths = resolve_paths(args)
     results = []

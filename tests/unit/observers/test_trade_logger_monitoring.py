@@ -103,3 +103,24 @@ def test_cancel_threshold_uses_separate_counter():
     assert logger._monitoring["cancel_count"] == 2
     assert logger._monitoring["submit_cancel_total"] == 2
     assert [event["event_type"] for event in events].count("cancel_count_threshold_reached") == 1
+
+
+def test_duplicate_cancel_detection_groups_same_symbol_across_order_refs():
+    """Rapid cancels on the same symbol should count as repeat-cancel risk."""
+    logger, events = _make_logger(
+        duplicate_order_warn_threshold=1,
+        duplicate_order_window_seconds=60.0,
+    )
+
+    logger._track_request_monitoring(
+        "cancel", {"data_name": "rb2610", "order_ref": "btapi-1"}
+    )
+    logger._track_request_monitoring(
+        "cancel", {"data_name": "rb2610", "order_ref": "btapi-2"}
+    )
+
+    assert logger._monitoring["duplicate_cancel_count"] == 1
+    event_types = [event["event_type"] for event in events]
+    assert "duplicate_order_detected" in event_types
+    assert "risk_repeat_cancel_detected" in event_types
+    assert "duplicate_order_threshold_reached" in event_types

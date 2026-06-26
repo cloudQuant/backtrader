@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run TH03 total threshold setting test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -42,7 +47,10 @@ def run(report_dir):
                 )
 
                 class OneBarStop(bt.Strategy):
+                    """Minimal strategy that stops after one bar."""
+
                     def next(self):
+                        """Process bar and stop immediately."""
                         self.cerebro.runstop()
 
                 cerebro.addstrategy(OneBarStop)

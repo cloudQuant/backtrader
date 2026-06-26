@@ -77,7 +77,7 @@ class ReportChart:
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
 
         # Normalize to 100
-        start_value = 1
+        start_value = 1.0
         for value in values:
             if isinstance(value, (int, float)) and math.isfinite(value) and value != 0:
                 start_value = value
@@ -237,7 +237,7 @@ class ReportChart:
             return None
 
         # Calculate drawdown
-        running_max = 0
+        running_max = 0.0
         for value in values:
             if isinstance(value, (int, float)) and math.isfinite(value):
                 running_max = value

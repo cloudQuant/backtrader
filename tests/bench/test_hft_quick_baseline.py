@@ -1,3 +1,5 @@
+"""HFT quick baseline performance tests."""
+
 from pathlib import Path
 import threading
 import time
@@ -14,16 +16,19 @@ from tests.test_utils.hft_scenarios import compare_scenario, get_hft_scenario_sp
 
 
 class QuickReplayStrategy(bt.Strategy):
+    """Strategy for HFT quick replay testing."""
+
     params = (("symbol", "BTC/USDT"),)
 
     def __init__(self):
+        """Initialize strategy state."""
         self.tick_seen = 0
         self.orderbook_seen = 0
         self.completed_orders = []
         self.pending_order = None
-        self._data_obj = type("Data", (), {"_name": self.p.symbol, "symbol": self.p.symbol})()
 
     def notify_order(self, order):
+        """Handle order notifications."""
         if order.status == order.Completed:
             self.completed_orders.append(
                 {
@@ -36,26 +41,32 @@ class QuickReplayStrategy(bt.Strategy):
             self.pending_order = None
 
     def notify_orderbook(self, orderbook):
+        """Handle orderbook updates."""
         if orderbook.symbol != self.p.symbol:
             return
         self.orderbook_seen += 1
         if self.pending_order is not None:
             return
-        if self.orderbook_seen == 5 and self.broker.getposition(self._data_obj).size <= 0:
-            self.pending_order = self.buy(data=self._data_obj, size=0.01, exectype=0)
+        data = self.get_hft_data(self.p.symbol)
+        if self.orderbook_seen == 5 and self.broker.getposition(data).size <= 0:
+            self.pending_order = self.buy(data=data, size=0.01, exectype=0)
 
     def notify_tick(self, tick):
+        """Handle tick updates."""
         if tick.symbol != self.p.symbol:
             return
         self.tick_seen += 1
         if self.pending_order is not None:
             return
-        if self.tick_seen >= 25 and self.broker.getposition(self._data_obj).size > 0:
-            self.pending_order = self.sell(data=self._data_obj, size=0.01, exectype=0)
+        data = self.get_hft_data(self.p.symbol)
+        if self.tick_seen >= 25 and self.broker.getposition(data).size > 0:
+            self.pending_order = self.sell(data=data, size=0.01, exectype=0)
 
 
 def _copy_csv_prefix(src: Path, dst: Path, rows: int):
-    with src.open("r", encoding="utf-8") as fsrc, dst.open("w", encoding="utf-8", newline="") as fdst:
+    with src.open("r", encoding="utf-8") as fsrc, dst.open(
+        "w", encoding="utf-8", newline=""
+    ) as fdst:
         for index, line in enumerate(fsrc):
             if index == 0:
                 fdst.write(line)
@@ -92,6 +103,7 @@ def _run_cerebro_with_timeout(cerebro, channel, timeout=5.0):
 @pytest.mark.priority_p0
 @pytest.mark.integration
 def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
+    """Test HFT quick replay baseline completes under 15 seconds."""
     root = Path(__file__).resolve().parents[1]
     data_dir = root / "datas" / "tick_data"
     tick_src = data_dir / "tick_BTC_USDT.csv"
@@ -102,8 +114,12 @@ def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
     _copy_csv_prefix(tick_src, tick_dst, rows=250)
     _copy_jsonl_prefix(orderbook_src, orderbook_dst, rows=120)
 
-    tick_channel = TickChannel(symbol="BTC/USDT", dataname=str(tick_dst), validate=True, auto_fix=True)
-    orderbook_channel = OrderBookChannel(symbol="BTC/USDT", dataname=str(orderbook_dst), depth=20, validate=True, auto_fix=True)
+    tick_channel = TickChannel(
+        symbol="BTC/USDT", dataname=str(tick_dst), validate=True, auto_fix=True
+    )
+    orderbook_channel = OrderBookChannel(
+        symbol="BTC/USDT", dataname=str(orderbook_dst), depth=20, validate=True, auto_fix=True
+    )
     queue = StreamingEventQueue(channels=[orderbook_channel, tick_channel], preload_window=5.0)
 
     cerebro = bt.Cerebro()
@@ -117,7 +133,7 @@ def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
     elapsed = time.perf_counter() - start
     strategy = results[0]
 
-    data_obj = type("Data", (), {"_name": "BTC/USDT", "symbol": "BTC/USDT"})()
+    data_obj = strategy.get_hft_data("BTC/USDT")
     state = broker.state_values(data_obj)
 
     assert timed_out is False
@@ -138,11 +154,14 @@ def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
 @pytest.mark.priority_p0
 @pytest.mark.parametrize("scenario_spec", get_hft_scenario_specs(), ids=lambda spec: spec.name)
 def test_hft_strategy_scenarios_are_in_quick_baseline_and_match_reference(scenario_spec):
+    """Test HFT strategy scenarios are in quick baseline and match reference."""
     start = time.perf_counter()
     result = compare_scenario(scenario_spec)
     elapsed = time.perf_counter() - start
 
-    assert elapsed < 15.0, f"scenario {scenario_spec.name} elapsed {elapsed:.2f}s exceeds 15s quick baseline"
+    assert (
+        elapsed < 15.0
+    ), f"scenario {scenario_spec.name} elapsed {elapsed:.2f}s exceeds 15s quick baseline"
     assert result["matches"] == {
         "cash": True,
         "position": True,

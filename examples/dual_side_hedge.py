@@ -40,16 +40,27 @@ class DualSideHedgeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy with RSI indicator and tracking flags."""
         self.rsi = btind.RSI(self.data.close, period=self.p.rsi_period)
         self.core_entered = False
         self.hedge_active = False
         self.total_hedge_trades = 0
 
     def log(self, txt):
+        """Log a message with the current datetime.
+
+        Args:
+            txt: Message text to log.
+        """
         dt = self.data.datetime.datetime(0)
         print(f"{dt.strftime('%Y-%m-%d')}  {txt}")
 
     def notify_order(self, order):
+        """Handle order completion notifications.
+
+        Args:
+            order: The order object that was completed.
+        """
         if order.status == order.Completed:
             side = getattr(order.info, "position_side", "?")
             offset = getattr(order.info, "offset", "?")
@@ -60,10 +71,20 @@ class DualSideHedgeStrategy(bt.Strategy):
             )
 
     def notify_trade(self, trade):
+        """Handle trade close notifications.
+
+        Args:
+            trade: The trade object that was closed.
+        """
         if trade.isclosed:
             self.log(f"  TRADE CLOSED tradeid={trade.tradeid} PnL={trade.pnlcomm:.2f}")
 
     def next(self):
+        """Execute the hedging strategy based on RSI signals.
+
+        Opens a core long position and selectively opens/closes a short hedge
+        based on RSI overbought/oversold conditions.
+        """
         # Enter core long on first available bar
         if not self.core_entered:
             self.log(">> Opening core LONG position")
@@ -108,6 +129,7 @@ class DualSideHedgeStrategy(bt.Strategy):
             self.hedge_active = False
 
     def stop(self):
+        """Log the final positions and portfolio value when the strategy ends."""
         long_pos = self.getposition(self.data, side="long")
         short_pos = self.getposition(self.data, side="short")
         net_pos = self.position
@@ -124,6 +146,11 @@ class DualSideHedgeStrategy(bt.Strategy):
 
 
 def main():
+    """Run the dual-side hedging strategy example.
+
+    Sets up a BackBroker with dual_side position mode and demonstrates
+    hedging by holding long and short positions simultaneously.
+    """
     cerebro = bt.Cerebro()
 
     # Use built-in test data (full year for RSI to have enough bars)

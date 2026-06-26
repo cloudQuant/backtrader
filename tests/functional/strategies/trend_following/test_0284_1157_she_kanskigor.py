@@ -481,7 +481,7 @@ def test_283_0284_1157_she_kanskigor() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "no metrics captured during run"
 
-    assert metrics.get('bar_num') == 5947, f"bar_num: expected=5947, got={metrics.get('bar_num')!r}"
+    assert metrics.get('bar_num') == 5946, f"bar_num: expected=5946, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 20, f"buy_count: expected=20, got={metrics.get('buy_count')!r}"
     assert metrics.get('sell_count') == 41, f"sell_count: expected=41, got={metrics.get('sell_count')!r}"
     assert metrics.get('win_count') == 27, f"win_count: expected=27, got={metrics.get('win_count')!r}"
@@ -502,8 +502,8 @@ def test_283_0284_1157_she_kanskigor() -> None:
     _close(metrics.get('open_position_size'), 0.0, tol=1.000000e-06, key='open_position_size')
     _close(metrics.get('open_position_price'), 0.0, tol=1.000000e-06, key='open_position_price')
     _close(metrics.get('max_drawdown'), 0.2564241235610288, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), -11.129848155790505, tol=1.112985e-05, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -12.38022950750042, tol=1.238023e-05, key='annual_return_pct')
+    _close(metrics.get('sharpe_ratio'), -11.130756394804166, tol=1.113076e-05, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), -12.382118887936851, tol=1.238212e-05, key='annual_return_pct')
     _close(metrics.get('sqn'), -1.4701942675094604, tol=1.470194e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (

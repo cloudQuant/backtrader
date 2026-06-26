@@ -17,7 +17,7 @@ Example:
 import csv
 import gzip
 import math
-from typing import Iterator
+from typing import IO, Iterator, Optional
 
 from ..channel import DataChannel, DataValidationResult
 from ..events import TickEvent
@@ -117,17 +117,17 @@ class TickChannel(DataChannel):
             FileNotFoundError: If dataname file does not exist.
             ValueError: If required columns are missing.
         """
-        if self._dataname is None:
+        dataname = self._dataname
+        if dataname is None:
             raise ValueError("dataname (file path) is required for loading")
 
-        open_func = gzip.open if self._dataname.endswith(".gz") else open
-        open_kwargs = (
-            {"mode": "rt", "encoding": "utf-8"}
-            if self._dataname.endswith(".gz")
-            else {"mode": "r", "encoding": "utf-8", "newline": ""}
-        )
+        csv_file: IO[str]
+        if dataname.endswith(".gz"):
+            csv_file = gzip.open(dataname, mode="rt", encoding="utf-8")
+        else:
+            csv_file = open(dataname, mode="r", encoding="utf-8", newline="")
 
-        with open_func(self._dataname, **open_kwargs) as f:
+        with csv_file as f:
             reader = csv.DictReader(f)
 
             # Validate required columns
@@ -174,7 +174,7 @@ class TickChannel(DataChannel):
         )
 
 
-def _parse_optional_float(value) -> float:
+def _parse_optional_float(value) -> Optional[float]:
     """Parse an optional float value, returning None for empty/missing.
 
     Args:

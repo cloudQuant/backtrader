@@ -1,3 +1,8 @@
+"""Run backtrader on the Binance BBO alignment demo.
+
+This script runs only the backtrader side of the Binance BBO alignment demo
+and outputs the results in JSON format.
+"""
 from __future__ import annotations
 
 import argparse
@@ -13,6 +18,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run backtrader strategy on Binance BBO demo data.
+
+    Returns:
+        int: Exit code (0 for success).
+    """
     args = _build_parser().parse_args()
     paths = resolve_paths(args)
     result = run_binance_bbo_backtrader_strategy(

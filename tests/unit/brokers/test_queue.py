@@ -1,3 +1,4 @@
+"""Tests for queue models in HFT broker."""
 import pytest
 
 from backtrader.brokers.hft.queue import NoQueueModel, ProbQueueModel
@@ -5,12 +6,18 @@ from backtrader.events import OrderBookSnapshot, TickEvent
 
 
 class DummyExecuted:
+    """Dummy executed object for testing."""
+
     def __init__(self, remsize):
+        """Initialize with remaining size."""
         self.remsize = remsize
 
 
 class DummyOrder:
+    """Dummy order for testing queue models."""
+
     def __init__(self, size=1.0, price=100.0, buy=True):
+        """Initialize dummy order."""
         self.size = size
         self.price = price
         self.executed = DummyExecuted(size)
@@ -18,10 +25,12 @@ class DummyOrder:
         self._queue_ahead = 0.0
 
     def isbuy(self):
+        """Return True if buy order."""
         return self._buy
 
 
 def test_noqueue_model_fills_from_trade_volume():
+    """Test NoQueueModel fills from trade volume."""
     model = NoQueueModel()
     order = DummyOrder(size=2.0)
     trade = TickEvent(timestamp=1.0, symbol="BTC/USDT", price=100.0, volume=1.5)
@@ -31,6 +40,7 @@ def test_noqueue_model_fills_from_trade_volume():
 
 
 def test_prob_queue_model_estimates_queue_and_waits_until_consumed():
+    """Test ProbQueueModel estimates queue and waits until consumed."""
     model = ProbQueueModel()
     order = DummyOrder(size=3.0, price=100.0)
     snapshot = OrderBookSnapshot(

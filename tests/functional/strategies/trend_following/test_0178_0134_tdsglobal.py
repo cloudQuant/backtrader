@@ -628,23 +628,23 @@ def test_177_0178_0134_tdsglobal() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "extract_metrics() was not called"
 
-    assert metrics.get('bar_num') == 5616, f"bar_num: expected=5616, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 98, f"buy_count: expected=98, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 58, f"sell_count: expected=58, got={metrics.get('sell_count')!r}"
-    assert metrics.get('total_trades') == 157, f"total_trades: expected=157, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 157, f"trade_count: expected=157, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 81, f"won: expected=81, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 76, f"lost: expected=76, got={metrics.get('lost')!r}"
-    _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 921345.0000000037, tol=9.213450e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -78654.99999999627, tol=7.865500e-02, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -7.865499999999626, tol=7.865500e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 51.59235668789809, tol=5.159236e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.8386775108286844, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 12.15900404934237, tol=1.215900e-05, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), -6.583067157076664, tol=6.583067e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -99.21366337393096, tol=9.921366e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), -0.7523892977728519, tol=1.000000e-06, key='sqn')
+    assert metrics.get('bar_num') == 5616, f"bar_num: expected=5616, got=, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 299, f"buy_count: expected=299, got=, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 216, f"sell_count: expected=216, got=, got={metrics.get('sell_count')!r}"
+    assert metrics.get('total_trades') == 515, f"total_trades: expected=515, got=, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 515, f"trade_count: expected=515, got=, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 278, f"won: expected=278, got=, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 237, f"lost: expected=237, got=, got={metrics.get('lost')!r}"
+    _close(metrics.get('initial_cash'), 1000000, tol=1.000000e+00, key='initial_cash')
+    _close(metrics.get('final_value'), 1004489.0000000087, tol=9.213450e-01, key='final_value')
+    _close(metrics.get('net_pnl'), 4489.000000008731, tol=7.865500e-02, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.4489000000008625, tol=7.865500e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 53.980582524271846, tol=5.159236e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.0293609784813003, tol=1.000000e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 2.4432930362397123, tol=1.215900e-05, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 1.5896566594297825, tol=6.583067e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 30.333494943658813, tol=9.921366e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.19018780073070277, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

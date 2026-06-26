@@ -71,6 +71,7 @@ def make_orderbook(
     ask_volume: float = 1.0,
     symbol: str = DEFAULT_SYMBOL,
 ) -> OrderBookSnapshot:
+    """Create a fake orderbook snapshot for testing."""
     base = dt.datetime(2024, 1, 1, 9, 0, 0, tzinfo=dt.timezone.utc)
     event = OrderBookSnapshot(
         timestamp=(base + dt.timedelta(seconds=offset_seconds)).timestamp(),
@@ -99,6 +100,7 @@ class FakeBtApiClient:
         open_orders: Optional[Iterable[Dict[str, Any]]] = None,
         broker_updates: Optional[Iterable[Dict[str, Any]]] = None,
     ):
+        """Initialize FakeBtApiClient with optional parameters."""
         self.balance = dict(balance or {"cash": 10000.0, "value": 10000.0})
         self.positions = list(positions or [])
         self.history = {key: list(value) for key, value in (history or {}).items()}
@@ -162,6 +164,7 @@ class FakeBtApiClient:
         return deepcopy(queue.popleft())
 
     def poll_orderbook(self, dataname: str):
+        """Return the next live orderbook for a symbol."""
         queue = self.live_orderbooks.get(dataname)
         if not queue:
             return None
@@ -173,6 +176,7 @@ class FakeBtApiClient:
         return bool(queue)
 
     def has_pending_orderbook(self, dataname: str):
+        """Return whether a symbol has queued live orderbooks."""
         queue = self.live_orderbooks.get(dataname)
         return bool(queue)
 
@@ -181,6 +185,7 @@ class FakeBtApiClient:
         return dataname in self.live_ticks
 
     def supports_live_orderbook(self, dataname: str):
+        """Return whether a symbol is configured for live orderbook streaming."""
         return dataname in self.live_orderbooks
 
     def submit_order(self, payload: Dict[str, Any]):

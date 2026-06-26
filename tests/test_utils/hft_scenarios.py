@@ -1,3 +1,5 @@
+"""High-frequency trading scenario utilities for backtrader testing."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -17,7 +19,14 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Minimal data feed placeholder for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize with the given symbol name.
+
+        Args:
+            name: Symbol name, defaults to "BTC/USDT".
+        """
         self._name = name
         self.name = name
         self.symbol = name
@@ -25,6 +34,7 @@ class DummyData:
 
 @dataclass
 class TradeFill:
+    """Trade fill record with side, price, and size."""
     side: str
     price: float
     size: float
@@ -32,6 +42,7 @@ class TradeFill:
 
 @dataclass
 class ScenarioResult:
+    """Scenario execution result with cash, position, and fills."""
     cash: float
     position: float
     fills: list[TradeFill]
@@ -39,12 +50,23 @@ class ScenarioResult:
 
 @dataclass
 class ContextTrade:
+    """Context trade with price and direction."""
     price: float
     direction: str
 
 
 @dataclass
 class ScenarioSpec:
+    """Scenario specification for HFT testing.
+
+    Attributes:
+        name: Scenario name.
+        source: Source identifier.
+        orderbooks: List of order book snapshots.
+        ticks: List of tick events.
+        builder_factory: Quote builder factory.
+        contexts: Optional list of context trades.
+    """
     name: str
     source: str
     orderbooks: list
@@ -54,7 +76,15 @@ class ScenarioSpec:
 
 
 class ReferenceMakerRunner:
+    """Reference market maker runner for HFT scenario comparison."""
+
     def __init__(self, cash=1000.0, order_qty=1.0):
+        """Initialize the runner.
+
+        Args:
+            cash: Initial cash amount.
+            order_qty: Order quantity per quote.
+        """
         self.cash = cash
         self.position = 0.0
         self.order_qty = order_qty
@@ -64,6 +94,14 @@ class ReferenceMakerRunner:
 
     @staticmethod
     def _normalize_quotes(new_quotes):
+        """Normalize quote prices to tuples.
+
+        Args:
+            new_quotes: Dict mapping side to price or list of prices.
+
+        Returns:
+            Dict mapping side to tuple of normalized prices.
+        """
         normalized = {}
         for side, value in new_quotes.items():
             if isinstance(value, (list, tuple)):
@@ -74,6 +112,12 @@ class ReferenceMakerRunner:
         return normalized
 
     def cancel_missing(self, new_quotes, order_qty):
+        """Cancel orders not in expected set.
+
+        Args:
+            new_quotes: Current quote prices.
+            order_qty: Order quantity.
+        """
         normalized = self._normalize_quotes(new_quotes)
         expected = {(side, price, float(order_qty)) for side, prices in normalized.items() for price in prices}
         stale = [key for key in self.pending if key not in expected]
@@ -82,6 +126,13 @@ class ReferenceMakerRunner:
             self.queue_ahead.pop(key, None)
 
     def submit_quotes(self, snapshot, new_quotes, order_qty):
+        """Submit new quotes based on snapshot.
+
+        Args:
+            snapshot: Current order book snapshot.
+            new_quotes: New quote prices to submit.
+            order_qty: Order quantity per quote.
+        """
         normalized = self._normalize_quotes(new_quotes)
         best_bid_qty = snapshot.bids[0][1] if snapshot.bids else 0.0
         best_ask_qty = snapshot.asks[0][1] if snapshot.asks else 0.0
@@ -94,6 +145,11 @@ class ReferenceMakerRunner:
                 self.queue_ahead[key] = best_bid_qty if side == "buy" else best_ask_qty
 
     def on_trade(self, tick):
+        """Process a trade event and execute matching orders.
+
+        Args:
+            tick: Tick event with price and volume.
+        """
         for side, target_price, order_qty in list(self.pending):
             if tick.price != target_price:
                 continue
@@ -182,6 +238,15 @@ def _fill_history(broker):
 
 
 def run_backtrader_scenario(spec, cash=1000.0):
+    """Run a scenario using backtrader's TickBroker.
+
+    Args:
+        spec: Scenario specification.
+        cash: Initial cash amount.
+
+    Returns:
+        Tuple of (ScenarioResult, broker, data).
+    """
     data = DummyData()
     broker = TickBroker(cash=cash, exchange_model=QueueExchangeModel())
     broker.setcommission(commission=0.0, name=data.name)
@@ -206,6 +271,15 @@ def run_backtrader_scenario(spec, cash=1000.0):
 
 
 def run_reference_scenario(spec, cash=1000.0):
+    """Run a scenario using the reference market maker runner.
+
+    Args:
+        spec: Scenario specification.
+        cash: Initial cash amount.
+
+    Returns:
+        Tuple of (ScenarioResult, runner).
+    """
     runner = ReferenceMakerRunner(cash=cash, order_qty=1.0)
     quote_builder = spec.builder_factory()
     for index, (snapshot, trade) in enumerate(zip(spec.orderbooks, spec.ticks)):
@@ -219,6 +293,15 @@ def run_reference_scenario(spec, cash=1000.0):
 
 
 def compare_scenario(spec, cash=1000.0):
+    """Compare backtrader scenario results against reference implementation.
+
+    Args:
+        spec: Scenario specification.
+        cash: Initial cash amount.
+
+    Returns:
+        Dict with comparison results.
+    """
     reference = run_reference_scenario(spec, cash=cash)
     backtrader, broker, data = run_backtrader_scenario(spec, cash=cash)
     return {
@@ -238,6 +321,14 @@ def compare_scenario(spec, cash=1000.0):
 
 
 def scenario_to_dict(result):
+    """Convert ScenarioResult to dict.
+
+    Args:
+        result: ScenarioResult instance.
+
+    Returns:
+        Dict representation of the result.
+    """
     return {
         "cash": result.cash,
         "position": result.position,
@@ -246,6 +337,11 @@ def scenario_to_dict(result):
 
 
 def get_hft_scenario_specs():
+    """Return a list of HFT scenario specifications for testing.
+
+    Returns:
+        List of ScenarioSpec instances.
+    """
     return [
         ScenarioSpec(
             name="plain_grid",
@@ -400,4 +496,12 @@ def get_hft_scenario_specs():
 
 
 def build_hft_comparison_report(cash=1000.0):
+    """Build a comparison report for all HFT scenarios.
+
+    Args:
+        cash: Initial cash amount for scenarios.
+
+    Returns:
+        List of comparison results for all scenarios.
+    """
     return [compare_scenario(spec, cash=cash) for spec in get_hft_scenario_specs()]

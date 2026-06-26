@@ -1,20 +1,26 @@
+"""Tests for MixedChannel ordering across different event types."""
 from backtrader.channel import DataChannel
 from backtrader.events import BarEvent, OrderBookSnapshot, TickEvent
 from backtrader.feeds.mixed_channel import MixedChannel
 
 
 class MemoryChannel(DataChannel):
+    """In-memory channel for testing."""
+
     def __init__(self, channel_type, symbol, events):
+        """Initialize memory channel."""
         super().__init__(symbol=symbol, validate=False, auto_fix=False)
         self.channel_type = channel_type
         self._events = list(events)
 
     def load(self):
+        """Load events from memory."""
         for event in self._events:
             yield event
 
 
 def test_mixed_channel_orders_same_timestamp_tick_before_orderbook_before_bar():
+    """Test mixed channel orders same timestamp: tick before orderbook before bar."""
     symbol = "BTC/USDT"
     tick_channel = MemoryChannel(
         "tick",
@@ -58,6 +64,7 @@ def test_mixed_channel_orders_same_timestamp_tick_before_orderbook_before_bar():
 
 
 def test_mixed_channel_emits_non_decreasing_timestamps_across_sources():
+    """Test mixed channel emits non-decreasing timestamps across sources."""
     symbol = "BTC/USDT"
     tick_channel = MemoryChannel(
         "tick",

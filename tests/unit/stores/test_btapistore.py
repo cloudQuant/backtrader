@@ -1,5 +1,6 @@
 """Unit tests for the unified BtApiStore."""
 
+import datetime as dt
 import time
 
 import pytest
@@ -11,7 +12,11 @@ from backtrader.stores.btapistore import (
     BtApiProviderNotImplementedError,
     BtApiStoreError,
     BtApiStore,
+    _build_ctp_tick_datetime,
+    _create_ctp_gateway_wrapper_class,
     _create_ctp_wrapper_class,
+    _normalize_bar,
+    _normalize_datetime,
     _split_ctp_symbol,
 )
 from tests.fixtures.fake_btapi import (
@@ -37,6 +42,50 @@ def fake_client():
         },
         live={DEFAULT_SYMBOL: [make_bar(2, 101.5, 103.0, 101.0, 102.5)]},
     )
+
+
+def test_normalize_datetime_converts_aware_values_to_utc_naive():
+    """Store datetime normalization should keep internal values UTC-naive."""
+    shanghai = dt.timezone(dt.timedelta(hours=8))
+
+    assert _normalize_datetime(dt.datetime(2026, 6, 25, 11, 15, 59, tzinfo=shanghai)) == (
+        dt.datetime(2026, 6, 25, 3, 15, 59)
+    )
+    assert _normalize_datetime("2026-06-25T11:15:59+08:00") == dt.datetime(2026, 6, 25, 3, 15, 59)
+    assert _normalize_datetime(1782357359000) == dt.datetime(2026, 6, 25, 3, 15, 59)
+
+
+def test_ctp_tick_datetime_normalizes_to_utc_naive():
+    """CTP market data timestamps are exchange-local and must normalize to UTC."""
+    payload = type(
+        "Payload",
+        (),
+        {
+            "ActionDay": "20260623",
+            "TradingDay": "20260623",
+            "UpdateTime": "08:22:00",
+            "UpdateMillisec": 500,
+        },
+    )()
+
+    assert _normalize_datetime(_build_ctp_tick_datetime(payload)) == dt.datetime(
+        2026, 6, 23, 0, 22, 0, 500000
+    )
+
+
+def test_normalize_bar_prefers_epoch_timestamp_over_provider_datetime():
+    """Bar payloads can carry mislabeled provider datetimes; epoch is canonical."""
+    bar = {
+        "timestamp": 1782357359.0,
+        "datetime": "2026-06-25T11:15:00+00:00",
+        "open": 100.0,
+        "high": 101.0,
+        "low": 99.0,
+        "close": 100.5,
+        "volume": 1.0,
+    }
+
+    assert _normalize_bar(bar)["datetime"] == dt.datetime(2026, 6, 25, 3, 15, 59)
 
 
 def test_store_uses_injected_api_client(fake_client):
@@ -65,12 +114,18 @@ def test_store_uses_injected_api_client(fake_client):
 
 
 def test_store_poll_live_uses_preseeded_live_bars_before_start_without_connecting():
+    """Test that poll_live uses preseeded live bars before start without connecting."""
+
     class TrackingClient(FakeBtApiClient):
+        """Tracking client that counts connect calls."""
+
         def __init__(self):
+            """Initialize the tracking client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -94,6 +149,7 @@ def test_store_poll_live_uses_preseeded_live_bars_before_start_without_connectin
 
 
 def test_store_compatibility_query_aliases_match_canonical_methods(fake_client):
+    """Test that compatibility query aliases match canonical methods."""
     store = make_store(api=fake_client)
 
     store.start()
@@ -104,12 +160,18 @@ def test_store_compatibility_query_aliases_match_canonical_methods(fake_client):
 
 
 def test_store_seeded_account_queries_return_cached_values_before_start():
+    """Test that seeded account queries return cached values before store start."""
+
     class TrackingClient(FakeBtApiClient):
+        """Client that tracks connect() call count."""
+
         def __init__(self):
+            """Initialize the tracking client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -128,16 +190,23 @@ def test_store_seeded_account_queries_return_cached_values_before_start():
 
 
 def test_store_seeded_account_queries_fall_back_to_cached_values_before_start_when_query_fails():
+    """Test fallback to cached values when query fails before store start."""
+
     class FailingBalanceClient(FakeBtApiClient):
+        """Client that fails balance queries but tracks connect calls."""
+
         def __init__(self):
+            """Initialize the failing balance client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
         def get_balance(self):
+            """Raise error to simulate balance unavailable."""
             raise RuntimeError("balance unavailable")
 
     client = FailingBalanceClient()
@@ -155,19 +224,27 @@ def test_store_seeded_account_queries_fall_back_to_cached_values_before_start_wh
 
 
 def test_store_seeded_account_queries_fall_back_to_cached_values_before_start_when_get_account_alias_fails():
+    """Test fallback to cached values when get_account fails before store start."""
+
     class FailingAccountAliasClient:
+        """Client that fails account queries."""
+
         def __init__(self):
+            """Initialize the failing account client."""
             self.connected = False
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def get_account(self):
+            """Raise error to simulate account unavailable."""
             raise RuntimeError("account unavailable")
 
     client = FailingAccountAliasClient()
@@ -185,12 +262,18 @@ def test_store_seeded_account_queries_fall_back_to_cached_values_before_start_wh
 
 
 def test_store_seeded_position_queries_return_cached_values_before_start():
+    """Test that seeded position queries return cached values before store start."""
+
     class TrackingClient(FakeBtApiClient):
+        """Client that tracks connect() call count."""
+
         def __init__(self):
+            """Initialize the tracking client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -220,16 +303,23 @@ def test_store_seeded_position_queries_return_cached_values_before_start():
 
 
 def test_store_seeded_position_queries_fall_back_to_cached_values_before_start_when_query_fails():
+    """Test fallback to cached positions when query fails before store start."""
+
     class FailingPositionsClient(FakeBtApiClient):
+        """Client that fails position queries but tracks connect calls."""
+
         def __init__(self):
+            """Initialize the failing positions client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
         def get_positions(self):
+            """Raise error to simulate positions unavailable."""
             raise RuntimeError("positions unavailable")
 
     client = FailingPositionsClient()
@@ -258,12 +348,18 @@ def test_store_seeded_position_queries_fall_back_to_cached_values_before_start_w
 
 
 def test_store_seeded_open_order_queries_return_cached_values_before_start():
+    """Test that seeded open order queries return cached values before store start."""
+
     class TrackingClient(FakeBtApiClient):
+        """Client that tracks connect() call count."""
+
         def __init__(self):
+            """Initialize the tracking client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -289,16 +385,23 @@ def test_store_seeded_open_order_queries_return_cached_values_before_start():
 
 
 def test_store_seeded_open_order_queries_fall_back_to_cached_values_before_start_when_query_fails():
+    """Test fallback to cached open orders when query fails before store start."""
+
     class FailingOpenOrdersClient(FakeBtApiClient):
+        """Client that fails open order queries but tracks connect calls."""
+
         def __init__(self):
+            """Initialize the failing open orders client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
         def fetch_open_orders(self):
+            """Raise error to simulate open orders unavailable."""
             raise RuntimeError("open orders unavailable")
 
     client = FailingOpenOrdersClient()
@@ -324,12 +427,18 @@ def test_store_seeded_open_order_queries_fall_back_to_cached_values_before_start
 
 
 def test_store_queries_connect_on_demand_before_start_when_cache_is_not_fresh():
+    """Test that queries connect on demand when cache is not fresh."""
+
     class TrackingClient(FakeBtApiClient):
+        """Client that tracks connect() call count."""
+
         def __init__(self):
+            """Initialize the tracking client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -347,8 +456,13 @@ def test_store_queries_connect_on_demand_before_start_when_cache_is_not_fresh():
 
 
 def test_store_account_queries_work_before_start_with_lightweight_get_balance_client_without_connect_method():
+    """Test account queries work with lightweight client that has no connect method."""
+
     class LightweightBalanceClient:
+        """Lightweight client with only get_balance method."""
+
         def get_balance(self):
+            """Return mock balance data."""
             return {"cash": 10000.0, "value": 10000.0}
 
     store = make_store(api=LightweightBalanceClient(), account_cache_ttl=60.0)
@@ -364,19 +478,27 @@ def test_store_account_queries_work_before_start_with_lightweight_get_balance_cl
 
 
 def test_store_account_queries_use_get_account_alias_on_demand_before_start():
+    """Test that account queries use get_account on demand before store start."""
+
     class AccountOnlyClient:
+        """Client with only connect/disconnect and get_account methods."""
+
         def __init__(self):
+            """Initialize the account-only client."""
             self.connected = False
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def get_account(self):
+            """Return mock account data."""
             return {"cash": 1234.0, "value": 1500.0}
 
     client = AccountOnlyClient()
@@ -393,8 +515,13 @@ def test_store_account_queries_use_get_account_alias_on_demand_before_start():
 
 
 def test_store_account_queries_use_get_account_alias_on_demand_before_start_without_connect_method():
+    """Test that lightweight account-only client works without connect method."""
+
     class LightweightAccountOnlyClient:
+        """Lightweight client with only get_account method."""
+
         def get_account(self):
+            """Return mock account data."""
             return {"cash": 1234.0, "value": 1500.0}
 
     store = make_store(api=LightweightAccountOnlyClient(), account_cache_ttl=60.0)
@@ -410,8 +537,10 @@ def test_store_account_queries_use_get_account_alias_on_demand_before_start_with
 
 
 def test_store_account_queries_fall_back_to_cached_values_before_start_when_unsupported():
+    """Test fallback to cached values when account query is unsupported."""
+
     class NoAccountQueryClient:
-        pass
+        """Client with no account query capability."""
 
     store = make_store(api=NoAccountQueryClient(), cash=321.0, value=654.0)
 
@@ -425,12 +554,20 @@ def test_store_account_queries_fall_back_to_cached_values_before_start_when_unsu
 
 
 def test_store_open_order_queries_connect_on_demand_before_start_when_cache_is_not_fresh():
+    """Test that open order queries connect on demand when cache is not fresh."""
+
     class TrackingClient(FakeBtApiClient):
+        """Client that tracks connect() call count."""
+
         def __init__(self):
-            super().__init__(open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}])
+            """Initialize the tracking client."""
+            super().__init__(
+                open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}]
+            )
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -449,8 +586,13 @@ def test_store_open_order_queries_connect_on_demand_before_start_when_cache_is_n
 
 
 def test_store_open_order_queries_work_before_start_with_lightweight_client_without_connect_method():
+    """Test that open order queries work with lightweight client without connect method."""
+
     class LightweightOpenOrdersClient:
+        """Lightweight client with only fetch_open_orders method."""
+
         def fetch_open_orders(self):
+            """Return mock open orders."""
             return [{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}]
 
     store = make_store(api=LightweightOpenOrdersClient(), open_orders_cache_ttl=60.0)
@@ -472,8 +614,13 @@ def test_store_open_order_queries_work_before_start_with_lightweight_client_with
 
 
 def test_store_open_order_queries_fall_back_to_get_open_orders_alias_before_start_without_connect_method():
+    """Test fallback to get_open_orders alias when fetch_open_orders is unavailable."""
+
     class LightweightAliasOpenOrdersClient:
+        """Lightweight client with only get_open_orders method."""
+
         def get_open_orders(self):
+            """Return mock open orders."""
             return [{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}]
 
     store = make_store(api=LightweightAliasOpenOrdersClient(), open_orders_cache_ttl=60.0)
@@ -495,16 +642,23 @@ def test_store_open_order_queries_fall_back_to_get_open_orders_alias_before_star
 
 
 def test_store_open_order_queries_fall_back_to_empty_list_before_start_when_unsupported():
+    """Test fallback to empty list when open order query is unsupported."""
+
     class NoOpenOrderClient(FakeBtApiClient):
+        """Client that raises AttributeError on fetch_open_orders."""
+
         def __init__(self):
+            """Initialize the no open order client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
         def fetch_open_orders(self):
+            """Raise AttributeError to simulate unsupported."""
             raise AttributeError("unsupported")
 
     client = NoOpenOrderClient()
@@ -519,8 +673,13 @@ def test_store_open_order_queries_fall_back_to_empty_list_before_start_when_unsu
 
 
 def test_store_position_queries_work_before_start_with_lightweight_client_without_connect_method():
+    """Test that position queries work with lightweight client without connect method."""
+
     class LightweightPositionsClient:
+        """Lightweight client with only get_positions method."""
+
         def get_positions(self):
+            """Return mock positions data."""
             return [{"instrument": DEFAULT_SYMBOL, "volume": 2.0, "price": 99.5}]
 
     store = make_store(api=LightweightPositionsClient(), positions_cache_ttl=60.0)
@@ -544,16 +703,23 @@ def test_store_position_queries_work_before_start_with_lightweight_client_withou
 
 
 def test_store_position_queries_fall_back_to_empty_list_before_start_when_unsupported():
+    """Test fallback to empty list when position query is unsupported."""
+
     class NoPositionsClient(FakeBtApiClient):
+        """Client that fails position queries."""
+
         def __init__(self):
+            """Initialize the no positions client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
         def get_positions(self):
+            """Raise AttributeError to simulate unsupported."""
             raise AttributeError("unsupported")
 
     client = NoPositionsClient()
@@ -567,6 +733,7 @@ def test_store_position_queries_fall_back_to_empty_list_before_start_when_unsupp
 
 
 def test_store_query_results_do_not_expose_mutable_internal_caches():
+    """Test that query results do not expose mutable internal caches."""
     client = FakeBtApiClient(
         positions=[{"instrument": DEFAULT_SYMBOL, "volume": 2, "price": 99.5}],
         open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy", "price": 101.0}],
@@ -594,9 +761,8 @@ def test_store_query_results_do_not_expose_mutable_internal_caches():
 
 
 def test_store_fetch_history_results_do_not_expose_mutable_cache():
-    client = FakeBtApiClient(
-        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]}
-    )
+    """Test that fetch history results do not expose mutable cache."""
+    client = FakeBtApiClient(history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]})
     store = make_store(api=client)
     store.start()
 
@@ -608,9 +774,7 @@ def test_store_fetch_history_results_do_not_expose_mutable_cache():
 
 def test_store_proxies_live_orderbook_polling():
     """Store should expose fake-client orderbook queues through the live polling helpers."""
-    client = FakeBtApiClient(
-        live_orderbooks={DEFAULT_SYMBOL: [make_orderbook(0, 100.0, 100.5)]}
-    )
+    client = FakeBtApiClient(live_orderbooks={DEFAULT_SYMBOL: [make_orderbook(0, 100.0, 100.5)]})
     store = make_store(api=client)
 
     store.start()
@@ -626,9 +790,8 @@ def test_store_proxies_live_orderbook_polling():
 
 
 def test_store_proxies_live_tick_polling():
-    client = FakeBtApiClient(
-        live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]}
-    )
+    """Test that store proxies live tick polling."""
+    client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: [make_tick(0, 100.0)]})
     store = make_store(api=client)
 
     store.start()
@@ -643,18 +806,26 @@ def test_store_proxies_live_tick_polling():
 
 
 def test_store_live_bar_queries_fall_back_to_get_next_bar_alias():
+    """Test fallback to get_next_bar alias when poll_live returns None."""
+
     class AliasOnlyLiveBarClient:
+        """Client with only get_next_bar method for live bars."""
+
         def __init__(self):
+            """Initialize the alias-only live bar client."""
             self.connected = False
             self._bar = make_bar(0, 100.0, 101.0, 99.0, 100.5)
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def get_next_bar(self, symbol):
+            """Return the next bar and clear it."""
             bar, self._bar = self._bar, None
             return bar
 
@@ -669,11 +840,17 @@ def test_store_live_bar_queries_fall_back_to_get_next_bar_alias():
 
 
 def test_store_live_bar_queries_work_before_start_with_lightweight_get_next_bar_client_without_connect_method():
+    """Test that live bar queries work with lightweight get_next_bar client."""
+
     class LightweightLiveBarClient:
+        """Lightweight client with only get_next_bar method."""
+
         def __init__(self):
+            """Initialize the lightweight live bar client."""
             self._bar = make_bar(0, 100.0, 101.0, 99.0, 100.5)
 
         def get_next_bar(self, symbol):
+            """Return the next bar and clear it."""
             bar, self._bar = self._bar, None
             return bar
 
@@ -689,11 +866,17 @@ def test_store_live_bar_queries_work_before_start_with_lightweight_get_next_bar_
 
 
 def test_store_live_bar_queries_work_before_start_with_lightweight_poll_bar_client_without_connect_method():
+    """Test that live bar queries work with lightweight poll_bar client without connect method."""
+
     class LightweightPollBarClient:
+        """Lightweight client with only poll_bar method."""
+
         def __init__(self):
+            """Initialize the lightweight poll bar client."""
             self._bar = make_bar(0, 100.0, 101.0, 99.0, 100.5)
 
         def poll_bar(self, symbol):
+            """Return the next bar and clear it."""
             bar, self._bar = self._bar, None
             return bar
 
@@ -709,17 +892,25 @@ def test_store_live_bar_queries_work_before_start_with_lightweight_poll_bar_clie
 
 
 def test_store_history_queries_fall_back_to_fetch_ohlcv_alias():
+    """Test fallback to fetch_ohlcv alias for history queries."""
+
     class AliasOnlyHistoryClient:
+        """Client with only fetch_ohlcv method for history."""
+
         def __init__(self):
+            """Initialize the alias-only history client."""
             self.connected = False
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def fetch_ohlcv(self, symbol, timeframe=None, compression=1, since=None, limit=None):
+            """Return mock OHLCV data."""
             return [make_bar(0, 100.0, 101.0, 99.0, 100.5)]
 
     client = AliasOnlyHistoryClient()
@@ -733,8 +924,13 @@ def test_store_history_queries_fall_back_to_fetch_ohlcv_alias():
 
 
 def test_store_history_queries_work_before_start_with_lightweight_fetch_ohlcv_client_without_connect_method():
+    """Test that history queries work with lightweight fetch_ohlcv client without connect method."""
+
     class LightweightHistoryClient:
+        """Lightweight client with only fetch_ohlcv method."""
+
         def fetch_ohlcv(self, symbol, timeframe=None, compression=1, since=None, limit=None):
+            """Return mock OHLCV data."""
             return [make_bar(0, 100.0, 101.0, 99.0, 100.5)]
 
     store = make_store(api=LightweightHistoryClient())
@@ -754,18 +950,26 @@ def test_store_history_queries_work_before_start_with_lightweight_fetch_ohlcv_cl
 
 
 def test_store_history_cache_is_scoped_by_query_signature():
+    """Test that history cache is scoped by query parameters (timeframe, compression, limit)."""
+
     class ParameterAwareHistoryClient:
+        """Client that tracks fetch_bars calls and returns different bars based on timeframe."""
+
         def __init__(self):
+            """Initialize the parameter-aware history client."""
             self.connected = False
             self.calls = []
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def fetch_bars(self, symbol, timeframe=None, compression=1, since=None, limit=None):
+            """Return bars based on timeframe parameter."""
             self.calls.append((symbol, timeframe, compression, since, limit))
             if timeframe == "M5":
                 return [make_bar(0, 105.0, 106.0, 104.0, 105.5)]
@@ -789,18 +993,26 @@ def test_store_history_cache_is_scoped_by_query_signature():
 
 
 def test_store_live_tick_queries_fall_back_to_get_next_tick_alias():
+    """Test fallback to get_next_tick alias when poll_tick returns None."""
+
     class AliasOnlyTickClient:
+        """Client with only get_next_tick method for live ticks."""
+
         def __init__(self):
+            """Initialize the alias-only tick client."""
             self.connected = False
             self._tick = make_tick(0, 100.0)
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def get_next_tick(self, symbol):
+            """Return the next tick and clear it."""
             tick, self._tick = self._tick, None
             return tick
 
@@ -815,11 +1027,17 @@ def test_store_live_tick_queries_fall_back_to_get_next_tick_alias():
 
 
 def test_store_live_tick_queries_return_none_before_start_with_lightweight_get_next_tick_client_without_connect_method():
+    """Test that tick queries return None before start with lightweight client without connect method."""
+
     class LightweightTickClient:
+        """Lightweight client with only get_next_tick method."""
+
         def __init__(self):
+            """Initialize the lightweight tick client."""
             self._tick = make_tick(0, 100.0)
 
         def get_next_tick(self, symbol):
+            """Return the next tick and clear it."""
             tick, self._tick = self._tick, None
             return tick
 
@@ -832,18 +1050,26 @@ def test_store_live_tick_queries_return_none_before_start_with_lightweight_get_n
 
 
 def test_store_live_orderbook_queries_fall_back_to_get_next_orderbook_alias():
+    """Test fallback to get_next_orderbook alias for orderbook queries."""
+
     class AliasOnlyOrderbookClient:
+        """Client with only get_next_orderbook method for orderbook."""
+
         def __init__(self):
+            """Initialize the alias-only orderbook client."""
             self.connected = False
             self._orderbook = make_orderbook(0, 100.0, 100.5)
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def get_next_orderbook(self, symbol):
+            """Return the next orderbook and clear it."""
             orderbook, self._orderbook = self._orderbook, None
             return orderbook
 
@@ -859,11 +1085,17 @@ def test_store_live_orderbook_queries_fall_back_to_get_next_orderbook_alias():
 
 
 def test_store_live_orderbook_queries_return_none_before_start_with_lightweight_get_next_orderbook_client_without_connect_method():
+    """Test that orderbook queries return None before start with lightweight client."""
+
     class LightweightOrderbookClient:
+        """Lightweight client with only get_next_orderbook method."""
+
         def __init__(self):
+            """Initialize the lightweight orderbook client."""
             self._orderbook = make_orderbook(0, 100.0, 100.5)
 
         def get_next_orderbook(self, symbol):
+            """Return the next orderbook and clear it."""
             orderbook, self._orderbook = self._orderbook, None
             return orderbook
 
@@ -875,15 +1107,22 @@ def test_store_live_orderbook_queries_return_none_before_start_with_lightweight_
 
 
 def test_store_supports_live_orderbook_falls_back_to_live_orderbooks_attribute():
+    """Test fallback to live_orderbooks attribute when poll_orderbook is unavailable."""
+
     class AttributeOnlyOrderbookClient:
+        """Client with only live_orderbooks attribute."""
+
         def __init__(self):
+            """Initialize the attribute-only orderbook client."""
             self.connected = False
             self.live_orderbooks = {DEFAULT_SYMBOL: [make_orderbook(0, 100.0, 100.5)]}
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
     client = AttributeOnlyOrderbookClient()
@@ -916,8 +1155,13 @@ def test_store_supports_live_orderbook_falls_back_to_live_orderbooks_attribute()
 def test_store_live_state_helpers_return_false_before_start_even_when_lightweight_client_exposes_live_attributes(
     helper_name, client_attr, payload
 ):
+    """Test that live state helpers return False before start even when client exposes live attributes."""
+
     class AttributeOnlyLiveClient:
+        """Client that only exposes live state attributes without connect method."""
+
         def __init__(self):
+            """Initialize the attribute-only live client."""
             self.connected = False
             setattr(self, client_attr, payload)
 
@@ -929,15 +1173,22 @@ def test_store_live_state_helpers_return_false_before_start_even_when_lightweigh
 
 
 def test_store_live_tick_state_falls_back_to_live_ticks_attribute():
+    """Test fallback to live_ticks attribute when poll_tick is unavailable."""
+
     class AttributeOnlyTickClient:
+        """Client with only live_ticks attribute."""
+
         def __init__(self):
+            """Initialize the attribute-only tick client."""
             self.connected = False
             self.live_ticks = {DEFAULT_SYMBOL: [make_tick(0, 100.0)]}
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
     client = AttributeOnlyTickClient()
@@ -951,6 +1202,7 @@ def test_store_live_tick_state_falls_back_to_live_ticks_attribute():
 
 
 def test_store_subscription_is_idempotent_within_session_and_resets_after_stop():
+    """Test that subscription is idempotent within session and resets after stop."""
     client = FakeBtApiClient()
     store = make_store(api=client)
 
@@ -962,14 +1214,21 @@ def test_store_subscription_is_idempotent_within_session_and_resets_after_stop()
 
 
 def test_store_subscribe_without_api_method_is_noop_and_does_not_mark_symbol_subscribed():
+    """Test that subscribe is a noop when client has no subscribe method."""
+
     class NoSubscribeClient:
+        """Client without subscribe capability."""
+
         def __init__(self):
+            """Initialize the no-subscribe client."""
             self.connected = False
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
     store = make_store(api=NoSubscribeClient())
@@ -978,16 +1237,24 @@ def test_store_subscribe_without_api_method_is_noop_and_does_not_mark_symbol_sub
     store.subscribe(DEFAULT_SYMBOL)
 
     assert DEFAULT_SYMBOL not in store._subscribed_datanames
-    event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [
+        kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()
+    ]
     assert "market_data_subscribe_request" not in event_types
 
 
 def test_store_subscribe_works_before_start_with_lightweight_client_without_connect_method():
+    """Test that subscribe works before start with lightweight client without connect method."""
+
     class LightweightSubscribeClient:
+        """Lightweight client with only subscribe method."""
+
         def __init__(self):
+            """Initialize the lightweight subscribe client."""
             self.subscriptions = []
 
         def subscribe(self, dataname):
+            """Subscribe to a dataname."""
             self.subscriptions.append(dataname)
 
     store = make_store(api=LightweightSubscribeClient())
@@ -1000,13 +1267,17 @@ def test_store_subscribe_works_before_start_with_lightweight_client_without_conn
     assert store.is_connected is True
     assert store._subscribed_datanames == {DEFAULT_SYMBOL}
     assert store._api.subscriptions == [DEFAULT_SYMBOL]
-    event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [
+        kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()
+    ]
     assert "market_data_subscribe_request" in event_types
 
 
 def test_store_subscribe_before_start_is_noop_for_lightweight_client_without_connect_or_subscribe_method():
+    """Test that subscribe is noop when client has neither connect nor subscribe method."""
+
     class NoSubscribeClient:
-        pass
+        """Client with no subscribe or connect capability."""
 
     store = make_store(api=NoSubscribeClient())
 
@@ -1016,25 +1287,35 @@ def test_store_subscribe_before_start_is_noop_for_lightweight_client_without_con
 
     assert store.is_connected is True
     assert DEFAULT_SYMBOL not in store._subscribed_datanames
-    event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [
+        kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()
+    ]
     assert "market_data_subscribe_request" not in event_types
 
 
 def test_store_subscribe_connects_on_demand_before_start():
+    """Test that subscribe connects on demand before start."""
+
     class TrackingSubscribeClient:
+        """Client that tracks connect calls and subscriptions."""
+
         def __init__(self):
+            """Initialize the tracking subscribe client."""
             self.connected = False
             self.connect_calls = 0
             self.subscriptions = []
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def subscribe(self, dataname):
+            """Subscribe to a dataname."""
             self.subscriptions.append(dataname)
 
     client = TrackingSubscribeClient()
@@ -1052,12 +1333,18 @@ def test_store_subscribe_connects_on_demand_before_start():
 
 
 def test_store_stop_before_start_is_silent_noop():
+    """Test that stop before start is a silent noop."""
+
     class TrackingClient(FakeBtApiClient):
+        """Client that tracks disconnect() call count."""
+
         def __init__(self):
+            """Initialize the tracking client."""
             super().__init__()
             self.disconnect_calls = 0
 
         def disconnect(self):
+            """Disconnect and increment counter."""
             self.disconnect_calls += 1
             return super().disconnect()
 
@@ -1071,6 +1358,7 @@ def test_store_stop_before_start_is_silent_noop():
 
 
 def test_store_deduplicates_subscriptions_within_session_but_resubscribes_after_restart():
+    """Test that subscriptions are deduplicated within session but resubscribed after restart."""
     client = FakeBtApiClient()
     store = make_store(api=client)
 
@@ -1088,6 +1376,7 @@ def test_store_deduplicates_subscriptions_within_session_but_resubscribes_after_
 
 
 def test_store_stop_is_idempotent_and_does_not_duplicate_disconnect_events():
+    """Test that stop is idempotent and does not duplicate disconnect events."""
     client = FakeBtApiClient()
     store = make_store(api=client)
 
@@ -1095,22 +1384,31 @@ def test_store_stop_is_idempotent_and_does_not_duplicate_disconnect_events():
     store.stop()
     store.stop()
 
-    event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [
+        kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()
+    ]
 
     assert event_types.count("store_disconnect_requested") == 1
     assert event_types.count("store_disconnected") == 1
 
 
 def test_store_stop_falls_back_to_api_stop_when_disconnect_is_unavailable():
+    """Test fallback to stop() when disconnect() is unavailable."""
+
     class StopOnlyClient:
+        """Client with only connect and stop methods (no disconnect)."""
+
         def __init__(self):
+            """Initialize the stop-only client."""
             self.connected = False
             self.stop_calls = 0
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def stop(self):
+            """Stop and increment counter."""
             self.stop_calls += 1
             self.connected = False
 
@@ -1125,16 +1423,23 @@ def test_store_stop_falls_back_to_api_stop_when_disconnect_is_unavailable():
 
 
 def test_store_start_falls_back_to_api_start_when_connect_is_unavailable():
+    """Test fallback to start() when connect() is unavailable."""
+
     class StartOnlyClient:
+        """Client with only start and stop methods (no connect/disconnect)."""
+
         def __init__(self):
+            """Initialize the start-only client."""
             self.connected = False
             self.start_calls = 0
 
         def start(self):
+            """Start and increment counter."""
             self.start_calls += 1
             self.connected = True
 
         def stop(self):
+            """Stop and set connected to False."""
             self.connected = False
 
     client = StartOnlyClient()
@@ -1147,8 +1452,13 @@ def test_store_start_falls_back_to_api_start_when_connect_is_unavailable():
 
 
 def test_store_start_marks_lightweight_client_ready_without_connect_or_start_methods():
+    """Test that lightweight client is marked ready without connect/start methods."""
+
     class LightweightClient:
+        """Lightweight client with only get_balance method."""
+
         def get_balance(self):
+            """Return mock balance data."""
             return {"cash": 1000.0, "value": 1200.0}
 
     store = make_store(api=LightweightClient())
@@ -1156,17 +1466,25 @@ def test_store_start_marks_lightweight_client_ready_without_connect_or_start_met
     store.start()
 
     assert store.is_connected is True
-    event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [
+        kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()
+    ]
     assert event_types[:3] == ["store_connecting", "store_connected", "store_ready"]
 
 
 def test_store_autostart_connects_during_construction_and_emits_startup_events():
+    """Test that autostart connects during construction and emits startup events."""
+
     class CountingClient(FakeBtApiClient):
+        """Client that tracks connect() call count."""
+
         def __init__(self):
+            """Initialize the counting client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -1175,17 +1493,25 @@ def test_store_autostart_connects_during_construction_and_emits_startup_events()
 
     assert client.connect_calls == 1
     assert store.is_connected is True
-    event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [
+        kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()
+    ]
     assert event_types[:3] == ["store_connecting", "store_connected", "store_ready"]
 
 
 def test_store_start_is_idempotent_and_does_not_duplicate_connect_events():
+    """Test that start is idempotent and does not duplicate connect events."""
+
     class CountingClient(FakeBtApiClient):
+        """Client that tracks connect() call count."""
+
         def __init__(self):
+            """Initialize the counting client."""
             super().__init__()
             self.connect_calls = 0
 
         def connect(self):
+            """Connect and increment counter."""
             self.connect_calls += 1
             return super().connect()
 
@@ -1195,7 +1521,9 @@ def test_store_start_is_idempotent_and_does_not_duplicate_connect_events():
     store.start()
     store.start()
 
-    event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [
+        kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()
+    ]
 
     assert client.connect_calls == 1
     assert event_types.count("store_connecting") == 1
@@ -1203,7 +1531,112 @@ def test_store_start_is_idempotent_and_does_not_duplicate_connect_events():
     assert event_types.count("store_ready") == 1
 
 
+def test_ctp_store_emits_auth_login_success_from_session_state():
+    """CTP auth/login success events should use real session metadata."""
+
+    class AuthenticatedCtpClient(FakeBtApiClient):
+        def get_session_state(self):
+            return {
+                "auth_state": "authenticated",
+                "login_state": "logged_in",
+                "front_id": 7,
+                "session_id": 8801,
+                "trading_day": "20260618",
+            }
+
+    store = make_store(api=AuthenticatedCtpClient(), provider="ctp")
+
+    store.start()
+
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [event["event_type"] for event in runtime_events]
+    assert "store_auth_request" in event_types
+    assert "store_auth_success" in event_types
+    assert "store_login_success" in event_types
+    assert event_types.index("store_login_success") < event_types.index("store_ready")
+    login_event = next(
+        event for event in runtime_events if event["event_type"] == "store_login_success"
+    )
+    assert login_event["details"]["front_id"] == 7
+    assert login_event["details"]["session_id"] == 8801
+    assert login_event["details"]["trading_day"] == "20260618"
+
+
+def test_ctp_store_prefers_inner_trader_session_state_over_unknown_wrapper_state():
+    """Wrapper-level unknown state should not hide inner CTP trader metadata."""
+
+    class InnerTrader:
+        def get_session_state(self):
+            return {
+                "connected": True,
+                "ready": True,
+                "auth_state": "authenticated",
+                "login_state": "logged_in",
+                "front_id": 8,
+                "session_id": 8802,
+                "trading_day": "20260619",
+            }
+
+    class WrapperCtpClient(FakeBtApiClient):
+        def __init__(self):
+            super().__init__()
+            self.trader_client = InnerTrader()
+
+        def get_session_state(self):
+            return {
+                "connected": True,
+                "ready": False,
+                "auth_state": "unknown",
+                "login_state": "unknown",
+            }
+
+    store = make_store(api=WrapperCtpClient(), provider="ctp")
+
+    store.start()
+
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    login_event = next(
+        event for event in runtime_events if event["event_type"] == "store_login_success"
+    )
+
+    assert login_event["details"]["front_id"] == 8
+    assert login_event["details"]["session_id"] == 8802
+    assert login_event["details"]["trading_day"] == "20260619"
+
+
+def test_ctp_store_blocks_ready_when_authentication_failed():
+    """CTP auth failure must not be reported as store_ready/auth_success."""
+
+    class FailedAuthCtpClient(FakeBtApiClient):
+        def get_session_state(self):
+            return {
+                "auth_state": "failed",
+                "login_state": "blocked",
+                "last_auth_error": {"error_id": 63, "error_msg": "auth failed"},
+            }
+
+    store = make_store(api=FailedAuthCtpClient(), provider="ctp")
+
+    with pytest.raises(BtApiStoreError, match="CTP authentication failed"):
+        store.start()
+
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [event["event_type"] for event in runtime_events]
+    assert "store_auth_request" in event_types
+    assert "store_auth_failed" in event_types
+    assert "store_auth_success" not in event_types
+    assert "store_login_success" not in event_types
+    assert "store_ready" not in event_types
+    failed_event = next(
+        event for event in runtime_events if event["event_type"] == "store_auth_failed"
+    )
+    assert failed_event["error_code"] == "63"
+    assert failed_event["error_msg"] == "auth failed"
+    assert store.is_connected is False
+
+
 def test_store_start_does_not_duplicate_same_data_feed_binding():
+    """Test that start does not duplicate same data feed binding."""
     store = make_store(api=FakeBtApiClient())
     feed = store.getdata(dataname=DEFAULT_SYMBOL, backfill_start=False)
 
@@ -1214,6 +1647,7 @@ def test_store_start_does_not_duplicate_same_data_feed_binding():
 
 
 def test_store_register_does_not_duplicate_same_data_feed_binding():
+    """Test that register does not duplicate same data feed binding."""
     store = make_store(api=FakeBtApiClient())
     feed = store.getdata(dataname=DEFAULT_SYMBOL, backfill_start=False)
 
@@ -1231,7 +1665,10 @@ def test_store_factory_helpers_return_unified_components(fake_client):
     assert isinstance(store.getdata(dataname=DEFAULT_SYMBOL), BtApiFeed)
 
 
-def test_store_factory_helpers_fall_back_to_default_classes_when_cls_attributes_are_none(fake_client):
+def test_store_factory_helpers_fall_back_to_default_classes_when_cls_attributes_are_none(
+    fake_client,
+):
+    """Test that factory helpers fall back to default classes when cls attributes are None."""
     store = make_store(api=fake_client)
     store.BrokerCls = None
     store.DataCls = None
@@ -1247,8 +1684,10 @@ def test_store_factory_helpers_fall_back_to_default_classes_when_cls_attributes_
 
 
 def test_store_getdata_binds_store_provider_and_store_alias_for_custom_data_cls(fake_client):
+    """Test that getdata binds store, provider, and store alias for custom data class."""
+
     class DummyFeed(BtApiFeed):
-        pass
+        """Dummy feed for testing."""
 
     store = make_store(api=fake_client, provider="btapi")
     data = store.getdata(dataname=DEFAULT_SYMBOL, data_cls=DummyFeed)
@@ -1260,6 +1699,7 @@ def test_store_getdata_binds_store_provider_and_store_alias_for_custom_data_cls(
 
 
 def test_store_getdata_preserves_explicit_store_and_provider_arguments(fake_client):
+    """Test that getdata preserves explicit store and provider arguments."""
     outer_store = make_store(api=fake_client, provider="outer")
     explicit_store = object()
 
@@ -1276,8 +1716,10 @@ def test_store_getdata_preserves_explicit_store_and_provider_arguments(fake_clie
 
 
 def test_store_getbroker_binds_store_and_provider_for_custom_broker_cls(fake_client):
+    """Test that getbroker binds store and provider for custom broker class."""
+
     class DummyBroker(BtApiBroker):
-        pass
+        """Dummy broker for testing."""
 
     store = make_store(api=fake_client, provider="btapi")
     broker = store.getbroker(broker_cls=DummyBroker)
@@ -1289,6 +1731,7 @@ def test_store_getbroker_binds_store_and_provider_for_custom_broker_cls(fake_cli
 
 
 def test_store_getbroker_updates_store_broker_reference_to_latest_instance(fake_client):
+    """Test that getbroker updates store broker reference to latest instance."""
     store = make_store(api=fake_client)
 
     broker_a = store.getbroker()
@@ -1299,6 +1742,7 @@ def test_store_getbroker_updates_store_broker_reference_to_latest_instance(fake_
 
 
 def test_store_start_binds_provided_broker_instance(fake_client):
+    """Test that start binds provided broker instance."""
     store = make_store(api=fake_client)
     broker = BtApiBroker(store=store, provider=store.provider)
 
@@ -1308,6 +1752,7 @@ def test_store_start_binds_provided_broker_instance(fake_client):
 
 
 def test_store_start_binds_data_and_broker_in_single_call(fake_client):
+    """Test that start binds data and broker in single call."""
     store = make_store(api=fake_client)
     broker = BtApiBroker(store=store, provider=store.provider)
     data = store.getdata(dataname=DEFAULT_SYMBOL, backfill_start=False)
@@ -1318,7 +1763,10 @@ def test_store_start_binds_data_and_broker_in_single_call(fake_client):
     assert store._data_feeds == [data]
 
 
-def test_store_repeated_start_with_data_and_new_broker_updates_broker_without_duplicating_feed(fake_client):
+def test_store_repeated_start_with_data_and_new_broker_updates_broker_without_duplicating_feed(
+    fake_client,
+):
+    """Test that repeated start with data and new broker updates broker without duplicating feed."""
     store = make_store(api=fake_client)
     broker_a = BtApiBroker(store=store, provider=store.provider)
     broker_b = BtApiBroker(store=store, provider=store.provider)
@@ -1332,23 +1780,34 @@ def test_store_repeated_start_with_data_and_new_broker_updates_broker_without_du
 
 
 def test_store_submit_order_uses_create_order_alias_and_emits_runtime_events():
+    """Test that submit_order uses create_order alias and emits runtime events."""
+
     class CreateOrderOnlyClient:
+        """Client with only create_order method (no submit_order)."""
+
         def __init__(self):
+            """Initialize the create-order-only client."""
             self.connected = False
             self.created_orders = []
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def create_order(self, **payload):
+            """Create an order and track it."""
             self.created_orders.append(dict(payload))
             return {"id": "alias-1", "order_ref": "alias-ref-1"}
 
     class DummyOrder:
+        """Dummy order for testing."""
+
         def __init__(self):
+            """Initialize the dummy order."""
             self.ref = 7
             self.exectype = "limit"
             self.price = 101.0
@@ -1361,9 +1820,11 @@ def test_store_submit_order_uses_create_order_alias_and_emits_runtime_events():
             self.info = {}
 
         def getordername(self):
+            """Return the order name."""
             return "Limit"
 
         def isbuy(self):
+            """Return True for buy orders."""
             return True
 
     client = CreateOrderOnlyClient()
@@ -1377,24 +1838,36 @@ def test_store_submit_order_uses_create_order_alias_and_emits_runtime_events():
     assert client.created_orders[0]["side"] == "buy"
     runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
     assert any(event["event_type"] == "order_submit_request" for event in runtime_events)
-    accepted = next(event for event in runtime_events if event["event_type"] == "order_submit_accepted")
+    accepted = next(
+        event for event in runtime_events if event["event_type"] == "order_submit_accepted"
+    )
     assert accepted["order_ref"] == "alias-1"
     assert accepted["status"] == "accepted"
 
 
 def test_store_submit_order_raises_clear_error_and_emits_reject_event_when_unsupported():
+    """Test that submit_order raises clear error when unsupported."""
+
     class NoSubmitClient:
+        """Client with no submit_order capability."""
+
         def __init__(self):
+            """Initialize the no-submit client."""
             self.connected = False
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
     class DummyOrder:
+        """Dummy order for testing."""
+
         def __init__(self):
+            """Initialize the dummy order."""
             self.ref = 7
             self.exectype = "limit"
             self.price = 101.0
@@ -1407,9 +1880,11 @@ def test_store_submit_order_raises_clear_error_and_emits_reject_event_when_unsup
             self.info = {}
 
         def getordername(self):
+            """Return the order name."""
             return "Limit"
 
         def isbuy(self):
+            """Return True for buy orders."""
             return True
 
     store = make_store(api=NoSubmitClient())
@@ -1420,16 +1895,81 @@ def test_store_submit_order_raises_clear_error_and_emits_reject_event_when_unsup
     assert store.is_connected is True
     runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
     assert any(event["event_type"] == "order_submit_request" for event in runtime_events)
-    rejected = next(event for event in runtime_events if event["event_type"] == "order_reject_remote")
+    rejected = next(
+        event for event in runtime_events if event["event_type"] == "order_reject_remote"
+    )
     assert rejected["order_ref"] == 7
     assert rejected["status"] == "rejected"
 
 
 def test_store_submit_order_accepted_event_falls_back_to_local_order_ref_when_response_has_no_id():
+    """Test that submit order accepted event falls back to local order ref when response has no id."""
+
     class OrderRefOnlyClient:
+        """Client that returns only order_ref without id in create_order response."""
+
         def __init__(self):
+            """Initialize the order-ref-only client."""
             self.connected = False
             self.created_orders = []
+
+        def connect(self):
+            """Connect and set connected to True."""
+            self.connected = True
+
+        def disconnect(self):
+            """Disconnect and set connected to False."""
+            self.connected = False
+
+        def create_order(self, **payload):
+            """Create an order and return only order_ref."""
+            self.created_orders.append(dict(payload))
+            return {"order_ref": "alias-ref-1"}
+
+    class DummyOrder:
+        """Dummy order for testing."""
+
+        def __init__(self):
+            """Initialize the dummy order."""
+            self.ref = 7
+            self.exectype = "limit"
+            self.price = 101.0
+            self.created = type("Created", (), {"price": 101.0})()
+            self.data = type("Data", (), {"_name": DEFAULT_SYMBOL})()
+            self.size = 2
+            self.valid = None
+            self.tradeid = 0
+            self.pricelimit = None
+            self.info = {}
+
+        def getordername(self):
+            """Return the order name."""
+            return "Limit"
+
+        def isbuy(self):
+            """Return True for buy orders."""
+            return True
+
+    store = make_store(api=OrderRefOnlyClient())
+
+    response = store.submit_order(DummyOrder())
+
+    assert response["order_ref"] == "alias-ref-1"
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    accepted = next(
+        event for event in runtime_events if event["event_type"] == "order_submit_accepted"
+    )
+    assert accepted["order_ref"] == 7
+    assert accepted["status"] == "accepted"
+
+
+def test_store_submit_order_accepts_okx_data_list_response_and_extracts_ord_id():
+    """OKX-style code/data-list submit responses should confirm order acceptance."""
+
+    class OkxSubmitClient:
+        def __init__(self):
+            self.connected = False
+            self.submitted_orders = []
 
         def connect(self):
             self.connected = True
@@ -1437,9 +1977,20 @@ def test_store_submit_order_accepted_event_falls_back_to_local_order_ref_when_re
         def disconnect(self):
             self.connected = False
 
-        def create_order(self, **payload):
-            self.created_orders.append(dict(payload))
-            return {"order_ref": "alias-ref-1"}
+        def submit_order(self, payload):
+            self.submitted_orders.append(dict(payload))
+            return {
+                "code": "0",
+                "msg": "",
+                "data": [
+                    {
+                        "ordId": "okx-order-1",
+                        "clOrdId": "local-client-1",
+                        "sCode": "0",
+                        "sMsg": "",
+                    }
+                ],
+            }
 
     class DummyOrder:
         def __init__(self):
@@ -1460,35 +2011,155 @@ def test_store_submit_order_accepted_event_falls_back_to_local_order_ref_when_re
         def isbuy(self):
             return True
 
-    store = make_store(api=OrderRefOnlyClient())
+    store = make_store(api=OkxSubmitClient())
 
     response = store.submit_order(DummyOrder())
 
-    assert response["order_ref"] == "alias-ref-1"
+    assert store._extract_external_order_id(response) == "okx-order-1"
     runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
-    accepted = next(event for event in runtime_events if event["event_type"] == "order_submit_accepted")
-    assert accepted["order_ref"] == 7
+    accepted = next(
+        event for event in runtime_events if event["event_type"] == "order_submit_accepted"
+    )
+    assert accepted["order_ref"] == "okx-order-1"
     assert accepted["status"] == "accepted"
+    assert not any(event["event_type"] == "order_submit_unconfirmed" for event in runtime_events)
+
+
+def test_store_submit_order_unconfirmed_response_does_not_emit_accepted_event():
+    """Ambiguous submit responses must not be logged as remote accepted orders."""
+
+    class UnconfirmedClient:
+        """Client returning a malformed submit response."""
+
+        def __init__(self):
+            """Initialize the unconfirmed client."""
+            self.connected = False
+            self.submitted_orders = []
+
+        def connect(self):
+            """Connect and set connected to True."""
+            self.connected = True
+
+        def disconnect(self):
+            """Disconnect and set connected to False."""
+            self.connected = False
+
+        def submit_order(self, payload):
+            """Record the order and return an ambiguous failure-like payload."""
+            self.submitted_orders.append(dict(payload))
+            return False
+
+    class DummyOrder:
+        """Dummy order for testing."""
+
+        def __init__(self):
+            """Initialize the dummy order."""
+            self.ref = 7
+            self.exectype = "limit"
+            self.price = 101.0
+            self.created = type("Created", (), {"price": 101.0})()
+            self.data = type("Data", (), {"_name": DEFAULT_SYMBOL})()
+            self.size = 2
+            self.valid = None
+            self.tradeid = 0
+            self.pricelimit = None
+            self.info = {}
+
+        def getordername(self):
+            """Return the order name."""
+            return "Limit"
+
+        def isbuy(self):
+            """Return True for buy orders."""
+            return True
+
+    store = make_store(api=UnconfirmedClient())
+
+    response = store.submit_order(DummyOrder())
+
+    assert response is False
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [event["event_type"] for event in runtime_events]
+    assert "order_submit_accepted" not in event_types
+    unconfirmed = next(
+        event for event in runtime_events if event["event_type"] == "order_submit_unconfirmed"
+    )
+    assert unconfirmed["order_ref"] == 7
+    assert unconfirmed["status"] == "unconfirmed"
+    assert unconfirmed["error_code"] == "invalid_submit_response"
+
+
+def test_store_stop_limit_order_payload_uses_canonical_type_and_price_fields():
+    """Backtrader StopLimit price is trigger; pricelimit is the live limit price."""
+    import backtrader as bt
+
+    class DummyOrder:
+        """Dummy StopLimit order for payload conversion."""
+
+        def __init__(self):
+            """Initialize the dummy order."""
+            self.ref = 9
+            self.exectype = bt.Order.StopLimit
+            self.price = 99.0
+            self.created = type("Created", (), {"price": 99.0})()
+            self.data = type("Data", (), {"_name": DEFAULT_SYMBOL})()
+            self.size = -3
+            self.valid = None
+            self.tradeid = 0
+            self.pricelimit = 98.5
+            self.info = {}
+
+        def getordername(self):
+            """Return Backtrader's compact order name."""
+            return "StopLimit"
+
+        def isbuy(self):
+            """Return False for a sell order."""
+            return False
+
+    store = make_store()
+
+    payload = store._order_to_payload(DummyOrder())
+
+    assert payload["order_type"] == "stop_limit"
+    assert payload["side"] == "sell"
+    assert payload["size"] == 3
+    assert payload["price"] == pytest.approx(98.5)
+    assert payload["limit_price"] == pytest.approx(98.5)
+    assert payload["pricelimit"] == pytest.approx(98.5)
+    assert payload["stop_price"] == pytest.approx(99.0)
+    assert payload["extra_data"]["aux_price"] == pytest.approx(99.0)
 
 
 def test_store_cancel_order_uses_external_order_id_and_emits_runtime_events():
+    """Test that cancel_order uses external order id and emits runtime events."""
+
     class CancelOrderClient:
+        """Client that tracks cancel_order calls."""
+
         def __init__(self):
+            """Initialize the cancel-order client."""
             self.connected = False
             self.cancelled_orders = []
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def cancel_order(self, order_ref, dataname=None):
+            """Cancel an order and track it."""
             self.cancelled_orders.append({"order_ref": order_ref, "dataname": dataname})
             return True
 
     class DummyOrder:
+        """Dummy order for testing."""
+
         def __init__(self):
+            """Initialize the dummy order."""
             self.ref = 7
             self.info = type("Info", (), {"external_order_id": "alias-1"})()
             self.data = type("Data", (), {"_name": DEFAULT_SYMBOL})()
@@ -1503,29 +2174,141 @@ def test_store_cancel_order_uses_external_order_id_and_emits_runtime_events():
     assert client.cancelled_orders == [{"order_ref": "alias-1", "dataname": DEFAULT_SYMBOL}]
     runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
     assert any(event["event_type"] == "order_cancel_request" for event in runtime_events)
-    submitted = next(event for event in runtime_events if event["event_type"] == "order_cancel_submitted")
+    submitted = next(
+        event for event in runtime_events if event["event_type"] == "order_cancel_submitted"
+    )
     assert submitted["order_ref"] == "alias-1"
     assert submitted["status"] == "accepted"
 
 
-def test_store_cancel_order_falls_back_to_ctp_order_ref_when_external_id_is_missing():
+def test_store_cancel_order_ref_cancels_remote_snapshot_order():
+    """cancel_order_ref should cancel an order that has no local Order object."""
+
     class CancelOrderClient:
+        """Client that tracks cancel_order calls."""
+
         def __init__(self):
+            """Initialize the cancel-order client."""
             self.connected = False
             self.cancelled_orders = []
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def cancel_order(self, order_ref, dataname=None):
+            """Cancel an order and track it."""
+            self.cancelled_orders.append({"order_ref": order_ref, "dataname": dataname})
+            return {"id": order_ref, "status": "cancel_requested"}
+
+    client = CancelOrderClient()
+    store = make_store(api=client)
+
+    response = store.cancel_order_ref("remote-1", dataname=DEFAULT_SYMBOL)
+
+    assert response == {"id": "remote-1", "status": "cancel_requested"}
+    assert store.is_connected is True
+    assert client.cancelled_orders == [{"order_ref": "remote-1", "dataname": DEFAULT_SYMBOL}]
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [event["event_type"] for event in runtime_events]
+    assert "order_cancel_request" in event_types
+    assert "order_cancel_submitted" in event_types
+    assert event_types.index("order_cancel_request") < event_types.index(
+        "order_cancel_submitted"
+    )
+    submitted = next(
+        event for event in runtime_events if event["event_type"] == "order_cancel_submitted"
+    )
+    assert submitted["order_ref"] == "remote-1"
+    assert submitted["details"] == {"order_ref": "remote-1", "data_name": DEFAULT_SYMBOL}
+
+
+@pytest.mark.parametrize(
+    ("response", "message"),
+    [
+        (False, "invalid remote cancel response"),
+        ({}, "empty remote cancel response"),
+        ({"status": "error", "error": "already filled"}, "already filled"),
+        ({"success": False, "message": "cancel denied"}, "cancel denied"),
+        ({"comment": "queued"}, "invalid remote cancel response"),
+    ],
+)
+def test_store_cancel_order_ref_rejects_unconfirmed_or_error_payload(response, message):
+    """Remote cancel error payloads must not be logged as submitted."""
+
+    class RejectingCancelClient:
+        """Client returning a failed or ambiguous cancel response."""
+
+        def __init__(self):
+            """Initialize the rejecting cancel client."""
+            self.connected = False
+            self.cancelled_orders = []
+
+        def connect(self):
+            """Connect and set connected to True."""
+            self.connected = True
+
+        def disconnect(self):
+            """Disconnect and set connected to False."""
+            self.connected = False
+
+        def cancel_order(self, order_ref, dataname=None):
+            """Record the cancel call and return the configured response."""
+            self.cancelled_orders.append({"order_ref": order_ref, "dataname": dataname})
+            return dict(response) if isinstance(response, dict) else response
+
+    client = RejectingCancelClient()
+    store = make_store(api=client)
+
+    with pytest.raises(BtApiStoreError, match=message):
+        store.cancel_order_ref("remote-1", dataname=DEFAULT_SYMBOL)
+
+    assert client.cancelled_orders == [{"order_ref": "remote-1", "dataname": DEFAULT_SYMBOL}]
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    event_types = [event["event_type"] for event in runtime_events]
+    assert "order_cancel_request" in event_types
+    assert "order_cancel_submitted" not in event_types
+    rejected = next(
+        event for event in runtime_events if event["event_type"] == "order_cancel_reject_remote"
+    )
+    assert rejected["order_ref"] == "remote-1"
+    assert rejected["status"] == "rejected"
+    assert rejected["error_msg"] == message
+
+
+def test_store_cancel_order_falls_back_to_ctp_order_ref_when_external_id_is_missing():
+    """Test that cancel_order falls back to CTP order ref when external ID is missing."""
+
+    class CancelOrderClient:
+        """Client that tracks cancel_order calls."""
+
+        def __init__(self):
+            """Initialize the cancel-order client."""
+            self.connected = False
+            self.cancelled_orders = []
+
+        def connect(self):
+            """Connect and set connected to True."""
+            self.connected = True
+
+        def disconnect(self):
+            """Disconnect and set connected to False."""
+            self.connected = False
+
+        def cancel_order(self, order_ref, dataname=None):
+            """Cancel an order and track it."""
             self.cancelled_orders.append({"order_ref": order_ref, "dataname": dataname})
             return True
 
     class DummyOrder:
+        """Dummy order for testing."""
+
         def __init__(self):
+            """Initialize the dummy order."""
             self.ref = 7
             self.info = type("Info", (), {"ctp_order_ref": "ctp-ref-1"})()
             self.data = type("Data", (), {"_name": DEFAULT_SYMBOL})()
@@ -1538,23 +2321,35 @@ def test_store_cancel_order_falls_back_to_ctp_order_ref_when_external_id_is_miss
     assert response is True
     assert client.cancelled_orders == [{"order_ref": "ctp-ref-1", "dataname": DEFAULT_SYMBOL}]
     runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
-    submitted = next(event for event in runtime_events if event["event_type"] == "order_cancel_submitted")
+    submitted = next(
+        event for event in runtime_events if event["event_type"] == "order_cancel_submitted"
+    )
     assert submitted["order_ref"] == "ctp-ref-1"
 
 
 def test_store_cancel_order_raises_clear_error_and_emits_reject_event_when_unsupported():
+    """Test that cancel_order raises clear error when unsupported."""
+
     class NoCancelClient:
+        """Client with no cancel_order capability."""
+
         def __init__(self):
+            """Initialize the no-cancel client."""
             self.connected = False
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
     class DummyOrder:
+        """Dummy order for testing."""
+
         def __init__(self):
+            """Initialize the dummy order."""
             self.ref = 7
             self.info = type("Info", (), {"external_order_id": "alias-1"})()
             self.data = type("Data", (), {"_name": DEFAULT_SYMBOL})()
@@ -1567,14 +2362,21 @@ def test_store_cancel_order_raises_clear_error_and_emits_reject_event_when_unsup
     assert store.is_connected is True
     runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
     assert any(event["event_type"] == "order_cancel_request" for event in runtime_events)
-    rejected = next(event for event in runtime_events if event["event_type"] == "order_cancel_reject_remote")
+    rejected = next(
+        event for event in runtime_events if event["event_type"] == "order_cancel_reject_remote"
+    )
     assert rejected["order_ref"] == "alias-1"
     assert rejected["status"] == "rejected"
 
 
 def test_store_account_and_positions_queries_honor_ttl_cache():
+    """Test that account and position queries honor TTL cache."""
+
     class CountingClient(FakeBtApiClient):
+        """Client that tracks balance and position call counts."""
+
         def __init__(self):
+            """Initialize the counting client."""
             super().__init__(
                 balance={"cash": 1000.0, "value": 1200.0},
                 positions=[{"instrument": DEFAULT_SYMBOL, "volume": 2, "price": 99.5}],
@@ -1583,10 +2385,12 @@ def test_store_account_and_positions_queries_honor_ttl_cache():
             self.position_calls = 0
 
         def get_balance(self):
+            """Get balance and increment counter."""
             self.balance_calls += 1
             return super().get_balance()
 
         def get_positions(self):
+            """Get positions and increment counter."""
             self.position_calls += 1
             return super().get_positions()
 
@@ -1603,8 +2407,13 @@ def test_store_account_and_positions_queries_honor_ttl_cache():
 
 
 def test_store_query_failures_fall_back_to_last_successful_cache():
+    """Test that query failures fall back to last successful cache."""
+
     class FlakyClient(FakeBtApiClient):
+        """Client that can be toggled to fail balance/position queries."""
+
         def __init__(self):
+            """Initialize the flaky client."""
             super().__init__(
                 balance={"cash": 800.0, "value": 900.0},
                 positions=[{"instrument": DEFAULT_SYMBOL, "volume": 1, "price": 100.0}],
@@ -1612,11 +2421,13 @@ def test_store_query_failures_fall_back_to_last_successful_cache():
             self.fail = False
 
         def get_balance(self):
+            """Get balance or raise error if fail is True."""
             if self.fail:
                 raise RuntimeError("temporary balance failure")
             return super().get_balance()
 
         def get_positions(self):
+            """Get positions or raise error if fail is True."""
             if self.fail:
                 raise RuntimeError("temporary positions failure")
             return super().get_positions()
@@ -1636,18 +2447,97 @@ def test_store_query_failures_fall_back_to_last_successful_cache():
     assert store.get_positions()[0]["price"] == pytest.approx(100.0)
 
 
-def test_store_balance_queries_fall_back_to_get_account_alias():
-    class AccountOnlyClient:
+def test_store_force_queries_raise_instead_of_returning_stale_cache():
+    """Pre-trade force refresh must not hide query failures behind old cache."""
+
+    class FlakyClient(FakeBtApiClient):
+        """Client that can be toggled to fail balance/position queries."""
+
         def __init__(self):
+            """Initialize the flaky client."""
+            super().__init__(
+                balance={"cash": 800.0, "value": 900.0},
+                positions=[{"instrument": DEFAULT_SYMBOL, "volume": 1, "price": 100.0}],
+            )
+            self.fail = False
+
+        def get_balance(self):
+            """Get balance or raise error if fail is True."""
+            if self.fail:
+                raise RuntimeError("temporary balance failure")
+            return super().get_balance()
+
+        def get_positions(self):
+            """Get positions or raise error if fail is True."""
+            if self.fail:
+                raise RuntimeError("temporary positions failure")
+            return super().get_positions()
+
+    client = FlakyClient()
+    store = make_store(api=client, account_cache_ttl=60.0, positions_cache_ttl=60.0)
+    store.start()
+
+    assert store.get_balance()["cash"] == pytest.approx(800.0)
+    assert store.get_positions()[0]["volume"] == pytest.approx(1.0)
+
+    client.fail = True
+
+    assert store.get_balance()["cash"] == pytest.approx(800.0)
+    assert store.get_positions()[0]["volume"] == pytest.approx(1.0)
+    with pytest.raises(RuntimeError, match="temporary balance failure"):
+        store.get_balance(force=True, raise_errors=True)
+    with pytest.raises(RuntimeError, match="temporary positions failure"):
+        store.get_positions(force=True, raise_errors=True)
+
+
+def test_store_balance_derives_cash_from_value_minus_margin_before_balance():
+    """Available cash must not fall back to account balance when margin is in use."""
+
+    class MarginAccountClient(FakeBtApiClient):
+        """Client returning account value and used margin without available cash."""
+
+        def __init__(self):
+            """Initialize the margin account client."""
+            super().__init__(
+                balance={
+                    "balance": "100,000",
+                    "equity": "100,250",
+                    "margin": {"amount": "1,200"},
+                }
+            )
+
+    client = MarginAccountClient()
+    store = make_store(api=client)
+    store.start()
+
+    balance = store.get_balance(force=True)
+
+    assert balance["value"] == pytest.approx(100_250.0)
+    assert balance["cash"] == pytest.approx(99_050.0)
+    assert store.getcash() == pytest.approx(99_050.0)
+    assert store.getvalue() == pytest.approx(100_250.0)
+
+
+def test_store_balance_queries_fall_back_to_get_account_alias():
+    """Test fallback to get_account alias for balance queries."""
+
+    class AccountOnlyClient:
+        """Client with only get_account method for account queries."""
+
+        def __init__(self):
+            """Initialize the account-only client."""
             self.connected = False
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def get_account(self):
+            """Return mock account data."""
             return {"cash": 1234.0, "value": 1500.0}
 
     client = AccountOnlyClient()
@@ -1664,17 +2554,25 @@ def test_store_balance_queries_fall_back_to_get_account_alias():
 
 
 def test_store_open_order_queries_fall_back_to_get_open_orders_alias():
+    """Test fallback to get_open_orders alias for open order queries."""
+
     class AliasOnlyOpenOrdersClient:
+        """Client with only get_open_orders method for open order queries."""
+
         def __init__(self):
+            """Initialize the alias-only open orders client."""
             self.connected = False
 
         def connect(self):
+            """Connect and set connected to True."""
             self.connected = True
 
         def disconnect(self):
+            """Disconnect and set connected to False."""
             self.connected = False
 
         def get_open_orders(self):
+            """Return mock open orders."""
             return [{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}]
 
     client = AliasOnlyOpenOrdersClient()
@@ -1687,12 +2585,20 @@ def test_store_open_order_queries_fall_back_to_get_open_orders_alias():
 
 
 def test_store_open_order_queries_honor_ttl_cache():
+    """Test that open order queries honor TTL cache."""
+
     class CountingClient(FakeBtApiClient):
+        """Client that tracks open order call counts."""
+
         def __init__(self):
-            super().__init__(open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}])
+            """Initialize the counting client."""
+            super().__init__(
+                open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}]
+            )
             self.open_order_calls = 0
 
         def fetch_open_orders(self):
+            """Fetch open orders and increment counter."""
             self.open_order_calls += 1
             return super().fetch_open_orders()
 
@@ -1707,12 +2613,20 @@ def test_store_open_order_queries_honor_ttl_cache():
 
 
 def test_store_open_order_queries_fall_back_to_last_successful_cache_on_failure():
+    """Test fallback to last successful cache when open order query fails."""
+
     class FlakyOpenOrdersClient(FakeBtApiClient):
+        """Client that can be toggled to fail open order queries."""
+
         def __init__(self):
-            super().__init__(open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}])
+            """Initialize the flaky open orders client."""
+            super().__init__(
+                open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}]
+            )
             self.fail = False
 
         def fetch_open_orders(self):
+            """Fetch open orders or raise error if fail is True."""
             if self.fail:
                 raise RuntimeError("temporary open order failure")
             return super().fetch_open_orders()
@@ -1729,8 +2643,13 @@ def test_store_open_order_queries_fall_back_to_last_successful_cache_on_failure(
 
 
 def test_store_open_order_queries_fall_back_to_empty_list_when_unsupported():
+    """Test fallback to empty list when open order query is unsupported."""
+
     class NoOpenOrderClient(FakeBtApiClient):
+        """Client that raises AttributeError on fetch_open_orders."""
+
         def fetch_open_orders(self):
+            """Raise AttributeError to simulate unsupported."""
             raise AttributeError("unsupported")
 
     client = NoOpenOrderClient()
@@ -1743,6 +2662,7 @@ def test_store_open_order_queries_fall_back_to_empty_list_when_unsupported():
 
 
 def test_ctp_provider_switches_to_gateway_from_env(monkeypatch):
+    """Test that CTP provider switches to gateway from env."""
     monkeypatch.setenv("BT_STORE_PROVIDER", "ctp_gateway")
     monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
     monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
@@ -1764,13 +2684,39 @@ def test_ctp_provider_switches_to_gateway_from_env(monkeypatch):
     assert store._api_kwargs["gateway_start_local_runtime"] is False
 
 
+def test_gateway_env_uses_trading_instance_as_strategy_id(monkeypatch):
+    """Gateway stores should tag commands with the live instance identity."""
+    monkeypatch.setenv("BT_STORE_PROVIDER", "ctp_gateway")
+    monkeypatch.setenv("BT_TRADING_INSTANCE_ID", "instance-42")
+    monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
+
+    store = BtApiStore(provider="ctp")
+
+    assert store.provider == "ctp_gateway"
+    assert store._api_kwargs["strategy_id"] == "instance-42"
+
+
+def test_gateway_strategy_env_does_not_override_explicit_strategy_id(monkeypatch):
+    """Explicit strategy identity must win over live-trading env defaults."""
+    monkeypatch.setenv("BT_STORE_PROVIDER", "ctp_gateway")
+    monkeypatch.setenv("BT_GATEWAY_STRATEGY_ID", "env-strategy")
+    monkeypatch.setenv("BT_TRADING_INSTANCE_ID", "instance-42")
+    monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
+
+    store = BtApiStore(provider="ctp", strategy_id="explicit-strategy")
+
+    assert store.provider == "ctp_gateway"
+    assert store._api_kwargs["strategy_id"] == "explicit-strategy"
+
+
 def test_create_ctp_wrapper_patches_missing_spi_callbacks():
+    """Test that create CTP wrapper patches missing SPI callbacks."""
     # Optional live-trading dependency: skip when bt_api_py CTP support is absent
     # (e.g. CI images without the proprietary package) instead of erroring.
-    pytest.importorskip("bt_api_py.ctp.client")
+    pytest.importorskip("bt_api_ctp.ctp.client")
     _create_ctp_wrapper_class()
 
-    import bt_api_py.ctp.client as ctp_client_module
+    import bt_api_ctp.ctp.client as ctp_client_module
 
     assert hasattr(ctp_client_module._MdSpi, "OnRspQryInvestorPositionDetail")
     assert hasattr(ctp_client_module._MdSpi, "OnRspQryNotice")
@@ -1778,7 +2724,784 @@ def test_create_ctp_wrapper_patches_missing_spi_callbacks():
     assert hasattr(ctp_client_module._TraderSpi, "OnRspQryNotice")
 
 
+def test_ctp_wrapper_accepts_dict_snapshots_from_trader_client():
+    """CTP query callbacks return dict snapshots; wrapper must read them directly."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def query_account(self, timeout=5):
+            return {"Available": 80000.0, "Balance": 100000.0}
+
+        def query_positions(self, timeout=5):
+            return [
+                {
+                    "InstrumentID": "IF2506",
+                    "PosiDirection": "2",
+                    "Position": 2,
+                    "PositionCost": 7000.0,
+                }
+            ]
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+
+    positions = client.get_positions()
+
+    assert client.get_balance() == {"cash": 80000.0, "value": 100000.0}
+    assert len(positions) == 1
+    assert positions[0]["instrument"] == "IF2506"
+    assert positions[0]["direction"] == "long"
+    assert positions[0]["volume"] == pytest.approx(2.0)
+    assert positions[0]["price"] == pytest.approx(3500.0)
+
+
+def test_ctp_wrapper_positions_accept_float_string_ctp_codes():
+    """CTP position fields may arrive as float-like strings from upstream containers."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def query_positions(self, timeout=5):
+            return [
+                {
+                    "InstrumentID": "IF2506",
+                    "PosiDirection": "3.0",
+                    "Position": "2.0",
+                    "PositionCost": "8000.0",
+                }
+            ]
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+
+    positions = client.get_positions()
+
+    assert len(positions) == 1
+    assert positions[0]["instrument"] == "IF2506"
+    assert positions[0]["direction"] == "short"
+    assert positions[0]["volume"] == pytest.approx(2.0)
+    assert positions[0]["price"] == pytest.approx(4000.0)
+
+
+def test_ctp_wrapper_positions_use_contract_multiplier_and_exchange_fields():
+    """Direct CTP wrapper should expose exchange PnL/margin and undo cost multiplier."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def __init__(self):
+            self.query_exchange_ids = []
+
+        def query_positions(self, timeout=5):
+            return [
+                {
+                    "InstrumentID": "IF2506",
+                    "ExchangeID": "CFFEX",
+                    "PosiDirection": "2",
+                    "Position": 2,
+                    "PositionCost": 2_400_000.0,
+                    "OpenCost": 2_400_000.0,
+                    "UseMargin": 288_000.0,
+                    "PositionProfit": 12_000.0,
+                    "CloseProfit": 500.0,
+                    "Commission": 18.0,
+                    "TodayPosition": 1,
+                    "YdPosition": 1,
+                    "SettlementPrice": 4010.0,
+                }
+            ]
+
+        def query_instrument(self, instrument, exchange_id="", timeout=5):
+            self.query_exchange_ids.append(("instrument", exchange_id))
+            return {
+                "InstrumentID": instrument,
+                "ExchangeID": exchange_id or "CFFEX",
+                "ProductID": "IF",
+                "VolumeMultiple": 300,
+                "PriceTick": 0.2,
+            }
+
+        def query_instrument_margin_rate(self, instrument, exchange_id="", timeout=5):
+            self.query_exchange_ids.append(("margin", exchange_id))
+            return {
+                "InstrumentID": instrument,
+                "ExchangeID": exchange_id or "CFFEX",
+                "LongMarginRatioByMoney": 0.12,
+                "ShortMarginRatioByMoney": 0.13,
+            }
+
+        def query_instrument_commission_rate(self, instrument, exchange_id="", timeout=5):
+            self.query_exchange_ids.append(("commission", exchange_id))
+            return {
+                "InstrumentID": instrument,
+                "ExchangeID": exchange_id or "CFFEX",
+                "OpenRatioByMoney": 0.23,
+                "CloseTodayRatioByMoney": 3.45,
+            }
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    trader = FakeTraderClient()
+    client.trader_client = trader
+    client._last_tick_price["IF2506"] = 4020.0
+
+    position = client.get_positions()[0]
+
+    assert trader.query_exchange_ids == [
+        ("instrument", "CFFEX"),
+        ("margin", "CFFEX"),
+        ("commission", "CFFEX"),
+    ]
+    assert position["price"] == pytest.approx(4000.0)
+    assert position["current_price"] == pytest.approx(4020.0)
+    assert position["multiplier"] == pytest.approx(300.0)
+    assert position["margin_rate"] == pytest.approx(0.12)
+    assert position["short_margin_rate"] == pytest.approx(0.13)
+    assert position["open_fee_rate"] == pytest.approx(0.000023)
+    assert position["close_today_fee_rate"] == pytest.approx(0.000345)
+    assert position["margin_value"] == pytest.approx(288_000.0)
+    assert position["profit"] == pytest.approx(12_000.0)
+    assert position["commission"] == pytest.approx(18.0)
+
+
+def test_store_contract_metadata_queries_api_symbol_info():
+    """Store should cache symbol metadata from the backing API when not preconfigured."""
+
+    class SymbolInfoClient(FakeBtApiClient):
+        def get_symbol_info(self, symbol):
+            assert symbol == "IF2506"
+            return {"symbol": symbol, "multiplier": 300, "price_tick": 0.2}
+
+    store = make_store(api=SymbolInfoClient())
+    store.start()
+
+    metadata = store.get_contract_metadata("IF2506")
+
+    assert metadata["multiplier"] == 300
+    assert store.contract_metadata["IF2506"]["price_tick"] == 0.2
+
+
+@pytest.mark.parametrize("configured_symbol", ["CFFEX.IF2506", "IF2506.CFFEX"])
+def test_store_contract_metadata_matches_ctp_exchange_aliases(configured_symbol):
+    """Store-level metadata must match exchange-prefixed and exchange-suffixed symbols."""
+
+    class FailingSymbolInfoClient(FakeBtApiClient):
+        def get_symbol_info(self, symbol):
+            raise AssertionError(f"metadata should have been served from cache, got {symbol}")
+
+    store = make_store(
+        api=FailingSymbolInfoClient(),
+        contract_metadata={
+            configured_symbol: {
+                "symbol": "IF2506",
+                "exchange_id": "CFFEX",
+                "multiplier": 300,
+                "margin_rate": 0.12,
+                "open_fee_rate": 0.000023,
+            }
+        },
+    )
+    store.start()
+
+    metadata = store.get_contract_metadata("IF2506")
+
+    assert metadata["multiplier"] == pytest.approx(300.0)
+    assert metadata["margin_rate"] == pytest.approx(0.12)
+    assert store.contract_metadata["IF2506"]["open_fee_rate"] == pytest.approx(0.000023)
+
+
+def test_store_contract_metadata_retries_api_with_ctp_symbol_alias():
+    """If the exchange-qualified query is empty, retry the plain instrument alias."""
+
+    class AliasSymbolInfoClient(FakeBtApiClient):
+        def __init__(self):
+            super().__init__()
+            self.queries = []
+
+        def get_symbol_info(self, symbol):
+            self.queries.append(symbol)
+            if symbol == "IF2506":
+                return {"symbol": symbol, "multiplier": 300, "price_tick": 0.2}
+            return {}
+
+    client = AliasSymbolInfoClient()
+    store = make_store(api=client)
+    store.start()
+
+    metadata = store.get_contract_metadata("CFFEX.IF2506")
+
+    assert metadata["multiplier"] == pytest.approx(300.0)
+    assert client.queries[:2] == ["CFFEX.IF2506", "IF2506"]
+    assert store.contract_metadata["IF2506"]["price_tick"] == pytest.approx(0.2)
+    assert store.contract_metadata["CFFEX.IF2506"]["price_tick"] == pytest.approx(0.2)
+
+
+def test_store_contract_metadata_falls_back_to_fetch_symbol_info_alias():
+    """Store should accept gateway clients that expose fetch_symbol_info only."""
+
+    class FetchSymbolInfoClient(FakeBtApiClient):
+        def fetch_symbol_info(self, symbol):
+            assert symbol == "BTC/USDT:USDT"
+            return {
+                "symbol": symbol,
+                "multiplier": 0.001,
+                "taker_fee_rate": 0.0005,
+            }
+
+    store = make_store(api=FetchSymbolInfoClient())
+    store.start()
+
+    metadata = store.get_contract_metadata("BTC/USDT:USDT")
+
+    assert metadata["multiplier"] == pytest.approx(0.001)
+    assert store.contract_metadata["BTC/USDT:USDT"]["taker_fee_rate"] == pytest.approx(0.0005)
+
+
+def test_store_broker_runtime_trade_event_preserves_fee_and_liquidity_fields():
+    """Runtime trade notifications must retain real fee and maker/taker metadata."""
+    client = FakeBtApiClient(
+        broker_updates=[
+            {
+                "kind": "trade",
+                "trade_id": "trade-1",
+                "order_ref": "bt-7",
+                "external_order_id": "ex-7",
+                "data_name": DEFAULT_SYMBOL,
+                "side": "buy",
+                "offset": "open",
+                "price": 100.0,
+                "size": 2,
+                "filled": 2,
+                "remaining": 0,
+                "trade_type": "maker",
+                "liquidity": "maker",
+                "commission_role": "maker",
+                "trade_fee": 0.12,
+                "trade_commission": 0.12,
+                "fee": {"cost": 0.12, "currency": "USDT"},
+                "fee_currency": "USDT",
+                "commission_asset": "USDT",
+                "details": {"raw_trade_id": "raw-1"},
+            }
+        ]
+    )
+    store = make_store(api=client)
+    store.start()
+    store.get_notifications()
+
+    update = store.poll_broker_update()
+
+    assert update["trade_fee"] == pytest.approx(0.12)
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    trade_event = next(event for event in runtime_events if event["event_type"] == "trade_execution")
+    assert trade_event["order_ref"] == "ex-7"
+    assert trade_event["details"]["trade_fee"] == pytest.approx(0.12)
+    assert trade_event["details"]["trade_commission"] == pytest.approx(0.12)
+    assert trade_event["details"]["fee_currency"] == "USDT"
+    assert trade_event["details"]["commission_asset"] == "USDT"
+    assert trade_event["details"]["trade_type"] == "maker"
+    assert trade_event["details"]["liquidity"] == "maker"
+    assert trade_event["details"]["commission_role"] == "maker"
+    assert trade_event["details"]["filled"] == 2
+    assert trade_event["details"]["remaining"] == 0
+    assert trade_event["details"]["external_order_id"] == "ex-7"
+    assert trade_event["details"]["raw_trade_id"] == "raw-1"
+
+
+def test_ctp_wrapper_polls_order_insert_error_events_with_order_ref():
+    """CTP order-insert errors must retain OrderRef for broker reconciliation."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def __init__(self):
+            self._events = [
+                {
+                    "event": "order_insert_error",
+                    "error_id": 31,
+                    "error_msg": "资金不足",
+                    "field": {
+                        "OrderRef": "bt-7",
+                        "InstrumentID": "rb2610",
+                        "ExchangeID": "SHFE",
+                    },
+                }
+            ]
+
+        def wait_error_event(self, timeout=0):
+            return self._events.pop(0) if self._events else None
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+
+    update = client.poll_broker_update()
+
+    assert update["kind"] == "error"
+    assert update["order_ref"] == "bt-7"
+    assert update["data_name"] == "rb2610"
+    assert update["error_code"] == 31
+    assert update["error_msg"] == "资金不足"
+    assert update["details"]["ErrorID"] == 31
+    assert update["details"]["ErrorMsg"] == "资金不足"
+
+
+def test_ctp_wrapper_order_submit_reject_status_overrides_unknown_order_status():
+    """CTP submit rejection callbacks must not leave broker orders accepted forever."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeTraderClient:
+        is_ready = True
+        _front_id = 11
+        _session_id = 22
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+    client._pending_orders["bt-80"] = {
+        "order_ref": "bt-80",
+        "data_name": "IF2506",
+        "instrument": "IF2506",
+        "exchange_id": "CFFEX",
+        "side": "buy",
+        "offset": "open",
+        "price": 4010.0,
+        "size": 1,
+        "front_id": 11,
+        "session_id": 22,
+    }
+    payload = type(
+        "OrderPayload",
+        (),
+        {
+            "OrderRef": "bt-80",
+            "OrderSysID": "",
+            "InstrumentID": "IF2506",
+            "ExchangeID": "CFFEX",
+            "FrontID": 11,
+            "SessionID": 22,
+            "OrderStatus": "a",
+            "OrderSubmitStatus": "4",
+            "StatusMsg": "CTP insert rejected",
+            "Direction": "0",
+            "CombOffsetFlag": "0",
+            "LimitPrice": 4010.0,
+            "VolumeTotalOriginal": 1,
+            "VolumeTraded": 0,
+            "VolumeTotal": 1,
+            "UpdateTime": "09:30:00",
+            "InsertTime": "09:30:00",
+        },
+    )()
+
+    client._handle_order(payload)
+    update = client.poll_broker_update()
+
+    assert update["kind"] == "order"
+    assert update["order_ref"] == "bt-80"
+    assert update["status"] == "rejected"
+    assert update["submit_status"] == "4"
+    assert update["status_msg"] == "CTP insert rejected"
+
+
+def test_ctp_wrapper_trade_callback_accepts_float_string_ctp_codes():
+    """CTP trade callbacks may expose direction, offset and volume as float-like strings."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client._pending_orders["bt-82"] = {
+        "order_ref": "bt-82",
+        "data_name": "IF2506",
+        "instrument": "IF2506",
+        "exchange_id": "CFFEX",
+        "side": "sell",
+        "offset": "close_today",
+        "price": 4010.0,
+        "size": 1,
+    }
+    payload = type(
+        "TradePayload",
+        (),
+        {
+            "OrderRef": "bt-82",
+            "OrderSysID": "SYS005",
+            "TradeID": "T001",
+            "InstrumentID": "IF2506",
+            "ExchangeID": "CFFEX",
+            "Direction": "1.0",
+            "OffsetFlag": "3.0",
+            "Price": "4010.0",
+            "Volume": "1.0",
+            "TradeTime": "09:31:00",
+        },
+    )()
+
+    client._handle_trade(payload)
+    update = client.poll_broker_update()
+
+    assert update["kind"] == "trade"
+    assert update["trade_id"] == "T001"
+    assert update["external_order_id"] == "SYS005"
+    assert update["order_ref"] == "bt-82"
+    assert update["side"] == "sell"
+    assert update["offset"] == "close_today"
+    assert update["size"] == 1
+    assert update["price"] == pytest.approx(4010.0)
+
+
+def test_ctp_wrapper_fetch_open_orders_converts_ctp_rows():
+    """Direct CTP wrapper should expose queryable remote open orders."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    from bt_api_ctp.containers.ctp.ctp_order import CtpOrderData
+
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeRequest:
+        def get_status(self):
+            return True
+
+        def get_data(self):
+            return [
+                CtpOrderData(
+                    {
+                        "InstrumentID": "IF2506",
+                        "ExchangeID": "CFFEX",
+                        "OrderRef": "bt-77",
+                        "OrderSysID": "SYS001",
+                        "Direction": "1",
+                        "CombOffsetFlag": "3",
+                        "LimitPrice": 4010.0,
+                        "VolumeTotalOriginal": 2,
+                        "VolumeTraded": 1,
+                        "VolumeTotal": 1,
+                        "OrderStatus": "1",
+                        "FrontID": 11,
+                        "SessionID": 22,
+                    },
+                    "IF2506",
+                    "FUTURE",
+                    True,
+                ),
+                CtpOrderData(
+                    {
+                        "InstrumentID": "IF2506",
+                        "ExchangeID": "CFFEX",
+                        "OrderRef": "bt-78",
+                        "OrderSysID": "SYS002",
+                        "Direction": "0",
+                        "CombOffsetFlag": "0",
+                        "LimitPrice": 4011.0,
+                        "VolumeTotalOriginal": 2,
+                        "VolumeTraded": 1,
+                        "VolumeTotal": 1,
+                        "OrderStatus": "2",
+                        "FrontID": 11,
+                        "SessionID": 22,
+                    },
+                    "IF2506",
+                    "FUTURE",
+                    True,
+                ),
+                CtpOrderData(
+                    {
+                        "InstrumentID": "IF2506",
+                        "ExchangeID": "CFFEX",
+                        "OrderRef": "bt-79",
+                        "OrderSysID": "SYS003",
+                        "Direction": "0",
+                        "CombOffsetFlag": "0",
+                        "LimitPrice": 4012.0,
+                        "VolumeTotalOriginal": 1,
+                        "VolumeTraded": 0,
+                        "VolumeTotal": 1,
+                        "OrderStatus": "4",
+                        "FrontID": 11,
+                        "SessionID": 22,
+                    },
+                    "IF2506",
+                    "FUTURE",
+                    True,
+                ),
+                CtpOrderData(
+                    {
+                        "InstrumentID": "IF2506",
+                        "ExchangeID": "CFFEX",
+                        "OrderRef": "bt-80",
+                        "OrderSysID": "",
+                        "Direction": "0",
+                        "CombOffsetFlag": "0",
+                        "LimitPrice": 4013.0,
+                        "VolumeTotalOriginal": 1,
+                        "VolumeTraded": 0,
+                        "VolumeTotal": 1,
+                        "OrderStatus": "a",
+                        "OrderSubmitStatus": "4",
+                        "StatusMsg": "insert rejected",
+                        "FrontID": 11,
+                        "SessionID": 22,
+                    },
+                    "IF2506",
+                    "FUTURE",
+                    True,
+                ),
+            ]
+
+    class FakeFeed:
+        def get_open_orders(self):
+            return FakeRequest()
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.feed = FakeFeed()
+
+    orders = client.fetch_open_orders()
+
+    assert orders == [
+        {
+            "id": "SYS001",
+            "order_id": "SYS001",
+            "external_order_id": "SYS001",
+            "order_ref": "bt-77",
+            "symbol": "IF2506",
+            "data_name": "IF2506",
+            "instrument": "IF2506",
+            "exchange_id": "CFFEX",
+            "front_id": 11,
+            "session_id": 22,
+            "side": "sell",
+            "offset": "close_today",
+            "price": 4010.0,
+            "size": 2,
+            "filled": 1,
+            "remaining": 1,
+            "status": "partial",
+        }
+    ]
+
+
+def test_ctp_wrapper_fetch_open_orders_accepts_float_string_ctp_codes():
+    """CTP open-order rows may expose enum and volume fields as float-like strings."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeRequest:
+        def get_status(self):
+            return True
+
+        def get_data(self):
+            return [
+                type(
+                    "OrderPayload",
+                    (),
+                    {
+                        "InstrumentID": "IF2506",
+                        "ExchangeID": "CFFEX",
+                        "OrderRef": "bt-81",
+                        "OrderSysID": "SYS004",
+                        "Direction": "1.0",
+                        "CombOffsetFlag": "3.0",
+                        "LimitPrice": "4010.0",
+                        "VolumeTotalOriginal": "2.0",
+                        "VolumeTraded": "1.0",
+                        "VolumeTotal": "1.0",
+                        "OrderStatus": "1.0",
+                        "FrontID": "11.0",
+                        "SessionID": "22.0",
+                    },
+                )()
+            ]
+
+    class FakeFeed:
+        def get_open_orders(self):
+            return FakeRequest()
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.feed = FakeFeed()
+
+    orders = client.fetch_open_orders()
+
+    assert orders == [
+        {
+            "id": "SYS004",
+            "order_id": "SYS004",
+            "external_order_id": "SYS004",
+            "order_ref": "bt-81",
+            "symbol": "IF2506",
+            "data_name": "IF2506",
+            "instrument": "IF2506",
+            "exchange_id": "CFFEX",
+            "front_id": 11,
+            "session_id": 22,
+            "side": "sell",
+            "offset": "close_today",
+            "price": 4010.0,
+            "size": 2,
+            "filled": 1,
+            "remaining": 1,
+            "status": "partial",
+        }
+    ]
+
+
+def test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserves_order_ref():
+    """Direct CTP submit must not swap instrument/exchange for exchange-prefixed symbols."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeApi:
+        def __init__(self):
+            self.field = None
+            self.req_id = None
+
+        def ReqOrderInsert(self, field, req_id):
+            self.field = field
+            self.req_id = req_id
+            return 0
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def __init__(self):
+            self.api = FakeApi()
+            self._req_id = 20
+            self._front_id = 11
+            self._session_id = 22
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+
+    response = client.submit_order(
+        {
+            "data_name": "CFFEX.IF2506",
+            "side": "buy",
+            "size": "2.0",
+            "price": 4010.0,
+            "order_type": "limit",
+            "offset": "open",
+            "bt_order_ref": "bt-77",
+        }
+    )
+
+    field = client.trader_client.api.field
+    assert field.InstrumentID == "IF2506"
+    assert field.ExchangeID == "CFFEX"
+    assert field.OrderRef == "bt-77"
+    assert field.VolumeTotalOriginal == 2
+    assert field.LimitPrice == pytest.approx(4010.0)
+    assert client.trader_client.api.req_id == 21
+    assert response == {
+        "order_ref": "bt-77",
+        "front_id": 11,
+        "session_id": 22,
+        "exchange_id": "CFFEX",
+    }
+
+
+@pytest.mark.parametrize("size", [0, 1.5, "bad"])
+def test_ctp_wrapper_submit_order_rejects_non_integer_lots(size):
+    """CTP direct wrapper must not truncate fractional or invalid lots."""
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    class FakeApi:
+        def ReqOrderInsert(self, field, req_id):
+            raise AssertionError("ReqOrderInsert should not be called")
+
+    class FakeTraderClient:
+        is_ready = True
+
+        def __init__(self):
+            self.api = FakeApi()
+            self._req_id = 20
+            self._front_id = 11
+            self._session_id = 22
+
+    client = wrapper_cls(
+        md_address="tcp://md",
+        td_address="tcp://td",
+        broker_id="9999",
+        investor_id="demo",
+        password="secret",
+    )
+    client.trader_client = FakeTraderClient()
+
+    with pytest.raises(BtApiStoreError, match="positive integer lot"):
+        client.submit_order(
+            {
+                "data_name": "IF2506.CFFEX",
+                "side": "buy",
+                "size": size,
+                "price": 4010.0,
+                "order_type": "limit",
+                "offset": "open",
+                "bt_order_ref": "bt-77",
+            }
+        )
+
+
 def test_ctp_provider_switches_to_generic_gateway_from_env(monkeypatch):
+    """Test that CTP provider switches to generic gateway from env."""
     monkeypatch.setenv("BT_STORE_PROVIDER", "gateway")
     monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
     monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
@@ -1801,6 +3524,7 @@ def test_ctp_provider_switches_to_generic_gateway_from_env(monkeypatch):
 
 
 def test_explicit_ib_web_gateway_provider_reads_gateway_env(monkeypatch):
+    """Test that explicit IB web gateway provider reads gateway env."""
     monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
     monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
     monkeypatch.setenv("BT_GATEWAY_MARKET_ENDPOINT", "ipc://market")
@@ -1843,10 +3567,12 @@ def test_mt5_gateway_provider_is_recognized(monkeypatch):
 def test_gateway_wrapper_fetch_bars_proxies(fake_client):
     """Gateway wrapper fetch_bars should normalize and return bars from the injected API."""
     client = FakeBtApiClient(
-        history={DEFAULT_SYMBOL: [
-            make_bar(0, 1.1000, 1.1010, 1.0990, 1.1005),
-            make_bar(1, 1.1005, 1.1020, 1.1000, 1.1015),
-        ]},
+        history={
+            DEFAULT_SYMBOL: [
+                make_bar(0, 1.1000, 1.1010, 1.0990, 1.1005),
+                make_bar(1, 1.1005, 1.1020, 1.1000, 1.1015),
+            ]
+        },
     )
     store = make_store(api=client)
     store.start()
@@ -1856,15 +3582,60 @@ def test_gateway_wrapper_fetch_bars_proxies(fake_client):
     store.stop()
 
 
+def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypatch):
+    """Gateway wrapper should expose exchange asset specs from either symbol-info alias."""
+    import bt_api_py.gateway.client as gateway_client_module
+
+    class SymbolInfoGatewayClient:
+        def __init__(self, **kwargs):
+            self.kwargs = dict(kwargs)
+
+        def get_symbol_info(self, symbol):
+            assert symbol == DEFAULT_SYMBOL
+            return {
+                "symbol": symbol,
+                "multiplier": 0.001,
+                "maker_fee_rate": 0.0002,
+                "taker_fee_rate": 0.0005,
+            }
+
+    monkeypatch.setattr(gateway_client_module, "GatewayClient", SymbolInfoGatewayClient)
+    wrapper_cls = _create_ctp_gateway_wrapper_class()
+    client = wrapper_cls(account_id="acc-1")
+
+    assert client.get_symbol_info(DEFAULT_SYMBOL)["multiplier"] == pytest.approx(0.001)
+    assert client.fetch_symbol_info(DEFAULT_SYMBOL)["taker_fee_rate"] == pytest.approx(0.0005)
+    assert client._client.kwargs["exchange_type"] == "CTP"
+
+
 def test_split_ctp_symbol_normalizes_czce_with_exchange():
+    """Test that split CTP symbol normalizes CZCE with exchange."""
     assert _split_ctp_symbol("CF2609.CZCE") == ("CF609", "CZCE")
 
 
+@pytest.mark.parametrize(
+    ("symbol", "expected"),
+    [
+        ("CFFEX.IF2609", ("IF2609", "CFFEX")),
+        ("IF2609.CFFEX", ("IF2609", "CFFEX")),
+        ("SHFE.rb2510", ("rb2510", "SHFE")),
+        ("rb2510.SHFE", ("rb2510", "SHFE")),
+        ("SHFE_rb2510", ("rb2510", "SHFE")),
+        ("rb2510_SHFE", ("rb2510", "SHFE")),
+    ],
+)
+def test_split_ctp_symbol_supports_exchange_and_symbol_orders(symbol, expected):
+    """CTP symbols may appear as exchange.instrument or instrument.exchange."""
+    assert _split_ctp_symbol(symbol) == expected
+
+
 def test_split_ctp_symbol_normalizes_known_czce_prefix_without_exchange():
+    """Test that split CTP symbol normalizes known CZCE prefix without exchange."""
     assert _split_ctp_symbol("MA2609") == ("MA609", "")
 
 
 def test_split_ctp_symbol_does_not_change_cffex_style_symbol_without_exchange():
+    """Test that split CTP symbol does not change CFFEX style symbol without exchange."""
     assert _split_ctp_symbol("IF2609") == ("IF2609", "")
 
 

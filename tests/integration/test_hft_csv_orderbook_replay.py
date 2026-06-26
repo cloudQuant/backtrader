@@ -1,3 +1,5 @@
+"""Integration test for TickBroker replaying tick CSV and orderbook JSONL."""
+
 from pathlib import Path
 
 import backtrader as bt
@@ -11,16 +13,19 @@ from backtrader.brokers.tickbroker import TickBroker
 
 
 class ReplayIntegrationStrategy(bt.Strategy):
+    """Strategy for testing tick and orderbook replay."""
+
     params = (("symbol", "BTC/USDT"),)
 
     def __init__(self):
+        """Initialize strategy state."""
         self.tick_seen = 0
         self.orderbook_seen = 0
         self.completed_orders = []
         self.pending_order = None
-        self._data_obj = type("Data", (), {"_name": self.p.symbol, "symbol": self.p.symbol})()
 
     def notify_order(self, order):
+        """Track completed orders."""
         if order.status == order.Completed:
             self.completed_orders.append(
                 {
@@ -33,26 +38,33 @@ class ReplayIntegrationStrategy(bt.Strategy):
             self.pending_order = None
 
     def notify_orderbook(self, orderbook):
+        """Handle orderbook updates and place orders."""
         if orderbook.symbol != self.p.symbol:
             return
         self.orderbook_seen += 1
         if self.pending_order is not None:
             return
-        if self.orderbook_seen == 5 and self.broker.getposition(self._data_obj).size <= 0:
-            self.pending_order = self.buy(data=self._data_obj, size=0.01, exectype=0)
+        data = self.get_hft_data(self.p.symbol)
+        if self.orderbook_seen == 5 and self.broker.getposition(data).size <= 0:
+            self.pending_order = self.buy(data=data, size=0.01, exectype=0)
 
     def notify_tick(self, tick):
+        """Handle tick updates and place orders."""
         if tick.symbol != self.p.symbol:
             return
         self.tick_seen += 1
         if self.pending_order is not None:
             return
-        if self.tick_seen >= 25 and self.broker.getposition(self._data_obj).size > 0:
-            self.pending_order = self.sell(data=self._data_obj, size=0.01, exectype=0)
+        data = self.get_hft_data(self.p.symbol)
+        if self.tick_seen >= 25 and self.broker.getposition(data).size > 0:
+            self.pending_order = self.sell(data=data, size=0.01, exectype=0)
 
 
 def _copy_prefix(src: Path, dst: Path, rows: int):
-    with src.open("r", encoding="utf-8") as fsrc, dst.open("w", encoding="utf-8", newline="") as fdst:
+    """Copy first rows lines from src to dst."""
+    with src.open("r", encoding="utf-8") as fsrc, dst.open(
+        "w", encoding="utf-8", newline=""
+    ) as fdst:
         for index, line in enumerate(fsrc):
             if index == 0:
                 fdst.write(line)
@@ -63,6 +75,7 @@ def _copy_prefix(src: Path, dst: Path, rows: int):
 
 
 def _copy_jsonl_prefix(src: Path, dst: Path, rows: int):
+    """Copy first rows lines from src JSONL to dst."""
     with src.open("r", encoding="utf-8") as fsrc, dst.open("w", encoding="utf-8") as fdst:
         for index, line in enumerate(fsrc, 1):
             if index > rows:
@@ -72,6 +85,7 @@ def _copy_jsonl_prefix(src: Path, dst: Path, rows: int):
 
 @pytest.mark.integration
 def test_tickbroker_replays_real_tick_csv_and_orderbook_jsonl(tmp_path):
+    """Test TickBroker replays real tick CSV and orderbook JSONL."""
     root = Path(__file__).resolve().parents[1]
     data_dir = root / "datas" / "tick_data"
     tick_src = data_dir / "tick_BTC_USDT.csv"
@@ -82,8 +96,12 @@ def test_tickbroker_replays_real_tick_csv_and_orderbook_jsonl(tmp_path):
     _copy_prefix(tick_src, tick_dst, rows=250)
     _copy_jsonl_prefix(ob_src, ob_dst, rows=120)
 
-    tick_channel = TickChannel(symbol="BTC/USDT", dataname=str(tick_dst), validate=True, auto_fix=True)
-    orderbook_channel = OrderBookChannel(symbol="BTC/USDT", dataname=str(ob_dst), depth=20, validate=True, auto_fix=True)
+    tick_channel = TickChannel(
+        symbol="BTC/USDT", dataname=str(tick_dst), validate=True, auto_fix=True
+    )
+    orderbook_channel = OrderBookChannel(
+        symbol="BTC/USDT", dataname=str(ob_dst), depth=20, validate=True, auto_fix=True
+    )
     queue = StreamingEventQueue(channels=[orderbook_channel, tick_channel], preload_window=5.0)
 
     cerebro = bt.Cerebro()
@@ -95,7 +113,7 @@ def test_tickbroker_replays_real_tick_csv_and_orderbook_jsonl(tmp_path):
     results = cerebro.run(channel=queue)
     strat = results[0]
 
-    data_obj = type("Data", (), {"_name": "BTC/USDT", "symbol": "BTC/USDT"})()
+    data_obj = strat.get_hft_data("BTC/USDT")
     state = broker.state_values(data_obj)
 
     assert strat.tick_seen > 0

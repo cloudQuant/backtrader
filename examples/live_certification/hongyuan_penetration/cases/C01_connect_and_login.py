@@ -28,6 +28,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run C01 connect and login test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         log_dir = str(report_dir / "logs")
@@ -42,10 +47,14 @@ def run(report_dir):
                 )
 
                 class MinimalStrategy(bt.Strategy):
+                    """Minimal strategy for testing connection."""
+
                     def __init__(self):
+                        """Initialize minimal strategy."""
                         self.count = 0
 
                     def next(self):
+                        """Process bar and stop after first bar."""
                         self.count += 1
                         if self.count >= 1:
                             self.cerebro.runstop()
@@ -61,8 +70,21 @@ def run(report_dir):
             assert "store_login_success" in events, "Missing store_login_success event"
             print("✓ system.log 包含 store_auth_success 和 store_login_success")
 
+            auth_entry = next(
+                (entry for entry in system_entries if entry.get("event_type") == "store_auth_success"),
+                {},
+            )
+            auth_details = dict(auth_entry.get("details") or {})
             evidence = helpers.collect_evidence_files(log_dir)
-            return timer.pass_result(evidence=evidence, details={"events": sorted(events)})
+            return timer.pass_result(
+                evidence=evidence,
+                details={
+                    "events": sorted(events),
+                    "front_id": auth_details.get("front_id"),
+                    "session_id": auth_details.get("session_id"),
+                    "trading_day": auth_details.get("trading_day"),
+                },
+            )
 
         except Exception as exc:
             evidence = helpers.collect_evidence_files(log_dir)

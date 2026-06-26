@@ -110,6 +110,7 @@ def test_run(main=False):
 
 
 def test_broker_observer_updates_cash_in_fundmode():
+    """Test Broker observer updates cash in fundmode."""
     observer = object.__new__(bt.observers.Broker)
     observer._fundmode = True
     observer._owner = SimpleNamespace(

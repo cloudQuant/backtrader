@@ -14,11 +14,9 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 
 CASE_META = {
     "case_id": "V01",
@@ -29,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run V01 invalid instrument test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -38,42 +41,50 @@ def run(report_dir):
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 # Mark the symbol as invalid via contract_metadata to prove
                 # the local validation mechanism rejects invalid instruments.
-                broker = BtApiBroker(
-                    store=store,
+                cerebro = create_cerebro(
+                    store,
+                    symbol=symbol,
+                    bar_seconds=5,
+                    with_trade_logger=True,
+                    log_dir=log_dir,
                     contract_metadata={symbol: {"valid": False}},
-                )
-                data = BtApiFeed(
-                    store=store, dataname=symbol,
-                    timeframe=bt.TimeFrame.Seconds, compression=5,
-                    backfill_start=False,
-                )
-                cerebro = bt.Cerebro()
-                cerebro.setbroker(broker)
-                cerebro.adddata(data)
-                cerebro.addobserver(
-                    bt.observers.TradeLogger,
-                    log_dir=log_dir, log_format="json",
                 )
 
                 class InvalidInstrumentStrategy(bt.Strategy):
+                    """Strategy for testing invalid instrument rejection."""
+
                     def __init__(self):
+                        """Initialize invalid instrument strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.rejected = False
                         self.store_events = []
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Handle store notification events.
+
+                        Args:
+                            msg: Store message.
+                            *args: Additional positional arguments.
+                            **kwargs: Additional keyword arguments.
+                        """
                         event = kwargs.get("event")
                         if isinstance(event, dict):
                             self.store_events.append(event)
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if order.status == bt.Order.Rejected:
                             self.rejected = True
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Process bar and submit order with invalid instrument."""
                         self.bar_count += 1
                         if self.order is not None:
                             self.cerebro.runstop()

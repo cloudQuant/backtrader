@@ -188,7 +188,10 @@ class TestTradeRepr:
 
 
 class TestTradeHistoryReduce:
+    """Tests for TradeHistory pickle reduce functionality."""
+
     def test_reduce_without_event(self):
+        """Test TradeHistory reduce without event."""
         history = TradeHistory(1, 2.0, 3, 4, 5.0, 6.0, 7.0, 8.0, None)
         restored = pickle.loads(pickle.dumps(history))
         assert restored.status.status == 1
@@ -196,6 +199,7 @@ class TestTradeHistoryReduce:
         assert "event" not in restored
 
     def test_reduce_with_event(self):
+        """Test TradeHistory reduce with event."""
         event = {"size": 10, "price": 11.0}
         history = TradeHistory(1, 2.0, 3, 4, 5.0, 6.0, 7.0, 8.0, None, event=event)
         restored = pickle.loads(pickle.dumps(history))

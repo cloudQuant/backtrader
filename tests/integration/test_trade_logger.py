@@ -32,6 +32,7 @@ import sys
 import os
 import json
 import datetime
+from types import SimpleNamespace
 
 import pytest
 
@@ -348,6 +349,37 @@ def test_trade_logger_position_log_content(json_logs):
         'broker_value', 'broker_cash', 'strategy_name',
     ):
         assert field in first_position, f"Missing field in position log: {field}"
+
+
+def test_trade_logger_futures_position_value_uses_contract_multiplier():
+    """Futures position logs must use contract multiplier for exposure."""
+
+    class Line:
+        def __getitem__(self, index):
+            assert index == 0
+            return 5001.0
+
+    comminfo = bt.ComminfoFuturesPercent(commission=0.000023, margin=0.1, mult=300)
+
+    class Broker:
+        _contract_metadata = {}
+
+        def getcommissioninfo(self, _data):
+            return comminfo
+
+    logger = object.__new__(bt.observers.TradeLogger)
+    logger._owner = SimpleNamespace(broker=Broker())
+    data = SimpleNamespace(_name='IF2609', name='IF2609', close=Line())
+    position = SimpleNamespace(size=1, price=5000.0)
+
+    fields = logger._position_contract_fields(data, position, data._name)
+
+    assert logger._position_market_value(data, position) == pytest.approx(5001.0 * 300)
+    assert fields['current_price'] == pytest.approx(5001.0)
+    assert fields['multiplier'] == pytest.approx(300.0)
+    assert fields['margin_rate'] == pytest.approx(0.1)
+    assert fields['margin_value'] == pytest.approx(5001.0 * 300 * 0.1)
+    assert fields['commission_rate'] == pytest.approx(0.000023)
 
 
 def test_trade_logger_indicator_log_content(json_logs):

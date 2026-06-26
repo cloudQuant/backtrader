@@ -1,3 +1,8 @@
+"""Mid-frequency demo with mixed bar+orderbook data.
+
+This example demonstrates a mid-frequency strategy that uses orderbook ratio
+and SMA indicators to generate trading signals.
+"""
 import backtrader as bt
 
 from backtrader.channel import DataChannel
@@ -8,24 +13,46 @@ from backtrader.order import Order
 
 
 class MemoryChannel(DataChannel):
+    """In-memory data channel for demo purposes."""
+
     def __init__(self, channel_type, symbol, events):
+        """Initialize memory channel.
+
+        Args:
+            channel_type: Type of the channel (tick, orderbook, etc.).
+            symbol: Symbol for the channel.
+            events: List of events to store.
+        """
         super().__init__(symbol=symbol, validate=False, auto_fix=False)
         self.channel_type = channel_type
         self._events = list(events)
 
     def load(self):
+        """Load events from the queue.
+
+        Yields:
+            Event objects from the internal queue.
+        """
         for event in self._events:
             yield event
 
 
 class DemoStrategy(bt.Strategy):
+    """Demo strategy using orderbook ratio and SMA indicators."""
+
     params = (("symbol", "BTC/USDT"),)
 
     def __init__(self):
+        """Initialize demo strategy."""
         self.pending_order = None
         self._data_obj = type("Data", (), {"_name": self.p.symbol, "symbol": self.p.symbol})()
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: Order object with status information.
+        """
         if order.status == order.Completed:
             side = "BUY" if order.isbuy() else "SELL"
             print(f"{side} filled @ {order.executed.price:.2f} size={order.executed.size:.2f}")
@@ -33,6 +60,11 @@ class DemoStrategy(bt.Strategy):
             self.pending_order = None
 
     def notify_tick(self, tick):
+        """Handle tick data and generate trading signals.
+
+        Args:
+            tick: Tick event data.
+        """
         if self.pending_order is not None:
             return
 
@@ -54,6 +86,14 @@ class DemoStrategy(bt.Strategy):
 
 
 def build_demo_queue(symbol):
+    """Build demo event queue with tick, orderbook, and bar events.
+
+    Args:
+        symbol: Symbol for the demo events.
+
+    Returns:
+        MixedChannel: Channel containing all demo events.
+    """
     tick_channel = MemoryChannel(
         "tick",
         symbol,
@@ -115,6 +155,7 @@ def build_demo_queue(symbol):
 
 
 def main():
+    """Run the mid-frequency demo strategy."""
     symbol = "BTC/USDT"
     cerebro = bt.Cerebro()
     broker = MixBroker(cash=1000.0)

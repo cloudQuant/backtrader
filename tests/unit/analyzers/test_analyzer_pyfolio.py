@@ -101,6 +101,7 @@ def test_run(main=False):
 
 
 def test_pyfolio_get_pf_items_keeps_first_position_row():
+    """Test PyFolio get_pf_items keeps first position row."""
     analyzer = bt.analyzers.PyFolio.__new__(bt.analyzers.PyFolio)
     analyzer.rets = {
         "returns": {pd.Timestamp("2021-01-01"): 0.01},
@@ -127,6 +128,7 @@ def test_pyfolio_get_pf_items_keeps_first_position_row():
 
 
 def test_pyfolio_get_pf_items_handles_empty_positions_and_transactions():
+    """Test PyFolio get_pf_items handles empty positions and transactions."""
     analyzer = bt.analyzers.PyFolio.__new__(bt.analyzers.PyFolio)
     analyzer.rets = {
         "returns": {pd.Timestamp("2021-01-01"): 0.01},

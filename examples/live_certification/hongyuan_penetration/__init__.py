@@ -1,1 +1,1 @@
-# SimNow penetration certification test suite
+"""Hongyuan futures CTP penetration certification test suite."""

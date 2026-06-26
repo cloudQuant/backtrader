@@ -18,6 +18,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import datetime
+from types import SimpleNamespace
+
+import pytest
 
 import backtrader as bt
 
@@ -57,6 +60,42 @@ class BrokerTestStrategy(bt.Strategy):
             self.order = self.close()
 
 
+class OffsetCommissionStrategy(bt.Strategy):
+    """Open a futures position and close it as close_today."""
+
+    def __init__(self):
+        self.pending_order = None
+        self.entry_submitted = False
+        self.close_submitted = False
+        self.completed_orders = []
+
+    def next(self):
+        if self.pending_order is not None:
+            return
+
+        if not self.entry_submitted:
+            self.entry_submitted = True
+            self.pending_order = self.buy(size=1)
+            return
+
+        if self.position and not self.close_submitted:
+            self.close_submitted = True
+            self.pending_order = self.sell(size=1, offset="close_today")
+
+    def notify_order(self, order):
+        if order.status not in {
+            order.Completed,
+            order.Canceled,
+            order.Margin,
+            order.Rejected,
+        }:
+            return
+
+        if order.status == order.Completed:
+            self.completed_orders.append(order)
+        self.pending_order = None
+
+
 def test_broker_basic(main=False):
     """Test basic broker functionality including cash and value management.
 
@@ -93,7 +132,6 @@ def test_broker_basic(main=False):
     cerebro.broker.setcash(100000.0)
     if main:
         # print('Starting Cash: %.2f' % cerebro.broker.getcash())  # Removed for performance
-        pass
         print("Starting Value: %.2f" % cerebro.broker.getvalue())
 
     assert cerebro.broker.getcash() == 100000.0
@@ -103,7 +141,6 @@ def test_broker_basic(main=False):
 
     if main:
         # print('Final Cash: %.2f' % cerebro.broker.getcash())  # Removed for performance
-        pass
         print("Final Value: %.2f" % cerebro.broker.getvalue())
 
     # Verify broker state after run
@@ -150,6 +187,64 @@ def test_broker_commission(main=False):
     if main:
         # print('Broker with commission test passed')  # Removed for performance
         pass
+
+
+def test_broker_getcommissioninfo_matches_private_data_name():
+    """Named commission schemes must work for feeds that only expose _name."""
+    broker = bt.BrokerBase()
+    default_info = broker.getcommissioninfo(SimpleNamespace())
+    future_info = bt.ComminfoFuturesPercent(commission=0.000023, margin=0.1, mult=300)
+
+    broker.addcommissioninfo(future_info, name="IF2609")
+
+    assert broker.getcommissioninfo(SimpleNamespace(_name="IF2609")) is future_info
+    assert broker.getcommissioninfo(SimpleNamespace(symbol="if2609")) is future_info
+    assert broker.getcommissioninfo(SimpleNamespace(_name="OTHER")) is default_info
+
+
+def test_backbroker_close_today_order_uses_close_today_commission():
+    """BackBroker must value futures close-today fills with close_today fees."""
+    cerebro = bt.Cerebro()
+
+    modpath = os.path.dirname(os.path.abspath(__file__))
+    datapath = os.path.join(modpath, "../../datas/2006-day-001.txt")
+
+    data = bt.feeds.BacktraderCSVData(
+        dataname=datapath,
+        fromdate=datetime.datetime(2006, 1, 1),
+        todate=datetime.datetime(2006, 1, 10),
+    )
+
+    cerebro.adddata(data, name="IF2609")
+    cerebro.addstrategy(OffsetCommissionStrategy)
+    cerebro.broker.setcash(1000000.0)
+    cerebro.broker.addcommissioninfo(
+        bt.ComminfoFuturesPercent(
+            commission=0.0001,
+            open_commission=0.000023,
+            close_commission=0.00003,
+            close_today_commission=0.000345,
+            margin=0.12,
+            mult=300,
+        ),
+        name="IF2609",
+    )
+
+    strategy = cerebro.run()[0]
+
+    assert len(strategy.completed_orders) == 2
+    entry_order, close_order = strategy.completed_orders
+    entry_bit = entry_order.executed.exbits[0]
+    close_bit = close_order.executed.exbits[0]
+
+    assert entry_bit.openedcomm == pytest.approx(
+        entry_order.executed.price * 300 * 0.000023
+    )
+    assert close_bit.openedcomm == pytest.approx(0.0)
+    assert close_bit.closedcomm == pytest.approx(
+        close_order.executed.price * 300 * 0.000345
+    )
+    assert strategy.getposition(data).size == 0
 
 
 if __name__ == "__main__":

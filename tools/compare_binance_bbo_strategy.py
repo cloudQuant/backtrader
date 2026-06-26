@@ -1,3 +1,12 @@
+"""Comparison tool for backtrader and hftbacktest on Binance BBO data.
+
+This module provides a command-line interface to compare the execution quality
+of backtrader's Binance BBO strategy against hftbacktest.
+
+Example:
+    python compare_binance_bbo_strategy.py --strategy MA --orderbook data.csv ...
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -10,6 +19,7 @@ STRATEGY_NAMES = tuple(spec.name for spec in get_hftbacktest_example_specs())
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build and return the argument parser for this tool."""
     parser = argparse.ArgumentParser(description="Compare backtrader and hftbacktest on converted Binance BBO data")
     parser.add_argument("--strategy", required=True, choices=STRATEGY_NAMES)
     parser.add_argument("--orderbook", required=True)
@@ -27,6 +37,10 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Run the comparison and return exit code.
+
+    Parses command line arguments, runs the comparison, and prints results.
+    """
     args = _build_parser().parse_args()
     result = compare_binance_bbo_strategy(
         strategy_name=args.strategy,

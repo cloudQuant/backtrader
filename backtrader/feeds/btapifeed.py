@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import collections
 import datetime as _dt
+import time as _time
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
@@ -18,6 +19,83 @@ from .livefeed import LiveFeedBase
 logger = get_logger(__name__)
 
 
+_UTC = _dt.timezone.utc
+
+
+def _coerce_epoch_seconds(value):
+    ts = float(value)
+    if ts > 10_000_000_000:
+        ts /= 1000.0
+    return ts
+
+
+def _datetime_to_utc_naive(value):
+    if value.tzinfo is not None and value.utcoffset() is not None:
+        return value.astimezone(_UTC).replace(tzinfo=None)
+    return value.replace(tzinfo=None)
+
+
+def _datetime_to_timestamp(value):
+    return _datetime_to_utc_naive(value).replace(tzinfo=_UTC).timestamp()
+
+
+def _tick_value(tick, *names, default=None):
+    if isinstance(tick, dict):
+        for name in names:
+            if name in tick and tick[name] is not None:
+                return tick[name]
+        return default
+
+    for name in names:
+        value = getattr(tick, name, None)
+        if value is not None:
+            return value
+    return default
+
+
+def _tick_timestamp(tick):
+    value = _tick_value(tick, "timestamp", "Timestamp", default=None)
+    if value is not None:
+        return _coerce_epoch_seconds(value)
+
+    dt_value = _tick_value(tick, "datetime", "dt", default=None)
+    if isinstance(dt_value, _dt.datetime):
+        return _datetime_to_timestamp(dt_value)
+    if isinstance(dt_value, str) and dt_value:
+        try:
+            return _datetime_to_timestamp(
+                _dt.datetime.fromisoformat(dt_value.replace("Z", "+00:00"))
+            )
+        except ValueError:
+            pass
+
+    return _coerce_epoch_seconds(_tick_value(tick, "local_time", "LocalTime", default=0.0) or 0.0)
+
+
+def _tick_datetime(tick):
+    timestamp_value = _tick_value(tick, "timestamp", "Timestamp", default=None)
+    if timestamp_value not in (None, ""):
+        try:
+            ts = _coerce_epoch_seconds(timestamp_value)
+        except (TypeError, ValueError):
+            pass
+        else:
+            if ts > 0:
+                return _dt.datetime.fromtimestamp(ts, _UTC).replace(tzinfo=None)
+
+    value = _tick_value(tick, "datetime", "dt", default=None)
+    if isinstance(value, _dt.datetime):
+        return _datetime_to_utc_naive(value)
+    if isinstance(value, str) and value:
+        try:
+            return _datetime_to_utc_naive(
+                _dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            )
+        except ValueError:
+            pass
+    return _dt.datetime.fromtimestamp(_tick_timestamp(tick), _UTC).replace(tzinfo=None)
+
+
 class BtApiFeed(DataBase, LiveFeedBase):
     """Data feed that backfills and streams bars through BtApiStore."""
 
@@ -27,9 +105,34 @@ class BtApiFeed(DataBase, LiveFeedBase):
         ("historical_bars", None),
         ("live_bars", None),
         ("backfill_start", True),
+        ("dispatch_ticks", True),
+        ("dispatch_orderbooks", True),
+        ("dispatch_bars", True),
     )
 
     def __init__(self, *args, **kwargs):
+        """Initialize the feed, normalize inputs, and prepare internal state.
+
+        The constructor performs three pieces of work:
+
+        1. Resolves the :class:`BtApiStore` instance and the data provider
+           tag from the parsed parameters and stashes them on the instance
+           for quick access during :meth:`start` / :meth:`_load`.
+        2. Normalizes the optional pre-supplied ``historical_bars`` and
+           ``live_bars`` parameters into :class:`collections.deque`
+           instances so that :meth:`_load` can ``popleft`` from them in O(1).
+        3. Initializes the runtime flags that govern backfill behavior
+           (``_history_backfilled``) and bar aggregation
+           (``_bar_builder``).
+
+        Args:
+            *args: Positional arguments forwarded to the
+                :class:`backtrader.feed.DataBase` constructor. Typically
+                this is just the ``dataname`` (symbol/contract identifier).
+            **kwargs: Parameter overrides. Any key matching a name in
+                :attr:`params` overrides the corresponding default; unknown
+                keys are forwarded to the base class unchanged.
+        """
         super().__init__(*args, **kwargs)
         self.store = self.p.store
         self.provider = self.p.provider
@@ -136,19 +239,19 @@ class BtApiFeed(DataBase, LiveFeedBase):
         return None
 
     def haslivedata(self) -> bool:
-        """Return whether live bars are immediately available."""
+        """Return whether a completed live bar is immediately available.
+
+        Pending raw ticks/orderbooks are realtime traffic, but they do not
+        advance the strategy clock until they aggregate into a completed bar.
+        Treating them as live data here makes Cerebro skip qcheck and spin while
+        repeatedly draining ticks that produce no bar.
+        """
         if self._live:
             return True
 
         store = self.store or getattr(self, "_store", None)
         if store is None:
             return False
-
-        if hasattr(store, "has_pending_tick") and store.has_pending_tick(self._dataname):
-            return True
-
-        if hasattr(store, "has_pending_orderbook") and store.has_pending_orderbook(self._dataname):
-            return True
 
         live_cache = getattr(store, "_live_bars", {})
         return bool(live_cache.get(self._dataname))
@@ -178,6 +281,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
         if bar is None:
             if drained_ticks or drained_orderbooks:
                 self._mark_live()
+            if self._qcheck > 0:
+                _time.sleep(self._qcheck)
             return None
 
         self._mark_live()
@@ -217,11 +322,12 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 break
             drained = True
 
-            self._dispatch_event(
-                channel_type="tick",
-                priority=EventPriority.TICK,
-                event_data=tick,
-            )
+            if self.p.dispatch_ticks:
+                self._dispatch_event(
+                    channel_type="tick",
+                    priority=EventPriority.TICK,
+                    event_data=tick,
+                )
             self._ingest_tick(tick)
         return drained
 
@@ -237,34 +343,37 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 break
             drained = True
 
-            self._dispatch_event(
-                channel_type="orderbook",
-                priority=EventPriority.ORDERBOOK,
-                event_data=orderbook,
-            )
+            if self.p.dispatch_orderbooks:
+                self._dispatch_event(
+                    channel_type="orderbook",
+                    priority=EventPriority.ORDERBOOK,
+                    event_data=orderbook,
+                )
         return drained
 
     def _ingest_tick(self, tick):
         """Update the current bar builder from a live tick."""
-        tick_dt = getattr(tick, "datetime", None)
-        if tick_dt is None:
-            tick_dt = _dt.datetime.fromtimestamp(float(tick.timestamp))
+        tick_dt = _tick_datetime(tick)
+        tick_ts = _tick_timestamp(tick)
 
-        price = float(getattr(tick, "price", 0.0) or 0.0)
+        price = float(_tick_value(tick, "price", "last_price", "LastPrice", default=0.0) or 0.0)
         if price <= 0:
             return
 
-        volume = float(getattr(tick, "volume", 0.0) or 0.0)
-        openinterest = float(getattr(tick, "openinterest", 0.0) or 0.0)
+        volume = float(_tick_value(tick, "volume", "Volume", default=0.0) or 0.0)
+        openinterest = float(
+            _tick_value(tick, "openinterest", "open_interest", "OpenInterest", default=0.0)
+            or 0.0
+        )
 
         if self._timeframe == TimeFrame.Ticks:
             self._enqueue_bar_event(
                 BarEvent(
-                    timestamp=float(tick.timestamp),
+                    timestamp=tick_ts,
                     symbol=self._dataname,
-                    exchange=getattr(tick, "exchange", ""),
-                    asset_type=getattr(tick, "asset_type", "futures"),
-                    local_time=getattr(tick, "local_time", None),
+                    exchange=_tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
+                    asset_type=_tick_value(tick, "asset_type", "assetType", default="futures"),
+                    local_time=_tick_value(tick, "local_time", "LocalTime", default=None),
                     open=price,
                     high=price,
                     low=price,
@@ -290,15 +399,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
             current["close"] = price
             current["volume"] += volume
             current["openinterest"] = openinterest
-            current["last_timestamp"] = float(tick.timestamp)
+            current["last_timestamp"] = tick_ts
             return
 
         completed = BarEvent(
             timestamp=current["last_timestamp"],
             symbol=self._dataname,
-            exchange=getattr(tick, "exchange", ""),
-            asset_type=getattr(tick, "asset_type", "futures"),
-            local_time=getattr(tick, "local_time", None),
+            exchange=_tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
+            asset_type=_tick_value(tick, "asset_type", "assetType", default="futures"),
+            local_time=_tick_value(tick, "local_time", "LocalTime", default=None),
             open=current["open"],
             high=current["high"],
             low=current["low"],
@@ -319,17 +428,18 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "close": price,
             "volume": volume,
             "openinterest": openinterest,
-            "last_timestamp": float(tick.timestamp),
+            "last_timestamp": _tick_timestamp(tick),
         }
 
     def _enqueue_bar_event(self, bar_event, bar_datetime):
         """Queue a completed bar for both notify_bar and line delivery."""
         bar_event.datetime = bar_datetime
-        self._dispatch_event(
-            channel_type="bar",
-            priority=EventPriority.BAR,
-            event_data=bar_event,
-        )
+        if self.p.dispatch_bars:
+            self._dispatch_event(
+                channel_type="bar",
+                priority=EventPriority.BAR,
+                event_data=bar_event,
+            )
         self._live.append(
             {
                 "datetime": bar_datetime,
@@ -350,7 +460,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
 
         env.dispatch_channel_event(
             Event(
-                timestamp=float(getattr(event_data, "timestamp", 0.0) or 0.0),
+                timestamp=_tick_timestamp(event_data),
                 priority=priority,
                 channel_type=channel_type,
                 channel_name=self._dataname,

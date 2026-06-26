@@ -29,6 +29,7 @@ class TestOrderZeroPricePreservation:
     """Test that price=0.0 is preserved in order creation (not treated as None)."""
 
     def setup_method(self):
+        """Reset order ref counter for predictable refs."""
         # Reset order ref counter for predictable refs
         OrderBase.refbasis = itertools.count(1)
 

@@ -5,24 +5,29 @@ Tab base class.
 Provides extensible tab architecture for creating custom tabs.
 """
 
-Panel = None
+from typing import Any
+
+Panel: Any = None
 BOKEH_AVAILABLE = False
 
 try:
     # Bokeh 3.x
-    from bokeh.models import TabPanel as Panel
+    from bokeh.models import TabPanel as _Panel
 
+    Panel = _Panel
     BOKEH_AVAILABLE = True
 except ImportError:
     try:
         # Bokeh 2.x
-        from bokeh.models.widgets import Panel
+        from bokeh.models.widgets import Panel as _Panel
 
+        Panel = _Panel
         BOKEH_AVAILABLE = True
     except ImportError:
         try:
-            from bokeh.models import Panel
+            from bokeh.models import Panel as _Panel
 
+            Panel = _Panel
             BOKEH_AVAILABLE = True
         except ImportError:
             # Bokeh not installed (optional dependency); BOKEH_AVAILABLE stays False.

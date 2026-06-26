@@ -1,3 +1,4 @@
+"""Tests for dual-side BtApiBroker functionality."""
 import pytest
 
 import backtrader as bt
@@ -7,6 +8,7 @@ from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar,
 
 
 def test_btapibroker_dual_side_getposition_keeps_clone_compatibility_before_start():
+    """Test BtApiBroker dual side getposition keeps clone compatibility before start."""
     broker = BtApiBroker(store=None, position_mode="dual_side")
     data = type("SeededData", (), {"_name": DEFAULT_SYMBOL})()
 
@@ -27,6 +29,7 @@ def test_btapibroker_dual_side_getposition_keeps_clone_compatibility_before_star
 
 
 def test_btapibroker_dual_side_start_requires_provider_capability():
+    """Test BtApiBroker dual side start requires provider capability."""
     client = FakeBtApiClient(positions=[{"instrument": DEFAULT_SYMBOL, "volume": 2, "direction": "long"}])
     store = make_store(api=client)
     broker = store.getbroker(position_mode="dual_side")
@@ -36,6 +39,7 @@ def test_btapibroker_dual_side_start_requires_provider_capability():
 
 
 def test_btapibroker_dual_side_start_splits_provider_positions_when_capability_is_enabled():
+    """Test BtApiBroker dual side start splits provider positions when capability is enabled."""
     client = FakeBtApiClient(
         positions=[
             {"instrument": DEFAULT_SYMBOL, "volume": 2, "direction": "long", "price": 100.0},
@@ -56,6 +60,7 @@ def test_btapibroker_dual_side_start_splits_provider_positions_when_capability_i
 
 
 def test_btapibroker_dual_side_remote_trade_updates_keep_legs_separate():
+    """Test BtApiBroker dual side remote trade updates keep legs separate."""
     client = FakeBtApiClient(
         positions=[],
         history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},

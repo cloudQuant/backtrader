@@ -21,7 +21,7 @@ Example:
 import sys
 
 from . import metabase
-from .linebuffer import NAN, LineActions, LineBuffer, LineDelay
+from .linebuffer import INF, NAN, NEG_INF, LineActions, LineBuffer, LineDelay
 from .lineroot import LineMultiple
 from .utils.log_message import get_logger
 from .utils.py3 import range, string_types
@@ -31,6 +31,22 @@ logger = get_logger(__name__)
 # Performance optimization: use module-level set to track recursion, avoid massive setattr/delattr operations
 _recursion_guards: set = set()
 _MISSING = object()
+_OBJECT_SETATTR = object.__setattr__
+_LINE_SERIES_SIMPLE_TYPES = frozenset({int, str, float, bool, list, dict, tuple, type(None)})
+_LINE_SERIES_CORE_ATTRS = frozenset(
+    {
+        "lines",
+        "datas",
+        "ddatas",
+        "dnames",
+        "params",
+        "p",
+        "plotinfo",
+        "plotlines",
+        "csv",
+        "_indicators",
+    }
+)
 
 
 def _line_assignment_ltype(child):
@@ -1078,6 +1094,25 @@ class Lines:
             value: Value to use for forwarding (default: NAN).
             size: Number of positions to forward (default: 1).
         """
+        if value is NAN and size == 1:
+            for line in self.lines:
+                if not line._is_indicator:
+                    clock = line._clock
+                    if clock is not None:
+                        try:
+                            if line.lencount >= len(clock):
+                                continue
+                        except Exception as e:
+                            logger.debug("Failed to check clock length in Lines.forward: %s", e)
+
+                if line.mode == line.QBuffer:
+                    line.idx = line._idx + 1
+                else:
+                    line._idx += 1
+                line.lencount += 1
+                line.array.append(line._default_value)
+            return
+
         for line in self.lines:
             line.forward(value, size)
 
@@ -1808,21 +1843,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     # Class variables: predefined simple types (use frozenset for O(1) lookup)
-    _SIMPLE_TYPES = frozenset({int, str, float, bool, list, dict, tuple, type(None)})
-    _CORE_ATTRS = frozenset(
-        {
-            "lines",
-            "datas",
-            "ddatas",
-            "dnames",
-            "params",
-            "p",
-            "plotinfo",
-            "plotlines",
-            "csv",
-            "_indicators",
-        }
-    )
+    _SIMPLE_TYPES = _LINE_SERIES_SIMPLE_TYPES
+    _CORE_ATTRS = _LINE_SERIES_CORE_ATTRS
 
     def __setattr__(self, name, value):
         """
@@ -1833,28 +1855,27 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         - Use EAFP (try/except) instead of hasattr() to avoid double lookups
         - Minimize attribute access on value object
         """
-        # Fast path 1: Internal attributes (underscore prefix)
-        # Use index check instead of startswith - 2-3x faster
-        if name and name[0] == "_":
-            object.__setattr__(self, name, value)
+        # Fast path 1: Simple user state never needs line/data registration.
+        value_type = type(value)
+        if value_type in _LINE_SERIES_SIMPLE_TYPES:
+            _OBJECT_SETATTR(self, name, value)
             return
 
-        # Fast path 2: Core attributes that don't need special handling
-        if name in LineSeries._CORE_ATTRS:
-            object.__setattr__(self, name, value)
+        # Fast path 2: Internal attributes (underscore prefix)
+        # Use index check instead of startswith - 2-3x faster
+        if name and name[0] == "_":
+            _OBJECT_SETATTR(self, name, value)
+            return
+
+        # Fast path 3: Core attributes that don't need special handling
+        if name in _LINE_SERIES_CORE_ATTRS:
+            _OBJECT_SETATTR(self, name, value)
             return
 
         if name == "data" or (
             name and len(name) >= 5 and name[:4] == "data" and (name[4].isdigit() or name[4] == "_")
         ):
-            object.__setattr__(self, name, value)
-            return
-
-        # Fast path 3: Simple types (int, str, float, etc.)
-        # OPTIMIZATION: Use type() instead of isinstance() - faster
-        value_type = type(value)
-        if value_type in LineSeries._SIMPLE_TYPES:
-            object.__setattr__(self, name, value)
+            _OBJECT_SETATTR(self, name, value)
             return
 
         # Slow path: Complex objects (indicators, data feeds, etc.)
@@ -1868,7 +1889,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             value._minperiod
 
             # Set the attribute first
-            object.__setattr__(self, name, value)
+            _OBJECT_SETATTR(self, name, value)
 
             if isinstance(value, LineBuffer) and not isinstance(value, LineActions):
                 # Plain LineBuffer (e.g., rsi.l.rsi) — don't register as a
@@ -1890,20 +1911,20 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             try:
                 # Data feeds have 'lines' attribute
                 _ = value.lines
-                object.__setattr__(self, name, value)
+                _OBJECT_SETATTR(self, name, value)
                 return
             except AttributeError:
                 try:
                     # Or '_name' attribute
                     _ = value._name
-                    object.__setattr__(self, name, value)
+                    _OBJECT_SETATTR(self, name, value)
                     return
                 except AttributeError:
                     # Value is not a data-like object; fall through to default set.
                     pass
 
         # Default: just set the attribute
-        object.__setattr__(self, name, value)
+        _OBJECT_SETATTR(self, name, value)
 
     def __len__(self):
         """
@@ -1917,13 +1938,19 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         # This is called 11M+ times during tests
         try:
             line0 = object.__getattribute__(self, "_line0_cache")
-            return len(line0)
+            try:
+                return line0.lencount
+            except AttributeError:
+                return len(line0)
         except AttributeError:
             # Cache not set yet, get it and cache for next time
             try:
                 line0 = self.lines[0]
                 object.__setattr__(self, "_line0_cache", line0)
-                return len(line0)
+                try:
+                    return line0.lencount
+                except AttributeError:
+                    return len(line0)
             except Exception:
                 return 0
 
@@ -1953,14 +1980,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             value = line0[key]
             # None check - convert None to NaN for consistent behavior
             if value is None:
-                return float("nan")
-            if isinstance(value, float):
-                import math
-
-                if math.isnan(value):
-                    return value
-                if not math.isfinite(value):
-                    return 0.0
+                return NAN
+            if value != value:
+                return value
+            if value == INF or value == NEG_INF:
+                return 0.0
             # CRITICAL FIX: Return NaN as-is, don't convert to 0.0
             # NaN values are important for indicator calculations:
             # - Comparisons with NaN always return False (e.g., close > nan is False)
@@ -2085,11 +2109,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # CRITICAL FIX: Convert None and NaN to 0.0 to prevent comparison errors
                 if value is None:
                     return 0.0
-                if isinstance(value, float):
-                    import math
-
-                    if not math.isfinite(value):
-                        return 0.0
+                if value != value or value == INF or value == NEG_INF:
+                    return 0.0
                 return value
             except (IndexError, TypeError, AttributeError):
                 # If any access fails, return 0.0 instead of None
@@ -2113,6 +2134,25 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             value: Value to use for forwarding (default: NAN).
             size: Number of positions to forward (default: 1).
         """
+        if value is NAN and size == 1:
+            for line in self.lines.lines:
+                if not line._is_indicator:
+                    clock = line._clock
+                    if clock is not None:
+                        try:
+                            if line.lencount >= len(clock):
+                                continue
+                        except Exception as e:
+                            logger.debug("Failed to check clock length in LineSeries.forward: %s", e)
+
+                if line.mode == line.QBuffer:
+                    line.idx = line._idx + 1
+                else:
+                    line._idx += 1
+                line.lencount += 1
+                line.array.append(line._default_value)
+            return
+
         self.lines.forward(value, size)
 
     def backwards(self, size=1, force=False):

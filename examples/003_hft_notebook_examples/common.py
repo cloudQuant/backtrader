@@ -1,3 +1,8 @@
+"""Common utilities for hft notebook examples.
+
+Provides shared configuration, argument parsing, and path resolution
+for Binance BBO comparison strategies.
+"""
 from __future__ import annotations
 
 import argparse
@@ -57,6 +62,15 @@ DEFAULT_MAX_DECISIONS = 200
 
 
 def default_paths(strategy: str, data_root: Path) -> dict[str, Path]:
+    """Build paths to data files for a given strategy.
+
+    Args:
+        strategy: Strategy name key from STRATEGY_CONFIG.
+        data_root: Root directory containing strategy data subdirectories.
+
+    Returns:
+        Dict with paths to root, orderbook, ticks, market_data, and latency files.
+    """
     config = STRATEGY_CONFIG[strategy]
     root = Path(data_root) / config["data_subdir"]
     if strategy == "glft_market_making" and not root.exists():
@@ -71,6 +85,14 @@ def default_paths(strategy: str, data_root: Path) -> dict[str, Path]:
 
 
 def resolve_runtime(args) -> dict[str, float | int | str]:
+    """Extract runtime parameters from parsed args, falling back to strategy defaults.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Dict of runtime parameters (symbol, tick_size, lot_size, etc.).
+    """
     config = STRATEGY_CONFIG[args.strategy]
     return {
         "symbol": args.symbol or config["symbol"],
@@ -84,6 +106,15 @@ def resolve_runtime(args) -> dict[str, float | int | str]:
 
 
 def add_common_arguments(parser: argparse.ArgumentParser, include_strategy: bool = True) -> argparse.ArgumentParser:
+    """Add common command-line arguments for notebook example scripts.
+
+    Args:
+        parser: ArgumentParser instance to add arguments to.
+        include_strategy: Whether to include --strategy argument.
+
+    Returns:
+        The same parser instance for chaining.
+    """
     if include_strategy:
         parser.add_argument("--strategy", default=DEFAULT_STRATEGY, choices=STRATEGY_NAMES)
     parser.add_argument("--data-root", default=str(DEFAULT_DATA_ROOT))
@@ -99,8 +130,24 @@ def add_common_arguments(parser: argparse.ArgumentParser, include_strategy: bool
 
 
 def resolve_paths(args) -> dict[str, Path]:
+    """Resolve data file paths from command-line arguments.
+
+    Args:
+        args: Parsed command-line arguments.
+
+    Returns:
+        Dict of paths to data files.
+    """
     return default_paths(args.strategy, Path(args.data_root))
 
 
 def fill_counter(fills) -> Counter:
+    """Build a Counter of (side, price, size) tuples from fill events.
+
+    Args:
+        fills: Iterable of fill event objects with side, price, and size attributes.
+
+    Returns:
+        Counter mapping (side, price, size) to occurrence count.
+    """
     return Counter((item.side, round(float(item.price), 8), round(float(item.size), 8)) for item in fills)

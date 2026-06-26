@@ -1,3 +1,10 @@
+"""Tests for enhanced MatchingCore with exchange model and order book support.
+
+Tests:
+- Stop and stop-limit order handling on tick events
+- Order book exchange model and order modification
+- Maker queue trade fill on tick events
+"""
 from types import SimpleNamespace
 
 import pytest
@@ -8,19 +15,28 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Mock data object for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize with name."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 class DummyExecuted:
+    """Mock executed order for testing."""
+
     def __init__(self, remsize):
+        """Initialize with remaining size."""
         self.remsize = remsize
 
 
 class DummyOrder:
+    """Mock order object for testing."""
+
     def __init__(self, name="BTC/USDT", exectype=Order.Market, price=100.0, plimit=None, size=1.0, buy=True):
+        """Initialize dummy order with given parameters."""
         self.data = DummyData(name)
         self.exectype = exectype
         self.price = price
@@ -31,10 +47,12 @@ class DummyOrder:
         self._stop_triggered = False
 
     def isbuy(self):
+        """Return True if order is a buy order."""
         return self._buy
 
 
 def test_matching_core_on_tick_handles_stop_and_stoplimit():
+    """Test that MatchingCore handles stop and stop-limit orders on tick events."""
     stop_order = DummyOrder(exectype=Order.Stop, price=101.0, size=1.0, buy=True)
     stop_limit_order = DummyOrder(exectype=Order.StopLimit, price=101.0, plimit=102.0, size=1.0, buy=True)
     core = MatchingCore()
@@ -49,6 +67,7 @@ def test_matching_core_on_tick_handles_stop_and_stoplimit():
 
 
 def test_matching_core_on_orderbook_uses_exchange_model_and_modify():
+    """Test that MatchingCore uses exchange model and handles order modification."""
     core = MatchingCore(exchange_model=QueueExchangeModel())
     order = DummyOrder(exectype=Order.Limit, price=101.0, size=1.0, buy=True)
     replacement = DummyOrder(exectype=Order.Limit, price=99.0, size=1.0, buy=True)
@@ -71,6 +90,7 @@ def test_matching_core_on_orderbook_uses_exchange_model_and_modify():
 
 
 def test_matching_core_on_tick_supports_maker_queue_trade_fill():
+    """Test that MatchingCore supports maker queue trade fill on tick events."""
     core = MatchingCore(exchange_model=QueueExchangeModel())
     order = DummyOrder(exectype=Order.Limit, price=100.0, size=1.0, buy=True)
     core.submit_order(order)

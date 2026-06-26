@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+"""Run strategy regression tests against the current backtrader installation.
+
+This script executes the official backtrader strategy regression suite, which
+contains inline tests that validate backtest result correctness. It supports:
+
+- Running all regression tests or selected subsets
+- Parallel execution with configurable workers
+- Rerunning only failed tests from a previous report
+- Generating JSON reports with detailed failure information
+
+Typical usage:
+    python scripts/run_official_backtrader_strategy_regression.py
+    python scripts/run_official_backtrader_strategy_regression.py asset_allocation
+    python scripts/run_official_backtrader_strategy_regression.py --from-report previous_report.json
+"""
 from __future__ import annotations
 
 import argparse
@@ -25,6 +40,17 @@ EXCEPTION_LINE_PATTERN = re.compile(
 
 
 def find_repo_root() -> Path:
+    """Find the backtrader repository root directory.
+
+    Searches upward from this script's location for a directory containing
+    pyproject.toml and a backtrader subdirectory.
+
+    Returns:
+        Path to the repository root.
+
+    Raises:
+        RuntimeError: If the repository root cannot be found.
+    """
     current = Path(__file__).resolve()
     for parent in current.parents:
         if (parent / "pyproject.toml").exists() and (parent / "backtrader").is_dir():
@@ -33,6 +59,15 @@ def find_repo_root() -> Path:
 
 
 def is_same_or_child(path: Path, parent: Path) -> bool:
+    """Check if a path is the same as or a child of a parent path.
+
+    Args:
+        path: Path to check.
+        parent: Parent path to check against.
+
+    Returns:
+        True if path is the same as or inside parent, False otherwise.
+    """
     try:
         resolved_path = path.resolve()
         resolved_parent = parent.resolve()
@@ -42,6 +77,18 @@ def is_same_or_child(path: Path, parent: Path) -> bool:
 
 
 def cleaned_env(repo_root: Path, keep_repo_pythonpath: bool = False) -> dict[str, str]:
+    """Create a cleaned environment for subprocess execution.
+
+    Optionally keeps the repository root in PYTHONPATH, and always adds
+    PYTHONUNBUFFERED and PYTHONIOENCODING for consistent output.
+
+    Args:
+        repo_root: Repository root path.
+        keep_repo_pythonpath: If True, include repo root in PYTHONPATH.
+
+    Returns:
+        Cleaned environment dictionary for subprocess.
+    """
     env = os.environ.copy()
     if keep_repo_pythonpath:
         pythonpath_parts = [str(repo_root), env.get("PYTHONPATH", "")]
@@ -68,6 +115,14 @@ def cleaned_env(repo_root: Path, keep_repo_pythonpath: bool = False) -> dict[str
 
 
 def clean_sys_path(repo_root: Path) -> None:
+    """Remove repository paths from sys.path in-place.
+
+    Modifies sys.path directly to remove entries that are at or below
+    the repository root.
+
+    Args:
+        repo_root: Repository root path to filter from sys.path.
+    """
     kept = []
     for item in sys.path:
         if not item:
@@ -79,6 +134,17 @@ def clean_sys_path(repo_root: Path) -> None:
 
 
 def run_command(command: list[str], cwd: Path, timeout: int, env: dict[str, str] | None = None) -> int:
+    """Execute a command and print diagnostic information.
+
+    Args:
+        command: Command and arguments to execute.
+        cwd: Working directory for the command.
+        timeout: Timeout in seconds.
+        env: Optional environment variables.
+
+    Returns:
+        The command's return code.
+    """
     print("=" * 80, flush=True)
     print("Running:", " ".join(command), flush=True)
     print("CWD:", cwd, flush=True)
@@ -89,6 +155,18 @@ def run_command(command: list[str], cwd: Path, timeout: int, env: dict[str, str]
 
 
 def backtrader_location(repo_root: Path, keep_repo_pythonpath: bool = False) -> str:
+    """Get the location and version of the installed backtrader.
+
+    Runs a subprocess to import backtrader and retrieve its __version__
+    and __file__ attributes.
+
+    Args:
+        repo_root: Repository root path.
+        keep_repo_pythonpath: Whether to keep repo in PYTHONPATH.
+
+    Returns:
+        String with version and file path information.
+    """
     code = (
         "import backtrader; "
         "print(getattr(backtrader, '__version__', 'unknown')); "
@@ -108,10 +186,31 @@ def backtrader_location(repo_root: Path, keep_repo_pythonpath: bool = False) -> 
 
 
 def collect_test_files(test_root: Path) -> list[Path]:
+    """Collect all test files (test*.py) under a directory.
+
+    Args:
+        test_root: Root directory to search for test files.
+
+    Returns:
+        Sorted list of paths to test files.
+    """
     return sorted(path for path in test_root.rglob("test*.py") if path.is_file())
 
 
 def resolve_existing_path(repo_root: Path, default_test_root: Path, target: str) -> Path:
+    """Resolve a target string to an existing path.
+
+    Attempts to resolve the target as an absolute path, then as relative
+    to repo root, and finally relative to the default test root.
+
+    Args:
+        repo_root: Repository root path.
+        default_test_root: Default test root path.
+        target: Target specification string.
+
+    Returns:
+        Resolved path to an existing file or directory.
+    """
     selected_path = Path(target)
     if selected_path.is_absolute():
         return selected_path
@@ -124,6 +223,18 @@ def resolve_existing_path(repo_root: Path, default_test_root: Path, target: str)
 
 
 def load_failure_targets_from_report(repo_root: Path, report_path: Path) -> list[str]:
+    """Load failure paths from a previous JSON report.
+
+    Args:
+        repo_root: Repository root path.
+        report_path: Path to the JSON report file.
+
+    Returns:
+        List of failure paths from the report.
+
+    Raises:
+        ValueError: If the report has no 'failures' list or no valid paths.
+    """
     resolved_report = report_path.resolve() if report_path.is_absolute() else (repo_root / report_path).resolve()
     payload = json.loads(resolved_report.read_text(encoding="utf-8"))
     failures = payload.get("failures")
@@ -144,6 +255,23 @@ def load_failure_targets_from_report(repo_root: Path, report_path: Path) -> list
 
 
 def collect_selected_test_files(repo_root: Path, default_test_root: Path, targets: list[str]) -> list[Path]:
+    """Collect test files for specified targets.
+
+    Resolves each target (file or directory) and collects all test*.py files.
+    Deduplicates by resolved path.
+
+    Args:
+        repo_root: Repository root path.
+        default_test_root: Default test root path.
+        targets: List of target specifications.
+
+    Returns:
+        Sorted list of collected test file paths.
+
+    Raises:
+        FileNotFoundError: If a target path does not exist.
+        ValueError: If no test files found for a directory or invalid target.
+    """
     collected: list[Path] = []
     seen: set[Path] = set()
 
@@ -172,12 +300,34 @@ def collect_selected_test_files(repo_root: Path, default_test_root: Path, target
 
 
 def tail(text: str, limit: int) -> str:
+    """Return the last characters of text up to the limit.
+
+    Args:
+        text: Input text.
+        limit: Maximum number of characters to return.
+
+    Returns:
+        The tail of the text, truncated to limit characters.
+    """
     if len(text) <= limit:
         return text
     return text[-limit:]
 
 
 def decode_process_output(value: Any) -> str:
+    """Decode subprocess output to string, handling bytes and None.
+
+    Args:
+        value: Raw output value (bytes, str, or None).
+
+    Returns:
+        Decoded string representation.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return str(value)
     if value is None:
         return ""
     if isinstance(value, bytes):
@@ -186,6 +336,17 @@ def decode_process_output(value: Any) -> str:
 
 
 def parse_worker_payload(stdout: str) -> dict[str, Any]:
+    """Parse JSON status payload from worker stdout.
+
+    Extracts the last JSON object with status "passed" or "failed"
+    from the stdout lines.
+
+    Args:
+        stdout: Standard output text from the worker process.
+
+    Returns:
+        Parsed payload dictionary, or empty dict if none found.
+    """
     payload: dict[str, Any] = {}
     for line in stdout.splitlines():
         line = line.strip()
@@ -201,6 +362,17 @@ def parse_worker_payload(stdout: str) -> dict[str, Any]:
 
 
 def extract_root_error(stderr: str) -> str:
+    """Extract the root exception line from stderr output.
+
+    Searches the reversed stderr for the first line matching an exception
+    pattern (TypeError, AttributeError, etc.).
+
+    Args:
+        stderr: Standard error text.
+
+    Returns:
+        The exception line if found, or empty string.
+    """
     for line in reversed(stderr.splitlines()):
         stripped = line.strip()
         if EXCEPTION_LINE_PATTERN.match(stripped):
@@ -215,6 +387,18 @@ def run_one_test(
     timeout: int,
     use_current_backtrader: bool,
 ) -> dict[str, Any]:
+    """Execute a single regression test file.
+
+    Args:
+        script_path: Path to this script (used as worker entry point).
+        test_file: Path to the test file to execute.
+        repo_root: Repository root path.
+        timeout: Timeout for the test in seconds.
+        use_current_backtrader: Whether to use current backtrader.
+
+    Returns:
+        Dictionary with test result including path, returncode, timing, and output.
+    """
     started = time.time()
     command = [
         sys.executable,
@@ -280,6 +464,19 @@ def run_tests(
     timeout: int,
     use_current_backtrader: bool,
 ) -> list[dict[str, Any]]:
+    """Run multiple regression tests in parallel using a thread pool.
+
+    Args:
+        script_path: Path to this script (used as worker entry point).
+        repo_root: Repository root path.
+        test_files: List of test file paths to execute.
+        workers: Number of parallel worker threads.
+        timeout: Timeout per test in seconds.
+        use_current_backtrader: Whether to use current backtrader.
+
+    Returns:
+        List of test result dictionaries sorted by path.
+    """
     print("=" * 80, flush=True)
     if test_files:
         print(f"First test: {test_files[0].relative_to(repo_root)}", flush=True)
@@ -324,6 +521,18 @@ def run_tests(
 
 
 def write_report(repo_root: Path, output_path: Path | None, results: list[dict[str, Any]], started_at: str, duration: float) -> Path:
+    """Write test results to a JSON report file.
+
+    Args:
+        repo_root: Repository root path.
+        output_path: Explicit output path, or None for auto-generated.
+        results: List of test result dictionaries.
+        started_at: ISO timestamp when testing started.
+        duration: Total duration in seconds.
+
+    Returns:
+        Path to the written report file.
+    """
     failures = [item for item in results if item["returncode"] != 0]
     if output_path is None:
         output_dir = repo_root / "logs"
@@ -347,6 +556,12 @@ def write_report(repo_root: Path, output_path: Path | None, results: list[dict[s
 
 
 def print_summary(results: list[dict[str, Any]], report_path: Path) -> None:
+    """Print a summary of test results to stdout.
+
+    Args:
+        results: List of test result dictionaries.
+        report_path: Path to the report file.
+    """
     failures = [item for item in results if item["returncode"] != 0]
     failure_roots: dict[str, int] = {}
     for item in failures:
@@ -380,6 +595,17 @@ def print_summary(results: list[dict[str, Any]], report_path: Path) -> None:
 
 
 def worker_main(argv: list[str]) -> int:
+    """Worker entry point for running a single test in a subprocess.
+
+    This function is called by run_tests to execute individual test files
+    in isolated subprocesses.
+
+    Args:
+        argv: Command line arguments: [test_file, repo_root, use_current_backtrader].
+
+    Returns:
+        Exit code: 0 for success, 1 for failure.
+    """
     test_file = Path(argv[0]).resolve()
     repo_root = Path(argv[1]).resolve()
     use_current_backtrader = len(argv) >= 3 and argv[2] == "1"
@@ -420,6 +646,18 @@ def worker_main(argv: list[str]) -> int:
 
 
 def resolve_test_root(repo_root: Path, target: str | None, explicit_test_root: str | None) -> Path:
+    """Resolve the test root directory based on arguments.
+
+    Priority: explicit_test_root > target > default_test_root.
+
+    Args:
+        repo_root: Repository root path.
+        target: Optional target specification string.
+        explicit_test_root: Explicit test root from --test-root argument.
+
+    Returns:
+        Resolved path to the test root directory.
+    """
     default_root = repo_root / DEFAULT_TEST_ROOT
     selected = explicit_test_root if explicit_test_root is not None else target
     if selected is None:
@@ -437,6 +675,11 @@ def resolve_test_root(repo_root: Path, target: str | None, explicit_test_root: s
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command line arguments.
+
+    Returns:
+        Parsed arguments namespace.
+    """
     parser = argparse.ArgumentParser(
         description="Run strategy regression scripts against the current project backtrader."
     )
@@ -470,6 +713,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Run the regression test suite.
+
+    Returns:
+        Exit code: 0 if all tests passed, 1 if any failed, 2 if no tests found.
+    """
     args = parse_args()
     repo_root = find_repo_root()
     script_path = Path(__file__).resolve()

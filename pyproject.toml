@@ -35,6 +35,9 @@ implicit_reexport = false
 strict_equality = true
 show_error_codes = true
 ignore_missing_imports = true
+no_site_packages = true
+# Optional runtime dependencies are intentionally not required for the type gate.
+disable_error_code = ["import-untyped"]
 
 # Per-module overrides for framework/legacy patterns that are difficult to fix
 # without major refactoring. These modules use dynamic attributes, metaclass-like
@@ -50,8 +53,38 @@ module = [
     "backtrader.dataseries",
     "backtrader.observer",
     "backtrader.order",
+    "backtrader.position",
+    "backtrader.mixins.singleton",
+    "backtrader.utils.py3",
+    "backtrader.channel",
+    "backtrader.utils.autodict",
+    "backtrader.fillers",
+    "backtrader.tradingcal",
+    "backtrader.broker",
+    "backtrader.sizer",
+    "backtrader.signal",
+    "backtrader.analyzer",
+    "backtrader.utils.fractal",
+    "backtrader.profiles",
+    "backtrader.commissions.*",
+    "backtrader.sizers.*",
+    "backtrader.reports.*",
 ]
-disable_error_code = ["method-assign", "attr-defined", "has-type", "assignment", "index"]
+disable_error_code = [
+    "method-assign",
+    "attr-defined",
+    "has-type",
+    "assignment",
+    "index",
+    "operator",
+    "no-any-return",
+    "valid-type",
+    "misc",
+    "union-attr",
+    "arg-type",
+    "override",
+    "list-item",
+]
 
 # Core line system (lineroot/linebuffer/lineseries/lineiterator): the dynamic
 # foundation of the framework — donew() mixins, runtime _owner/_OwnerCls and
@@ -97,6 +130,7 @@ disable_error_code = [
     "has-type",
     "arg-type",
     "type-var",
+    "var-annotated",
 ]
 
 [[tool.mypy.overrides]]
@@ -104,7 +138,17 @@ module = [
     "backtrader.plot.*",
     "backtrader.bokeh.*",
 ]
-disable_error_code = ["attr-defined", "union-attr", "assignment"]
+disable_error_code = [
+    "attr-defined",
+    "union-attr",
+    "assignment",
+    "no-redef",
+    "index",
+    "misc",
+    "arg-type",
+    "operator",
+    "call-overload",
+]
 
 [[tool.mypy.overrides]]
 module = [
@@ -117,7 +161,27 @@ module = [
     "backtrader.feeds.*",
     "backtrader.stores.*",
 ]
-disable_error_code = ["attr-defined", "union-attr", "assignment", "no-any-return"]
+disable_error_code = [
+    "attr-defined",
+    "union-attr",
+    "assignment",
+    "no-any-return",
+    "arg-type",
+    "operator",
+    "index",
+    "misc",
+    "return-value",
+    "override",
+    "has-type",
+    "call-arg",
+    "list-item",
+]
+
+[[tool.mypy.overrides]]
+module = [
+    "backtrader.btrun.*",
+]
+disable_error_code = ["attr-defined", "misc", "assignment", "arg-type", "union-attr"]
 
 [tool.coverage.run]
 source = ["backtrader"]

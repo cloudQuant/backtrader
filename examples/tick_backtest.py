@@ -16,7 +16,7 @@ import os
 import sys
 
 # Add project root to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import backtrader as bt
 from backtrader.channels.tick import TickChannel
@@ -32,8 +32,8 @@ class SimpleTickStrategy(bt.Strategy):
     """
 
     params = (
-        ('symbol', 'BTC/USDT'),
-        ('window', 50),
+        ("symbol", "BTC/USDT"),
+        ("window", 50),
     )
 
     def __init__(self):
@@ -41,9 +41,6 @@ class SimpleTickStrategy(bt.Strategy):
         self.prices = []
         self.pos = 0
         self.trades = 0
-        # Dummy data object for broker order placement in channel mode
-        self._data_obj = type('Data', (), {
-            '_name': self.p.symbol, 'symbol': self.p.symbol})()
 
     def notify_order(self, order):
         """Handle order status changes.
@@ -71,19 +68,20 @@ class SimpleTickStrategy(bt.Strategy):
             return
 
         avg = sum(self.prices) / len(self.prices)
+        data = self.get_hft_data(self.p.symbol)
 
         # Simple mean reversion
         if tick.price < avg * 0.999 and self.pos <= 0:
-            self.buy(data=self._data_obj, size=0.1, exectype=0)
+            self.buy(data=data, size=0.1, exectype=0)
             self.pos += 1
             self.trades += 1
 
         elif tick.price > avg * 1.001 and self.pos >= 1:
-            self.sell(data=self._data_obj, size=0.1, exectype=0)
+            self.sell(data=data, size=0.1, exectype=0)
             self.pos -= 1
             self.trades += 1
 
-    def log(self, txt, dt=None, level='info'):
+    def log(self, txt, dt=None, level="info"):
         """Log a message with strategy prefix.
 
         Args:
@@ -95,8 +93,7 @@ class SimpleTickStrategy(bt.Strategy):
 
     def stop(self):
         """Print strategy completion statistics."""
-        print(f"Strategy finished: {self.trades} trades, "
-              f"ticks processed: {self._tick_count}")
+        print(f"Strategy finished: {self.trades} trades, " f"ticks processed: {self._tick_count}")
 
 
 def main():
@@ -105,9 +102,8 @@ def main():
     Creates a TickChannel with test data, sets up Cerebro with TickBroker,
     runs the strategy, and prints results.
     """
-    symbol = 'BTC/USDT'
-    data_file = os.path.join('tests', 'datas', 'tick_data',
-                             f'tick_{symbol.replace("/", "_")}.csv')
+    symbol = "BTC/USDT"
+    data_file = os.path.join("tests", "datas", "tick_data", f'tick_{symbol.replace("/", "_")}.csv')
 
     if not os.path.exists(data_file):
         print(f"Data file not found: {data_file}")
@@ -133,7 +129,7 @@ def main():
     strat = results[0]
     broker = cerebro.broker
     print(f"\n{'='*50}")
-    print(f"Tick Backtest Results")
+    print("Tick Backtest Results")
     print(f"{'='*50}")
     print(f"Events processed: {strat._event_count}")
     print(f"Trades executed:  {strat.trades}")
@@ -143,5 +139,5 @@ def main():
     print(f"Ticks processed:  {broker.tick_count}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

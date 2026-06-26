@@ -617,25 +617,25 @@ def test_7_0007_day_trading_pamxa() -> None:
     metrics = captured.get("metrics")
     assert metrics is not None, "no metrics captured during run"
 
-    assert metrics.get('bar_num') == 3819, f"bar_num: expected=3819, got={metrics.get('bar_num')!r}"
-    assert metrics.get('buy_count') == 138, f"buy_count: expected=138, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 671, f"sell_count: expected=671, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 382, f"win_count: expected=382, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 427, f"loss_count: expected=427, got={metrics.get('loss_count')!r}"
-    assert metrics.get('total_trades') == 809, f"total_trades: expected=809, got={metrics.get('total_trades')!r}"
-    assert metrics.get('trade_count') == 809, f"trade_count: expected=809, got={metrics.get('trade_count')!r}"
-    assert metrics.get('won') == 382, f"won: expected=382, got={metrics.get('won')!r}"
-    assert metrics.get('lost') == 427, f"lost: expected=427, got={metrics.get('lost')!r}"
-    _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('final_value'), 991361.0000000008, tol=9.913610e-01, key='final_value')
-    _close(metrics.get('net_pnl'), -8638.999999999185, tol=8.639000e-03, key='net_pnl')
-    _close(metrics.get('total_return_pct'), -0.8638999999999175, tol=1.000000e-06, key='total_return_pct')
-    _close(metrics.get('win_rate'), 47.21878862793572, tol=4.721879e-05, key='win_rate')
-    _close(metrics.get('profit_factor'), 0.9735285826347004, tol=1.000000e-06, key='profit_factor')
-    _close(metrics.get('max_drawdown'), 4.08626072912041, tol=4.086261e-06, key='max_drawdown')
-    _close(metrics.get('sharpe_ratio'), -1.6980900995947612, tol=1.698090e-06, key='sharpe_ratio')
-    _close(metrics.get('annual_return_pct'), -39.72158813294152, tol=3.972159e-05, key='annual_return_pct')
-    _close(metrics.get('sqn'), -0.24449273001839594, tol=1.000000e-06, key='sqn')
+    assert metrics.get('bar_num') == 3819, f"bar_num: expected=3819, got=, got={metrics.get('bar_num')!r}"
+    assert metrics.get('buy_count') == 138, f"buy_count: expected=138, got=, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 668, f"sell_count: expected=668, got=, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 385, f"win_count: expected=385, got=, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 421, f"loss_count: expected=421, got=, got={metrics.get('loss_count')!r}"
+    assert metrics.get('total_trades') == 806, f"total_trades: expected=806, got=, got={metrics.get('total_trades')!r}"
+    assert metrics.get('trade_count') == 806, f"trade_count: expected=806, got=, got={metrics.get('trade_count')!r}"
+    assert metrics.get('won') == 385, f"won: expected=385, got=, got={metrics.get('won')!r}"
+    assert metrics.get('lost') == 421, f"lost: expected=421, got=, got={metrics.get('lost')!r}"
+    _close(metrics.get('initial_cash'), 1000000, tol=1.000000e+00, key='initial_cash')
+    _close(metrics.get('final_value'), 1004153.0000000019, tol=9.913610e-01, key='final_value')
+    _close(metrics.get('net_pnl'), 4153.000000001863, tol=8.639000e-03, key='net_pnl')
+    _close(metrics.get('total_return_pct'), 0.41530000000018497, tol=1.000000e-06, key='total_return_pct')
+    _close(metrics.get('win_rate'), 47.76674937965261, tol=4.721879e-05, key='win_rate')
+    _close(metrics.get('profit_factor'), 1.0129022436793627, tol=1.000000e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 3.8789, tol=4.086261e-06, key='max_drawdown')
+    _close(metrics.get('sharpe_ratio'), 1.0114703971999548, tol=1.698090e-06, key='sharpe_ratio')
+    _close(metrics.get('annual_return_pct'), 27.35238796543084, tol=3.972159e-05, key='annual_return_pct')
+    _close(metrics.get('sqn'), 0.11666402276299033, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

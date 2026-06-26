@@ -40,9 +40,17 @@ class MT5AverageTrueRange(Indicator):
     params = (("period", 14),)
 
     def _plotlabel(self):
+        """Return the label segments used by the plot helper (just the period)."""
         return [self.p.period]
 
     def __init__(self):
+        """Wire the minimum period and cache the configured period on the instance.
+
+        The MT5 convention places the first ATR at bar index
+        ``period - 1``; the very first true range uses the high-low
+        range (no previous close), so the minimum period is just
+        ``period`` bars.
+        """
         super().__init__()
         # MT5 first ATR at bar index period-1, but TR needs prev close from bar 1,
         # and bar 0's TR uses High-Low only. Min period = period bars total.

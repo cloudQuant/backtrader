@@ -51,7 +51,7 @@ jobs:
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff 'black==26.1.0' isort mypy bandit pip-audit
+          pip install ruff 'black==26.1.0' isort 'mypy==1.16.1' bandit pip-audit
 
       - name: Run ruff
         run: ruff check backtrader/
@@ -72,16 +72,15 @@ jobs:
             exit 1
           fi
 
-      - name: Type check with mypy (threshold gate)
+      - name: Type check with mypy
         shell: bash
         run: |
-          # S4 收敛后从「非阻塞趋势」升级为「阈值阻塞」：超过基线即失败，防止回流。
-          # 当前实测 139（S4 基线 543 → 目标 <150）。留少量余量到 160 以吸收
-          # 第三方 stub 版本漂移带来的抖动；低于阈值即通过。
-          MYPY_THRESHOLD=160
+          # mypy==1.16.1 keeps the Python 3.8 target available; the current
+          # gate is fully clean and should fail on any new type error.
+          MYPY_THRESHOLD=0
           mypy backtrader --config-file=pyproject.toml | tee mypy-report.txt || true
           count="$(grep -cE 'error:' mypy-report.txt || true)"
-          echo "mypy error count: ${count} (S4 baseline 543, gate threshold ${MYPY_THRESHOLD})"
+          echo "mypy error count: ${count} (gate threshold ${MYPY_THRESHOLD})"
           if [ "${count}" -gt "${MYPY_THRESHOLD}" ]; then
             echo "::error::mypy errors (${count}) exceed threshold (${MYPY_THRESHOLD}). New type errors were introduced."
             exit 1

@@ -671,17 +671,17 @@ def test_188_0189_0244_gordago_ea() -> None:
 
     assert metrics, "no metrics derived"
 
-    assert metrics.get('win_count') == 26, f"win_count: expected=26, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 30, f"loss_count: expected=30, got={metrics.get('loss_count')!r}"
-    assert metrics.get('trade_num') == 56, f"trade_num: expected=56, got={metrics.get('trade_num')!r}"
-    assert metrics.get('total_trades') == 56, f"total_trades: expected=56, got={metrics.get('total_trades')!r}"
-    _close(metrics.get('final_value'), 1000238.2999999998, tol=1.000238e+00, key='final_value')
+    assert metrics.get('win_count') == 26, f"win_count: expected=26, got=, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 30, f"loss_count: expected=30, got=, got={metrics.get('loss_count')!r}"
+    assert metrics.get('trade_num') == 56, f"trade_num: expected=56, got=, got={metrics.get('trade_num')!r}"
+    assert metrics.get('total_trades') == 56, f"total_trades: expected=56, got=, got={metrics.get('total_trades')!r}"
+    _close(metrics.get('final_value'), 1000230.2999999997, tol=1.000238e+00, key='final_value')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('max_drawdown'), 0.01897788396594246, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('annual_return'), 1.9470363191541655, tol=1.947036e-06, key='annual_return')
-    _close(metrics.get('return_rate'), 0.00023827161106487952, tol=1.000000e-06, key='return_rate')
-    _close(metrics.get('sharpe_ratio'), 7.662777571544925, tol=7.662778e-06, key='sharpe_ratio')
-    _close(metrics.get('sqn'), 0.867015068851774, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('max_drawdown'), 0.01916759255038266, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('annual_return'), 1.8420355206774204, tol=1.947036e-06, key='annual_return')
+    _close(metrics.get('return_rate'), 0.00023027348502553785, tol=1.000000e-06, key='return_rate')
+    _close(metrics.get('sharpe_ratio'), 7.399445183981639, tol=7.662778e-06, key='sharpe_ratio')
+    _close(metrics.get('sqn'), 0.8385004196787099, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades

@@ -18,7 +18,8 @@ import time
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Deque, Dict, Iterable, List, Optional, cast
+from decimal import Decimal, InvalidOperation
+from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple, cast
 
 from ..events import TickEvent
 from ..utils.log_message import get_logger
@@ -29,6 +30,7 @@ logger = get_logger(__name__)
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
 _GATEWAY_PROVIDERS = frozenset({"gateway", "ctp_gateway", "mt5_gateway"})
+_BACKENDS = frozenset({"direct", "gateway", "forwarding"})
 _CTP_EXCHANGES = frozenset({"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"})
 _CZCE_PRODUCT_PREFIXES = frozenset(
     {
@@ -59,6 +61,7 @@ _CZCE_PRODUCT_PREFIXES = frozenset(
     }
 )
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
+_UTC = _dt.timezone.utc
 _CTP_OFFSET_FLAG = {
     "open": "0",
     "close": "1",
@@ -74,14 +77,30 @@ _CTP_DIRECTION_MAP = {value: key for key, value in _CTP_DIRECTION_FLAG.items()}
 _CTP_ORDER_STATUS_MAP = {
     "0": "completed",
     "1": "partial",
-    "2": "partial",
+    "2": "canceled",
     "3": "accepted",
-    "4": "accepted",
+    "4": "canceled",
     "5": "canceled",
     "a": "submitted",
     "b": "submitted",
     "c": "submitted",
 }
+_CTP_ORDER_SUBMIT_STATUS_MAP = {
+    "4": "rejected",
+    "5": "cancel_rejected",
+    "6": "rejected",
+}
+
+
+def _normalize_ctp_order_status(
+    order_status: Any,
+    submit_status: Any = None,
+    default: str = "submitted",
+) -> str:
+    """Normalize CTP order status, letting explicit submit rejections win."""
+    status = _CTP_ORDER_STATUS_MAP.get(_ctp_code(order_status, "a"), default)
+    submit_override = _CTP_ORDER_SUBMIT_STATUS_MAP.get(_ctp_code(submit_status, ""))
+    return submit_override or status
 
 _CTP_LOGIN_FIELDS = (
     "FrontID",
@@ -219,6 +238,13 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
     """Convert a value to float with a stable fallback."""
     if value is None:
         return default
+    if isinstance(value, dict):
+        for key in ("amount", "value", "balance", "total"):
+            if key in value and value[key] not in (None, ""):
+                return _coerce_float(value[key], default)
+        return default
+    if isinstance(value, str):
+        value = value.strip().replace(",", "")
 
     try:
         number = float(value)
@@ -229,10 +255,39 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
     return number
 
 
+def _normalise_ctp_commission_rate(value: Any, default: float = 0.0) -> float:
+    """Normalize CTP by-money commission to a decimal rate."""
+    rate = _coerce_float(value, default)
+    if rate > 0.01:
+        return rate / 10000.0
+    return max(rate, 0.0)
+
+
+def _first_float(mapping: Dict[str, Any], keys: tuple[str, ...]) -> Optional[float]:
+    """Return the first finite numeric value from a mapping."""
+    for key in keys:
+        if key not in mapping:
+            continue
+        number = _coerce_float(mapping[key], None)
+        if number is not None:
+            return number
+    return None
+
+
 def _coerce_int(value: Any, default: int = 0) -> int:
     """Convert a value to int with a stable fallback."""
     if value is None:
         return default
+
+    if isinstance(value, str):
+        text = value.strip().replace(",", "")
+        try:
+            number = Decimal(text)
+        except (InvalidOperation, ValueError):
+            return default
+        if not number.is_finite() or number != number.to_integral_value():
+            return default
+        return int(number)
 
     try:
         return int(value)
@@ -266,6 +321,74 @@ def _coerce_text(value: Any, default: str = "") -> str:
             return default
 
 
+def _ctp_code(value: Any, default: str = "") -> str:
+    """Normalize CTP enum-like fields that may arrive as numeric strings."""
+    if value is None:
+        return default
+    text = _coerce_text(value, default="")
+    if text == "":
+        return default
+    text = text.replace(",", "")
+    try:
+        number = Decimal(text)
+    except (InvalidOperation, ValueError):
+        return text
+    if not number.is_finite():
+        return default
+    if number == number.to_integral_value():
+        return str(int(number))
+    return text
+
+
+def _ctp_direction(value: Any, default: str = "buy") -> str:
+    """Normalize CTP buy/sell direction flags."""
+    code = _ctp_code(value, "")
+    direction = _CTP_DIRECTION_MAP.get(code)
+    if direction is not None:
+        return direction
+    text = code.lower().replace("-", "_")
+    if text in {"buy", "long", "b"}:
+        return "buy"
+    if text in {"sell", "short", "s"}:
+        return "sell"
+    return default
+
+
+def _ctp_offset(value: Any, default: str = "open") -> str:
+    """Normalize CTP offset flags."""
+    code = _ctp_code(value, "")
+    offset = _CTP_OFFSET_MAP.get(code) or _CTP_OFFSET_MAP.get(code[:1])
+    if offset is not None:
+        return offset
+    text = code.lower().replace("-", "_")
+    if text in _CTP_OFFSET_FLAG:
+        return text
+    return default
+
+
+def _ctp_position_direction(value: Any, default: str = "long") -> str:
+    """Normalize CTP position direction flags."""
+    code = _ctp_code(value, "")
+    text = code.lower().replace("-", "_")
+    if text in {"3", "short", "sell", "s"}:
+        return "short"
+    if text in {"2", "long", "buy", "b"}:
+        return "long"
+    return default
+
+
+def _safe_field_attr(obj: Any, attr: str, default: Any = None) -> Any:
+    """Read an attribute from a SWIG field or a pre-snapshotted dict."""
+    if isinstance(obj, dict):
+        return obj.get(attr, default)
+
+    try:
+        return getattr(obj, attr, default)
+    except Exception as e:
+        logger.debug("Failed to get attr %s from %s: %s", attr, type(obj).__name__, e)
+        return default
+
+
 def _safe_text_attr(obj: Any, *attrs: str, default: str = "") -> str:
     """Return the first non-empty text attribute from a vendor object safely."""
     with warnings.catch_warnings():
@@ -275,11 +398,7 @@ def _safe_text_attr(obj: Any, *attrs: str, default: str = "") -> str:
             category=UnicodeWarning,
         )
         for attr in attrs:
-            try:
-                value = getattr(obj, attr, None)
-            except Exception as e:
-                logger.debug("Failed to get attr %s from %s: %s", attr, type(obj).__name__, e)
-                value = None
+            value = _safe_field_attr(obj, attr)
             text = _coerce_text(value, "")
             if text:
                 return text
@@ -293,17 +412,67 @@ def _split_ctp_symbol(symbol: Any) -> tuple[str, str]:
         return "", ""
 
     if "." in text:
-        instrument, exchange = text.split(".", 1)
-        exchange = exchange.strip().upper()
-        return _normalize_ctp_instrument(instrument.strip(), exchange), exchange
+        left, right = text.split(".", 1)
+        left_text = left.strip()
+        right_text = right.strip()
+        left_exchange = left_text.upper()
+        right_exchange = right_text.upper()
+        if left_exchange in _CTP_EXCHANGES:
+            return _normalize_ctp_instrument(right_text, left_exchange), left_exchange
+        if right_exchange in _CTP_EXCHANGES:
+            return _normalize_ctp_instrument(left_text, right_exchange), right_exchange
+        return _normalize_ctp_instrument(left_text, right_exchange), right_exchange
 
     if "_" in text:
-        exchange, instrument = text.split("_", 1)
-        exchange = exchange.strip().upper()
-        if exchange in _CTP_EXCHANGES:
-            return _normalize_ctp_instrument(instrument.strip(), exchange), exchange
+        left, right = text.split("_", 1)
+        left_text = left.strip()
+        right_text = right.strip()
+        left_exchange = left_text.upper()
+        right_exchange = right_text.upper()
+        if left_exchange in _CTP_EXCHANGES:
+            return _normalize_ctp_instrument(right_text, left_exchange), left_exchange
+        if right_exchange in _CTP_EXCHANGES:
+            return _normalize_ctp_instrument(left_text, right_exchange), right_exchange
 
     return _normalize_ctp_instrument(text, ""), ""
+
+
+def _contract_metadata_aliases(symbol: Any) -> List[str]:
+    """Return symbol aliases used when matching configured contract metadata."""
+    raw = _coerce_text(symbol)
+    aliases = [raw]
+
+    if "." in raw:
+        head, tail = (part.strip() for part in raw.split(".", 1))
+        head_upper = head.upper()
+        tail_upper = tail.upper()
+        if head_upper in _CTP_EXCHANGES:
+            aliases.extend([tail, tail.upper(), tail.lower()])
+        elif tail_upper in _CTP_EXCHANGES:
+            aliases.extend([head, head.upper(), head.lower()])
+        else:
+            aliases.extend([tail, tail.upper(), tail.lower()])
+
+    if "_" in raw:
+        head, tail = (part.strip() for part in raw.split("_", 1))
+        head_upper = head.upper()
+        tail_upper = tail.upper()
+        if head_upper in _CTP_EXCHANGES:
+            aliases.extend([tail, tail.upper(), tail.lower()])
+        elif tail_upper in _CTP_EXCHANGES:
+            aliases.extend([head, head.upper(), head.lower()])
+
+    aliases.extend([raw.upper(), raw.lower()])
+    compact = "".join(ch for ch in raw if ch.isalnum())
+    aliases.extend([compact, compact.upper(), compact.lower()])
+
+    result = []
+    seen = set()
+    for alias in aliases:
+        if alias and alias not in seen:
+            result.append(alias)
+            seen.add(alias)
+    return result
 
 
 def _normalize_ctp_instrument(instrument: Any, exchange_id: Any = "") -> str:
@@ -320,6 +489,18 @@ def _normalize_ctp_instrument(instrument: Any, exchange_id: Any = "") -> str:
     if exchange == "CZCE" or (not exchange and prefix.upper() in _CZCE_PRODUCT_PREFIXES):
         return f"{prefix}{digits[-3:]}"
     return text
+
+
+def _positive_int_lot(value: Any, field_name: str) -> int:
+    if isinstance(value, bool) or value in (None, ""):
+        raise BtApiStoreError(f"CTP order {field_name} must be a positive integer lot")
+    try:
+        lot = Decimal(str(value).strip())
+    except (InvalidOperation, ValueError) as exc:
+        raise BtApiStoreError(f"CTP order {field_name} must be a positive integer lot") from exc
+    if not lot.is_finite() or lot <= 0 or lot != lot.to_integral_value():
+        raise BtApiStoreError(f"CTP order {field_name} must be a positive integer lot")
+    return int(lot)
 
 
 def _infer_tick_direction(
@@ -399,7 +580,9 @@ def _ctp_extract_fields(field: Any, attrs: Iterable[str]) -> Dict[str, Any]:
 def _normalize_bar(bar: Any) -> Dict[str, Any]:
     """Normalize historical/live bar payloads into a common dict."""
     if isinstance(bar, dict):
-        dt_value = bar.get("datetime") or bar.get("dt") or bar.get("time") or bar.get("timestamp")
+        dt_value = bar.get("timestamp")
+        if dt_value in (None, ""):
+            dt_value = bar.get("datetime") or bar.get("dt") or bar.get("time")
         return {
             "datetime": _normalize_datetime(dt_value),
             "open": _coerce_float(bar.get("open")),
@@ -424,10 +607,16 @@ def _normalize_bar(bar: Any) -> Dict[str, Any]:
     raise ValueError(f"Unsupported bar payload: {bar!r}")
 
 
+def _datetime_to_utc_naive(value: _dt.datetime) -> _dt.datetime:
+    if value.tzinfo is not None and value.utcoffset() is not None:
+        return value.astimezone(_UTC).replace(tzinfo=None)
+    return value.replace(tzinfo=None)
+
+
 def _normalize_datetime(value: Any) -> _dt.datetime:
     """Normalize timestamps to naive UTC datetimes."""
     if isinstance(value, _dt.datetime):
-        return value.replace(tzinfo=None) if value.tzinfo else value
+        return _datetime_to_utc_naive(value)
 
     if isinstance(value, _dt.date):
         return _dt.datetime.combine(value, _dt.time.min)
@@ -436,11 +625,11 @@ def _normalize_datetime(value: Any) -> _dt.datetime:
         ts = float(value)
         if ts > 10_000_000_000:
             ts /= 1000.0
-        return _dt.datetime.utcfromtimestamp(ts)
+        return _dt.datetime.fromtimestamp(ts, _UTC).replace(tzinfo=None)
 
     if isinstance(value, str):
         try:
-            return _dt.datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+            return _datetime_to_utc_naive(_dt.datetime.fromisoformat(value.replace("Z", "+00:00")))
         except ValueError as exc:
             raise ValueError(f"Unsupported datetime string: {value!r}") from exc
 
@@ -476,17 +665,26 @@ def _resolve_bt_api_client(provider: str = "btapi"):
 def _create_ctp_wrapper_class():
     """Create a wrapper class for CTP clients."""
     try:
-        import bt_api_py.ctp.client as ctp_client_module
-        from bt_api_py.ctp.client import MdClient, TraderClient
-        from bt_api_py.ctp.ctp_md_api import CThostFtdcMdSpi
-        from bt_api_py.ctp.ctp_structs_order import (
+        import bt_api_ctp.ctp.client as ctp_client_module
+        from bt_api_ctp.ctp.client import MdClient, TraderClient
+        from bt_api_ctp.ctp.ctp_md_api import CThostFtdcMdSpi
+        from bt_api_ctp.ctp.ctp_structs_order import (
             CThostFtdcInputOrderActionField,
             CThostFtdcInputOrderField,
         )
-        from bt_api_py.ctp.ctp_structs_query import CThostFtdcQryInstrumentField
-        from bt_api_py.ctp.ctp_trader_api import CThostFtdcTraderSpi
-    except ImportError as exc:
-        raise BtApiMissingDependencyError("bt_api_py CTP support is not available") from exc
+        from bt_api_ctp.ctp.ctp_trader_api import CThostFtdcTraderSpi
+    except ImportError:
+        try:
+            import bt_api_py.ctp.client as ctp_client_module
+            from bt_api_py.ctp.client import MdClient, TraderClient
+            from bt_api_py.ctp.ctp_md_api import CThostFtdcMdSpi
+            from bt_api_py.ctp.ctp_structs_order import (
+                CThostFtdcInputOrderActionField,
+                CThostFtdcInputOrderField,
+            )
+            from bt_api_py.ctp.ctp_trader_api import CThostFtdcTraderSpi
+        except ImportError as fallback_exc:
+            raise BtApiMissingDependencyError("CTP support is not available") from fallback_exc
 
     def _noop_spi_method(self, *args, **kwargs):
         return None
@@ -513,6 +711,18 @@ def _create_ctp_wrapper_class():
         """Wrapper for CTP market and trade clients."""
 
         def __init__(self, **kwargs):
+            """Initialize the CTP client wrapper.
+
+            Args:
+                **kwargs: Configuration parameters including:
+                    - md_address/md_front: Market data server address
+                    - td_address/td_front: Trading server address
+                    - broker_id: Broker identifier
+                    - investor_id/user_id: Investor identifier
+                    - password: Account password
+                    - app_id: Application identifier (default: simnow_client_test)
+                    - auth_code: Authentication code (default: 0000000000000000)
+            """
             self.md_front = kwargs.get("md_address") or kwargs.get("md_front")
             self.td_front = kwargs.get("td_address") or kwargs.get("td_front")
             self.broker_id = kwargs.get("broker_id", "")
@@ -532,6 +742,7 @@ def _create_ctp_wrapper_class():
             self._last_total_volume = {}
             self._last_tick_price = {}
             self._price_tick_cache = {}
+            self._symbol_specs = {}
             self._order_updates: collections.deque = collections.deque()
             self._pending_orders = {}
             self._pending_orders_by_sys_id = {}
@@ -576,6 +787,17 @@ def _create_ctp_wrapper_class():
             if not self.md_client.wait_ready(timeout=20):
                 raise BtApiStoreError("CTP market data login did not become ready within 20s")
             if not self.trader_client.wait_ready(timeout=20):
+                state = self.get_session_state()
+                auth_state = str(state.get("auth_state") or "").lower()
+                login_state = str(state.get("login_state") or "").lower()
+                last_auth_error = state.get("last_auth_error") or {}
+                last_login_error = state.get("last_login_error") or {}
+                if auth_state == "failed":
+                    msg = str(last_auth_error.get("error_msg") or "authentication failed")
+                    raise BtApiStoreError(f"CTP authentication failed: {msg}")
+                if login_state in {"blocked", "failed"}:
+                    msg = str(last_login_error.get("error_msg") or "login failed")
+                    raise BtApiStoreError(f"CTP trader login failed: {msg}")
                 raise BtApiStoreError("CTP trader login did not become ready within 20s")
 
             self._connected = True
@@ -597,6 +819,17 @@ def _create_ctp_wrapper_class():
         def stop(self):
             """Stop the clients (alias for disconnect)."""
             self.disconnect()
+
+        def get_session_state(self):
+            """Return CTP trader auth/login state from the underlying client."""
+            if self.trader_client and hasattr(self.trader_client, "get_session_state"):
+                return self.trader_client.get_session_state()
+            return {
+                "connected": bool(self._connected),
+                "ready": False,
+                "auth_state": "unknown",
+                "login_state": "unknown",
+            }
 
         def subscribe(self, symbols):
             """Subscribe to market data."""
@@ -645,8 +878,11 @@ def _create_ctp_wrapper_class():
             if self.trader_client and self.trader_client.is_ready:
                 account = self.trader_client.query_account(timeout=5)
                 if account is not None:
-                    available = _coerce_float(getattr(account, "Available", None))
-                    balance = _coerce_float(getattr(account, "Balance", None), available)
+                    available = _coerce_float(_safe_field_attr(account, "Available"))
+                    balance = _coerce_float(
+                        _safe_field_attr(account, "Balance"),
+                        available,
+                    )
                     self._balance_cache = {
                         "cash": available,
                         "value": balance,
@@ -669,45 +905,240 @@ def _create_ctp_wrapper_class():
                 if not instrument:
                     continue
 
-                direction_code = str(getattr(row, "PosiDirection", "") or "")
-                direction = "short" if direction_code in {"3", "Short"} else "long"
+                direction = _ctp_position_direction(_safe_field_attr(row, "PosiDirection", ""))
                 key = (instrument, direction)
+                exchange_id = _safe_text_attr(row, "ExchangeID")
+                spec_symbol = f"{exchange_id}.{instrument}" if exchange_id else instrument
+                spec = self.get_symbol_info(spec_symbol)
+                multiplier = _coerce_float(spec.get("multiplier"), 1.0)
+                if multiplier <= 0:
+                    multiplier = 1.0
 
-                volume = _coerce_float(getattr(row, "Position", None))
+                volume = _coerce_float(_safe_field_attr(row, "Position"))
                 if volume <= 0:
                     continue
 
                 cost = _coerce_float(
-                    getattr(row, "PositionCost", None),
-                    _coerce_float(getattr(row, "OpenCost", None)),
+                    _safe_field_attr(row, "PositionCost"),
+                    _coerce_float(_safe_field_attr(row, "OpenCost")),
                 )
 
                 item = aggregated.setdefault(
                     key,
                     {
                         "instrument": instrument,
+                        "symbol": instrument,
                         "direction": direction,
+                        "exchange_id": exchange_id,
                         "volume": 0.0,
                         "cost": 0.0,
+                        "open_cost": 0.0,
+                        "use_margin": 0.0,
+                        "position_profit": 0.0,
+                        "close_profit": 0.0,
+                        "commission": 0.0,
+                        "today_position": 0.0,
+                        "yd_position": 0.0,
+                        "mark_price": _coerce_float(_safe_field_attr(row, "SettlementPrice")),
+                        "spec": spec,
                     },
                 )
                 item["volume"] += volume
                 item["cost"] += cost
+                item["open_cost"] += _coerce_float(_safe_field_attr(row, "OpenCost"))
+                item["use_margin"] += _coerce_float(_safe_field_attr(row, "UseMargin"))
+                item["position_profit"] += _coerce_float(_safe_field_attr(row, "PositionProfit"))
+                item["close_profit"] += _coerce_float(_safe_field_attr(row, "CloseProfit"))
+                item["commission"] += _coerce_float(_safe_field_attr(row, "Commission"))
+                item["today_position"] += _coerce_float(_safe_field_attr(row, "TodayPosition"))
+                item["yd_position"] += _coerce_float(_safe_field_attr(row, "YdPosition"))
 
             self._positions_cache = []
             for item in aggregated.values():
                 volume = item["volume"] or 0.0
-                avg_price = (item["cost"] / volume) if volume else 0.0
+                spec = item.get("spec") or {}
+                multiplier = _coerce_float(spec.get("multiplier"), 1.0)
+                denominator = volume * multiplier if multiplier > 0 else volume
+                avg_price = (item["cost"] / denominator) if denominator else 0.0
+                current_price = self._last_tick_price.get(item["instrument"]) or item.get(
+                    "mark_price"
+                )
                 self._positions_cache.append(
                     {
                         "instrument": item["instrument"],
+                        "symbol": item["symbol"],
                         "direction": item["direction"],
+                        "exchange_id": item["exchange_id"],
                         "volume": volume,
                         "price": avg_price,
+                        "avg_price": avg_price,
+                        "current_price": current_price,
+                        "mark_price": item.get("mark_price"),
+                        "profit": item["position_profit"],
+                        "position_profit": item["position_profit"],
+                        "close_profit": item["close_profit"],
+                        "commission": item["commission"],
+                        "use_margin": item["use_margin"],
+                        "margin_value": item["use_margin"],
+                        "initial_margin": item["use_margin"],
+                        "today_position": item["today_position"],
+                        "yd_position": item["yd_position"],
+                        "position_cost": item["cost"],
+                        "open_cost": item["open_cost"],
+                        **spec,
                     }
                 )
 
             return list(self._positions_cache)
+
+        def get_symbol_info(self, symbol):
+            """Fetch and cache CTP contract specs, margin rates and commission rates."""
+            instrument, exchange_id = _split_ctp_symbol(symbol)
+            cache_keys = [key for key in (str(symbol or "").strip(), instrument) if key]
+            for key in cache_keys:
+                cached = self._symbol_specs.get(key)
+                if cached:
+                    return dict(cached)
+
+            if not self.trader_client or not self.trader_client.is_ready or not instrument:
+                return {}
+
+            instrument_info = self._safe_trader_query(
+                "query_instrument",
+                instrument,
+                exchange_id=exchange_id,
+                timeout=5,
+            )
+            margin_info = self._safe_trader_query(
+                "query_instrument_margin_rate",
+                instrument,
+                exchange_id=exchange_id,
+                timeout=5,
+            )
+            commission_info = self._safe_trader_query(
+                "query_instrument_commission_rate",
+                instrument,
+                exchange_id=exchange_id,
+                timeout=5,
+            )
+            spec = self._build_symbol_spec(
+                instrument,
+                exchange_id,
+                instrument_info,
+                margin_info,
+                commission_info,
+            )
+            if spec:
+                for key in cache_keys + [spec.get("instrument", ""), spec.get("symbol", "")]:
+                    if key:
+                        self._symbol_specs[str(key)] = dict(spec)
+            return spec
+
+        def _safe_trader_query(self, method_name, *args, **kwargs):
+            method = getattr(self.trader_client, method_name, None)
+            if not callable(method):
+                return None
+            try:
+                return method(*args, **kwargs)
+            except TypeError:
+                kwargs.pop("exchange_id", None)
+                try:
+                    return method(*args, **kwargs)
+                except Exception as exc:
+                    logger.debug("CTP %s failed: %s", method_name, exc)
+                    return None
+            except Exception as exc:
+                logger.debug("CTP %s failed: %s", method_name, exc)
+                return None
+
+        @staticmethod
+        def _build_symbol_spec(
+            instrument,
+            exchange_id,
+            instrument_info,
+            margin_info,
+            commission_info,
+        ):
+            if not any((instrument_info, margin_info, commission_info)):
+                return {}
+            symbol = (
+                _safe_text_attr(instrument_info, "InstrumentID")
+                or _safe_text_attr(margin_info, "InstrumentID")
+                or _safe_text_attr(commission_info, "InstrumentID")
+                or str(instrument or "").strip()
+            )
+            exchange = (
+                _safe_text_attr(instrument_info, "ExchangeID")
+                or _safe_text_attr(margin_info, "ExchangeID")
+                or _safe_text_attr(commission_info, "ExchangeID")
+                or str(exchange_id or "").strip()
+            )
+            multiplier = _coerce_float(_safe_field_attr(instrument_info, "VolumeMultiple"), 0.0)
+            price_tick = _coerce_float(_safe_field_attr(instrument_info, "PriceTick"), 0.0)
+            long_margin_rate = _coerce_float(
+                _safe_field_attr(margin_info, "LongMarginRatioByMoney"), 0.0
+            )
+            short_margin_rate = _coerce_float(
+                _safe_field_attr(margin_info, "ShortMarginRatioByMoney"), 0.0
+            )
+            open_fee_rate = _normalise_ctp_commission_rate(
+                _safe_field_attr(commission_info, "OpenRatioByMoney"), 0.0
+            )
+            open_fee_amount = _coerce_float(
+                _safe_field_attr(commission_info, "OpenRatioByVolume"), 0.0
+            )
+            close_fee_rate = _normalise_ctp_commission_rate(
+                _safe_field_attr(commission_info, "CloseRatioByMoney"), 0.0
+            )
+            close_fee_amount = _coerce_float(
+                _safe_field_attr(commission_info, "CloseRatioByVolume"), 0.0
+            )
+            close_today_fee_rate = _normalise_ctp_commission_rate(
+                _safe_field_attr(commission_info, "CloseTodayRatioByMoney"), 0.0
+            )
+            close_today_fee_amount = _coerce_float(
+                _safe_field_attr(commission_info, "CloseTodayRatioByVolume"), 0.0
+            )
+            margin_rate = long_margin_rate or short_margin_rate or 0.0
+            spec = {
+                "source": "ctp_direct",
+                "symbol": symbol,
+                "instrument": symbol,
+                "exchange": exchange,
+                "exchange_id": exchange,
+                "product_id": _safe_text_attr(instrument_info, "ProductID"),
+                "price_tick": price_tick,
+                "tick_size": price_tick,
+                "multiplier": multiplier,
+                "contract_multiplier": multiplier,
+                "contract_size": multiplier,
+                "volume_multiple": multiplier,
+                "margin": margin_rate,
+                "margin_rate": margin_rate,
+                "long_margin_rate": long_margin_rate,
+                "short_margin_rate": short_margin_rate,
+                "long_margin_amount": _coerce_float(
+                    _safe_field_attr(margin_info, "LongMarginRatioByVolume"), 0.0
+                ),
+                "short_margin_amount": _coerce_float(
+                    _safe_field_attr(margin_info, "ShortMarginRatioByVolume"), 0.0
+                ),
+                "open_fee_rate": open_fee_rate,
+                "open_commission_rate": open_fee_rate,
+                "commission_rate": open_fee_rate,
+                "open_fee_amount": open_fee_amount,
+                "open_commission_amount": open_fee_amount,
+                "commission_amount": open_fee_amount,
+                "close_fee_rate": close_fee_rate,
+                "close_commission_rate": close_fee_rate,
+                "close_fee_amount": close_fee_amount,
+                "close_commission_amount": close_fee_amount,
+                "close_today_fee_rate": close_today_fee_rate,
+                "close_today_commission_rate": close_today_fee_rate,
+                "close_today_fee_amount": close_today_fee_amount,
+                "close_today_commission_amount": close_today_fee_amount,
+            }
+            return {key: value for key, value in spec.items() if value not in (None, "", 0.0)}
 
         def fetch_bars(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
@@ -742,39 +1173,11 @@ def _create_ctp_wrapper_class():
             if cached is not None:
                 return cached
 
-            # Try querying CTP for the instrument's PriceTick
-            if self.trader_client and self.trader_client.is_ready:
-                try:
-                    import threading
-
-                    result_event = threading.Event()
-                    result_holder = {}
-
-                    def _on_instrument(inst_field, rsp_info, request_id, is_last):
-                        try:
-                            if inst_field is not None:
-                                iid = _safe_text_attr(inst_field, "InstrumentID")
-                                pt = getattr(inst_field, "PriceTick", 0.0)
-                                if pt > 0:
-                                    self._price_tick_cache[iid] = pt
-                                    if iid == instrument:
-                                        result_holder["price_tick"] = pt
-                        except Exception as e:
-                            logger.debug("Failed to process instrument response: %s", e)
-                        if is_last:
-                            result_event.set()
-
-                    self.trader_client._spi.OnRspQryInstrument = _on_instrument
-                    qry = CThostFtdcQryInstrumentField()
-                    qry.InstrumentID = instrument
-                    self.trader_client._req_id += 1
-                    self.trader_client._api.ReqQryInstrument(qry, self.trader_client._req_id)
-                    result_event.wait(timeout=3)
-
-                    if instrument in self._price_tick_cache:
-                        return self._price_tick_cache[instrument]
-                except Exception as e:
-                    logger.debug("Failed to query instrument info: %s", e)
+            spec = self.get_symbol_info(instrument)
+            tick = _coerce_float(spec.get("price_tick") or spec.get("tick_size"), 0.0)
+            if tick > 0:
+                self._price_tick_cache[instrument] = tick
+                return tick
 
             # Fallback: estimate from last tick price
             last_price = self._last_tick_price.get(instrument, 0)
@@ -820,9 +1223,10 @@ def _create_ctp_wrapper_class():
             order_ref = str(
                 payload.get("order_ref") or payload.get("bt_order_ref") or self._next_order_ref()
             )
-            volume = _coerce_int(payload.get("size"), 0)
-            if volume <= 0:
-                raise BtApiStoreError("CTP order volume must be positive")
+            volume = _positive_int_lot(
+                payload["size"] if "size" in payload else payload.get("volume"),
+                "volume",
+            )
 
             price = _coerce_float(payload.get("price"), 0.0)
             req_id = self._next_request_id()
@@ -954,11 +1358,170 @@ def _create_ctp_wrapper_class():
                 "exchange_id": exchange_id,
             }
 
+        def fetch_open_orders(self):
+            """Query CTP for currently open orders."""
+            if not self.feed or not hasattr(self.feed, "get_open_orders"):
+                return []
+            response = self.feed.get_open_orders()
+            if not response.get_status():
+                return []
+            orders = []
+            for row in response.get_data() or []:
+                data = self._order_row_to_dict(row)
+                if str(data.get("status") or "").strip().lower() in {
+                    "canceled",
+                    "cancelled",
+                    "completed",
+                    "rejected",
+                    "expired",
+                    "mmp_canceled",
+                    "expired_in_match",
+                }:
+                    continue
+                if _coerce_int(data.get("remaining"), 0) <= 0:
+                    continue
+                orders.append(data)
+            return orders
+
+        @staticmethod
+        def _order_row_to_dict(row):
+            """Convert a CTP order row/container into the store's open-order shape."""
+            if hasattr(row, "init_data"):
+                row = row.init_data()
+            if hasattr(row, "get_order_id"):
+                instrument = row.get_order_symbol_name() or row.get_symbol_name() or ""
+                order_ref = row.get_client_order_id()
+                order_id = row.get_order_id() or order_ref
+                size = _coerce_int(row.get_order_size(), 0)
+                filled = _coerce_int(row.get_executed_qty(), 0)
+                remaining = max(size - filled, _coerce_int(getattr(row, "volume_total", 0), 0))
+                status = str(getattr(row.get_order_status(), "value", row.get_order_status()))
+                raw_order_info = getattr(row, "order_info", None)
+                raw_ctp_status = (
+                    raw_order_info.get("OrderStatus") if isinstance(raw_order_info, dict) else None
+                )
+                raw_submit_status = (
+                    raw_order_info.get("OrderSubmitStatus")
+                    if isinstance(raw_order_info, dict)
+                    else None
+                )
+                normalized_status = {
+                    "new": "accepted",
+                    "partially_filled": "partial",
+                    "filled": "completed",
+                }.get(status, status)
+                if raw_ctp_status not in (None, "") or raw_submit_status not in (None, ""):
+                    normalized_status = _normalize_ctp_order_status(
+                        raw_ctp_status,
+                        raw_submit_status,
+                        normalized_status,
+                    )
+                return {
+                    "id": order_id,
+                    "order_id": order_id,
+                    "external_order_id": order_id,
+                    "order_ref": order_ref,
+                    "symbol": instrument,
+                    "data_name": instrument,
+                    "instrument": instrument,
+                    "exchange_id": row.get_order_exchange_id(),
+                    "front_id": getattr(row, "front_id", None),
+                    "session_id": getattr(row, "session_id", None),
+                    "side": row.get_order_side(),
+                    "offset": row.get_order_offset(),
+                    "price": row.get_order_price(),
+                    "size": size,
+                    "filled": filled,
+                    "remaining": remaining,
+                    "status": normalized_status,
+                }
+
+            details = _ctp_extract_fields(row, _CTP_ORDER_FIELDS)
+            instrument = _coerce_text(
+                details.get("InstrumentID") or details.get("ExchangeInstID") or ""
+            )
+            order_ref = str(details.get("OrderRef") or "").strip()
+            order_sys_id = str(details.get("OrderSysID") or "").strip()
+            size = _coerce_int(details.get("VolumeTotalOriginal"), 0)
+            filled = _coerce_int(details.get("VolumeTraded"), 0)
+            remaining = _coerce_int(details.get("VolumeTotal"), max(size - filled, 0))
+            return {
+                "id": order_sys_id or order_ref,
+                "order_id": order_sys_id or order_ref,
+                "external_order_id": order_sys_id or order_ref,
+                "order_ref": order_ref,
+                "symbol": instrument,
+                "data_name": instrument,
+                "instrument": instrument,
+                "exchange_id": str(details.get("ExchangeID") or "").strip(),
+                "front_id": _coerce_int(details.get("FrontID"), 0),
+                "session_id": _coerce_int(details.get("SessionID"), 0),
+                "side": _ctp_direction(details.get("Direction"), "buy"),
+                "offset": _ctp_offset(details.get("CombOffsetFlag"), "open"),
+                "price": _coerce_float(details.get("LimitPrice"), 0.0),
+                "size": size,
+                "filled": filled,
+                "remaining": remaining,
+                "status": _normalize_ctp_order_status(
+                    details.get("OrderStatus"),
+                    details.get("OrderSubmitStatus"),
+                    "submitted",
+                ),
+            }
+
         def poll_broker_update(self):
             """Poll a normalized broker-side order/trade/error update."""
+            error_update = self._poll_trader_error_event()
+            if error_update is not None:
+                return error_update
             if not self._order_updates:
                 return None
             return self._order_updates.popleft()
+
+        def _poll_trader_error_event(self):
+            """Poll richer CTP order-insert/action errors from TraderClient."""
+            getter = getattr(self.trader_client, "wait_error_event", None)
+            if not callable(getter):
+                return None
+            event = getter(timeout=0)
+            if not isinstance(event, dict):
+                return None
+
+            error_id = _coerce_int(event.get("error_id") or event.get("error_code"), 0)
+            error_msg = str(event.get("error_msg") or "")
+            if error_id == 0 and not error_msg:
+                return None
+
+            field = event.get("field")
+            details = dict(field) if isinstance(field, dict) else {}
+            details["ErrorID"] = error_id
+            details["ErrorMsg"] = error_msg
+            details.setdefault("StatusMsg", error_msg)
+            details["CtpErrorEvent"] = str(event.get("event") or "")
+
+            order_ref = str(details.get("OrderRef") or "").strip()
+            order_sys_id = str(details.get("OrderSysID") or "").strip()
+            instrument = _coerce_text(
+                details.get("InstrumentID") or details.get("ExchangeInstID") or ""
+            )
+            exchange_id = str(details.get("ExchangeID") or "").strip()
+            pending = self._pending_orders.get(order_ref) if order_ref else {}
+
+            update = {
+                "kind": "error",
+                "source": "trader",
+                "error_code": error_id,
+                "error_msg": error_msg,
+                "status_msg": error_msg,
+                "order_ref": order_ref or None,
+                "data_name": (pending or {}).get("data_name") or instrument,
+                "instrument": instrument,
+                "exchange_id": exchange_id,
+                "details": details,
+            }
+            if order_sys_id:
+                update["external_order_id"] = order_sys_id
+            return update
 
         def _handle_md_tick(self, payload):
             """Convert a raw CTP depth market data callback into queued TickEvents."""
@@ -1009,7 +1572,7 @@ def _create_ctp_wrapper_class():
                     bid_volume=_coerce_float(getattr(payload, "BidVolume1", None), 0.0) or None,
                     ask_volume=_coerce_float(getattr(payload, "AskVolume1", None), 0.0) or None,
                 )
-                event.datetime = tick_dt.replace(tzinfo=None)
+                event.datetime = _normalize_datetime(tick_dt)
                 event.instrument_id = instrument
                 event.exchange_id = exchange_id
                 event.openinterest = _coerce_float(getattr(payload, "OpenInterest", None))
@@ -1100,14 +1663,16 @@ def _create_ctp_wrapper_class():
                     details.get("SessionID"),
                     _coerce_int(pending.get("session_id"), 0),
                 ),
-                "status": _CTP_ORDER_STATUS_MAP.get(
-                    str(details.get("OrderStatus") or "a"), "submitted"
+                "status": _normalize_ctp_order_status(
+                    details.get("OrderStatus"),
+                    details.get("OrderSubmitStatus"),
+                    "submitted",
                 ),
                 "submit_status": str(details.get("OrderSubmitStatus") or ""),
                 "status_msg": str(details.get("StatusMsg") or ""),
-                "side": _CTP_DIRECTION_MAP.get(str(details.get("Direction") or "0"), "buy"),
-                "offset": _CTP_OFFSET_MAP.get(
-                    str(details.get("CombOffsetFlag") or "0")[:1],
+                "side": _ctp_direction(details.get("Direction"), "buy"),
+                "offset": _ctp_offset(
+                    details.get("CombOffsetFlag"),
                     pending.get("offset") or "open",
                 ),
                 "price": _coerce_float(
@@ -1149,9 +1714,9 @@ def _create_ctp_wrapper_class():
                 "exchange_id": str(
                     details.get("ExchangeID") or pending.get("exchange_id") or ""
                 ).strip(),
-                "side": _CTP_DIRECTION_MAP.get(str(details.get("Direction") or "0"), "buy"),
-                "offset": _CTP_OFFSET_MAP.get(
-                    str(details.get("OffsetFlag") or "0")[:1],
+                "side": _ctp_direction(details.get("Direction"), "buy"),
+                "offset": _ctp_offset(
+                    details.get("OffsetFlag"),
                     pending.get("offset") or "open",
                 ),
                 "price": _coerce_float(
@@ -1185,54 +1750,159 @@ def _create_ctp_gateway_wrapper_class():
         raise BtApiMissingDependencyError("bt_api_py gateway support is not available") from exc
 
     class CtpGatewayClientWrapper:
+        """Gateway-based wrapper for CTP trading via bt_api_py.
+
+        This wrapper provides a unified interface to the bt_api_py GatewayClient
+        for CTP (China Futures Exchange) trading operations including market
+        data subscription, order management, and account queries.
+
+        Args:
+            **kwargs: Gateway configuration parameters including exchange_type,
+                asset_type, and other gateway-specific settings.
+        """
+
         def __init__(self, **kwargs):
+            """Initialize the CTP gateway client wrapper.
+
+            Args:
+                **kwargs: Gateway configuration parameters passed to GatewayClient.
+            """
             self._kwargs = dict(kwargs)
             self._kwargs.setdefault("exchange_type", "CTP")
             self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
             self._client = GatewayClient(**self._kwargs)
 
         def connect(self):
+            """Connect to the CTP gateway."""
             self._client.connect()
 
         def start(self):
+            """Start the gateway client (alias for connect)."""
             self.connect()
 
         def disconnect(self):
+            """Disconnect from the CTP gateway."""
             self._client.disconnect()
 
         def stop(self):
+            """Stop the gateway client (alias for disconnect)."""
             self.disconnect()
 
+        def get_session_state(self):
+            """Return gateway session state when the gateway exposes it."""
+            getter = getattr(self._client, "get_session_state", None)
+            if callable(getter):
+                state = getter()
+                return dict(state or {}) if isinstance(state, dict) else {}
+            state = getattr(self._client, "session_state", None)
+            return dict(state or {}) if isinstance(state, dict) else {}
+
         def subscribe(self, symbols):
+            """Subscribe to market data for the given symbols.
+
+            Args:
+                symbols: Symbol or list of symbols to subscribe to.
+
+            Returns:
+                Subscription result from the gateway client.
+            """
             return self._client.subscribe(symbols)
 
         def poll_tick(self, symbol):
+            """Poll and return the next available tick for the symbol.
+
+            Args:
+                symbol: The trading symbol to poll tick for.
+
+            Returns:
+                Tick data or None if no tick is available.
+            """
             return self._client.poll_tick(symbol)
 
         def get_next_tick(self, symbol):
+            """Get the next tick for the symbol.
+
+            Args:
+                symbol: The trading symbol.
+
+            Returns:
+                Next tick data from the gateway client.
+            """
             return self._client.get_next_tick(symbol)
 
         def has_pending_tick(self, symbol):
+            """Check if there is a pending tick for the symbol.
+
+            Args:
+                symbol: The trading symbol.
+
+            Returns:
+                True if a tick is available, False otherwise.
+            """
             return self._client.has_pending_tick(symbol)
 
         def supports_live_ticks(self, symbol):
+            """Check if live ticks are supported for the symbol.
+
+            Args:
+                symbol: The trading symbol.
+
+            Returns:
+                True if live ticks are supported, False otherwise.
+            """
             return self._client.supports_live_ticks(symbol)
 
         def supports_live_streaming(self, _symbol=None):
+            """Check if live streaming is supported.
+
+            Args:
+                _symbol: Unused parameter.
+
+            Returns:
+                True (live streaming is always supported).
+            """
             return True
 
         def get_balance(self):
+            """Get the account balance.
+
+            Returns:
+                Account balance data from the gateway client.
+            """
             return self._client.get_balance()
 
         def get_account(self):
+            """Get the account information.
+
+            Returns:
+                Account data from the gateway client.
+            """
             return self._client.get_account()
 
         def get_positions(self):
+            """Get all open positions.
+
+            Returns:
+                List of position data from the gateway client.
+            """
             return self._client.get_positions()
 
         def fetch_bars(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
         ):
+            """Fetch historical bar data for the symbol.
+
+            Args:
+                symbol: Trading symbol to fetch bars for.
+                timeframe: Timeframe for the bars (e.g., '1m', '1h', '1d').
+                compression: Compression type for the timeframe.
+                since: Start time for the bars (ISO format string).
+                limit: Maximum number of bars to return (default: 200).
+                **kwargs: Additional keyword arguments.
+
+            Returns:
+                List of bar data from the gateway client.
+            """
             tf = self._resolve_timeframe(timeframe, compression)
             count = int(limit or 200)
             if hasattr(self._client, "fetch_bars"):
@@ -1245,6 +1915,19 @@ def _create_ctp_gateway_wrapper_class():
         def fetch_ohlcv(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
         ):
+            """Fetch OHLCV (candlestick) data for the symbol.
+
+            Args:
+                symbol: Trading symbol to fetch OHLCV for.
+                timeframe: Timeframe for the candles.
+                compression: Compression type for the timeframe.
+                since: Start time for the candles (ISO format string).
+                limit: Maximum number of candles to return.
+                **kwargs: Additional keyword arguments.
+
+            Returns:
+                List of OHLCV data from fetch_bars.
+            """
             return self.fetch_bars(
                 symbol,
                 timeframe=timeframe,
@@ -1255,34 +1938,97 @@ def _create_ctp_gateway_wrapper_class():
             )
 
         def fetch_symbol_info(self, symbol):
-            if hasattr(self._client, "fetch_symbol_info"):
-                return self._client.fetch_symbol_info(symbol)
+            """Fetch information about a trading symbol.
+
+            Args:
+                symbol: Trading symbol to get info for.
+
+            Returns:
+                Symbol information dict, or empty dict if unavailable.
+            """
+            return self.get_symbol_info(symbol)
+
+        def get_symbol_info(self, symbol):
+            """Get trading symbol metadata from either gateway API alias."""
+            for method_name in ("get_symbol_info", "fetch_symbol_info"):
+                getter = getattr(self._client, method_name, None)
+                if callable(getter):
+                    return getter(symbol) or {}
             return {}
 
         def fetch_open_orders(self):
+            """Fetch all open (unfilled) orders.
+
+            Returns:
+                List of open order data, or empty list if unavailable.
+            """
             if hasattr(self._client, "fetch_open_orders"):
                 return self._client.fetch_open_orders()
             return []
 
         def poll_bar(self, symbol):
-            return None
+            """Poll and return the next available bar for the symbol.
+
+            Args:
+                symbol: Trading symbol to poll bar for.
+
+            Returns:
+                None (bars not supported in this wrapper).
+            """
 
         def get_next_bar(self, symbol):
-            return None
+            """Get the next bar for the symbol.
+
+            Args:
+                symbol: Trading symbol.
+
+            Returns:
+                None (bars not supported in this wrapper).
+            """
 
         def submit_order(self, payload):
+            """Submit an order to the gateway.
+
+            Args:
+                payload: Order payload dict containing order parameters.
+
+            Returns:
+                Response from the gateway client.
+            """
             response = self._client.submit_order(payload)
             if "data_name" in payload and "data_name" not in response:
                 response["data_name"] = payload["data_name"]
             return response
 
         def create_order(self, **kwargs):
+            """Create and submit an order.
+
+            Args:
+                **kwargs: Order parameters.
+
+            Returns:
+                Response from submit_order.
+            """
             return self.submit_order(kwargs)
 
         def cancel_order(self, order_ref, dataname=None):
+            """Cancel an order by its reference.
+
+            Args:
+                order_ref: Order reference ID to cancel.
+                dataname: Optional data name for the order.
+
+            Returns:
+                Response from the gateway client.
+            """
             return self._client.cancel_order(order_ref, dataname=dataname)
 
         def poll_broker_update(self):
+            """Poll for broker updates.
+
+            Returns:
+                Broker update data from the gateway client.
+            """
             return self._client.poll_broker_update()
 
         @staticmethod
@@ -1356,6 +2102,20 @@ def _is_gateway_provider(provider: Any) -> bool:
     return text in _GATEWAY_PROVIDERS or text.endswith("_gateway")
 
 
+def _resolve_backend(provider: Any, backend: Any = None) -> str:
+    text = str(backend or "").strip().lower()
+    if text:
+        if text not in _BACKENDS:
+            raise ValueError(f"Unsupported BtApiStore backend {backend!r}")
+        return text
+    provider_text = str(provider or "").strip().lower()
+    if provider_text == "forwarding":
+        return "forwarding"
+    if _is_gateway_provider(provider_text):
+        return "gateway"
+    return "direct"
+
+
 class BtApiStore(LiveStoreBase):
     """Unified live store backed by bt_api_py or a supplied API object."""
 
@@ -1378,10 +2138,33 @@ class BtApiStore(LiveStoreBase):
         historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
         live_bars: Optional[Dict[str, Iterable[Any]]] = None,
         contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
+        backend: Optional[str] = None,
         autostart: bool = False,
         **kwargs: Any,
     ):
+        """Initialize the BtApiStore.
+
+        Args:
+            provider: The provider name (e.g., 'btapi', 'ctp', 'ctp_gateway').
+            api: Optional pre-configured API instance.
+            api_cls: Optional API class to instantiate.
+            config: Optional configuration dictionary.
+            api_kwargs: Optional API keyword arguments.
+            cash: Initial cash amount (default: 0.0).
+            value: Initial portfolio value (default: same as cash).
+            account_cache_ttl: Time-to-live for account cache in seconds.
+            positions_cache_ttl: Time-to-live for positions cache in seconds.
+            open_orders_cache_ttl: Time-to-live for open orders cache in seconds.
+            positions: Initial positions list.
+            historical_bars: Pre-seeded historical bars by symbol.
+            live_bars: Pre-seeded live bars by symbol.
+            contract_metadata: Contract metadata by symbol.
+            backend: Runtime backend: direct, gateway or forwarding.
+            autostart: Whether to start the store on initialization.
+            **kwargs: Additional provider-specific arguments.
+        """
         self.provider = self._resolve_provider(provider)
+        self.backend = _resolve_backend(self.provider, backend)
         self._api = api
         self._api_cls = api_cls
         self._config = dict(config or {})
@@ -1433,7 +2216,7 @@ class BtApiStore(LiveStoreBase):
         return provider
 
     def _apply_env_gateway_overrides(self) -> None:
-        if not _is_gateway_provider(self.provider):
+        if self.backend != "gateway" and not _is_gateway_provider(self.provider):
             return
         env_map = {
             "gateway_command_endpoint": "BT_GATEWAY_COMMAND_ENDPOINT",
@@ -1449,6 +2232,12 @@ class BtApiStore(LiveStoreBase):
             value = os.environ.get(env_name)
             if value and key not in self._api_kwargs:
                 self._api_kwargs[key] = value
+        if "strategy_id" not in self._api_kwargs and "gateway_strategy_id" not in self._api_kwargs:
+            strategy_id = os.environ.get("BT_GATEWAY_STRATEGY_ID") or os.environ.get(
+                "BT_TRADING_INSTANCE_ID"
+            )
+            if strategy_id:
+                self._api_kwargs["strategy_id"] = strategy_id
         raw = os.environ.get("BT_GATEWAY_START_LOCAL_RUNTIME")
         if raw is not None:
             self._api_kwargs["gateway_start_local_runtime"] = raw not in {"0", "false", "False"}
@@ -1473,6 +2262,7 @@ class BtApiStore(LiveStoreBase):
         """
         return (
             f"{type(self).__name__}(provider={self.provider!r}, "
+            f"backend={self.backend!r}, "
             f"connected={self._connected}, started={self._started}, "
             f"account={self._masked_account_id()!r})"
         )
@@ -1581,9 +2371,12 @@ class BtApiStore(LiveStoreBase):
             or str(self._api_kwargs.get("position_mode", "")).strip().lower() == "dual_side"
         )
 
-    def get_balance(self):
+    def get_balance(self, force: bool = False, raise_errors: bool = False):
         """Refresh cached cash and value from the API, if available."""
-        if self._is_cache_fresh(self._last_balance_refresh, self._account_cache_ttl):
+        if not force and self._is_cache_fresh(
+            self._last_balance_refresh,
+            self._account_cache_ttl,
+        ):
             return {"cash": self._cash, "value": self._value}
 
         api = self._ensure_api_ready()
@@ -1596,19 +2389,87 @@ class BtApiStore(LiveStoreBase):
             else:
                 return {"cash": self._cash, "value": self._value}
         except Exception:
-            if self._last_balance_refresh > 0.0:
+            if not raise_errors and self._last_balance_refresh > 0.0:
                 return {"cash": self._cash, "value": self._value}
             raise
 
         if isinstance(balance, dict):
-            self._cash = _coerce_float(
-                balance.get("cash", balance.get("available", balance.get("balance"))),
-                self._cash,
+            cash = _first_float(
+                balance,
+                (
+                    "cash",
+                    "available_cash",
+                    "available",
+                    "Available",
+                    "available_funds",
+                    "AvailableFunds",
+                    "availablefunds",
+                    "available_balance",
+                    "availableBalance",
+                    "total_available_balance",
+                    "totalAvailableBalance",
+                    "free_margin",
+                    "freeMargin",
+                    "marginFree",
+                    "margin_free",
+                    "withdraw_available",
+                    "withdrawAvailable",
+                    "available_to_withdraw",
+                    "availableToWithdraw",
+                ),
             )
-            self._value = _coerce_float(
-                balance.get("value", balance.get("equity", balance.get("total"))),
-                self._value,
+            value = _first_float(
+                balance,
+                (
+                    "value",
+                    "equity",
+                    "Equity",
+                    "total_equity",
+                    "totalEquity",
+                    "account_value",
+                    "accountValue",
+                    "net_liquidation",
+                    "NetLiquidation",
+                    "netliquidation",
+                    "NetLiquidationValue",
+                    "total_margin_balance",
+                    "totalMarginBalance",
+                    "margin_balance",
+                    "marginBalance",
+                    "total_wallet_balance",
+                    "totalWalletBalance",
+                    "wallet_balance",
+                    "walletBalance",
+                    "total",
+                ),
             )
+            margin = _first_float(
+                balance,
+                (
+                    "margin",
+                    "used_margin",
+                    "margin_used",
+                    "curr_margin",
+                    "CurrMargin",
+                    "initial_margin",
+                    "initialMargin",
+                    "total_initial_margin",
+                    "totalInitialMargin",
+                    "maintain_margin",
+                    "maintenance_margin",
+                    "maintMargin",
+                ),
+            )
+            if cash is None and value is not None and margin is not None:
+                cash = value - margin
+            if cash is None:
+                cash = _first_float(balance, ("balance", "Balance"))
+            if value is None:
+                value = _first_float(balance, ("balance", "Balance"))
+            if cash is not None:
+                self._cash = cash
+            if value is not None:
+                self._value = value
             self._last_balance_refresh = time.monotonic()
             return {"cash": self._cash, "value": self._value}
 
@@ -1624,9 +2485,16 @@ class BtApiStore(LiveStoreBase):
         self.get_balance()
         return self._value
 
-    def get_positions(self) -> List[Dict[str, Any]]:
+    def get_positions(
+        self,
+        force: bool = False,
+        raise_errors: bool = False,
+    ) -> List[Dict[str, Any]]:
         """Return cached or queried positions."""
-        if self._is_cache_fresh(self._last_positions_refresh, self._positions_cache_ttl):
+        if not force and self._is_cache_fresh(
+            self._last_positions_refresh,
+            self._positions_cache_ttl,
+        ):
             return deepcopy(self._positions_cache)
 
         api = self._ensure_api_ready()
@@ -1639,7 +2507,7 @@ class BtApiStore(LiveStoreBase):
         except AttributeError:
             positions = []
         except Exception:
-            if self._last_positions_refresh > 0.0:
+            if not raise_errors and self._last_positions_refresh > 0.0:
                 return deepcopy(self._positions_cache)
             raise
 
@@ -1732,9 +2600,16 @@ class BtApiStore(LiveStoreBase):
             self._historical_query_cache[request_key] = list(normalized)
         return deepcopy(normalized)
 
-    def fetch_open_orders(self) -> List[Dict[str, Any]]:
+    def fetch_open_orders(
+        self,
+        force: bool = False,
+        raise_errors: bool = False,
+    ) -> List[Dict[str, Any]]:
         """Fetch the provider's currently open orders, if supported."""
-        if self._is_cache_fresh(self._last_open_orders_refresh, self._open_orders_cache_ttl):
+        if not force and self._is_cache_fresh(
+            self._last_open_orders_refresh,
+            self._open_orders_cache_ttl,
+        ):
             return deepcopy(self._open_orders_cache)
 
         api = self._ensure_api_ready()
@@ -1749,7 +2624,7 @@ class BtApiStore(LiveStoreBase):
         except AttributeError:
             orders = []
         except Exception:
-            if self._last_open_orders_refresh > 0.0:
+            if not raise_errors and self._last_open_orders_refresh > 0.0:
                 return deepcopy(self._open_orders_cache)
             raise
 
@@ -1917,23 +2792,38 @@ class BtApiStore(LiveStoreBase):
             raise
 
         external_order_id = self._extract_external_order_id(response)
-        self.emit_runtime_event(
-            "order_submit_accepted",
-            order_ref=external_order_id or order_ref,
-            details=dict(payload),
-            status="accepted",
-        )
+        if self._submit_response_looks_accepted(response):
+            self.emit_runtime_event(
+                "order_submit_accepted",
+                order_ref=external_order_id or order_ref,
+                details=dict(payload),
+                status="accepted",
+            )
+        else:
+            self.emit_runtime_event(
+                "order_submit_unconfirmed",
+                level="WARNING",
+                order_ref=order_ref,
+                details=dict(payload),
+                status="unconfirmed",
+                error_code="invalid_submit_response",
+                error_msg="remote submit response did not confirm order acceptance",
+            )
         return response
 
     def cancel_order(self, order):
         """Cancel a submitted order through the unified API."""
-        api = self._ensure_api_ready()
         order_ref = (
             getattr(order.info, "external_order_id", None)
             or getattr(order.info, "ctp_order_ref", None)
             or getattr(order, "ref", None)
         )
         dataname = self._extract_dataname(order.data)
+        return self.cancel_order_ref(order_ref, dataname=dataname)
+
+    def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
+        """Cancel a provider order by reference without requiring a local Order."""
+        api = self._ensure_api_ready()
         details = {"order_ref": order_ref, "data_name": dataname}
         self.emit_runtime_event(
             "order_cancel_request",
@@ -1960,6 +2850,20 @@ class BtApiStore(LiveStoreBase):
                 status="rejected",
             )
             raise
+
+        cancel_error = self._cancel_response_error(response)
+        if cancel_error is not None:
+            error_code, error_msg = cancel_error
+            self.emit_runtime_event(
+                "order_cancel_reject_remote",
+                level="ERROR",
+                order_ref=order_ref,
+                details=details,
+                error_code=error_code,
+                error_msg=error_msg,
+                status="rejected",
+            )
+            raise BtApiStoreError(error_msg)
 
         self.emit_runtime_event(
             "order_cancel_submitted",
@@ -1996,15 +2900,12 @@ class BtApiStore(LiveStoreBase):
     ) -> Dict[str, Any]:
         """Emit a structured runtime event into the store notification queue."""
         payload = {
-            # Naive UTC ISO string (no tz suffix) preserves the prior utcnow()
-            # output format for any downstream consumers. utcnow() is deprecated 3.12+.
-            "timestamp": _dt.datetime.now(_dt.timezone.utc)
-            .replace(tzinfo=None)
-            .isoformat(timespec="milliseconds"),
+            "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="milliseconds"),
             "event_type": str(event_type),
             "level": str(level).upper(),
             "status": status,
             "provider": self.provider,
+            "backend": self.backend,
             "session_id": self.session_id,
             "account_id_masked": self._masked_account_id(),
             "order_ref": order_ref,
@@ -2015,6 +2916,138 @@ class BtApiStore(LiveStoreBase):
         payload.update(extra)
         self.put_notification("runtime_event", event=payload)
         return payload
+
+    def _is_ctp_session_provider(self) -> bool:
+        if self.backend == "forwarding":
+            return False
+        provider = str(self.provider or "").strip().lower()
+        if provider in {"ctp", "ctp_gateway"}:
+            return True
+        if self.backend != "gateway":
+            return False
+        exchange = (
+            self._api_kwargs.get("exchange_type")
+            or self._api_kwargs.get("exchange")
+            or self._config.get("exchange_type")
+            or self._config.get("exchange")
+            or "CTP"
+        )
+        return str(exchange or "").strip().upper() == "CTP"
+
+    def _ctp_auth_request_details(self) -> Dict[str, Any]:
+        broker_id = self._api_kwargs.get("broker_id") or self._config.get("broker_id") or ""
+        app_id = self._api_kwargs.get("app_id") or self._config.get("app_id") or ""
+        auth_code = self._api_kwargs.get("auth_code") or self._config.get("auth_code") or ""
+        details = {
+            "broker_id": str(broker_id or ""),
+            "app_id": str(app_id or ""),
+            "has_auth_code": bool(auth_code),
+        }
+        return {key: value for key, value in details.items() if value not in {"", None}}
+
+    def _read_ctp_session_state(self) -> Dict[str, Any]:
+        targets = [self._api]
+        for attr in ("trader_client", "_client"):
+            target = getattr(self._api, attr, None)
+            if target is not None:
+                targets.append(target)
+
+        states: List[Dict[str, Any]] = []
+        for target in targets:
+            getter = getattr(target, "get_session_state", None)
+            if not callable(getter):
+                continue
+            try:
+                state = getter()
+            except Exception as exc:
+                logger.debug("Failed to read CTP session state: %s", exc)
+                continue
+            if isinstance(state, dict):
+                states.append(dict(state))
+
+        state = getattr(self._api, "session_state", None)
+        if isinstance(state, dict):
+            states.append(dict(state))
+
+        if not states:
+            return {}
+
+        def _state_score(item: Dict[str, Any]) -> int:
+            auth_state = str(item.get("auth_state") or "").strip().lower()
+            login_state = str(item.get("login_state") or "").strip().lower()
+            score = 0
+            if auth_state == "failed" or login_state in {"blocked", "failed"}:
+                return 100
+            if item.get("ready") is True:
+                score += 20
+            if auth_state in {"authenticated", "success", "ready", "logged_in"}:
+                score += 10
+            elif auth_state and auth_state not in {"unknown", "idle"}:
+                score += 1
+            if login_state in {"logged_in", "ready"}:
+                score += 10
+            elif login_state and login_state not in {"unknown", "idle"}:
+                score += 1
+            for key in ("front_id", "session_id", "trading_day", "login_time", "system_name"):
+                if item.get(key) not in {None, ""}:
+                    score += 1
+            return score
+
+        return max(states, key=_state_score)
+
+    @staticmethod
+    def _ctp_error_from_state(state: Dict[str, Any], key: str, default_msg: str) -> Tuple[str, str]:
+        error = state.get(key) or {}
+        if not isinstance(error, dict):
+            error = {}
+        code = error.get("error_id", error.get("error_code", ""))
+        msg = error.get("error_msg", error.get("message", "")) or default_msg
+        return str(code or ""), str(msg or "")
+
+    @staticmethod
+    def _ctp_session_details(state: Dict[str, Any]) -> Dict[str, Any]:
+        keys = ("front_id", "session_id", "trading_day", "login_time", "system_name", "broker_id")
+        return {key: state.get(key) for key in keys if state.get(key) not in {None, ""}}
+
+    def _emit_ctp_session_events(self, *, emit_success: bool = True) -> None:
+        state = self._read_ctp_session_state()
+        auth_state = str(state.get("auth_state") or "").strip().lower()
+        login_state = str(state.get("login_state") or "").strip().lower()
+
+        if auth_state == "failed":
+            code, msg = self._ctp_error_from_state(
+                state, "last_auth_error", "authentication failed"
+            )
+            self.emit_runtime_event(
+                "store_auth_failed",
+                level="ERROR",
+                status="failed",
+                error_code=code,
+                error_msg=msg,
+                details=self._ctp_session_details(state),
+            )
+            raise BtApiStoreError(f"CTP authentication failed: {msg}")
+
+        if login_state in {"blocked", "failed"}:
+            code, msg = self._ctp_error_from_state(state, "last_login_error", "login failed")
+            self.emit_runtime_event(
+                "store_login_failed",
+                level="ERROR",
+                status="failed",
+                error_code=code,
+                error_msg=msg,
+                details=self._ctp_session_details(state),
+            )
+            raise BtApiStoreError(f"CTP trader login failed: {msg}")
+
+        if not emit_success:
+            return
+
+        details = self._ctp_session_details(state)
+        if auth_state in {"authenticated", "success", "ready", "logged_in"}:
+            self.emit_runtime_event("store_auth_success", status="ready", details=details)
+        if login_state in {"logged_in", "ready"} or state.get("ready") is True:
+            self.emit_runtime_event("store_login_success", status="ready", details=details)
 
     def get_notifications(self):
         """Return and clear pending notifications."""
@@ -2027,8 +3060,57 @@ class BtApiStore(LiveStoreBase):
         if dataname is None:
             return {key: dict(value) for key, value in self.contract_metadata.items()}
 
-        metadata = self.contract_metadata.get(str(dataname), {})
-        return dict(metadata)
+        aliases = _contract_metadata_aliases(dataname)
+        for alias in aliases:
+            metadata = self.contract_metadata.get(alias, {})
+            if metadata:
+                self.contract_metadata.setdefault(str(dataname), dict(metadata))
+                return dict(metadata)
+        alias_set = set(aliases)
+        for key, value in self.contract_metadata.items():
+            if value and alias_set.intersection(_contract_metadata_aliases(key)):
+                self.contract_metadata.setdefault(str(dataname), dict(value))
+                return dict(value)
+
+        try:
+            api = self._ensure_api_ready()
+        except Exception:
+            return {}
+
+        metadata = {}
+        for method_name in ("get_symbol_info", "fetch_symbol_info"):
+            getter = getattr(api, method_name, None)
+            if not callable(getter):
+                continue
+            for query_symbol in aliases or [str(dataname)]:
+                try:
+                    metadata = getter(query_symbol) or {}
+                except Exception:
+                    continue
+                if isinstance(metadata, dict) and metadata:
+                    break
+            if isinstance(metadata, dict) and metadata:
+                break
+        else:
+            return {}
+
+        if not isinstance(metadata, dict) or not metadata:
+            return {}
+
+        normalized = dict(metadata)
+        if normalized:
+            keys = set(aliases)
+            for value in (
+                normalized.get("symbol"),
+                normalized.get("instrument"),
+                normalized.get("instId"),
+                normalized.get("instrument_id"),
+            ):
+                keys.update(_contract_metadata_aliases(value))
+            for key in keys:
+                if key:
+                    self.contract_metadata[key] = dict(normalized)
+        return normalized
 
     def _seed_bar_cache(self, target, source):
         """Seed internal bar caches from initialization data."""
@@ -2070,12 +3152,25 @@ class BtApiStore(LiveStoreBase):
             return self._api
 
         if self._api is None:
-            api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
-            kwargs = dict(self._config)
-            kwargs.update(self._api_kwargs)
-            self._api = api_cls(**kwargs)
+            if self.backend == "forwarding":
+                self._api = self._create_forwarding_client()
+            else:
+                if self.backend == "gateway":
+                    api_cls = self._api_cls or _create_ctp_gateway_wrapper_class()
+                else:
+                    api_cls = self._api_cls or _resolve_bt_api_client(self.provider)
+                kwargs = dict(self._config)
+                kwargs.update(self._api_kwargs)
+                self._api = api_cls(**kwargs)
 
+        ctp_session_provider = self._is_ctp_session_provider()
         self.emit_runtime_event("store_connecting", status="connecting")
+        if ctp_session_provider:
+            self.emit_runtime_event(
+                "store_auth_request",
+                status="pending",
+                details=self._ctp_auth_request_details(),
+            )
 
         try:
             if hasattr(self._api, "connect"):
@@ -2083,6 +3178,8 @@ class BtApiStore(LiveStoreBase):
             elif hasattr(self._api, "start"):
                 self._api.start()
         except Exception as exc:
+            if ctp_session_provider:
+                self._emit_ctp_session_events(emit_success=False)
             self.emit_runtime_event(
                 "store_error",
                 level="ERROR",
@@ -2097,20 +3194,74 @@ class BtApiStore(LiveStoreBase):
             self.emit_runtime_event("store_reconnect_success", status="connected")
         self._successful_connect_count += 1
         self.emit_runtime_event("store_connected", status="connected")
+        if ctp_session_provider:
+            try:
+                self._emit_ctp_session_events()
+            except BtApiStoreError:
+                self._connected = False
+                raise
         self.emit_runtime_event("store_ready", status="ready")
-        if str(self.provider).lower() == "ctp" or _is_gateway_provider(self.provider):
-            self.emit_runtime_event("store_auth_success", status="ready")
-            self.emit_runtime_event("store_login_success", status="ready")
         self.get_balance()
         return self._api
+
+    def _create_forwarding_client(self):
+        """Create an embedded or ZMQ forwarding client from store kwargs."""
+        try:
+            from bt_api_py.forwarding import ForwardingClient, ZmqForwardingClient
+        except ImportError as exc:
+            raise BtApiMissingDependencyError(
+                "bt_api_py.forwarding is required for BtApiStore backend='forwarding'"
+            ) from exc
+
+        kwargs = dict(self._config)
+        kwargs.update(self._api_kwargs)
+        market_endpoint = kwargs.get("market_endpoint") or kwargs.get("gateway_market_endpoint")
+        command_endpoint = kwargs.get("command_endpoint") or kwargs.get("gateway_command_endpoint")
+        private_endpoint = kwargs.get("private_endpoint") or kwargs.get("gateway_event_endpoint")
+        exchange = kwargs.get("exchange") or kwargs.get("exchange_type") or "SIM"
+        market_type = kwargs.get("market_type") or kwargs.get("asset_type") or "SPOT"
+        account_id = kwargs.get("account_id") or "paper"
+        strategy_id = kwargs.get("strategy_id") or "default"
+        event_cache_size = kwargs.get("event_cache_size", 4096)
+        if market_endpoint or command_endpoint:
+            if not market_endpoint or not command_endpoint:
+                raise ValueError(
+                    "BtApiStore backend='forwarding' requires both market_endpoint "
+                    "and command_endpoint for ZeroMQ forwarding"
+                )
+            return ZmqForwardingClient(
+                market_endpoint=str(market_endpoint),
+                command_endpoint=str(command_endpoint),
+                private_endpoint=str(private_endpoint) if private_endpoint else None,
+                exchange=str(exchange),
+                market_type=str(market_type),
+                account_id=str(account_id),
+                strategy_id=str(strategy_id),
+                command_timeout_ms=int(kwargs.get("command_timeout_ms", 2000) or 2000),
+                event_cache_size=event_cache_size,
+            )
+        return ForwardingClient(
+            bus=kwargs.get("bus"),
+            exchange=str(exchange),
+            market_type=str(market_type),
+            account_id=str(account_id),
+            strategy_id=str(strategy_id),
+            replay=int(kwargs.get("replay", 0) or 0),
+            command_timeout=float(kwargs.get("command_timeout", 2.0) or 2.0),
+            event_cache_size=event_cache_size,
+        )
 
     def _order_to_payload(self, order) -> Dict[str, Any]:
         """Convert a backtrader order into a generic bt_api_py payload."""
         from ..order import OrderBase
 
-        order_type_str = order.getordername().lower()
+        order_type_str = self._order_type_to_payload(order)
         if getattr(order, "exectype", None) == OrderBase.Market or order_type_str == "market":
             price = None
+        elif order_type_str == "stop_limit":
+            price = order.pricelimit if order.pricelimit is not None else order.created.price
+            if price is not None and float(price) <= 0:
+                price = None
         else:
             price = order.price if order.price is not None else order.created.price
             if price is not None and float(price) <= 0:
@@ -2130,6 +3281,12 @@ class BtApiStore(LiveStoreBase):
 
         if order.pricelimit is not None:
             payload["pricelimit"] = order.pricelimit
+            payload["limit_price"] = order.pricelimit
+        if order_type_str in {"stop", "stop_limit"} and order.price is not None:
+            payload["stop_price"] = order.price
+            extra_data = dict(payload.get("extra_data") or {})
+            extra_data.setdefault("aux_price", order.price)
+            payload["extra_data"] = extra_data
 
         offset = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)(
             "offset"
@@ -2150,6 +3307,31 @@ class BtApiStore(LiveStoreBase):
             payload["exchange_id"] = exchange_id
 
         return payload
+
+    @staticmethod
+    def _order_type_to_payload(order) -> str:
+        """Return the canonical bt_api_py order type for a backtrader order."""
+        from ..order import OrderBase
+
+        exectype = getattr(order, "exectype", None)
+        mapping = {
+            OrderBase.Market: "market",
+            OrderBase.Close: "market",
+            OrderBase.Limit: "limit",
+            OrderBase.Stop: "stop",
+            OrderBase.StopLimit: "stop_limit",
+        }
+        if exectype in mapping:
+            return mapping[exectype]
+
+        name = str(order.getordername() or "").strip().lower()
+        name = name.replace("-", "_").replace(" ", "_")
+        aliases = {
+            "stoplimit": "stop_limit",
+            "stoptraillimit": "stop_trail_limit",
+            "stoptrail": "stop_trail",
+        }
+        return aliases.get(name, name)
 
     @staticmethod
     def _extract_dataname(data) -> str:
@@ -2179,14 +3361,233 @@ class BtApiStore(LiveStoreBase):
     @staticmethod
     def _extract_external_order_id(response: Any):
         """Best-effort extraction of an external order id from API responses."""
-        if isinstance(response, dict):
+        current = BtApiStore._unwrap_submit_response(response)
+        if isinstance(current, dict):
             return (
-                response.get("id")
-                or response.get("order_id")
-                or response.get("orderId")
-                or response.get("external_order_id")
+                current.get("id")
+                or current.get("order_id")
+                or current.get("orderId")
+                or current.get("ordId")
+                or current.get("OrderID")
+                or current.get("external_order_id")
+                or current.get("externalOrderId")
+                or current.get("venue_order_id")
+                or current.get("venueOrderId")
+                or current.get("ticket")
             )
         return None
+
+    @classmethod
+    def _submit_response_looks_accepted(cls, response: Any) -> bool:
+        """Return whether a submit response is strong enough for an accepted event."""
+        current = cls._unwrap_submit_response(response)
+        if current is None or isinstance(current, bool):
+            return False
+        if isinstance(current, str):
+            return bool(current.strip())
+        if isinstance(current, (int, float)):
+            return current != 0
+        if not isinstance(current, dict) or not current:
+            return False
+
+        status = str(current.get("status") or current.get("order_status") or "").strip().lower()
+        if status in {
+            "error",
+            "failed",
+            "fail",
+            "rejected",
+            "reject",
+            "cancelled",
+            "canceled",
+            "expired",
+        }:
+            return False
+        if status in {
+            "ok",
+            "success",
+            "submitted",
+            "accepted",
+            "completed",
+            "complete",
+            "partial",
+            "filled",
+            "open",
+            "placed",
+        }:
+            return True
+
+        retcode = current.get("retcode") or current.get("ret_code")
+        if retcode not in (None, ""):
+            try:
+                return int(retcode) in {10008, 10009, 10010}
+            except (TypeError, ValueError):
+                return False
+
+        code = current.get("code")
+        if code not in (None, "", 0, "0"):
+            return False
+
+        success_value = current.get("success")
+        if isinstance(success_value, bool):
+            return success_value
+
+        return cls._submit_response_has_identity(current)
+
+    @staticmethod
+    def _unwrap_submit_response(response: Any) -> Any:
+        current = response
+        for _ in range(5):
+            if isinstance(current, (list, tuple)):
+                if len(current) == 1 and isinstance(current[0], dict):
+                    current = current[0]
+                    continue
+                return current
+            if not isinstance(current, dict):
+                return current
+            status = str(current.get("status") or "").strip().lower()
+            code = str(current.get("code") or "").strip()
+            success = current.get("success")
+            wrapper_ok = (
+                status in {"ok", "success"}
+                or code in {"0", "00000"}
+                or success is True
+            )
+            if wrapper_ok:
+                nested = current.get("data", current.get("result"))
+                if isinstance(nested, dict):
+                    current = nested
+                    continue
+                if (
+                    isinstance(nested, (list, tuple))
+                    and len(nested) == 1
+                    and isinstance(nested[0], dict)
+                ):
+                    current = nested[0]
+                    continue
+            return current
+        return current
+
+    @staticmethod
+    def _submit_response_has_identity(response: dict[str, Any]) -> bool:
+        for key in (
+            "id",
+            "order_id",
+            "orderId",
+            "OrderID",
+            "ordId",
+            "external_order_id",
+            "externalOrderId",
+            "venue_order_id",
+            "venueOrderId",
+            "order_ref",
+            "orderRef",
+            "OrderRef",
+            "client_order_id",
+            "clientOrderId",
+            "newClientOrderId",
+            "origClientOrderId",
+            "clOrdId",
+            "origClOrdId",
+            "ticket",
+            "order",
+            "deal",
+            "deal_id",
+            "dealId",
+            "DealID",
+        ):
+            if response.get(key) not in (None, ""):
+                return True
+        return False
+
+    @classmethod
+    def _cancel_response_error(cls, response: Any) -> tuple[str, str] | None:
+        current = cls._unwrap_submit_response(response)
+        if current is None:
+            return "empty_cancel_response", "empty remote cancel response"
+        if isinstance(current, bool):
+            if current:
+                return None
+            return "invalid_cancel_response", "invalid remote cancel response"
+        if isinstance(current, str):
+            if current.strip():
+                return None
+            return "empty_cancel_response", "empty remote cancel response"
+        if isinstance(current, (int, float)):
+            if current != 0:
+                return None
+            return "invalid_cancel_response", "invalid remote cancel response"
+        if not isinstance(current, dict):
+            return "invalid_cancel_response", "invalid remote cancel response"
+        if not current:
+            return "empty_cancel_response", "empty remote cancel response"
+
+        status = str(current.get("status") or current.get("order_status") or "").strip().lower()
+        if status in {
+            "error",
+            "failed",
+            "fail",
+            "rejected",
+            "reject",
+            "denied",
+        }:
+            return "remote_cancel_rejected", cls._cancel_response_message(
+                current, f"remote cancel status: {status}"
+            )
+        if status in {
+            "ok",
+            "success",
+            "submitted",
+            "accepted",
+            "pending",
+            "pending_cancel",
+            "cancel_requested",
+            "cancel_submitted",
+            "cancelled",
+            "canceled",
+        }:
+            return None
+
+        retcode = current.get("retcode") or current.get("ret_code")
+        if retcode not in (None, ""):
+            try:
+                retcode_int = int(retcode)
+            except (TypeError, ValueError):
+                retcode_int = None
+            if retcode_int in {10008, 10009, 10010}:
+                return None
+            return "remote_cancel_rejected", cls._cancel_response_message(
+                current, f"remote cancel retcode: {retcode}"
+            )
+
+        code = current.get("code")
+        if code not in (None, "", 0, "0"):
+            return "remote_cancel_rejected", cls._cancel_response_message(
+                current, f"remote cancel code: {code}"
+            )
+
+        success_value = current.get("success")
+        if isinstance(success_value, bool):
+            if success_value:
+                return None
+            return "remote_cancel_rejected", cls._cancel_response_message(
+                current,
+                "remote cancel success flag is false",
+            )
+
+        if cls._submit_response_has_identity(current):
+            return None
+        return "invalid_cancel_response", "invalid remote cancel response"
+
+    @staticmethod
+    def _cancel_response_message(response: dict[str, Any], fallback: str) -> str:
+        return str(
+            response.get("retcode_external")
+            or response.get("comment")
+            or response.get("message")
+            or response.get("error")
+            or response.get("reason")
+            or fallback
+        )
 
     def _emit_broker_runtime_event(self, update: Dict[str, Any]):
         """Translate normalized broker updates into runtime notifications."""
@@ -2200,7 +3601,37 @@ class BtApiStore(LiveStoreBase):
             "trade_id": update.get("trade_id"),
             "exchange_id": update.get("exchange_id"),
         }
-        details.update(dict(update.get("details") or {}))
+        for key in (
+            "order_id",
+            "external_order_id",
+            "order_ref",
+            "client_order_id",
+            "bt_order_ref",
+            "filled",
+            "remaining",
+            "position_side",
+            "trade_type",
+            "liquidity",
+            "commission_role",
+            "commission",
+            "comm",
+            "fee",
+            "fees",
+            "trade_fee",
+            "trade_commission",
+            "commission_amount",
+            "fee_currency",
+            "commission_asset",
+            "trade_fee_symbol",
+            "status_msg",
+            "error_code",
+        ):
+            value = update.get(key)
+            if value not in (None, ""):
+                details[key] = value
+        for key, value in dict(update.get("details") or {}).items():
+            if key not in details or details.get(key) in (None, ""):
+                details[key] = value
 
         if kind == "order":
             status = str(update.get("status") or "submitted")
@@ -2232,11 +3663,29 @@ class BtApiStore(LiveStoreBase):
             )
             return
 
-        if kind == "error":
+        if kind == "position":
+            details.update(
+                {
+                    "position_id": update.get("position_id"),
+                    "volume": update.get("volume"),
+                    "profit": update.get("profit"),
+                    "commission": update.get("commission"),
+                }
+            )
             self.emit_runtime_event(
-                "store_error",
+                "position_update",
+                status="updated",
+                details=details,
+            )
+            return
+
+        if kind == "error":
+            event_type = "order_reject_remote" if update.get("order_ref") else "store_error"
+            self.emit_runtime_event(
+                event_type,
                 level="ERROR",
                 status="error",
+                order_ref=update.get("order_ref"),
                 error_code=str(update.get("error_code") or ""),
                 error_msg=str(update.get("error_msg") or ""),
                 details=details,

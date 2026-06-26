@@ -120,11 +120,15 @@ class TestRefreshAccountLogging:
         """Transient balance failure should emit a debug log."""
 
         class FlakyClient(FakeBtApiClient):
+            """Mock client that fails on get_balance after first call."""
+
             def __init__(self):
+                """Initialize FlakyClient."""
                 super().__init__(balance={"cash": 500.0, "value": 600.0})
                 self.fail = False
 
             def get_balance(self):
+                """Fail if self.fail is True."""
                 if self.fail:
                     raise RuntimeError("balance API down")
                 return super().get_balance()
@@ -149,11 +153,15 @@ class TestRefreshAccountLogging:
         """Transient positions failure should emit a debug log."""
 
         class FlakyClient(FakeBtApiClient):
+            """Mock client that fails on get_positions after first call."""
+
             def __init__(self):
+                """Initialize FlakyClient."""
                 super().__init__(positions=[])
                 self.fail = False
 
             def get_positions(self):
+                """Fail if self.fail is True."""
                 if self.fail:
                     raise RuntimeError("positions API down")
                 return super().get_positions()
@@ -176,11 +184,15 @@ class TestRefreshAccountLogging:
         """Transient remote open-order sync failure should emit a debug log."""
 
         class FlakyOpenOrdersClient(FakeBtApiClient):
+            """Mock client that fails on fetch_open_orders after first call."""
+
             def __init__(self):
+                """Initialize FlakyOpenOrdersClient."""
                 super().__init__(open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}])
                 self.fail = False
 
             def fetch_open_orders(self):
+                """Fail if self.fail is True."""
                 if self.fail:
                     raise RuntimeError("open-order API down")
                 return super().fetch_open_orders()
@@ -211,43 +223,51 @@ class TestExecutionDatetime:
     """Test _execution_datetime parsing edge cases."""
 
     def test_datetime_object_passthrough(self):
+        """Test that datetime objects are passed through unchanged."""
         now = _dt.datetime(2024, 6, 15, 10, 30, 0)
         result = BtApiBroker._execution_datetime({"timestamp": now})
         assert result == now
 
     def test_time_only_string(self):
+        """Test that time-only strings are parsed correctly."""
         result = BtApiBroker._execution_datetime({"timestamp": "09:30:00"})
         assert result.hour == 9
         assert result.minute == 30
         assert result.date() == _dt.date.today()
 
     def test_full_datetime_string(self):
+        """Test that full datetime strings are parsed correctly."""
         result = BtApiBroker._execution_datetime({"timestamp": "2024-06-15 14:00:00"})
         assert result == _dt.datetime(2024, 6, 15, 14, 0, 0)
 
     def test_compact_datetime_string(self):
+        """Test that compact datetime strings are parsed correctly."""
         result = BtApiBroker._execution_datetime({"timestamp": "20240615 14:00:00"})
         assert result == _dt.datetime(2024, 6, 15, 14, 0, 0)
 
     def test_none_timestamp_returns_utcnow(self):
+        """Test that None timestamp returns utcnow."""
         before = _dt.datetime.utcnow()
         result = BtApiBroker._execution_datetime({"timestamp": None})
         after = _dt.datetime.utcnow()
         assert before <= result <= after
 
     def test_empty_string_returns_utcnow(self):
+        """Test that empty string timestamp returns utcnow."""
         before = _dt.datetime.utcnow()
         result = BtApiBroker._execution_datetime({"timestamp": ""})
         after = _dt.datetime.utcnow()
         assert before <= result <= after
 
     def test_unparseable_string_returns_utcnow(self):
+        """Test that unparseable string timestamp returns utcnow."""
         before = _dt.datetime.utcnow()
         result = BtApiBroker._execution_datetime({"timestamp": "not-a-date"})
         after = _dt.datetime.utcnow()
         assert before <= result <= after
 
     def test_missing_key_returns_utcnow(self):
+        """Test that missing timestamp key returns utcnow."""
         before = _dt.datetime.utcnow()
         result = BtApiBroker._execution_datetime({})
         after = _dt.datetime.utcnow()
@@ -263,22 +283,26 @@ class TestPositionKey:
     """Test _position_key extraction from various data object shapes."""
 
     def test_data_with_name(self):
+        """Test position key extraction from data._name."""
         data = MagicMock()
         data._name = "XAUUSD"
         assert BtApiBroker._position_key(data) == "XAUUSD"
 
     def test_data_with_dataname(self):
+        """Test position key extraction from data._dataname."""
         data = MagicMock(spec=[])
         data._dataname = "rb2510.SHFE"
         assert BtApiBroker._position_key(data) == "rb2510.SHFE"
 
     def test_data_with_p_dataname(self):
+        """Test position key extraction from data.p.dataname."""
         data = MagicMock(spec=[])
         data.p = MagicMock()
         data.p.dataname = "BTC/USDT"
         assert BtApiBroker._position_key(data) == "BTC/USDT"
 
     def test_fallback_to_repr(self):
+        """Test fallback to repr when no other key is available."""
         data = MagicMock(spec=[])
         result = BtApiBroker._position_key(data)
         assert result is not None and len(result) > 0
@@ -293,12 +317,15 @@ class TestShouldRefresh:
     """Test the throttle logic."""
 
     def test_zero_interval_always_refreshes(self):
+        """Test that zero or negative interval always refreshes."""
         assert BtApiBroker._should_refresh(time.monotonic(), 0) is True
         assert BtApiBroker._should_refresh(time.monotonic(), -1) is True
 
     def test_recent_refresh_is_throttled(self):
+        """Test that recent refresh with positive interval is throttled."""
         assert BtApiBroker._should_refresh(time.monotonic(), 60.0) is False
 
     def test_old_refresh_triggers(self):
+        """Test that old refresh triggers a new refresh."""
         old = time.monotonic() - 120.0
         assert BtApiBroker._should_refresh(old, 60.0) is True

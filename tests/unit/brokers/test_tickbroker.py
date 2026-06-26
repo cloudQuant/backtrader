@@ -11,6 +11,11 @@ class DummyData:
     """Minimal data object for TickBroker order creation."""
 
     def __init__(self, name="BTC/USDT"):
+        """Initialize DummyData.
+
+        Args:
+            name: Symbol name for the data.
+        """
         self._name = name
         self.symbol = name
 
@@ -19,9 +24,23 @@ class DummyImpactModel:
     """Simple impact model used for deterministic assertions."""
 
     def __init__(self, impact):
+        """Initialize DummyImpactModel.
+
+        Args:
+            impact: Fixed impact value to return.
+        """
         self.impact = impact
 
     def calculate_impact(self, price, size):
+        """Calculate market impact.
+
+        Args:
+            price: Order price.
+            size: Order size.
+
+        Returns:
+            Fixed impact value.
+        """
         _ = (price, size)
         return self.impact
 

@@ -70,6 +70,8 @@ class TestTradeDefensiveGuards:
         trade = self._make_trade_no_data()
 
         class MockData:
+            """Mock data for testing."""
+
             _name = "test_data"
 
         trade.data = MockData()
@@ -198,6 +200,8 @@ class TestStoreNotificationSafety:
         # We can't easily instantiate Store directly due to singleton,
         # so we test the methods via a simple mock
         class TestStore:
+            """Test store for testing Store methods."""
+
             notifs = None
 
             put_notification = Store.put_notification
@@ -254,6 +258,8 @@ class TestStoreParams:
         """StoreParams should initialize params from tuple."""
 
         class MyStore(StoreParams):
+            """Test store with tuple params."""
+
             params = (("key1", "val1"), ("key2", 42))
 
         store = MyStore()
@@ -264,6 +270,8 @@ class TestStoreParams:
         """StoreParams should handle string-only params."""
 
         class MyStore(StoreParams):
+            """Test store with string-only params."""
+
             params = ("simple_param",)
 
         store = MyStore()
@@ -273,6 +281,8 @@ class TestStoreParams:
         """StoreParams should handle empty params."""
 
         class MyStore(StoreParams):
+            """Test store with empty params."""
+
             params = ()
 
         store = MyStore()
@@ -291,6 +301,8 @@ class TestSingletonMixin:
         """Singleton should return the same instance."""
 
         class MySingleton(SingletonMixin):
+            """Test singleton class."""
+
             pass
 
         a = MySingleton()
@@ -301,9 +313,13 @@ class TestSingletonMixin:
         """Different subclasses should have independent singletons."""
 
         class SingletonA(SingletonMixin):
+            """First singleton class."""
+
             pass
 
         class SingletonB(SingletonMixin):
+            """Second singleton class."""
+
             pass
 
         a = SingletonA()

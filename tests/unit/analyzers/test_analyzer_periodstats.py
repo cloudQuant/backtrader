@@ -102,6 +102,7 @@ def test_run(main=False):
 
 
 def test_periodstats_empty_returns_produce_zeroed_stats():
+    """Test PeriodStats empty returns produce zeroed stats."""
     analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
     analyzer._tr = SimpleNamespace(get_analysis=lambda: {})
     analyzer.p = SimpleNamespace(zeroispos=False)
@@ -121,6 +122,7 @@ def test_periodstats_empty_returns_produce_zeroed_stats():
 
 
 def test_periodstats_nonfinite_returns_degrade_to_zero():
+    """Test PeriodStats nonfinite returns degrade to zero."""
     analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
     analyzer._tr = SimpleNamespace(get_analysis=lambda: {"a": float("nan"), "b": float("inf")})
     analyzer.p = SimpleNamespace(zeroispos=False)
@@ -147,6 +149,7 @@ def test_periodstats_nonfinite_returns_degrade_to_zero():
     ],
 )
 def test_periodstats_invalid_nonnumeric_returns_degrade_to_zero(returns):
+    """Test PeriodStats invalid non-numeric returns degrade to zero."""
     analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
     analyzer._tr = SimpleNamespace(get_analysis=lambda: returns)
     analyzer.p = SimpleNamespace(zeroispos=False)

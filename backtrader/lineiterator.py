@@ -18,7 +18,7 @@ import sys
 
 from . import metabase
 from .dataseries import DataSeries
-from .linebuffer import LineActions, LineNum
+from .linebuffer import NAN, LineActions, LineNum
 from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
@@ -42,14 +42,16 @@ def _clock_is_replaying(clock, seen=None):
     seen.add(clock_id)
 
     try:
-        if bool(getattr(clock, "replaying", False)):
+        if bool(object.__getattribute__(clock, "replaying")):
             return True
-    except Exception:  # nosec B110
+    except AttributeError:
         # Non-clock object without a usable 'replaying' flag; treat as not replaying.
+        pass
+    except Exception:  # nosec B110
         pass
 
     try:
-        source_clock = clock._clock
+        source_clock = object.__getattribute__(clock, "_clock")
     except AttributeError:
         source_clock = None
 
@@ -58,7 +60,7 @@ def _clock_is_replaying(clock, seen=None):
             return True
 
     try:
-        datas = clock.datas
+        datas = object.__getattribute__(clock, "datas")
     except AttributeError:
         datas = ()
 
@@ -76,7 +78,7 @@ def _lineaction_source_clock(lineaction, seen=None):
 
     if seen is None:
         try:
-            return lineaction._lineaction_source_clock_cache
+            return object.__getattribute__(lineaction, "_lineaction_source_clock_cache")
         except AttributeError:
             # Cache not populated yet; resolve below (hot path: no logging).
             pass
@@ -183,9 +185,25 @@ def _lineaction_source_clock(lineaction, seen=None):
 
 def _line_like_source_clock(line_like):
     """Resolve LineActions wrapped in LineSeriesStub-like containers."""
-    source_clock = _lineaction_source_clock(line_like)
-    if source_clock is not None:
-        return source_clock
+    if line_like is None:
+        return None
+
+    if isinstance(line_like, LineActions):
+        source_clock = _lineaction_source_clock(line_like)
+        if source_clock is not None:
+            return source_clock
+    else:
+        try:
+            source_clock = object.__getattribute__(line_like, "_clock")
+        except AttributeError:
+            source_clock = None
+        if source_clock is not None and source_clock.__class__.__name__ != "MinimalClock":
+            if isinstance(source_clock, LineActions):
+                resolved_clock = _lineaction_source_clock(source_clock)
+                if resolved_clock is not None:
+                    return resolved_clock
+            else:
+                return source_clock
 
     try:
         lines = line_like.lines
@@ -200,12 +218,13 @@ def _line_like_source_clock(line_like):
         except (IndexError, TypeError, AttributeError):
             return None
 
-    source_clock = _lineaction_source_clock(first_line)
-    if source_clock is not None:
-        return source_clock
+    if isinstance(first_line, LineActions):
+        source_clock = _lineaction_source_clock(first_line)
+        if source_clock is not None:
+            return source_clock
 
     try:
-        return first_line._clock
+        return object.__getattribute__(first_line, "_clock")
     except AttributeError:
         return None
 
@@ -1749,7 +1768,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         if clock_len != len(self):
             if getattr(self, "_ltype", None) == LineIterator.IndType:
-                self.lines.forward(value=float("nan"))
+                self.lines.forward(value=NAN)
             else:
                 self.forward()
 
@@ -1844,26 +1863,32 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         Updates indicators and calls notification methods.
         """
-        # Current clock data length
-        prev_len = len(self)
+        ltype = self._ltype
+        prev_len = None
+        if ltype not in (LineIterator.StratType, LineIterator.IndType):
+            prev_len = len(self)
         clock_len = self._clk_update()
 
-        replaying = _clock_is_replaying(getattr(self, "_clock", None))
+        if prev_len is not None and clock_len == prev_len:
+            try:
+                clock = object.__getattribute__(self, "_clock")
+            except AttributeError:
+                clock = None
+            if not _clock_is_replaying(clock):
+                return
 
-        if (
-            self._ltype not in (LineIterator.StratType, LineIterator.IndType)
-            and clock_len == prev_len
-            and not replaying
-        ):
-            return
-
+        filter_lineactions = False
         try:
-            datas = self.datas
+            datas = self._lineaction_datas
         except AttributeError:
-            datas = ()
+            try:
+                datas = self.datas
+            except AttributeError:
+                datas = ()
+            filter_lineactions = True
 
         for data in datas:
-            if not isinstance(data, LineActions) or not hasattr(data, "_next"):
+            if filter_lineactions and (not isinstance(data, LineActions) or not hasattr(data, "_next")):
                 continue
 
             data_clock = _lineaction_source_clock(data) or getattr(data, "_clock", None)
@@ -1883,16 +1908,40 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 indicator._next()
 
         # Call _notify function
-        self._notify()
+        skip_notify = False
+        if ltype == LineIterator.StratType:
+            try:
+                skip_notify = (
+                    self._skip_empty_notify
+                    and not self._orderspending
+                    and not self._tradespending
+                )
+            except AttributeError:
+                skip_notify = False
+        if not skip_notify:
+            self._notify()
 
-        if self._ltype == LineIterator.StratType and hasattr(self, "_next_strategy_lineactions"):
-            self._next_strategy_lineactions()
+        if ltype == LineIterator.StratType:
+            try:
+                has_strategy_next_lineactions = self._has_strategy_next_lineactions
+            except AttributeError:
+                has_strategy_next_lineactions = hasattr(self, "_next_strategy_lineactions")
+            if has_strategy_next_lineactions:
+                self._next_strategy_lineactions()
 
         # If _ltype is Strategy type
-        if self._ltype == LineIterator.StratType:
+        if ltype == LineIterator.StratType:
             # Support data feeds with different lengths
             # Get minperstatus, if < 0 call next, if == 0 call nextstart, if > 0 call prenext
-            minperstatus = self._getminperstatus()
+            try:
+                minperstatus = self._single_minperiod - self._single_minperiod_len_line.lencount
+                object.__setattr__(self, "_minperstatus", minperstatus)
+            except AttributeError:
+                minperstatus = self._getminperstatus()
+                try:
+                    object.__setattr__(self, "_minperstatus", minperstatus)
+                except AttributeError:
+                    pass
             if minperstatus < 0:
                 self.next()
             elif minperstatus == 0:

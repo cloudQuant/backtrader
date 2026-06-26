@@ -62,6 +62,7 @@ class TestDrawdownZeroPeak:
 
     @pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0), float("nan")])
     def test_invalid_value_degrades_to_zero(self, value):
+        """Test that invalid broker values (string, complex, nan) degrade to zero drawdown."""
         analyzer = self._make_analyzer()
         analyzer.peak = 100.0
         analyzer.strategy.broker.getvalue.return_value = value
@@ -71,6 +72,8 @@ class TestDrawdownZeroPeak:
 
 
 class TestDrawDownInvalidValue:
+    """Test DrawDown analyzer with invalid notify values."""
+
     def _make_analyzer(self):
         from backtrader.analyzers.drawdown import DrawDown
 
@@ -81,6 +84,7 @@ class TestDrawDownInvalidValue:
 
     @pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0), float("nan")])
     def test_invalid_notify_value_degrades_to_zero(self, value):
+        """Test that invalid fund values (string, complex, nan) degrade to zero drawdown."""
         analyzer = self._make_analyzer()
         analyzer.notify_fund(cash=0.0, value=value, fundvalue=0.0, shares=0.0)
         analyzer.next()
@@ -139,6 +143,7 @@ class TestTimeReturnZeroStart:
 
     @pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0)])
     def test_invalid_value_degrades_to_zero(self, value):
+        """Test that invalid current value (string, complex) degrades to zero return."""
         analyzer = self._make_analyzer()
         analyzer._value = value
         analyzer._value_start = 100.0
@@ -148,6 +153,7 @@ class TestTimeReturnZeroStart:
 
     @pytest.mark.parametrize("value_start", ["bad", complex(1.0, 1.0)])
     def test_invalid_start_value_degrades_to_zero(self, value_start):
+        """Test that invalid start value (string, complex) degrades to zero return."""
         analyzer = self._make_analyzer()
         analyzer._value = 100.0
         analyzer._value_start = value_start
@@ -210,6 +216,7 @@ class TestCalmarZeroValue:
         ],
     )
     def test_invalid_ratio_inputs_degrade_to_zero(self, start_value, end_value):
+        """Test that invalid ratio inputs (string, complex) degrade calmar to zero."""
         analyzer = self._make_analyzer()
         analyzer._values.append(start_value)
         analyzer.strategy.broker.getvalue.return_value = end_value
@@ -258,6 +265,7 @@ class TestReturnsNonFiniteRatio:
         return analyzer
 
     def test_zero_end_value_produces_negative_infinity(self):
+        """Test that zero end value produces negative infinity for all return metrics."""
         analyzer = self._make_analyzer(0.0)
 
         with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
@@ -268,6 +276,7 @@ class TestReturnsNonFiniteRatio:
         assert analyzer.rets["rnorm"] == float("-inf")
 
     def test_nan_end_value_produces_negative_infinity(self):
+        """Test that nan end value produces negative infinity for all return metrics."""
         analyzer = self._make_analyzer(float("nan"))
 
         with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
@@ -287,6 +296,7 @@ class TestReturnsNonFiniteRatio:
         ],
     )
     def test_invalid_account_values_produce_negative_infinity(self, start_value, end_value):
+        """Test that invalid account values (string, complex) produce negative infinity."""
         analyzer = self._make_analyzer(end_value=end_value, start_value=start_value)
 
         with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
@@ -301,6 +311,7 @@ class TestVwrNonFiniteInputs:
     """Test VWR analyzer handling of non-finite period inputs."""
 
     def test_nan_period_value_degrades_to_zero(self):
+        """Test that nan period value degrades VWR to zero."""
         from backtrader.analyzers.vwr import VWR
 
         analyzer = VWR.__new__(VWR)
@@ -326,6 +337,7 @@ class TestVwrNonFiniteInputs:
         ],
     )
     def test_invalid_period_values_degrade_to_zero(self, start_value, end_value):
+        """Test that invalid period values (string, complex) degrade VWR to zero."""
         from backtrader.analyzers.vwr import VWR
 
         analyzer = VWR.__new__(VWR)

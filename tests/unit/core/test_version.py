@@ -10,16 +10,19 @@ from backtrader import version as ver
 
 
 def test_version_string_present():
+    """Test version string is present and non-empty."""
     assert isinstance(ver.__version__, str)
     assert ver.__version__  # non-empty
 
 
 def test_btversion_tuple_matches_string():
+    """Test btversion tuple matches version string."""
     assert isinstance(ver.__btversion__, tuple)
     assert all(isinstance(part, int) for part in ver.__btversion__)
     assert ver.__btversion__ == tuple(int(x) for x in ver.__version__.split("."))
 
 
 def test_exposed_at_top_level():
+    """Test version is exposed at top level."""
     assert bt.__version__ == ver.__version__
     assert bt.__btversion__ == ver.__btversion__

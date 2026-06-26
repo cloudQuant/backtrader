@@ -326,12 +326,16 @@ class TestLineIteratorOncePaths:
         """A parent indicator using next() must see the current child line."""
 
         class SequenceChild(bt.Indicator):
+            """Child indicator that provides sequence values."""
+
             lines = ("value",)
 
             def next(self):
+                """Set value based on data length."""
                 self.lines.value[0] = float(len(self.data))
 
             def once(self, start, end):
+                """Vectorized initialization of values."""
                 dst = self.lines.value.array
                 while len(dst) < end:
                     dst.append(0.0)
@@ -340,21 +344,29 @@ class TestLineIteratorOncePaths:
                     dst[i] = float(i + 1)
 
         class ParentIndicator(bt.Indicator):
+            """Parent indicator that references child indicator values."""
+
             lines = ("value",)
 
             def __init__(self):
+                """Initialize with child indicator."""
                 self.child = SequenceChild(self.data)
                 self.addminperiod(8)
 
             def next(self):
+                """Copy child's current value."""
                 self.lines.value[0] = self.child[0]
 
         class St(bt.Strategy):
+            """Strategy to test parent-child indicator value reading."""
+
             def __init__(self):
+                """Initialize with parent indicator."""
                 self.indicator = ParentIndicator(self.data)
                 self.values = []
 
             def next(self):
+                """Record indicator values."""
                 self.values.append(float(self.indicator[0]))
 
         def run(runonce):
@@ -375,15 +387,21 @@ class TestLineIteratorOncePaths:
         from backtrader.lineiterator import LineIterator
 
         class BoundChannel(bt.Indicator):
+            """Indicator with upper/lower bands using line assignment."""
+
             lines = ("upper", "lower")
             params = (("period", 3),)
 
             def __init__(self):
+                """Initialize with Highest/Lowest indicators."""
                 self.lines.upper = bt.indicators.Highest(self.data.high, period=self.p.period)
                 self.lines.lower = bt.indicators.Lowest(self.data.low, period=self.p.period)
 
         class St(bt.Strategy):
+            """Strategy to test line assignment to indicators."""
+
             def __init__(self):
+                """Initialize with bound channel indicator."""
                 self.channel = BoundChannel(self.data)
                 self.values = []
                 self.child_names = [
@@ -395,6 +413,7 @@ class TestLineIteratorOncePaths:
                 ]
 
             def next(self):
+                """Record lower band values."""
                 self.values.append(round(float(self.channel.lower[0]), 8))
 
         def run(runonce):
@@ -417,15 +436,21 @@ class TestLineIteratorOncePaths:
         from backtrader.lineiterator import LineIterator
 
         class ExprChannel(bt.Indicator):
+            """Indicator using line operations for mid/top calculation."""
+
             lines = ("mid", "top")
 
             def __init__(self):
+                """Initialize with lowest and spread-based channels."""
                 self.lines.mid = bt.indicators.Lowest(self.data.low, period=3)
                 spread = bt.indicators.Highest(self.data.high, period=4)
                 self.lines.top = self.lines.mid + 2.0 * spread
 
         class St(bt.Strategy):
+            """Strategy to test expression-based indicator lines."""
+
             def __init__(self):
+                """Initialize with expression channel indicator."""
                 self.channel = ExprChannel(self.data)
                 self.values = []
                 self.child_names = [
@@ -441,6 +466,7 @@ class TestLineIteratorOncePaths:
                 )
 
             def next(self):
+                """Record top band values."""
                 self.values.append(round(float(self.channel.top[0]), 8))
 
         def run(runonce):
@@ -482,20 +508,27 @@ class TestLineIteratorOncePaths:
         slow_bars = make_bars([10.0, 11.0, 13.0, 12.0, 15.0, 20.0], 240)
 
         class SlowSignal(bt.Indicator):
+            """Indicator that generates signal based on delta comparison."""
+
             lines = ("signal",)
 
             def __init__(self):
+                """Initialize with SMA and delta calculation."""
                 self.sma = bt.indicators.SMA(self.data.close, period=2)
                 self.delta = self.data.close - self.sma
                 self.addminperiod(3)
 
             def next(self):
+                """Generate signal based on delta direction."""
                 self.lines.signal[0] = float("nan")
                 if float(self.delta[0]) > float(self.delta[-1]):
                     self.lines.signal[0] = float(self.delta[0])
 
         class St(bt.Strategy):
+            """Strategy to test multi-data indicator clock behavior."""
+
             def __init__(self):
+                """Initialize with slow signal on data1."""
                 self.signal = SlowSignal(self.data1)
                 self.last_slow_len = 0
                 self.events = []
@@ -508,6 +541,7 @@ class TestLineIteratorOncePaths:
                 ]
 
             def next(self):
+                """Record events when slow data advances."""
                 if len(self.data1) == self.last_slow_len:
                     return
                 self.last_slow_len = len(self.data1)
@@ -516,6 +550,7 @@ class TestLineIteratorOncePaths:
                     self.events.append((len(self.data0), len(self.data1), round(value, 8)))
 
             def stop(self):
+                """Record final state for verification."""
                 self.signal_len = len(self.signal)
                 self.data1_len = len(self.data1)
                 self.signal_uses_data1_clock = self.signal._clock is self.data1

@@ -33,7 +33,8 @@ class FunctionInfo:
 class DocstringEnhancer:
     """Tool for enhancing docstrings and type hints."""
     
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the docstring enhancer."""
         self.functions: List[FunctionInfo] = []
     
     def scan_file(self, file_path: Path) -> None:

@@ -22,84 +22,120 @@ Example:
     ...         self.rsi = bt.indicators.RSI(self.data.close, period=14)
 """
 
+import os as _os
+
 from ..indicator import Indicator as Indicator
 from ..functions import *
 
-# The modules below should/must define __all__ with the Indicator objects
-# of prepend an "_" (underscore) to private classes/variables
-from .basicops import *
+if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}:
+    from .mabase import MovAv as MovAv
+    from .mabase import MovingAverage as MovingAverage
+    from .mabase import MovingAverageBase as MovingAverageBase
+    from .basicops import Highest as Highest
+    from .basicops import Lowest as Lowest
+    from .sma import SMA as SMA
+    from .sma import MovingAverageSimple as MovingAverageSimple
+    from .smma import SmoothedMovingAverage as SmoothedMovingAverage
+    from .ema import EMA as EMA
+    from .ema import ExponentialMovingAverage as ExponentialMovingAverage
+    from .deviation import StandardDeviation as StandardDeviation
+    from .deviation import StdDev as StdDev
+    from .atr import ATR as ATR
+    from .atr import AverageTrueRange as AverageTrueRange
+    from .bollinger import BollingerBands as BollingerBands
+    from .crossover import CrossOver as CrossOver
+    from .directionalmove import AverageDirectionalMovementIndex as AverageDirectionalMovementIndex
+    from .directionalmove import MinusDirectionalIndicator as MinusDirectionalIndicator
+    from .directionalmove import PlusDirectionalIndicator as PlusDirectionalIndicator
+    from .rsi import RSI as RSI
+    from .rsi import RelativeStrengthIndex as RelativeStrengthIndex
 
-# base for moving averages
-from .mabase import *
+    SimpleMovingAverage = MovingAverageSimple
+    SMMA = SmoothedMovingAverage
+    ADX = AverageDirectionalMovementIndex
+    MinusDI = MinusDirectionalIndicator
+    PlusDI = PlusDirectionalIndicator
+else:
+    # The modules below should/must define __all__ with the Indicator objects
+    # of prepend an "_" (underscore) to private classes/variables
+    from .basicops import *
 
-# moving averages (so envelope and oscillators can be auto-generated)
-from .sma import *
-from .ema import *
-from .smma import *
-from .wma import *
-from .dema import *
-from .kama import *
-from .zlema import *
-from .hma import *
-from .zlind import *
-from .dma import *
+    # base for moving averages
+    from .mabase import *
 
-# depends on moving averages
-from .deviation import *
+    # moving averages (so envelope and oscillators can be auto-generated)
+    from .sma import *
+    from .ema import *
+    from .smma import *
+    from .wma import *
+    from .dema import *
+    from .kama import *
+    from .zlema import *
+    from .hma import *
+    from .zlind import *
+    from .dma import *
 
-# depend on basicops, moving averages and deviations
-from .atr import *
-from .mt5atr import *
-from .aroon import *
-from .bollinger import *
-from .cci import *
-from .crossover import *
-from .dpo import *
-from .directionalmove import *
-from .envelope import *
-from .heikinashi import *
-from .lrsi import *
-from .macd import *
-from .momentum import *
-from .oscillator import *
-from .percentchange import *
-from .percentrank import *
-from .pivotpoint import *
-from .prettygoodoscillator import *
-from .priceoscillator import *
-from .psar import *
-from .rsi import *
-from .stochastic import *
-from .trix import *
-from .tsi import *
-from .ultimateoscillator import *
-from .williams import *
-from .rmi import *
-from .awesomeoscillator import *
-from .accdecoscillator import *
-from .priceops_ext import *
-from .moneyflow import *
-from .demarker import *
-from .channels_ext import *
-from .trend_ext import *
-from .supertrend import *
+    # depends on moving averages
+    from .deviation import *
+
+    # depend on basicops, moving averages and deviations
+    from .atr import *
+    from .mt5atr import *
+    from .aroon import *
+    from .bollinger import *
+    from .cci import *
+    from .crossover import *
+    from .dpo import *
+    from .directionalmove import *
+    from .envelope import *
+    from .heikinashi import *
+    from .lrsi import *
+    from .macd import *
+    from .momentum import *
+    from .oscillator import *
+    from .percentchange import *
+    from .percentrank import *
+    from .pivotpoint import *
+    from .prettygoodoscillator import *
+    from .priceoscillator import *
+    from .psar import *
+    from .rsi import *
+    from .stochastic import *
+    from .trix import *
+    from .tsi import *
+    from .ultimateoscillator import *
+    from .williams import *
+    from .rmi import *
+    from .awesomeoscillator import *
+    from .accdecoscillator import *
+    from .priceops_ext import *
+    from .moneyflow import *
+    from .demarker import *
+    from .channels_ext import *
+    from .trend_ext import *
+    from .supertrend import *
 
 
-from .dv2 import *  # depends on percentrank
+    from .dv2 import *  # depends on percentrank
 
-# Depends on Momentum
-from .kst import *
+    # Depends on Momentum
+    from .kst import *
 
-from .ichimoku import *
+    from .ichimoku import *
 
-from .hurst import *
-from .ols import *
-from .hadelta import *
-from .vortex import *
+    from .hurst import *
+    from .ols import *
+    from .hadelta import *
+    from .vortex import *
 
-# Add some custom indicators
-from .myind import *
-from .contrib import *
+    # Add some custom indicators
+    from .myind import *
+    from .contrib import *
 
 # # At the end of the file, after all imports
 # from .mabase import _register_common_moving_averages

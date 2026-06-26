@@ -1,3 +1,5 @@
+"""Exchange model unit tests."""
+
 import pytest
 
 from backtrader.brokers.hft.exchange import FillRole, QueueExchangeModel, SimpleExchangeModel
@@ -7,12 +9,30 @@ from backtrader.order import Order
 
 
 class DummyExecuted:
+    """Dummy executed object for testing."""
+
     def __init__(self, remsize):
+        """Initialize with remaining size.
+
+        Args:
+            remsize: Remaining size.
+        """
         self.remsize = remsize
 
 
 class DummyOrder:
+    """Dummy order object for testing."""
+
     def __init__(self, size, price, exectype, buy=True, tif="GTC"):
+        """Initialize the dummy order.
+
+        Args:
+            size: Order size.
+            price: Order price.
+            exectype: Execution type.
+            buy: Whether it's a buy order.
+            tif: Time in force.
+        """
         self.size = size
         self.price = price
         self.exectype = exectype
@@ -23,10 +43,12 @@ class DummyOrder:
         self._queue_ahead = 0.0
 
     def isbuy(self):
+        """Return True if buy order."""
         return self._buy
 
 
 def test_simple_exchange_model_matches_market_as_taker():
+    """Test SimpleExchangeModel matches market as taker."""
     model = SimpleExchangeModel()
     order = DummyOrder(size=2.0, price=0.0, exectype=Order.Market, buy=True)
     snapshot = OrderBookSnapshot(
@@ -43,6 +65,7 @@ def test_simple_exchange_model_matches_market_as_taker():
 
 
 def test_queue_exchange_model_puts_non_crossing_limit_into_queue():
+    """Test QueueExchangeModel puts non-crossing limit order into queue."""
     model = QueueExchangeModel(queue_model=ProbQueueModel())
     order = DummyOrder(size=2.0, price=100.0, exectype=Order.Limit, buy=True)
     snapshot = OrderBookSnapshot(
@@ -60,6 +83,7 @@ def test_queue_exchange_model_puts_non_crossing_limit_into_queue():
 
 
 def test_queue_exchange_model_rejects_gtx_when_crossing():
+    """Test QueueExchangeModel rejects GTX when crossing."""
     model = QueueExchangeModel(queue_model=NoQueueModel())
     order = DummyOrder(size=1.0, price=101.0, exectype=Order.Limit, buy=True, tif="GTX")
     snapshot = OrderBookSnapshot(
@@ -76,6 +100,7 @@ def test_queue_exchange_model_rejects_gtx_when_crossing():
 
 
 def test_queue_exchange_model_fills_maker_after_queue_is_consumed():
+    """Test QueueExchangeModel fills maker after queue is consumed."""
     model = QueueExchangeModel(queue_model=ProbQueueModel())
     order = DummyOrder(size=2.0, price=100.0, exectype=Order.Limit, buy=True)
     order._fill_role = FillRole.MAKER

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Tests for resampling existing data feeds."""
 
 import pandas as pd
 
@@ -6,20 +7,26 @@ import backtrader as bt
 
 
 class ResampleCloneStrategy(bt.Strategy):
+    """Strategy for testing resampled data feeds."""
+
     def __init__(self):
+        """Initialize strategy counters."""
         self.minute_bars_seen = 0
         self.hour_bars_seen = 0
 
     def next(self):
+        """Process each bar."""
         self.minute_bars_seen = len(self.datas[0])
         self.hour_bars_seen = len(self.datas[1])
 
     def stop(self):
+        """Called after final bar."""
         self.minute_bars_seen = len(self.datas[0])
         self.hour_bars_seen = len(self.datas[1])
 
 
 def test_resampledata_existing_data_feed_clones_successfully():
+    """Test resampling existing data feed clones successfully."""
     bars = 180
     base = [100.0 + i * 0.1 for i in range(bars)]
     index = pd.date_range("2024-01-01 09:30", periods=bars, freq="min")

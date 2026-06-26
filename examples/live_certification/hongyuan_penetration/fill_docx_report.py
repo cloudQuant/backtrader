@@ -1,4 +1,13 @@
 #!/usr/bin/env python
+"""Fill DOCX report template with Hongyuan penetration test results.
+
+This module generates a Word document report for the Hongyuan CTP penetration
+testing certification by filling a template with test results, screenshots,
+and analysis.
+
+Example:
+    python fill_docx_report.py
+"""
 from __future__ import annotations
 
 import json
@@ -149,6 +158,14 @@ PREFERRED_LOGS_BY_CASE = {
 
 
 def load_results() -> dict[str, dict]:
+    """Load all test results from the results directory.
+
+    Returns:
+        Dictionary mapping case IDs to their result data.
+
+    Raises:
+        RuntimeError: If not exactly 33 result files are found.
+    """
     results = {}
     for child in RESULTS_ROOT.iterdir():
         result_path = child / "result.json"
@@ -161,12 +178,25 @@ def load_results() -> dict[str, dict]:
 
 
 def load_version() -> str:
+    """Extract version string from version.py.
+
+    Returns:
+        Version string or "待补充" if not found.
+    """
     version_text = VERSION_FILE.read_text(encoding="utf-8")
     match = re.search(r'__version__\s*=\s*"([^"]+)"', version_text)
     return match.group(1) if match else "待补充"
 
 
 def load_account_info() -> tuple[str, str]:
+    """Load account information from the account file.
+
+    Returns:
+        Tuple of (account_id, password).
+
+    Raises:
+        RuntimeError: If file doesn't contain enough parts.
+    """
     parts = ACCOUNT_FILE.read_text(encoding="utf-8").strip().split()
     if len(parts) < 3:
         raise RuntimeError("账户名密码.log 内容不足")
@@ -174,10 +204,20 @@ def load_account_info() -> tuple[str, str]:
 
 
 def fmt(dt: datetime) -> str:
+    """Format datetime as YYYY-MM-DD HH:MM:SS string."""
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def fmt_range(results: dict[str, dict], ids: list[str]) -> str:
+    """Format a time range for a set of test case IDs.
+
+    Args:
+        results: Dictionary of test results.
+        ids: List of case IDs to format.
+
+    Returns:
+        Formatted time range string.
+    """
     rows = [results[cid] for cid in ids]
     start = min(datetime.fromisoformat(row["started_at"]) for row in rows)
     end = max(datetime.fromisoformat(row["finished_at"]) for row in rows)
@@ -185,10 +225,27 @@ def fmt_range(results: dict[str, dict], ids: list[str]) -> str:
 
 
 def summary_line(results: dict[str, dict], ids: list[str]) -> str:
+    """Generate a summary line of case statuses.
+
+    Args:
+        results: Dictionary of test results.
+        ids: List of case IDs to include.
+
+    Returns:
+        Summary string with case IDs and statuses.
+    """
     return "；".join(f"{cid}={results[cid]['status']}" for cid in ids)
 
 
 def count_statuses(rows: list[dict]) -> dict[str, int]:
+    """Count occurrences of each status in test results.
+
+    Args:
+        rows: List of result dictionaries.
+
+    Returns:
+        Dictionary with PASS, FAIL, BLOCKED counts.
+    """
     counts = {"PASS": 0, "FAIL": 0, "BLOCKED": 0}
     for row in rows:
         counts[row["status"]] = counts.get(row["status"], 0) + 1
@@ -196,6 +253,14 @@ def count_statuses(rows: list[dict]) -> dict[str, int]:
 
 
 def overall_conclusion(results: dict[str, dict]) -> str:
+    """Generate overall conclusion text based on all test results.
+
+    Args:
+        results: Dictionary of test results.
+
+    Returns:
+        Conclusion text summarizing overall test outcome.
+    """
     rows = [results[cid] for cid in CASE_SEQUENCE]
     counts = count_statuses(rows)
     total = len(rows)
@@ -219,6 +284,16 @@ def overall_conclusion(results: dict[str, dict]) -> str:
 
 
 def build_section_judgement(table_index: int, results: dict[str, dict], ids: list[str]) -> str:
+    """Build judgement text for a test section based on results.
+
+    Args:
+        table_index: Table index for looking up judgement text.
+        results: Dictionary of test results.
+        ids: List of case IDs in this section.
+
+    Returns:
+        Judgement text based on pass/fail status.
+    """
     rows = [results[cid] for cid in ids]
     counts = count_statuses(rows)
     if counts["FAIL"] == 0 and counts["BLOCKED"] == 0:
@@ -235,6 +310,16 @@ def build_section_judgement(table_index: int, results: dict[str, dict], ids: lis
 
 
 def build_section_remark(table_index: int, results: dict[str, dict], ids: list[str]) -> str:
+    """Build remark text for a test section.
+
+    Args:
+        table_index: Table index for looking up base remark.
+        results: Dictionary of test results.
+        ids: List of case IDs in this section.
+
+    Returns:
+        Remark text including any failure reasons.
+    """
     parts = []
     base_remark = REMARKS_TEXT.get(table_index, "").strip()
     if base_remark:
@@ -254,6 +339,14 @@ def build_section_remark(table_index: int, results: dict[str, dict], ids: list[s
 
 
 def package_size_mb(path: Path) -> str:
+    """Calculate total size of a directory in megabytes.
+
+    Args:
+        path: Directory path to calculate size for.
+
+    Returns:
+        Size string formatted as MB with 2 decimal places.
+    """
     total = 0
     for child in path.rglob("*"):
         if child.is_file():
@@ -262,6 +355,14 @@ def package_size_mb(path: Path) -> str:
 
 
 def load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Load a font for image rendering.
+
+    Args:
+        size: Font size to use.
+
+    Returns:
+        FreeType font or default font if none found.
+    """
     font_candidates = [
         "/System/Library/Fonts/PingFang.ttc",
         "/System/Library/Fonts/STHeiti Medium.ttc",
@@ -278,6 +379,14 @@ def load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 
 def extract_non_empty_lines(path: Path) -> list[str]:
+    """Extract non-empty lines from a text file.
+
+    Args:
+        path: Path to the text file.
+
+    Returns:
+        List of non-empty stripped lines.
+    """
     if not path.exists():
         return []
     text = path.read_text(encoding="utf-8", errors="ignore").replace("\r\n", "\n")
@@ -285,6 +394,15 @@ def extract_non_empty_lines(path: Path) -> list[str]:
 
 
 def select_log_source(case_dir: Path, case_id: str) -> tuple[str, list[str]]:
+    """Select the best log source for a test case.
+
+    Args:
+        case_dir: Directory containing case results.
+        case_id: Case identifier.
+
+    Returns:
+        Tuple of (log_path, log_lines).
+    """
     preferences = PREFERRED_LOGS_BY_CASE.get(case_id, ["stdout.log", "logs/system.log"])
     for rel_path in preferences:
         source_path = case_dir / rel_path
@@ -305,10 +423,28 @@ def select_log_source(case_dir: Path, case_id: str) -> tuple[str, list[str]]:
 
 
 def wrap_line(line: str, width: int = 58) -> list[str]:
+    """Wrap a line of text to a specified width.
+
+    Args:
+        line: Text line to wrap.
+        width: Maximum line width.
+
+    Returns:
+        List of wrapped lines.
+    """
     return textwrap.wrap(line, width=width, break_long_words=True, break_on_hyphens=False) or [""]
 
 
 def render_log_screenshot(case_id: str, lines: list[str]) -> Path:
+    """Render log lines as a PNG screenshot image.
+
+    Args:
+        case_id: Case identifier for the screenshot filename.
+        lines: Log lines to render.
+
+    Returns:
+        Path to the generated screenshot file.
+    """
     SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
     body_font = load_font(22)
     wrapped_lines = []
@@ -341,6 +477,18 @@ def render_log_screenshot(case_id: str, lines: list[str]) -> Path:
 
 
 def insert_paragraph_after(anchor, text: str = "", style: str | None = None, align=None) -> Paragraph:
+    """Insert a new paragraph after an anchor element.
+
+    Args:
+        anchor: The anchor element to insert after.
+        text: Optional text content for the paragraph.
+        style: Optional style name for the paragraph.
+        align: Optional alignment for the paragraph.
+
+    Returns:
+        The newly created paragraph.
+    """
+    new_p = OxmlElement("w:p")
     new_p = OxmlElement("w:p")
     anchor._element.addnext(new_p)
     paragraph = Paragraph(new_p, anchor._parent)
@@ -354,6 +502,12 @@ def insert_paragraph_after(anchor, text: str = "", style: str | None = None, ali
 
 
 def add_inline_log_screenshots(doc: Document, results: dict[str, dict]) -> None:
+    """Add inline log screenshots to the document for each test case.
+
+    Args:
+        doc: The Document to add screenshots to.
+        results: Dictionary of test results.
+    """
     if SCREENSHOT_DIR.exists():
         shutil.rmtree(SCREENSHOT_DIR)
     SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
@@ -389,6 +543,11 @@ def add_inline_log_screenshots(doc: Document, results: dict[str, dict]) -> None:
 
 
 def fill_doc() -> Path:
+    """Fill the DOCX template with test results and generate the report.
+
+    Returns:
+        Path to the generated report file.
+    """
     results = load_results()
     version = load_version()
     account_id, app_id = load_account_info()

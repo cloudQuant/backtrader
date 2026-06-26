@@ -35,19 +35,29 @@ def run(report_dir):
                 assert store.is_connected, "Store did not connect"
                 print("  连接成功，准备强制退出...")
 
-                # Force logout
-                store.stop()
+                broker = store.getbroker()
+                reason = "EM03_test"
+                broker.force_logout(reason=reason)
                 time.sleep(1)
-                print("  store.stop() 已调用")
+                print("  broker.force_logout() 已调用")
 
                 # Verify disconnected
                 connected_after = getattr(store, "is_connected", False)
                 print(f"  断开后 is_connected={connected_after}")
+                events = [
+                    kwargs["event"]["event_type"]
+                    for _msg, _args, kwargs in store.get_notifications()
+                    if isinstance(kwargs.get("event"), dict)
+                ]
 
                 if not connected_after:
                     print("✓ 强制退出成功，账号已断开")
                     return timer.pass_result(
-                        details={"connected_after_logout": connected_after},
+                        details={
+                            "connected_after_logout": connected_after,
+                            "events": sorted(events),
+                            "reason": reason,
+                        },
                     )
 
                 return timer.blocked_result(

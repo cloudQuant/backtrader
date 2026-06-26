@@ -35,6 +35,14 @@ REPEATS = 3
 
 
 def time_call(fn) -> tuple[float, object]:
+    """Time a function call with garbage collection.
+
+    Args:
+        fn: Callable to time.
+
+    Returns:
+        Tuple of (elapsed_seconds, fn_result).
+    """
     gc.collect()
     t0 = time.perf_counter()
     result = fn()
@@ -43,6 +51,15 @@ def time_call(fn) -> tuple[float, object]:
 
 
 def best_of(fn, repeats=REPEATS) -> float:
+    """Return the best (minimum) timing from multiple repetitions.
+
+    Args:
+        fn: Callable to time.
+        repeats: Number of times to run the function.
+
+    Returns:
+        The minimum elapsed time in seconds.
+    """
     times = []
     for _ in range(repeats):
         t, _ = time_call(fn)
@@ -51,15 +68,36 @@ def best_of(fn, repeats=REPEATS) -> float:
 
 
 def file_size_mb(path: Path) -> float:
+    """Get the file size in megabytes.
+
+    Args:
+        path: Path to the file.
+
+    Returns:
+        File size in MB.
+    """
     return os.path.getsize(path) / 1024 / 1024
 
 
 def line_count(path: Path) -> int:
+    """Count the number of lines in a file.
+
+    Args:
+        path: Path to the file.
+
+    Returns:
+        Number of lines in the file.
+    """
     with open(path, "rb") as f:
         return sum(1 for _ in f)
 
 
 def main():
+    """Run the data loading benchmark.
+
+    Measures and prints timing for three data loading modes across
+    all configured test data files.
+    """
     print(f"{'File':40s}  {'Size(MB)':>9s}  {'Lines':>10s}  "
           f"{'read_csv(s)':>11s}  {'with_dt(s)':>11s}  "
           f"{'mb/s':>8s}  {'#strat':>6s}")

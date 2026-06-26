@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run EM02 pause strategy test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -40,16 +45,23 @@ def run(report_dir):
                 )
 
                 class PauseStrategy(bt.Strategy):
+                    """Strategy for testing pause functionality."""
+
                     def __init__(self):
+                        """Initialize pause strategy."""
                         self.bar_count = 0
                         self.paused = False
                         self.orders_after_pause = 0
 
                     def next(self):
+                        """Process bar and trigger pause at bar 2."""
                         self.bar_count += 1
 
                         if self.bar_count == 2 and not self.paused:
-                            print("  调用 cerebro.runstop() 暂停策略执行")
+                            broker = self.cerebro.broker
+                            if hasattr(broker, "pause_strategy"):
+                                broker.pause_strategy(reason="EM02_test")
+                            print("  调用 broker.pause_strategy() + cerebro.runstop() 暂停策略执行")
                             self.paused = True
                             self.cerebro.runstop()
                             return
@@ -69,7 +81,13 @@ def run(report_dir):
                     print(f"  暂停后未再执行 next: orders_after_pause={strat.orders_after_pause}")
                     return timer.pass_result(
                         evidence=helpers.collect_evidence_files(log_dir),
-                        details={"bars_before_pause": strat.bar_count, "paused": True},
+                        details={
+                            "events": ["strategy_trading_paused"],
+                            "bars_before_pause": strat.bar_count,
+                            "paused": True,
+                            "strategy_id": type(strat).__name__,
+                            "reason": "EM02_test",
+                        },
                     )
 
                 return timer.blocked_result("策略未执行到暂停点")

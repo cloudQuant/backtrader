@@ -6,7 +6,9 @@ Provides integration between Backtrader and Bokeh
 """
 
 from collections import OrderedDict
+from typing import Any
 
+from backtrader.parameters import make_legacy_parameter_accessor
 from backtrader.utils.log_message import get_logger
 
 logger = get_logger(__name__)
@@ -19,7 +21,7 @@ except ImportError:
     PANDAS_AVAILABLE = False
 
 BOKEH_AVAILABLE = False
-Panel = None
+Panel: Any = None
 
 try:
     from bokeh.layouts import gridplot
@@ -30,12 +32,13 @@ try:
 
     # Handle different Bokeh versions for Panel
     try:
-        from bokeh.models import TabPanel as Panel
+        from bokeh.models import TabPanel as _Panel
     except ImportError:
         try:
-            from bokeh.models.widgets import Panel
+            from bokeh.models.widgets import Panel as _Panel
         except ImportError:
-            from bokeh.models import Panel
+            from bokeh.models import Panel as _Panel
+    Panel = _Panel
 except ImportError:
     # Bokeh is an optional dependency; BOKEH_AVAILABLE stays False when missing.
     pass
@@ -171,9 +174,11 @@ class BacktraderBokeh:
                 - filter: Data filter configuration
         """
         # Process parameters
-        self.p = type("Params", (), {})()
-        for name, default in self.params:
-            setattr(self.p, name, kwargs.get(name, default))
+        self.p = make_legacy_parameter_accessor(
+            self.params,
+            values={name: kwargs[name] for name, _default in self.params if name in kwargs},
+            name=f"{self.__class__.__name__}Params",
+        )
 
         # Set theme
         self.scheme = self.p.scheme

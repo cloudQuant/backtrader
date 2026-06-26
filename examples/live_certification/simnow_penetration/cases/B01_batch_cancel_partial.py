@@ -41,18 +41,33 @@ def run(report_dir):
                 )
 
                 class BatchCancelPartialStrategy(bt.Strategy):
+                    """Strategy for testing batch cancel of partial orders."""
+
                     def __init__(self):
+                        """Initialize batch cancel strategy."""
                         self.bar_count = 0
                         self.orders = []
                         self.cancels_issued = False
                         self.store_events = []
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Handle store notifications.
+
+                        Args:
+                            msg: Store message.
+                            *args: Additional positional arguments.
+                            **kwargs: Additional keyword arguments.
+                        """
                         event = kwargs.get("event")
                         if isinstance(event, dict):
                             self.store_events.append(event)
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
                         if self.cancels_issued:
                             active = [o for o in self.orders if o.alive()]
@@ -60,6 +75,7 @@ def run(report_dir):
                                 self.cerebro.runstop()
 
                     def next(self):
+                        """Process each bar and submit/cancel orders."""
                         self.bar_count += 1
                         if self.cancels_issued:
                             return
@@ -78,9 +94,7 @@ def run(report_dir):
                         elif not self.cancels_issued:
                             # Batch cancel all pending orders
                             print(f"  批量撤单 {len(self.orders)} 笔")
-                            for o in self.orders:
-                                if o.alive():
-                                    self.cancel(o)
+                            self.broker.batch_cancel([o for o in self.orders if o.alive()])
                             self.cancels_issued = True
 
                 cerebro.addstrategy(BatchCancelPartialStrategy)

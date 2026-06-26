@@ -16,7 +16,7 @@ Usage:
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import backtrader as bt
 from backtrader.channels.tick import TickChannel
@@ -30,22 +30,17 @@ class MixedStrategy(bt.Strategy):
     Uses ticks for precise entry, bars for trend confirmation.
     """
 
-    params = (
-        ('symbol', 'BTC/USDT'),
-    )
+    params = (("symbol", "BTC/USDT"),)
 
     def __init__(self):
         """Initialize the strategy with tracking variables.
 
-        Sets up lists to track tick prices and bar closes, position state,
-        and creates a mock data object for order placement.
+        Sets up lists to track tick prices and bar closes, plus position state.
         """
         self.tick_prices = []
         self.bar_closes = []
         self.pos = 0
         self.trades = 0
-        self._data_obj = type('Data', (), {
-            '_name': self.p.symbol, 'symbol': self.p.symbol})()
 
     def notify_tick(self, tick):
         """Process incoming tick events for the configured symbol.
@@ -83,14 +78,15 @@ class MixedStrategy(bt.Strategy):
 
         bar_avg = sum(self.bar_closes) / len(self.bar_closes)
         tick_avg = sum(self.tick_prices[-50:]) / 50
+        data = self.get_hft_data(self.p.symbol)
 
         # Trend from bars, entry from tick deviation
         if tick_avg < bar_avg * 0.998 and self.pos <= 0:
-            self.buy(data=self._data_obj, size=0.1, exectype=0)
+            self.buy(data=data, size=0.1, exectype=0)
             self.pos += 1
             self.trades += 1
         elif tick_avg > bar_avg * 1.002 and self.pos >= 1:
-            self.sell(data=self._data_obj, size=0.1, exectype=0)
+            self.sell(data=data, size=0.1, exectype=0)
             self.pos -= 1
             self.trades += 1
 
@@ -109,9 +105,8 @@ def main():
     StreamingEventQueue, and runs a backtest with MixBroker.
     Demonstrates hybrid tick+bar matching with bar fallback timeout.
     """
-    symbol = 'BTC/USDT'
-    tick_file = os.path.join('tests', 'datas', 'tick_data',
-                             f'tick_{symbol.replace("/", "_")}.csv')
+    symbol = "BTC/USDT"
+    tick_file = os.path.join("tests", "datas", "tick_data", f'tick_{symbol.replace("/", "_")}.csv')
 
     if not os.path.exists(tick_file):
         print(f"Data file not found: {tick_file}")
@@ -128,7 +123,7 @@ def main():
     cerebro.addstrategy(MixedStrategy, symbol=symbol)
 
     # 3. Run
-    print(f"Running mixed-mode backtest...")
+    print("Running mixed-mode backtest...")
     print(f"Initial cash: {cerebro.broker.getcash():.2f}")
 
     results = cerebro.run(channel=queue)
@@ -137,7 +132,7 @@ def main():
     strat = results[0]
     broker = cerebro.broker
     print(f"\n{'='*50}")
-    print(f"Mixed Mode Backtest Results")
+    print("Mixed Mode Backtest Results")
     print(f"{'='*50}")
     print(f"Events processed: {strat._event_count}")
     print(f"Trades executed:  {strat.trades}")
@@ -145,5 +140,5 @@ def main():
     print(f"Portfolio value:  {broker.getvalue():.2f}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

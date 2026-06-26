@@ -84,6 +84,7 @@ def test_run(main=False):
 
 
 def test_benchmark_observer_uses_benchmark_dtkey():
+    """Test Benchmark observer uses benchmark dtkey."""
     observer = object.__new__(bt.observers.Benchmark)
     observer.treturn = SimpleNamespace(rets={"strategy-key": 0.1}, dtkey="strategy-key")
     observer.tbench = SimpleNamespace(rets={"bench-key": 0.2}, dtkey="bench-key")

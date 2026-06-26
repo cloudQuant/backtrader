@@ -1,3 +1,4 @@
+"""Tests for LiveDataValidator."""
 from types import SimpleNamespace
 
 import pytest
@@ -6,6 +7,7 @@ from backtrader.channels.live_validator import LiveDataValidator
 
 
 def test_live_validator_rejects_invalid_timestamp():
+    """Test validator rejects invalid timestamp."""
     validator = LiveDataValidator()
     event = SimpleNamespace(
         channel_type="tick",
@@ -20,6 +22,7 @@ def test_live_validator_rejects_invalid_timestamp():
 
 
 def test_live_validator_rejects_invalid_tick_price_payload():
+    """Test validator rejects invalid tick price payload."""
     validator = LiveDataValidator()
     event = SimpleNamespace(
         channel_type="tick",
@@ -41,5 +44,6 @@ def test_live_validator_rejects_invalid_tick_price_payload():
     ],
 )
 def test_live_validator_validates_constructor_arguments(kwargs, message):
+    """Test validator validates constructor arguments."""
     with pytest.raises(ValueError, match=message):
         LiveDataValidator(**kwargs)

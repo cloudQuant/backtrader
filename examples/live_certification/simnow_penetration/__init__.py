@@ -1,1 +1,1 @@
-# SimNow penetration certification test suite
+"""SimNow penetration certification test suite."""

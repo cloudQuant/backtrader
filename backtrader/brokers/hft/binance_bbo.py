@@ -58,6 +58,35 @@ _FILENAME_RE = re.compile(
 
 @dataclass(frozen=True)
 class BinanceBBOConversionResult:
+    """Result of converting a Binance BBO + trades zip pair.
+
+    Attributes:
+        symbol: Native exchange symbol extracted from the input zip
+            filename (for example ``"BTCUSDT"``).
+        bt_symbol: Backtrader-style symbol used for the generated tick
+            CSV and order-book JSONL files. Defaults to the
+            :func:`_default_bt_symbol` mapping if the caller did not
+            pass an explicit value.
+        date: ISO-style date (``YYYY-MM-DD``) parsed from the input zip
+            filename.
+        hft_npz_path: Path of the consolidated ``.npz`` file containing
+            the unified feed stream that downstream HFT tooling
+            (latency generators, matching engine) consumes.
+        backtrader_ticks_path: Path of the generated Backtrader tick
+            CSV file.
+        backtrader_orderbook_path: Path of the generated Backtrader
+            order-book JSONL file.
+        base_event_count: Number of raw feed events read from the input
+            zip files before the ``start_ms`` / ``end_ms`` window was
+            applied.
+        final_event_count: Number of events written to ``hft_npz_path``
+            after windowing, deduplication and book/trade merging.
+        book_rows: Number of best-bid/best-ask rows actually written to
+            ``backtrader_orderbook_path``.
+        trade_rows: Number of trade rows actually written to
+            ``backtrader_ticks_path``.
+    """
+
     symbol: str
     bt_symbol: str
     date: str
@@ -72,6 +101,18 @@ class BinanceBBOConversionResult:
 
 @dataclass(frozen=True)
 class BinanceBBOLatencyResult:
+    """Result of :func:`generate_latency_from_hft_events`.
+
+    Attributes:
+        latency_npz_path: Path of the ``.npz`` file containing the
+            synthesised latency record. The file holds a single
+            ``data`` array with the dtype defined by
+            ``_LATENCY_DTYPE``.
+        row_count: Number of latency rows actually written to
+            ``latency_npz_path`` — i.e. the number of dual-marked feed
+            events that were turned into latency records.
+    """
+
     latency_npz_path: Path
     row_count: int
 
@@ -100,6 +141,61 @@ def convert_binance_bbo_zip_pair(
     tick_size: float = 0.01,
     lot_size: float = 0.001,
 ) -> BinanceBBOConversionResult:
+    """Convert a Binance ``bookTicker`` + trades zip pair into HFT-ready artifacts.
+
+    The function reads the two zip archives produced by Binance's
+    public data export, applies an optional time window, and emits
+    three files inside ``output_directory``:
+
+    * a Backtrader-friendly tick CSV (``backtrader_ticks_path``),
+    * a Backtrader-friendly best-bid/ask JSONL stream
+      (``backtrader_orderbook_path``),
+    * a consolidated ``.npz`` file (``hft_npz_path``) used by the rest
+      of the HFT stack (latency synthesis, matching engine playback,
+      branch comparison).
+
+    Args:
+        book_ticker_zip_path: Path of the ``bookTicker`` zip archive
+            exported by Binance. The filename must match the
+            ``<SYMBOL>-bookTicker-<DATE>.zip`` convention enforced by
+            ``_SYMBOL_DATE_RE``.
+        trades_zip_path: Path of the matching ``trades`` zip archive.
+            Must share both the symbol and date of
+            ``book_ticker_zip_path``.
+        output_directory: Destination directory. Created with
+            ``parents=True`` if it does not already exist.
+        bt_symbol: Backtrader-style symbol written to the output files.
+            When ``None`` (the default) it is derived from ``symbol``
+            via :func:`_default_bt_symbol`.
+        exchange: Exchange tag written into the tick CSV.
+        asset_type: Asset-class tag written into the tick CSV
+            (``"futures"``, ``"spot"`` ...).
+        start_ms: Optional inclusive lower bound (epoch ms) for the
+            events to keep. ``None`` keeps everything from the start of
+            the archive.
+        end_ms: Optional inclusive upper bound (epoch ms) for the events
+            to keep. ``None`` keeps everything until the end of the
+            archive.
+        max_book_rows: Optional cap on the number of book rows written
+            to the order-book JSONL file (useful for tests).
+        max_trade_rows: Optional cap on the number of trade rows written
+            to the tick CSV (useful for tests).
+        tick_size: Minimum price increment for the symbol. Currently
+            informational — written into the consolidated ``.npz``
+            metadata so downstream consumers can use it.
+        lot_size: Minimum quantity increment for the symbol. Currently
+            informational — written into the consolidated ``.npz``
+            metadata so downstream consumers can use it.
+
+    Returns:
+        BinanceBBOConversionResult: Paths of every artifact that was
+        written together with the row/event counts for quick
+        verification.
+
+    Raises:
+        ValueError: If ``book_ticker_zip_path`` and ``trades_zip_path``
+            do not share the same symbol and date.
+    """
     book_ticker_zip_path = Path(book_ticker_zip_path)
     trades_zip_path = Path(trades_zip_path)
     output_directory = Path(output_directory)
@@ -285,6 +381,51 @@ def generate_latency_from_hft_events(
     mul_resp: float = 3.0,
     offset_resp_ns: int = 0,
 ) -> BinanceBBOLatencyResult:
+    """Synthesize a latency record from the dual-marked events of an HFT feed.
+
+    Only feed events that carry both the ``EXCH_EVENT`` and ``LOCAL_EVENT``
+    bits are considered (these are the rows that carry both the local
+    receive timestamp and the upstream exchange timestamp). For each such
+    row the function produces a latency tuple of
+    ``(req_ts, exch_ts, resp_ts, reserved)`` where:
+
+    * ``req_ts`` is the local timestamp at which the strategy requested
+      the action,
+    * ``exch_ts`` is the exchange-side arrival timestamp computed as
+      ``local_ts + feed_latency * mul_entry + offset_entry_ns``,
+    * ``resp_ts`` is the response-side arrival timestamp computed as
+      ``exch_ts + feed_latency * mul_resp + offset_resp_ns``.
+
+    The numpy scalars in the input file are converted to ``int`` so the
+    output array has fixed-width integer fields.
+
+    Args:
+        hft_npz_path: Path of the HFT ``.npz`` produced by
+            :func:`convert_binance_bbo_zip_pair`. The function looks for
+            the ``"data"`` array inside the archive.
+        output_path: Path of the latency ``.npz`` file to write. The
+            parent directory is created with ``parents=True`` if it does
+            not already exist. The file is written via
+            ``np.savez_compressed`` and stores a single ``"data"`` array
+            using ``_LATENCY_DTYPE``.
+        mul_entry: Multiplier applied to the observed feed latency when
+            computing ``exch_ts``. Defaults to ``4.0``.
+        offset_entry_ns: Constant offset (ns) added to the entry
+            latency. Useful to inject a synthetic jitter or align the
+            latency trace against a benchmark. Defaults to ``0``.
+        mul_resp: Multiplier applied to the observed feed latency when
+            computing ``resp_ts``. Defaults to ``3.0``.
+        offset_resp_ns: Constant offset (ns) added to the response
+            latency. Defaults to ``0``.
+
+    Returns:
+        BinanceBBOLatencyResult: Path of the latency file and the
+        number of rows written.
+
+    Raises:
+        ValueError: If the input ``.npz`` does not contain any
+            dual-marked feed events.
+    """
     hft_npz_path = Path(hft_npz_path)
     output_path = Path(output_path)
     data = np.load(hft_npz_path)["data"]

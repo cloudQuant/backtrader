@@ -133,7 +133,10 @@ def test_batch_cancel_reports_partial_failures_without_aborting():
     """Batch cancel should keep processing later orders and emit failure details."""
 
     class FailingCancelClient(FakeBtApiClient):
+        """Fake client that fails cancel for specific orders."""
+
         def cancel_order(self, order_ref, dataname=None):
+            """Cancel order, failing for btapi-2."""
             if order_ref == "btapi-2":
                 raise RuntimeError("remote cancel rejected")
             return super().cancel_order(order_ref, dataname=dataname)

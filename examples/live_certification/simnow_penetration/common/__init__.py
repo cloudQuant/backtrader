@@ -1,1 +1,1 @@
-# Common utilities for SimNow penetration certification
+"""Common utilities for SimNow penetration certification."""

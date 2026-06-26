@@ -27,6 +27,11 @@ CASE_META = {
 
 
 def run(report_dir):
+    """Run T03 cancel order test case.
+
+    Args:
+        report_dir: Directory for test reports and logs.
+    """
     env_key = cfg.get_env_key()
     symbol = cfg.get_order_symbol()
     log_dir = str(report_dir / "logs")
@@ -40,13 +45,23 @@ def run(report_dir):
                 )
 
                 class CancelOrderStrategy(bt.Strategy):
+                    """Strategy for testing cancel order functionality."""
+
                     def __init__(self):
+                        """Initialize cancel order strategy."""
                         self.bar_count = 0
                         self.order = None
                         self.remote_events = set()
                         self.store_events = []
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Handle store notification events.
+
+                        Args:
+                            msg: Store message.
+                            *args: Additional positional arguments.
+                            **kwargs: Additional keyword arguments.
+                        """
                         event = kwargs.get("event")
                         if not isinstance(event, dict):
                             return
@@ -57,9 +72,15 @@ def run(report_dir):
                             self.cerebro.runstop()
 
                     def notify_order(self, order):
+                        """Handle order status updates.
+
+                        Args:
+                            order: Order instance.
+                        """
                         print(f"  order_notify: ref={order.ref} status={order.getstatusname()}")
 
                     def next(self):
+                        """Process bar and submit cancel order."""
                         self.bar_count += 1
                         if self.order is not None:
                             return

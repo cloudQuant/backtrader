@@ -1,3 +1,4 @@
+"""Tests for dual-side TickBroker functionality."""
 import pytest
 
 from backtrader.brokers.tickbroker import TickBroker
@@ -6,13 +7,17 @@ from backtrader.order import Order
 
 
 class DummyData:
+    """Dummy data for testing."""
+
     def __init__(self, name="BTC/USDT"):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 def test_tickbroker_dual_side_positions_keep_net_view_compatible():
+    """Test TickBroker dual side positions keep net view compatible."""
     data = DummyData()
     broker = TickBroker(cash=1000.0, position_mode="dual_side")
     broker.setcommission(commission=0.0, name=data.name)
@@ -60,6 +65,7 @@ def test_tickbroker_dual_side_positions_keep_net_view_compatible():
 
 
 def test_tickbroker_net_mode_still_accepts_offset_metadata_without_orderparam_regression():
+    """Test TickBroker net mode still accepts offset metadata without orderparam regression."""
     data = DummyData()
     broker = TickBroker(cash=1000.0)
     order = broker.buy(

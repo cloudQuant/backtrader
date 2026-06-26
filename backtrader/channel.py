@@ -68,6 +68,25 @@ class Event:
     data: Any = field(default=None, compare=False, repr=False)
 
 
+class ChannelDataRef:
+    """Lightweight data reference for channel-only strategies.
+
+    Channel-mode HFT strategies submit orders through the standard
+    ``Strategy.buy`` / ``Strategy.sell`` APIs but may not have LineSeries
+    data feeds. This object provides the minimal data identity expected by
+    brokers and order objects: ``_name``, ``name`` and ``symbol``.
+    """
+
+    def __init__(self, symbol, channel_name=None):
+        self._name = str(symbol)
+        self.name = str(symbol)
+        self.symbol = str(symbol)
+        self.channel_name = str(channel_name or symbol)
+
+    def __repr__(self):
+        return f"ChannelDataRef(symbol={self.symbol!r})"
+
+
 class ChannelSharingMode(Enum):
     """Channel sharing mode between strategies.
 

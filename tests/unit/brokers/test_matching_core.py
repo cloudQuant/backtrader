@@ -1,21 +1,29 @@
+"""Tests for MatchingCore order indexing and management."""
 import pytest
 
 from backtrader.brokers.hft import ConstantLatencyModel, LatencyEngine, MatchingCore
 
 
 class DummyData:
+    """Dummy data for testing."""
+
     def __init__(self, name):
+        """Initialize dummy data."""
         self._name = name
         self.name = name
         self.symbol = name
 
 
 class DummyOrder:
+    """Dummy order for testing."""
+
     def __init__(self, name):
+        """Initialize dummy order."""
         self.data = DummyData(name)
 
 
 def test_matching_core_indexes_orders_by_symbol():
+    """Test MatchingCore indexes orders by symbol."""
     core = MatchingCore()
     order_a = DummyOrder("BTC/USDT")
     order_b = DummyOrder("ETH/USDT")
@@ -29,6 +37,7 @@ def test_matching_core_indexes_orders_by_symbol():
 
 
 def test_matching_core_activates_delayed_orders_via_latency_engine():
+    """Test MatchingCore activates delayed orders via latency engine."""
     engine = LatencyEngine(ConstantLatencyModel(order_entry_latency_ms=500))
     core = MatchingCore(latency_engine=engine)
     order = DummyOrder("BTC/USDT")
@@ -43,6 +52,7 @@ def test_matching_core_activates_delayed_orders_via_latency_engine():
 
 
 def test_matching_core_cancel_removes_pending_or_delayed_order():
+    """Test MatchingCore cancel removes pending or delayed order."""
     engine = LatencyEngine(ConstantLatencyModel(order_entry_latency_ms=500))
     delayed_core = MatchingCore(latency_engine=engine)
     delayed_order = DummyOrder("BTC/USDT")

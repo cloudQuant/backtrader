@@ -34,7 +34,12 @@ class LinkIssue:
 class DocLinkValidator:
     """Validator for documentation links."""
     
-    def __init__(self, docs_root: str = "docs"):
+    def __init__(self, docs_root: str = "docs") -> None:
+        """Initialize the documentation link validator.
+
+        Args:
+            docs_root: Root directory of documentation to validate.
+        """
         self.docs_root = Path(docs_root)
         self.issues: List[LinkIssue] = []
         self.checked_files: Set[Path] = set()

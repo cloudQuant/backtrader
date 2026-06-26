@@ -1,7 +1,9 @@
+"""Tests for Recorder functionality."""
 from backtrader.brokers.hft import Recorder
 
 
 def test_recorder_records_snapshots_and_respects_maxlen():
+    """Test recorder records snapshots and respects maxlen."""
     recorder = Recorder(maxlen=2)
     recorder.record(1.0, "BTC/USDT", {"status": "submitted"})
     recorder.record(2.0, "BTC/USDT", {"status": "filled"})
@@ -15,6 +17,7 @@ def test_recorder_records_snapshots_and_respects_maxlen():
 
 
 def test_recorder_clear_resets_events():
+    """Test recorder clear resets events."""
     recorder = Recorder()
     recorder.record(1.0, "BTC/USDT", {"status": "filled"})
     recorder.clear()

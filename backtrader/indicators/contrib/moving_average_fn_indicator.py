@@ -69,10 +69,7 @@ def load_fn_coefficients(filter_name="N44"):
     raw = SOURCE_MQ5.read_bytes()
     candidates = []
     for encoding in ("utf-16", "utf-16-le", "utf-8", "latin-1"):
-        try:
-            candidates.append(raw.decode(encoding, errors="ignore"))
-        except Exception:
-            continue
+        candidates.append(raw.decode(encoding, errors="ignore"))
     text = ""
     for candidate in candidates:
         normalized = candidate.replace("\x00", "")
