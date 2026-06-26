@@ -41,7 +41,7 @@
 
 - **Python 版本三方打架** 🔴
   - `setup.py` classifiers 写 3.8–3.13，但**没有 `python_requires` 字段**；
-  - `.kiro/steering/tech.md`、`README.md` 均声明 **3.9+**；
+  - 旧版 steering 文档与 `README.md` 曾声明 **3.9+**；
   - CI `test.yml` 矩阵**实际在跑 3.8**；
   - 而 `backtrader/brokers/hft/*.py` 等已使用 PEP 604 `X | Y`、小写泛型 `dict[...]`
     等 **3.9/3.10+ 运行期语法**，且全仓仅 7 个文件加了 `from __future__ import
@@ -104,8 +104,8 @@ Sprint 的地基，且成本极低、风险极低。
   在导入期 `TypeError`）已补 `from __future__ import annotations`。其余 hft / store
   文件均已带该 import 或仅用于注解，安全。全仓复扫：无 `match`、`functools.cache`、
   `removeprefix`、运行期 `X|Y` 等其它 3.8 破坏点。
-- [x] 同步 `README.md`（badge + Requirements）/ `.kiro/steering/tech.md` 文案到
-  **3.8+**；`CLAUDE.md` 本就是 3.8–3.13。
+- [x] 同步 `README.md`（badge + Requirements）文案到 **3.8+**；
+  `CLAUDE.md` 本就是 3.8–3.13。旧 `.kiro/steering` 文档已不再跟踪。
 
 > 决策依据：CI 实际在 3.8 上跑，用户也可能在 3.8 上用。与其抬高门槛删 3.8，不如把
 > 少量越界语法修回去——这是更保守、更尊重既有用户的选择。

@@ -1,10 +1,15 @@
 #!/bin/bash
 
-# Store the original directory
-ORIGINAL_DIR=$(pwd)
+# Resolve the repository root from this script location.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKTRADER_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$BACKTRADER_PATH" || {
+    echo "Failed to switch to repository root: $BACKTRADER_PATH"
+    exit 1
+}
+ORIGINAL_DIR="$BACKTRADER_PATH"
 
 # Set path variables
-BACKTRADER_PATH="$ORIGINAL_DIR"
 BUILD_DIR="build"
 EGG_INFO_DIR="backtrader.egg-info"
 BENCHMARKS_DIR=".benchmarks"
