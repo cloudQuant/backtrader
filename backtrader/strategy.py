@@ -587,7 +587,7 @@ class Strategy(StrategyBase):
 
         result = []
         for attr_name, attr_value in attrs.items():
-            if attr_name.startswith("_"):
+            if attr_name in {"_strategy_lineactions_cache", "_strategy_next_lineactions_cache"}:
                 continue
             result.extend(visit(attr_value))
 
@@ -904,52 +904,43 @@ class Strategy(StrategyBase):
         # Indicator minimum periods
         minperiods = [x._minperiod for x in all_indicators]
 
-        # CRITICAL FIX: Also scan strategy attributes for LineActions objects
-        # (like LinesOperation from sma - sma(-10)) that aren't registered as indicators
-        # but still need their minperiod considered
-        from .linebuffer import LineActions
-
-        for attr_name in dir(self):
-            if attr_name.startswith("_"):
-                continue
-            try:
-                attr = getattr(self, attr_name)
-                # Check if it's a LineActions but not already in _lineiterators
-                if isinstance(attr, LineActions) and hasattr(attr, "_minperiod"):
-                    if attr not in self._lineiterators[LineIterator.IndType]:
-                        minperiods.append(attr._minperiod)
-            except (AttributeError, TypeError):
-                # Attribute access/typecheck failed; skip this attribute.
-                pass
+        # Strategy-owned LineActions are not necessarily registered indicators.
+        # Original backtrader's metaclass machinery advanced them regardless of
+        # whether users kept them in public or private attributes. Reuse the
+        # recursive strategy-attribute scan here so private containers such as
+        # self._Type / self._OptionType participate in minperiod and execution.
+        strategy_lineactions = tuple(self._get_strategy_lineactions())
+        for attr in strategy_lineactions:
+            if (
+                hasattr(attr, "_minperiod")
+                and attr not in self._lineiterators[LineIterator.IndType]
+            ):
+                minperiods.append(attr._minperiod)
 
         # Set strategy minimum period to max of indicator and data minperiods
         self._minperiod = max(minperiods or [self._minperiod])
 
-        # CRITICAL FIX: Update _minperiods for LineActions, but only for their associated data
-        # For single-data strategies, apply LineActions minperiod to data[0]
-        # For multi-data strategies, LineActions minperiod should only affect its source data
-        from .linebuffer import LineActions
-
+        # Update _minperiods for strategy-owned LineActions, but only for their
+        # associated data. For multi-data strategies, LineActions minperiod
+        # should only affect the source data that clocks the expression.
         if self._minperiods:
-            for attr_name in dir(self):
-                if attr_name.startswith("_"):
-                    continue
+            for attr in strategy_lineactions:
                 try:
-                    attr = getattr(self, attr_name)
-                    if isinstance(attr, LineActions) and hasattr(attr, "_minperiod"):
-                        # Try to determine which data this LineActions is associated with
-                        # by checking its _clock or data sources
-                        data_idx = 0  # Default to data[0]
-                        if hasattr(attr, "_clock") and attr._clock is not None:
-                            for i, d in enumerate(self.datas):
-                                if attr._clock is d or attr._clock in d.lines:
-                                    data_idx = i
-                                    break
-                        # Only update minperiod for the specific data
-                        if data_idx < len(self._minperiods):
-                            self._minperiods[data_idx] = max(
-                                self._minperiods[data_idx], attr._minperiod
-                            )
+                    if not hasattr(attr, "_minperiod"):
+                        continue
+                    # Try to determine which data this LineActions is associated
+                    # with by checking its _clock or data sources.
+                    data_idx = 0  # Default to data[0]
+                    if hasattr(attr, "_clock") and attr._clock is not None:
+                        for i, d in enumerate(self.datas):
+                            if attr._clock is d or attr._clock in d.lines:
+                                data_idx = i
+                                break
+                    # Only update minperiod for the specific data.
+                    if data_idx < len(self._minperiods):
+                        self._minperiods[data_idx] = max(
+                            self._minperiods[data_idx], attr._minperiod
+                        )
                 except (AttributeError, TypeError):
                     # Attribute access/typecheck failed; skip this attribute.
                     pass
@@ -1502,7 +1493,9 @@ class Strategy(StrategyBase):
                         forward_line._idx += 1
                         forward_line.lencount += 1
                         forward_line.array.append(
-                            dt_value if valid_dt and dt_value >= 1.0 else forward_line._default_value
+                            dt_value
+                            if valid_dt and dt_value >= 1.0
+                            else forward_line._default_value
                         )
                     elif valid_dt:
                         idx = datetime_line._idx
@@ -1726,8 +1719,7 @@ class Strategy(StrategyBase):
             and type(self).notify_cashvalue is Strategy.notify_cashvalue
         )
         self._notify_fund_default = (
-            "notify_fund" not in self.__dict__
-            and type(self).notify_fund is Strategy.notify_fund
+            "notify_fund" not in self.__dict__ and type(self).notify_fund is Strategy.notify_fund
         )
         self._skip_empty_notify = (
             not self._quicknotify
@@ -1736,7 +1728,9 @@ class Strategy(StrategyBase):
             and self._notify_fund_default
         )
         self._fast_simple_next = (
-            not self._lineiterators[LineIterator.IndType]
+            len(self.datas) == 1
+            and len(self._minperiods) == 1
+            and not self._lineiterators[LineIterator.IndType]
             and not self._lineaction_datas
             and not self._has_strategy_next_lineactions
             and self._skip_empty_notify

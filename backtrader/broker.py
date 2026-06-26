@@ -139,7 +139,13 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         seen = set()
         for attr in ("name", "_name", "_dataname", "symbol"):
             value = getattr(data, attr, None)
-            if value in (None, ""):
+            if value is None:
+                continue
+            if isinstance(value, str) and value == "":
+                continue
+            try:
+                hash(value)
+            except TypeError:
                 continue
             text = str(value)
             for key in (value, text, text.upper(), text.lower()):
