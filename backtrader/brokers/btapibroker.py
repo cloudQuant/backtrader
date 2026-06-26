@@ -108,6 +108,8 @@ _POSITION_DIRECTION_KEYS = (
     "Side",
     "position_side",
     "positionSide",
+    "positionIdx",
+    "position_idx",
     "posSide",
     "PositionSide",
     "position_direction",
@@ -1052,9 +1054,7 @@ class BtApiBroker(BrokerBase):
 
         size = self._extract_update_value(item, *_POSITION_SIZE_KEYS)
         size = float(size or 0.0)
-        direction = self._normalise_position_direction(
-            self._extract_update_value(item, *_POSITION_DIRECTION_KEYS)
-        )
+        direction = self._extract_position_direction(item)
 
         price = self._extract_update_value(item, *_POSITION_PRICE_KEYS)
         price = float(price or 0.0)
@@ -1142,6 +1142,30 @@ class BtApiBroker(BrokerBase):
         if text in {"short", "sell", "s", "ask", "3"}:
             return "short"
         return text
+
+    @classmethod
+    def _extract_position_direction(cls, item):
+        if not isinstance(item, dict):
+            return ""
+        details = item.get("details")
+        if not isinstance(details, dict):
+            details = {}
+        for key in _POSITION_DIRECTION_KEYS:
+            value = item.get(key)
+            if value in (None, ""):
+                value = details.get(key)
+            if value in (None, ""):
+                continue
+            if key in {"positionIdx", "position_idx"}:
+                text = cls._normalise_code_text(value)
+                if text == "1":
+                    return "long"
+                if text == "2":
+                    return "short"
+                if text == "0":
+                    return ""
+            return cls._normalise_position_direction(value)
+        return ""
 
     def _sync_remote_open_orders(self, force=False, raise_errors=False):
         """Refresh the cached provider-side open-order snapshot."""

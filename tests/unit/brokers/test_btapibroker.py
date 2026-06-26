@@ -974,6 +974,78 @@ def test_sync_positions_accepts_raw_okx_position_aliases():
         broker.stop()
 
 
+def test_sync_positions_accepts_raw_bybit_position_idx_in_net_mode():
+    """Bybit hedge snapshots may expose direction only through positionIdx."""
+    symbol = "BTCUSDT"
+    client = FakeBtApiClient(
+        balance={"cash": 1250.0, "value": 1450.0},
+        positions=[
+            {
+                "symbol": symbol,
+                "positionIdx": "2",
+                "size": "0.5",
+                "avgPrice": "60125.5",
+            }
+        ],
+        history={symbol: [make_bar(0, 60000.0, 60200.0, 59900.0, 60100.0)]},
+    )
+    store = make_store(api=client, provider="bybit")
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        position = broker.getposition(data)
+
+        assert position.size == pytest.approx(-0.5)
+        assert position.price == pytest.approx(60125.5)
+        assert broker.positions[symbol].size == pytest.approx(-0.5)
+    finally:
+        broker.stop()
+
+
+def test_sync_positions_accepts_raw_bybit_position_idx_in_dual_side_mode():
+    """Bybit positionIdx=2 must hydrate the short leg in dual-side mode."""
+    symbol = "BTCUSDT"
+    client = FakeBtApiClient(
+        balance={"cash": 1250.0, "value": 1450.0},
+        positions=[
+            {
+                "symbol": symbol,
+                "positionIdx": "2",
+                "size": "0.5",
+                "avgPrice": "60125.5",
+            }
+        ],
+        history={symbol: [make_bar(0, 60000.0, 60200.0, 59900.0, 60100.0)]},
+    )
+    store = make_store(api=client, provider="bybit", supports_dual_side=True)
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(
+        account_refresh_interval=60.0,
+        positions_refresh_interval=60.0,
+        position_mode="dual_side",
+    )
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        net_position = broker.getposition(data)
+        short_position = broker.getposition(data, side="short")
+        long_position = broker.getposition(data, side="long")
+
+        assert net_position.size == pytest.approx(-0.5)
+        assert net_position.price == pytest.approx(60125.5)
+        assert short_position.size == pytest.approx(0.5)
+        assert short_position.price == pytest.approx(60125.5)
+        assert long_position.size == pytest.approx(0.0)
+    finally:
+        broker.stop()
+
+
 def test_sync_positions_accepts_float_string_ctp_position_direction_codes():
     """CTP numeric-string position direction codes must not flip shorts long."""
     symbol = "IF2506"
