@@ -400,13 +400,13 @@ class LineBuffer(LineSingle, LineRootMixin):
                 current_idx = self._idx
                 if current_idx == self.lencount - 1:
                     value = self.array[current_idx]
-                    if value == INF or value == NEG_INF:
+                    if value in (INF, NEG_INF):
                         return 0.0
                     return value
                 if self.lencount > 0 and current_idx >= self.lencount:
                     current_idx = self.lencount - 1
                 value = self.array[current_idx]
-                if value == INF or value == NEG_INF:
+                if value in (INF, NEG_INF):
                     return 0.0
                 return value
             except IndexError:
@@ -420,7 +420,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             if lencount > 0 and current_idx >= lencount:
                 current_idx = lencount - 1
             value = self.array[current_idx + ago]
-            if value == INF or value == NEG_INF:
+            if value in (INF, NEG_INF):
                 return 0.0
             return value
         except IndexError:
@@ -486,14 +486,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         return array.array(
             "d",
-            (
-                (
-                    0.0
-                    if value == INF or value == NEG_INF
-                    else value
-                )
-                for value in values
-            ),
+            ((0.0 if value in (INF, NEG_INF) else value) for value in values),
         )
 
     # Return the value at the actual index 0 of the array
@@ -509,7 +502,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             A slice of the underlying buffer
         """
         value = self.array[idx]
-        if isinstance(value, float) and (value == INF or value == NEG_INF):
+        if isinstance(value, float) and (value in (INF, NEG_INF)):
             return 0.0
         return value
 
@@ -532,11 +525,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         return array.array(
             "d",
             (
-                (
-                    0.0
-                    if isinstance(value, float) and (value == INF or value == NEG_INF)
-                    else value
-                )
+                (0.0 if isinstance(value, float) and (value in (INF, NEG_INF)) else value)
                 for value in values
             ),
         )
@@ -573,7 +562,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         # "no signal" into a finite tradable value.
         elif value != value:  # NaN detection without isinstance + isnan
             value = self._default_value if self._is_datetime_line else float("nan")
-        elif isinstance(value, float) and (value == INF or value == NEG_INF):
+        elif isinstance(value, float) and (value in (INF, NEG_INF)):
             value = self._default_value
         # datetime line value validation
         elif self._is_datetime_line and value < 1.0:
@@ -642,13 +631,11 @@ class LineBuffer(LineSingle, LineRootMixin):
         is_dt = self._is_datetime_line
 
         # Handle None/NaN values using fast detection
-        if value is NAN:
-            value = self._default_value
-        elif (
+        if value is NAN or (
             value is None
             or value != value
             or isinstance(value, float)
-            and (value == INF or value == NEG_INF)
+            and (value in (INF, NEG_INF))
         ):
             value = self._default_value
         elif is_dt and (not isinstance(value, (int, float)) or value < 1.0):
@@ -720,13 +707,11 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         # NaN is the only value that's not equal to itself
-        if value is NAN:
-            value = self._default_value
-        elif (
+        if value is NAN or (
             value is None
             or value != value
             or isinstance(value, float)
-            and (value == INF or value == NEG_INF)
+            and (value in (INF, NEG_INF))
         ):
             value = self._default_value
 
@@ -853,7 +838,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             value is None
             or value != value
             or isinstance(value, float)
-            and (value == INF or value == NEG_INF)
+            and (value in (INF, NEG_INF))
         ):
             value = self._default_value
 
@@ -908,11 +893,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             values = list(self.array[start:end])
 
         return [
-            (
-                0.0
-                if isinstance(value, float) and (value == INF or value == NEG_INF)
-                else value
-            )
+            (0.0 if isinstance(value, float) and (value in (INF, NEG_INF)) else value)
             for value in values
         ]
 
@@ -1943,9 +1924,7 @@ class _LineDelay(LineActions):
             value = self.a[idx + self.ago]
             if value is None:
                 return 0.0
-            if isinstance(value, float) and (
-                value != value or value == INF or value == NEG_INF
-            ):
+            if isinstance(value, float) and (value in (INF, NEG_INF) or value != value):
                 return 0.0
             return value
         except (IndexError, TypeError):
@@ -1968,11 +1947,7 @@ class _LineDelay(LineActions):
             if (
                 delayed_val is None
                 or isinstance(delayed_val, float)
-                and (
-                    delayed_val != delayed_val
-                    or delayed_val == INF
-                    or delayed_val == NEG_INF
-                )
+                and (delayed_val in (INF, NEG_INF) or delayed_val != delayed_val)
             ):
                 delayed_val = 0.0
 
@@ -2361,7 +2336,7 @@ class LinesOperation(LineActions):
     def _normalize_operand(self, value):
         if self._is_missing(value):
             return float("nan")
-        if isinstance(value, float) and (value == INF or value == NEG_INF):
+        if isinstance(value, float) and (value in (INF, NEG_INF)):
             return 0.0
         if isinstance(value, (int, float)):
             return value
@@ -2420,7 +2395,7 @@ class LinesOperation(LineActions):
                     if value is not None:
                         if isinstance(value, float):
                             if value == value:
-                                if value == INF or value == NEG_INF:
+                                if value in (INF, NEG_INF):
                                     return 0.0
                                 return value
                         else:
@@ -2644,14 +2619,14 @@ class LinesOperation(LineActions):
                         if a_val != a_val or b_val != b_val:
                             dst[i] = nan
                             continue
-                        if a_val == inf or a_val == neg_inf:
+                        if a_val in (inf, neg_inf):
                             a_val = 0.0
-                        if b_val == inf or b_val == neg_inf:
+                        if b_val in (inf, neg_inf):
                             b_val = 0.0
                         result = a_val * b_val
                         if result != result:
                             dst[i] = nan
-                        elif result == inf or result == neg_inf:
+                        elif result in (inf, neg_inf):
                             dst[i] = 0.0
                         else:
                             dst[i] = result
@@ -2662,14 +2637,14 @@ class LinesOperation(LineActions):
                         if a_val != a_val or b_val != b_val:
                             dst[i] = nan
                             continue
-                        if a_val == inf or a_val == neg_inf:
+                        if a_val in (inf, neg_inf):
                             a_val = 0.0
-                        if b_val == inf or b_val == neg_inf:
+                        if b_val in (inf, neg_inf):
                             b_val = 0.0
                         result = a_val + b_val
                         if result != result:
                             dst[i] = nan
-                        elif result == inf or result == neg_inf:
+                        elif result in (inf, neg_inf):
                             dst[i] = 0.0
                         else:
                             dst[i] = result
@@ -2681,14 +2656,14 @@ class LinesOperation(LineActions):
                             if a_val != a_val or b_val != b_val:
                                 dst[i] = nan
                                 continue
-                            if a_val == inf or a_val == neg_inf:
+                            if a_val in (inf, neg_inf):
                                 a_val = 0.0
-                            if b_val == inf or b_val == neg_inf:
+                            if b_val in (inf, neg_inf):
                                 b_val = 0.0
                             result = b_val - a_val
                             if result != result:
                                 dst[i] = nan
-                            elif result == inf or result == neg_inf:
+                            elif result in (inf, neg_inf):
                                 dst[i] = 0.0
                             else:
                                 dst[i] = result
@@ -2699,14 +2674,14 @@ class LinesOperation(LineActions):
                             if a_val != a_val or b_val != b_val:
                                 dst[i] = nan
                                 continue
-                            if a_val == inf or a_val == neg_inf:
+                            if a_val in (inf, neg_inf):
                                 a_val = 0.0
-                            if b_val == inf or b_val == neg_inf:
+                            if b_val in (inf, neg_inf):
                                 b_val = 0.0
                             result = a_val - b_val
                             if result != result:
                                 dst[i] = nan
-                            elif result == inf or result == neg_inf:
+                            elif result in (inf, neg_inf):
                                 dst[i] = 0.0
                             else:
                                 dst[i] = result
@@ -2717,14 +2692,14 @@ class LinesOperation(LineActions):
                         if a_val != a_val or b_val != b_val:
                             dst[i] = nan
                             continue
-                        if a_val == inf or a_val == neg_inf:
+                        if a_val in (inf, neg_inf):
                             a_val = 0.0
-                        if b_val == inf or b_val == neg_inf:
+                        if b_val in (inf, neg_inf):
                             b_val = 0.0
                         result = op(b_val, a_val)
                         if result != result:
                             dst[i] = nan
-                        elif result == inf or result == neg_inf:
+                        elif result in (inf, neg_inf):
                             dst[i] = 0.0
                         else:
                             dst[i] = result
@@ -2735,14 +2710,14 @@ class LinesOperation(LineActions):
                         if a_val != a_val or b_val != b_val:
                             dst[i] = nan
                             continue
-                        if a_val == inf or a_val == neg_inf:
+                        if a_val in (inf, neg_inf):
                             a_val = 0.0
-                        if b_val == inf or b_val == neg_inf:
+                        if b_val in (inf, neg_inf):
                             b_val = 0.0
                         result = op(a_val, b_val)
                         if result != result:
                             dst[i] = nan
-                        elif result == inf or result == neg_inf:
+                        elif result in (inf, neg_inf):
                             dst[i] = 0.0
                         else:
                             dst[i] = result

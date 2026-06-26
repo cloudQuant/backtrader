@@ -7,6 +7,7 @@ import collections
 import datetime as _dt
 import time
 from copy import deepcopy
+from typing import Any
 
 from ..broker import BrokerBase
 from ..comminfo import (
@@ -265,8 +266,8 @@ class BtApiBroker(BrokerBase):
         self._orders_by_client_ref = {}
         self._remote_open_orders_snapshot = []
         self._seen_trade_ids = set()
-        self._pending_trade_updates = collections.deque()
-        self._status_fill_fingerprints = collections.Counter()
+        self._pending_trade_updates: collections.deque[Any] = collections.deque()
+        self._status_fill_fingerprints: collections.Counter[Any] = collections.Counter()
         self._position_mode_frozen = False
         self._position_mode_frozen_reason = None
         BrokerBase.set_param(
@@ -785,7 +786,11 @@ class BtApiBroker(BrokerBase):
         """Cancel a batch of live orders and return the canceled order objects."""
         candidates = self._batch_cancel_candidates(orders)
         requested = [
-            self._order_runtime_details(item) if kind == "local" else self._remote_order_details(item)
+            (
+                self._order_runtime_details(item)
+                if kind == "local"
+                else self._remote_order_details(item)
+            )
             for kind, item in candidates
         ]
         self._emit_runtime_event(
@@ -837,9 +842,11 @@ class BtApiBroker(BrokerBase):
             "cancelled_count": len(cancelled),
             "failure_count": len(failures),
             "cancelled_orders": [
-                self._order_runtime_details(item)
-                if hasattr(item, "alive")
-                else self._remote_order_details(item)
+                (
+                    self._order_runtime_details(item)
+                    if hasattr(item, "alive")
+                    else self._remote_order_details(item)
+                )
                 for item in cancelled
             ],
             "failed_orders": failures,
@@ -1092,7 +1099,7 @@ class BtApiBroker(BrokerBase):
             if data is not None:
                 add_symbol(self._position_key(data))
 
-        alias_map = {}
+        alias_map: dict[str, str] = {}
         for key in tracked_keys:
             for alias in self._symbol_aliases(key):
                 alias_map.setdefault(alias, key)
@@ -1152,8 +1159,7 @@ class BtApiBroker(BrokerBase):
         try:
             try:
                 orders = list(
-                    self.store.fetch_open_orders(force=force, raise_errors=raise_errors)
-                    or []
+                    self.store.fetch_open_orders(force=force, raise_errors=raise_errors) or []
                 )
             except TypeError:
                 orders = list(self.store.fetch_open_orders() or [])
@@ -1239,7 +1245,7 @@ class BtApiBroker(BrokerBase):
 
     def _warm_contract_metadata(self):
         """Materialize comminfo for known live symbols at broker startup."""
-        names = set()
+        names: set[str] = set()
         for container in (self.positions, self.long_positions, self.short_positions):
             try:
                 names.update(str(key) for key in container.keys() if key not in (None, ""))
@@ -1307,10 +1313,7 @@ class BtApiBroker(BrokerBase):
             key_text = str(key or "")
             if (
                 method == "percent_10k"
-                or (
-                    key_text.startswith("COMMISSION_")
-                    and key_text.endswith("_RATIO")
-                )
+                or (key_text.startswith("COMMISSION_") and key_text.endswith("_RATIO"))
                 or (
                     key_text
                     in {
@@ -1622,9 +1625,7 @@ class BtApiBroker(BrokerBase):
             metadata.get("max_leverage"),
         )
         margin_rate = (
-            1.0 / leverage
-            if leverage and leverage > 0
-            else cls._normalise_rate(margin_value, 1.0)
+            1.0 / leverage if leverage and leverage > 0 else cls._normalise_rate(margin_value, 1.0)
         )
         margin_amount_param = (
             max(margin_amount, 0.0) if margin_amount is not None and margin_amount > 0 else None
@@ -2227,11 +2228,7 @@ class BtApiBroker(BrokerBase):
             status = str(current.get("status") or "").strip().lower()
             code = str(current.get("code") or "").strip()
             success = current.get("success")
-            wrapper_ok = (
-                status in {"ok", "success"}
-                or code in {"0", "00000"}
-                or success is True
-            )
+            wrapper_ok = status in {"ok", "success"} or code in {"0", "00000"} or success is True
             if wrapper_ok:
                 nested = current.get("data", current.get("result"))
                 if isinstance(nested, dict):
@@ -2262,9 +2259,11 @@ class BtApiBroker(BrokerBase):
         """Return whether the provider needs open/close offset metadata."""
         provider_values = {
             str(self.provider or "").strip().lower(),
-            str(getattr(self.store, "provider", "") or "").strip().lower()
-            if self.store is not None
-            else "",
+            (
+                str(getattr(self.store, "provider", "") or "").strip().lower()
+                if self.store is not None
+                else ""
+            ),
         }
         if provider_values & {"ctp", "ctp_gateway"}:
             return True
@@ -3152,7 +3151,9 @@ class BtApiBroker(BrokerBase):
                     continue
                 if cls._truthy(cls._extract_update_value(update, "commission_signed")):
                     return commission
-                if key in {"fee", "trade_fee", "trade_commission"} and cls._uses_okx_fee_sign(update):
+                if key in {"fee", "trade_fee", "trade_commission"} and cls._uses_okx_fee_sign(
+                    update
+                ):
                     return -commission
                 return abs(commission)
         return None

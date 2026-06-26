@@ -48,7 +48,7 @@ from .parameters import ParameterDescriptor, ParameterizedBase
 from .strategy import SignalStrategy, Strategy
 from .timer import Timer
 from .tradingcal import PandasMarketCalendar, TradingCalendarBase
-from .utils import OrderedDict, date2num, num2date, tzparse
+from .utils import OrderedDict, date2num, tzparse
 from .utils.dateintern import _num2date_cached
 from .utils.log_message import get_logger
 from .utils.py3 import integer_types, map, range, string_types, zip
@@ -2227,12 +2227,10 @@ class Cerebro(ParameterizedBase):
             ldatas = len(datas)
             single_data = ldatas == 1
             single_default_datanotify = (
-                single_data
-                and type(data0).get_notifications is AbstractDataBase.get_notifications
+                single_data and type(data0).get_notifications is AbstractDataBase.get_notifications
             )
             single_default_haslivedata = (
-                single_data
-                and type(data0).haslivedata is AbstractDataBase.haslivedata
+                single_data and type(data0).haslivedata is AbstractDataBase.haslivedata
             )
             data0_datetime_line = data0.datetime if single_data else None
             broker = self._broker
@@ -2243,8 +2241,7 @@ class Cerebro(ParameterizedBase):
                 type(broker).get_notification is BackBroker.get_notification
             )
             default_backbroker_next = (
-                default_broker_notifications
-                and type(broker).next is BackBroker.next
+                default_broker_notifications and type(broker).next is BackBroker.next
             )
             if default_broker_notifications:
                 broker_notifications = broker.notifs
@@ -2485,7 +2482,9 @@ class Cerebro(ParameterizedBase):
                         udtmaster = _num2date_cached(dt0)
                         self._udtmaster = udtmaster
                         self._dtmaster = (
-                            udtmaster if getattr(dmaster, "_tz", None) is None else dmaster.num2date(dt0)
+                            udtmaster
+                            if getattr(dmaster, "_tz", None) is None
+                            else dmaster.num2date(dt0)
                         )
 
                     # Try to get something for those that didn't return
@@ -2648,8 +2647,7 @@ class Cerebro(ParameterizedBase):
         data0 = datas[0]
         single_data = len(datas) == 1
         single_default_datanotify = (
-            single_data
-            and type(data0).get_notifications is AbstractDataBase.get_notifications
+            single_data and type(data0).get_notifications is AbstractDataBase.get_notifications
         )
         cheat_on_open = self.p.cheat_on_open
         has_timers = bool(self._timers)

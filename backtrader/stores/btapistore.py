@@ -102,6 +102,7 @@ def _normalize_ctp_order_status(
     submit_override = _CTP_ORDER_SUBMIT_STATUS_MAP.get(_ctp_code(submit_status, ""))
     return submit_override or status
 
+
 _CTP_LOGIN_FIELDS = (
     "FrontID",
     "SessionID",
@@ -3447,11 +3448,7 @@ class BtApiStore(LiveStoreBase):
             status = str(current.get("status") or "").strip().lower()
             code = str(current.get("code") or "").strip()
             success = current.get("success")
-            wrapper_ok = (
-                status in {"ok", "success"}
-                or code in {"0", "00000"}
-                or success is True
-            )
+            wrapper_ok = status in {"ok", "success"} or code in {"0", "00000"} or success is True
             if wrapper_ok:
                 nested = current.get("data", current.get("result"))
                 if isinstance(nested, dict):

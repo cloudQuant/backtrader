@@ -88,9 +88,7 @@ def _tick_datetime(tick):
         return _datetime_to_utc_naive(value)
     if isinstance(value, str) and value:
         try:
-            return _datetime_to_utc_naive(
-                _dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
-            )
+            return _datetime_to_utc_naive(_dt.datetime.fromisoformat(value.replace("Z", "+00:00")))
         except ValueError:
             pass
     return _dt.datetime.fromtimestamp(_tick_timestamp(tick), _UTC).replace(tzinfo=None)
@@ -362,8 +360,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
 
         volume = float(_tick_value(tick, "volume", "Volume", default=0.0) or 0.0)
         openinterest = float(
-            _tick_value(tick, "openinterest", "open_interest", "OpenInterest", default=0.0)
-            or 0.0
+            _tick_value(tick, "openinterest", "open_interest", "OpenInterest", default=0.0) or 0.0
         )
 
         if self._timeframe == TimeFrame.Ticks:

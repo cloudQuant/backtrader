@@ -712,6 +712,7 @@ class AutoInfoClass:
 
         return obj
 
+
 def _merge_class_params_into(all_params, params):
     """Merge a class's ``params`` declaration into the ``all_params`` dict.
 

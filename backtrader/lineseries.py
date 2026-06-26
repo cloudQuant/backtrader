@@ -1983,7 +1983,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 return NAN
             if value != value:
                 return value
-            if value == INF or value == NEG_INF:
+            if value in (INF, NEG_INF):
                 return 0.0
             # CRITICAL FIX: Return NaN as-is, don't convert to 0.0
             # NaN values are important for indicator calculations:
@@ -2109,7 +2109,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # CRITICAL FIX: Convert None and NaN to 0.0 to prevent comparison errors
                 if value is None:
                     return 0.0
-                if value != value or value == INF or value == NEG_INF:
+                if value in (INF, NEG_INF) or value != value:
                     return 0.0
                 return value
             except (IndexError, TypeError, AttributeError):
@@ -2143,7 +2143,9 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                             if line.lencount >= len(clock):
                                 continue
                         except Exception as e:
-                            logger.debug("Failed to check clock length in LineSeries.forward: %s", e)
+                            logger.debug(
+                                "Failed to check clock length in LineSeries.forward: %s", e
+                            )
 
                 if line.mode == line.QBuffer:
                     line.idx = line._idx + 1

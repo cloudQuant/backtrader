@@ -47,10 +47,7 @@ def _parse_ymd_compact(
     fallback_format="%Y%m%d",
     time_has_seconds=True,
 ):
-    if (
-        len(date_text) == 8
-        and date_text.isdigit()
-    ):
+    if len(date_text) == 8 and date_text.isdigit():
         year = int(date_text[0:4])
         month = int(date_text[4:6])
         day = int(date_text[6:8])
@@ -78,11 +75,7 @@ def _parse_ymd_separated(
     fallback_format="%Y-%m-%d",
     time_has_seconds=True,
 ):
-    if (
-        len(date_text) == 10
-        and date_text[4] == separator
-        and date_text[7] == separator
-    ):
+    if len(date_text) == 10 and date_text[4] == separator and date_text[7] == separator:
         year = int(date_text[0:4])
         month = int(date_text[5:7])
         day = int(date_text[8:10])
@@ -141,12 +134,7 @@ def _parse_time(
             int(time_text[3:5]),
         )
 
-    if (
-        time_has_seconds
-        and len(time_text) == 8
-        and time_text[2] == ":"
-        and time_text[5] == ":"
-    ):
+    if time_has_seconds and len(time_text) == 8 and time_text[2] == ":" and time_text[5] == ":":
         hour = int(time_text[0:2])
         minute = int(time_text[3:5])
         second = int(time_text[6:8])
@@ -159,12 +147,7 @@ def _parse_time_num(time_text, time_has_seconds):
     if not time_has_seconds and len(time_text) == 5 and time_text[2] == ":":
         return int(time_text[0:2]), int(time_text[3:5]), 0
 
-    if (
-        time_has_seconds
-        and len(time_text) == 8
-        and time_text[2] == ":"
-        and time_text[5] == ":"
-    ):
+    if time_has_seconds and len(time_text) == 8 and time_text[2] == ":" and time_text[5] == ":":
         return int(time_text[0:2]), int(time_text[3:5]), int(time_text[6:8])
 
     return None
@@ -201,11 +184,7 @@ def _parse_ymd_compact_num(date_text, time_text=None, time_has_seconds=True):
 
 
 def _parse_ymd_separated_num(date_text, time_text=None, separator="-", time_has_seconds=True):
-    if not (
-        len(date_text) == 10
-        and date_text[4] == separator
-        and date_text[7] == separator
-    ):
+    if not (len(date_text) == 10 and date_text[4] == separator and date_text[7] == separator):
         return None
 
     ordinal = date(
@@ -446,7 +425,7 @@ class GenericCSVData(feed.CSVDataBase):
             is_last = linefield == last_alias
             if csvidx is None or csvidx < 0:
                 value = float(p.nullvalue)
-                if value == _INF or value == _NEG_INF:
+                if value in (_INF, _NEG_INF):
                     value = line._default_value
                 missing_field_cache.append((line, value))
                 direct_missing_field_cache.append((line, value, tick_name, is_last))
@@ -648,10 +627,7 @@ class GenericCSVData(feed.CSVDataBase):
 
         try:
             direct_layout = (
-                line[8] == ","
-                and line[17] == ","
-                and line[11] == ":"
-                and line[14] == ":"
+                line[8] == "," and line[17] == "," and line[11] == ":" and line[14] == ":"
             )
         except IndexError:
             direct_layout = False
@@ -737,15 +713,15 @@ class GenericCSVData(feed.CSVDataBase):
             low_value = _float(linetokens[4] or nullvalue)
             close_value = _float(linetokens[5] or nullvalue)
             volume_value = _float(linetokens[6] or nullvalue)
-        if open_value == _inf or open_value == _neg_inf:
+        if open_value in (_inf, _neg_inf):
             open_value = open_line._default_value
-        if high_value == _inf or high_value == _neg_inf:
+        if high_value in (_inf, _neg_inf):
             high_value = high_line._default_value
-        if low_value == _inf or low_value == _neg_inf:
+        if low_value in (_inf, _neg_inf):
             low_value = low_line._default_value
-        if close_value == _inf or close_value == _neg_inf:
+        if close_value in (_inf, _neg_inf):
             close_value = close_line._default_value
-        if volume_value == _inf or volume_value == _neg_inf:
+        if volume_value in (_inf, _neg_inf):
             volume_value = volume_line._default_value
 
         openinterest_value = self._fast_ymdhms_openinterest_default
@@ -800,12 +776,7 @@ class GenericCSVData(feed.CSVDataBase):
             )
             object.__setattr__(self, "_use_direct_csv_load", use_direct_csv_load)
 
-        if (
-            not use_direct_csv_load
-            or self._filters
-            or self._barstack
-            or self._barstash
-        ):
+        if not use_direct_csv_load or self._filters or self._barstack or self._barstash:
             return super().load()
 
         try:
@@ -896,7 +867,9 @@ class GenericCSVData(feed.CSVDataBase):
                         )
                         if month > 2 and leap:
                             ordinal += 1
-                        dtnum = float(ordinal) + (hour * 3600 + minute * 60 + second) / _SECONDS_PER_DAY
+                        dtnum = (
+                            float(ordinal) + (hour * 3600 + minute * 60 + second) / _SECONDS_PER_DAY
+                        )
 
                         line_datetime = self._datetime_line
                         datetime_idx = line_datetime._idx
@@ -962,15 +935,15 @@ class GenericCSVData(feed.CSVDataBase):
                                     volume_line,
                                     openinterest_line,
                                 ) = self._fast_ymdhms_ohlcv_lines
-                                if open_value == _INF or open_value == _NEG_INF:
+                                if open_value in (_INF, _NEG_INF):
                                     open_value = open_line._default_value
-                                if high_value == _INF or high_value == _NEG_INF:
+                                if high_value in (_INF, _NEG_INF):
                                     high_value = high_line._default_value
-                                if low_value == _INF or low_value == _NEG_INF:
+                                if low_value in (_INF, _NEG_INF):
                                     low_value = low_line._default_value
-                                if close_value == _INF or close_value == _NEG_INF:
+                                if close_value in (_INF, _NEG_INF):
                                     close_value = close_line._default_value
-                                if volume_value == _INF or volume_value == _NEG_INF:
+                                if volume_value in (_INF, _NEG_INF):
                                     volume_value = volume_line._default_value
 
                                 openinterest_value = openinterest_line._default_value
@@ -996,7 +969,7 @@ class GenericCSVData(feed.CSVDataBase):
                             if csvfield == "":
                                 csvfield = nullvalue
                             value = float(csvfield)
-                            if value == _INF or value == _NEG_INF:
+                            if value in (_INF, _NEG_INF):
                                 value = field_line._default_value
 
                             field_idx = field_line._idx
@@ -1012,7 +985,12 @@ class GenericCSVData(feed.CSVDataBase):
                             if is_last:
                                 tick_last = value
 
-                        for field_line, value, tick_name, is_last in self._direct_missing_field_cache:
+                        for (
+                            field_line,
+                            value,
+                            tick_name,
+                            is_last,
+                        ) in self._direct_missing_field_cache:
                             field_idx = field_line._idx
                             if field_idx < 0:
                                 field_line[0] = value
@@ -1092,11 +1070,7 @@ class GenericCSVData(feed.CSVDataBase):
                         seconds = hour * 3600 + minute * 60 + second
                         dtnum = float(ordinal) + seconds / _SECONDS_PER_DAY
             elif dt_num_fast == 2:
-                if (
-                    dtfield[8:9] == ""
-                    and timefield[5:6] == ""
-                    and timefield[2:3] == ":"
-                ):
+                if dtfield[8:9] == "" and timefield[5:6] == "" and timefield[2:3] == ":":
                     try:
                         year = int(dtfield[0:4])
                         month = int(dtfield[4:6])
@@ -1182,7 +1156,7 @@ class GenericCSVData(feed.CSVDataBase):
             if csvfield == "":
                 csvfield = nullvalue
             value = float(csvfield)
-            if value == _INF or value == _NEG_INF:
+            if value in (_INF, _NEG_INF):
                 value = line._default_value
 
             if line.bindings:

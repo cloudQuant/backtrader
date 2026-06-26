@@ -18,11 +18,12 @@ Example:
 
 import os as _os
 
+from backtrader.brokers.bbroker import BackBroker as BackBroker
+from backtrader.brokers.bbroker import BrokerBack as BrokerBack
+
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 
-from backtrader.brokers.bbroker import BackBroker as BackBroker
-from backtrader.brokers.bbroker import BrokerBack as BrokerBack
 
 if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() not in {
     "1",
