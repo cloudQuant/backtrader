@@ -18,6 +18,14 @@ class _FakeBalanceContainer:
         return self.payload
 
 
+class _FakeRequestData:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def get_data(self):
+        return self.payload
+
+
 @pytest.fixture
 def started_stack():
     """Create a started store, feed, and broker with one loaded bar."""
@@ -2256,6 +2264,65 @@ def test_contract_metadata_uses_max_leverage_for_margin_rate():
     assert isinstance(comminfo, bt.ComminfoFuturesPercent)
     assert comminfo.get_param("mult") == pytest.approx(0.01)
     assert comminfo.get_margin(60000.0) == pytest.approx(30.0)
+
+
+def test_store_contract_metadata_falls_back_to_exchange_info_payload():
+    """Direct live stores must use exchange instrument APIs when symbol-info is absent."""
+
+    class ExchangeInfoOnlyClient(FakeBtApiClient):
+        def __init__(self):
+            super().__init__()
+            self.info_calls = []
+            self.fee_calls = []
+
+        def get_exchange_info(self, symbol=None):
+            self.info_calls.append(symbol)
+            return _FakeRequestData(
+                {
+                    "retCode": 0,
+                    "result": {
+                        "category": "linear",
+                        "list": [
+                            {"symbol": "ETHUSDT", "priceFilter": {"tickSize": "0.01"}},
+                            {
+                                "symbol": "BTCUSDT",
+                                "contractType": "LinearPerpetual",
+                                "baseCoin": "BTC",
+                                "quoteCoin": "USDT",
+                                "settleCoin": "USDT",
+                                "priceFilter": {"tickSize": "0.10"},
+                                "lotSizeFilter": {"minOrderQty": "0.001", "qtyStep": "0.001"},
+                                "leverageFilter": {"maxLeverage": "50"},
+                            },
+                        ],
+                    },
+                }
+            )
+
+        def get_fee(self, symbol):
+            self.fee_calls.append(symbol)
+            if symbol != "BTCUSDT":
+                raise ValueError("unknown symbol")
+            return {
+                "makerCommissionRate": "0.0002",
+                "takerCommissionRate": "0.0006",
+            }
+
+    client = ExchangeInfoOnlyClient()
+    store = make_store(api=client)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+    data = type("SwapData", (), {"_name": "BTCUSDT"})()
+
+    comminfo = broker.getcommissioninfo(data)
+
+    assert client.info_calls[0] == "BTCUSDT"
+    assert client.fee_calls[0] == "BTCUSDT"
+    assert store.contract_metadata["BTCUSDT"]["source"] == "get_exchange_info"
+    assert isinstance(comminfo, bt.ComminfoFuturesPercent)
+    assert comminfo.get_param("mult") == pytest.approx(1.0)
+    assert comminfo.get_margin(60000.0) == pytest.approx(1200.0)
+    assert comminfo.getcommission(0.5, 60000.0) == pytest.approx(18.0)
+    assert comminfo.getcommission(0.5, 60000.0, role="maker") == pytest.approx(6.0)
 
 
 def test_contract_metadata_auto_materializes_fixed_margin_amount():

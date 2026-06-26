@@ -666,6 +666,423 @@ def _contract_metadata_aliases(symbol: Any) -> List[str]:
     return result
 
 
+_CONTRACT_METADATA_CONTAINER_KEYS = (
+    "data",
+    "result",
+    "payload",
+    "list",
+    "rows",
+    "items",
+    "symbols",
+    "instruments",
+    "contracts",
+    "markets",
+)
+_CONTRACT_METADATA_NESTED_KEYS = (
+    "priceFilter",
+    "price_filter",
+    "lotSizeFilter",
+    "lot_size_filter",
+    "leverageFilter",
+    "leverage_filter",
+    "fee",
+    "fees",
+)
+
+
+def _compact_contract_symbol(value: Any) -> str:
+    return re.sub(r"[^0-9A-Za-z]", "", _coerce_text(value)).upper()
+
+
+def _materialize_contract_payload(raw: Any) -> Any:
+    for method_name in ("get_all_data", "get_data", "to_dict", "as_dict", "dict", "model_dump"):
+        method = getattr(raw, method_name, None)
+        if not callable(method):
+            continue
+        try:
+            payload = method()
+        except Exception:
+            continue
+        if payload not in (None, "") and payload is not raw:
+            return payload
+    return raw
+
+
+def _contract_payload_symbol_values(row: Dict[str, Any]) -> List[str]:
+    values: List[str] = []
+    for key in (
+        "symbol",
+        "data_name",
+        "symbol_name",
+        "instId",
+        "instrument",
+        "instrument_id",
+        "InstrumentID",
+        "REFERENCE_CODE",
+        "localSymbol",
+        "local_symbol",
+        "pair",
+        "id",
+        "name",
+        "contract",
+        "contract_code",
+        "contractCode",
+    ):
+        value = row.get(key)
+        if value not in (None, ""):
+            values.append(_coerce_text(value))
+    return values
+
+
+def _contract_payload_matches_symbol(row: Dict[str, Any], symbol: Any) -> bool:
+    text = _coerce_text(symbol)
+    if not text:
+        return True
+    aliases = _contract_metadata_aliases(text)
+    candidates = {_coerce_text(alias).upper() for alias in aliases if _coerce_text(alias)}
+    candidates.update(_compact_contract_symbol(alias) for alias in aliases if _coerce_text(alias))
+    for value in _contract_payload_symbol_values(row):
+        if value.upper() in candidates or _compact_contract_symbol(value) in candidates:
+            return True
+    return False
+
+
+def _select_contract_payload_row(payload: Any, symbol: Any) -> Optional[Dict[str, Any]]:
+    payload = _materialize_contract_payload(payload)
+    if not isinstance(payload, (list, tuple, set)):
+        return None
+    rows = [item for item in payload if isinstance(item, dict)]
+    if not rows:
+        return None
+    if symbol:
+        for row in rows:
+            if _contract_payload_matches_symbol(row, symbol):
+                return row
+        if len(rows) > 1:
+            return None
+    return rows[0]
+
+
+def _flatten_contract_metadata_payload(data: Dict[str, Any]) -> Dict[str, Any]:
+    flattened = dict(data)
+    for key in _CONTRACT_METADATA_NESTED_KEYS:
+        nested = flattened.get(key)
+        if isinstance(nested, dict):
+            for nested_key, nested_value in nested.items():
+                flattened.setdefault(str(nested_key), nested_value)
+
+    filters = flattened.get("filters")
+    if isinstance(filters, (list, tuple, set)):
+        for item in filters:
+            if not isinstance(item, dict):
+                continue
+            filter_type = _coerce_text(item.get("filterType") or item.get("filter_type"))
+            for nested_key, nested_value in item.items():
+                if nested_key in {"filterType", "filter_type"}:
+                    continue
+                flattened.setdefault(str(nested_key), nested_value)
+                if filter_type:
+                    flattened.setdefault(f"{filter_type}_{nested_key}", nested_value)
+    return flattened
+
+
+def _unwrap_contract_metadata_payload(raw: Any, symbol: Any) -> Dict[str, Any]:
+    raw = _materialize_contract_payload(raw)
+    if isinstance(raw, (list, tuple, set)):
+        row = _select_contract_payload_row(raw, symbol)
+        return dict(row or {})
+    if not isinstance(raw, dict):
+        return {}
+
+    data = dict(raw)
+    for _ in range(10):
+        for key in _CONTRACT_METADATA_CONTAINER_KEYS:
+            payload = data.get(key)
+            row: Optional[Dict[str, Any]]
+            if isinstance(payload, dict):
+                row = payload
+            else:
+                row = _select_contract_payload_row(payload, symbol)
+            if row is None:
+                continue
+            base = {item_key: item_value for item_key, item_value in data.items() if item_key != key}
+            base.update(row)
+            if base == data:
+                return _flatten_contract_metadata_payload(data)
+            data = base
+            break
+        else:
+            break
+    return _flatten_contract_metadata_payload(data)
+
+
+def _normalise_exchange_commission_rate(key: str, value: Any) -> Optional[float]:
+    number = _coerce_float(value, None)
+    if number is None:
+        return None
+    key_lower = key.strip().lower()
+    if key_lower in {"makercommission", "takercommission"} and abs(number) > 1:
+        return number / 10000.0
+    if key_lower in {"makercommissionrate", "takercommissionrate"} and abs(number) > 1:
+        return number / 10000.0
+    if key_lower in {"makeru", "takeru"}:
+        return -number
+    if abs(number) > 1:
+        return number / 100.0
+    return number
+
+
+def _normalise_contract_metadata(raw: Any, symbol: Any, *, source: str = "") -> Dict[str, Any]:
+    data = _unwrap_contract_metadata_payload(raw, symbol)
+    if not data:
+        return {}
+
+    metadata = dict(data)
+    symbol_text = _coerce_text(
+        symbol
+        or data.get("symbol")
+        or data.get("data_name")
+        or data.get("instId")
+        or data.get("instrument")
+        or data.get("InstrumentID")
+    )
+    if symbol_text:
+        metadata["symbol"] = symbol_text
+    if source:
+        metadata["source"] = source
+
+    aliases = {
+        "category": ("asset_type", "instType"),
+        "contractType": ("contract_type",),
+        "baseCoin": ("base_asset", "baseCcy"),
+        "quoteCoin": ("quote_asset", "quoteCcy"),
+        "settleCoin": ("settle_currency", "settleCcy"),
+        "tickSize": ("price_tick", "tick_size", "min_price_tick"),
+        "minOrderQty": ("min_order_size", "min_order_qty"),
+        "maxOrderQty": ("max_order_size", "max_order_qty"),
+        "maxMktOrderQty": ("market_max_order_size", "max_market_order_size"),
+        "maxMarketOrderQty": ("market_max_order_size", "max_market_order_size"),
+        "qtyStep": ("order_size_step", "qty_step"),
+        "stepSize": ("order_size_step", "qty_step"),
+        "maxLeverage": ("max_leverage",),
+    }
+    for src_key, target_keys in aliases.items():
+        value = data.get(src_key)
+        if value in (None, ""):
+            continue
+        for target_key in target_keys:
+            metadata.setdefault(target_key, value)
+
+    asset_type = _coerce_text(metadata.get("asset_type") or metadata.get("instType"))
+    contract_type = _coerce_text(metadata.get("contract_type") or metadata.get("contractType"))
+    if (
+        metadata.get("multiplier") in (None, "")
+        and metadata.get("contract_size") in (None, "")
+        and "linear" in f"{asset_type} {contract_type}".lower()
+    ):
+        metadata["multiplier"] = 1.0
+        metadata["contract_size"] = 1.0
+
+    maker_rate = _normalise_exchange_commission_rate(
+        "makerCommissionRate",
+        metadata.get("maker_commission_rate")
+        or metadata.get("maker_fee_rate")
+        or metadata.get("makerCommissionRate")
+        or metadata.get("makerCommission")
+        or metadata.get("makerU")
+        or metadata.get("maker"),
+    )
+    taker_rate = _normalise_exchange_commission_rate(
+        "takerCommissionRate",
+        metadata.get("taker_commission_rate")
+        or metadata.get("taker_fee_rate")
+        or metadata.get("takerCommissionRate")
+        or metadata.get("takerCommission")
+        or metadata.get("takerU")
+        or metadata.get("taker"),
+    )
+    if maker_rate is not None:
+        metadata["maker_commission_rate"] = maker_rate
+    if taker_rate is not None:
+        metadata["taker_commission_rate"] = taker_rate
+        metadata.setdefault("commission_rate", taker_rate)
+        metadata.setdefault("open_commission_rate", taker_rate)
+
+    return {key: value for key, value in metadata.items() if value not in (None, "")}
+
+
+_CONTRACT_METADATA_RULE_KEYS = (
+    "multiplier",
+    "mult",
+    "contract_multiplier",
+    "contract_size",
+    "contract_value",
+    "contractValue",
+    "ctVal",
+    "ctMult",
+    "VolumeMultiple",
+    "margin",
+    "margin_rate",
+    "margin_ratio",
+    "max_leverage",
+    "leverage",
+    "lever",
+    "commission_rate",
+    "open_commission_rate",
+    "close_commission_rate",
+    "close_today_commission_rate",
+    "maker_commission_rate",
+    "taker_commission_rate",
+    "commission_amount",
+    "open_commission_amount",
+    "close_commission_amount",
+    "min_price_tick",
+    "price_tick",
+    "tick_size",
+    "min_order_size",
+    "max_order_size",
+    "order_size_step",
+    "asset_type",
+    "instType",
+    "contract_type",
+    "contractType",
+)
+
+
+def _contract_metadata_has_rules(metadata: Dict[str, Any]) -> bool:
+    return any(metadata.get(key) not in (None, "") for key in _CONTRACT_METADATA_RULE_KEYS)
+
+
+def _contract_metadata_method_attempts(
+    api: Any,
+    method_name: str,
+    query_symbol: str,
+    *,
+    include_empty_call: bool = False,
+) -> List[Tuple[Tuple[Any, ...], Dict[str, Any]]]:
+    asset_type = _coerce_text(getattr(api, "asset_type", ""))
+    instrument_method = method_name in {
+        "get_instruments",
+        "fetch_instruments",
+        "get_public_instruments",
+        "fetch_public_instruments",
+    }
+    attempts: List[Tuple[Tuple[Any, ...], Dict[str, Any]]] = []
+    if query_symbol:
+        if instrument_method and asset_type:
+            attempts.append(((), {"asset_type": asset_type, "inst_id": query_symbol}))
+        if instrument_method:
+            attempts.extend(
+                (
+                    ((), {"inst_id": query_symbol}),
+                    ((), {"instId": query_symbol}),
+                    ((), {"instrument": query_symbol}),
+                )
+            )
+        attempts.extend(
+            (
+                ((query_symbol,), {}),
+                ((), {"symbol": query_symbol}),
+                ((), {"inst_id": query_symbol}),
+                ((), {"instId": query_symbol}),
+                ((), {"instrument": query_symbol}),
+            )
+        )
+    if include_empty_call:
+        if instrument_method and asset_type:
+            attempts.append(((), {"asset_type": asset_type}))
+        attempts.append(((), {}))
+
+    result: List[Tuple[Tuple[Any, ...], Dict[str, Any]]] = []
+    seen = set()
+    for args, kwargs in attempts:
+        marker = repr((args, sorted(kwargs.items())))
+        if marker in seen:
+            continue
+        seen.add(marker)
+        result.append((args, kwargs))
+    return result
+
+
+def _query_contract_fee_metadata(api: Any, aliases: List[str], symbol: Any) -> Dict[str, Any]:
+    for method_name in (
+        "get_fee",
+        "fetch_fee",
+        "get_fee_rate",
+        "fetch_fee_rate",
+        "get_commission_rate",
+        "fetch_commission_rate",
+    ):
+        method = getattr(api, method_name, None)
+        if not callable(method):
+            continue
+        for query_symbol in aliases:
+            try:
+                payload = method(query_symbol)
+            except Exception:
+                continue
+            metadata = _normalise_contract_metadata(payload, symbol, source=method_name)
+            if any(
+                metadata.get(key) not in (None, "")
+                for key in (
+                    "commission_rate",
+                    "maker_commission_rate",
+                    "taker_commission_rate",
+                    "commission_amount",
+                )
+            ):
+                return metadata
+    return {}
+
+
+def _query_contract_metadata_from_api(api: Any, aliases: List[str], symbol: Any) -> Dict[str, Any]:
+    fee_metadata = _query_contract_fee_metadata(api, aliases, symbol)
+    for method_name in (
+        "get_symbol_info",
+        "fetch_symbol_info",
+        "get_exchange_info",
+        "fetch_exchange_info",
+        "get_instruments",
+        "fetch_instruments",
+        "get_public_instruments",
+        "fetch_public_instruments",
+        "get_contract",
+        "fetch_contract",
+        "query_symbol",
+        "get_market",
+        "fetch_market",
+    ):
+        method = getattr(api, method_name, None)
+        if not callable(method):
+            continue
+        attempts: List[Tuple[Tuple[Any, ...], Dict[str, Any]]] = []
+        for query_symbol in aliases:
+            attempts.extend(_contract_metadata_method_attempts(api, method_name, query_symbol))
+        attempts.extend(
+            _contract_metadata_method_attempts(
+                api,
+                method_name,
+                "",
+                include_empty_call=True,
+            )
+        )
+        for args, kwargs in attempts:
+            try:
+                payload = method(*args, **kwargs)
+            except Exception:
+                continue
+            metadata = _normalise_contract_metadata(payload, symbol, source=method_name)
+            if not _contract_metadata_has_rules(metadata):
+                continue
+            if fee_metadata:
+                fee_source = fee_metadata.get("source")
+                metadata.update({key: value for key, value in fee_metadata.items() if key != "source"})
+                if fee_source:
+                    metadata["fee_source"] = fee_source
+            return metadata
+    return fee_metadata
+
+
 def _normalize_ctp_instrument(instrument: Any, exchange_id: Any = "") -> str:
     text = _coerce_text(instrument)
     if not text:
@@ -3198,24 +3615,8 @@ class BtApiStore(LiveStoreBase):
         except Exception:
             return {}
 
-        metadata = {}
-        for method_name in ("get_symbol_info", "fetch_symbol_info"):
-            getter = getattr(api, method_name, None)
-            if not callable(getter):
-                continue
-            for query_symbol in aliases or [str(dataname)]:
-                try:
-                    metadata = getter(query_symbol) or {}
-                except Exception:
-                    continue
-                if isinstance(metadata, dict) and metadata:
-                    break
-            if isinstance(metadata, dict) and metadata:
-                break
-        else:
-            return {}
-
-        if not isinstance(metadata, dict) or not metadata:
+        metadata = _query_contract_metadata_from_api(api, aliases or [str(dataname)], dataname)
+        if not metadata:
             return {}
 
         normalized = dict(metadata)
