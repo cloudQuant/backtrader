@@ -468,20 +468,9 @@ class LineBuffer(LineSingle, LineRootMixin):
             # If not using islice, directly slice the array
             values = self.array[start:end]
             if getattr(values, "typecode", None) == "d":
-                try:
-                    idx = values.index(INF)
-                    while True:
+                for idx, value in enumerate(values):
+                    if value in (INF, NEG_INF):
                         values[idx] = 0.0
-                        idx = values.index(INF, idx + 1)
-                except ValueError:
-                    pass
-                try:
-                    idx = values.index(NEG_INF)
-                    while True:
-                        values[idx] = 0.0
-                        idx = values.index(NEG_INF, idx + 1)
-                except ValueError:
-                    pass
                 return values
 
         return array.array(
