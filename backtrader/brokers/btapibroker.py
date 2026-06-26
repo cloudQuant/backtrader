@@ -2399,17 +2399,47 @@ class BtApiBroker(BrokerBase):
             return
 
         while True:
-            update = self.store.poll_broker_update()
-            if update is None:
+            raw_update = self.store.poll_broker_update()
+            if raw_update is None:
                 break
 
-            kind = str(update.get("kind") or "").lower()
-            if kind == "order":
-                self._apply_order_update(update)
-            elif kind == "trade":
-                self._apply_trade_update(update)
-            elif kind == "error":
-                self._apply_error_update(update)
+            for update in self._iter_broker_update_rows(raw_update):
+                kind = str(update.get("kind") or "").lower()
+                if kind == "order":
+                    self._apply_order_update(update)
+                elif kind == "trade":
+                    self._apply_trade_update(update)
+                elif kind == "error":
+                    self._apply_error_update(update)
+
+    @classmethod
+    def _iter_broker_update_rows(cls, update):
+        """Yield flat broker updates from exchange envelopes such as WS data lists."""
+        if not isinstance(update, dict):
+            return
+
+        data = update.get("data")
+        if isinstance(data, dict):
+            rows = [data]
+        elif isinstance(data, (list, tuple)):
+            rows = [item for item in data if isinstance(item, dict)]
+        else:
+            yield update
+            return
+
+        if not rows:
+            yield update
+            return
+
+        envelope = {key: value for key, value in update.items() if key not in {"data", "id"}}
+        if update.get("id") not in (None, ""):
+            envelope["message_id"] = update.get("id")
+        for row in rows:
+            flat = dict(envelope)
+            flat.update(row)
+            if "kind" not in flat and update.get("kind") not in (None, ""):
+                flat["kind"] = update.get("kind")
+            yield flat
 
     def _trade_dedupe_key(self, update, order=None):
         """Build a stable trade dedupe key when the provider exposes a fill id."""
