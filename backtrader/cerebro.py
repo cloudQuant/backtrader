@@ -1430,7 +1430,7 @@ class Cerebro(ParameterizedBase):
         dpi=300,
         tight=True,
         use=None,
-        backend="matplotlib",
+        backend="bokeh",
         **kwargs,
     ):
         """
@@ -1446,11 +1446,28 @@ class Cerebro(ParameterizedBase):
         displayed inline
 
         ``use``: set it to the name of the desired matplotlib backend. It will
-        take precedence over ``iplot``
+        take precedence over ``iplot``. Passing ``use`` also forces the
+        matplotlib backend (since it is matplotlib-specific), even though the
+        default backend is bokeh.
 
         ``backend``: plotting backend to use. Options:
-            - 'matplotlib': traditional matplotlib plotting (default)
+            - 'bokeh': interactive Bokeh charts, tab-based browser rendering
+              (default)
+            - 'matplotlib': traditional matplotlib plotting
             - 'plotly': interactive Plotly charts (better for large data)
+
+        The default ``'bokeh'`` requires the optional ``bokeh`` package. If it
+        is not installed, ``cerebro.plot()`` falls back to ``matplotlib`` with a
+        ``RuntimeWarning``. Pass ``backend='matplotlib'`` explicitly to silence
+        the warning.
+
+        Backend-specific notes:
+            - matplotlib backend supports ``use``; other backends ignore it
+              (passing ``use`` forces matplotlib, see above).
+            - plotly backend accepts scheme-style kwargs from ``PlotlyScheme``.
+            - bokeh backend accepts:
+              ``style`` (bar/candle/line), ``scheme`` (``Scheme`` / theme instance),
+              ``use_default_tabs`` and ``filter``.
 
         ``start``: An index to the datetime line array of the strategy or a
         ``datetime.date``, ``datetime.datetime`` instance indicating the start
@@ -1483,13 +1500,43 @@ class Cerebro(ParameterizedBase):
                         pass
 
         if not plotter:
-            from . import plot
+            # `use` is a matplotlib backend selector; if provided, the caller
+            # wants matplotlib output, so honor that even when the default
+            # backend is bokeh.
+            if use is not None and backend == "bokeh":
+                backend = "matplotlib"
 
-            if backend == "plotly":
+            if backend == "bokeh":
+                try:
+                    from .bokeh import BokehPlot
+
+                    plotter = BokehPlot(**kwargs)
+                except ImportError:
+                    # bokeh is the default but optional; fall back to matplotlib
+                    # (a required dependency) so cerebro.plot() always works.
+                    import warnings
+
+                    warnings.warn(
+                        "bokeh backend (default) is not available; falling back "
+                        "to matplotlib. Install bokeh with: pip install bokeh, or "
+                        "pass backend='matplotlib' to silence this warning.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
+                    from . import plot
+
+                    plotter = plot.Plot(**kwargs)
+            elif backend == "plotly":
+                from . import plot
+
                 plotter = plot.PlotlyPlot(**kwargs)
             elif self.p.oldsync:
+                from . import plot
+
                 plotter = plot.Plot_OldSync(**kwargs)
             else:
+                from . import plot
+
                 plotter = plot.Plot(**kwargs)
 
         # pfillers = {self.datas[i]: self._plotfillers[i]
