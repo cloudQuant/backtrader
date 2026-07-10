@@ -120,7 +120,6 @@ else:
     from .trend_ext import *
     from .supertrend import *
 
-
     from .dv2 import *  # depends on percentrank
 
     # Depends on Momentum

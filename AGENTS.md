@@ -13,7 +13,7 @@ trading. This repo is a performance-oriented fork of the original
 metaprogramming** in favor of explicit mixin + factory initialization while
 keeping the public API compatible.
 
-- **Version**: `1.1.0` (see `backtrader/version.py`)
+- **Version**: `1.2.0` (see `backtrader/version.py`)
 - **License**: GPLv3
 - **Python**: 3.8–3.13 (classifiers in `setup.py`; 3.11 recommended)
 - **Not on PyPI** — install from source only.
@@ -292,5 +292,5 @@ Makefile pyproject.toml setup.py pytest.ini requirements.txt conftest.py
 
 - `pyproject.toml` — black, ruff, isort, mypy, bandit, coverage.
 - `pytest.ini` — discovery, markers, warning filters.
-- `.kiro/steering/{product,tech,structure}.md` — project conventions
-  (authoritative for build/test/structure norms).
+No Kiro steering files are tracked; use this `AGENTS.md`, `README.md`, and
+the project configuration files as the current build/test/structure guidance.

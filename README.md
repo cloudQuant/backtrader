@@ -4,7 +4,7 @@
 
 **Professional Python Algorithmic Trading Backtesting Framework**
 
-[![Version](https://img.shields.io/badge/Version-1.1.0-blue.svg)](https://github.com/cloudQuant/backtrader)
+[![Version](https://img.shields.io/badge/Version-1.2.0-blue.svg)](https://github.com/cloudQuant/backtrader)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#)
@@ -60,6 +60,7 @@ It currently supports Python 3.8-3.14 and covers macOS, Windows, Linux, and othe
 - [Advanced Topics](#-advanced-topics)
 - [Project Architecture](#-project-architecture)
 - [Testing](#-testing)
+- [Repository Maintenance Notes](#-repository-maintenance-notes)
 - [API Documentation](#-api-documentation)
 - [FAQ](#-faq)
 - [Contributing](#-contributing)
@@ -124,6 +125,7 @@ high-frequency** strategy development, backtesting, and live trading.
 
 - **`master`**: Stable release branch
 - **`dev`**: Active development branch carrying performance optimizations and new features
+- **`development`**: Integration/release-candidate branch used by CI/CD before promotion
 
 ---
 
@@ -234,7 +236,7 @@ pip install -U .
 ```python
 import backtrader as bt
 print(f"Backtrader version: {bt.__version__}")
-# Output: Backtrader version: 1.1.0
+# Output: Backtrader version: 1.2.0
 ```
 
 ### Run Tests
@@ -530,7 +532,8 @@ backtrader/
 │   ├── plot/             # Visualization
 │   └── reports/          # Report generation
 ├── examples/             # Example code
-├── tests/                # Test cases (~2,800 tests)
+├── tests/                # Test cases (3,200+ tests)
+├── scripts/              # Install, test, benchmark, and maintenance helpers
 └── docs/                 # Documentation
 ```
 
@@ -538,7 +541,7 @@ backtrader/
 
 ## 🧪 Testing
 
-The repository ships with around **2,800 tests** covering unit, functional,
+The repository ships with **3,200+ tests** covering unit, functional,
 integration, and performance suites. The functional strategy directory alone
 contains **1,271 inlined regression tests** spanning 22 strategy categories
 (trend following, mean reversion, asset allocation, machine learning, options,
@@ -588,7 +591,26 @@ python scripts/refresh_strategy_durations.py
 
 ```bash
 pytest tests -n 8
+
+# Wrapper scripts live under scripts/
+bash scripts/run_tests.sh -n 8
+scripts\run_tests.bat -n 8
 ```
+
+### Helper Scripts
+
+Root-level install and test wrappers have been consolidated under `scripts/`.
+Use these paths from the repository root:
+
+```bash
+bash scripts/install_unix.sh
+scripts\install_win.bat
+bash scripts/run_tests.sh
+scripts\run_tests.bat
+```
+
+`mypy-report.txt` is a CI-generated temporary file. It is intentionally not
+tracked; the GitHub Actions mypy gate recreates it during each lint job.
 
 ### Run a Specific Category
 
@@ -633,6 +655,19 @@ you can confirm which copy each run picked up. The switch works under
 Test fixtures live under `tests/datas/`. The MT5-formatted daily CSVs live in
 `tests/datas/mt5_1d_data/` and cover the symbols referenced by the inlined
 regression suite (XAUUSD, XAGUSD, IVV, IEF, GLD, IWM, etc.).
+
+---
+
+## Repository Maintenance Notes
+
+- The canonical changelog is [`CHANGELOG.md`](CHANGELOG.md). Historical
+  `ChangeLog.md` and version-specific root changelog files were consolidated.
+- Generated reports such as `mypy-report.txt` are ignored and should not be
+  committed.
+- Legacy local workflow metadata under `.windsurf/workflows` and obsolete
+  `.kiro/steering` files are not part of the tracked project guidance.
+- Helper entrypoints are kept in `scripts/`; avoid reintroducing duplicate
+  root-level install or test scripts.
 
 ---
 
@@ -778,7 +813,7 @@ Both must pass without errors.
 pytest tests -n 4 -v
 ```
 
-Expected output: all ~2,800 tests pass.
+Expected output: all 3,200+ tests pass.
 
 #### 4. (Optional) Test Against the Installed Package
 
@@ -936,6 +971,7 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 
 - **`master`**：稳定发布分支
 - **`dev`**：活跃开发分支，承载性能优化与新特性
+- **`development`**：集成 / 候选发布分支，用于 CI/CD 验证后再晋级
 
 ---
 
@@ -1046,7 +1082,7 @@ bt.reset_logging()                    # 还原到默认静默状态（测试用�
 
 ## 🧪 测试
 
-仓库自带约 **2,800 个测试**，覆盖单元、功能、集成和性能四个层级。仅
+仓库自带 **3,200+ 个测试**，覆盖单元、功能、集成和性能四个层级。仅
 `tests/functional/strategies/` 这一目录就有 **1,271 个内联回归测试**，分布在
 22 个策略类别下（趋势跟踪、均值回归、资产配置、机器学习、期权、配对交易等）。
 
@@ -1092,7 +1128,25 @@ python scripts/refresh_strategy_durations.py
 
 ```bash
 pytest tests -n 8
+
+# 封装脚本统一放在 scripts/ 下
+bash scripts/run_tests.sh -n 8
+scripts\run_tests.bat -n 8
 ```
+
+### 辅助脚本
+
+根目录安装和测试封装脚本已统一整理到 `scripts/`。从仓库根目录使用：
+
+```bash
+bash scripts/install_unix.sh
+scripts\install_win.bat
+bash scripts/run_tests.sh
+scripts\run_tests.bat
+```
+
+`mypy-report.txt` 是 CI 在 mypy 门禁中临时生成的报告文件，不需要提交到仓库；
+GitHub Actions 每次 lint job 都会重新生成它。
 
 ### 只运行某一类
 
@@ -1138,6 +1192,16 @@ XAGUSD、IVV、IEF、GLD、IWM 等）。
 
 ---
 
+## 仓库维护说明
+
+- 唯一的变更日志文件是 [`CHANGELOG.md`](CHANGELOG.md)。历史上的
+  `ChangeLog.md` 和版本专用根目录 changelog 已合并。
+- `mypy-report.txt` 等生成报告已加入忽略规则，不应提交。
+- `.windsurf/workflows` 和过期的 `.kiro/steering` 不再作为跟踪的项目指导文件。
+- 安装、测试等辅助入口统一放在 `scripts/`，不要重新引入根目录重复脚本。
+
+---
+
 ## 🤝 贡献指南
 
 我们欢迎所有有助于提升代码质量、修复 bug 和增强性能的贡献。
@@ -1175,7 +1239,7 @@ pytest tests -n 4
 pytest tests -n 4 -v
 ```
 
-预期输出：约 2,800 个测试全部通过。
+预期输出：3,200+ 个测试全部通过。
 
 #### 4. 提交 PR
 

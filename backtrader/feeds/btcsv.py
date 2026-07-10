@@ -17,7 +17,6 @@ from datetime import date
 
 from .. import feed
 
-
 _HOURS_PER_DAY = 24.0
 _MINUTES_PER_DAY = 1440.0
 _SECONDS_PER_DAY = 86400.0
@@ -28,7 +27,7 @@ _NEG_INF = float("-inf")
 
 def _set_current_value(line, value):
     """Set the current line slot, falling back when binding propagation is needed."""
-    if value == _INF or value == _NEG_INF:
+    if value in (_INF, _NEG_INF):
         value = line._default_value
 
     if line.bindings:
@@ -154,17 +153,17 @@ class BacktraderCSVData(feed.CSVDataBase):
             and not line_volume.bindings
             and not line_openinterest.bindings
         ):
-            if open_value == _INF or open_value == _NEG_INF:
+            if open_value in (_INF, _NEG_INF):
                 open_value = line_open._default_value
-            if high_value == _INF or high_value == _NEG_INF:
+            if high_value in (_INF, _NEG_INF):
                 high_value = line_high._default_value
-            if low_value == _INF or low_value == _NEG_INF:
+            if low_value in (_INF, _NEG_INF):
                 low_value = line_low._default_value
-            if close_value == _INF or close_value == _NEG_INF:
+            if close_value in (_INF, _NEG_INF):
                 close_value = line_close._default_value
-            if volume_value == _INF or volume_value == _NEG_INF:
+            if volume_value in (_INF, _NEG_INF):
                 volume_value = line_volume._default_value
-            if openinterest_value == _INF or openinterest_value == _NEG_INF:
+            if openinterest_value in (_INF, _NEG_INF):
                 openinterest_value = line_openinterest._default_value
 
             try:

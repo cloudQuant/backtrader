@@ -3,18 +3,19 @@ Backtrader 实盘交易模块
 
 提供实盘交易的抽象接口和基础实现
 """
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Callable
-from enum import Enum
-from datetime import datetime
-import logging
 
+import logging
+from abc import ABC, abstractmethod
+from datetime import datetime
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, cast
 
 logger = logging.getLogger(__name__)
 
 
 class LiveOrderType(str, Enum):
     """订单类型"""
+
     MARKET = "market"
     LIMIT = "limit"
     STOP = "stop"
@@ -23,12 +24,14 @@ class LiveOrderType(str, Enum):
 
 class LiveOrderSide(str, Enum):
     """订单方向"""
+
     BUY = "buy"
     SELL = "sell"
 
 
 class LiveOrderStatus(str, Enum):
     """订单状态"""
+
     PENDING = "pending"
     PARTIAL_FILLED = "partial_filled"
     FILLED = "filled"
@@ -39,6 +42,7 @@ class LiveOrderStatus(str, Enum):
 
 class LivePositionSide(str, Enum):
     """持仓方向"""
+
     LONG = "long"
     SHORT = "short"
     FLAT = "flat"
@@ -46,6 +50,7 @@ class LivePositionSide(str, Enum):
 
 class LiveOrder:
     """实盘订单"""
+
     def __init__(
         self,
         order_id: str,
@@ -60,8 +65,8 @@ class LiveOrder:
         avg_fill_price: float = 0.0,
         status: LiveOrderStatus = LiveOrderStatus.PENDING,
         commission: float = 0.0,
-        created_at: datetime = None,
-        updated_at: datetime = None,
+        created_at: Optional[datetime] = None,
+        updated_at: Optional[datetime] = None,
         filled_at: Optional[datetime] = None,
         rejected_reason: Optional[str] = None,
     ):
@@ -85,6 +90,7 @@ class LiveOrder:
 
 class LivePosition:
     """实盘持仓"""
+
     def __init__(
         self,
         symbol: str,
@@ -106,6 +112,7 @@ class LivePosition:
 
 class LiveTrade:
     """实盘成交"""
+
     def __init__(
         self,
         trade_id: str,
@@ -117,7 +124,7 @@ class LiveTrade:
         commission: float,
         pnl: float = 0.0,
         pnl_pct: float = 0.0,
-        created_at: datetime = None,
+        created_at: Optional[datetime] = None,
     ):
         self.trade_id = trade_id
         self.order_id = order_id
@@ -133,6 +140,7 @@ class LiveTrade:
 
 class LiveAccount:
     """实盘账户"""
+
     def __init__(
         self,
         cash: float,
@@ -152,6 +160,7 @@ class LiveAccount:
 
 class LiveTick:
     """实盘行情"""
+
     def __init__(
         self,
         symbol: str,
@@ -193,14 +202,12 @@ class LiveBroker(ABC):
         Returns:
             bool: 是否连接成功
         """
-        pass
 
     @abstractmethod
     def disconnect(self) -> None:
         """
         断开连接
         """
-        pass
 
     @abstractmethod
     def get_account(self) -> LiveAccount:
@@ -210,7 +217,6 @@ class LiveBroker(ABC):
         Returns:
             LiveAccount: 账户信息
         """
-        pass
 
     @abstractmethod
     def get_position(self, symbol: str) -> Optional[LivePosition]:
@@ -223,7 +229,6 @@ class LiveBroker(ABC):
         Returns:
             LivePosition or None: 持仓信息
         """
-        pass
 
     @abstractmethod
     def get_positions(self) -> List[LivePosition]:
@@ -233,7 +238,6 @@ class LiveBroker(ABC):
         Returns:
             List[LivePosition]: 持仓列表
         """
-        pass
 
     @abstractmethod
     def place_order(self, order: LiveOrder) -> LiveOrder:
@@ -246,7 +250,6 @@ class LiveBroker(ABC):
         Returns:
             LiveOrder: 订单对象
         """
-        pass
 
     @abstractmethod
     def cancel_order(self, order_id: str) -> bool:
@@ -259,7 +262,6 @@ class LiveBroker(ABC):
         Returns:
             bool: 是否撤销成功
         """
-        pass
 
     @abstractmethod
     def get_order(self, order_id: str) -> Optional[LiveOrder]:
@@ -272,7 +274,6 @@ class LiveBroker(ABC):
         Returns:
             LiveOrder or None: 订单信息
         """
-        pass
 
     @abstractmethod
     def get_orders(self, status: Optional[LiveOrderStatus] = None) -> List[LiveOrder]:
@@ -285,10 +286,14 @@ class LiveBroker(ABC):
         Returns:
             List[LiveOrder]: 订单列表
         """
-        pass
 
     @abstractmethod
-    def get_trades(self, symbol: Optional[str] = None, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None) -> List[LiveTrade]:
+    def get_trades(
+        self,
+        symbol: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+    ) -> List[LiveTrade]:
         """
         查询成交
 
@@ -300,7 +305,6 @@ class LiveBroker(ABC):
         Returns:
             List[LiveTrade]: 成交列表
         """
-        pass
 
     @abstractmethod
     def subscribe_tick(self, symbols: List[str], callback: Callable[[LiveTick], None]) -> None:
@@ -311,7 +315,6 @@ class LiveBroker(ABC):
             symbols: 标的代码列表
             callback: 行情回调函数
         """
-        pass
 
     @abstractmethod
     def unsubscribe_tick(self, symbols: List[str]) -> None:
@@ -321,7 +324,6 @@ class LiveBroker(ABC):
         Args:
             symbols: 标的代码列表
         """
-        pass
 
     @abstractmethod
     def get_historical_data(
@@ -343,7 +345,6 @@ class LiveBroker(ABC):
         Returns:
             List[LiveTick]: 历史行情列表
         """
-        pass
 
     @abstractmethod
     def is_connected(self) -> bool:
@@ -353,7 +354,6 @@ class LiveBroker(ABC):
         Returns:
             bool: 是否连接
         """
-        pass
 
 
 class LiveBrokerFactory:
@@ -382,15 +382,15 @@ class LiveBrokerFactory:
             raise ValueError(f"不支持的券商类型: {broker_type}")
 
         # 动态导入券商类
-        parts = broker_class_path.split('.')
-        module_path = '.'.join(parts[:-1])
+        parts = broker_class_path.split(".")
+        module_path = ".".join(parts[:-1])
         class_name = parts[-1]
 
         module = __import__(module_path, fromlist=[class_name])
         broker_class = getattr(module, class_name)
 
         # 创建实例
-        return broker_class(config)
+        return cast(LiveBroker, broker_class(config))
 
     @classmethod
     def register_broker(cls, broker_type: str, broker_class_path: str):

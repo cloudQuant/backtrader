@@ -641,7 +641,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                         value = line_array[lencount - 1]
                     else:
                         raise
-                if value == _INF or value == _NEG_INF:
+                if value in (_INF, _NEG_INF):
                     value = 0.0
                 set_attr(self, tick_name, value)
                 if is_last:
@@ -659,7 +659,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                         tick_last = line_array[lencount - 1]
                     else:
                         raise
-                if tick_last == _INF or tick_last == _NEG_INF:
+                if tick_last in (_INF, _NEG_INF):
                     tick_last = 0.0
 
             set_attr(self, "tick_last", tick_last)
@@ -742,7 +742,9 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # If own length is less than cached data length, move forward
         try:
             line_datetime = self._datetime_line
-            needs_load = line_datetime.lencount >= (len(line_datetime.array) - line_datetime.extension)
+            needs_load = line_datetime.lencount >= (
+                len(line_datetime.array) - line_datetime.extension
+            )
         except AttributeError:
             needs_load = len(self) >= self.buflen()
 

@@ -144,4 +144,4 @@ backtrader/
 └── utils/                 # 工具（含 log_message 日志入口）
 ```
 
-更细的目录树见 `.kiro/steering/structure.md`。
+更细的目录结构以仓库根目录、`README.md` 和 `AGENTS.md` 的当前说明为准。

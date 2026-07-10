@@ -48,7 +48,7 @@ from .parameters import ParameterDescriptor, ParameterizedBase
 from .strategy import SignalStrategy, Strategy
 from .timer import Timer
 from .tradingcal import PandasMarketCalendar, TradingCalendarBase
-from .utils import OrderedDict, date2num, num2date, tzparse
+from .utils import OrderedDict, date2num, tzparse
 from .utils.dateintern import _num2date_cached
 from .utils.log_message import get_logger
 from .utils.py3 import integer_types, map, range, string_types, zip
@@ -1430,7 +1430,7 @@ class Cerebro(ParameterizedBase):
         dpi=300,
         tight=True,
         use=None,
-        backend="matplotlib",
+        backend="bokeh",
         **kwargs,
     ):
         """
@@ -1446,11 +1446,28 @@ class Cerebro(ParameterizedBase):
         displayed inline
 
         ``use``: set it to the name of the desired matplotlib backend. It will
-        take precedence over ``iplot``
+        take precedence over ``iplot``. Passing ``use`` also forces the
+        matplotlib backend (since it is matplotlib-specific), even though the
+        default backend is bokeh.
 
         ``backend``: plotting backend to use. Options:
-            - 'matplotlib': traditional matplotlib plotting (default)
+            - 'bokeh': interactive Bokeh charts, tab-based browser rendering
+              (default)
+            - 'matplotlib': traditional matplotlib plotting
             - 'plotly': interactive Plotly charts (better for large data)
+
+        The default ``'bokeh'`` requires the optional ``bokeh`` package. If it
+        is not installed, ``cerebro.plot()`` falls back to ``matplotlib`` with a
+        ``RuntimeWarning``. Pass ``backend='matplotlib'`` explicitly to silence
+        the warning.
+
+        Backend-specific notes:
+            - matplotlib backend supports ``use``; other backends ignore it
+              (passing ``use`` forces matplotlib, see above).
+            - plotly backend accepts scheme-style kwargs from ``PlotlyScheme``.
+            - bokeh backend accepts:
+              ``style`` (bar/candle/line), ``scheme`` (``Scheme`` / theme instance),
+              ``use_default_tabs`` and ``filter``.
 
         ``start``: An index to the datetime line array of the strategy or a
         ``datetime.date``, ``datetime.datetime`` instance indicating the start
@@ -1483,13 +1500,43 @@ class Cerebro(ParameterizedBase):
                         pass
 
         if not plotter:
-            from . import plot
+            # `use` is a matplotlib backend selector; if provided, the caller
+            # wants matplotlib output, so honor that even when the default
+            # backend is bokeh.
+            if use is not None and backend == "bokeh":
+                backend = "matplotlib"
 
-            if backend == "plotly":
+            if backend == "bokeh":
+                try:
+                    from .bokeh import BokehPlot
+
+                    plotter = BokehPlot(**kwargs)
+                except ImportError:
+                    # bokeh is the default but optional; fall back to matplotlib
+                    # (a required dependency) so cerebro.plot() always works.
+                    import warnings
+
+                    warnings.warn(
+                        "bokeh backend (default) is not available; falling back "
+                        "to matplotlib. Install bokeh with: pip install bokeh, or "
+                        "pass backend='matplotlib' to silence this warning.",
+                        RuntimeWarning,
+                        stacklevel=2,
+                    )
+                    from . import plot
+
+                    plotter = plot.Plot(**kwargs)
+            elif backend == "plotly":
+                from . import plot
+
                 plotter = plot.PlotlyPlot(**kwargs)
             elif self.p.oldsync:
+                from . import plot
+
                 plotter = plot.Plot_OldSync(**kwargs)
             else:
+                from . import plot
+
                 plotter = plot.Plot(**kwargs)
 
         # pfillers = {self.datas[i]: self._plotfillers[i]
@@ -2227,12 +2274,10 @@ class Cerebro(ParameterizedBase):
             ldatas = len(datas)
             single_data = ldatas == 1
             single_default_datanotify = (
-                single_data
-                and type(data0).get_notifications is AbstractDataBase.get_notifications
+                single_data and type(data0).get_notifications is AbstractDataBase.get_notifications
             )
             single_default_haslivedata = (
-                single_data
-                and type(data0).haslivedata is AbstractDataBase.haslivedata
+                single_data and type(data0).haslivedata is AbstractDataBase.haslivedata
             )
             data0_datetime_line = data0.datetime if single_data else None
             broker = self._broker
@@ -2243,8 +2288,7 @@ class Cerebro(ParameterizedBase):
                 type(broker).get_notification is BackBroker.get_notification
             )
             default_backbroker_next = (
-                default_broker_notifications
-                and type(broker).next is BackBroker.next
+                default_broker_notifications and type(broker).next is BackBroker.next
             )
             if default_broker_notifications:
                 broker_notifications = broker.notifs
@@ -2485,7 +2529,9 @@ class Cerebro(ParameterizedBase):
                         udtmaster = _num2date_cached(dt0)
                         self._udtmaster = udtmaster
                         self._dtmaster = (
-                            udtmaster if getattr(dmaster, "_tz", None) is None else dmaster.num2date(dt0)
+                            udtmaster
+                            if getattr(dmaster, "_tz", None) is None
+                            else dmaster.num2date(dt0)
                         )
 
                     # Try to get something for those that didn't return
@@ -2648,8 +2694,7 @@ class Cerebro(ParameterizedBase):
         data0 = datas[0]
         single_data = len(datas) == 1
         single_default_datanotify = (
-            single_data
-            and type(data0).get_notifications is AbstractDataBase.get_notifications
+            single_data and type(data0).get_notifications is AbstractDataBase.get_notifications
         )
         cheat_on_open = self.p.cheat_on_open
         has_timers = bool(self._timers)

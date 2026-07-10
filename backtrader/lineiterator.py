@@ -1888,7 +1888,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
             filter_lineactions = True
 
         for data in datas:
-            if filter_lineactions and (not isinstance(data, LineActions) or not hasattr(data, "_next")):
+            if filter_lineactions and (
+                not isinstance(data, LineActions) or not hasattr(data, "_next")
+            ):
                 continue
 
             data_clock = _lineaction_source_clock(data) or getattr(data, "_clock", None)
@@ -1912,9 +1914,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if ltype == LineIterator.StratType:
             try:
                 skip_notify = (
-                    self._skip_empty_notify
-                    and not self._orderspending
-                    and not self._tradespending
+                    self._skip_empty_notify and not self._orderspending and not self._tradespending
                 )
             except AttributeError:
                 skip_notify = False

@@ -1,7 +1,9 @@
 """Unit tests for the unified BtApiStore."""
 
 import datetime as dt
+import sys
 import time
+import types
 
 import pytest
 
@@ -10,8 +12,8 @@ from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import (
     BtApiMissingDependencyError,
     BtApiProviderNotImplementedError,
-    BtApiStoreError,
     BtApiStore,
+    BtApiStoreError,
     _build_ctp_tick_datetime,
     _create_ctp_gateway_wrapper_class,
     _create_ctp_wrapper_class,
@@ -24,8 +26,8 @@ from tests.fixtures.fake_btapi import (
     FakeBtApiClient,
     make_bar,
     make_orderbook,
-    make_tick,
     make_store,
+    make_tick,
 )
 
 
@@ -2217,9 +2219,7 @@ def test_store_cancel_order_ref_cancels_remote_snapshot_order():
     event_types = [event["event_type"] for event in runtime_events]
     assert "order_cancel_request" in event_types
     assert "order_cancel_submitted" in event_types
-    assert event_types.index("order_cancel_request") < event_types.index(
-        "order_cancel_submitted"
-    )
+    assert event_types.index("order_cancel_request") < event_types.index("order_cancel_submitted")
     submitted = next(
         event for event in runtime_events if event["event_type"] == "order_cancel_submitted"
     )
@@ -3017,7 +3017,9 @@ def test_store_broker_runtime_trade_event_preserves_fee_and_liquidity_fields():
 
     assert update["trade_fee"] == pytest.approx(0.12)
     runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
-    trade_event = next(event for event in runtime_events if event["event_type"] == "trade_execution")
+    trade_event = next(
+        event for event in runtime_events if event["event_type"] == "trade_execution"
+    )
     assert trade_event["order_ref"] == "ex-7"
     assert trade_event["details"]["trade_fee"] == pytest.approx(0.12)
     assert trade_event["details"]["trade_commission"] == pytest.approx(0.12)
@@ -3584,7 +3586,6 @@ def test_gateway_wrapper_fetch_bars_proxies(fake_client):
 
 def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypatch):
     """Gateway wrapper should expose exchange asset specs from either symbol-info alias."""
-    import bt_api_py.gateway.client as gateway_client_module
 
     class SymbolInfoGatewayClient:
         def __init__(self, **kwargs):
@@ -3599,7 +3600,16 @@ def test_ctp_gateway_wrapper_symbol_info_accepts_get_symbol_info_alias(monkeypat
                 "taker_fee_rate": 0.0005,
             }
 
-    monkeypatch.setattr(gateway_client_module, "GatewayClient", SymbolInfoGatewayClient)
+    bt_api_module = types.ModuleType("bt_api_py")
+    gateway_module = types.ModuleType("bt_api_py.gateway")
+    gateway_client_module = types.ModuleType("bt_api_py.gateway.client")
+    gateway_client_module.GatewayClient = SymbolInfoGatewayClient
+    gateway_module.client = gateway_client_module
+    bt_api_module.gateway = gateway_module
+    monkeypatch.setitem(sys.modules, "bt_api_py", bt_api_module)
+    monkeypatch.setitem(sys.modules, "bt_api_py.gateway", gateway_module)
+    monkeypatch.setitem(sys.modules, "bt_api_py.gateway.client", gateway_client_module)
+
     wrapper_cls = _create_ctp_gateway_wrapper_class()
     client = wrapper_cls(account_id="acc-1")
 

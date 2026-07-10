@@ -16,12 +16,13 @@ Example:
 
 import os as _os
 
-# The modules below should/must define __all__ with the objects wishes
-# or prepend an "_" (underscore) to private classes/variables
-
 from .btapistore import BtApiMissingDependencyError as BtApiMissingDependencyError
 from .btapistore import BtApiProviderNotImplementedError as BtApiProviderNotImplementedError
 from .btapistore import BtApiStore as BtApiStore
+
+# The modules below should/must define __all__ with the objects wishes
+# or prepend an "_" (underscore) to private classes/variables
+
 
 if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() not in {
     "1",
