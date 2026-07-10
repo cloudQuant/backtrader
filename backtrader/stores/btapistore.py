@@ -1097,31 +1097,37 @@ def _query_contract_metadata_from_api(api: Any, aliases: List[str], symbol: Any)
         method = getattr(api, method_name, None)
         if not callable(method):
             continue
-        attempts: List[Tuple[Tuple[Any, ...], Dict[str, Any]]] = []
+        attempt_groups: List[List[Tuple[Tuple[Any, ...], Dict[str, Any]]]] = []
         for query_symbol in aliases:
-            attempts.extend(_contract_metadata_method_attempts(api, method_name, query_symbol))
-        attempts.extend(
-            _contract_metadata_method_attempts(
-                api,
-                method_name,
-                "",
-                include_empty_call=True,
+            attempts = _contract_metadata_method_attempts(api, method_name, query_symbol)
+            if attempts:
+                attempt_groups.append(attempts)
+        attempt_groups.extend(
+            [attempt]
+            for attempt in _contract_metadata_method_attempts(
+                api, method_name, "", include_empty_call=True
             )
         )
-        for args, kwargs in attempts:
-            try:
-                payload = method(*args, **kwargs)
-            except Exception:
-                continue
-            metadata = _normalise_contract_metadata(payload, symbol, source=method_name)
-            if not _contract_metadata_has_rules(metadata):
-                continue
-            if fee_metadata:
-                fee_source = fee_metadata.get("source")
-                metadata.update({key: value for key, value in fee_metadata.items() if key != "source"})
-                if fee_source:
-                    metadata["fee_source"] = fee_source
-            return metadata
+        for attempts in attempt_groups:
+            for args, kwargs in attempts:
+                try:
+                    payload = method(*args, **kwargs)
+                except Exception:
+                    continue
+                metadata = _normalise_contract_metadata(payload, symbol, source=method_name)
+                if _contract_metadata_has_rules(metadata):
+                    if fee_metadata:
+                        fee_source = fee_metadata.get("source")
+                        metadata.update(
+                            {key: value for key, value in fee_metadata.items() if key != "source"}
+                        )
+                        if fee_source:
+                            metadata["fee_source"] = fee_source
+                    return metadata
+                # The method accepted this call shape. An empty result means
+                # the symbol alias was not found, not that another call shape
+                # should repeat the same remote lookup.
+                break
     return fee_metadata
 
 
