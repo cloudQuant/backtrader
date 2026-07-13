@@ -314,6 +314,16 @@ data = bt.feeds.YahooFinanceData(
     fromdate=datetime(2020, 1, 1),
     todate=datetime(2023, 12, 31),
 )
+
+# Option 4: Load exchange-native crypto history from CryptoHFTData
+# Install first with: pip install -e '.[cryptohftdata]'
+data = bt.feeds.CryptoHFTData(
+    dataname='BTCUSDT',
+    exchange='binance_futures',
+    fromdate=datetime(2026, 7, 1),
+    todate=datetime(2026, 7, 2),
+    timeframe=bt.TimeFrame.Minutes,
+)
 ```
 
 ### Step 4: Run Backtest

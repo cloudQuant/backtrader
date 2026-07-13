@@ -65,6 +65,7 @@ setup(
             "dash",
             "pyecharts",
         ],
+        "cryptohftdata": ["cryptohftdata>=0.4.0,<1.0.0"],
     },  # List of project dependencies
     python_requires=">=3.8",
     classifiers=[

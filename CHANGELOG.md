@@ -5,6 +5,11 @@ canonical changelog for the repository.
 
 ## [Unreleased]
 
+### Added
+
+- Added the optional ``CryptoHFTData`` historical crypto feed for exchange-native trade ticks
+  and trade-derived OHLCV bars.
+
 ### Repository Maintenance
 
 - Consolidated the root changelog files into this single `CHANGELOG.md`.
