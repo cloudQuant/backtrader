@@ -204,12 +204,24 @@ class BacktraderBokeh:
                 default_tabs.SourceTab,
             ]
 
-    def create_figurepage(self, strategy, filldata=True):
+    def create_figurepage(
+        self,
+        strategy,
+        filldata=True,
+        start=None,
+        end=None,
+        preserveidx=False,
+        fill_gaps=False,
+    ):
         """Create a figure page.
 
         Args:
             strategy: Strategy instance
             filldata: Whether to fill data
+            start: Start index for data slicing
+            end: End index for data slicing
+            preserveidx: Keep original index values in source
+            fill_gaps: Unused currently, for future compatibility
 
         Returns:
             tuple: (figid, figurepage)
@@ -221,16 +233,35 @@ class BacktraderBokeh:
         self._figurepages[figid] = figurepage
 
         if filldata:
-            self._fill_figurepage(figurepage, strategy)
+            self._fill_figurepage(
+                figurepage,
+                strategy,
+                start=start,
+                end=end,
+                preserveidx=preserveidx,
+                fill_gaps=fill_gaps,
+            )
 
         return figid, figurepage
 
-    def _fill_figurepage(self, figurepage, strategy):
+    def _fill_figurepage(
+        self,
+        figurepage,
+        strategy,
+        start=None,
+        end=None,
+        preserveidx=False,
+        fill_gaps=False,
+    ):
         """Fill figure page with data.
 
         Args:
             figurepage: Figure page instance
             strategy: Strategy instance
+            start: Start index for data slicing
+            end: End index for data slicing
+            preserveidx: Keep original index values in source
+            fill_gaps: Unused currently, for future compatibility
         """
         if not BOKEH_AVAILABLE or not PANDAS_AVAILABLE:
             return
@@ -242,7 +273,9 @@ class BacktraderBokeh:
         data = strategy.datas[0]
 
         # Create DataFrame
-        df_data = self._create_dataframe(data, strategy)
+        df_data = self._create_dataframe(
+            data, strategy, start=start, end=end, preserveidx=preserveidx
+        )
 
         if df_data is not None:
             # Add trade signal data
@@ -266,12 +299,15 @@ class BacktraderBokeh:
             if drawdown_figure is not None:
                 figurepage.figures.append(drawdown_figure)
 
-    def _create_dataframe(self, data, strategy):
+    def _create_dataframe(self, data, strategy, start=None, end=None, preserveidx=False):
         """Create DataFrame from data source.
 
         Args:
             data: Data source
             strategy: Strategy instance
+            start: Start index for slicing
+            end: End index for slicing
+            preserveidx: Keep original index values in source
 
         Returns:
             pandas.DataFrame
@@ -302,7 +338,60 @@ class BacktraderBokeh:
                 except Exception:
                     df_dict[name] = [0] * length
 
-        return pd.DataFrame(df_dict)
+        df = pd.DataFrame(df_dict)
+        return self._slice_dataframe(df, start=start, end=end, preserveidx=preserveidx)
+
+    def _slice_dataframe(self, df, start=None, end=None, preserveidx=False):
+        """Slice dataframe by index.
+
+        Args:
+            df: Source dataframe
+            start: Start index (inclusive)
+            end: End index (exclusive)
+            preserveidx: Keep original index instead of sequential index column
+
+        Returns:
+            pandas.DataFrame
+        """
+        if df.empty:
+            return df
+
+        length = len(df)
+        if start is None:
+            start = 0
+        if end is None:
+            end = length
+
+        try:
+            start = int(start)
+        except (TypeError, ValueError):
+            start = 0
+        try:
+            end = int(end)
+        except (TypeError, ValueError):
+            end = length
+
+        if start < 0:
+            start = length + start
+        if end < 0:
+            end = length + 1 + end
+
+        if start < 0:
+            start = 0
+        if end < 0:
+            end = 0
+        if start > length:
+            start = length
+        if end > length:
+            end = length
+
+        df = df.iloc[start:end].copy()
+
+        if not preserveidx:
+            df = df.reset_index(drop=True)
+            df["index"] = list(range(len(df)))
+
+        return df
 
     def _add_trade_signals(self, df, strategy):
         """Add trade signal data to DataFrame.
@@ -537,7 +626,12 @@ class BacktraderBokeh:
         x_col = "datetime" if "datetime" in df.columns else "index"
 
         # Plot buy signals (green up triangle)
-        buy_df = df[df["buy_signal"]]
+        if "buy_signal" in df.columns:
+            buy_signal = df["buy_signal"].fillna(False).astype(bool)
+            buy_df = df[buy_signal]
+        else:
+            buy_df = df.iloc[0:0]
+
         if len(buy_df) > 0:
             fig.figure.triangle(
                 buy_df[x_col],
@@ -549,7 +643,11 @@ class BacktraderBokeh:
             )
 
         # Plot sell signals (red down triangle)
-        sell_df = df[df["sell_signal"]]
+        if "sell_signal" in df.columns:
+            sell_signal = df["sell_signal"].fillna(False).astype(bool)
+            sell_df = df[sell_signal]
+        else:
+            sell_df = df.iloc[0:0]
         if len(sell_df) > 0:
             fig.figure.inverted_triangle(
                 sell_df[x_col],
@@ -859,7 +957,7 @@ class BacktraderBokeh:
         if filter is not None:
             self._filter = filter
 
-    def generate_model_panels(self):
+    def generate_model_panels(self, figurepages=None):
         """Generate model panels.
 
         Returns:
@@ -869,8 +967,11 @@ class BacktraderBokeh:
             return []
 
         panels = []
+        source_pages = figurepages
+        if source_pages is None:
+            source_pages = self._figurepages.items()
 
-        for figid, figurepage in self._figurepages.items():
+        for figid, figurepage in source_pages:
             # Create chart panel
             if figurepage.figures:
                 figures = [fig.figure for fig in figurepage.figures if fig.figure is not None]
@@ -882,6 +983,74 @@ class BacktraderBokeh:
                     panels.append(panel)
 
         return panels
+
+    def build_model(self, figurepages=None):
+        """Build a bokeh model from figure pages.
+
+        Args:
+            figurepages: Iterable of (figid, figurepage) tuples. Defaults to all.
+
+        Returns:
+            Tabs model or None
+        """
+        if not BOKEH_AVAILABLE:
+            return None
+
+        from bokeh.models import Tabs
+
+        panels = self.generate_model_panels(figurepages=figurepages)
+        if not panels:
+            return None
+
+        return Tabs(tabs=[panel for panel in panels if panel is not None])
+
+    def build_full_model(self, figurepage=None, figurepages=None):
+        """Build a Tabs model with chart panels plus the extra tabs.
+
+        Extra tabs (Performance/Analyzer/Metadata/Config/Log/Source) are attached
+        to a single figure page. This is the reusable build path used by both
+        ``plot()`` and the cerebro-compatible ``BokehPlot`` adapter; it performs
+        no display and writes no file.
+
+        Args:
+            figurepage: FigurePage to attach the extra tabs to. If ``None``, the
+                most recently created figure page is used, or the extra tabs are
+                skipped when no figure page exists.
+            figurepages: Iterable of ``(figid, figurepage)`` tuples for the chart
+                panels. Defaults to all accumulated figure pages.
+
+        Returns:
+            Bokeh ``Tabs`` model, or ``None`` if bokeh is unavailable or no
+            panels could be generated.
+        """
+        if not BOKEH_AVAILABLE:
+            _logger.error("Bokeh is not available")
+            return None
+
+        model = self.build_model(figurepages=figurepages)
+        panels = list(model.tabs) if model is not None else []
+
+        # Extra tabs attach to a single figure page; prefer the explicit one,
+        # else fall back to the most recently created.
+        if figurepage is None and self._figurepages:
+            figurepage = next(reversed(self._figurepages.values()))
+
+        if figurepage is not None:
+            for tab_class in self.tabs:
+                tab = tab_class(self, figurepage, None)
+                if tab.is_useable():
+                    panels.append(tab.get_panel())
+
+        if not panels:
+            _logger.warning("No panels generated")
+            return None
+
+        from bokeh.models import Tabs
+
+        if model is not None:
+            model.tabs = [p for p in panels if p is not None]
+            return model
+        return Tabs(tabs=[p for p in panels if p is not None])
 
     def plot(self, strategy=None, show=True, filename=None):
         """Bindto strategy and generate static chart.
@@ -905,22 +1074,9 @@ class BacktraderBokeh:
         # Create figure page
         figid, figurepage = self.create_figurepage(strategy, filldata=True)
 
-        # Generate panels
-        panels = self.generate_model_panels()
-
-        # Add tabs
-        for tab_class in self.tabs:
-            tab = tab_class(self, figurepage, None)
-            if tab.is_useable():
-                panels.append(tab.get_panel())
-
-        if not panels:
-            _logger.warning("No panels generated")
+        model = self.build_full_model(figurepage=figurepage)
+        if model is None:
             return None
-
-        from bokeh.models import Tabs
-
-        model = Tabs(tabs=[p for p in panels if p is not None])
 
         if show:
             from bokeh.io import show as bokeh_show

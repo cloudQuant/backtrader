@@ -6,11 +6,12 @@ from pathlib import Path
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+LIVE_CERTIFICATION_ROOT = REPO_ROOT / "examples" / "007_ctp" / "live_certification"
 SUITE_NAMES = ("simnow_penetration", "hongyuan_penetration")
 
 
 def load_suite(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     for module_name in list(sys.modules):
         if module_name == "run_case" or module_name == "common" or module_name.startswith("common."):
             sys.modules.pop(module_name, None)
@@ -642,7 +643,7 @@ def test_case_main_exception_result_keeps_canonical_audit(
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_emergency_cases_use_standard_broker_control_events(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     em02_source = (suite_dir / "cases" / "EM02_pause_strategy.py").read_text(
         encoding="utf-8"
     )
@@ -658,7 +659,7 @@ def test_emergency_cases_use_standard_broker_control_events(suite_name):
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_repeat_cancel_case_requires_repeat_cancel_evidence(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     source = (suite_dir / "cases" / "O03_repeat_cancel_order.py").read_text(
         encoding="utf-8"
     )
@@ -668,7 +669,7 @@ def test_repeat_cancel_case_requires_repeat_cancel_evidence(suite_name):
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_repeat_threshold_case_requires_canonical_threshold_event(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     source = (suite_dir / "cases" / "TH06_repeat_threshold_alert.py").read_text(
         encoding="utf-8"
     )
@@ -679,7 +680,7 @@ def test_repeat_threshold_case_requires_canonical_threshold_event(suite_name):
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_local_rejection_cases_use_common_cerebro_lifecycle(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     case_files = [
         "V01_invalid_instrument.py",
         "V02_invalid_price_tick.py",
@@ -697,7 +698,7 @@ def test_local_rejection_cases_use_common_cerebro_lifecycle(suite_name):
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_market_state_error_case_does_not_fake_local_contract_rejection(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     source = (suite_dir / "cases" / "E03_market_state_error.py").read_text(
         encoding="utf-8"
     )
@@ -710,7 +711,7 @@ def test_market_state_error_case_does_not_fake_local_contract_rejection(suite_na
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_error_cases_do_not_use_local_guards_for_remote_counter_errors(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
 
     e01_source = (suite_dir / "cases" / "E01_insufficient_funds.py").read_text(
         encoding="utf-8"
@@ -731,7 +732,7 @@ def test_error_cases_do_not_use_local_guards_for_remote_counter_errors(suite_nam
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_batch_cancel_cases_use_standard_batch_cancel_api(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
 
     for filename in ("B01_batch_cancel_partial.py", "B02_batch_cancel_pending.py"):
         source = (suite_dir / "cases" / filename).read_text(encoding="utf-8")
@@ -741,7 +742,7 @@ def test_batch_cancel_cases_use_standard_batch_cancel_api(suite_name):
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_reconnect_case_reuses_same_store_instance(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     source = (suite_dir / "cases" / "M03_reconnect_success.py").read_text(
         encoding="utf-8"
     )
@@ -753,7 +754,7 @@ def test_reconnect_case_reuses_same_store_instance(suite_name):
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
 def test_trade_log_case_waits_for_real_trade_before_passing(suite_name):
-    suite_dir = REPO_ROOT / "examples" / "live_certification" / suite_name
+    suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
     source = (suite_dir / "cases" / "L01_trade_info_log.py").read_text(
         encoding="utf-8"
     )

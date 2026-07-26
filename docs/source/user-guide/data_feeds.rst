@@ -131,6 +131,36 @@ Yahoo Finance 格式
    
    data = bt.feeds.PandasData(dataname=df)
 
+CryptoHFTData 加密货币历史数据
+-----------------------------
+
+安装可选依赖后，可以直接将交易所原生历史成交加载为 tick 或 UTC 对齐的 OHLCV bar：
+
+.. code-block:: bash
+
+   pip install -e '.[cryptohftdata]'
+
+.. code-block:: python
+
+   import datetime
+   import backtrader as bt
+
+   data = bt.feeds.CryptoHFTData(
+       dataname='BTCUSDT',
+       exchange='binance_futures',
+       fromdate=datetime.datetime(2026, 7, 1),
+       todate=datetime.datetime(2026, 7, 2),
+       timeframe=bt.TimeFrame.Minutes,
+       compression=1,
+       api_key=None,  # 可选；也可以设置 CRYPTOHFTDATA_API_KEY
+   )
+   cerebro.adddata(data)
+
+``fromdate`` 和 ``todate`` 必须提供；无时区时间按 UTC 解释。``TimeFrame.Ticks``
+为每笔成交生成一条记录，Seconds/Minutes/Days 会从成交聚合 OHLCV；小时 bar 使用
+``TimeFrame.Minutes`` 和 ``compression=60``。CryptoHFTData 的深度订单簿是序列化增量，
+不能无损映射到 Backtrader 的标准 OHLCV lines，因此该 feed 仅提供成交历史。
+
 自定义列映射：
 
 .. code-block:: python

@@ -6,8 +6,24 @@ import pytest
 import backtrader as bt
 
 from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.stores.btapistore import BtApiStoreError
+from backtrader.stores.btapistore import BtApiStoreError, _normalise_contract_metadata
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
+
+
+class _FakeBalanceContainer:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def get_all_data(self):
+        return self.payload
+
+
+class _FakeRequestData:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def get_data(self):
+        return self.payload
 
 
 @pytest.fixture
@@ -954,6 +970,78 @@ def test_sync_positions_accepts_raw_okx_position_aliases():
         assert position.size == pytest.approx(-2.0)
         assert position.price == pytest.approx(60125.5)
         assert broker.positions[symbol].size == pytest.approx(-2.0)
+    finally:
+        broker.stop()
+
+
+def test_sync_positions_accepts_raw_bybit_position_idx_in_net_mode():
+    """Bybit hedge snapshots may expose direction only through positionIdx."""
+    symbol = "BTCUSDT"
+    client = FakeBtApiClient(
+        balance={"cash": 1250.0, "value": 1450.0},
+        positions=[
+            {
+                "symbol": symbol,
+                "positionIdx": "2",
+                "size": "0.5",
+                "avgPrice": "60125.5",
+            }
+        ],
+        history={symbol: [make_bar(0, 60000.0, 60200.0, 59900.0, 60100.0)]},
+    )
+    store = make_store(api=client, provider="bybit")
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        position = broker.getposition(data)
+
+        assert position.size == pytest.approx(-0.5)
+        assert position.price == pytest.approx(60125.5)
+        assert broker.positions[symbol].size == pytest.approx(-0.5)
+    finally:
+        broker.stop()
+
+
+def test_sync_positions_accepts_raw_bybit_position_idx_in_dual_side_mode():
+    """Bybit positionIdx=2 must hydrate the short leg in dual-side mode."""
+    symbol = "BTCUSDT"
+    client = FakeBtApiClient(
+        balance={"cash": 1250.0, "value": 1450.0},
+        positions=[
+            {
+                "symbol": symbol,
+                "positionIdx": "2",
+                "size": "0.5",
+                "avgPrice": "60125.5",
+            }
+        ],
+        history={symbol: [make_bar(0, 60000.0, 60200.0, 59900.0, 60100.0)]},
+    )
+    store = make_store(api=client, provider="bybit", supports_dual_side=True)
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(
+        account_refresh_interval=60.0,
+        positions_refresh_interval=60.0,
+        position_mode="dual_side",
+    )
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        net_position = broker.getposition(data)
+        short_position = broker.getposition(data, side="short")
+        long_position = broker.getposition(data, side="long")
+
+        assert net_position.size == pytest.approx(-0.5)
+        assert net_position.price == pytest.approx(60125.5)
+        assert short_position.size == pytest.approx(0.5)
+        assert short_position.price == pytest.approx(60125.5)
+        assert long_position.size == pytest.approx(0.0)
     finally:
         broker.stop()
 
@@ -2250,6 +2338,94 @@ def test_contract_metadata_uses_max_leverage_for_margin_rate():
     assert comminfo.get_margin(60000.0) == pytest.approx(30.0)
 
 
+def test_store_contract_metadata_falls_back_to_exchange_info_payload():
+    """Direct live stores must use exchange instrument APIs when symbol-info is absent."""
+
+    class ExchangeInfoOnlyClient(FakeBtApiClient):
+        def __init__(self):
+            super().__init__()
+            self.info_calls = []
+            self.fee_calls = []
+
+        def get_exchange_info(self, symbol=None):
+            self.info_calls.append(symbol)
+            return _FakeRequestData(
+                {
+                    "retCode": 0,
+                    "result": {
+                        "category": "linear",
+                        "list": [
+                            {"symbol": "ETHUSDT", "priceFilter": {"tickSize": "0.01"}},
+                            {
+                                "symbol": "BTCUSDT",
+                                "contractType": "LinearPerpetual",
+                                "baseCoin": "BTC",
+                                "quoteCoin": "USDT",
+                                "settleCoin": "USDT",
+                                "priceFilter": {"tickSize": "0.10"},
+                                "lotSizeFilter": {"minOrderQty": "0.001", "qtyStep": "0.001"},
+                                "leverageFilter": {"maxLeverage": "50"},
+                            },
+                        ],
+                    },
+                }
+            )
+
+        def get_fee(self, symbol):
+            self.fee_calls.append(symbol)
+            if symbol != "BTCUSDT":
+                raise ValueError("unknown symbol")
+            return {
+                "makerCommissionRate": "0.0002",
+                "takerCommissionRate": "0.0006",
+            }
+
+    client = ExchangeInfoOnlyClient()
+    store = make_store(api=client)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+    data = type("SwapData", (), {"_name": "BTCUSDT"})()
+
+    comminfo = broker.getcommissioninfo(data)
+
+    assert client.info_calls[0] == "BTCUSDT"
+    assert client.fee_calls[0] == "BTCUSDT"
+    assert store.contract_metadata["BTCUSDT"]["source"] == "get_exchange_info"
+    assert isinstance(comminfo, bt.ComminfoFuturesPercent)
+    assert comminfo.get_param("mult") == pytest.approx(1.0)
+    assert comminfo.get_margin(60000.0) == pytest.approx(1200.0)
+    assert comminfo.getcommission(0.5, 60000.0) == pytest.approx(18.0)
+    assert comminfo.getcommission(0.5, 60000.0, role="maker") == pytest.approx(6.0)
+
+
+def test_contract_metadata_normalizes_okx_raw_fee_signs_without_touching_plain_rates():
+    """OKX raw fee signs are opposite to internal commission signs."""
+    okx_metadata = _normalise_contract_metadata(
+        {
+            "instType": "SWAP",
+            "maker": "-0.0002",
+            "taker": "-0.0005",
+            "makerU": "0.00018",
+            "takerU": "-0.00045",
+        },
+        "BTC-USDT-SWAP",
+        source="okx_get_fee",
+    )
+
+    assert okx_metadata["maker_commission_rate"] == pytest.approx(-0.00018)
+    assert okx_metadata["taker_commission_rate"] == pytest.approx(0.00045)
+    assert okx_metadata["commission_rate"] == pytest.approx(0.00045)
+    assert okx_metadata["open_commission_rate"] == pytest.approx(0.00045)
+
+    plain_metadata = _normalise_contract_metadata(
+        {"maker": "0.0002", "taker": "0.0006"},
+        "BTCUSDT",
+        source="get_fee",
+    )
+
+    assert plain_metadata["maker_commission_rate"] == pytest.approx(0.0002)
+    assert plain_metadata["taker_commission_rate"] == pytest.approx(0.0006)
+
+
 def test_contract_metadata_auto_materializes_fixed_margin_amount():
     """MT5-style per-lot initial margin must not be treated as a margin rate."""
     broker = BtApiBroker(
@@ -2771,6 +2947,85 @@ def test_opening_order_cash_validation_uses_margin_adjusted_account_cash():
         assert client.submitted_orders == []
     finally:
         broker.stop()
+
+
+def test_store_get_balance_unwraps_bybit_v5_result_list():
+    """Store account refresh should consume raw Bybit wallet-balance wrappers."""
+    client = FakeBtApiClient(
+        balance={
+            "retCode": 0,
+            "retMsg": "OK",
+            "result": {
+                "list": [
+                    {
+                        "accountType": "UNIFIED",
+                        "totalEquity": "1,250.5",
+                        "totalWalletBalance": "1,200.0",
+                        "totalAvailableBalance": "950.25",
+                        "totalInitialMargin": "300.25",
+                    }
+                ]
+            },
+        }
+    )
+    store = make_store(api=client)
+
+    try:
+        balance = store.get_balance(force=True)
+
+        assert balance == {"cash": 950.25, "value": 1250.5}
+    finally:
+        store.stop()
+
+
+def test_store_get_balance_unwraps_okx_account_data():
+    """Store account refresh should consume raw OKX account wrappers."""
+    client = FakeBtApiClient(
+        balance={
+            "code": "0",
+            "msg": "",
+            "data": [
+                {
+                    "totalEq": "2500",
+                    "availEq": "2100",
+                    "imr": "400",
+                }
+            ],
+        }
+    )
+    store = make_store(api=client)
+
+    try:
+        balance = store.get_balance(force=True)
+
+        assert balance == {"cash": 2100.0, "value": 2500.0}
+    finally:
+        store.stop()
+
+
+def test_store_get_balance_reads_balance_container():
+    """Store account refresh should consume bt_api_py container objects."""
+
+    class ContainerBalanceClient(FakeBtApiClient):
+        def get_balance(self):
+            return _FakeBalanceContainer(
+                {
+                    "exchange_name": "OKX",
+                    "total_margin": "2500",
+                    "total_used_margin": "400",
+                    "total_wallet_balance": "2500",
+                }
+            )
+
+    client = ContainerBalanceClient()
+    store = make_store(api=client)
+
+    try:
+        balance = store.get_balance(force=True)
+
+        assert balance == {"cash": 2100.0, "value": 2500.0}
+    finally:
+        store.stop()
 
 
 def test_ctp_offset_inference_rejects_when_pretrade_position_refresh_fails():
@@ -3379,6 +3634,227 @@ def test_remote_trade_update_accepts_raw_okx_trade_aliases_and_fee():
         assert broker.positions[symbol].price == pytest.approx(101.5)
         assert exbit.openedcomm == pytest.approx(0.25)
         assert order.executed.comm == pytest.approx(0.25)
+    finally:
+        broker.stop()
+
+
+def test_remote_trade_update_accepts_raw_okx_orders_envelope_rows():
+    """Raw OKX private-channel envelopes must be flattened before fill booking."""
+    symbol = "BTC-USDT-SWAP"
+    client = FakeBtApiClient(
+        history={symbol: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client, provider="okx")
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    broker.setcommission(
+        commission=10.0,
+        commtype=bt.CommInfoBase.COMM_FIXED,
+    )
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "arg": {"channel": "orders"},
+                "id": "okx-message-1",
+                "data": [
+                    {
+                        "ordId": "btapi-1",
+                        "tradeId": "okx-trade-1",
+                        "instId": symbol,
+                        "side": "buy",
+                        "fillSz": "1",
+                        "fillPx": "101.5",
+                        "fee": "-0.25",
+                        "feeCcy": "USDT",
+                    }
+                ],
+            }
+        )
+
+        broker.next()
+
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(101.5)
+        assert order.executed.comm == pytest.approx(0.25)
+        assert broker.positions[symbol].size == pytest.approx(1.0)
+    finally:
+        broker.stop()
+
+
+def test_remote_trade_update_accepts_raw_bybit_v5_execution_aliases_and_fee():
+    """Raw Bybit V5 execution events must use exchange fill fields and exact fees."""
+    symbol = "BTCUSDT"
+    client = FakeBtApiClient(
+        history={symbol: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client, provider="bybit")
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    broker.setcommission(
+        commission=10.0,
+        commtype=bt.CommInfoBase.COMM_FIXED,
+    )
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "exchange": "Bybit",
+                "orderId": "btapi-1",
+                "orderLinkId": "btapi-1",
+                "execID": "bybit-exec-1",
+                "symbol": symbol,
+                "side": "Buy",
+                "execQty": "1",
+                "execPrice": "101.5",
+                "execFee": "0.15",
+                "feeCurrency": "USDT",
+                "isMaker": False,
+            }
+        )
+        broker.next()
+
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(101.5)
+        assert order.executed.comm == pytest.approx(0.15)
+        assert broker.positions[symbol].size == pytest.approx(1.0)
+        assert broker.positions[symbol].price == pytest.approx(101.5)
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "exchange": "Bybit",
+                "orderId": "btapi-1",
+                "orderLinkId": "btapi-1",
+                "execID": "bybit-exec-1",
+                "symbol": symbol,
+                "side": "Buy",
+                "execQty": "1",
+                "execPrice": "102.0",
+                "execFee": "9.99",
+                "feeCurrency": "USDT",
+                "isMaker": False,
+            }
+        )
+        broker.next()
+
+        assert order.status == bt.Order.Partial
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.comm == pytest.approx(0.15)
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "exchange": "Bybit",
+                "orderId": "btapi-1",
+                "orderLinkId": "btapi-1",
+                "execID": "bybit-exec-2",
+                "symbol": symbol,
+                "side": "Buy",
+                "execQty": "1",
+                "execPrice": "102.0",
+                "execFee": "0.20",
+                "feeCurrency": "USDT",
+                "isMaker": False,
+            }
+        )
+        broker.next()
+
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(2.0)
+        assert order.executed.price == pytest.approx(101.75)
+        assert order.executed.comm == pytest.approx(0.35)
+        assert broker.positions[symbol].size == pytest.approx(2.0)
+        assert broker.positions[symbol].price == pytest.approx(101.75)
+    finally:
+        broker.stop()
+
+
+def test_remote_trade_update_accepts_raw_bybit_v5_execution_envelope_rows():
+    """Raw Bybit V5 execution envelopes must be flattened and booked as fills."""
+    symbol = "BTCUSDT"
+    client = FakeBtApiClient(
+        history={symbol: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client, provider="bybit")
+    data = store.getdata(dataname=symbol)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    broker.setcommission(
+        commission=10.0,
+        commtype=bt.CommInfoBase.COMM_FIXED,
+    )
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "topic": "execution",
+                "id": "bybit-message-1",
+                "creationTime": 1746270400355,
+                "data": [
+                    {
+                        "category": "linear",
+                        "symbol": symbol,
+                        "orderId": "btapi-1",
+                        "orderLinkId": "btapi-1",
+                        "side": "Buy",
+                        "execQty": "1",
+                        "execPrice": "101.5",
+                        "execFee": "0.15",
+                        "execId": "bybit-exec-1",
+                        "execTime": "1746270400353",
+                        "feeCurrency": "USDT",
+                        "isMaker": False,
+                    }
+                ],
+            }
+        )
+
+        broker.next()
+
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(101.5)
+        assert order.executed.comm == pytest.approx(0.15)
+        assert broker.positions[symbol].size == pytest.approx(1.0)
+        assert broker.positions[symbol].price == pytest.approx(101.5)
     finally:
         broker.stop()
 

@@ -38,6 +38,7 @@ else:
     from .btapifeed import BtApiFeed as BtApiFeed
     from .btcsv import *
     from .chainer import Chainer as Chainer
+    from .cryptohftdata import CryptoHFTData as CryptoHFTData
     from .csvgeneric import *
     from .influxfeed import *
     from .mixed_channel import MixedChannel as MixedChannel

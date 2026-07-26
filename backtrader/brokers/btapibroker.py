@@ -109,6 +109,8 @@ _POSITION_DIRECTION_KEYS = (
     "Side",
     "position_side",
     "positionSide",
+    "positionIdx",
+    "position_idx",
     "posSide",
     "PositionSide",
     "position_direction",
@@ -189,6 +191,10 @@ _FILL_PRICE_KEYS = (
     "fillPrice",
     "fill_px",
     "fillPx",
+    "exec_price",
+    "execPrice",
+    "execution_price",
+    "executionPrice",
     "trade_price",
     "tradePrice",
     "avg_price",
@@ -1055,9 +1061,7 @@ class BtApiBroker(BrokerBase):
 
         size = self._extract_update_value(item, *_POSITION_SIZE_KEYS)
         size = float(size or 0.0)
-        direction = self._normalise_position_direction(
-            self._extract_update_value(item, *_POSITION_DIRECTION_KEYS)
-        )
+        direction = self._extract_position_direction(item)
 
         price = self._extract_update_value(item, *_POSITION_PRICE_KEYS)
         price = float(price or 0.0)
@@ -1145,6 +1149,30 @@ class BtApiBroker(BrokerBase):
         if text in {"short", "sell", "s", "ask", "3"}:
             return "short"
         return text
+
+    @classmethod
+    def _extract_position_direction(cls, item):
+        if not isinstance(item, dict):
+            return ""
+        details = item.get("details")
+        if not isinstance(details, dict):
+            details = {}
+        for key in _POSITION_DIRECTION_KEYS:
+            value = item.get(key)
+            if value in (None, ""):
+                value = details.get(key)
+            if value in (None, ""):
+                continue
+            if key in {"positionIdx", "position_idx"}:
+                text = cls._normalise_code_text(value)
+                if text == "1":
+                    return "long"
+                if text == "2":
+                    return "short"
+                if text == "0":
+                    return ""
+            return cls._normalise_position_direction(value)
+        return ""
 
     def _sync_remote_open_orders(self, force=False, raise_errors=False):
         """Refresh the cached provider-side open-order snapshot."""
@@ -2394,17 +2422,47 @@ class BtApiBroker(BrokerBase):
             return
 
         while True:
-            update = self.store.poll_broker_update()
-            if update is None:
+            raw_update = self.store.poll_broker_update()
+            if raw_update is None:
                 break
 
-            kind = str(update.get("kind") or "").lower()
-            if kind == "order":
-                self._apply_order_update(update)
-            elif kind == "trade":
-                self._apply_trade_update(update)
-            elif kind == "error":
-                self._apply_error_update(update)
+            for update in self._iter_broker_update_rows(raw_update):
+                kind = str(update.get("kind") or "").lower()
+                if kind == "order":
+                    self._apply_order_update(update)
+                elif kind == "trade":
+                    self._apply_trade_update(update)
+                elif kind == "error":
+                    self._apply_error_update(update)
+
+    @classmethod
+    def _iter_broker_update_rows(cls, update):
+        """Yield flat broker updates from exchange envelopes such as WS data lists."""
+        if not isinstance(update, dict):
+            return
+
+        data = update.get("data")
+        if isinstance(data, dict):
+            rows = [data]
+        elif isinstance(data, (list, tuple)):
+            rows = [item for item in data if isinstance(item, dict)]
+        else:
+            yield update
+            return
+
+        if not rows:
+            yield update
+            return
+
+        envelope = {key: value for key, value in update.items() if key not in {"data", "id"}}
+        if update.get("id") not in (None, ""):
+            envelope["message_id"] = update.get("id")
+        for row in rows:
+            flat = dict(envelope)
+            flat.update(row)
+            if "kind" not in flat and update.get("kind") not in (None, ""):
+                flat["kind"] = update.get("kind")
+            yield flat
 
     def _trade_dedupe_key(self, update, order=None):
         """Build a stable trade dedupe key when the provider exposes a fill id."""
@@ -2415,7 +2473,9 @@ class BtApiBroker(BrokerBase):
             "TradeID",
             "exec_id",
             "execId",
+            "execID",
             "execution_id",
+            "executionId",
             "fill_id",
             "fillId",
         )
@@ -2445,6 +2505,7 @@ class BtApiBroker(BrokerBase):
             for key in (
                 "kind",
                 "trade_id",
+                "execID",
                 "external_order_id",
                 "externalOrderId",
                 "venue_order_id",
@@ -2473,9 +2534,12 @@ class BtApiBroker(BrokerBase):
                 "posSide",
                 "offset",
                 "size",
+                "execQty",
                 "fillSz",
                 "accFillSz",
                 "price",
+                "execPrice",
+                "execFee",
                 "fillPx",
                 "avgPx",
                 "px",
@@ -3134,6 +3198,11 @@ class BtApiBroker(BrokerBase):
             "comm",
             "fee",
             "fees",
+            "exec_fee",
+            "execFee",
+            "execFeeV2",
+            "fill_fee",
+            "fillFee",
             "trade_fee",
             "trade_commission",
             "commission_amount",

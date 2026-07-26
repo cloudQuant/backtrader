@@ -213,7 +213,10 @@ Data Feed(s) → Cerebro → Strategy → Indicators / Observers / Analyzers
 - **TS (time series)** and **CS (cross-section)** modes for multi-asset
   portfolio backtests (`utils/` helpers; some docs reference dedicated value
   calculators — confirm presence before relying on them).
-- Multiple plotting backends: Plotly (`plot/`), Bokeh (`bokeh/`), Matplotlib.
+- Multiple plotting backends: `cerebro.plot(backend='bokeh'|'matplotlib'|'plotly')` defaults to
+  **bokeh** (falls back to matplotlib with a `RuntimeWarning` if bokeh isn't installed; passing
+  `use=` also forces matplotlib). `plot/plot.py` uses `getattr(plotinfo, 'legendloc', None)` for
+  the 3 legend-location reads. See `docs/PLOTTING_BACKENDS.md`.
 - Report generation: `reports/` (`reporter.py`, `performance.py`, `charts.py`).
 
 ## Repository layout

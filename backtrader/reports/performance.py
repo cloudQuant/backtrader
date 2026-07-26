@@ -561,14 +561,23 @@ class PerformanceCalculator:
         # Get strategy parameters
         if hasattr(self.strategy, "params"):
             params = self.strategy.params
-            for name in dir(params):
-                if not name.startswith("_"):
-                    try:
-                        value = getattr(params, name)
-                        if not callable(value):
-                            info["params"][name] = value
-                    except (AttributeError, TypeError) as e:
-                        logger.debug("Failed to get param '%s': %s", name, e)
+            try:
+                param_items = params.items()
+            except (AttributeError, TypeError) as e:
+                logger.debug("Failed to enumerate strategy parameters: %s", e)
+                param_items = None
+
+            if param_items is not None:
+                info["params"] = {name: value for name, value in param_items if not callable(value)}
+            else:
+                for name in dir(params):
+                    if not name.startswith("_"):
+                        try:
+                            value = getattr(params, name)
+                            if not callable(value):
+                                info["params"][name] = value
+                        except (AttributeError, TypeError) as e:
+                            logger.debug("Failed to get param '%s': %s", name, e)
 
         return info
 

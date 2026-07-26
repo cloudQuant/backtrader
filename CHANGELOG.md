@@ -5,6 +5,51 @@ canonical changelog for the repository.
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-26
+
+### Highlights
+
+- Added historical crypto microstructure backtesting through `CryptoHFTData`.
+- Unified the plotting backends behind `Cerebro.plot`, including Bokeh support.
+- Completed the `bt_api_py` live-trading integration and hardened its exchange
+  data-normalization paths.
+- Reduced runtime overhead in CSV, tick, broker, line-clock, SMA, and strategy
+  execution hot paths.
+
+### Added
+
+- Added the optional ``CryptoHFTData`` historical crypto feed for exchange-native trade ticks
+  and trade-derived OHLCV bars.
+- Added the `bt_api_py` live-trading interface and expanded its feed, broker,
+  store, certification diagnostics, and regression coverage.
+- Added a Bokeh plotting adapter and unified backend dispatch from
+  `Cerebro.plot`.
+
+### Changed
+
+- Reorganized examples into focused, numbered directories for plotting, CTP,
+  dual-side trading, trade logging, live trading, and HFT backtesting.
+- Updated the order-book backtest example to use `TickBroker` exclusively and
+  made the public OKX mix-broker demo resilient to unsupported depth limits,
+  proxy failures, and silent websocket streams.
+
+### Performance
+
+- Optimized CSV parsing, tick reads, broker runtime parameter access, line
+  clock resolution, SMA window reads, and strategy/runnext execution paths.
+
+### Fixed
+
+- Normalized raw exchange fill envelopes, exchange fee signs, Bybit hedge
+  position sides, account-balance payloads, and live contract metadata.
+- Applied live asset specifications consistently during broker valuation.
+- Fixed private-strategy `LineActions`, older-Python line-buffer reads, and
+  resample-tail regression expectations.
+- Fixed HTML report rendering for modern parameter accessors and restored real
+  integration coverage for the report module.
+- Restored CI coverage after the example reorganization, including CTP
+  certification paths and example-support imports.
+
 ### Repository Maintenance
 
 - Consolidated the root changelog files into this single `CHANGELOG.md`.
@@ -19,6 +64,8 @@ canonical changelog for the repository.
 - Removed legacy local workflow metadata from `.windsurf/workflows`.
 - Removed obsolete `.kiro/steering` project guidance; use `AGENTS.md`,
   `README.md`, and project config files instead.
+- Stop tracking generated example output; runnable examples keep it locally
+  under ignored `output/` directories.
 
 ## [1.2.0] - 2026-06-01
 

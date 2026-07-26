@@ -524,7 +524,7 @@ class ReportGenerator:
         context = {
             # Strategy information
             "strategy_name": strategy_info.get("strategy_name", "Strategy"),
-            "params": strategy_info.get("params", {}),
+            "params": self._make_json_serializable(strategy_info.get("params", {})),
             # Data information
             "data_name": data_info.get("data_name", "Data"),
             "start_date": (

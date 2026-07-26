@@ -923,6 +923,7 @@ class Plot_OldSync(ParameterizedBase):
         if not len(strategy):
             return None
 
+        self._iplot = iplot
         if iplot:
             if "ipykernel" in sys.modules:
                 matplotlib.use("nbagg")
@@ -1235,6 +1236,8 @@ class Plot_OldSync(ParameterizedBase):
         ax = masterax or self.newaxis(ind, rowspan=self.pinf.sch.rowsminor)
 
         indlabel = ind.plotlabel()
+        if not isinstance(indlabel, str):
+            indlabel = ind.__class__.__name__
 
         # Scan lines quickly to find out if some lines have to be skipped for
         # legend (because matplotlib reorders the legend)
@@ -1288,7 +1291,8 @@ class Plot_OldSync(ParameterizedBase):
                         label += " %.2f" % lplot[-1]
 
             plotkwargs = {}
-            linekwargs = lineplotinfo._getkwargs(skip_=True)
+            get_linekwargs = getattr(lineplotinfo, "_getkwargs", None)
+            linekwargs = get_linekwargs(skip_=True) if get_linekwargs is not None else {}
 
             if linekwargs.get("color", None) is None:
                 if not lineplotinfo._get("_samecolor", False):
@@ -1388,8 +1392,8 @@ class Plot_OldSync(ParameterizedBase):
 
         if not masterax:
             # adjust margin if requested ... general of particular
-            ymargin = ind.plotinfo._get("plotymargin", 0.0)
-            ymargin = max(ymargin, self.pinf.sch.yadjust)
+            ymargin = ind.plotinfo._get("plotymargin", 0.0) or 0.0
+            ymargin = max(ymargin, self.pinf.sch.yadjust or 0.0)
             if ymargin:
                 ax.margins(y=ymargin)
 
@@ -1408,7 +1412,7 @@ class Plot_OldSync(ParameterizedBase):
             hlines = ind.plotinfo._get("plothlines", [])
             if not hlines:
                 hlines = ind.plotinfo._get("plotyhlines", [])
-            for hline in hlines:
+            for hline in hlines or []:
                 ax.axhline(
                     hline,
                     color=self.pinf.sch.hlinescolor,
@@ -1421,7 +1425,7 @@ class Plot_OldSync(ParameterizedBase):
                 # Ensure that we have something to show
                 if labels:
                     # location can come from the user
-                    loc = ind.plotinfo.legendloc or self.pinf.sch.legendindloc
+                    loc = getattr(ind.plotinfo, "legendloc", None) or self.pinf.sch.legendindloc
 
                     # Legend done here to ensure it includes all plots
                     legend = ax.legend(
@@ -1508,7 +1512,7 @@ class Plot_OldSync(ParameterizedBase):
                 handles, labels = ax.get_legend_handles_labels()
                 if handles:
                     # location can come from the user
-                    loc = data.plotinfo.legendloc or self.pinf.sch.legendindloc
+                    loc = getattr(data.plotinfo, "legendloc", None) or self.pinf.sch.legendindloc
 
                     # Legend done here to ensure it includes all plots
                     ax.legend(
@@ -1707,7 +1711,7 @@ class Plot_OldSync(ParameterizedBase):
             labels = self.pinf.labels[a]
 
             axlegend = a
-            loc = data.plotinfo.legendloc or self.pinf.sch.legenddataloc
+            loc = getattr(data.plotinfo, "legendloc", None) or self.pinf.sch.legenddataloc
             legend = axlegend.legend(
                 h,
                 labels,
@@ -1742,7 +1746,8 @@ class Plot_OldSync(ParameterizedBase):
 
     def show(self):
         """Display the plot using matplotlib."""
-        self.mpyplot.show()
+        if getattr(self, "_iplot", True):
+            self.mpyplot.show()
 
     def savefig(self, fig, filename, width=16, height=9, dpi=300, tight=True):
         """Save figure to file.
