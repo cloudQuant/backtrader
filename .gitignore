@@ -167,6 +167,10 @@ examples/003_hft_notebook_examples/data/
 examples/live_certification/simnow_penetration/reports/
 examples/live_certification/hongyuan_penetration/*.docx
 
+# Generated visualizations and reports from runnable examples
+/examples/output/
+/examples/**/output/
+
 # Local workspace / editor artifacts
 .benchmarks/
 .agent/

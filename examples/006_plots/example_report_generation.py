@@ -10,7 +10,7 @@ This example demonstrates how to use the report generation module:
 4. Print performance summary
 
 Usage:
-    python examples/example_report_generation.py
+    python examples/006_plots/example_report_generation.py
 
 Dependencies:
     pip install jinja2  # HTML reports

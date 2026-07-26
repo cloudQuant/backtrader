@@ -38,7 +38,9 @@ import datetime
 import tempfile
 
 # Add project path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TEST_DATA_PATH = os.path.join(REPO_ROOT, 'tests', 'datas', 'nvda-1999-2014.txt')
+sys.path.insert(0, REPO_ROOT)
 
 import backtrader as bt
 
@@ -254,7 +256,7 @@ def test_integration_with_strategy():
     cerebro = bt.Cerebro()
 
     # Add data
-    data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
+    data_path = TEST_DATA_PATH
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping integration test")
         return
@@ -299,6 +301,9 @@ def test_integration_with_strategy():
     # Test strategy information
     strategy_info = calc.get_strategy_info()
     assert strategy_info['strategy_name'] == 'SMACrossStrategy'
+    assert strategy_info['params']['fast_period'] == 10
+    assert strategy_info['params']['slow_period'] == 30
+    assert 'params' not in strategy_info['params']
 
     # Test data information
     data_info = calc.get_data_info()
@@ -340,7 +345,7 @@ def test_html_report_generation():
     cerebro = bt.Cerebro()
 
     # Add data
-    data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
+    data_path = TEST_DATA_PATH
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping HTML report test")
         return
@@ -419,7 +424,7 @@ def test_json_report_generation():
     cerebro = bt.Cerebro()
 
     # Add data
-    data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
+    data_path = TEST_DATA_PATH
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping JSON report test")
         return
@@ -489,7 +494,7 @@ def test_cerebro_generate_report():
     cerebro = bt.Cerebro()
 
     # Add data
-    data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
+    data_path = TEST_DATA_PATH
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping Cerebro.generate_report test")
         return
@@ -559,7 +564,7 @@ def test_print_summary():
     cerebro = bt.Cerebro()
 
     # Add data
-    data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
+    data_path = TEST_DATA_PATH
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping print summary test")
         return
