@@ -1,5 +1,18 @@
 """Tests for CTP example support."""
-from examples import ctp_example_support as support
+
+import importlib.util
+import sys
+from pathlib import Path
+
+
+_SUPPORT_PATH = (
+    Path(__file__).resolve().parents[2] / "examples" / "007_ctp" / "ctp_example_support.py"
+)
+_SPEC = importlib.util.spec_from_file_location("ctp_example_support", _SUPPORT_PATH)
+assert _SPEC is not None and _SPEC.loader is not None
+support = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = support
+_SPEC.loader.exec_module(support)
 
 
 class _FakeStore:
