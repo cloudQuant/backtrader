@@ -355,6 +355,15 @@ class TestFmtMetric:
 class TestReportChart:
     """Test ReportChart plotting functions with edge cases."""
 
+    def test_static_charts_use_an_agg_canvas(self):
+        """Report charts must not depend on an interactive GUI backend."""
+        from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+        chart = ReportChart()
+        fig = chart.plot_equity_curve([datetime(2024, 1, 1)], [100.0])
+
+        assert isinstance(fig.canvas, FigureCanvasAgg)
+
     def test_plot_equity_curve_skips_invalid_initial_values(self):
         """Test that plot_equity_curve skips invalid initial values."""
         chart = ReportChart()

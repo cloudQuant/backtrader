@@ -14,11 +14,9 @@ from ..utils.log_message import get_logger
 logger = get_logger(__name__)
 
 try:
-    import matplotlib
-
-    matplotlib.use("Agg")  # Use non-interactive backend
     import matplotlib.dates as mdates
-    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.figure import Figure
 
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
@@ -56,6 +54,12 @@ class ReportChart:
         self.dpi = dpi
         self._figures = []
 
+    def _new_figure(self):
+        """Create a static figure without depending on a GUI pyplot backend."""
+        fig = Figure(figsize=self.figsize, dpi=self.dpi)
+        FigureCanvasAgg(fig)
+        return fig, fig.add_subplot(1, 1, 1)
+
     def plot_equity_curve(
         self, dates, values, benchmark_dates=None, benchmark_values=None, title="Equity Curve"
     ):
@@ -74,7 +78,7 @@ class ReportChart:
         if not MATPLOTLIB_AVAILABLE or not dates or not values:
             return None
 
-        fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
+        fig, ax = self._new_figure()
 
         # Normalize to 100
         start_value = 1.0
@@ -123,9 +127,9 @@ class ReportChart:
         # Format x-axis dates
         if len(dates) > 0:
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-            plt.xticks(rotation=45)
+            fig.autofmt_xdate(rotation=45)
 
-        plt.tight_layout()
+        fig.tight_layout()
         self._figures.append(fig)
 
         return fig
@@ -191,7 +195,7 @@ class ReportChart:
         if len(returns) == 0:
             return None
 
-        fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
+        fig, ax = self._new_figure()
 
         # Set colors based on positive/negative values
         colors = ["green" if r > 0 else "red" for r in returns.values]
@@ -217,7 +221,7 @@ class ReportChart:
         ax.set_title(title or f"{period_name} Returns")
         ax.grid(True, alpha=0.3, axis="y")
 
-        plt.tight_layout()
+        fig.tight_layout()
         self._figures.append(fig)
 
         return fig
@@ -254,7 +258,7 @@ class ReportChart:
                 dd = drawdowns[-1] if drawdowns else 0
             drawdowns.append(dd)
 
-        fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
+        fig, ax = self._new_figure()
 
         # Plot drawdown area
         ax.fill_between(dates, drawdowns, 0, alpha=0.3, color="red", label="Drawdown")
@@ -279,9 +283,9 @@ class ReportChart:
         # Format x-axis dates
         if len(dates) > 0:
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
-            plt.xticks(rotation=45)
+            fig.autofmt_xdate(rotation=45)
 
-        plt.tight_layout()
+        fig.tight_layout()
         self._figures.append(fig)
 
         return fig
@@ -363,5 +367,5 @@ class ReportChart:
         """Close all charts and release memory."""
         if MATPLOTLIB_AVAILABLE:
             for fig in self._figures:
-                plt.close(fig)
+                fig.clear()
         self._figures = []
