@@ -66,7 +66,7 @@ cerebro.plot(backend='bokeh', filename='backtest_bokeh.html', iplot=False, style
 
 ## 6. 相关示例
 
-- `examples/example_plotly_charts.py`
-- `examples/example_bokeh_charts.py`
+- `examples/006_plots/example_plotly_charts.py`
+- `examples/006_plots/example_bokeh_charts.py`
 
 两者都包含后端切换说明，便于用户对比三后端。

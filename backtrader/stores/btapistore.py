@@ -441,10 +441,10 @@ def _account_payload_candidates(raw: Any, *, depth: int = 0) -> List[Dict[str, A
         return candidates
 
     if isinstance(raw, (list, tuple)):
-        candidates: List[Dict[str, Any]] = []
+        list_candidates: List[Dict[str, Any]] = []
         for item in raw:
-            candidates.extend(_account_payload_candidates(item, depth=depth + 1))
-        return candidates
+            list_candidates.extend(_account_payload_candidates(item, depth=depth + 1))
+        return list_candidates
 
     return []
 
@@ -799,15 +799,17 @@ def _unwrap_contract_metadata_payload(raw: Any, symbol: Any) -> Dict[str, Any]:
     for _ in range(10):
         for key in _CONTRACT_METADATA_CONTAINER_KEYS:
             payload = data.get(key)
-            row: Optional[Dict[str, Any]]
+            selected_row: Optional[Dict[str, Any]]
             if isinstance(payload, dict):
-                row = payload
+                selected_row = payload
             else:
-                row = _select_contract_payload_row(payload, symbol)
-            if row is None:
+                selected_row = _select_contract_payload_row(payload, symbol)
+            if selected_row is None:
                 continue
-            base = {item_key: item_value for item_key, item_value in data.items() if item_key != key}
-            base.update(row)
+            base = {
+                item_key: item_value for item_key, item_value in data.items() if item_key != key
+            }
+            base.update(selected_row)
             if base == data:
                 return _flatten_contract_metadata_payload(data)
             data = base
@@ -831,9 +833,7 @@ def _normalise_exchange_commission_rate(
         return number / 10000.0
     if key_lower in {"makercommissionrate", "takercommissionrate"} and abs(number) > 1:
         return number / 10000.0
-    if key_lower in {"makeru", "takeru"} or (
-        okx_fee_sign and key_lower in {"maker", "taker"}
-    ):
+    if key_lower in {"makeru", "takeru"} or (okx_fee_sign and key_lower in {"maker", "taker"}):
         return -number
     if abs(number) > 1:
         return number / 100.0
@@ -903,8 +903,7 @@ def _normalise_contract_metadata(raw: Any, symbol: Any, *, source: str = "") -> 
         metadata["contract_size"] = 1.0
 
     okx_fee_sign = "okx" in " ".join(
-        str(metadata.get(key) or "")
-        for key in ("source", "fee_source", "exchange", "exchange_id")
+        str(metadata.get(key) or "") for key in ("source", "fee_source", "exchange", "exchange_id")
     ).lower() or any(
         key in metadata
         for key in (

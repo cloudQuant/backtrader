@@ -9,16 +9,16 @@ import sys
 
 from .. import date2num
 from ..utils.log_message import get_logger
-from .app import BOKEH_AVAILABLE, PANDAS_AVAILABLE
-from .app import BacktraderBokeh
+from .app import BOKEH_AVAILABLE, PANDAS_AVAILABLE, BacktraderBokeh
 
 try:
-    from bokeh.io import output_notebook, output_file, save, show as bokeh_show
+    from bokeh.io import output_file, output_notebook, save
+    from bokeh.io import show as bokeh_show
 except ImportError:  # pragma: no cover - covered by feature flag above
-    output_notebook = None  # type: ignore[assignment]
-    output_file = None  # type: ignore[assignment]
-    save = None  # type: ignore[assignment]
-    bokeh_show = None  # type: ignore[assignment]
+    output_notebook = None
+    output_file = None
+    save = None
+    bokeh_show = None
 
 logger = get_logger(__name__)
 
@@ -122,7 +122,7 @@ class BokehPlot:
             return []
 
         if self._iplot and self._should_use_notebook_output():
-            output_notebook()  # type: ignore[call-arg]
+            output_notebook()
 
         if bokeh_show is not None and self._iplot:
             bokeh_show(model)
