@@ -1,0 +1,1 @@
+{"schema_version":"data-spec-v1","feeds":[{"name":"data0","symbol":"TEST","source":{"root_id":"prices","relative_path":"../escape.csv","source_type":"local_file"},"format":"generic_csv","timeframe":"days","timezone":"UTC"}],"alignment":"intersection"}

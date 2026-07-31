@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backtrader Strategy Author"
+  short_description: "Create typed, reproducible Backtrader strategies"
+  default_prompt: "Use $backtrader-strategy-author to create a typed Backtrader strategy draft from a registered dataset."

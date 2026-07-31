@@ -41,7 +41,7 @@ class MyStrategy(bt.Strategy):
 
 ```python
 def __init__(self):
-    super().__init__()  # 始终先调用 super
+    # 直接 bt.Strategy 不需要调用 super().__init__()
     self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
 
 ```bash
@@ -474,7 +474,6 @@ class MyStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        super().__init__()
         self.fast_ma = bt.indicators.SMA(self.data.close, period=self.p.fast_period)
         self.slow_ma = bt.indicators.SMA(self.data.close, period=self.p.slow_period)
         self.crossover = bt.indicators.CrossOver(self.fast_ma, self.slow_ma)

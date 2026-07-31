@@ -1,0 +1,40 @@
+{
+  "profile_version": "comparison-profile-v1",
+  "integer_metrics": [
+    "bar_num",
+    "buy_count",
+    "sell_count",
+    "win_count",
+    "loss_count",
+    "trade_num"
+  ],
+  "float_metrics": [
+    "final_value",
+    "sharpe_ratio",
+    "annual_return",
+    "max_drawdown",
+    "return_rate"
+  ],
+  "nullable_metrics": ["sharpe_ratio", "annual_return"],
+  "units": {
+    "bar_num": "bars",
+    "buy_count": "long_trade_records",
+    "sell_count": "short_trade_records",
+    "win_count": "closed_trades",
+    "loss_count": "closed_trades",
+    "trade_num": "trade_records",
+    "final_value": "account_currency",
+    "sharpe_ratio": "dimensionless",
+    "annual_return": "ratio",
+    "max_drawdown": "percent",
+    "return_rate": "percent"
+  },
+  "default_float_tolerance": {"rel_tol": 1e-7, "abs_tol": 1e-9},
+  "metric_overrides": {
+    "final_value": {"rel_tol": 1e-9, "abs_tol": 1e-6}
+  },
+  "non_finite": "fail",
+  "missing_required": "fail",
+  "null_comparison": "only_equal_to_null",
+  "event_fields": ["sequence", "kind", "data", "size", "price", "status"]
+}

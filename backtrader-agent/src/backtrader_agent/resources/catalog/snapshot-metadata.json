@@ -1,0 +1,25 @@
+{
+  "schema_version": "snapshot-metadata-v1",
+  "catalog_version": "2026-07-30-full-metadata-v1",
+  "counts": {
+    "functional_tests": 1152,
+    "strategy_packages": 1035,
+    "mapped": 1032
+  },
+  "entry_count": 1155,
+  "template_count": 14,
+  "corpus_id": "backtrader-agent-snapshot-v1",
+  "mode": "snapshot",
+  "contains_full_third_party_source": false,
+  "source_available": false,
+  "source_attached_required": false,
+  "assets": {
+    "metadata": "corpus-v1.jsonl",
+    "templates": "snapshot.jsonl"
+  },
+  "notes": [
+    "The metadata asset contains 1,155 unique records covering the verified 1,152 functional tests, 1,035 strategy packages, and 1,032 mappings.",
+    "The template asset contains the fourteen product-owned current-fork archetype/profile scaffolds.",
+    "Snapshot records contain hashes and relative provenance only; source_available is false until an explicit source-attached rebuild."
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backtrader.org/contracts/ai-strategy/v1/validation-report.schema.json",
+  "title": "Backtrader ValidationReport v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "validation_id",
+    "artifact_hash",
+    "dataset_id",
+    "status",
+    "diagnostics",
+    "evidence",
+    "validation_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "validation-report-v1"},
+    "validation_id": {"type": "string", "minLength": 1},
+    "artifact_hash": {"$ref": "#/$defs/Hash"},
+    "dataset_id": {
+      "type": ["string", "null"],
+      "pattern": "^ds_[0-9a-f]{64}$"
+    },
+    "status": {"enum": ["passed", "failed", "pending"]},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/Diagnostic"}},
+    "evidence": {"type": "object"},
+    "validation_hash": {"$ref": "#/$defs/Hash"},
+    "layers": {"type": "object"},
+    "files": {"type": "array"},
+    "summary": {"type": "object"},
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "Diagnostic": {
+      "type": "object",
+      "required": ["code", "severity", "file", "line", "column", "rule", "message", "suggestion"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["error", "warning", "info"]},
+        "file": {"type": "string"},
+        "line": {"type": "integer", "minimum": 1},
+        "column": {"type": "integer", "minimum": 0},
+        "rule": {"type": "string"},
+        "message": {"type": "string"},
+        "suggestion": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-hash-contract": {
+    "field": "validation_hash",
+    "algorithm": "sha256",
+    "canonicalization": "backtrader-canonical-json-v1",
+    "exclude": ["validation_hash"]
+  }
+}

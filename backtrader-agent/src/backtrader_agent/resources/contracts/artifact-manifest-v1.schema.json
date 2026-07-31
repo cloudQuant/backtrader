@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backtrader.org/contracts/ai-strategy/v1/artifact-manifest.schema.json",
+  "title": "Backtrader ArtifactManifest v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "spec_hash",
+    "dataset_id",
+    "output_profile",
+    "files",
+    "artifact_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "artifact-manifest-v1"},
+    "artifact_id": {"type": "string", "minLength": 1},
+    "spec_hash": {"$ref": "#/$defs/Hash"},
+    "dataset_id": {"type": "string", "pattern": "^ds_[0-9a-f]{64}$"},
+    "output_profile": {"enum": ["single_test", "python_bundle"]},
+    "files": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/File"}},
+    "artifact_hash": {"$ref": "#/$defs/Hash"},
+    "strategy_source_hash": {"$ref": "#/$defs/Hash"},
+    "draft_id": {"type": "string"},
+    "created_at": {"type": "string"},
+    "approval_state": {"type": "string"},
+    "overwrite_policy": {"type": "string"},
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "File": {
+      "type": "object",
+      "required": ["path", "role", "bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "role": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/Hash"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-hash-contract": {
+    "field": "artifact_hash",
+    "algorithm": "sha256",
+    "canonicalization": "backtrader-canonical-json-v1",
+    "exclude": ["artifact_hash"]
+  }
+}

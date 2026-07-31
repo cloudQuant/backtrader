@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backtrader.org/contracts/ai-strategy/v1/dataset-manifest.schema.json",
+  "title": "Backtrader DatasetManifest v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "dataset_id",
+    "spec_hash",
+    "semantic_hash",
+    "manifest_hash",
+    "feeds",
+    "master_feed",
+    "alignment",
+    "status",
+    "diagnostics",
+    "transforms",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": {"const": "dataset-manifest-v1"},
+    "dataset_id": {"type": "string", "pattern": "^ds_[0-9a-f]{64}$"},
+    "spec_hash": {"$ref": "#/$defs/Hash"},
+    "semantic_hash": {"$ref": "#/$defs/Hash"},
+    "manifest_hash": {"$ref": "#/$defs/Hash"},
+    "feeds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/RegisteredFeed"}
+    },
+    "master_feed": {"type": "string", "minLength": 1},
+    "alignment": {"$ref": "#/$defs/Alignment"},
+    "status": {"enum": ["valid", "invalid"]},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/Diagnostic"}},
+    "transforms": {"type": "array", "items": {"$ref": "#/$defs/Transform"}},
+    "provenance": {"type": "object"},
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "Alignment": {
+      "type": "object",
+      "required": ["mode", "minimum_overlap"],
+      "properties": {
+        "mode": {"enum": ["intersection", "left", "explicit_asof"]},
+        "minimum_overlap": {"type": "number", "minimum": 0, "maximum": 1}
+      },
+      "additionalProperties": false
+    },
+    "Transform": {
+      "type": "object",
+      "required": ["profile_id", "parameters"],
+      "properties": {
+        "profile_id": {"type": "string", "minLength": 1},
+        "parameters": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "Diagnostic": {
+      "type": "object",
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["error", "warning", "info"]},
+        "message": {"type": "string"},
+        "feed": {"type": ["string", "null"]},
+        "row": {"type": ["integer", "null"], "minimum": 1},
+        "column": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "Source": {
+      "type": "object",
+      "required": ["root_id", "relative_path", "source_type"],
+      "properties": {
+        "root_id": {"type": "string", "minLength": 1},
+        "relative_path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "source_type": {"enum": ["local_file", "materialized_dataframe", "content_addressed"]},
+        "sha256": {"$ref": "#/$defs/Hash"},
+        "bytes": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "FeedMapping": {
+      "type": "object",
+      "propertyNames": {"pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+      "additionalProperties": {"type": ["string", "integer"]}
+    },
+    "DataFeedSpec": {
+      "type": "object",
+      "required": [
+        "name",
+        "role",
+        "symbol",
+        "source",
+        "format",
+        "timeframe",
+        "timezone",
+        "columns"
+      ],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+        "role": {"enum": ["execution", "signal", "benchmark", "hedge", "cash_proxy"]},
+        "symbol": {"type": "string", "minLength": 1},
+        "tradable": {"type": "boolean"},
+        "source": {"$ref": "#/$defs/Source"},
+        "format": {
+          "enum": [
+            "generic_csv",
+            "backtrader_csv",
+            "yahoo_csv",
+            "mt5_csv",
+            "pandas",
+            "pandas_custom_lines",
+            "canonical_csv_v1"
+          ]
+        },
+        "columns": {"$ref": "#/$defs/FeedMapping"},
+        "timeframe": {"type": "string", "minLength": 1},
+        "compression": {"type": "integer", "minimum": 1},
+        "timezone": {"type": "string", "minLength": 1},
+        "lines": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"}
+        },
+        "extensions": {"type": "object"}
+      },
+      "additionalProperties": false
+    },
+    "DataSpec": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "spec_hash",
+        "feeds",
+        "master_feed",
+        "alignment",
+        "transforms"
+      ],
+      "properties": {
+        "schema_version": {"const": "data-spec-v1"},
+        "spec_hash": {"$ref": "#/$defs/Hash"},
+        "feeds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/DataFeedSpec"}
+        },
+        "master_feed": {"type": "string", "minLength": 1},
+        "alignment": {"$ref": "#/$defs/Alignment"},
+        "transforms": {"type": "array", "items": {"$ref": "#/$defs/Transform"}},
+        "extensions": {"type": "object"}
+      },
+      "additionalProperties": false,
+      "x-hash-contract": {
+        "field": "spec_hash",
+        "algorithm": "sha256",
+        "canonicalization": "backtrader-canonical-json-v1",
+        "exclude": ["spec_hash"]
+      }
+    },
+    "RegisteredFeed": {
+      "type": "object",
+      "required": ["name", "role", "symbol", "timeframe"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+        "role": {"enum": ["execution", "signal", "benchmark", "hedge", "cash_proxy"]},
+        "symbol": {"type": "string", "minLength": 1},
+        "timeframe": {"type": "string", "minLength": 1},
+        "tradable": {"type": "boolean"},
+        "source": {"$ref": "#/$defs/Source"},
+        "format": {"type": "string"},
+        "adapter": {"type": "string"},
+        "columns": {"$ref": "#/$defs/FeedMapping"},
+        "lines": {"type": "array", "items": {"type": "string"}},
+        "object": {"type": "object"},
+        "summary": {"type": "object"},
+        "quality": {"type": "object"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-hash-contract": {
+    "field": "manifest_hash",
+    "algorithm": "sha256",
+    "canonicalization": "backtrader-canonical-json-v1",
+    "exclude": ["manifest_hash"]
+  }
+}

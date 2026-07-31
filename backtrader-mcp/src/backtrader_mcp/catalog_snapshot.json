@@ -1,0 +1,13 @@
+{
+  "schema_version": "catalog.v1",
+  "generated_at": "2026-07-30T00:00:00+00:00",
+  "entries": [
+    {"id": "single-data-sma", "archetype": "single_data_indicator", "title": "Single data moving average", "tags": ["single-data", "indicator", "sma"], "summary": "One feed and one trend indicator."},
+    {"id": "multi-indicator-confirmation", "archetype": "multi_indicator_system", "title": "Multi indicator confirmation", "tags": ["indicator", "sma", "rsi"], "summary": "Trend and momentum confirmation on one feed."},
+    {"id": "multi-asset-relative", "archetype": "multi_asset_allocation", "title": "Multi asset relative value", "tags": ["multi-asset", "relative-value"], "summary": "Two feeds with a relative price signal."},
+    {"id": "multi-timeframe-trend", "archetype": "multi_timeframe", "title": "Multi timeframe trend", "tags": ["multi-timeframe", "clock"], "summary": "Primary feed gated by a secondary timeframe."},
+    {"id": "pairs-spread", "archetype": "pairs_spread", "title": "Pairs spread", "tags": ["pairs", "spread", "mean-reversion"], "summary": "Two-feed spread mean reversion."},
+    {"id": "order-risk", "archetype": "order_risk", "title": "Order and risk controls", "tags": ["orders", "risk", "sizing"], "summary": "Single-feed entries with explicit position exits."},
+    {"id": "precomputed-ml", "archetype": "precomputed_ml", "title": "Precomputed feature signal", "tags": ["precomputed", "feature", "offline"], "summary": "Consumes deterministic precomputed tabular features without model loading."}
+  ]
+}

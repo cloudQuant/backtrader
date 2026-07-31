@@ -1,0 +1,25 @@
+{
+  "fixture_version": "backtrader-canonical-json-v1",
+  "positive": [
+    {
+      "id": "unicode-key-order-negative-zero",
+      "left": {"z": [{"é": -0.0}], "a": "café"},
+      "right": {"a": "café", "z": [{"é": 0.0}]}
+    },
+    {
+      "id": "nested-key-order",
+      "left": {"outer": {"b": 2, "a": [true, null, 1.5]}},
+      "right": {"outer": {"a": [true, null, 1.5], "b": 2}}
+    }
+  ],
+  "negative": [
+    {"id": "nan", "kind": "non-finite", "value": "NaN"},
+    {"id": "positive-infinity", "kind": "non-finite", "value": "Infinity"},
+    {"id": "negative-infinity", "kind": "non-finite", "value": "-Infinity"},
+    {
+      "id": "nfc-key-collision",
+      "kind": "normalized-key-collision",
+      "keys": ["é", "é"]
+    }
+  ]
+}

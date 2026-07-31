@@ -1,0 +1,16 @@
+Backtrader MCP
+Copyright 2026 cloudQuant
+
+This distribution contains the independent Backtrader MCP product under the
+BSD 3-Clause License in LICENSE.
+
+It does not bundle the Backtrader engine, strategy corpora, Backtrader Skills,
+Backtrader Agent, broker SDKs, market data, or model providers. A separately
+registered Backtrader source runtime is loaded only by a controlled child
+process. Backtrader itself is licensed separately under GPLv3.
+
+MCP is an open protocol. The Python package named "mcp" is a runtime
+dependency and retains its own copyright and license.
+
+This software performs backtests and is not investment advice. It does not
+enable live trading in the P0 release.

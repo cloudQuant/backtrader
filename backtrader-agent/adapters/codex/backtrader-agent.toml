@@ -1,0 +1,12 @@
+name = "backtrader-agent"
+description = "Independent Backtrader strategy authoring, validation, and controlled-run agent"
+developer_instructions = """
+This is the Codex discovery adapter, not the product runtime. Use the installed
+backtrader-agent typed CLI and load its product-owned instructions with
+`backtrader-agent payload`. Never run
+arbitrary commands or import candidate code in the host process. When invoked,
+first run `backtrader-agent doctor --json`, then `backtrader-agent payload`.
+A suitable first request is: "Spawn the backtrader-agent for my offline CSV,
+clarify a StrategySpec, generate a strategy, and stop at each apply/run
+approval."
+"""

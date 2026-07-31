@@ -4,7 +4,7 @@
 
 **Professional Python Algorithmic Trading Backtesting Framework**
 
-[![Version](https://img.shields.io/badge/Version-1.2.0-blue.svg)](https://github.com/cloudQuant/backtrader)
+[![Version](https://img.shields.io/badge/Version-1.3.0-blue.svg)](https://github.com/cloudQuant/backtrader)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#)
@@ -52,6 +52,7 @@ It currently supports Python 3.8-3.14 and covers macOS, Windows, Linux, and othe
 - [C++ and pybind11 Performance Highlights](#c-and-pybind11-performance-highlights)
 - [Performance Snapshot](#-performance-snapshot)
 - [Introduction](#-introduction)
+- [AI Strategy Development Products](#-ai-strategy-development-products)
 - [Key Features](#-key-features)
 - [Quick Installation](#-quick-installation)
 - [5-Minute Quickstart](#-5-minute-quickstart)
@@ -126,6 +127,35 @@ high-frequency** strategy development, backtesting, and live trading.
 - **`master`**: Stable release branch
 - **`dev`**: Active development branch carrying performance optimizations and new features
 - **`development`**: Integration/release-candidate branch used by CI/CD before promotion
+
+---
+
+## 🤖 AI Strategy Development Products
+
+The `dev` branch contains three **independent** local products for AI-assisted
+Backtrader strategy work. They implement the same end-to-end capability through
+different host integration surfaces; none requires either of the other two.
+
+| Product | Integration surface | Standalone capability |
+| --- | --- | --- |
+| [`backtrader-skills`](backtrader-skills/README.md) | Author/review/test skills | Local data registration, corpus search, strategy scaffolding, validation, controlled backtests, repair and reports |
+| [`backtrader-mcp`](backtrader-mcp/README.md) | Local stdio MCP server | Typed tools, resources and prompts for the complete strategy workflow |
+| [`backtrader-agent`](backtrader-agent/README.md) | Explicit specialist agent | The complete workflow plus recoverable session state, action routing and approvals |
+
+Each product README documents its intended Claude Code, Codex, OpenCode and
+OpenClaw integration path. Automated acceptance proves package contents,
+native layouts and sibling-product independence; real host discovery/model
+sessions remain explicit release evidence rather than an inferred test result.
+OpenClaw was not installed for the current evidence snapshot, so its adapters
+are statically verified without claiming live registration. The first release
+is offline/local by design: generated strategies are untrusted input, live
+brokers and network market-data providers are excluded, and subprocess
+controls are not described as an OS security sandbox.
+
+```bash
+# Repository-level packaging, contract and sibling-import audit
+conda run -n base python scripts/audit_ai_strategy_products.py
+```
 
 ---
 
@@ -236,7 +266,7 @@ pip install -U .
 ```python
 import backtrader as bt
 print(f"Backtrader version: {bt.__version__}")
-# Output: Backtrader version: 1.2.0
+# Output: Backtrader version: 1.3.0
 ```
 
 ### Run Tests
@@ -541,6 +571,9 @@ backtrader/
 │   ├── feeds/            # 21 data sources
 │   ├── plot/             # Visualization
 │   └── reports/          # Report generation
+├── backtrader-skills/    # Standalone AI strategy skills product
+├── backtrader-mcp/       # Standalone local-stdio MCP product
+├── backtrader-agent/     # Standalone recoverable agent product
 ├── examples/             # Example code
 ├── tests/                # Test cases (3,200+ tests)
 ├── scripts/              # Install, test, benchmark, and maintenance helpers
@@ -982,6 +1015,31 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 - **`master`**：稳定发布分支
 - **`dev`**：活跃开发分支，承载性能优化与新特性
 - **`development`**：集成 / 候选发布分支，用于 CI/CD 验证后再晋级
+
+---
+
+## 🤖 AI 策略开发产品
+
+`dev` 分支提供三个**各自独立完整**的本地 AI 策略开发产品。它们只是宿主接入形态
+不同，任意一个都不依赖另外两个才能完成闭环。
+
+| 产品 | 接入形态 | 独立能力 |
+| --- | --- | --- |
+| [`backtrader-skills`](backtrader-skills/README.md) | 编写/审查/测试 Skills | 本地数据登记、语料检索、策略骨架、校验、受控回测、修复和报告 |
+| [`backtrader-mcp`](backtrader-mcp/README.md) | 本地 stdio MCP Server | 用 typed tools、resources、prompts 提供完整策略工作流 |
+| [`backtrader-agent`](backtrader-agent/README.md) | 显式激活的专家 Agent | 完整策略工作流，并增加可恢复会话状态、动作路由和审批 |
+
+每个产品的 README 都说明其面向 Claude Code、Codex、OpenCode 和 OpenClaw 的接入
+路径。自动化验收证明分发内容、原生目录布局和 sibling 产品独立性；真实宿主发现与
+模型会话仍是单独的发布证据，不能从静态测试推断。当前证据快照未安装 OpenClaw，
+因此只验证其 adapter，不声称已完成真实注册。首版明确采用本地离线边界：AI 生成
+策略仍按不可信输入处理，不连接实盘 broker 或网络行情，受控子进程也不等同于 OS
+级安全沙箱。
+
+```bash
+# 仓库级打包、契约和 sibling-import 审计
+conda run -n base python scripts/audit_ai_strategy_products.py
+```
 
 ---
 

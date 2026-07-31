@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "backtrader-mcp"
+version = "0.1.0"
+description = "Local-first MCP server for safe, reproducible Backtrader strategy development"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+authors = [{name = "cloudQuant"}]
+dependencies = [
+  "mcp>=2.0.0,<2.1",
+  "pandas>=1.5,<4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[project.scripts]
+backtrader-mcp = "backtrader_mcp.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/backtrader_mcp"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

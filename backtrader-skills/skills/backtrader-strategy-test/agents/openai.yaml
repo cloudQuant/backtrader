@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backtrader Strategy Test"
+  short_description: "Run isolated Backtrader parity and metric tests"
+  default_prompt: "Use $backtrader-strategy-test to run isolated dual-mode tests and compare Backtrader metrics."

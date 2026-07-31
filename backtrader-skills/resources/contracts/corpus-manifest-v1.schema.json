@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backtrader.org/contracts/ai-strategy/v1/corpus-manifest.schema.json",
+  "title": "Backtrader CorpusManifest v1",
+  "type": "object",
+  "required": ["schema_version", "corpus_id", "mode", "entries", "snapshot_hash", "provenance"],
+  "properties": {
+    "schema_version": {"const": "corpus-manifest-v1"},
+    "corpus_id": {"type": "string", "minLength": 1},
+    "mode": {"enum": ["snapshot", "source-attached"]},
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/Entry"}},
+    "entry_count": {"type": "integer", "minimum": 0},
+    "counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 0}},
+    "snapshot_hash": {"$ref": "#/$defs/Hash"},
+    "provenance": {"type": "object"},
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "Entry": {
+      "type": "object",
+      "required": ["id", "source", "archetype", "content_hash"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "archetype": {
+          "enum": [
+            "single_data_indicator",
+            "multi_indicator_system",
+            "multi_asset_allocation",
+            "multi_timeframe",
+            "pairs_spread",
+            "order_risk",
+            "precomputed_ml"
+          ]
+        },
+        "content_hash": {"$ref": "#/$defs/Hash"},
+        "metadata": {"type": "object"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "x-hash-contract": {
+    "field": "snapshot_hash",
+    "algorithm": "sha256",
+    "canonicalization": "backtrader-canonical-json-v1",
+    "exclude": ["snapshot_hash"]
+  }
+}

@@ -13,7 +13,7 @@ trading. This repo is a performance-oriented fork of the original
 metaprogramming** in favor of explicit mixin + factory initialization while
 keeping the public API compatible.
 
-- **Version**: `1.2.0` (see `backtrader/version.py`)
+- **Version**: `1.3.0` (see `backtrader/version.py`)
 - **License**: GPLv3
 - **Python**: 3.8–3.13 (classifiers in `setup.py`; 3.11 recommended)
 - **Not on PyPI** — install from source only.
@@ -139,8 +139,16 @@ Object creation flows through `backtrader/metabase.py`:
 - Owner discovery uses `metabase.OwnerContext` (a context stack) and
   `metabase.findowner()` — the legacy stack-frame inspection is gone.
 
-> Key rule: call `super().__init__()` **before** accessing `self.p`/`self.params`
-> or lines. Never reintroduce a metaclass — use mixins + `donew()`.
+`Strategy` has a separate explicit path: `Strategy.__new__()` creates `self.p`
+and broker/analyzer state, and `Strategy.__init__()` creates datas/data aliases
+and `_clock` before calling the direct subclass's user `__init__()`. Therefore a
+class that directly subclasses `bt.Strategy` does **not** need to call
+`super().__init__()`; doing so currently re-enters `Strategy.__init__()`.
+Cooperative custom Strategy parents/mixins must still call `super()` when their
+own parent initialization is required. Indicators and other `ParamsMixin`
+objects follow their own patched-init lifecycle and must not be validated using
+the direct-Strategy exception. Never reintroduce a metaclass — use mixins +
+`donew()`.
 
 ### Line system (bottom-up)
 
@@ -225,6 +233,9 @@ backtrader/            core library
   lineroot.py linebuffer.py lineseries.py lineiterator.py dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/
   commissions/ stores/ channels/ mixins/ plot/ bokeh/ reports/ configs/ utils/
+backtrader-skills/     standalone AI strategy-author/review/test skills product
+backtrader-mcp/        standalone local-stdio MCP strategy-development product
+backtrader-agent/      standalone stateful AI strategy-development agent product
 tests/                 unit/ functional/ integration/ performance/ original_tests/
   add_tests/ strategies/ bench/ datas/ fixtures/ factories/ test_utils/
   functional/strategies/   1,271 inlined regression tests in ~30 categories

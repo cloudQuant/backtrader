@@ -153,11 +153,7 @@ class MyStrategy(bt.Strategy):
     )
 
     def __init__(self):
-
-# 重要：首先调用 super().__init__()
-        super().__init__()
-
-# 现在 self.p 可用了
+        # 直接 Strategy 的 self.p/data 已在这里之前建立
         self.sma = bt.indicators.SMA(period=self.p.period)
 
     def next(self):
@@ -183,23 +179,21 @@ class MyIndicator(bt.Indicator):
 
 ## 关键规则
 
-### 1. 始终首先调用 super().__init__()
+### 1. 按对象类型遵循初始化契约
 
 ```python
 
-# 错误
-
-class Bad(bt.Strategy):
+# 直接 bt.Strategy：不要再次进入 Strategy.__init__()
+class DirectStrategy(bt.Strategy):
     def __init__(self):
-        period = self.p.period  # 错误！self.p 还不存在
-        super().__init__()
+        period = self.p.period
+        self.sma = bt.indicators.SMA(self.data.close, period=period)
 
-# 正确
-
-class Good(bt.Strategy):
+# 自定义父策略/mixin：需要父类状态时使用 cooperative super
+class DerivedStrategy(CustomStrategyBase):
     def __init__(self):
         super().__init__()
-        period = self.p.period  # 现在可以了
+        self.derived_state = True
 
 ```bash
 
@@ -260,7 +254,6 @@ class MyStrategy(bt.Strategy):
     params = (('period', 20),)
 
     def __init__(self):
-        super().__init__()  # 只需添加这一行
         self.sma = bt.indicators.SMA(period=self.p.period)
 
     def next(self):
@@ -276,11 +269,10 @@ cerebro.run()  # 完全像以前一样工作
 
 对于为原始 Backtrader 编写的代码：
 
-1. **添加 `super().__init__()` 调用**- 在 `__init__` 的第一行
-
-2.**移除元类导入**- 不再需要
-3.**检查参数访问**- 必须在 `super().__init__()` 之后
-4.**充分测试** - 行为应该完全相同
+1. **直接 Strategy 保持原写法**- 参数和 data alias 在用户初始化前建立
+2. **多级继承按 MRO 处理**- 自定义父类需要初始化时才 cooperative `super()`
+3. **移除元类导入**- 不再需要
+4. **按组件测试**- Indicator/Analyzer/Feed 使用各自构造契约
 
 ## 总结
 

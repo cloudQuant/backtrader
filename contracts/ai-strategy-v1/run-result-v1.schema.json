@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backtrader.org/contracts/ai-strategy/v1/run-result.schema.json",
+  "title": "Backtrader RunResult v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "status",
+    "metrics",
+    "diagnostics",
+    "artifacts",
+    "result_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "run-result-v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["passed", "failed", "error", "timeout", "cancelled"]},
+    "metrics": {"$ref": "#/$defs/Metrics"},
+    "diagnostics": {"type": "array", "items": {"type": "object"}},
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/File"}},
+    "result_hash": {"$ref": "#/$defs/Hash"},
+    "manifest_hash": {"$ref": "#/$defs/Hash"},
+    "modes": {"type": "object"},
+    "comparison": {"type": "object"},
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "Metrics": {
+      "type": "object",
+      "required": [
+        "bar_num",
+        "buy_count",
+        "sell_count",
+        "win_count",
+        "loss_count",
+        "trade_num",
+        "final_value",
+        "sharpe_ratio",
+        "annual_return",
+        "max_drawdown",
+        "return_rate"
+      ],
+      "properties": {
+        "bar_num": {"type": "integer", "minimum": 0},
+        "buy_count": {"type": "integer", "minimum": 0},
+        "sell_count": {"type": "integer", "minimum": 0},
+        "win_count": {"type": "integer", "minimum": 0},
+        "loss_count": {"type": "integer", "minimum": 0},
+        "trade_num": {"type": "integer", "minimum": 0},
+        "final_value": {"type": "number"},
+        "sharpe_ratio": {"type": ["number", "null"]},
+        "annual_return": {"type": ["number", "null"]},
+        "max_drawdown": {"type": "number"},
+        "return_rate": {"type": "number"}
+      },
+      "additionalProperties": false
+    },
+    "File": {
+      "type": "object",
+      "required": ["path", "role", "bytes", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"},
+        "role": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/Hash"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-hash-contract": {
+    "field": "result_hash",
+    "algorithm": "sha256",
+    "canonicalization": "backtrader-canonical-json-v1",
+    "exclude": ["result_hash"]
+  }
+}

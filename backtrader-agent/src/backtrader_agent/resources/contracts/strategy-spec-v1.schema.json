@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backtrader.org/contracts/ai-strategy/v1/strategy-spec.schema.json",
+  "title": "Backtrader StrategySpec v1",
+  "type": "object",
+  "required": [
+    "spec_version",
+    "name",
+    "slug",
+    "category",
+    "archetype",
+    "output_profile",
+    "dataset_id",
+    "feeds",
+    "parameters",
+    "entry",
+    "exit",
+    "sizing",
+    "risk",
+    "run_modes",
+    "allowed_imports",
+    "spec_hash"
+  ],
+  "properties": {
+    "spec_version": {"const": "strategy-spec-v1"},
+    "name": {"type": "string", "minLength": 1, "maxLength": 120},
+    "slug": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 120},
+    "category": {"type": "string", "minLength": 1, "maxLength": 120},
+    "archetype": {
+      "enum": [
+        "single_data_indicator",
+        "multi_indicator_system",
+        "multi_asset_allocation",
+        "multi_timeframe",
+        "pairs_spread",
+        "order_risk",
+        "precomputed_ml"
+      ]
+    },
+    "output_profile": {"enum": ["single_test", "python_bundle"]},
+    "dataset_id": {"type": "string", "pattern": "^ds_[0-9a-f]{64}$"},
+    "feeds": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {"$ref": "#/$defs/Feed"}
+    },
+    "parameters": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/Parameter"}
+    },
+    "entry": {"$ref": "#/$defs/RuleReferences"},
+    "exit": {"$ref": "#/$defs/RuleReferences"},
+    "sizing": {"type": "object"},
+    "risk": {"type": "object"},
+    "cash": {"type": "number", "exclusiveMinimum": 0},
+    "commission": {"type": "number", "minimum": 0},
+    "run_modes": {
+      "type": "array",
+      "prefixItems": [{"const": "runonce"}, {"const": "runnext"}],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "allowed_imports": {"const": ["backtrader"]},
+    "non_goals": {"type": "array", "items": {"type": "string"}},
+    "undecided": {"type": "array", "items": {"type": "string"}},
+    "ir": {"type": "object"},
+    "extensions": {"type": "object"},
+    "spec_hash": {"$ref": "#/$defs/Hash"}
+  },
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "Feed": {
+      "type": "object",
+      "required": ["name", "role", "symbol", "timeframe", "lines"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+        "role": {"enum": ["execution", "signal", "benchmark", "hedge", "cash_proxy"]},
+        "symbol": {"type": "string", "minLength": 1},
+        "timeframe": {"type": "string", "minLength": 1},
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "Parameter": {
+      "type": "object",
+      "required": ["name", "type", "default"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$"},
+        "type": {"enum": ["int", "float", "bool", "str"]},
+        "default": {"type": ["integer", "number", "boolean", "string"]},
+        "minimum": {"type": "number"},
+        "maximum": {"type": "number"}
+      },
+      "additionalProperties": false
+    },
+    "RuleReferences": {
+      "type": "object",
+      "required": ["rule_names"],
+      "properties": {
+        "rule_names": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-hash-contract": {
+    "field": "spec_hash",
+    "algorithm": "sha256",
+    "canonicalization": "backtrader-canonical-json-v1",
+    "exclude": ["spec_hash"]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://backtrader.org/contracts/ai-strategy/v1/run-manifest.schema.json",
+  "title": "Backtrader RunManifest v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_id",
+    "artifact_hash",
+    "dataset_id",
+    "engine",
+    "environment_hash",
+    "run_profile",
+    "approval_id",
+    "manifest_hash"
+  ],
+  "properties": {
+    "schema_version": {"const": "run-manifest-v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "artifact_hash": {"$ref": "#/$defs/Hash"},
+    "dataset_id": {"type": "string", "pattern": "^ds_[0-9a-f]{64}$"},
+    "engine": {"type": "object", "minProperties": 1},
+    "environment_hash": {"$ref": "#/$defs/Hash"},
+    "run_profile": {"type": "object", "minProperties": 1},
+    "approval_id": {"type": "string", "minLength": 1},
+    "manifest_hash": {"$ref": "#/$defs/Hash"},
+    "modes": {
+      "type": "array",
+      "prefixItems": [{"const": "runonce"}, {"const": "runnext"}],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "timeout_seconds": {"type": "integer", "minimum": 1},
+    "candidate": {"type": "object"},
+    "dataset": {"type": "object"},
+    "environment": {"type": "object"},
+    "fixed_argv": {"type": "array", "items": {"type": "string"}},
+    "cwd": {"type": "string"},
+    "allowed_environment": {"type": "array", "items": {"type": "string"}},
+    "created_at": {"type": "string"},
+    "extensions": {"type": "object"}
+  },
+  "$defs": {
+    "Hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "x-hash-contract": {
+    "field": "manifest_hash",
+    "algorithm": "sha256",
+    "canonicalization": "backtrader-canonical-json-v1",
+    "exclude": ["manifest_hash"]
+  }
+}

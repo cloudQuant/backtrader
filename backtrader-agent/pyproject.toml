@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backtrader-agent"
+version = "0.1.0"
+description = "Independent, deterministic Backtrader strategy-authoring agent runtime"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "cloudQuant" }]
+dependencies = []
+
+[project.optional-dependencies]
+test = ["jsonschema>=4", "pytest>=7"]
+
+[project.scripts]
+backtrader-agent = "backtrader_agent.cli:main"
+btagent = "backtrader_agent.cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+backtrader_agent = [
+  "resources/*.json",
+  "resources/*.md",
+  "resources/adapters/claude-code/*.md",
+  "resources/adapters/codex/*.toml",
+  "resources/adapters/opencode/*.md",
+  "resources/adapters/openclaw/workspace/*.md",
+  "resources/adapters/openclaw/workspace/*.json",
+  "resources/contracts/*.json",
+  "resources/catalog/*.json",
+  "resources/catalog/*.jsonl",
+  "resources/policies/*.json",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

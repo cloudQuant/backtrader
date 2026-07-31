@@ -1,0 +1,4 @@
+Direct bt.Strategy subclasses in this Backtrader fork are pre-initialized by the framework.
+Generated direct subclasses must not call super().__init__(). Custom cooperative parents and
+framework components with their own __init__ must call super().__init__() before accessing params,
+data aliases, or lines.

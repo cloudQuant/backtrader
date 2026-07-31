@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backtrader Strategy Review"
+  short_description: "Review Backtrader strategy safety and contracts"
+  default_prompt: "Use $backtrader-strategy-review to review a Backtrader strategy bundle and produce actionable diagnostics."

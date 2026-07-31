@@ -1,0 +1,78 @@
+{
+  "$defs": {
+    "AgentEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {"type": "string"},
+        "approval_token_id": {"type": ["string", "null"]},
+        "effect_references": {"additionalProperties": {"type": "string"}, "type": "object"},
+        "event_hash": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+        "event_type": {"const": "STATE_TRANSITION"},
+        "from_state": {"type": "string"},
+        "idempotency_key": {"type": ["string", "null"]},
+        "normalized_input_hashes": {"additionalProperties": {"type": "string"}, "type": "object"},
+        "previous_event_hash": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+        "schema_version": {"const": "agent-event-v1"},
+        "sequence": {"minimum": 1, "type": "integer"},
+        "session_id": {"type": "string"},
+        "status": {"enum": ["prepared", "committed", "failed"]},
+        "timestamp": {"format": "date-time", "type": "string"},
+        "to_state": {"type": "string"}
+      },
+      "required": [
+        "schema_version",
+        "session_id",
+        "sequence",
+        "event_type",
+        "action_type",
+        "from_state",
+        "to_state",
+        "normalized_input_hashes",
+        "effect_references",
+        "previous_event_hash",
+        "event_hash",
+        "status",
+        "timestamp"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://cloudquant.example/backtrader-agent/contracts/agent-session-manifest-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "allowed_next_actions": {"items": {"type": "string"}, "type": "array"},
+    "approvals": {"type": "object"},
+    "artifacts": {"type": "object"},
+    "checkpoint_hash": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "diagnostics": {"items": {"type": "object"}, "type": "array"},
+    "journal": {"const": "journal.jsonl"},
+    "last_event_hash": {"pattern": "^[0-9a-f]{64}$", "type": "string"},
+    "last_sequence": {"minimum": 0, "type": "integer"},
+    "parent_session_id": {"type": ["string", "null"]},
+    "product": {"const": "backtrader-agent"},
+    "product_version": {"type": "string"},
+    "schema_version": {"const": "agent-session-manifest-v1"},
+    "session_id": {"type": "string"},
+    "state": {"type": "string"},
+    "state_revision": {"minimum": 0, "type": "integer"}
+  },
+  "required": [
+    "schema_version",
+    "session_id",
+    "product",
+    "product_version",
+    "state",
+    "state_revision",
+    "last_sequence",
+    "last_event_hash",
+    "journal",
+    "allowed_next_actions",
+    "artifacts",
+    "approvals",
+    "diagnostics",
+    "checkpoint_hash"
+  ],
+  "title": "AgentSessionManifest v1",
+  "type": "object"
+}

@@ -1,0 +1,10 @@
+{
+  "agent_name": "backtrader-agent",
+  "automatic_registration": false,
+  "first_request": "Inspect my offline CSV, clarify a StrategySpec, generate a strategy, and stop at each apply/run approval.",
+  "invocation_command": "openclaw agent --agent backtrader-agent --message '<first-request>'",
+  "registration_command": "openclaw agents add backtrader-agent --workspace '<absolute-workspace-path>' --non-interactive",
+  "schema_version": "openclaw-registration-manifest-v1",
+  "verification_command": "openclaw agents list",
+  "workspace": "<absolute-workspace-path>"
+}

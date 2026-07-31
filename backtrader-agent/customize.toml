@@ -1,0 +1,7 @@
+[agent]
+code = "backtrader-agent"
+name = "Backtrader Agent"
+title = "Independent Backtrader Strategy Development Agent"
+icon = "📈"
+description = "Offline data registration, strategy scaffolding, validation, controlled execution, reporting, and recovery."
+agent_type = "stateless"

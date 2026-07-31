@@ -555,26 +555,19 @@ class MyStrategy(bt.Strategy):
 
 ### Q: "AttributeError: 'Strategy' object has no attribute 'position'"
 
-- *A:** Forgetting to call parent `__init__`:
+- *A:** Do not try to repair this by re-entering `Strategy.__init__()`. In this fork,
+  a direct `bt.Strategy` already has parameters, datas and broker state before the
+  user `__init__` runs. Confirm the strategy is created by `Cerebro` and is not
+  instantiated directly:
 
 ```python
-
-# WRONG
-
 class MyStrategy(bt.Strategy):
     def __init__(self):
+        self.sma = bt.indicators.SMA(self.data, period=20)
 
-# Missing super().__init__()
-        self.sma = bt.indicators.SMA(period=20)
-
-# CORRECT - Call super first!
-
-class MyStrategy(bt.Strategy):
-    def __init__(self):
-        super().__init__()  # CRITICAL - sets up position, orders, etc.
-        self.sma = bt.indicators.SMA(period=20)
-
-```bash
+cerebro.addstrategy(MyStrategy)
+results = cerebro.run()
+```
 
 ### Q: "RuntimeError: live feed must use preloading=False and runonce=False"
 
@@ -633,9 +626,7 @@ class MyIndicator(bt.Indicator):
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        super().__init__()  # Must call super!
-
-# Indicators auto-register after super().__init__()
+        # OwnerContext is active before this direct Strategy initializer runs.
         self.sma = bt.indicators.SMA(self.data, period=20)
 
 ```bash
@@ -652,27 +643,24 @@ sma = bt.indicators.SMA(period=20)  # No owner
 
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        super().__init__()
         self.sma = bt.indicators.SMA(period=20)  # Strategy is owner
 
 ```bash
 
-- *3. Parameter access before initialization:**
+- *3. Strategy inheritance contract:**
 
 ```python
 
-# WRONG - Accessing self.p before super().__init__()
-
+# Direct bt.Strategy: self.p is already available
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        self.period = self.p.period  # ERROR!
+        self.period = self.p.period
 
-# CORRECT
-
-class MyStrategy(bt.Strategy):
+# A custom parent/mixin may require cooperative initialization
+class MyDerivedStrategy(CustomStrategyBase):
     def __init__(self):
-        super().__init__()  # Sets up self.p
-        self.period = self.p.period  # Now it works
+        super().__init__()
+        self.derived_state = True
 
 ```bash
 

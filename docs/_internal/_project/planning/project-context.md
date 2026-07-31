@@ -64,22 +64,20 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### Language-Specific Rules (Python)
 
-#### CRITICAL: Initialization Order (Post-Metaclass Architecture)
+#### CRITICAL: Initialization Contract (Post-Metaclass Architecture)
 
 ```python
 
-# ❌ WRONG - self.p not available yet
-
-class BadStrategy(bt.Strategy):
+# Direct bt.Strategy receives p/data before its user initializer
+class DirectStrategy(bt.Strategy):
     def __init__(self):
-        print(self.p.period)  # Will fail!
+        print(self.p.period)
 
-# ✅ CORRECT - Call super().__init__() FIRST
-
-class GoodStrategy(bt.Strategy):
+# Cooperative custom parents/mixins still initialize through MRO
+class DerivedStrategy(CustomStrategyBase):
     def __init__(self):
-        super().__init__()  # Sets up self.p
-        print(self.p.period)  # Now works
+        super().__init__()
+        self.derived_state = True
 
 ```bash
 
@@ -634,23 +632,20 @@ class MyClass(BaseMixin):
 
 ```bash
 
-#### 2. NEVER Access self.p Before super().__init__()
+#### 2. Use the Correct Initialization Contract
 
 ```python
 
-# ❌ FORBIDDEN
-
-class Bad(bt.Strategy):
+# Direct Strategy: p/data are ready before this method
+class Direct(bt.Strategy):
     def __init__(self):
-        period = self.p.period  # AttributeError!
-        super().__init__()
+        period = self.p.period
 
-# ✅ CORRECT
-
-class Good(bt.Strategy):
+# Custom cooperative parent: initialize required parent state
+class Derived(CustomStrategyBase):
     def __init__(self):
         super().__init__()
-        period = self.p.period  # Now OK
+        self.derived_state = True
 
 ```bash
 
