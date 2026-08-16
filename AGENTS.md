@@ -233,9 +233,10 @@ backtrader/            core library
   lineroot.py linebuffer.py lineseries.py lineiterator.py dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/
   commissions/ stores/ channels/ mixins/ plot/ bokeh/ reports/ configs/ utils/
-backtrader-skills/     standalone AI strategy-author/review/test skills product
-backtrader-mcp/        standalone local-stdio MCP strategy-development product
-backtrader-agent/      standalone stateful AI strategy-development agent product
+AI strategy products are maintained outside this repository:
+  cloudQuant/backtrader-skills   standalone author/review/test skills product
+  cloudQuant/backtrader-mcp      standalone local-stdio MCP product
+  cloudQuant/backtrader-agent    standalone stateful agent product
 tests/                 unit/ functional/ integration/ performance/ original_tests/
   add_tests/ strategies/ bench/ datas/ fixtures/ factories/ test_utils/
   functional/strategies/   1,271 inlined regression tests in ~30 categories
@@ -245,6 +246,10 @@ scripts/               optimize_code.sh, refresh_strategy_durations.py,
 studies/               research/diagnostic scripts (e.g. branch_compare/)
 Makefile pyproject.toml setup.py pytest.ini requirements.txt conftest.py
 ```
+
+The three AI products are not vendored and are not Git submodules. Make product
+changes, packaging releases, and product-specific acceptance changes in their
+respective repositories; this repository only links to them from its README.
 
 ## Tests
 

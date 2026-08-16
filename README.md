@@ -52,7 +52,7 @@ It currently supports Python 3.8-3.14 and covers macOS, Windows, Linux, and othe
 - [C++ and pybind11 Performance Highlights](#c-and-pybind11-performance-highlights)
 - [Performance Snapshot](#-performance-snapshot)
 - [Introduction](#-introduction)
-- [AI Strategy Development Products](#-ai-strategy-development-products)
+- [Project Ecosystem](#-project-ecosystem)
 - [Key Features](#-key-features)
 - [Quick Installation](#-quick-installation)
 - [5-Minute Quickstart](#-5-minute-quickstart)
@@ -130,32 +130,26 @@ high-frequency** strategy development, backtesting, and live trading.
 
 ---
 
-## 🤖 AI Strategy Development Products
+## 🌐 Project Ecosystem
 
-The `dev` branch contains three **independent** local products for AI-assisted
-Backtrader strategy work. They implement the same end-to-end capability through
-different host integration surfaces; none requires either of the other two.
+The CloudQuant Backtrader ecosystem spans the core engine plus five companion
+projects — AI-assisted strategy development (skills, MCP, agent), a web-based
+research & trading platform, and a quantitative analytics library:
 
-| Product | Integration surface | Standalone capability |
-| --- | --- | --- |
-| [`backtrader-skills`](backtrader-skills/README.md) | Author/review/test skills | Local data registration, corpus search, strategy scaffolding, validation, controlled backtests, repair and reports |
-| [`backtrader-mcp`](backtrader-mcp/README.md) | Local stdio MCP server | Typed tools, resources and prompts for the complete strategy workflow |
-| [`backtrader-agent`](backtrader-agent/README.md) | Explicit specialist agent | The complete workflow plus recoverable session state, action routing and approvals |
+| Project | Description |
+| --- | --- |
+| [`cloudQuant/backtrader`](https://github.com/cloudQuant/backtrader) | **Core engine (this repository)** — high-performance Python framework for backtesting and live trading across all frequencies. |
+| [`cloudQuant/backtrader-skills`](https://github.com/cloudQuant/backtrader-skills) | Offline author/review/test skills for AI agents — turns registered local datasets and typed `StrategySpec v1` specs into pytest strategies or three-file bundles, reviews candidates without importing them, and runs approved candidates in isolated child processes. |
+| [`cloudQuant/backtrader-mcp`](https://github.com/cloudQuant/backtrader-mcp) | Local-first MCP server — typed tools, resources, and prompts for building and running reproducible strategies: immutable datasets, private drafts, and bounded subprocess runs with durable status and reports. |
+| [`cloudQuant/backtrader-agent`](https://github.com/cloudQuant/backtrader-agent) | Offline-first strategy-authoring agent runtime — canonical strategy specifications, static review, hash-bound approvals, fixed child-process execution, and recoverable session provenance. |
+| [`cloudQuant/backtrader_web`](https://github.com/cloudQuant/backtrader_web) | **"AI for Investor"** — Vue 3 + FastAPI web platform for the full strategy lifecycle: research, strategy generation, backtesting, paper trading, live execution, and market-data management. |
+| [`cloudQuant/fincore`](https://github.com/cloudQuant/fincore) | Quantitative performance & risk analytics library — 150+ financial metrics, portfolio optimization, Monte Carlo simulation, and performance attribution. |
 
-Each product README documents its intended Claude Code, Codex, OpenCode and
-OpenClaw integration path. Automated acceptance proves package contents,
-native layouts and sibling-product independence; real host discovery/model
-sessions remain explicit release evidence rather than an inferred test result.
-OpenClaw was not installed for the current evidence snapshot, so its adapters
-are statically verified without claiming live registration. The first release
-is offline/local by design: generated strategies are untrusted input, live
-brokers and network market-data providers are excluded, and subprocess
-controls are not described as an OS security sandbox.
-
-```bash
-# Repository-level packaging, contract and sibling-import audit
-conda run -n base python scripts/audit_ai_strategy_products.py
-```
+The three AI products (skills, MCP, agent) implement the same end-to-end
+strategy workflow through different host integration surfaces; none requires
+either of the other two. Install, test, release, and contribute to each product
+in its own repository — the Backtrader core repository neither vendors nor
+initializes those products.
 
 ---
 
@@ -571,9 +565,6 @@ backtrader/
 │   ├── feeds/            # 21 data sources
 │   ├── plot/             # Visualization
 │   └── reports/          # Report generation
-├── backtrader-skills/    # Standalone AI strategy skills product
-├── backtrader-mcp/       # Standalone local-stdio MCP product
-├── backtrader-agent/     # Standalone recoverable agent product
 ├── examples/             # Example code
 ├── tests/                # Test cases (3,200+ tests)
 ├── scripts/              # Install, test, benchmark, and maintenance helpers
@@ -1018,28 +1009,24 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 
 ---
 
-## 🤖 AI 策略开发产品
+## 🌐 项目生态
 
-`dev` 分支提供三个**各自独立完整**的本地 AI 策略开发产品。它们只是宿主接入形态
-不同，任意一个都不依赖另外两个才能完成闭环。
+CloudQuant Backtrader 生态由核心引擎与五个配套项目组成——AI 辅助策略开发
+（Skills / MCP / Agent）、Web 化研究交易平台与量化分析库：
 
-| 产品 | 接入形态 | 独立能力 |
-| --- | --- | --- |
-| [`backtrader-skills`](backtrader-skills/README.md) | 编写/审查/测试 Skills | 本地数据登记、语料检索、策略骨架、校验、受控回测、修复和报告 |
-| [`backtrader-mcp`](backtrader-mcp/README.md) | 本地 stdio MCP Server | 用 typed tools、resources、prompts 提供完整策略工作流 |
-| [`backtrader-agent`](backtrader-agent/README.md) | 显式激活的专家 Agent | 完整策略工作流，并增加可恢复会话状态、动作路由和审批 |
+| 项目 | 简介 |
+| --- | --- |
+| [`cloudQuant/backtrader`](https://github.com/cloudQuant/backtrader) | **核心引擎（本仓库）** — 高性能 Python 回测与实盘交易框架，覆盖低频、中频、高频全频段。 |
+| [`cloudQuant/backtrader-skills`](https://github.com/cloudQuant/backtrader-skills) | 面向 AI Agent 的离线编写/审查/测试 Skills — 把已登记的本地数据集与 typed `StrategySpec v1` 规格转为 pytest 策略或三文件策略包，不导入即可静态审查，并在隔离子进程中运行已批准候选。 |
+| [`cloudQuant/backtrader-mcp`](https://github.com/cloudQuant/backtrader-mcp) | 本地优先的 MCP Server — 用 typed tools、resources、prompts 构建和运行可复现策略：不可变数据集、私有草稿、有界子进程运行及持久化状态与报告。 |
+| [`cloudQuant/backtrader-agent`](https://github.com/cloudQuant/backtrader-agent) | 离线优先的策略编写 Agent 运行时 — 规范策略规格、静态审查、哈希绑定审批、固定子进程执行与可恢复会话溯源。 |
+| [`cloudQuant/backtrader_web`](https://github.com/cloudQuant/backtrader_web) | **"AI for Investor"** — Vue 3 + FastAPI 的全周期策略管理 Web 平台：研究、策略生成、回测分析、模拟盘、实盘执行与行情数据管理。 |
+| [`cloudQuant/fincore`](https://github.com/cloudQuant/fincore) | 量化绩效与风险分析库 — 150+ 金融指标、组合优化、蒙特卡洛模拟与绩效归因。 |
 
-每个产品的 README 都说明其面向 Claude Code、Codex、OpenCode 和 OpenClaw 的接入
-路径。自动化验收证明分发内容、原生目录布局和 sibling 产品独立性；真实宿主发现与
-模型会话仍是单独的发布证据，不能从静态测试推断。当前证据快照未安装 OpenClaw，
-因此只验证其 adapter，不声称已完成真实注册。首版明确采用本地离线边界：AI 生成
-策略仍按不可信输入处理，不连接实盘 broker 或网络行情，受控子进程也不等同于 OS
-级安全沙箱。
-
-```bash
-# 仓库级打包、契约和 sibling-import 审计
-conda run -n base python scripts/audit_ai_strategy_products.py
-```
+三个 AI 产品（Skills / MCP / Agent）只是宿主接入形态不同，任意一个都不依赖另外两个
+才能完成闭环；其 README 均说明面向 Claude Code、Codex、OpenCode 和 OpenClaw 的接入
+路径。请在各自仓库中安装、测试、发布和贡献；本 Backtrader 核心仓库既不内嵌也不
+初始化这些产品。
 
 ---
 

@@ -198,11 +198,6 @@ tests/functional/strategies_regression/
 # Local git worktrees for branch comparison (should not be tracked)
 .branch_compare_worktrees/
 
-# Standalone AI strategy products: workspace-local runtime state
-/.backtrader-skills/
-/.backtrader-mcp/
-/.backtrader-agent/
-
 # Auto-generated transient outputs from regression tests
 tests/functional/strategies/**/strategy_backtest_results.csv
 tests/functional/strategies/**/backtest_result.json

@@ -146,6 +146,59 @@ Source Code
 
 ----
 
+Related Projects
+----------------
+
+Backtrader is part of the CloudQuant quantitative-research ecosystem:
+
+.. grid:: 1 1 2 3
+   :gutter: 3
+
+   .. grid-item-card:: ⚙️ backtrader
+      :link: https://github.com/cloudQuant/backtrader
+      :class-card: sd-border-0 sd-shadow-sm
+
+      The high-performance core engine documented here — backtesting and
+      live trading across all frequencies.
+
+   .. grid-item-card:: 🤖 backtrader-skills
+      :link: https://github.com/cloudQuant/backtrader-skills
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Offline author/review/test skills for AI agents: local data
+      registration, typed strategy specs, static review, and isolated
+      child-process backtests.
+
+   .. grid-item-card:: 🔌 backtrader-mcp
+      :link: https://github.com/cloudQuant/backtrader-mcp
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Local-first MCP server with typed tools, resources, and prompts for
+      building and running reproducible strategies.
+
+   .. grid-item-card:: 🤝 backtrader-agent
+      :link: https://github.com/cloudQuant/backtrader-agent
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Offline-first strategy-authoring agent runtime: canonical specs,
+      static review, hash-bound approvals, and recoverable sessions.
+
+   .. grid-item-card:: 🌐 backtrader_web
+      :link: https://github.com/cloudQuant/backtrader_web
+      :class-card: sd-border-0 sd-shadow-sm
+
+      "AI for Investor": Vue 3 + FastAPI web platform for research,
+      strategy generation, backtesting, paper trading, and live execution.
+
+   .. grid-item-card:: 📊 fincore
+      :link: https://github.com/cloudQuant/fincore
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Quantitative performance & risk analytics: 150+ financial metrics,
+      portfolio optimization, Monte Carlo simulation, and attribution.
+
+----
+
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started

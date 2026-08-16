@@ -145,6 +145,57 @@ Backtrader 中文文档
 
 ----
 
+相关项目
+--------
+
+Backtrader 是 CloudQuant 量化研究生态的一部分：
+
+.. grid:: 1 1 2 3
+   :gutter: 3
+
+   .. grid-item-card:: ⚙️ backtrader
+      :link: https://github.com/cloudQuant/backtrader
+      :class-card: sd-border-0 sd-shadow-sm
+
+      本文档所述的高性能核心引擎 — 覆盖低频、中频、高频的回测与实盘交易。
+
+   .. grid-item-card:: 🤖 backtrader-skills
+      :link: https://github.com/cloudQuant/backtrader-skills
+      :class-card: sd-border-0 sd-shadow-sm
+
+      面向 AI Agent 的离线编写/审查/测试 Skills：本地数据登记、类型化策略
+      规格、静态审查与隔离子进程回测。
+
+   .. grid-item-card:: 🔌 backtrader-mcp
+      :link: https://github.com/cloudQuant/backtrader-mcp
+      :class-card: sd-border-0 sd-shadow-sm
+
+      本地优先的 MCP Server，提供 typed tools、resources 和 prompts，
+      用于构建和运行可复现的策略。
+
+   .. grid-item-card:: 🤝 backtrader-agent
+      :link: https://github.com/cloudQuant/backtrader-agent
+      :class-card: sd-border-0 sd-shadow-sm
+
+      离线优先的策略编写 Agent 运行时：规范规格、静态审查、哈希绑定审批
+      与可恢复会话。
+
+   .. grid-item-card:: 🌐 backtrader_web
+      :link: https://github.com/cloudQuant/backtrader_web
+      :class-card: sd-border-0 sd-shadow-sm
+
+      "AI for Investor"：Vue 3 + FastAPI Web 平台，覆盖研究、策略生成、
+      回测、模拟盘与实盘执行。
+
+   .. grid-item-card:: 📊 fincore
+      :link: https://github.com/cloudQuant/fincore
+      :class-card: sd-border-0 sd-shadow-sm
+
+      量化绩效与风险分析库：150+ 金融指标、组合优化、蒙特卡洛模拟与
+      绩效归因。
+
+----
+
 .. toctree::
    :maxdepth: 2
    :caption: 快速入门
