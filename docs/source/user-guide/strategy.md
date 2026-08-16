@@ -41,10 +41,17 @@ Called once before backtesting starts. Use to initialize indicators and calculat
 
 ```python
 def __init__(self):
-    super().__init__()  # Always call super first
+    # A direct bt.Strategy subclass is initialized by the engine on this fork.
+    # Do not call Strategy.__init__ again.
     self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
 
-```bash
+```
+
+This rule is specific to direct `bt.Strategy` subclasses. If a strategy uses a
+custom cooperative parent or mixin, follow that class's MRO contract and call
+`super().__init__()` where the custom parent requires it. Indicators,
+Analyzers, Feeds, and other cooperative line objects have their own lifecycle
+rules and are not covered by the direct-Strategy exception.
 
 ### `start(self)`
 

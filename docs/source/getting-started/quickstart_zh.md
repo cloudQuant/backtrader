@@ -27,11 +27,7 @@ class SimpleStrategy(bt.Strategy):
     )
 
     def __init__(self):
-
-# 重要：首先调用 super().__init__()
-        super().__init__()
-
-# 计算移动平均线
+        # 直接 bt.Strategy 的参数和 data alias 已在用户 __init__ 前建立
         self.short_ma = bt.indicators.SMA(self.data.close, period=self.p.short_period)
         self.long_ma = bt.indicators.SMA(self.data.close, period=self.p.long_period)
 
@@ -116,7 +112,6 @@ class SimpleStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        super().__init__()
         self.short_ma = bt.indicators.SMA(self.data.close, period=self.p.short_period)
         self.long_ma = bt.indicators.SMA(self.data.close, period=self.p.long_period)
         self.crossover = bt.indicators.CrossOver(self.short_ma, self.long_ma)

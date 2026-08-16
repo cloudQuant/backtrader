@@ -69,8 +69,10 @@ backtrader 的「线」(line) 是带最小周期(minperiod)与时钟(clock)语�
 - `parameters.py`：描述符式参数系统（`ParameterDescriptor` + `ParameterManager`），
   支持类型校验、继承（`inherit_from` 的 merge/replace/add_only/selective 策略）、
   分组、依赖、变更回调。
-- **硬规则**：不要新增元类；新组件走 `donew()` 模式；子类 `__init__` 必须先
-  `super().__init__()` 再访问 `self.p`。
+- **硬规则**：不要新增元类；新组件走 `donew()` 模式。直接 `bt.Strategy` 是特例：
+  `Strategy.__new__/Strategy.__init__` 在用户 `__init__` 前已建立 `self.p`、datas 和
+  clock，因此直接策略不调用 `super().__init__()`。自定义父策略/mixin 及 Indicator、
+  Analyzer、Feed 等对象按各自 cooperative 生命周期处理，不能套用一条全局 AST 规则。
 
 ---
 

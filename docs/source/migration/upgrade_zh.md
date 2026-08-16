@@ -310,11 +310,7 @@ class MyStrategy(bt.Strategy):
     params = (('period', 20),)
 
     def __init__(self):
-
-# super().__init__() 设置 self.p
-        super().__init__()
-
-# 现在可以安全访问 self.p
+        # 直接 Strategy 在用户 __init__ 前已设置 self.p 和 data alias
         self.sma = bt.indicators.SMA(period=self.p.period)
 
 ```bash
