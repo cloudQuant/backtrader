@@ -19,7 +19,7 @@ Example:
                 self.buy()
 """
 
-from . import Indicator, MeanDev, MovAv
+from . import DivByZero, Indicator, MeanDev, MovAv
 
 
 class CommodityChannelIndex(Indicator):
@@ -83,5 +83,5 @@ class CommodityChannelIndex(Indicator):
         # This matches master branch's behavior: SMA(|tp - tpmean|) where tpmean varies
         meandev = MeanDev(tp, tpmean, period=self.p.period)
 
-        # cci = dev / (factor * meandev)
-        self.lines.cci = dev / (self.p.factor * meandev)
+        # Return 0.0 when mean deviation is zero (for example, on flat prices).
+        self.lines.cci = DivByZero(dev, self.p.factor * meandev, zero=0.0)
