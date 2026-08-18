@@ -20,6 +20,7 @@ def test_light_import_exposes_live_runner_api_without_heavy_modules():
         assert bt.indicators.CrossOver
         assert bt.indicators.BollingerBands
         assert bt.indicators.RelativeStrengthIndex
+        assert bt.indicators.OBV is bt.indicators.OnBalanceVolume
         assert bt.indicators.AverageDirectionalMovementIndex
         assert bt.indicators.PlusDirectionalIndicator
         assert bt.indicators.MinusDirectionalIndicator
