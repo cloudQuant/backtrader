@@ -245,7 +245,13 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
                                     if not math.isfinite(value):
                                         return False
-                                    return value != 0.0
+                                    # bool() for the same reason as in __nonzero__:
+                                    # numpy.float64 subclasses float, so it reaches
+                                    # this branch and `!= 0.0` yields numpy.bool_.
+                                    # This path returns a value rather than going
+                                    # through the __bool__ protocol, so a leak here
+                                    # would propagate silently instead of raising.
+                                    return bool(value != 0.0)
                                 return bool(value)
                     return False
                 except Exception:
@@ -265,7 +271,9 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
                             if not math.isfinite(value):
                                 return False
-                            return value != 0.0
+                            # See the note above: guard against numpy.bool_ leaking
+                            # out of this non-__bool__ return path.
+                            return bool(value != 0.0)
                         return bool(value)
                     return False
                 except Exception:
@@ -607,7 +615,14 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
                                 if not math.isfinite(value):
                                     return False
-                                return value != 0.0
+                                # bool() is required, not cosmetic: numpy.float64
+                                # subclasses float, so numpy scalars reach this branch
+                                # and `np.float64 != 0.0` yields numpy.bool_, which
+                                # CPython rejects from __bool__. Such scalars come from
+                                # PandasData and survive only in QBuffer/exactbars mode,
+                                # where lines are backed by a deque rather than
+                                # array.array("d") (which coerces them to float).
+                                return bool(value != 0.0)
                             return bool(value)
                 return False
             if hasattr(self, "__getitem__") and hasattr(self, "__len__"):
@@ -621,7 +636,10 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
                         if not math.isfinite(value):
                             return False
-                        return value != 0.0
+                        # See the note above: bool() guards against numpy.float64
+                        # reaching the isinstance(value, float) branch and making
+                        # `!=` return numpy.bool_.
+                        return bool(value != 0.0)
                     return bool(value)
                 return False
             # Fallback: if no data available, return False
