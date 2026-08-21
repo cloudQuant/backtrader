@@ -2091,6 +2091,20 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if savemem:
             for line in self.lines:
                 line.qbuffer()
+                # LineBuffer.qbuffer sizes the ring buffer from the LINE's own
+                # _minperiod, which is frequently still 1: only addminperiod() /
+                # updateminperiod() propagate a value down to the lines, and many
+                # indicators never call either. An indicator that reads its own
+                # output recursively (self.lines.x[-1], as cumulative/stateful ones
+                # do) then finds maxlen == 1 and silently reads NaN instead of the
+                # previous bar.
+                #
+                # Retention must therefore cover this object's lookback needs, with a
+                # floor of 2 for the [-1] self-reference. minbuffer() only ever grows
+                # maxlen in QBuffer mode and is a no-op otherwise, so it cannot alter
+                # results -- unlike raising _minperiod, which is a semantic claim that
+                # would delay output and propagate to downstream consumers.
+                line.minbuffer(max(2, self._minperiod))
 
         # If called, anything under it, must save
         for obj in self._lineiterators[self.IndType]:
