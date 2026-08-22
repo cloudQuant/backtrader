@@ -1,0 +1,7 @@
+{
+  "projectId": "0",
+  "managedEntries": [
+    "AGENTS.md"
+  ],
+  "projectAgentsContent": "# 外部文件加载\n\nCRITICAL: 当你遇到文件引用时（例如 @rules/general.md），使用你的读取工具按需加载。它们与当前具体任务相关。\n\n说明:\n\n- 不要预先加载所有引用 - 基于实际需求使用懒加载\n- 加载后，将内容视为强制性指令，覆盖默认设置\n- 在需要时递归地遵循引用\n\n# 开发规范\n当前项目下存在前端和后端项目，开发前请阅读并遵守以下开发规范\n\n后端开发规范：@.joyincode/rules/backend.md\n前端开发规范：@.joyincode/rules/frontend.md"
+}

@@ -310,3 +310,19 @@ respective repositories; this repository only links to them from its README.
 - `pytest.ini` — discovery, markers, warning filters.
 No Kiro steering files are tracked; use this `AGENTS.md`, `README.md`, and
 the project configuration files as the current build/test/structure guidance.
+
+# 外部文件加载
+
+CRITICAL: 当你遇到文件引用时（例如 @rules/general.md），使用你的读取工具按需加载。它们与当前具体任务相关。
+
+说明:
+
+- 不要预先加载所有引用 - 基于实际需求使用懒加载
+- 加载后，将内容视为强制性指令，覆盖默认设置
+- 在需要时递归地遵循引用
+
+# 开发规范
+当前项目下存在前端和后端项目，开发前请阅读并遵守以下开发规范
+
+后端开发规范：@.joyincode/rules/backend.md
+前端开发规范：@.joyincode/rules/frontend.md
