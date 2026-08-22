@@ -1,0 +1,144 @@
+name: PR Governance
+
+# Iteration 140 / M3.
+#
+# This workflow intentionally uses pull_request rather than pull_request_target:
+# it checks out contributor content only with a read-only token and never exposes
+# repository secrets or an admin credential. The policy starts report-only and
+# becomes blocking only after the documented observation period.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+    branches: [dev, development, master]
+  workflow_dispatch:
+    inputs:
+      base_ref:
+        description: "Manual dry-run target branch"
+        required: true
+        default: "dev"
+        type: choice
+        options: [dev, development, master]
+      head_ref:
+        description: "Manual dry-run source branch"
+        required: true
+        default: "feature/manual-governance-check"
+        type: string
+      labels:
+        description: "Manual dry-run labels as a JSON array"
+        required: true
+        default: "[]"
+        type: string
+      changed_paths:
+        description: "Manual dry-run changed paths (comma-separated)"
+        required: false
+        default: "docs/source/developer-guide/branch-governance.md"
+        type: string
+      body:
+        description: "Manual dry-run PR body"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-governance-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  governance:
+    name: PR Governance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evaluated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Collect changed paths
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MANUAL_PATHS: ${{ inputs.changed_paths }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths_file="$RUNNER_TEMP/changed-paths.txt"
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$paths_file"
+          else
+            printf '%s' "$MANUAL_PATHS" | tr ',' '\n' | sed '/^[[:space:]]*$/d' > "$paths_file"
+          fi
+          echo "Changed paths:"
+          sed -n '1,200p' "$paths_file"
+
+      - name: Classify and report
+        id: classify
+        env:
+          CHANGED_PATHS: ${{ runner.temp }}/changed-paths.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/ci/classify_pr_risk.py \
+            --paths-file "$CHANGED_PATHS" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Enforce policy after observation period
+        env:
+          BASE_REF: ${{ github.base_ref || inputs.base_ref }}
+          HEAD_REF: ${{ github.head_ref || inputs.head_ref }}
+          PR_LABELS: ${{ github.event_name == 'pull_request' && toJson(github.event.pull_request.labels.*.name) || inputs.labels }}
+          PR_BODY: ${{ github.event_name == 'pull_request' && github.event.pull_request.body || inputs.body }}
+          GOVERNANCE_BLOCKING: ${{ vars.GOVERNANCE_BLOCKING || 'false' }}
+          RISK: ${{ steps.classify.outputs.risk }}
+          AREA: ${{ steps.classify.outputs.area }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Target branch: $BASE_REF"
+          echo "Head branch:   $HEAD_REF"
+          echo "Suggested risk: $RISK"
+          echo "Suggested area: $AREA"
+          echo "Labels:        $PR_LABELS"
+
+          violations=()
+          if [ "$BASE_REF" = "master" ]; then
+            case "$HEAD_REF" in
+              hotfix/master-*) ;;
+              *) violations+=("routine PRs must not target master; use dev or development") ;;
+            esac
+
+            if ! printf '%s' "$PR_LABELS" | grep -Fq '"target:master-hotfix"'; then
+              violations+=("master hotfix PRs require the target:master-hotfix label")
+            fi
+            if ! printf '%s' "$PR_BODY" | grep -Eqi '最小复现|minimal repro|reproduction'; then
+              violations+=("master hotfix PRs require a documented minimal reproduction")
+            fi
+          fi
+
+          if [ "${#violations[@]}" -eq 0 ]; then
+            echo "::notice::PR routing and observable metadata satisfy the current policy."
+            exit 0
+          fi
+
+          for violation in "${violations[@]}"; do
+            if [ "$GOVERNANCE_BLOCKING" = "true" ]; then
+              echo "::error::$violation"
+            else
+              echo "::warning::$violation (observation mode; not blocking)"
+            fi
+          done
+          if [ "$GOVERNANCE_BLOCKING" = "true" ]; then
+            exit 1
+          fi
+          echo "::notice::Blocking remains disabled until the observation evidence is reviewed."

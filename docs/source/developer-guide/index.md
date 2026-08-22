@@ -1,9 +1,7 @@
-- --
-
+---
 title: Developer Guide Index
 description: Guidelines for contributors
-
-- --
+---
 
 # Developer Guide
 
@@ -22,6 +20,8 @@ Welcome to the Backtrader development guide. This section covers everything you 
 | [Code Style](style.md) | Code formatting and style guide |
 
 | [Contributing](contributing.md) | Contribution guidelines |
+
+| [Branch Governance](branch-governance.md) | Three-branch model, PR routing, risk levels, promotion/hotfix protocols |
 
 | [Release Workflow](release.md) | Version management and release process |
 

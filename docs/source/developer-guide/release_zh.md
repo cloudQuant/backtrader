@@ -85,59 +85,28 @@ MAJOR.MINOR.PATCH
 
 ## 发布分支策略
 
-### 分支模型
+> 本仓库采用**三分支模型**，不遵循「dev → master 发布链」。权威定义见
+> [分支治理](branch-governance_zh.md)。以下仅说明发布口径。
 
-```bash
-                    ┌─────────────────┐
-                    │   master (稳定)  │
-                    │  v1.0.0, v1.1.0 │
-                    └────────▲────────┘
-                             │ 合并
-                             │
-┌─────────────┐       ┌─────┴──────┐       ┌─────────────┐
-│  feature/*  │──────▶│    dev     │───────▶│ release/*   │
-│  功能分支    │       │  (主开发)   │       │  发布准备分支 │
-└─────────────┘       └────────────┘       └─────────────┘
-                           │
-                           ▼
-                    ┌─────────────┐
-                    │   ctp       │
-                    │  CTP 期货开发 │
-                    └─────────────┘
+### 原始版与优化版的发布口径
 
-```bash
+| 分支 | 定位 | 发布口径 |
+|------|------|----------|
+| `master` | 原始 Backtrader 基线 | 仅通过 `hotfix/master-*` 接收已在原始版复现的 Bug/兼容性/安全修复；**不是**日常发布终点 |
+| `development` | 改进与优化版本 | 优化版能力的发布源；通过受控 promotion 从 `dev` 集成，**不是** `master` 的上游 |
+| `dev` | 日常开发入口 | 常规功能与修复的日常集成，定期通过 promotion PR 提升到 `development` |
 
-### 分支说明
+### Promotion（dev → development）
 
-| 分支 | 用途 | 合并目标 | 保护规则 |
+受控 promotion 是 PR，不是例行合并。流程见 [分支治理 §6](branch-governance_zh.md#6-promotion-协议dev--development)。
 
-|------|------|----------|----------|
+### 原始版热修复（master）
 
-| `master` | 稳定发布版本 | 仅来自 `release/*` | 必须通过 PR，需要审核 |
+仅 `hotfix/master-*`，且必须创建前移 issue 并分别评估 `dev` 与 `development`。
+流程见 [分支治理 §7](branch-governance_zh.md#7-master-hotfix-前移协议)。
 
-| `dev` | 主开发分支 | 接受 `feature/*` 合并 | 必须通过 PR，需要 CI 通过 |
-
-| `release/x.y.z` | 发布准备分支 | 合并到 `master` 和 `dev` | 严格版本控制 |
-
-| `feature/*` | 功能开发分支 | 合并到 `dev` | 常规开发 |
-
-| `hotfix/*` | 紧急修复分支 | 合并到 `master` 和 `dev` | 快速通道 |
-
-### 发布分支创建
-
-```bash
-
-# 从 dev 分支创建发布分支
-
-git checkout dev
-git pull origin dev
-git checkout -b release/1.2.0
-
-# 推送到远程
-
-git push -u origin release/1.2.0
-
-```bash
+> 版本号与 tag 的语义化版本管理详见下文；tag 打在对应分支的合并提交上，不再通过
+> `release/*` 分支双向合并。
 
 - --
 
@@ -350,71 +319,43 @@ git commit -m "release: v1.2.0 — 准备发布
 
 ```bash
 
-### 步骤 5: 合并到 master
+### 步骤 5: 在对应分支上打标签
+
+> 三分支模型下，tag 打在对应分支的合并提交上，**不再**把优化版代码 merge 回
+> `master`。原始版（`master`）仅接收 `hotfix/master-*` 修复。详见
+> [分支治理](branch-governance_zh.md)。
 
 ```bash
 
-# 切换到 master
+# 在对应分支上打标签（示例为 development）
 
-git checkout master
-git pull origin master
+git checkout development
+git pull origin development
 
-# 合并发布分支
-
-git merge release/1.2.0 -m "Merge release/1.2.0 into master"
+git tag -a v1.2.0 -m "Release v1.2.0"
 
 # 推送到远程
 
-git push origin master
-
-```bash
-
-### 步骤 6: 创建版本标签
-
-```bash
-
-# 创建带注释的标签
-
-git tag -a v1.2.0 -m "v1.2.0: CTP 期货支持与 WebSocket 订单推送
-
-新增功能:
-
-- CTP 期货完整支持
-- WebSocket 订单推送
-- 自适应速率限制
-
-改进:
-
-- CCXT Broker 错误处理
-- 15% 性能提升
-
-修复:
-
-- 数据长度问题
-- CrossOver 依赖顺序"
-
-# 推送标签到远程
-
+git push origin development
 git push origin v1.2.0
 
 ```bash
 
-### 步骤 7: 合并回 dev
+### 步骤 6: Promotion 而非回灌
+
+> 发布标签已在步骤 5 打在对应分支上。**不要**把优化版代码 `merge master back to
+> dev`（这是反向同步源，违反三分支模型）。日常变更集成到 `dev`，再通过受控
+> promotion PR 提升到 `development`。详见
+> [分支治理 §6](branch-governance_zh.md#6-promotion-协议dev--development)。
 
 ```bash
 
-# 切换到 dev
+# 日常变更直接提交到 dev（无需从 master 回灌）
 
 git checkout dev
 git pull origin dev
 
-# 合并 master（确保 dev 包含发布变更）
-
-git merge master -m "Merge master back to dev after v1.2.0 release"
-
-# 推送
-
-git push origin dev
+# ... 常规开发 ...
 
 ```bash
 
@@ -645,17 +586,17 @@ git push origin --delete release/1.2.0
 
 ```bash
 
-# 1. 从 master 创建 hotfix 分支
+# 1. 从 master 创建 hotfix 分支（必须 hotfix/master-* 命名）
 
 git checkout master
 git pull origin master
-git checkout -b hotfix/1.2.1
+git checkout -b hotfix/master-1.2.1
 
 # 2. 修复问题
 
 # (进行必要的代码修改)
 
-# 3. 测试验证
+# 3. 在 master 上独立测试验证
 
 pytest tests/ -n 4 -v
 
@@ -663,21 +604,18 @@ pytest tests/ -n 4 -v
 
 git commit -am "hotfix: 修复严重数据损坏问题"
 
-# 5. 合并到 master
+# 5. 合并到 master（R3 门禁，需 target:master-hotfix 标签）
 
 git checkout master
-git merge hotfix/1.2.1
+git merge hotfix/master-1.2.1
 
 # 6. 创建标签和发布
 
 git tag -a v1.2.1 -m "v1.2.1: 紧急修复"
 git push origin master v1.2.1
 
-# 7. 合并回 dev
-
-git checkout dev
-git merge master
-git push origin dev
+# 7. 前移：创建 forward-port-required issue，分别评估并独立移植到
+#    dev 与 development（禁止跨分支盲目 merge）
 
 # 8. PyPI 发布
 
@@ -748,20 +686,16 @@ cd backtrader && pip install -U .
 
 ```bash
 
-# 完整发布流程
+# 完整发布流程（三分支模型，不做 dev→master 双向合并）
 
-git checkout dev && git pull
-git checkout -b release/1.2.0
+git checkout development && git pull
 
 # 编辑 setup.py, CHANGELOG.md
 
 git add setup.py CHANGELOG.md
 git commit -m "release: v1.2.0"
-git checkout master && git merge release/1.2.0
 git tag -a v1.2.0 -m "v1.2.0"
-git push origin master v1.2.0
-git checkout dev && git merge master
-git push origin dev
+git push origin development v1.2.0
 make clean
 python -m build
 twine upload dist/*
@@ -785,11 +719,9 @@ gh release create v1.2.0 --notes "发布说明..."
 
 发布中:
 
-- [ ] 发布分支已创建
 - [ ] 版本更新已提交
-- [ ] 已合并到 master
-- [ ] 标签已创建并推送
-- [ ] 已合并回 dev
+- [ ] 标签已在对应分支创建并推送
+- [ ] promotion PR 已合并（如适用）
 - [ ] 构建包已验证
 - [ ] 已上传到 PyPI
 - [ ] GitHub Release 已创建

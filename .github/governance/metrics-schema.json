@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GovernanceMetrics",
+  "description": "Weekly governance metrics captured during Iteration 140 and after (M5).",
+  "type": "object",
+  "required": ["week_start", "repository", "metrics"],
+  "properties": {
+    "week_start": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO date of the Monday that starts the reporting week."
+    },
+    "repository": {
+      "type": "string",
+      "const": "cloudQuant/backtrader"
+    },
+    "metrics": {
+      "type": "object",
+      "required": [
+        "new_prs",
+        "first_response_time_hours",
+        "first_substantive_review_time_hours",
+        "merge_time_hours",
+        "close_reasons",
+        "ci_failure_rate",
+        "flake_rate",
+        "forward_port_completion_rate"
+      ],
+      "properties": {
+        "new_prs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of new PRs opened this week."
+        },
+        "target_branch_misroute_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of PRs that landed on the wrong target branch. Exit threshold: < 5%."
+        },
+        "first_response_time_hours": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Median hours to first human response."
+        },
+        "first_substantive_review_time_hours": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Median hours to first substantive review."
+        },
+        "merge_time_hours": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Median hours from open to merge."
+        },
+        "close_reasons": {
+          "type": "object",
+          "description": "Count of PRs closed, keyed by reason (merged, rejected, stale, split-requested, duplicate).",
+          "additionalProperties": { "type": "integer" }
+        },
+        "ci_failure_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of CI runs that failed."
+        },
+        "flake_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of CI failures attributable to flakiness."
+        },
+        "prs_split_requested": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of PRs asked to be split this week."
+        },
+        "unforwarded_hotfixes": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Open master hotfixes without a completed forward-port."
+        },
+        "forward_port_completion_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of master hotfixes with forward-port-complete."
+        },
+        "mirror_sha_divergence": {
+          "type": "boolean",
+          "description": "Whether GitHub/Gitee long-lived branch SHAs diverged this week."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

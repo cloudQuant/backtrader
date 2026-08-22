@@ -1,0 +1,40 @@
+name: Feature Request
+description: 提出一个新功能或改进建议
+title: "[Feature]: "
+labels: ["type:feature", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢提出建议。请描述清楚问题与动机，便于评估价值与分支影响。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题
+      description: 这个功能解决什么问题？使用场景是什么？
+    validations:
+      required: true
+  - type: textarea
+    id: target-users
+    attributes:
+      label: 目标用户
+      description: 谁会受益？
+    validations:
+      required: true
+  - type: textarea
+    id: branch-impact
+    attributes:
+      label: 分支影响
+      description: 该功能属于哪个分支定位？（常规功能→dev；仅优化版功能→development；不应涉及原始版基线）
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 现有替代方式，或考虑过的其他方案
+  - type: textarea
+    id: additional
+    attributes:
+      label: 附加信息
+      description: 示例、参考或实现思路（可选）

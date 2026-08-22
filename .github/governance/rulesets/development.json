@@ -1,0 +1,50 @@
+{
+  "branch": "development",
+  "name": "development-ruleset",
+  "description": "Improved and optimized version. Observe PR + owner + CI requirements before activation.",
+  "enforcement": "evaluate",
+  "target": "branch",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/development"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": true,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          { "context": "Lint" },
+          { "context": "Test Summary" },
+          { "context": "PR Governance" },
+          { "context": "Tiered Validation" }
+        ]
+      }
+    }
+  ],
+  "_governance_notes": [
+    "R2/R3 changes require owner + a second maintainer approval; the second approval is recorded via the review flow and risk labels, not a ruleset rule.",
+    "R2/R3 candidates must run `make test-strategies` (or runonce/runnext parity) before merge."
+  ],
+  "_activation": {
+    "state": "observe",
+    "started_on": "2026-08-22",
+    "not_before": "2026-09-05",
+    "target_enforcement": "active",
+    "requires": "Reviewed Rule Insights, stable required checks, and recorded PR dry-runs."
+  }
+}
