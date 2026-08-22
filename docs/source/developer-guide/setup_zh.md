@@ -296,21 +296,10 @@ if __name__ == '__main__':
 
 ```bash
 
-## Cython 编译
+## 关于 Cython
 
-对于性能关键的开发，编译 Cython 扩展：
-
-```bash
-
-# Unix/Mac
-
-cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip install -U .
-
-# Windows
-
-cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U .
-
-```bash
+本项目为**纯 Python** 实现，无需独立的 Cython 编译步骤（仓库中没有需要编译的
+`.pyx` 文件，`setup.py` 也无 `ext_modules`）。直接 `pip install -e .` 即可完成安装。
 
 ## 常见问题
 

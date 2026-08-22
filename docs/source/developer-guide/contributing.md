@@ -1,460 +1,109 @@
-- --
-
+---
 title: Contributing to Backtrader
 description: Guidelines for contributing to Backtrader
-
-- --
+---
 
 # Contributing to Backtrader
 
-Thank you for your interest in contributing to Backtrader! This document provides guidelines and workflows for contributing to the project.
+感谢你对 Backtrader 的贡献兴趣！本文档是根目录 [`CONTRIBUTING.md`](../../../CONTRIBUTING.md)
+与 [Branch Governance](branch-governance.md) 的收敛版，供开发者指南内阅读。
 
-## Table of Contents
+分支角色、PR 目标分支选择、风险分级与 promotion/hotfix 协议的**权威来源**是
+[Branch Governance](branch-governance.md)。任何冲突以分支治理文档为准。
 
-- [Getting Started](#getting-started)
-- [Pull Request Workflow](#pull-request-workflow)
-- [Code Review Standards](#code-review-standards)
-- [Issue Reporting Guidelines](#issue-reporting-guidelines)
-- [Community Guidelines](#community-guidelines)
-- [License and Contributor Agreement](#license-and-contributor-agreement)
-- [Developer Certificate of Origin](#developer-certificate-of-origin-dco)
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.8 or higher
-- Git
-- Basic knowledge of Python programming
-- Familiarity with quantitative trading concepts (helpful but not required)
-
-### First Time Setup
+## 快速开始
 
 ```bash
-
-# 1. Fork the repository on GitHub
-
-# Click "Fork" button at <https://github.com/cloudQuant/backtrader>
-
-# 2. Clone your fork
-
-git clone <https://github.com/YOUR_USERNAME/backtrader.git>
+# 1. Fork 仓库：https://github.com/cloudQuant/backtrader
+# 2. 克隆并添加上游
+git clone https://github.com/YOUR_USERNAME/backtrader.git
 cd backtrader
+git remote add upstream https://github.com/cloudQuant/backtrader.git
 
-# 3. Add upstream remote
-
-git remote add upstream <https://github.com/cloudQuant/backtrader.git>
-
-# 4. Install dependencies
-
+# 3. 安装依赖与开发模式（纯 Python，无独立 Cython 编译步骤）
 pip install -r requirements.txt
-
-# 5. Install in development mode
-
 pip install -e .
 
-# 6. Compile Cython extensions (recommended for performance)
+# 4. 验证
+make test-fast
+```
 
-cd backtrader && python -W ignore compile_cython_numba_files.py && cd ..
+## 目标分支选择
 
-```bash
+本仓库使用**三分支模型**。先确定你的贡献属于哪一类：
 
-### Branch Naming Conventions
+| 情况 | 目标分支 |
+|------|----------|
+| 文档、测试、常规功能、普通 Bug 修复 | `dev` |
+| 仅在优化架构出现的问题或优化版功能 | `development` |
+| 原始 Backtrader 的真实 Bug / 安全问题 | `master`（`hotfix/master-*`） |
 
-Use descriptive branch names that indicate the type of change:
+完整决策表与风险分级（R0–R3）见 [Branch Governance](branch-governance.md)。
 
-| Prefix | Purpose | Example |
+## 分支命名约定
 
-|--------|---------|---------|
+| 前缀 | 用途 | 示例 |
+|------|------|------|
+| `feat/` | 新功能 | `feat/websocket-reconnect` |
+| `fix/` | Bug 修复 | `fix/indicator-calculation` |
+| `refactor/` | 代码重构 | `refactor/broker-optimization` |
+| `docs/` | 文档 | `docs/api-reference` |
+| `test/` | 测试改进 | `test/coverage-increase` |
+| `perf/` | 性能优化 | `perf/line-buffer-cache` |
+| `hotfix/master-*` | 原始版热修复 | `hotfix/master-order-cancel` |
 
-| `feat/` | New feature | `feat/websocket-reconnect` |
+## 提交信息
 
-| `fix/` | Bug fix | `fix/indicator-calculation` |
-
-| `refactor/` | Code refactoring | `refactor/broker-optimization` |
-
-| `docs/` | Documentation | `docs/api-reference` |
-
-| `test/` | Test improvements | `test/coverage-increase` |
-
-| `perf/` | Performance | `perf/line-buffer-cache` |
-
-## Pull Request Workflow
-
-### Step 1: Create a Feature Branch
-
-```bash
-
-# Sync with upstream
-
-git fetch upstream
-git checkout dev
-git merge upstream/dev
-
-# Create your feature branch
-
-git checkout -b feat/your-feature-name
-
-```bash
-
-### Step 2: Make Your Changes
-
-- Write clean, readable code
-- Follow the [Code Style](style.md) guidelines
-- Add tests for new functionality
-- Update documentation as needed
-
-### Step 3: Commit Your Changes
-
-Follow [Conventional Commits](<https://www.conventionalcommits.org/)> format:
+遵循 [Conventional Commits](https://www.conventionalcommits.org/)：
 
 ```bash
 <type>: <description>
+```
 
-[optional body]
+有效类型：`feat`、`fix`、`refactor`、`docs`、`test`、`chore`、`perf`。
 
-```bash
-
-- *Valid types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `refactor`: Code refactoring
-- `docs`: Documentation changes
-- `test`: Test additions or modifications
-- `chore`: Maintenance tasks
-- `perf`: Performance improvements
-
-- *Examples:**
+## 运行测试
 
 ```bash
-git commit -m "feat: add WebSocket health check to CCXTFeed"
-git commit -m "fix: handle order-not-found in CCXTBroker.cancel()"
-git commit -m "perf: cache broker reference in total_value.next()"
-git commit -m "docs: update CCXT live trading guide"
-
-```bash
-
-### Step 4: Run Tests
-
-```bash
-
-# Run pre-commit tests (P0 + P1)
-
-pytest tests/ -v -m "priority_p0 or priority_p1"
-
-# Run full test suite
-
-pytest tests/ -v -n 4
-
-# Check code formatting
-
-make format-check
-
-# Run linting
-
-make lint
-
-```bash
-
-### Step 5: Push and Create Pull Request
-
-```bash
-
-# Push to your fork
-
-git push origin feat/your-feature-name
-
-# Create pull request on GitHub
-
-# Target: dev branch
-
-```bash
-
-### Pull Request Description Template
-
-```markdown
-
-## Summary
-
-Brief description of what this PR does and why.
-
-## Changes
-
-- List of major changes
-
-## Type of Change
-
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Performance improvement
-- [ ] Documentation update
-- [ ] Refactoring
-- [ ] Breaking change
-
-## Testing
-
-- Describe testing approach
-- Include test commands
-
-```bash
-pytest tests/path/to/test.py -v
-
-```bash
-
-## Checklist
-
-- [ ] Code follows style guidelines
-- [ ] Tests pass locally
-- [ ] New tests added for new features
-- [ ] Documentation updated
-- [ ] CHANGELOG.md updated (for user-facing changes)
-- [ ] No merge conflicts with target branch
-
-## Related Issues
-
-Fixes #123
-Related to #456
-
-```bash
-
-## Code Review Standards
-
-### Review Process
-
-1. **Automated Checks**: All PRs must pass CI/CD checks
-2. **Peer Review**: At least one maintainer approval required
-3. **Test Coverage**: New code requires corresponding tests
-4. **Documentation**: API changes require documentation updates
-
-### Review Criteria
-
-Maintainers review pull requests for:
-
-| Aspect | Criteria |
-
-|--------|----------|
-
-| **Functionality**| Works as intended, no regressions |
-
-|**Code Quality**| Readable, maintainable, follows conventions |
-
-|**Testing**| Adequate coverage, edge cases handled |
-
-|**Documentation**| Clear docstrings, user-facing changes documented |
-
-|**Performance**| No significant degradation, optimizations documented |
-
-### Addressing Review Feedback
-
-- Respond to all review comments
-- Make requested changes or provide justification
-- Mark conversations as resolved when addressed
-- Request re-review after significant changes
-
-### Approval Requirements
-
-- Small changes: Single maintainer approval
-- Medium changes: Two maintainer approvals
-- Large/Complex changes: Core team consensus
-
-## Issue Reporting Guidelines
-
-### Bug Reports
-
-Include the following information:
-
-```markdown
-
-## Environment
-
-- Python version: 3.11.0
-- Operating system: Ubuntu 22.04
-- Backtrader version: 1.0.0 (dev branch)
-- Installation method: pip install -e .
-
-## Description
-
-Clear description of the bug.
-
-## Steps to Reproduce
-
-1. Create a Cerebro instance
-2. Add data feed with...
-3. Run strategy
-4. Observe error
-
-## Expected Behavior
-
-What should happen.
-
-## Actual Behavior
-
-What actually happens (include error messages).
-
-## Code Sample
-
-```bash
-import backtrader as bt
-
-# Minimal reproducible example
-
-```bash
-
-## Additional Context
-
-Logs, screenshots, or other relevant information.
-
-```bash
-
-### Feature Requests
-
-Provide the following information:
-
-```markdown
-
-## Problem Statement
-
-What problem does this solve? What is the use case?
-
-## Proposed Solution
-
-Detailed description of the desired feature.
-
-## Alternatives Considered
-
-What other approaches did you consider?
-
-## Additional Context
-
-Examples, references, or implementation ideas.
-
-```bash
-
-## Community Guidelines
-
-### Code of Conduct
-
-- Be respectful and inclusive
-- Welcome newcomers and help them learn
-- Focus on constructive feedback
-- Assume good intentions
-
-### Communication Channels
-
-- **Issues**: Bug reports and feature requests
-- **Discussions**: Questions and ideas
-- **Pull Requests**: Code contributions
-
-### Getting Help
-
-- Search existing issues and discussions first
-- Provide minimal reproducible examples
-- Share relevant environment details
-- Be patient with volunteer maintainers
-
-## License and Contributor Agreement
-
-### License
-
-Backtrader is licensed under the GNU General Public License v3.0 (GPLv3).
-
-By contributing to Backtrader, you agree that your contributions will be licensed under the GPLv3.
-
-### Copyright
-
-Copyright is retained by the original contributor. The project includes attribution in:
-
-- LICENSE file
-- CONTRIBUTORS file
-- Release notes
-
-## Developer Certificate of Origin (DCO)
-
-### What is DCO?
-
-The DCO is a simple statement that you certify you have the right to submit your contribution.
-
-### DCO Sign-off
-
-To certify your contribution, add a `Signed-off-by` line to your commit messages:
-
-```bash
-git commit -m "feat: add new indicator
-
-Signed-off-by: Your Name <your.email@example.com>"
-
-```bash
-
-### Automatic Sign-off
-
-Configure Git to automatically add sign-off:
-
-```bash
-git config --global commit.signoff true
-
-```bash
-Then use `-s` flag:
+make test-fast        # 日常开发反馈（~3.5min）
+make test-strategies  # 改动 cerebro/strategy/line 系统后必跑（~9min）
+make test-all         # 全量（~10min）
+make format-check     # 格式检查
+make lint             # 代码检查
+```
+
+## 代码审查标准
+
+| 方面 | 标准 |
+|------|------|
+| 功能正确性 | 按预期工作，无回归 |
+| 代码质量 | 可读、可维护、遵循约定 |
+| 测试 | 覆盖充分，处理边界情况 |
+| 文档 | 清晰的文档字符串，面向用户的变更已记录 |
+| 性能 | 无显著退化，优化已记录 |
+
+审批门槛（D3）：`dev` 1 次批准；`development` R2/R3 需 owner + 第二位维护者；
+`master` 仅 R3。详见 [Branch Governance](branch-governance.md)。
+
+## 报告问题
+
+- **Bug**：使用 [Issue Forms](../../../.github/ISSUE_TEMPLATE/) 提交，包含环境、目标分支、最小复现、预期/实际行为、日志。
+- **功能请求**：说明问题、目标用户、分支影响、替代方案。
+- **安全问题**：走 [`SECURITY.md`](../../../SECURITY.md) 私密报告路径，不要公开提交。
+
+## 许可证与 DCO
+
+Backtrader 采用 GPLv3 许可。通过贡献，你同意贡献将在 GPLv3 下许可，并按
+[Developer Certificate of Origin](https://developercertificate.org/) 认证你有权提交：
 
 ```bash
 git commit -s -m "feat: add new indicator"
+```
 
-```bash
+## 另请参阅
 
-### DCO Certification
-
-By signing off, you certify:
-
-> Developer Certificate of Origin
-> Version 1.1
->
-> Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
-> 1 Letterman Drive
-> Suite D4700
-> San Francisco, CA, 94129
->
-> Everyone is permitted to copy and distribute verbatim copies of this
-> license document, but changing it is not allowed.
->
->
-> Developer's Certificate of Origin 1.1
->
-> By making a contribution to this project, I certify that:
->
-> (a) The contribution was created in whole or in part by me and I
->     have the right to submit it under the open source license
->     indicated in the file; or
->
-> (b) The contribution is based upon previous work that, to the best
->     of my knowledge, is covered under an appropriate open source
->     license and I have the right under that license to submit that
->     work with modifications, whether created in whole or in part
->     by me, under the same open source license (unless I am
->     permitted to submit under a different license), as indicated
->     in the file; or
->
-> (c) The contribution was provided directly to me by some other
->     person who certified (a), (b) or (c) and I have not modified
->     it.
->
-> (d) I understand and agree that this project and the contribution
->     are public and that a record of the contribution (including all
->     personal information I submit with it, including my sign-off) is
->     maintained indefinitely and may be redistributed consistent with
->     this project or the open source license(s) involved.
-
-## Recognition
-
-Contributors are recognized in:
-
-- `CONTRIBUTORS` file
-- Release notes
-- Project documentation (for significant contributions)
-
-Thank you for contributing to Backtrader!
-
-## See Also
-
-- [Development Setup](setup.md)
-- [Code Style](style.md)
-- [Testing Guide](testing.md)
-- [Project Context](../project-context.md)
+- [Branch Governance](branch-governance.md)
+- [开发环境设置](setup.md)
+- [代码风格](style.md)
+- [测试指南](testing.md)
+- [发布流程](release.md)

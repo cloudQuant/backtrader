@@ -20,14 +20,23 @@ keeping the public API compatible.
 
 ### Branch context
 
-- `dev` — active development; the canonical branch. All work lands here first.
-- `master` — stable, aligned with upstream behavior. Used as the correctness
-  baseline (regression tests bake master's metrics as expected values).
-- Other branches (`crypto`, `ctp`, `dev_cython`, `development`, etc.) are
-  feature/experiment branches; do not target them unless asked.
+This repository uses a **three-branch model** (authoritative source:
+`docs/source/developer-guide/branch-governance.md`):
 
-> **Do not push directly to `master`.** Push to `dev`. `git push` is configured
-> to push to both GitHub (`cloudQuant/backtrader`) and Gitee
+- `dev` — daily development entry. Routine features, ordinary bug fixes, docs,
+  tests, refactors, and community contributions land here first.
+- `development` — improved & optimized version. Optimization capabilities,
+  architecture improvements, and optimization-only regression fixes.
+- `master` — original Backtrader baseline. Only bug/compatibility/security
+  fixes that reproduce on the original baseline, via `hotfix/master-*` PRs.
+  Used as the correctness baseline (regression tests bake master's metrics as
+  expected values).
+
+Other branches (`crypto`, `ctp`, `dev_cython`, etc.) are feature/experiment
+branches; do not target them unless asked.
+
+> **Do not push directly to `master` or `development`.** Push to `dev`. `git
+> push` is configured to push to both GitHub (`cloudQuant/backtrader`) and Gitee
 > (`yunjinqi/backtrader`) remotes.
 
 ## Implementation status / reality checks

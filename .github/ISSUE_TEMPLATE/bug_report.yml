@@ -1,0 +1,59 @@
+name: Bug Report
+description: 报告一个 bug，帮助定位与修复
+title: "[Bug]: "
+labels: ["type:bug", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢报告问题。请在提交前确认：该问题不是安全漏洞（安全问题请走 SECURITY.md 私密报告路径），且尚未被他人报告。
+  - type: dropdown
+    id: target-branch
+    attributes:
+      label: 目标版本（分支）
+      description: 这个问题出现在哪个分支？
+      options:
+        - dev
+        - development
+        - master
+        - 不确定
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 环境
+      description: Python 版本、操作系统、backtrader 版本、安装方式
+      placeholder: "Python 3.11, macOS, backtrader 1.3.0, pip install -e ."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 最小复现
+      description: 可独立运行的最小代码，能复现问题
+      render: python
+      placeholder: "import backtrader as bt\n..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+      description: 应该发生什么
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      description: 实际发生了什么（含完整 traceback / 错误信息）
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志
+      description: 相关日志输出（可选）
+      render: shell

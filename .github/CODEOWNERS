@@ -1,0 +1,37 @@
+# CODEOWNERS
+#
+# Iteration 140 / 决策门 D2。
+#
+# D2 已于 2026-08-22 确认：`@cloudQuant` 是本仓库的真实 GitHub 用户，且拥有
+# `cloudQuant/backtrader` 的管理员权限；因此它是有效的、可写入的 CODEOWNER。
+# Gitee 镜像使用 `yunjinqi` 身份，但该身份不是 GitHub CODEOWNERS token，故不在此列。
+# GitHub CODEOWNERS 只接受 `@username` 或 `@org/team-name`；禁止占位帐号。部署后必须
+# 运行 `scripts/ci/verify_github_governance.py` 并校验 codeowners/errors API 没有错误。
+
+# 仓库治理与工具链
+/.github/   @cloudQuant
+/scripts/   @cloudQuant
+/docs/      @cloudQuant
+
+# 核心 line 系统（R2）
+/backtrader/lineroot.py      @cloudQuant
+/backtrader/linebuffer.py    @cloudQuant
+/backtrader/lineseries.py    @cloudQuant
+/backtrader/lineiterator.py  @cloudQuant
+/backtrader/metabase.py      @cloudQuant
+
+# 引擎 / 策略 / 经纪商 / 数据源（R2）
+/backtrader/cerebro.py   @cloudQuant
+/backtrader/strategy.py  @cloudQuant
+/backtrader/broker.py    @cloudQuant
+/backtrader/brokers/     @cloudQuant
+/backtrader/feeds/       @cloudQuant
+
+# 指标与策略回归套件
+/backtrader/indicators/        @cloudQuant
+/tests/functional/strategies/  @cloudQuant
+
+# 打包与依赖（R3 供应链）
+/setup.py          @cloudQuant
+/pyproject.toml    @cloudQuant
+/requirements.txt  @cloudQuant

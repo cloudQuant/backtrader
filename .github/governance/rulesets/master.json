@@ -1,0 +1,51 @@
+{
+  "branch": "master",
+  "name": "master-ruleset",
+  "description": "Original Backtrader baseline. Observe PR + review + CI requirements before activation.",
+  "enforcement": "evaluate",
+  "target": "branch",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/master"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": true,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          { "context": "Lint" },
+          { "context": "Test Summary" },
+          { "context": "PR Governance" },
+          { "context": "Tiered Validation" }
+        ]
+      }
+    }
+  ],
+  "_governance_notes": [
+    "Only `hotfix/master-*` PRs may target master; each must carry the `target:master-hotfix` label and an independent minimal repro on master.",
+    "R3 changes require explicit core-maintainer approval; admin bypass is allowed only with a recorded emergency reason.",
+    "Every master fix must create a forward-port issue and complete equivalent, independently-tested ports to dev/development before being governance-done."
+  ],
+  "_activation": {
+    "state": "observe",
+    "started_on": "2026-08-22",
+    "not_before": "2026-09-05",
+    "target_enforcement": "active",
+    "requires": "Reviewed Rule Insights, stable required checks, and recorded PR dry-runs."
+  }
+}
