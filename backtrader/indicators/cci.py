@@ -83,5 +83,7 @@ class CommodityChannelIndex(Indicator):
         # This matches master branch's behavior: SMA(|tp - tpmean|) where tpmean varies
         meandev = MeanDev(tp, tpmean, period=self.p.period)
 
-        # Return 0.0 when mean deviation is zero (for example, on flat prices).
-        self.lines.cci = DivByZero(dev, self.p.factor * meandev, zero=0.0)
+        # A zero mean deviation makes CCI mathematically undefined. Preserve that
+        # state while avoiding a division-by-zero exception, rather than treating
+        # it as the neutral (and signal-bearing) value 0.0.
+        self.lines.cci = DivByZero(dev, self.p.factor * meandev, zero=float("nan"))
