@@ -54,6 +54,9 @@ if _os.environ.get("BACKTRADER_LIGHT_IMPORT", "").strip().lower() in {
     from .directionalmove import PlusDirectionalIndicator as PlusDirectionalIndicator
     from .rsi import RSI as RSI
     from .rsi import RelativeStrengthIndex as RelativeStrengthIndex
+    from .obv import OnBalanceVolume as OnBalanceVolume
+
+    OBV = OnBalanceVolume
 
     SimpleMovingAverage = MovingAverageSimple
     SMMA = SmoothedMovingAverage
@@ -115,6 +118,7 @@ else:
     from .accdecoscillator import *
     from .priceops_ext import *
     from .moneyflow import *
+    from .obv import *
     from .demarker import *
     from .channels_ext import *
     from .trend_ext import *
