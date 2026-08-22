@@ -1,0 +1,49 @@
+{
+  "branch": "dev",
+  "name": "dev-ruleset",
+  "description": "Daily development entry. Observe PR + review + CI requirements before activation.",
+  "enforcement": "evaluate",
+  "target": "branch",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/dev"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    { "type": "deletion" },
+    { "type": "non_fast_forward" },
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 1,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_review": false,
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": true
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": false,
+        "required_status_checks": [
+          { "context": "Lint" },
+          { "context": "Test Summary" },
+          { "context": "PR Governance" },
+          { "context": "Tiered Validation" }
+        ]
+      }
+    }
+  ],
+  "_governance_notes": [
+    "Any PR may target dev. No risk-based second approval is enforced by the ruleset; R1 requires a module-owner review recorded via the review flow."
+  ],
+  "_activation": {
+    "state": "observe",
+    "started_on": "2026-08-22",
+    "not_before": "2026-09-05",
+    "target_enforcement": "active",
+    "requires": "Reviewed Rule Insights, stable required checks, and recorded PR dry-runs."
+  }
+}

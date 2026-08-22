@@ -1,9 +1,7 @@
-- --
-
+---
 title: 开发者指南
 description: 贡献者指南
-
-- --
+---
 
 # 开发者指南
 
@@ -22,6 +20,8 @@ description: 贡献者指南
 | [代码风格](style_zh.md) | 代码格式和风格指南 |
 
 | [贡献](contributing_zh.md) | 贡献指南 |
+
+| [分支治理](branch-governance_zh.md) | 三分支模型、PR 分流、风险分级、promotion/hotfix 协议 |
 
 | [发布流程](release_zh.md) | 版本管理和发布流程 |
 

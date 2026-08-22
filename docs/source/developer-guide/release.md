@@ -61,57 +61,32 @@ Examples:
 
 ## Branching Strategy
 
-```bash
-dev (main development branch)
-  ├── Active development
-  ├── All feature branches merge here
-  └── Release candidates branch from here
+> This repository uses a **three-branch model**, not a "dev → master release
+> chain". See [Branch Governance](branch-governance.md) for the authoritative
+> definitions. The sections below describe release semantics only.
 
-master (stable releases)
-  ├── Production-ready code only
-  ├── Merges from dev via release PR
-  └── Tags created from commits here
+### Original vs optimized release semantics
 
-feature/* (short-lived branches)
-  ├── Created from dev
-  └── Merge back to dev via PR
+| Branch | Role | Release semantics |
+|--------|------|-------------------|
+| `master` | Original Backtrader baseline | Receives only `hotfix/master-*` bug/compatibility/security fixes that reproduce on the original baseline; **not** a routine release target |
+| `development` | Improved & optimized version | Release source for optimized capabilities; integrated from `dev` via controlled promotion; **not** an upstream of `master` |
+| `dev` | Daily development entry | Routine integration; periodically promoted to `development` via a promotion PR |
 
-release/*(preparation branches)
-  ├── Created from dev for final testing
-  └── Merge to both dev and master after release
+### Promotion (`dev` → `development`)
 
-```bash
+A controlled promotion is a PR, not a routine merge. See
+[Branch Governance §6](branch-governance.md#6-promotion-protocol-dev--development).
 
-### Release Branch Lifecycle
+### Original-baseline hotfix (`master`)
 
-```bash
+Only `hotfix/master-*`, and every fix must create a forward-port issue and
+separately evaluate `dev` and `development`. See
+[Branch Governance §7](branch-governance.md#7-master-hotfix-forward-port-protocol).
 
-# 1. Create release branch from dev
-
-git checkout dev
-git pull origin dev
-git checkout -b release/1.1.0
-
-# 2. Finalize version updates and testing
-
-# (see Pre-Release Checklist below)
-
-# 3. Merge release to master
-
-git checkout master
-git merge --no-ff release/1.1.0
-git tag -a v1.1.0 -m "Release v1.1.0"
-
-# 4. Merge release back to dev
-
-git checkout dev
-git merge --no-ff release/1.1.0
-
-# 5. Push all changes
-
-git push origin master dev --tags
-
-```bash
+> Semantic versioning and tags are described below; tags are placed on the
+> merge commit of the corresponding branch, not via a bidirectional `release/*`
+> merge.
 
 ## Pre-Release Checklist
 
@@ -350,20 +325,19 @@ rm -rf /tmp/test-env
 
 ```bash
 
-### Step 5: Merge to Master
+### Step 5: Tag the release
+
+> Under the three-branch model, the tag is placed on the merge commit of the
+> corresponding branch — do **not** merge optimized code back into `master`.
+> The original baseline (`master`) only receives `hotfix/master-*` fixes. See
+> [Branch Governance](branch-governance.md).
 
 ```bash
 
-# Checkout master
+# Tag the release on its target branch (example: development)
 
-git checkout master
-git pull origin master
-
-# Merge release branch
-
-git merge --no-ff release/1.1.0 -m "Merge release/1.1.0 into master"
-
-# Create annotated tag
+git checkout development
+git pull origin development
 
 git tag -a v1.1.0 -m "Release v1.1.0
 
@@ -381,16 +355,13 @@ See CHANGELOG.md for full details."
 
 ```bash
 
-# Push master and tags
+# Push the tagged branch
 
-git push origin master
+git push origin development
 git push origin v1.1.0
 
-# Merge release back to dev
-
-git checkout dev
-git merge --no-ff release/1.1.0 -m "Merge release/1.1.0 back to dev"
-git push origin dev
+# Routine changes integrate into dev, then promote to development via a
+# controlled promotion PR (not a merge-back). See Branch Governance §6.
 
 # Publish to PyPI (optional, for public releases)
 
@@ -512,7 +483,7 @@ If you're upgrading from v1.0.0:
 
 1. Update imports: `from backtrader.plot import Plotly` (new module)
 2. Review CCXT configuration for new WebSocket features
-3. Recompile Cython extensions: `cd backtrader && python compile_cython_numba_files.py`
+3. No Cython recompile is needed — the package is pure Python.
 
 ### Installation
 
@@ -659,35 +630,33 @@ git push origin v2.0.0
 
 ## Emergency Releases
 
-For critical security issues or severe bugs:
+For critical security issues or severe bugs on the original baseline:
+
+> Under the three-branch model, a `master` hotfix must **not** be blindly merged
+> into `dev`/`development`. Complete the forward-port protocol (equivalent,
+> independently-tested ports) instead. See
+> [Branch Governance §7](branch-governance.md#7-master-hotfix-forward-port-protocol).
 
 ```bash
 
-# Create hotfix branch from master
+# Create a hotfix branch from master
 
 git checkout master
-git checkout -b hotfix/critical-security-fix
+git checkout -b hotfix/master-critical-security-fix
 
-# Apply fix
+# Apply fix and test thoroughly on master
 
-# ... make changes ...
+pytest tests/ -v
 
-# Test thoroughly
-
-pytest tests/ -v -m priority_p0
-
-# Merge to master and dev
+# Merge into master (R3 gate; requires target:master-hotfix label)
 
 git checkout master
-git merge hotfix/critical-security-fix
+git merge hotfix/master-critical-security-fix
 git tag -a v1.1.1 -m "Hotfix: Critical security fix"
+git push origin master
 
-git checkout dev
-git merge hotfix/critical-security-fix
-
-# Push
-
-git push origin master dev --tags
+# Forward-port: create a forward-port-required issue, then independently
+# evaluate and port the fix to dev and development — do not cross-branch merge.
 
 ```bash
 

@@ -24,6 +24,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Lint
@@ -277,3 +280,112 @@ jobs:
             echo "At least one matrix test job failed"
             exit 1
           fi
+
+  pr-risk:
+    name: PR Risk Classification
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      risk: ${{ steps.classify.outputs.risk }}
+      area: ${{ steps.classify.outputs.area }}
+    steps:
+      - name: Checkout evaluated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths_file="$RUNNER_TEMP/changed-paths.txt"
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$paths_file"
+          python scripts/ci/classify_pr_risk.py \
+            --paths-file "$paths_file" \
+            --github-output "$GITHUB_OUTPUT"
+
+  branch-specific-validation:
+    name: Branch-Specific Validation
+    needs: pr-risk
+    if: >-
+      github.event_name == 'pull_request' && needs.pr-risk.result == 'success' &&
+      (github.base_ref == 'master' ||
+      (github.base_ref == 'development' &&
+      (needs.pr-risk.outputs.risk == 'R2' || needs.pr-risk.outputs.risk == 'R3')))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout evaluated revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[dev]"
+
+      - name: Run development R2/R3 strategy regression gate
+        if: github.base_ref == 'development'
+        shell: bash
+        run: make test-strategies
+
+      - name: Run original-baseline hotfix gate
+        if: github.base_ref == 'master'
+        shell: bash
+        env:
+          PYTEST_ADDOPTS: ''
+        run: |
+          pytest tests/ -n auto --tb=short --timeout=300 -q
+
+  tiered-validation-summary:
+    name: Tiered Validation
+    needs: [pr-risk, branch-specific-validation]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish stable branch-specific result
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          RISK_RESULT: ${{ needs.pr-risk.result }}
+          TARGET_RESULT: ${{ needs.branch-specific-validation.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != 'pull_request' ]; then
+            echo "No pull-request tier is applicable."
+            exit 0
+          fi
+          if [ "$RISK_RESULT" != 'success' ]; then
+            echo "PR risk classification failed or was skipped: $RISK_RESULT"
+            exit 1
+          fi
+          if [ "$TARGET_RESULT" = 'success' ]; then
+            echo "Branch-specific validation passed for $BASE_REF."
+            exit 0
+          fi
+          if [ "$TARGET_RESULT" = 'skipped' ]; then
+            echo "No extra branch-specific validation is required for this PR tier."
+            exit 0
+          fi
+          echo "Branch-specific validation did not pass: $TARGET_RESULT"
+          exit 1

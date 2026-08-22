@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 问题与讨论
+    url: https://github.com/cloudQuant/backtrader/discussions
+    about: 一般使用问题、想法与讨论请到 Discussions
+  - name: 🔒 安全漏洞报告
+    url: https://github.com/cloudQuant/backtrader/security/advisories/new
+    about: 请勿在公开 issue 中提交安全漏洞；走私密报告路径（见 SECURITY.md）
