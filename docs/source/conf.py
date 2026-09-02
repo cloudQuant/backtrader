@@ -366,6 +366,12 @@ exclude_patterns = [
     'index.md',
 ]
 
+# Strategy series and per-language index: only include the language matching the build
+if _is_chinese:
+    exclude_patterns.extend(['strategies-series/en/**', 'index.rst'])
+else:
+    exclude_patterns.extend(['strategies-series/zh/**', 'index_zh.rst'])
+
 if _docs_offline:
     exclude_patterns.extend([
         'api/**',

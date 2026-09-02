@@ -240,6 +240,13 @@ Backtrader 是 CloudQuant 量化研究生态的一部分：
    tutorials/examples/strategies_zh
    tutorials/examples/cookbook_zh
 
+.. toctree::
+   :maxdepth: 1
+   :caption: 策略图鉴
+   :glob:
+
+   strategies-series/zh/*
+
 .. only:: not offline
 
    .. toctree::
