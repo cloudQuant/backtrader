@@ -7,6 +7,7 @@ delays so the tick matching engine can simulate realistic exchange round-trips.
 
 import bisect
 import heapq
+import math
 
 
 class LatencyModel:
@@ -264,9 +265,10 @@ class LatencyEngine:
         """Set ``local_time`` on ``event`` after applying feed latency.
 
         The event is mutated in place by setting a ``local_time`` attribute
-        equal to the exchange timestamp plus the model's feed latency. If
-        no model is configured, ``local_time`` is set to the event's
-        ``timestamp`` (i.e. no delay).
+        equal to the exchange timestamp plus the model's feed latency. If no
+        model is configured, a valid receive timestamp already supplied by a
+        live feed is preserved; otherwise ``local_time`` falls back to the
+        event's exchange timestamp.
 
         Args:
             event: The market-data event to adjust. Must expose
@@ -276,6 +278,14 @@ class LatencyEngine:
             object: The same event object, for convenient chaining.
         """
         if self._model is None:
+            local_time = getattr(event, "local_time", None)
+            if (
+                isinstance(local_time, (int, float))
+                and not isinstance(local_time, bool)
+                and math.isfinite(local_time)
+                and local_time > 0
+            ):
+                return event
             setattr(event, "local_time", getattr(event, "timestamp", 0.0))
             return event
         exch_ts = getattr(event, "timestamp", 0.0)

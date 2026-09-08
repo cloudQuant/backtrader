@@ -951,7 +951,15 @@ class Cerebro(ParameterizedBase):
         """
         data = event.data
         channel_type = event.channel_type
-        data_ref = self._get_channel_data_ref(event)
+        data_ref = getattr(event, "_source_feed", None)
+        if data_ref is not None:
+            # Feed events use the actual data object for native broker routing.
+            # Channel-only events are matched separately by _run_channel().
+            processor = getattr(self._broker, "process_" + channel_type, None)
+            if processor is not None and channel_type in {"tick", "orderbook"}:
+                processor(data, data=data_ref)
+        else:
+            data_ref = self._get_channel_data_ref(event)
 
         for strat in self.runningstrats:
             strat._event_count += 1
@@ -2261,6 +2269,11 @@ class Cerebro(ParameterizedBase):
                 single_runstrat = None
                 single_runstrat_next = None
                 single_runstrat_next_open = None
+            idle_notifiers = tuple(
+                strat.notify_idle
+                for strat in runstrats
+                if type(strat).notify_idle is not Strategy.notify_idle
+            )
             d0ret = True
             # index for resample only, not replay
             rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
@@ -2282,6 +2295,7 @@ class Cerebro(ParameterizedBase):
             data0_datetime_line = data0.datetime if single_data else None
             broker = self._broker
             broker_next = broker.next
+            broker_next_without_bar = bool(getattr(broker, "next_without_bar", False))
             broker_userhist = getattr(broker, "_userhist", None)
             broker_fundhist = getattr(broker, "_fundhist", None)
             default_broker_notifications = (
@@ -2602,8 +2616,10 @@ class Cerebro(ParameterizedBase):
                                 strat._next_open()
                                 if self._event_stop:  # stop if requested
                                     return
-                # Notify broker (only when data is available to avoid IndexError)
-                if d0ret or lastret:
+                # Live brokers can receive fills during a gap in market bars.
+                # Bar-matching brokers still require populated data lines.
+                poll_without_bar = d0ret is None and broker_next_without_bar
+                if d0ret or lastret or poll_without_bar:
                     skip_broker_next = False
                     if default_backbroker_next:
                         skip_broker_next = (
@@ -2635,8 +2651,19 @@ class Cerebro(ParameterizedBase):
                             if owner is None:
                                 owner = self.runningstrats[0]  # default
                             owner._addnotification(order, quicknotify=self.p.quicknotify)
+                    if poll_without_bar:
+                        for strat in runstrats:
+                            if not self.p.quicknotify:
+                                strat._notify()
+                            strat.clear()
                     if self._event_stop:  # stop if requested
                         return
+
+                if d0ret is None:
+                    for notify_idle in idle_notifiers:
+                        notify_idle()
+                        if self._event_stop:
+                            return
 
                 # Notify timer and iterate strategies to run
                 if d0ret or lastret:  # bars produced by data or filters

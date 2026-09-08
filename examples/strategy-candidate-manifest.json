@@ -1,0 +1,160 @@
+{
+  "schema_version": 3,
+  "manifest_status": "RESEARCH_REJECTED_DEMO_PROHIBITED",
+  "generated_at": "2026-09-08T19:06:12+08:00",
+  "candidates": [
+    {
+      "strategy_id": "012_1_midfreq_cross_exchange",
+      "resolved_example_path": "012_1_midfreq_cross_exchange",
+      "entrypoint": "run.py",
+      "strategy_module": "strategy.py",
+      "strategy_class": "CrossExchangeArbitrageStrategy",
+      "candidate_type": "robust_executable_basis_mean_reversion",
+      "hft_label": "not_applicable",
+      "research_status": "RESEARCH_REJECTED",
+      "evidence_level": "CALIBRATION_ECONOMIC_SCREEN_REJECTED_HOLDOUT_NOT_CONSUMED",
+      "calibration": {
+        "status": "RESEARCH_REJECTED_AT_ECONOMIC_SCREEN",
+        "data_sha256": "5d1a0b2e902acc23dcf6461eb1bcda855c4a4e1356d27dd917908c2a2bde8add",
+        "sample_count": 721,
+        "role": "training_only",
+        "permits_oos_or_demo_claim": false
+      },
+      "qualification_artifact": {
+        "path": "qualification-v3.json",
+        "sha256": "d0d0c8e8cf22eb8f1be670930cc1497de6b2e2863c525ba598cdfcc8fcc0a97e",
+        "role": "calibration_training_only"
+      },
+      "economic_screen": {
+        "status": "RESEARCH_REJECTED",
+        "path": "../docs/_internal/opts/requirements/迭代21-跨所永续套利原生能力重构与策略重审/evidence/strategy-economic-screen-v3.json",
+        "sha256": "306a701b33493c1f4c39ff91a2e4abcf3b6f863e4a1c2183b5a4ea70d321cff3",
+        "source_role": "calibration_training_only",
+        "evaluated_round_trips": 149387,
+        "positive_after_four_taker_fees": 0
+      },
+      "oos": {
+        "status": "NOT_CONSUMED_TRAINING_SCREEN_FAILED",
+        "protocol": "research-preregistration-v2",
+        "capture_status": "NOT_CONSUMED_TRAINING_SCREEN_FAILED",
+        "data_sha256": null,
+        "report_sha256": null,
+        "rows": 0,
+        "causal_paired_states": 0,
+        "entry_intents": 0,
+        "closed_pairs": 0,
+        "minimum_required_closed_pairs": 10,
+        "demo_pair_eligible": false
+      },
+      "selection_adr": {
+        "selected": "robust_basis_mean_reversion",
+        "reason": "Entry requires direction-bound model qualification, executable L2 deviation and complete confirmed-fill round-trip economics"
+      },
+      "frozen_parameters": {
+        "quantity_base": "0.01",
+        "zscore_window": 120,
+        "entry_zscore": "3.0",
+        "confirmations": 3,
+        "exit_zscore": "0.5",
+        "maximum_holding_seconds": "300.0",
+        "minimum_net_edge_bps_exclusive": "1.0"
+      },
+      "allowed_modes": [
+        "replay",
+        "shadow"
+      ],
+      "conditional_modes": {
+        "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
+        "demo": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED"
+      },
+      "runner_sha256": "d2e09d4cf0d54b9c364d3a095682ea18c3102bb12c35a5f32eba851f44fd5fa7",
+      "strategy_sha256": "30e88f7f2f135970a0a287aea6573862d6a108b43cef27c33554f0183ceb7556",
+      "config_sha256": "efd7c84c0df9ec86b5f31bd41b1d3c2f9d41c7a046b72737b723feadd89812ca",
+      "candidate_sha256": "865ff67750460bb3a35e41fea83d5130927b30be3b1a4ad4c40b9a0295401b3d",
+      "demo_approval": {
+        "status": "NOT_APPROVED",
+        "receipt_path": null,
+        "receipt_sha256": null
+      }
+    },
+    {
+      "strategy_id": "012_2_event_driven_cross_exchange",
+      "resolved_example_path": "012_2_event_driven_cross_exchange",
+      "entrypoint": "run.py",
+      "strategy_module": "strategy.py",
+      "strategy_class": "CrossExchangeArbitrageStrategy",
+      "candidate_type": "taker_taker_ioc_event_arbitrage",
+      "hft_label": "event_driven",
+      "research_status": "RESEARCH_REJECTED",
+      "evidence_level": "CALIBRATION_ECONOMIC_SCREEN_REJECTED_HOLDOUT_NOT_CONSUMED_HFT_FAILED",
+      "calibration": {
+        "status": "RESEARCH_REJECTED_AT_ECONOMIC_SCREEN",
+        "data_sha256": "5d1a0b2e902acc23dcf6461eb1bcda855c4a4e1356d27dd917908c2a2bde8add",
+        "rows": 17533,
+        "role": "training_only",
+        "permits_oos_or_demo_claim": false
+      },
+      "economic_screen": {
+        "status": "RESEARCH_REJECTED",
+        "path": "../docs/_internal/opts/requirements/迭代21-跨所永续套利原生能力重构与策略重审/evidence/strategy-economic-screen-v3.json",
+        "sha256": "306a701b33493c1f4c39ff91a2e4abcf3b6f863e4a1c2183b5a4ea70d321cff3",
+        "source_role": "calibration_training_only",
+        "evaluated_round_trips": 149387,
+        "positive_after_four_taker_fees": 0
+      },
+      "oos": {
+        "status": "NOT_CONSUMED_TRAINING_SCREEN_FAILED",
+        "protocol": "research-preregistration-v2",
+        "capture_status": "NOT_CONSUMED_TRAINING_SCREEN_FAILED",
+        "data_sha256": null,
+        "report_sha256": null,
+        "rows": 0,
+        "causal_paired_states": 0,
+        "entry_intents": 0,
+        "closed_pairs": 0,
+        "minimum_required_closed_pairs": 10,
+        "demo_pair_eligible": false
+      },
+      "selection_adr": {
+        "selected": "taker_taker_ioc_event_driven",
+        "lead_lag": "NOT_ADMITTED_WITHOUT_SEPARATE_PREREGISTERED_OOS_PASS",
+        "maker_taker": "DEFERRED_WITHOUT_QUEUE_POSITION_AND_CANCEL_LATENCY_EVIDENCE"
+      },
+      "hft_gate": {
+        "status": "FAIL",
+        "evidence": "tests/performance/test_cross_exchange_event_path.py::test_ac_hft_011_100k_local_callback_decision_enqueue_p99",
+        "continuity_evidence": "tests/unit/strategies/test_012_2_event_cross_exchange.py",
+        "scope": "Local Python callback-decision-enqueue timing only; excludes exchange network, queue position and fill latency",
+        "p99_limit_ms": "5.0",
+        "reason": "The public WebSocket plus Python/Backtrader path does not establish exchange-grade HFT latency or queue behavior"
+      },
+      "frozen_parameters": {
+        "quantity_base": "0.01",
+        "minimum_opportunity_lifetime_seconds": "0.500",
+        "minimum_net_edge_bps_exclusive": "1.0",
+        "entry_deadline_seconds": "1.0",
+        "hedge_deadline_seconds": "1.0",
+        "pair_deadline_seconds": "2.5",
+        "maximum_quote_age_seconds": "0.50",
+        "maximum_venue_skew_seconds": "0.25"
+      },
+      "allowed_modes": [
+        "replay",
+        "shadow"
+      ],
+      "conditional_modes": {
+        "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
+        "demo": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED"
+      },
+      "runner_sha256": "ecbee66a7dd0b0a1d5319b6db59bc7fac5a6e9c63ddb958b1ad82f9f650fbe2d",
+      "strategy_sha256": "cba035fc2e6b1b6f3ba1e3de988feaeb3cc8b67e9cbe8632182fae9be0632b30",
+      "config_sha256": "9d3321b50a663ad9219465180dd4143351a6de544f022cdc359622357df7d2aa",
+      "candidate_sha256": "e950f92e1c68f55521a7fbf151e93e1786ff4799cc308240cd8c7a66aaec0e07",
+      "demo_approval": {
+        "status": "NOT_APPROVED",
+        "receipt_path": null,
+        "receipt_sha256": null
+      }
+    }
+  ]
+}

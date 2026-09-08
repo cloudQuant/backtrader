@@ -36,6 +36,27 @@ def _run_cerebro_with_timeout(cerebro, timeout=0.5):
 
 
 @pytest.mark.integration
+def test_btapi_fixtures_use_the_selected_backtrader_package(
+    btapi_store, sample_data, cerebro_engine, simple_strategy
+):
+    """Initial conftests must not retain classes from a different package copy."""
+    from backtrader.events import OrderBookSnapshot
+    from backtrader.stores.btapistore import BtApiStore
+    from tests.fixtures import fake_btapi
+
+    assert type(btapi_store) is BtApiStore
+    assert type(cerebro_engine) is bt.Cerebro
+    assert type(sample_data) is bt.feeds.BacktraderCSVData
+    assert issubclass(simple_strategy, bt.Strategy)
+    assert fake_btapi.BtApiStore is BtApiStore
+    assert fake_btapi.OrderBookSnapshot is OrderBookSnapshot
+
+    cerebro_engine.adddata(sample_data)
+    cerebro_engine.addstrategy(simple_strategy)
+    assert len(cerebro_engine.run()) == 1
+
+
+@pytest.mark.integration
 def test_btapi_store_broker_and_feed_work_together(btapi_client, btapi_store):
     """Unified store, feed, and broker should work together without venue-specific adapters."""
     data = btapi_store.getdata(dataname=DEFAULT_SYMBOL)
@@ -347,7 +368,7 @@ def test_btapi_remote_trade_updates_reach_strategy_notifications():
             """Execute on each bar: submit order and push remote fill on first bar."""
             if not self.submitted:
                 self.submitted = True
-                order = self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
+                self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
                 client.push_broker_update(
                     {
                         "kind": "trade",

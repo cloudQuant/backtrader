@@ -18,7 +18,6 @@ Priority Markers:
 """
 
 import pytest
-import os
 import sys
 import tempfile
 import shutil
@@ -30,12 +29,19 @@ import datetime
 # Project Root Setup
 # =============================================================================
 
-# Get project root directory and add to path BEFORE importing backtrader
+# Get project root directory and add it for test-support imports.  Do not
+# import Backtrader at conftest module load time: the root conftest selects the
+# local or installed package during pytest_configure, after initial conftests
+# have been discovered.
 _PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-# Now backtrader can be imported correctly
-import backtrader as bt
+
+def _load_backtrader():
+    """Import the package only after the root resolution hook has run."""
+    import importlib
+
+    return importlib.import_module("backtrader")
 
 
 # =============================================================================
@@ -119,6 +125,7 @@ def sample_data(datas_path):
     Returns:
         bt.feeds.BacktraderCSVData: Configured data feed for testing
     """
+    bt = _load_backtrader()
     datapath = datas_path / "2006-day-001.txt"
     data = bt.feeds.BacktraderCSVData(
         dataname=str(datapath),
@@ -135,6 +142,7 @@ def sample_data_multi(datas_path):
     Returns:
         list: List of two configured data feeds for 2006
     """
+    bt = _load_backtrader()
     datafiles = [
         datas_path / "2006-day-001.txt",
         datas_path / "2006-day-002.txt",
@@ -160,6 +168,7 @@ def week_data(datas_path):
     Returns:
         bt.feeds.BacktraderCSVData: Weekly data feed
     """
+    bt = _load_backtrader()
     datapath = datas_path / "2006-week-001.txt"
     data = bt.feeds.BacktraderCSVData(
         dataname=str(datapath),
@@ -184,6 +193,7 @@ def cerebro_engine():
     Yields:
         bt.Cerebro: Fresh Cerebro instance for testing.
     """
+    bt = _load_backtrader()
     cerebro = bt.Cerebro()
     yield cerebro
     # Cleanup
@@ -230,6 +240,8 @@ def simple_strategy():
     Returns:
         type: SimpleStrategy class for testing.
     """
+    bt = _load_backtrader()
+
     class SimpleStrategy(bt.Strategy):
         """A simple moving average crossover trading strategy for testing."""
 
@@ -268,6 +280,8 @@ def crossover_strategy():
     Returns:
         type: CrossoverStrategy class with CrossOver indicator.
     """
+    bt = _load_backtrader()
+
     class CrossoverStrategy(bt.Strategy):
         """A crossover strategy using CrossOver indicator for testing."""
 
@@ -321,7 +335,6 @@ def clean_test_environment():
     # - Clear global state
     # - Close open files
     # - Reset singleton instances
-    pass
 
 
 # =============================================================================
@@ -358,6 +371,8 @@ def run_cerebro_test():
     Returns:
         callable: Function to run tests with different configurations.
     """
+    bt = _load_backtrader()
+
     def _run_test(datas, strategy, runonce=None, preload=None, exbar=None, **kwargs):
         """Run a backtest strategy with multiple configuration combinations.
 

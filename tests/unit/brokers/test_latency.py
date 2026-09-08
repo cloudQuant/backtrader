@@ -33,6 +33,22 @@ def test_latency_engine_applies_feed_latency_and_activates_delayed_orders():
     assert event.local_time == pytest.approx(1.05)
 
 
+def test_latency_engine_without_model_preserves_live_receive_time():
+    """A paper broker must not erase the receive time supplied by a live feed."""
+    engine = LatencyEngine()
+    received = TickEvent(
+        timestamp=1.0,
+        local_time=1.25,
+        symbol="BTC/USDT",
+        price=100.0,
+        volume=1.0,
+    )
+    missing = TickEvent(timestamp=2.0, symbol="BTC/USDT", price=100.0, volume=1.0)
+
+    assert engine.apply_feed_latency(received).local_time == pytest.approx(1.25)
+    assert engine.apply_feed_latency(missing).local_time == pytest.approx(2.0)
+
+
 def test_intp_latency_model_interpolates_between_points():
     """Test IntpLatencyModel interpolates between points."""
     model = IntpLatencyModel(

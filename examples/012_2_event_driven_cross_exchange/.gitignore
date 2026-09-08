@@ -1,0 +1,7 @@
+.env
+reports/
+__pycache__/
+runtime/
+*.orders.jsonl
+*.lock
+*.receipt.json

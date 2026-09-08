@@ -659,7 +659,7 @@ class BackBroker(BrokerBase):
     def _validate_close_quantity(self, order, position):
         if not self._is_dual_side_mode():
             return
-        if getattr(order.info, "offset", None) != "close":
+        if getattr(order.info, "offset", None) not in {"close", "close_today", "close_yesterday"}:
             return
         if (
             abs(float(order.executed.remsize or order.size or 0.0))
@@ -1807,7 +1807,7 @@ class BackBroker(BrokerBase):
         else:
             signed_position = position
 
-        if getattr(order.info, "offset", None) == "close":
+        if getattr(order.info, "offset", None) in {"close", "close_today", "close_yesterday"}:
             available = abs(float(signed_position.size or 0.0))
             required = abs(float(size or 0.0))
             if required > available + 1e-12:

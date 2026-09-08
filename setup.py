@@ -4,7 +4,6 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
-
 BASE_DIR = Path(__file__).resolve().parent
 ABOUT = {}
 exec((BASE_DIR / "backtrader" / "version.py").read_text(encoding="utf-8"), ABOUT)
@@ -58,6 +57,7 @@ setup(
             "python-dotenv",
             "websockets",
             "aiohttp",
+            "cryptography>=3.4",
         ],
         "plotting": [
             "plotly",
@@ -66,6 +66,7 @@ setup(
             "pyecharts",
         ],
         "cryptohftdata": ["cryptohftdata>=0.4.0,<1.0.0"],
+        "live": ["cryptography>=3.4"],
     },  # List of project dependencies
     python_requires=">=3.8",
     classifiers=[

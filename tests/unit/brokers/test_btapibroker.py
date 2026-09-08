@@ -784,6 +784,209 @@ def test_cancel_wait_remote_keeps_order_alive_until_remote_cancel_confirmation()
         broker.stop()
 
 
+@pytest.mark.parametrize(
+    ("response", "expected_status", "expected_executed"),
+    [
+        ({"status": "canceled", "terminal_confirmed": True}, bt.Order.Canceled, 0.0),
+        (
+            {
+                "status": "completed",
+                "terminal_confirmed": True,
+                "filled": 1,
+                "avg_price": 101.0,
+                "execution_source": "cumulative",
+            },
+            bt.Order.Completed,
+            1.0,
+        ),
+        ({"status": "expired", "terminal_confirmed": True}, bt.Order.Expired, 0.0),
+        ({"status": "rejected", "terminal_confirmed": True}, bt.Order.Rejected, 0.0),
+    ],
+)
+def test_cancel_wait_remote_applies_confirmed_terminal_response_immediately(
+    response,
+    expected_status,
+    expected_executed,
+):
+    """A normalized terminal cancel response should not wait for a duplicate stream event."""
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker(cancel_wait_remote=True)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        cancel_calls = []
+
+        def cancel_order(local_order):
+            cancel_calls.append(local_order)
+            return dict(response)
+
+        store.cancel_order = cancel_order
+
+        returned = broker.cancel(order)
+
+        assert returned is order
+        assert cancel_calls == [order]
+        assert order.status == expected_status
+        assert order.executed.size == pytest.approx(expected_executed)
+        assert broker._orders_by_external_id == {}
+
+        notifications_before_duplicate = len(broker.notifs)
+        duplicate = dict(response)
+        duplicate.update(
+            kind="order",
+            bt_order_ref=order.ref,
+            data_name=DEFAULT_SYMBOL,
+            side="buy",
+        )
+        client.push_broker_update(duplicate)
+        broker.next()
+
+        assert order.status == expected_status
+        assert order.executed.size == pytest.approx(expected_executed)
+        assert len(broker.notifs) == notifications_before_duplicate
+    finally:
+        broker.stop()
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"status": "submitted", "terminal_confirmed": False},
+        {"status": "canceled", "terminal_confirmed": False, "execution_unknown": True},
+        {"status": "canceled", "terminal_confirmed": True, "execution_unknown": True},
+        {"status": "accepted", "terminal_confirmed": True},
+    ],
+)
+def test_cancel_wait_remote_keeps_waiting_for_unconfirmed_or_nonterminal_response(response):
+    """Only a confirmed normalized terminal response may end the local order synchronously."""
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker(cancel_wait_remote=True)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        store.cancel_order = lambda _order: dict(response)
+
+        broker.cancel(order)
+
+        assert order.status == bt.Order.Accepted
+        assert order.alive() is True
+        assert order.info["cancel_requested_remote"] is True
+        assert broker._orders_by_external_id == {"btapi-1": order}
+    finally:
+        broker.stop()
+
+
+def test_sdk_mode_forces_remote_cancel_confirmation_with_default_broker_setting():
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        store._sdk_mode = True
+        store.cancel_order = lambda _order: {
+            "status": "canceled",
+            "terminal_confirmed": False,
+            "execution_unknown": True,
+        }
+
+        broker.cancel(order)
+
+        assert order.status == bt.Order.Accepted
+        assert order.alive() is True
+        assert order.info.cancel_requested_remote is True
+        assert broker._orders_by_external_id == {"btapi-1": order}
+    finally:
+        store._sdk_mode = False
+        broker.stop()
+
+
+def test_unknown_cancel_exception_keeps_sdk_order_live_and_blocks_blind_retry():
+    class UnknownCancelError(RuntimeError):
+        code = "cancel_timeout"
+        execution_unknown = True
+
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        store._sdk_mode = True
+        calls = []
+
+        def unknown_cancel(_order):
+            calls.append(_order)
+            raise UnknownCancelError("signed-url-must-not-be-copied")
+
+        store.cancel_order = unknown_cancel
+
+        broker.cancel(order)
+        broker.cancel(order)
+
+        assert calls == [order]
+        assert order.status == bt.Order.Accepted
+        assert order.alive() is True
+        assert order.info.cancel_requested_remote is True
+        assert order.info.cancel_execution_unknown is True
+        assert order.info.cancel_error_code == "cancel_timeout"
+        assert "signed-url" not in order.info.cancel_error_msg
+        assert broker._orders_by_external_id == {"btapi-1": order}
+    finally:
+        store._sdk_mode = False
+        broker.stop()
+
+
 def test_cancel_wait_remote_allows_retry_after_remote_cancel_rejection():
     """Remote cancel rejection should clear only the pending-cancel flag."""
     client = FakeBtApiClient(
@@ -4367,6 +4570,48 @@ def test_oversized_trade_update_is_clipped_to_order_remaining():
         assert order.executed.size == pytest.approx(1.0)
         assert order.executed.remsize == pytest.approx(0.0)
         assert broker.positions[DEFAULT_SYMBOL].size == pytest.approx(1.0)
+        assert order.info["execution_unknown"] is True
+        assert order.info["ledger_mismatch"] is True
+        assert order.info["error_code"] == "trade_size_exceeds_remaining"
+        assert broker._position_audit_blocked is True
+        assert broker._position_audit_error == "trade_size_exceeds_remaining"
+
+        client.push_broker_update(
+            {
+                "kind": "order",
+                "bt_order_ref": order.ref,
+                "data_name": DEFAULT_SYMBOL,
+                "status": "completed",
+                "filled": 1,
+                "avg_price": 101.0,
+            }
+        )
+        broker.next()
+
+        assert order.info["execution_unknown"] is True
+
+        blocked_open = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+            offset="open",
+        )
+        assert blocked_open.status == bt.Order.Rejected
+        assert blocked_open.info["error_code"] == "position_audit_blocked"
+
+        reducing_close = broker.sell(
+            owner=None,
+            data=data,
+            size=1,
+            price=100.0,
+            exectype=bt.Order.Limit,
+            offset="close",
+            reduce_only=True,
+        )
+        assert reducing_close.status == bt.Order.Accepted
+        assert len(client.submitted_orders) == 2
 
         events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
         clipped = [
@@ -4798,3 +5043,23 @@ def test_remote_trade_update_uses_mixed_close_today_commission_when_missing_remo
         assert broker.positions[symbol].size == pytest.approx(0.0)
     finally:
         broker.stop()
+
+
+def test_size_and_tick_validation_survive_degenerate_ctp_metadata():
+    """SimNow can return uninitialized CTP struct reads (e.g. tick 2.1e-314).
+
+    Validation must treat sub-epsilon step/tick values as missing metadata
+    instead of raising OverflowError on round(inf)."""
+    from types import SimpleNamespace
+
+    from backtrader.brokers.btapibroker import BtApiBroker
+
+    order = SimpleNamespace(size=1, exectype=None)
+    order.exectype = type("E", (), {"Market": 0, "Limit": 1})()
+    rules = {
+        "lot_size": 2.128704388e-314,  # degenerate: would produce inf scaled
+        "min_order_size": None,
+        "valid": True,
+    }
+    error = BtApiBroker._validate_order_size(order, rules, default_max_order_size=0)
+    assert error is None

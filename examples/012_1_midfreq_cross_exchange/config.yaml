@@ -1,0 +1,43 @@
+schema_version: 2
+strategy_id: 012_1_midfreq_cross_exchange
+run_timeout_seconds: 600
+okx_api_region: global
+venues:
+  okx: BTC-USDT-SWAP
+  binance: BTCUSDT
+observation:
+  minimum_statistical_seconds: 120
+  shutdown_buffer_seconds: 15
+  require_funding_settlement: false
+funding:
+  refresh_interval_seconds: "5.0"
+  max_age_seconds: "30.0"
+  exit_window_seconds: "10.0"
+strategy_params:
+  quantity_base: "0.01"
+  zscore_window: 120
+  minimum_samples: 120
+  entry_zscore: "3.0"
+  exit_zscore: "0.5"
+  divergence_zscore: "4.0"
+  confirmations: 3
+  persistence_seconds: "2.0"
+  minimum_interval_seconds: "1.0"
+  maximum_quote_age_seconds: "2.0"
+  maximum_venue_skew_seconds: "0.75"
+  maximum_holding_seconds: "300.0"
+  maximum_loss_bps: "100.0"
+  account_maximum_loss_bps: "50.0"
+  minimum_net_edge_bps: "1.0"
+  depth_fraction: "0.25"
+  exit_reserve_bps: "2.0"
+  latency_reserve_bps: "1.0"
+  failure_reserve_bps: "2.0"
+  model_buffer_bps: "3.0"
+  minimum_qualification_samples: 120
+  maximum_half_life_seconds: "120.0"
+  entry_deadline_seconds: "2.0"
+  hedge_deadline_seconds: "2.0"
+  cancel_deadline_seconds: "1.0"
+  pair_deadline_seconds: "5.0"
+  flatten_deadline_seconds: "5.0"

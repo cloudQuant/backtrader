@@ -8,24 +8,158 @@ Futu, and VC are intentionally removed from the public surface.
 
 from __future__ import annotations
 
+import asyncio
 import collections
 import datetime as _dt
+import hashlib
+import heapq
 import importlib
+import inspect
+import itertools
+import json
 import math
 import os
 import re
+import threading
 import time
 import uuid
 import warnings
+from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import asdict, is_dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple, cast
 
-from ..events import TickEvent
+from ..events import OrderBookSnapshot, TickEvent
 from ..utils.log_message import get_logger
 from .livestore import LiveStoreBase
 
 logger = get_logger(__name__)
+
+_LOGGING_HEALTH = collections.Counter()
+
+_SENSITIVE_TEXT_RE = re.compile(
+    r"(?i)\b(api[_-]?key|api[_-]?secret|auth[_-]?code|credential(?:s)?|"
+    r"authorization|listen[_-]?key|passphrase|passwd|password|private[_-]?key|"
+    r"secret(?:[_-]?key)?|signature|(?:access|session)[_-]?token|token)\b"
+    r"(\s*[\"']?\s*[:=]\s*[\"']?)([^,;\s\"'}]+)"
+)
+_AUTHORIZATION_TEXT_RE = re.compile(r"(?i)\b(bearer|basic)\s+[^,;\s]+")
+_SENSITIVE_QUERY_RE = re.compile(
+    r"(?i)([?&](?:api[_-]?key|authorization|listen[_-]?key|signature|"
+    r"(?:access|session)[_-]?token|token)=)[^&#\s]*"
+)
+
+
+def _redact_diagnostic(value: Any) -> Any:
+    """Recursively remove credential material from diagnostic values."""
+    if isinstance(value, BaseException):
+        return type(value).__name__
+    if isinstance(value, Mapping):
+        return {
+            key: "***" if BtApiStore._is_sensitive_key(key) else _redact_diagnostic(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_diagnostic(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_redact_diagnostic(item) for item in value)
+    if isinstance(value, set):
+        # A member may normalize to a mapping, which is intentionally
+        # unhashable. Diagnostics do not need to preserve set identity.
+        return [_redact_diagnostic(item) for item in value]
+    if isinstance(value, frozenset):
+        return tuple(_redact_diagnostic(item) for item in value)
+    if isinstance(value, str):
+        value = _AUTHORIZATION_TEXT_RE.sub(r"\1 ***", value)
+        value = _SENSITIVE_TEXT_RE.sub(r"\1\2***", value)
+        return _SENSITIVE_QUERY_RE.sub(r"\1***", value)
+    if value is None or isinstance(value, (bool, int, float, Decimal)):
+        return value
+    # Diagnostics must never rely on an arbitrary object's repr: vendor
+    # exceptions and transport objects commonly include credentials there.
+    try:
+        return BtApiStore._masked_copy(value)
+    except Exception:
+        return type(value).__name__
+
+
+def _safe_log(level: str, message: str, *args: Any) -> None:
+    """Write a diagnostic without allowing a broken sink into trading control flow."""
+    try:
+        getattr(logger, level)(_redact_diagnostic(message), *map(_redact_diagnostic, args))
+    except Exception:
+        _LOGGING_HEALTH["logging_errors"] += 1
+
+
+_COMMAND_PRIORITY = {
+    "reconcile": 0,
+    "query": 0,
+    "cancel": 1,
+    "close": 2,
+    "open": 3,
+}
+
+_SDK_EXECUTION_CONFIG_KEYS = (
+    "order_journal",
+    "require_order_journal",
+    "market_data_only",
+    "order_poll_interval",
+    "account_currency",
+    "account_currencies",
+    "account_ids",
+    "required_environments",
+    "strategy_id",
+    "account_maximum_loss_bps",
+    "account_risk_max_age_seconds",
+)
+
+_DEFINITE_READINESS_REASONS = frozenset(
+    {
+        "account_level_has_no_derivatives",
+        "instrument_not_live",
+        "invalid_expected_position_mode",
+        "invalid_quantity_native",
+        "max_buy_insufficient",
+        "max_sell_insufficient",
+        "position_mode_mismatch",
+        "quantity_below_minimum",
+        "quantity_below_min_size",
+        "quantity_not_multiple_of_lot_size",
+        "quantity_not_on_step",
+        "trading_permission_denied",
+    }
+)
+
+
+def _contract_mapping(value: Any, contract_name: str) -> Dict[str, Any]:
+    """Convert a public SDK mapping/dataclass without importing venue schemas."""
+    if isinstance(value, Mapping):
+        return deepcopy(dict(value))
+    if is_dataclass(value) and not isinstance(value, type):
+        return asdict(value)
+    raise BtApiStoreError(f"{contract_name} must be a mapping or dataclass")
+
+
+def _sdk_cross_venue_contracts():
+    """Load public SDK validation primitives without a core import dependency.
+
+    Backtrader's generic Store remains importable without the optional SDK.
+    When it is configured for ``provider='btapi'``, validation comes from the
+    SDK's public cross-venue contract rather than a local venue-schema copy.
+    """
+
+    try:
+        from bt_api_py.cross_venue import (
+            CrossVenueValueError,
+            coerce_funding_snapshot,
+            normalize_orderbook_evidence,
+        )
+    except ImportError as exc:
+        raise BtApiMissingDependencyError(
+            "BtApiStore cross-venue validation requires bt_api_py"
+        ) from exc
+    return CrossVenueValueError, coerce_funding_snapshot, normalize_orderbook_evidence
 
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
@@ -225,6 +359,16 @@ _CTP_TRADE_FIELDS = (
 
 class BtApiStoreError(Exception):
     """Base error for btapi store failures."""
+
+
+class _ApprovalLeaseRejected(BtApiStoreError):
+    """Definite local rejection raised before an SDK write crosses its lease."""
+
+    definite_reject = True
+
+    def __init__(self, code: str):
+        self.code = code
+        super().__init__(code)
 
 
 class BtApiMissingDependencyError(ImportError, BtApiStoreError):
@@ -509,7 +653,7 @@ def _coerce_text(value: Any, default: str = "") -> str:
         try:
             return str(value).strip()
         except Exception as e:
-            logger.debug("Failed to coerce value to text: %s", e)
+            _safe_log("debug", "Failed to coerce value to text: %s", e)
             return default
 
 
@@ -577,7 +721,7 @@ def _safe_field_attr(obj: Any, attr: str, default: Any = None) -> Any:
     try:
         return getattr(obj, attr, default)
     except Exception as e:
-        logger.debug("Failed to get attr %s from %s: %s", attr, type(obj).__name__, e)
+        _safe_log("debug", "Failed to get attr %s from %s: %s", attr, type(obj).__name__, e)
         return default
 
 
@@ -1206,7 +1350,7 @@ def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
         try:
             value = getattr(field, attr)
         except Exception as e:
-            logger.debug("Failed to read CTP field attr %s: %s", attr, e)
+            _safe_log("debug", "Failed to read CTP field attr %s: %s", attr, e)
             continue
         if callable(value):
             continue
@@ -1224,7 +1368,7 @@ def _ctp_extract_fields(field: Any, attrs: Iterable[str]) -> Dict[str, Any]:
         try:
             value = getattr(field, attr)
         except Exception as e:
-            logger.debug("Failed to read CTP field attr %s: %s", attr, e)
+            _safe_log("debug", "Failed to read CTP field attr %s: %s", attr, e)
             continue
         if callable(value):
             continue
@@ -1700,10 +1844,10 @@ def _create_ctp_wrapper_class():
                 try:
                     return method(*args, **kwargs)
                 except Exception as exc:
-                    logger.debug("CTP %s failed: %s", method_name, exc)
+                    _safe_log("debug", "CTP %s failed: %s", method_name, exc)
                     return None
             except Exception as exc:
-                logger.debug("CTP %s failed: %s", method_name, exc)
+                _safe_log("debug", "CTP %s failed: %s", method_name, exc)
                 return None
 
         @staticmethod
@@ -2717,7 +2861,7 @@ def _create_ctp_gateway_wrapper_class():
                 if tf_val == bt.TimeFrame.Months:
                     return "MN1"
             except Exception as e:
-                logger.debug("Failed to resolve timeframe: %s", e)
+                _safe_log("debug", "Failed to resolve timeframe: %s", e)
             return "M1"
 
     return CtpGatewayClientWrapper
@@ -2828,9 +2972,156 @@ class BtApiStore(LiveStoreBase):
         if kwargs:
             self._api_kwargs.update(kwargs)
         self._apply_env_gateway_overrides()
+        sdk_options = {**self._config, **self._api_kwargs}
+        self._sdk_mode = self.provider == "btapi" and (
+            (
+                "exchange_kwargs" in sdk_options
+                and (self.backend == "direct" or "forwarding_config" in sdk_options)
+            )
+            or (api is not None and callable(getattr(api, "poll_event", None)))
+        )
+        self._sdk_exchanges = dict(
+            sdk_options.get("exchange_kwargs") or getattr(api, "exchange_kwargs", {}) or {}
+        )
+        self._sdk_routes = dict(sdk_options.get("symbol_routes") or {})
+        configured_execution = sdk_options.get("execution_config")
+        if isinstance(configured_execution, Mapping):
+            self._sdk_execution_config = dict(configured_execution)
+        else:
+            self._sdk_execution_config = {
+                key: sdk_options[key] for key in _SDK_EXECUTION_CONFIG_KEYS if key in sdk_options
+            }
+        self._sdk_require_account_risk = bool(sdk_options.get("require_account_risk", False))
+        self._sdk_identity_bindings: Dict[str, Dict[str, Any]] = {}
+        self._sdk_identity_fence_history: Dict[str, Tuple[int, int]] = {}
+        self._sdk_identity_lock = threading.Lock()
+        self._sdk_owned_api = api is None
+        self._sdk_configured = False
+        self._last_execution_summary = None
+        self._last_account_risk_snapshot: Optional[Dict[str, Any]] = None
+        self._last_account_risk_snapshot_generation: Optional[int] = None
+        self._account_risk_lock = threading.Lock()
+        self._account_risk_refresh_interval = max(
+            float(sdk_options.get("account_risk_refresh_interval", 0.5)), 0.05
+        )
+        self._last_account_risk_refresh_requested = 0.0
+        self._account_risk_refresh_pending = False
+        funding_max_age = float(sdk_options.get("funding_max_age_seconds", 30.0))
+        if not math.isfinite(funding_max_age) or funding_max_age < 0:
+            raise ValueError("funding_max_age_seconds must be finite and nonnegative")
+        funding_refresh_interval = float(
+            sdk_options.get(
+                "funding_refresh_interval_seconds",
+                funding_max_age / 2.0 if funding_max_age else 0.0,
+            )
+        )
+        if not math.isfinite(funding_refresh_interval) or funding_refresh_interval < 0:
+            raise ValueError("funding_refresh_interval_seconds must be finite and nonnegative")
+        self._funding_max_age_seconds = funding_max_age
+        self._funding_refresh_interval_seconds = funding_refresh_interval
+        self._funding_condition = threading.Condition(threading.RLock())
+        self._funding_transport_lock = threading.Lock()
+        self._funding_cache: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        self._funding_last_errors: Dict[Tuple[str, str], str] = {}
+        self._funding_last_requested: Dict[Tuple[str, str], float] = {}
+        self._funding_queue: Deque[Tuple[int, Tuple[str, str], str, Any]] = collections.deque()
+        self._funding_pending: set = set()
+        self._funding_inflight_key: Optional[Tuple[str, str]] = None
+        self._funding_direct_inflight = 0
+        self._funding_worker_thread: Optional[threading.Thread] = None
+        self._funding_generation = 0
+        self._funding_accept_results = False
+        self._funding_stop_requested = False
+        self._funding_restart_blocked_by_worker = False
+        self._funding_health = collections.Counter()
+        self._sdk_client_refs = {}
+        self._sdk_venue_refs = {}
+        self._sdk_local_refs = {}
+        queue_size = max(int(sdk_options.get("book_queue_size", 256)), 1)
+        self._sdk_books = collections.defaultdict(lambda: collections.deque(maxlen=queue_size))
+        self._sdk_ticks = collections.defaultdict(lambda: collections.deque(maxlen=queue_size))
+        update_queue_size = max(int(sdk_options.get("broker_update_queue_size", 2048)), 1)
+        self._sdk_updates = collections.deque(maxlen=update_queue_size)
+        self._sdk_update_lock = threading.Lock()
+        self._sdk_update_drop_records = collections.deque(
+            maxlen=max(int(sdk_options.get("broker_update_drop_record_limit", 256)), 1)
+        )
+        # Newest-wins queues silently evict older books; count them per symbol
+        # so reports can prove whether depth traffic was dropped.
+        self._sdk_book_drops: Dict[str, int] = {}
+        self._sdk_tick_drops: Dict[str, int] = {}
+        self._sdk_update_drops = 0
+        self._strategy_delivered_ids: Dict[str, collections.OrderedDict] = collections.defaultdict(
+            collections.OrderedDict
+        )
+        self._feed_dropped_ids: Dict[str, collections.OrderedDict] = collections.defaultdict(
+            collections.OrderedDict
+        )
+        self._strategy_delivery_id_limit = max(
+            int(sdk_options.get("strategy_delivery_id_limit", 8192)), 1
+        )
+        self._market_drop_records: Dict[str, collections.deque] = collections.defaultdict(
+            lambda: collections.deque(
+                maxlen=max(int(sdk_options.get("market_drop_record_limit", 256)), 1)
+            )
+        )
+        self._sdk_sequences: Dict[Tuple[str, str], int] = {}
+        self._stream_health: Dict[str, collections.Counter] = collections.defaultdict(
+            collections.Counter
+        )
+        self._stream_state: Dict[str, Dict[str, Any]] = collections.defaultdict(dict)
+        self._stream_generation = 0
+        self._sdk_event_batch_size = max(int(sdk_options.get("event_batch_size", 1024)), 1)
+        configured_coalescing = sdk_options.get("coalesce_market_snapshots", ())
+        if isinstance(configured_coalescing, str):
+            configured_coalescing = (configured_coalescing,)
+        self._sdk_coalesce_market_snapshots = tuple(configured_coalescing or ())
+
+        self._command_queue_size = max(int(sdk_options.get("command_queue_size", 1024)), 1)
+        requested_reserve = int(
+            sdk_options.get(
+                "command_reserved_capacity",
+                max(8, self._command_queue_size // 10),
+            )
+        )
+        self._command_reserved_capacity = min(
+            max(requested_reserve, 0), max(self._command_queue_size - 1, 0)
+        )
+        self._command_shutdown_timeout = max(
+            float(sdk_options.get("command_shutdown_timeout", 2.0)), 0.0
+        )
+        self._command_heap: List[Tuple[int, int, Dict[str, Any]]] = []
+        self._command_sequence = itertools.count()
+        self._command_condition = threading.Condition(threading.RLock())
+        self._command_worker_thread: Optional[threading.Thread] = None
+        self._command_worker_generation = 0
+        self._command_generation = 0
+        self._command_stop_requested = False
+        self._command_accept_openings = not self._sdk_require_account_risk
+        self._accept_command_completions = False
+        self._restart_blocked_by_worker = False
+        self._restart_blocked_by_close = False
+        self._sdk_close_thread: Optional[threading.Thread] = None
+        self._sdk_close_generation = 0
+        self._command_inflight = 0
+        self._command_publications_pending = 0
+        self._command_inflight_receipt_id: Optional[str] = None
+        self._command_inflight_operation: Optional[str] = None
+        self._command_health = collections.Counter()
+        self._risk_state_lock = threading.Lock()
+        self._risk_incident_epoch = 0
+        self._last_risk_incident_reason = ""
+        self._command_drop_records = collections.deque(
+            maxlen=max(int(sdk_options.get("command_drop_record_limit", 256)), 1)
+        )
+        self._command_last_error = ""
+        self._shutdown_state = "NOT_STARTED"
+        self._sdk_command_types: Dict[str, Any] = {}
         self._cash = _coerce_float(cash)
         self._value = _coerce_float(value, self._cash)
         self._account_cache_ttl = max(_coerce_float(account_cache_ttl), 0.0)
+        self._venue_balance_cache = {}
+        self._last_venue_balance_refresh = 0.0
         self._positions_cache_ttl = max(_coerce_float(positions_cache_ttl), 0.0)
         self._open_orders_cache_ttl = max(_coerce_float(open_orders_cache_ttl), 0.0)
         self._positions_cache = list(positions or [])
@@ -2902,10 +3193,64 @@ class BtApiStore(LiveStoreBase):
         """Return whether the store is connected and ready."""
         return self._connected
 
+    @property
+    def uses_async_commands(self) -> bool:
+        """Return whether this SDK exposes the typed asynchronous command contract."""
+        api = self._api
+        return bool(
+            self._sdk_mode
+            and api is not None
+            and all(
+                inspect.iscoroutinefunction(getattr(api, name, None))
+                for name in ("async_make_order", "async_cancel_order", "async_query_order")
+            )
+        )
+
+    @property
+    def requires_account_risk(self) -> bool:
+        """Return whether startup must establish durable account-loss evidence."""
+        return bool(self._sdk_mode and self._sdk_require_account_risk)
+
+    def _require_async_sdk_commands(self) -> None:
+        """Fail closed when an SDK trading session lacks any async operation."""
+        if not self._sdk_mode:
+            return
+        missing = [
+            name
+            for name in ("async_make_order", "async_cancel_order", "async_query_order")
+            if not inspect.iscoroutinefunction(getattr(self._api, name, None))
+        ]
+        if missing:
+            raise BtApiStoreError(
+                "SDK trading requires the complete asynchronous command contract: "
+                + ", ".join(missing)
+            )
+
     # Credential keys that must never appear in repr/str/logs in cleartext.
     _SENSITIVE_KEYS = frozenset(
-        {"password", "passwd", "auth_code", "secret", "token", "api_secret", "private_key"}
+        {
+            "api_key",
+            "api_secret",
+            "access_token",
+            "auth_code",
+            "authorization",
+            "credential",
+            "credentials",
+            "listen_key",
+            "listenkey",
+            "passphrase",
+            "passwd",
+            "password",
+            "private_key",
+            "public_key",
+            "secret",
+            "secret_key",
+            "session_token",
+            "signature",
+            "token",
+        }
     )
+    _SENSITIVE_KEY_COMPACT = frozenset(key.replace("_", "") for key in _SENSITIVE_KEYS)
 
     def __repr__(self) -> str:
         """Return a repr with credential fields masked.
@@ -2925,20 +3270,177 @@ class BtApiStore(LiveStoreBase):
     __str__ = __repr__
 
     @classmethod
-    def _mask_sensitive(cls, mapping: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """Return a copy of ``mapping`` with sensitive credential values masked.
+    def _is_sensitive_key(cls, key: Any) -> bool:
+        """Return whether ``key`` conventionally names a credential value."""
+        normalized = re.sub(r"[^a-z0-9]+", "_", str(key).strip().lower()).strip("_")
+        compact = normalized.replace("_", "")
+        if normalized in cls._SENSITIVE_KEYS or compact in cls._SENSITIVE_KEY_COMPACT:
+            return True
+
+        return any(
+            normalized.endswith(f"_{sensitive_key}") for sensitive_key in cls._SENSITIVE_KEYS
+        )
+
+    @classmethod
+    def _masked_copy(cls, value: Any, _active: Optional[set[int]] = None) -> Any:
+        """Build a cycle-safe diagnostic copy without invoking arbitrary repr methods."""
+        if isinstance(value, BaseException):
+            return type(value).__name__
+        if isinstance(value, str):
+            return _redact_diagnostic(value)
+        if value is None or isinstance(value, (bool, int, float, Decimal)):
+            return value
+
+        active = set() if _active is None else _active
+        identity = id(value)
+        if identity in active:
+            return "<recursive>"
+        active.add(identity)
+        try:
+            if isinstance(value, Mapping):
+                return {
+                    key: "***" if cls._is_sensitive_key(key) else cls._masked_copy(item, active)
+                    for key, item in value.items()
+                }
+            if isinstance(value, list):
+                return [cls._masked_copy(item, active) for item in value]
+            if isinstance(value, tuple):
+                return tuple(cls._masked_copy(item, active) for item in value)
+            if isinstance(value, set):
+                return [cls._masked_copy(item, active) for item in value]
+            if isinstance(value, frozenset):
+                return tuple(cls._masked_copy(item, active) for item in value)
+            if is_dataclass(value) and not isinstance(value, type):
+                return cls._masked_copy(asdict(value), active)
+            try:
+                attributes = vars(value)
+            except (TypeError, AttributeError):
+                return type(value).__name__
+            return {
+                key: "***" if cls._is_sensitive_key(key) else cls._masked_copy(item, active)
+                for key, item in attributes.items()
+            }
+        finally:
+            active.discard(identity)
+
+    @classmethod
+    def _credential_values(
+        cls,
+        value: Any,
+        sensitive_parent: bool = False,
+        _active: Optional[set[int]] = None,
+    ) -> set[str]:
+        """Collect configured credential values for exact substring redaction."""
+        result: set[str] = set()
+        if sensitive_parent and isinstance(value, str):
+            if len(value) >= 4:
+                result.add(value)
+            return result
+        if value is None or isinstance(value, (str, bytes, bool, int, float, Decimal)):
+            return result
+
+        active = set() if _active is None else _active
+        identity = id(value)
+        if identity in active:
+            return result
+        active.add(identity)
+        try:
+            if isinstance(value, Mapping):
+                for key, item in value.items():
+                    result.update(
+                        cls._credential_values(
+                            item,
+                            sensitive_parent or cls._is_sensitive_key(key),
+                            active,
+                        )
+                    )
+                return result
+            if isinstance(value, (list, tuple, set, frozenset)):
+                for item in value:
+                    result.update(cls._credential_values(item, sensitive_parent, active))
+                return result
+            if is_dataclass(value) and not isinstance(value, type):
+                return cls._credential_values(asdict(value), sensitive_parent, active)
+            try:
+                attributes = vars(value)
+            except (TypeError, AttributeError):
+                return result
+            return cls._credential_values(attributes, sensitive_parent, active)
+        finally:
+            active.discard(identity)
+
+    @staticmethod
+    def _replace_secret_values(value: Any, secret_values: Iterable[str]) -> Any:
+        """Replace configured secret strings inside an already copied value."""
+        if isinstance(value, Mapping):
+            return {
+                key: BtApiStore._replace_secret_values(item, secret_values)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [BtApiStore._replace_secret_values(item, secret_values) for item in value]
+        if isinstance(value, tuple):
+            return tuple(BtApiStore._replace_secret_values(item, secret_values) for item in value)
+        if isinstance(value, set):
+            return {BtApiStore._replace_secret_values(item, secret_values) for item in value}
+        if isinstance(value, frozenset):
+            return frozenset(
+                BtApiStore._replace_secret_values(item, secret_values) for item in value
+            )
+        if isinstance(value, str):
+            for secret in secret_values:
+                value = value.replace(secret, "***")
+        return value
+
+    def redact_runtime_value(self, value: Any) -> Any:
+        """Return a recursive, credential-safe copy for events and order diagnostics."""
+        secrets = set()
+        for source in (self._config, self._api_kwargs, self._sdk_exchanges):
+            secrets.update(self._credential_values(source))
+        if isinstance(value, BaseException):
+            safe_args = [
+                self._replace_secret_values(self._masked_copy(item), secrets) for item in value.args
+            ]
+            message = " ".join(str(item) for item in safe_args if item not in (None, ""))
+            return message or type(value).__name__
+        return self._replace_secret_values(self._masked_copy(value), secrets)
+
+    def sanitize_exception(self, exc: BaseException) -> BaseException:
+        """Redact exception args and attached diagnostic fields in place."""
+        try:
+            exc.args = tuple(self.redact_runtime_value(item) for item in exc.args)
+        except Exception:
+            pass
+        try:
+            for key, value in vars(exc).items():
+                setattr(exc, key, self.redact_runtime_value(value))
+        except Exception:
+            pass
+        return exc
+
+    @classmethod
+    def _mask_sensitive(cls, mapping: Optional[Mapping[Any, Any]]) -> Dict[Any, Any]:
+        """Return a recursive copy with sensitive credential values masked.
 
         Use this whenever store kwargs/config need to be logged or surfaced for
-        debugging so that secrets such as ``password`` and ``auth_code`` are
-        never written out in cleartext.
+        debugging so that secrets inside nested provider configuration are
+        never written out in cleartext. Mappings, lists, and tuples are copied;
+        the input object is not modified.
         """
-        safe: Dict[str, Any] = {}
-        for key, value in (mapping or {}).items():
-            if str(key).lower() in cls._SENSITIVE_KEYS:
-                safe[key] = "***"
-            else:
-                safe[key] = value
-        return safe
+        return cls._masked_copy(mapping or {})
+
+    @staticmethod
+    def _safe_exception_code(exc: Exception, default: str) -> str:
+        """Return a bounded error identifier without copying vendor text or URLs."""
+        value = getattr(exc, "code", None)
+        if value in (None, ""):
+            return default
+        text = str(value).strip()
+        if not text or len(text) > 128:
+            return default
+        if not all(character.isalnum() or character in "._:-" for character in text):
+            return default
+        return text
 
     def start(self, data=None, broker=None):
         """Start the store and attach broker/feed instances."""
@@ -2949,27 +3451,764 @@ class BtApiStore(LiveStoreBase):
             self._broker = broker
 
         if not self._started:
+            self._prepare_funding_refresh_start()
+            if self._sdk_mode:
+                self._prepare_sdk_start()
+                self._reset_sdk_stream_generation()
             self._ensure_api_ready()
+            if self.uses_async_commands:
+                # Resolve the optional SDK models during startup. Importing
+                # bt_api_py lazily on the first order can otherwise add tens
+                # of milliseconds to the Cerebro submission path.
+                self._warm_sdk_command_types()
+                with self._command_condition, self._risk_state_lock:
+                    self._command_accept_openings = bool(
+                        not self.requires_account_risk
+                        and not self._command_health["risk_state_unknown"]
+                    )
+                self._shutdown_state = "RUNNING"
+                self._start_command_worker()
             self._started = True
+            self._begin_funding_refresh_generation()
 
-    def stop(self):
-        """Disconnect from the underlying bt_api_py client."""
-        if not self._connected and not self._started:
+    def _reset_sdk_stream_generation(self) -> None:
+        """Discard every market-event identity from the previous SDK generation."""
+        self._stream_generation += 1
+        with self._account_risk_lock:
+            self._last_account_risk_snapshot = None
+            self._last_account_risk_snapshot_generation = None
+            self._last_account_risk_refresh_requested = 0.0
+            self._account_risk_refresh_pending = False
+        with self._sdk_identity_lock:
+            self._sdk_identity_bindings.clear()
+        self._sdk_books.clear()
+        self._sdk_ticks.clear()
+        self._sdk_book_drops.clear()
+        self._sdk_tick_drops.clear()
+        self._sdk_sequences.clear()
+        self._strategy_delivered_ids.clear()
+        self._feed_dropped_ids.clear()
+        self._market_drop_records.clear()
+        self._stream_health.clear()
+        self._stream_state.clear()
+
+    def _prepare_sdk_start(self) -> None:
+        """Reject restart while an earlier session worker can still mutate state."""
+        close_thread = self._sdk_close_thread
+        if close_thread is not None and close_thread.is_alive():
+            self._restart_blocked_by_close = True
+            raise BtApiStoreError(
+                "Cannot restart while the previous SDK close callback is still running"
+            )
+        if close_thread is not None:
+            self._sdk_close_thread = None
+            self._restart_blocked_by_close = False
+
+        worker = self._command_worker_thread
+        if worker is not None and worker.is_alive():
+            if self._restart_blocked_by_worker or self._command_stop_requested:
+                raise BtApiStoreError(
+                    "Cannot restart while the previous SDK command worker is still running"
+                )
+            return
+        if worker is not None:
+            self._command_worker_thread = None
+        if not self._restart_blocked_by_worker:
             return
 
-        if self._connected:
-            self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
+        # The old worker has now exited, so its session-local identities can be
+        # discarded before a new generation is allowed to begin.
+        self._restart_blocked_by_worker = False
+        self._sdk_client_refs.clear()
+        self._sdk_venue_refs.clear()
+        self._sdk_local_refs.clear()
+        self._sdk_books.clear()
+        self._sdk_ticks.clear()
+        self._sdk_sequences.clear()
+        self._clear_sdk_updates("session_restart")
+        self._sdk_configured = False
+        if self._sdk_owned_api and self._api is not None:
+            stale_api = self._api
+            self._api = None
+            close = getattr(stale_api, "close", None)
+            if callable(close):
+                closed, close_error, close_thread = self._bounded_call(
+                    close, self._command_shutdown_timeout
+                )
+                self._sdk_close_thread = close_thread
+                if not closed:
+                    self._restart_blocked_by_close = True
+                    self._command_health["close_timeouts"] += 1
+                    self._shutdown_state = "INCOMPLETE"
+                    raise BtApiStoreError(
+                        "Cannot restart while the previous SDK close callback is still running"
+                    )
+                self._sdk_close_thread = None
+                if close_error is not None:
+                    self._command_health["close_failures"] += 1
+                    self._command_last_error = self._safe_exception_code(
+                        close_error, type(close_error).__name__
+                    )
+                    self._shutdown_state = "FAIL"
 
-        if self._api is not None:
-            if hasattr(self._api, "disconnect"):
-                self._api.disconnect()
-            elif hasattr(self._api, "stop"):
-                self._api.stop()
+    def _prepare_funding_refresh_start(self) -> None:
+        """Reject restart until a timed-out metadata reader has exited."""
+        stale_owned_api = None
+        with self._funding_condition:
+            worker = self._funding_worker_thread
+            if self._funding_direct_inflight:
+                self._funding_restart_blocked_by_worker = True
+                raise BtApiStoreError(
+                    "Cannot restart while the previous funding refresh worker is still running"
+                )
+            if worker is not None and worker.is_alive():
+                if self._funding_restart_blocked_by_worker or self._funding_stop_requested:
+                    raise BtApiStoreError(
+                        "Cannot restart while the previous funding refresh worker is still running"
+                    )
+                return
+            if worker is not None:
+                self._funding_worker_thread = None
+            if self._funding_restart_blocked_by_worker:
+                self._funding_restart_blocked_by_worker = False
+                if self._sdk_owned_api and self._api is not None:
+                    stale_owned_api = self._api
+                    self._api = None
+                    self._sdk_configured = False
 
-        self._connected = False
-        self._started = False
-        self._subscribed_datanames.clear()
-        self.emit_runtime_event("store_disconnected", status="disconnected")
+        if stale_owned_api is not None:
+            close = getattr(stale_owned_api, "close", None)
+            if callable(close):
+                closed, close_error, close_thread = self._bounded_call(
+                    close, self._command_shutdown_timeout
+                )
+                self._sdk_close_thread = close_thread
+                if not closed:
+                    self._restart_blocked_by_close = True
+                    self._shutdown_state = "INCOMPLETE"
+                    raise BtApiStoreError(
+                        "Cannot restart while the previous SDK close callback is still running"
+                    )
+                self._sdk_close_thread = None
+                if close_error is not None:
+                    self._shutdown_state = "FAIL"
+                    raise BtApiStoreError("The previous SDK client could not be closed safely")
+
+    def _begin_funding_refresh_generation(self) -> None:
+        """Create an empty cache generation for the newly started Store session."""
+        with self._funding_condition:
+            self._funding_generation += 1
+            self._funding_cache.clear()
+            self._funding_last_errors.clear()
+            self._funding_last_requested.clear()
+            self._funding_queue.clear()
+            self._funding_pending.clear()
+            self._funding_inflight_key = None
+            self._funding_stop_requested = False
+            self._funding_accept_results = True
+            self._funding_restart_blocked_by_worker = False
+            self._funding_condition.notify_all()
+
+    def freeze_openings(self, reason: str = "shutdown") -> None:
+        """Reject future opening placements while preserving risk-reducing capacity."""
+        with self._command_condition:
+            self._command_accept_openings = False
+        self.emit_runtime_event(
+            "order_openings_frozen",
+            status="frozen",
+            details={"reason": str(reason)},
+        )
+
+    def latch_execution_evidence_loss(self, reason: str) -> Dict[str, Any]:
+        """Freeze exposure after Broker detects a ledger-identity contradiction."""
+        epoch = self._latch_risk_state_unknown(reason)
+        rejected = self._reject_pending_openings_after_unknown(reason, reserve_publications=True)
+        try:
+            for completion in rejected:
+                self._append_sdk_update(completion)
+        finally:
+            if rejected:
+                with self._command_condition:
+                    self._command_publications_pending -= len(rejected)
+                    self._command_condition.notify_all()
+        self.emit_runtime_event(
+            "execution_evidence_lost",
+            level="ERROR",
+            status="frozen",
+            error_code=str(reason),
+            details={
+                "risk_incident_epoch": epoch,
+                "rejected_pending_openings": len(rejected),
+            },
+        )
+        return {
+            "risk_incident_epoch": epoch,
+            "rejected_pending_openings": len(rejected),
+            "accepting_openings": False,
+        }
+
+    def enable_openings_after_account_risk(self) -> Dict[str, Any]:
+        """Unlock SDK openings only after a fresh identity-bound durable baseline."""
+        if not self.requires_account_risk:
+            self._enable_openings_after_safety_gate()
+            return {"enabled": True, "account_risk_required": False}
+        snapshot = self._read_account_risk_snapshot(self._ensure_api_ready())
+        if (
+            snapshot.get("evidence_complete") is not True
+            or snapshot.get("durable") is not True
+            or snapshot.get("trading_blocked") is not False
+            or not snapshot.get("identity_binding_sha256")
+        ):
+            with self._command_condition:
+                self._command_accept_openings = False
+            raise BtApiStoreError("account_risk_baseline_not_proven")
+        self._enable_openings_after_safety_gate()
+        self.emit_runtime_event(
+            "order_openings_enabled",
+            status="enabled",
+            details={"reason": "account_risk_baseline_proven"},
+        )
+        return {"enabled": True, "account_risk_required": True}
+
+    def _enable_openings_after_safety_gate(self) -> None:
+        """Enable openings only from one idle, conserved and reconciled state."""
+        with self._sdk_update_lock, self._command_condition, self._risk_state_lock:
+            ingress = self._command_health["broker_update_ingress"]
+            delivered = self._command_health["broker_update_delivered"]
+            dropped = self._command_health["broker_update_dropped"]
+            update_depth = len(self._sdk_updates)
+            if (
+                self._command_health["risk_state_unknown"]
+                or self._command_heap
+                or self._command_inflight
+                or self._command_publications_pending
+                or update_depth
+                or ingress != delivered + dropped + update_depth
+            ):
+                self._command_accept_openings = False
+                raise BtApiStoreError("risk_state_reconcile_required")
+            self._command_accept_openings = True
+
+    def _start_funding_refresh_worker_locked(self) -> None:
+        """Start the single read-only metadata worker while holding its condition."""
+        worker = self._funding_worker_thread
+        if worker is not None and worker.is_alive():
+            return
+        worker = threading.Thread(
+            target=self._run_funding_refresh_worker,
+            name=f"BtApiStoreFunding-{self.session_id}",
+            daemon=True,
+        )
+        self._funding_worker_thread = worker
+        worker.start()
+
+    def _run_funding_refresh_worker(self) -> None:
+        """Serialize funding reads independently of the order command worker."""
+        current = threading.current_thread()
+        try:
+            while True:
+                with self._funding_condition:
+                    while not self._funding_queue and not self._funding_stop_requested:
+                        self._funding_condition.wait(timeout=0.05)
+                    if self._funding_stop_requested and not self._funding_queue:
+                        return
+                    generation, key, dataname, api = self._funding_queue.popleft()
+                    if (
+                        generation != self._funding_generation
+                        or not self._funding_accept_results
+                        or api is not self._api
+                    ):
+                        self._funding_pending.discard(key)
+                        self._funding_health["stale_generation_results"] += 1
+                        self._funding_condition.notify_all()
+                        continue
+                    self._funding_inflight_key = key
+                    self._funding_health["dequeued"] += 1
+
+                snapshot = None
+                error = None
+                try:
+                    with self._funding_transport_lock:
+                        with self._funding_condition:
+                            can_read = bool(
+                                generation == self._funding_generation
+                                and self._funding_accept_results
+                                and api is self._api
+                            )
+                        if can_read:
+                            snapshot = self._read_funding_snapshot_from_api(api, dataname)
+                except Exception as exc:
+                    self.sanitize_exception(exc)
+                    error = exc
+
+                with self._funding_condition:
+                    self._funding_pending.discard(key)
+                    self._funding_inflight_key = None
+                    if (
+                        generation != self._funding_generation
+                        or not self._funding_accept_results
+                        or api is not self._api
+                    ):
+                        self._funding_health["stale_generation_results"] += 1
+                    elif error is not None:
+                        self._record_funding_refresh_error_locked(key, error, generation)
+                    elif snapshot is not None:
+                        self._publish_funding_snapshot_locked(key, snapshot, generation)
+                    self._funding_condition.notify_all()
+        finally:
+            with self._funding_condition:
+                if self._funding_worker_thread is current:
+                    self._funding_worker_thread = None
+                self._funding_inflight_key = None
+                self._funding_condition.notify_all()
+
+    def _signal_funding_refresh_stop(self) -> None:
+        """Fence publications and discard metadata work that has not started."""
+        with self._funding_condition:
+            self._funding_accept_results = False
+            self._funding_stop_requested = True
+            while self._funding_queue:
+                _generation, key, _dataname, _api = self._funding_queue.popleft()
+                self._funding_pending.discard(key)
+                self._funding_health["discarded_unsent"] += 1
+            self._funding_condition.notify_all()
+
+    def _stop_funding_refresh_worker(self, timeout: float) -> bool:
+        """Wait a bounded interval for the read-only metadata worker."""
+        self._signal_funding_refresh_stop()
+        deadline = time.monotonic() + max(float(timeout), 0.0)
+        with self._funding_condition:
+            while self._funding_direct_inflight:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self._funding_health["worker_stop_timeouts"] += 1
+                    self._funding_restart_blocked_by_worker = True
+                    return False
+                self._funding_condition.wait(timeout=remaining)
+            worker = self._funding_worker_thread
+        if worker is None:
+            return True
+        worker.join(max(deadline - time.monotonic(), 0.0))
+        stopped = not worker.is_alive()
+        with self._funding_condition:
+            if stopped and self._funding_worker_thread is worker:
+                self._funding_worker_thread = None
+            if not stopped:
+                self._funding_health["worker_stop_timeouts"] += 1
+                self._funding_restart_blocked_by_worker = True
+            self._funding_condition.notify_all()
+        return stopped
+
+    def _start_command_worker(self) -> None:
+        """Start one daemon thread containing the SDK command asyncio worker."""
+        worker = self._command_worker_thread
+        if worker is not None and worker.is_alive():
+            if self._restart_blocked_by_worker or self._command_stop_requested:
+                raise BtApiStoreError(
+                    "Cannot restart while the previous SDK command worker is still running"
+                )
+            return
+        if self._restart_blocked_by_worker:
+            self._prepare_sdk_start()
+        self._command_stop_requested = False
+        self._command_generation += 1
+        generation = self._command_generation
+        self._command_worker_generation = generation
+        self._accept_command_completions = True
+        worker = threading.Thread(
+            target=self._run_command_worker,
+            args=(generation,),
+            name=f"BtApiStoreCommand-{self.session_id}",
+            daemon=True,
+        )
+        self._command_worker_thread = worker
+        worker.start()
+
+    def _run_command_worker(self, generation: int) -> None:
+        try:
+            asyncio.run(self._command_worker(generation))
+        except Exception as exc:
+            self._command_health["worker_failures"] += 1
+            self._command_last_error = self._safe_exception_code(exc, type(exc).__name__)
+        finally:
+            with self._command_condition:
+                self._command_condition.notify_all()
+
+    async def _command_worker(self, generation: int) -> None:
+        """Execute prioritized SDK commands serially outside the Cerebro thread."""
+        while True:
+            with self._command_condition:
+                while not self._command_heap and not self._command_stop_requested:
+                    self._command_condition.wait(timeout=0.05)
+                if self._command_stop_requested:
+                    return
+                _, _, command = heapq.heappop(self._command_heap)
+                if command.get("session_generation") != generation:
+                    self._record_command_drop_locked(command, "stale_session_generation")
+                    continue
+                if command.get("priority") == "open" and not self._command_accept_openings:
+                    self._record_command_drop_locked(command, "openings_frozen_before_send")
+                    completion = self._unsent_command_completion(
+                        command, "openings_frozen_before_send"
+                    )
+                else:
+                    completion = None
+                if completion is not None:
+                    self._command_health["dequeued"] += 1
+                    self._command_publications_pending += 1
+                else:
+                    self._command_inflight += 1
+                    self._command_inflight_receipt_id = command.get("receipt_id")
+                    self._command_inflight_operation = command.get("operation")
+                    self._command_health["dequeued"] += 1
+
+            if completion is not None:
+                try:
+                    self._append_sdk_update(completion)
+                finally:
+                    with self._command_condition:
+                        self._command_publications_pending -= 1
+                        self._command_condition.notify_all()
+                continue
+
+            try:
+                completion = await self._execute_sdk_command(command)
+                rejected_openings = []
+                if completion.get("execution_unknown") is True:
+                    rejected_openings = self._reject_pending_openings_after_unknown(
+                        "execution_unknown"
+                    )
+                self._append_sdk_update(completion)
+                for rejected in rejected_openings:
+                    self._append_sdk_update(rejected)
+            finally:
+                with self._command_condition:
+                    self._command_inflight -= 1
+                    if self._command_inflight_receipt_id == command.get("receipt_id"):
+                        self._command_inflight_receipt_id = None
+                        self._command_inflight_operation = None
+                    self._command_condition.notify_all()
+
+    def _record_command_drop_locked(self, command: Mapping[str, Any], reason: str) -> None:
+        """Record identity for a command discarded while holding the queue lock."""
+        priority = str(command.get("priority") or "unknown")
+        self._command_health["discarded_unsent"] += 1
+        self._command_health[f"discarded_{priority}"] += 1
+        if priority != "open":
+            self._command_health["risk_command_rejected"] += 1
+            self._latch_risk_state_unknown(reason)
+        if command.get("operation") == "account_risk":
+            with self._account_risk_lock:
+                self._account_risk_refresh_pending = False
+        self._command_drop_records.append(
+            {
+                "reason": str(reason),
+                "command": str(command.get("operation") or ""),
+                "bt_order_ref": command.get("bt_order_ref"),
+                "client_order_id": command.get("client_order_id"),
+                "exchange_name": command.get("venue"),
+                "session_generation": command.get("session_generation"),
+            }
+        )
+
+    @staticmethod
+    def _unsent_command_completion(command: Mapping[str, Any], reason: str) -> Dict[str, Any]:
+        """Return an auditable terminal result for a command never sent remotely."""
+        return {
+            "kind": "command_completion",
+            "command": command.get("operation"),
+            "receipt_id": command.get("receipt_id"),
+            "bt_order_ref": command.get("bt_order_ref"),
+            "client_order_id": command.get("client_order_id"),
+            "data_name": command.get("symbol"),
+            "exchange_name": command.get("venue"),
+            "priority": command.get("priority"),
+            "session_generation": command.get("session_generation"),
+            "success": False,
+            "status": "rejected",
+            "execution_unknown": False,
+            "definite_reject": True,
+            "terminal_confirmed": True,
+            "remote_write_attempted": False,
+            "error_code": str(reason),
+            "error_msg": "Opening command was rejected locally before remote transport",
+            "completed_monotonic_ns": time.monotonic_ns(),
+        }
+
+    def _reject_pending_openings_after_unknown(
+        self, reason: str, *, reserve_publications: bool = False
+    ) -> List[Dict[str, Any]]:
+        """Freeze exposure and remove only unsent opening commands from the heap."""
+        self.freeze_openings(reason)
+        rejected = []
+        with self._command_condition:
+            retained = []
+            while self._command_heap:
+                item = heapq.heappop(self._command_heap)
+                command = item[2]
+                if command.get("priority") != "open":
+                    retained.append(item)
+                    continue
+                self._record_command_drop_locked(command, "openings_frozen_after_unknown")
+                rejected.append(
+                    self._unsent_command_completion(command, "openings_frozen_after_unknown")
+                )
+            for item in retained:
+                heapq.heappush(self._command_heap, item)
+            if reserve_publications:
+                # Reserve the publication window before releasing the queue
+                # lock. Concurrent drain/stop callers must not close the update
+                # channel between purging an opening and publishing its local
+                # terminal rejection.
+                self._command_publications_pending += len(rejected)
+            self._command_condition.notify_all()
+        return rejected
+
+    def _latch_risk_state_unknown(self, reason: str) -> int:
+        """Atomically freeze openings and advance the loss-of-evidence incident epoch."""
+        with self._command_condition:
+            self._command_accept_openings = False
+            with self._risk_state_lock:
+                self._risk_incident_epoch += 1
+                self._command_health["risk_state_unknown"] = 1
+                self._last_risk_incident_reason = str(reason)
+                return self._risk_incident_epoch
+
+    def _current_risk_incident_epoch(self) -> int:
+        with self._risk_state_lock:
+            return self._risk_incident_epoch
+
+    def _discard_pending_commands_locked(self, reason: str) -> int:
+        """Discard every command that has not begun network execution."""
+        count = 0
+        while self._command_heap:
+            _, _, command = heapq.heappop(self._command_heap)
+            self._record_command_drop_locked(command, reason)
+            count += 1
+        return count
+
+    def wait_for_commands(
+        self, timeout: Optional[float] = None, *, stop_on_timeout: bool = False
+    ) -> bool:
+        """Wait a bounded interval for queued and in-flight SDK commands."""
+        timeout = self._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
+        deadline = time.monotonic() + timeout
+        with self._command_condition:
+            while (
+                self._command_heap or self._command_inflight or self._command_publications_pending
+            ):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    self._command_health["drain_timeouts"] += 1
+                    if stop_on_timeout:
+                        self._command_stop_requested = True
+                        self._accept_command_completions = False
+                        self._discard_pending_commands_locked("shutdown_deadline")
+                        self._command_condition.notify_all()
+                    return False
+                self._command_condition.wait(timeout=remaining)
+        return True
+
+    def _stop_command_worker(self, timeout: float, *, discard_pending: bool = False) -> bool:
+        with self._command_condition:
+            self._command_stop_requested = True
+            self._accept_command_completions = False
+            if discard_pending:
+                self._discard_pending_commands_locked("shutdown_deadline")
+            self._command_condition.notify_all()
+        worker = self._command_worker_thread
+        if worker is None:
+            return True
+        worker.join(max(float(timeout), 0.0))
+        stopped = not worker.is_alive()
+        if stopped:
+            self._command_worker_thread = None
+        else:
+            self._command_health["worker_stop_timeouts"] += 1
+        return stopped
+
+    @staticmethod
+    def _bounded_call(
+        callback, timeout: float
+    ) -> Tuple[bool, Optional[BaseException], threading.Thread]:
+        """Run a shutdown callback in a daemon thread and bound the caller's wait."""
+        outcome: List[Optional[BaseException]] = [None]
+
+        def invoke():
+            try:
+                callback()
+            except BaseException as exc:  # preserve shutdown evidence without escaping the thread
+                outcome[0] = exc
+
+        thread = threading.Thread(target=invoke, name="BtApiStoreClose", daemon=True)
+        thread.start()
+        thread.join(max(float(timeout), 0.0))
+        return not thread.is_alive(), outcome[0], thread
+
+    def _bounded_sdk_close(self, api: Any, timeout: float) -> Tuple[bool, Optional[BaseException]]:
+        """Close one SDK client within the caller's deadline and record the outcome."""
+        close = getattr(api, "close", None)
+        if not callable(close):
+            close_error = BtApiStoreError("The SDK client does not expose close()")
+            self._command_health["close_failures"] += 1
+            self._command_last_error = type(close_error).__name__
+            self._shutdown_state = "FAIL"
+            return True, close_error
+
+        closed, close_error, close_thread = self._bounded_call(close, timeout)
+        self._sdk_close_generation = self._command_generation
+        self._sdk_close_thread = close_thread
+        if not closed:
+            self._command_health["close_timeouts"] += 1
+            self._shutdown_state = "INCOMPLETE"
+            self._restart_blocked_by_close = True
+        elif close_error is not None:
+            self._sdk_close_thread = None
+            self._command_health["close_failures"] += 1
+            self._command_last_error = self._safe_exception_code(
+                close_error, type(close_error).__name__
+            )
+            self._shutdown_state = "FAIL"
+            self._restart_blocked_by_close = False
+        else:
+            self._sdk_close_thread = None
+            self._restart_blocked_by_close = False
+        return closed, close_error
+
+    def stop(self, timeout: Optional[float] = None):
+        """Bound command draining and disconnect the underlying client."""
+        deadline = time.monotonic() + (
+            self._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
+        )
+        self._signal_funding_refresh_stop()
+        if self._sdk_mode and not self.uses_async_commands:
+            return self._stop_synchronous_sdk(max(deadline - time.monotonic(), 0.0))
+        self._venue_balance_cache = {}
+        self._last_venue_balance_refresh = 0.0
+        partial_owned_sdk = self._sdk_mode and self._sdk_owned_api and self._api is not None
+        if not self._connected and not self._started and not partial_owned_sdk:
+            return self.get_command_health()
+
+        worker_stopped = True
+        if self._sdk_mode:
+            self.freeze_openings("store_stop")
+            drained = self.wait_for_commands(
+                max(deadline - time.monotonic(), 0.0), stop_on_timeout=True
+            )
+            worker_stopped = self._stop_command_worker(
+                max(deadline - time.monotonic(), 0.0),
+                discard_pending=not drained,
+            )
+            if not drained or not worker_stopped:
+                self._shutdown_state = "INCOMPLETE"
+            if not worker_stopped:
+                self._restart_blocked_by_worker = True
+
+        # Metadata I/O has its own lane, so a slow funding endpoint cannot
+        # delay cancellation/close processing above. It must nevertheless
+        # finish before the shared SDK object can be closed or reused.
+        funding_worker_stopped = self._stop_funding_refresh_worker(
+            max(deadline - time.monotonic(), 0.0)
+        )
+        if not funding_worker_stopped:
+            self._shutdown_state = "INCOMPLETE"
+
+        try:
+            if self._connected:
+                self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
+
+            if self._api is not None and funding_worker_stopped:
+                if self._sdk_mode:
+                    self._cache_account_risk_snapshot_before_shutdown()
+                    try:
+                        if hasattr(self._api, "get_execution_summary"):
+                            self._last_execution_summary = deepcopy(
+                                self._api.get_execution_summary()
+                            )
+                    finally:
+                        if worker_stopped:
+                            self._bounded_sdk_close(
+                                self._api,
+                                max(deadline - time.monotonic(), 0.0),
+                            )
+                elif hasattr(self._api, "disconnect"):
+                    self._api.disconnect()
+                elif hasattr(self._api, "stop"):
+                    self._api.stop()
+        finally:
+            if self._sdk_mode:
+                # An owned SDK that failed while closing is in an unknown
+                # transport state and must never be reused on a later start.
+                if self._sdk_owned_api and worker_stopped and funding_worker_stopped:
+                    self._api = None
+                if worker_stopped and funding_worker_stopped:
+                    self._sdk_configured = False
+                    # These bindings and queues describe one in-memory SDK session.
+                    self._sdk_client_refs.clear()
+                    self._sdk_venue_refs.clear()
+                    self._sdk_local_refs.clear()
+                    self._sdk_books.clear()
+                    self._sdk_ticks.clear()
+                    self._clear_sdk_updates("store_stopped")
+                    self._sdk_book_drops.clear()
+                    self._sdk_tick_drops.clear()
+                    self._sdk_sequences.clear()
+                    if not self._restart_blocked_by_close and self._shutdown_state not in {
+                        "INCOMPLETE",
+                        "FAIL",
+                    }:
+                        self._shutdown_state = "PASS"
+            self._connected = False
+            self._started = False
+            self._subscribed_datanames.clear()
+            self.emit_runtime_event("store_disconnected", status="disconnected")
+        return self.get_command_health()
+
+    def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
+        """Preserve the pre-worker lifecycle for SDK-compatible fixture/legacy clients."""
+        self._venue_balance_cache = {}
+        self._last_venue_balance_refresh = 0.0
+        self._sdk_client_refs.clear()
+        self._sdk_venue_refs.clear()
+        self._sdk_local_refs.clear()
+        self._sdk_books.clear()
+        self._sdk_ticks.clear()
+        self._clear_sdk_updates("store_stopped")
+        self._sdk_book_drops.clear()
+        self._sdk_tick_drops.clear()
+        funding_worker_stopped = self._stop_funding_refresh_worker(
+            self._command_shutdown_timeout if timeout is None else timeout
+        )
+        partial_owned_sdk = self._sdk_owned_api and self._api is not None
+        if not self._connected and not self._started and not partial_owned_sdk:
+            return self.get_command_health()
+        try:
+            if self._connected:
+                self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
+            if self._api is not None and funding_worker_stopped:
+                self._cache_account_risk_snapshot_before_shutdown()
+                try:
+                    if hasattr(self._api, "get_execution_summary"):
+                        self._last_execution_summary = deepcopy(self._api.get_execution_summary())
+                finally:
+                    self._bounded_sdk_close(self._api, timeout or 0.0)
+        finally:
+            if not funding_worker_stopped:
+                self._shutdown_state = "INCOMPLETE"
+            if self._sdk_owned_api and funding_worker_stopped:
+                self._api = None
+            if funding_worker_stopped:
+                self._sdk_configured = False
+                if not self._restart_blocked_by_close and self._shutdown_state not in {
+                    "INCOMPLETE",
+                    "FAIL",
+                }:
+                    self._shutdown_state = "PASS"
+            self._connected = False
+            self._started = False
+            self._subscribed_datanames.clear()
+            self.emit_runtime_event("store_disconnected", status="disconnected")
+        return self.get_command_health()
 
     def getbroker(self, *args, **kwargs):
         """Return a BtApiBroker bound to this store."""
@@ -2997,6 +4236,19 @@ class BtApiStore(LiveStoreBase):
         data._store = self
         return data
 
+    def set_source_stop_callback(self, callback) -> bool:
+        """Register an optional fixture/source exhaustion callback.
+
+        Live ``BtApi`` transports normally stop through broker/store lifecycle
+        events. Deterministic replay clients may expose this small hook so a
+        runner never reaches through the Store's private client attribute.
+        """
+        setter = getattr(self._api, "set_stop_callback", None)
+        if not callable(setter):
+            return False
+        setter(callback)
+        return True
+
     def get_cash(self) -> float:
         """Return cached available cash."""
         self.get_balance()
@@ -3008,9 +4260,20 @@ class BtApiStore(LiveStoreBase):
         return self._value
 
     def supports_position_mode(self, mode: str) -> bool:
-        """Return whether the configured provider advertises a position mode."""
+        """Return whether this Store can represent the requested local position mode.
+
+        This is a Backtrader ledger capability check.  The remote account's
+        actual mode is queried separately through :meth:`get_account_config`;
+        callers must validate that result before submitting live or demo orders.
+        """
         mode = str(mode or "net").strip().lower()
         if mode != "dual_side":
+            return True
+
+        if self._sdk_mode:
+            # The normalized SDK contract can retain explicit long/short legs.
+            # It does not prove that the routed exchange account is configured
+            # for dual-side execution; get_account_config provides that proof.
             return True
 
         if self._api is not None and hasattr(self._api, "supports_position_mode"):
@@ -3037,7 +4300,11 @@ class BtApiStore(LiveStoreBase):
         api = self._ensure_api_ready()
 
         try:
-            if hasattr(api, "get_balance"):
+            if self._sdk_mode:
+                balance = api.get_portfolio_balance(
+                    venue_balances=self.get_venue_balances(force=force)
+                )
+            elif hasattr(api, "get_balance"):
                 balance = api.get_balance()
             elif hasattr(api, "get_account"):
                 balance = api.get_account()
@@ -3085,11 +4352,39 @@ class BtApiStore(LiveStoreBase):
         api = self._ensure_api_ready()
 
         try:
-            if hasattr(api, "get_positions"):
+            if self._sdk_mode:
+                positions = []
+                for venue in self._sdk_exchanges:
+                    venue_positions = self._require_sdk_list_result(
+                        api.get_position(venue, None, normalized=True),
+                        "get_position",
+                        venue,
+                    )
+                    for row in venue_positions:
+                        item = dict(row)
+                        amount = float(item["quantity"])
+                        # Account snapshots may include every listed contract.
+                        # Empty rows are not positions for the broker to hydrate.
+                        if amount == 0.0:
+                            continue
+                        side = item["position_side"]
+                        direction = ("short" if amount < 0 else "long") if side == "net" else side
+                        item.update(
+                            data_name=item["symbol"],
+                            volume=abs(amount),
+                            size=-abs(amount) if direction == "short" else abs(amount),
+                            direction=direction,
+                        )
+                        positions.append(item)
+            elif hasattr(api, "get_positions"):
                 positions = api.get_positions()
             else:
                 positions = []
-        except AttributeError:
+        except AttributeError as exc:
+            if self._sdk_mode or raise_errors:
+                raise BtApiStoreError(
+                    f"Failed to query positions through bt_api_py: {exc}"
+                ) from exc
             positions = []
         except Exception:
             if not raise_errors and self._last_positions_refresh > 0.0:
@@ -3125,7 +4420,11 @@ class BtApiStore(LiveStoreBase):
             return
 
         if hasattr(api, "subscribe"):
-            api.subscribe(dataname)
+            if self._sdk_mode:
+                venue = self._sdk_exchange(dataname)
+                api.subscribe(f"{venue}___{dataname}", [{"topic": "depth", "symbol": dataname}])
+            else:
+                api.subscribe(dataname)
             self._subscribed_datanames.add(dataname)
             self.emit_runtime_event(
                 "market_data_subscribe_request",
@@ -3200,13 +4499,26 @@ class BtApiStore(LiveStoreBase):
         api = self._ensure_api_ready()
 
         try:
-            if hasattr(api, "fetch_open_orders"):
+            if self._sdk_mode:
+                orders = []
+                for venue in self._sdk_exchanges:
+                    venue_orders = self._require_sdk_list_result(
+                        api.get_open_orders(venue, None, normalized=True),
+                        "get_open_orders",
+                        venue,
+                    )
+                    orders.extend(self._sdk_broker_event(venue, row) for row in venue_orders)
+            elif hasattr(api, "fetch_open_orders"):
                 orders = api.fetch_open_orders()
             elif hasattr(api, "get_open_orders"):
                 orders = api.get_open_orders()
             else:
                 orders = []
-        except AttributeError:
+        except AttributeError as exc:
+            if self._sdk_mode or raise_errors:
+                raise BtApiStoreError(
+                    f"Failed to query open orders through bt_api_py: {exc}"
+                ) from exc
             orders = []
         except Exception:
             if not raise_errors and self._last_open_orders_refresh > 0.0:
@@ -3231,7 +4543,10 @@ class BtApiStore(LiveStoreBase):
             return cast(Optional[Dict[str, Any]], self._live_bars[dataname].popleft())
 
         api = self._ensure_api_ready()
-        if hasattr(api, "poll_bar"):
+        if self._sdk_mode:
+            self._drain_sdk_events()
+            bar = self._live_bars[dataname].popleft() if self._live_bars[dataname] else None
+        elif hasattr(api, "poll_bar"):
             bar = api.poll_bar(dataname)
         elif hasattr(api, "get_next_bar"):
             bar = api.get_next_bar(dataname)
@@ -3249,6 +4564,12 @@ class BtApiStore(LiveStoreBase):
             return None
 
         api = self._ensure_api_ready()
+        if self._sdk_mode:
+            self._drain_sdk_events()
+            tick = self._sdk_ticks[dataname].popleft() if self._sdk_ticks[dataname] else None
+            if tick is not None:
+                self._mark_feed_inflight(tick)
+            return tick
         if hasattr(api, "poll_tick"):
             return api.poll_tick(dataname)
         if hasattr(api, "get_next_tick"):
@@ -3261,6 +4582,12 @@ class BtApiStore(LiveStoreBase):
             return None
 
         api = self._ensure_api_ready()
+        if self._sdk_mode:
+            self._drain_sdk_events()
+            book = self._sdk_books[dataname].popleft() if self._sdk_books[dataname] else None
+            if book is not None:
+                self._mark_feed_inflight(book)
+            return book
         if hasattr(api, "poll_orderbook"):
             return api.poll_orderbook(dataname)
         if hasattr(api, "get_next_orderbook"):
@@ -3273,6 +4600,9 @@ class BtApiStore(LiveStoreBase):
             return False
 
         api = self._ensure_api_ready()
+        if self._sdk_mode:
+            self._drain_sdk_events()
+            return bool(self._sdk_ticks[dataname])
         if hasattr(api, "has_pending_tick"):
             return bool(api.has_pending_tick(dataname))
 
@@ -3288,6 +4618,9 @@ class BtApiStore(LiveStoreBase):
             return False
 
         api = self._ensure_api_ready()
+        if self._sdk_mode:
+            self._drain_sdk_events()
+            return bool(self._sdk_books[dataname])
         if hasattr(api, "has_pending_orderbook"):
             return bool(api.has_pending_orderbook(dataname))
 
@@ -3303,6 +4636,8 @@ class BtApiStore(LiveStoreBase):
             return False
 
         api = self._ensure_api_ready()
+        if self._sdk_mode:
+            return dataname in self._sdk_routes or len(self._sdk_exchanges) == 1
         if hasattr(api, "supports_live_ticks"):
             return bool(api.supports_live_ticks(dataname))
 
@@ -3318,6 +4653,8 @@ class BtApiStore(LiveStoreBase):
             return False
 
         api = self._ensure_api_ready()
+        if self._sdk_mode:
+            return dataname in self._sdk_routes or len(self._sdk_exchanges) == 1
         if hasattr(api, "supports_live_orderbook"):
             return bool(api.supports_live_orderbook(dataname))
 
@@ -3333,18 +4670,1047 @@ class BtApiStore(LiveStoreBase):
             return None
 
         api = self._ensure_api_ready()
-        if not hasattr(api, "poll_broker_update"):
+        if self._sdk_mode:
+            self._drain_sdk_events()
+            with self._sdk_update_lock:
+                update = self._sdk_updates.popleft() if self._sdk_updates else None
+                if update is not None:
+                    self._command_health["broker_update_delivered"] += 1
+        elif hasattr(api, "poll_broker_update"):
+            update = api.poll_broker_update()
+        else:
             return None
-
-        update = api.poll_broker_update()
         if update is None:
             return None
 
+        if (
+            self._sdk_mode
+            and update.get("kind") == "command_completion"
+            and update.get("command") == "reconcile"
+            and update.get("success") is True
+        ):
+            self._maybe_clear_risk_state_latch(
+                update.get("response"),
+                incident_epoch=update.get("risk_incident_epoch_at_enqueue"),
+                allow_current_reconcile_inflight=True,
+                current_reconcile_receipt_id=update.get("receipt_id"),
+            )
+
+        update = self.redact_runtime_value(update)
         self._emit_broker_runtime_event(update)
         return update
 
+    def _maybe_clear_risk_state_latch(
+        self,
+        snapshot: Any,
+        *,
+        incident_epoch: Optional[int],
+        allow_current_reconcile_inflight: bool = False,
+        current_reconcile_receipt_id: Optional[str] = None,
+    ) -> bool:
+        """Clear the active loss-of-evidence latch after a fully settled flat reconcile."""
+        if type(incident_epoch) is not int or incident_epoch < 0:
+            return False
+        if not isinstance(snapshot, Mapping):
+            return False
+        if (
+            snapshot.get("evidence_complete") is not True
+            or snapshot.get("evidence_errors")
+            or snapshot.get("trading_blocked") is not False
+        ):
+            return False
+        configured = snapshot.get("configured_venues")
+        reconciled = snapshot.get("reconciled_venues")
+        if (
+            type(configured) is not list
+            or type(reconciled) is not list
+            or not configured
+            or len(configured) != len(set(configured))
+            or sorted(configured) != sorted(reconciled)
+        ):
+            return False
+        if type(snapshot.get("unknown_ids")) is not list or snapshot["unknown_ids"]:
+            return False
+        if type(snapshot.get("open_orders")) is not list or snapshot["open_orders"]:
+            return False
+        positions = snapshot.get("positions")
+        if type(positions) is not list:
+            return False
+        for row in positions:
+            if not isinstance(row, Mapping) or "quantity" not in row:
+                return False
+            try:
+                quantity = float(row["quantity"])
+            except (TypeError, ValueError, OverflowError):
+                return False
+            if not math.isfinite(quantity) or abs(quantity) > 1e-12:
+                return False
+        summary = snapshot.get("execution_summary")
+        if not isinstance(summary, Mapping):
+            return False
+        if (
+            type(summary.get("active_orders")) is not int
+            or summary["active_orders"] != 0
+            or summary.get("session_enabled") is not True
+            or summary.get("trading_blocked") is not False
+            or summary.get("evidence_complete") is not True
+            or summary.get("evidence_errors")
+            or type(summary.get("reconciliation_errors")) is not dict
+            or summary["reconciliation_errors"]
+        ):
+            return False
+        for key in ("unknown_ids", "fee_unresolved_orders", "funding_unresolved_orders"):
+            value = summary.get(key)
+            if type(value) is not list or value:
+                return False
+        generation = snapshot.get("generation")
+        summary_generation = summary.get("generation")
+        fencing_epoch = snapshot.get("fencing_epoch")
+        summary_fencing_epoch = summary.get("fencing_epoch")
+        if (
+            type(generation) is not int
+            or generation != self._command_generation
+            or summary_generation != generation
+            or type(fencing_epoch) is not int
+            or fencing_epoch <= 0
+            or summary_fencing_epoch != fencing_epoch
+            or not snapshot.get("identity_binding_sha256")
+            or snapshot.get("identity_binding_sha256") != summary.get("identity_binding_sha256")
+        ):
+            return False
+        # Compare-and-clear under the single lock order used whenever update,
+        # command and risk state must be viewed atomically. A reconcile that
+        # began before a newer incident can never erase that incident.
+        with self._sdk_update_lock, self._command_condition, self._risk_state_lock:
+            update_depth = len(self._sdk_updates)
+            ingress = self._command_health["broker_update_ingress"]
+            delivered = self._command_health["broker_update_delivered"]
+            dropped = self._command_health["broker_update_dropped"]
+            current_inflight_is_reconcile = bool(
+                allow_current_reconcile_inflight
+                and self._command_inflight == 1
+                and current_reconcile_receipt_id
+                and self._command_inflight_receipt_id == current_reconcile_receipt_id
+                and self._command_inflight_operation == "reconcile"
+            )
+            if (
+                incident_epoch != self._risk_incident_epoch
+                or generation != self._command_generation
+                or self._command_heap
+                or (self._command_inflight and not current_inflight_is_reconcile)
+                or self._command_publications_pending
+                or update_depth
+                or ingress != delivered + dropped + update_depth
+            ):
+                return False
+            self._command_health["risk_state_unknown"] = 0
+            return True
+
+    def _append_sdk_update(self, update: Dict[str, Any]) -> None:
+        """Append a broker update and expose any bounded-queue loss."""
+        safe_update = self.redact_runtime_value(dict(update))
+        with self._sdk_update_lock:
+            self._command_health["broker_update_ingress"] += 1
+            if safe_update.get("kind") == "command_completion":
+                generation = safe_update.get("session_generation")
+                if not self._accept_command_completions:
+                    self._record_sdk_update_drop_locked(safe_update, "session_not_accepting")
+                    return
+                if generation != self._command_generation:
+                    self._record_sdk_update_drop_locked(safe_update, "stale_session_generation")
+                    return
+            if (
+                self._sdk_updates.maxlen is not None
+                and len(self._sdk_updates) >= self._sdk_updates.maxlen
+            ):
+                evicted = self._sdk_updates.popleft()
+                self._record_sdk_update_drop_locked(evicted, "broker_update_queue_overflow")
+            self._sdk_updates.append(safe_update)
+
+    def _record_sdk_update_drop_locked(self, update: Mapping[str, Any], reason: str) -> None:
+        """Record a dropped update identity while holding ``_sdk_update_lock``."""
+        details = update.get("details") if isinstance(update.get("details"), Mapping) else {}
+        self._sdk_update_drops += 1
+        self._command_health["broker_update_dropped"] += 1
+        self._latch_risk_state_unknown(reason)
+        if reason in {"session_not_accepting", "stale_session_generation"}:
+            self._command_health["late_completion_dropped"] += 1
+        self._sdk_update_drop_records.append(
+            self.redact_runtime_value(
+                {
+                    "reason": str(reason),
+                    "kind": str(update.get("kind") or ""),
+                    "command": str(update.get("command") or ""),
+                    "bt_order_ref": update.get("bt_order_ref") or details.get("bt_order_ref"),
+                    "client_order_id": update.get("client_order_id")
+                    or details.get("client_order_id"),
+                    "exchange_name": update.get("exchange_name") or details.get("exchange_name"),
+                    "event_id": update.get("event_id") or details.get("event_id"),
+                    "session_generation": update.get("session_generation"),
+                }
+            )
+        )
+
+    def _clear_sdk_updates(self, reason: str) -> int:
+        """Drop queued broker updates with auditable conservation counters."""
+        with self._sdk_update_lock:
+            count = 0
+            while self._sdk_updates:
+                self._record_sdk_update_drop_locked(self._sdk_updates.popleft(), reason)
+                count += 1
+            return count
+
+    def _enqueue_sdk_command(
+        self,
+        command: Dict[str, Any],
+        *,
+        priority_name: str,
+        emit_event: bool = True,
+    ) -> Dict[str, Any]:
+        """Insert one command without waiting for transport or the SDK worker."""
+        priority = _COMMAND_PRIORITY[priority_name]
+        is_opening = priority_name == "open"
+        receipt_id = uuid.uuid4().hex
+        command.update(
+            receipt_id=receipt_id,
+            priority=priority_name,
+            enqueued_monotonic_ns=time.monotonic_ns(),
+        )
+        if priority_name == "reconcile":
+            command["risk_incident_epoch_at_enqueue"] = self._current_risk_incident_epoch()
+        with self._command_condition:
+            command["session_generation"] = self._command_generation
+            depth = len(self._command_heap)
+            opening_limit = self._command_queue_size - self._command_reserved_capacity
+            rejection = ""
+            if is_opening and not self._command_accept_openings:
+                rejection = "openings_frozen"
+            elif is_opening and depth >= opening_limit:
+                rejection = "command_queue_reserved_capacity"
+            elif depth >= self._command_queue_size:
+                rejection = "command_queue_full"
+            elif (
+                self._command_stop_requested
+                or self._restart_blocked_by_worker
+                or self._restart_blocked_by_close
+            ):
+                rejection = "command_worker_stopping"
+
+            if rejection:
+                self._command_health["rejected"] += 1
+                self._command_health[f"rejected_{priority_name}"] += 1
+                if not is_opening:
+                    self._command_health["risk_command_rejected"] += 1
+                    self._latch_risk_state_unknown(rejection)
+                receipt = {
+                    "kind": "command_receipt",
+                    "command": command["operation"],
+                    "receipt_id": receipt_id,
+                    "bt_order_ref": command.get("bt_order_ref"),
+                    "client_order_id": command.get("client_order_id"),
+                    "status": "rejected",
+                    "queued": False,
+                    "priority": priority_name,
+                    "queue_depth": depth,
+                    "error_code": rejection,
+                    "error_msg": "SDK command queue cannot safely accept this command",
+                }
+            else:
+                heapq.heappush(
+                    self._command_heap,
+                    (priority, next(self._command_sequence), command),
+                )
+                depth = len(self._command_heap)
+                self._command_health["enqueued"] += 1
+                self._command_health[f"enqueued_{priority_name}"] += 1
+                self._command_health["max_queue_depth"] = max(
+                    self._command_health["max_queue_depth"], depth
+                )
+                self._command_condition.notify()
+                receipt = {
+                    "kind": "command_receipt",
+                    "command": command["operation"],
+                    "receipt_id": receipt_id,
+                    "bt_order_ref": command.get("bt_order_ref"),
+                    "client_order_id": command.get("client_order_id"),
+                    "status": "submitted",
+                    "queued": True,
+                    "priority": priority_name,
+                    "queue_depth": depth,
+                }
+
+        if emit_event:
+            self.emit_runtime_event(
+                "sdk_command_queued" if receipt["queued"] else "sdk_command_rejected",
+                level="INFO" if receipt["queued"] else "ERROR",
+                status=receipt["status"],
+                order_ref=command.get("bt_order_ref"),
+                error_code=receipt.get("error_code", ""),
+                error_msg=receipt.get("error_msg", ""),
+                details={
+                    "command": command["operation"],
+                    "receipt_id": receipt_id,
+                    "priority": priority_name,
+                    "queue_depth": receipt["queue_depth"],
+                },
+            )
+        return receipt
+
+    async def _execute_sdk_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute one typed SDK command and return a main-thread completion."""
+        operation = command["operation"]
+        completion = {
+            "kind": "command_completion",
+            "command": operation,
+            "receipt_id": command["receipt_id"],
+            "bt_order_ref": command.get("bt_order_ref"),
+            "client_order_id": command.get("client_order_id"),
+            "data_name": command.get("symbol"),
+            "exchange_name": command.get("venue"),
+            "priority": command["priority"],
+            "session_generation": command.get("session_generation"),
+            "risk_incident_epoch_at_enqueue": command.get("risk_incident_epoch_at_enqueue"),
+            "completed_monotonic_ns": 0,
+        }
+        try:
+            if operation == "reconcile":
+                result = await asyncio.to_thread(self._sdk_reconcile_snapshot)
+            elif operation == "account_risk":
+                result = await asyncio.to_thread(
+                    self._read_account_risk_snapshot, self._ensure_api_ready()
+                )
+            else:
+                result = await self._invoke_sdk_command(operation, command)
+                if isinstance(result, Mapping):
+                    event = dict(result)
+                    event.setdefault("symbol", command.get("symbol"))
+                    event.setdefault("client_order_id", command.get("client_order_id"))
+                    result = self._sdk_broker_event(command["venue"], event)
+            if isinstance(result, Mapping) and result.get("execution_unknown") is True:
+                error_code = str(result.get("error_code") or "remote_execution_unknown")
+                completion.update(
+                    success=False,
+                    status="unknown",
+                    response=result,
+                    execution_unknown=True,
+                    remote_write_attempted=True,
+                    definite_reject=False,
+                    terminal_confirmed=False,
+                    error_code=error_code,
+                    error_msg="remote execution outcome is unknown",
+                )
+                self._command_health["failed"] += 1
+                self._command_health["unknown"] += 1
+                self._command_last_error = error_code
+                self._latch_risk_state_unknown(error_code)
+            else:
+                completion.update(success=True, status="completed", response=result)
+                self._command_health["completed"] += 1
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            definite_reject = bool(getattr(exc, "definite_reject", False))
+            # Once submit/cancel enters the SDK transport, an unclassified
+            # exception cannot prove the venue did not act. Keep the original
+            # identity alive and reconcile it. Only an explicit definite
+            # rejection is safe to treat as terminal.
+            execution_unknown = (
+                bool(getattr(exc, "execution_unknown", False))
+                or isinstance(exc, TimeoutError)
+                or (operation in {"submit", "cancel"} and not definite_reject)
+            )
+            completion.update(
+                success=False,
+                status="unknown" if execution_unknown else "failed",
+                execution_unknown=execution_unknown,
+                remote_write_attempted=execution_unknown,
+                definite_reject=definite_reject,
+                terminal_confirmed=definite_reject,
+                error_code=self._safe_exception_code(exc, type(exc).__name__),
+                error_msg=(
+                    "remote execution outcome is unknown"
+                    if execution_unknown
+                    else "SDK command failed"
+                ),
+            )
+            self._command_health["failed"] += 1
+            if execution_unknown:
+                self._command_health["unknown"] += 1
+                self._latch_risk_state_unknown(completion["error_code"])
+            self._command_last_error = completion["error_code"]
+        completion["completed_monotonic_ns"] = time.monotonic_ns()
+        if operation == "account_risk":
+            with self._account_risk_lock:
+                self._account_risk_refresh_pending = False
+        return completion
+
+    async def _invoke_sdk_command(self, operation: str, command: Dict[str, Any]):
+        if operation == "submit":
+            self._validate_approval_lease_command(command)
+        method_names = {
+            "submit": "async_make_order",
+            "cancel": "async_cancel_order",
+            "query": "async_query_order",
+        }
+        async_name = method_names[operation]
+        args = (command["venue"], command["request"])
+        async_method = getattr(self._api, async_name, None)
+        if not inspect.iscoroutinefunction(async_method):
+            raise BtApiStoreError(f"SDK session does not expose coroutine {async_name}")
+        result = async_method(*args, normalized=True)
+        if not inspect.isawaitable(result):
+            raise BtApiStoreError(f"SDK {async_name} did not return an awaitable")
+        result = await result
+        if not isinstance(result, Mapping):
+            raise BtApiStoreError(f"SDK {async_name} did not return a normalized mapping")
+        return dict(result)
+
+    @staticmethod
+    def _validate_approval_lease_command(command: Mapping[str, Any]) -> None:
+        """Recheck an attached demo approval immediately before the SDK write."""
+        fields = {
+            "expires_at": command.get("approval_expires_at_utc"),
+            "operation_count": command.get("approval_operation_count"),
+            "maximum_count": command.get("approval_max_order_count"),
+            "risk_reducing": command.get("approval_risk_reducing"),
+        }
+        if all(value is None for value in fields.values()):
+            return
+        if any(value is None for value in fields.values()):
+            raise _ApprovalLeaseRejected("demo_approval_lease_incomplete")
+        expires_at = fields["expires_at"]
+        if not isinstance(expires_at, str) or not expires_at.endswith("Z"):
+            raise _ApprovalLeaseRejected("demo_approval_expiry_invalid")
+        try:
+            parsed_expiry = _dt.datetime.fromisoformat(expires_at[:-1] + "+00:00")
+        except ValueError:
+            raise _ApprovalLeaseRejected("demo_approval_expiry_invalid") from None
+        operation_count = fields["operation_count"]
+        maximum_count = fields["maximum_count"]
+        risk_reducing = fields["risk_reducing"]
+        if (
+            parsed_expiry.utcoffset() != _dt.timedelta(0)
+            or isinstance(operation_count, bool)
+            or not isinstance(operation_count, int)
+            or operation_count <= 0
+            or isinstance(maximum_count, bool)
+            or not isinstance(maximum_count, int)
+            or maximum_count <= 0
+            or not isinstance(risk_reducing, bool)
+        ):
+            raise _ApprovalLeaseRejected("demo_approval_lease_invalid")
+        if risk_reducing:
+            return
+        if operation_count > maximum_count:
+            raise _ApprovalLeaseRejected("demo_approval_order_limit")
+        if _dt.datetime.now(_dt.timezone.utc) >= parsed_expiry:
+            raise _ApprovalLeaseRejected("demo_approval_expired")
+
+    @staticmethod
+    def _public_sdk_venue(venue: Any) -> str:
+        """Return the stable provider key used by strategy-facing snapshots."""
+        return str(venue or "").partition("___")[0].strip().lower()
+
+    @staticmethod
+    def _canonical_sdk_identity(identity: Mapping[str, Any]) -> Dict[str, Any]:
+        """Normalize the non-secret fields which bind one SDK execution ledger."""
+        result = {
+            "provider": str(identity.get("provider") or "").strip().upper(),
+            "environment": str(identity.get("environment") or "").strip().lower(),
+            "account_id": str(identity.get("account_id") or "").strip().casefold(),
+            "strategy_id": str(identity.get("strategy_id") or "").strip(),
+        }
+        fingerprint = str(identity.get("credential_fingerprint") or "").strip().lower()
+        if fingerprint:
+            result["credential_fingerprint"] = fingerprint
+        return result
+
+    @staticmethod
+    def _require_sdk_list_result(result: Any, operation: str, venue: str) -> list:
+        """Require the SDK's normalized collection contract without truthiness coercion."""
+        if type(result) is not list:
+            raise BtApiStoreError(f"sdk_{operation}_response_must_be_list:{venue}")
+        return result
+
+    def _validated_sdk_identity(self, venue: str, raw_identity: Any = None) -> Dict[str, Any]:
+        """Validate, bind, and continuously fence one SDK-owned identity."""
+        getter = getattr(self._api, "get_execution_identity", None)
+        if raw_identity is None:
+            if not callable(getter):
+                raise BtApiStoreError("execution_identity_unavailable")
+            try:
+                raw_identity = getter(venue)
+            except Exception as exc:
+                self.sanitize_exception(exc)
+                raise BtApiStoreError("execution_identity_unavailable") from None
+        try:
+            identity = _contract_mapping(raw_identity, f"execution identity for {venue}")
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            raise BtApiStoreError("execution_identity_invalid") from None
+
+        exchange_name = identity.get("exchange_name")
+        if exchange_name != venue:
+            raise BtApiStoreError("execution_identity_venue_mismatch")
+        canonical = self._canonical_sdk_identity(identity)
+        missing = [
+            key
+            for key in ("provider", "environment", "account_id", "strategy_id")
+            if not canonical[key]
+        ]
+        if missing:
+            raise BtApiStoreError("identity_missing_" + "_".join(missing))
+        expected_provider = self._public_sdk_venue(venue).upper()
+        if canonical["provider"] != expected_provider:
+            raise BtApiStoreError("execution_identity_provider_mismatch")
+
+        required_environments = self._sdk_execution_config.get("required_environments") or {}
+        expected_environment = (
+            required_environments.get(venue) if isinstance(required_environments, Mapping) else None
+        )
+        if expected_environment in (None, ""):
+            venue_config = self._sdk_exchanges.get(venue) or {}
+            expected_environment = (
+                venue_config.get("environment") if isinstance(venue_config, Mapping) else None
+            )
+        if (
+            expected_environment not in (None, "")
+            and canonical["environment"] != str(expected_environment).strip().lower()
+        ):
+            raise BtApiStoreError("execution_identity_environment_mismatch")
+
+        expected_strategy = self._sdk_execution_config.get("strategy_id")
+        if (
+            expected_strategy not in (None, "")
+            and canonical["strategy_id"] != str(expected_strategy).strip()
+        ):
+            raise BtApiStoreError("execution_identity_strategy_mismatch")
+
+        account_aliases = self._sdk_execution_config.get("account_ids") or {}
+        expected_alias = (
+            account_aliases.get(venue) if isinstance(account_aliases, Mapping) else None
+        )
+        if expected_alias not in (None, ""):
+            actual_alias = identity.get("account_alias")
+            if (
+                actual_alias in (None, "")
+                or str(actual_alias).strip().casefold() != str(expected_alias).strip().casefold()
+            ):
+                raise BtApiStoreError("execution_identity_account_alias_mismatch")
+
+        fingerprint = canonical.get("credential_fingerprint")
+        if fingerprint and (
+            len(fingerprint) != 64
+            or any(character not in "0123456789abcdef" for character in fingerprint)
+        ):
+            raise BtApiStoreError("execution_identity_fingerprint_invalid")
+        actual_authority = str(identity.get("account_authority") or "").strip().lower()
+        if fingerprint:
+            if actual_authority != "credential_fingerprint":
+                raise BtApiStoreError("execution_identity_account_authority_mismatch")
+            derived_account_id = f"{expected_provider.lower()}-credential-{fingerprint}"
+            if canonical["account_id"] != derived_account_id:
+                raise BtApiStoreError("execution_identity_account_id_mismatch")
+        else:
+            if self.backend == "direct" and expected_provider in {"BINANCE", "OKX"}:
+                raise BtApiStoreError("execution_identity_fingerprint_missing")
+            if expected_alias in (None, ""):
+                raise BtApiStoreError("execution_identity_declared_account_id_missing")
+            if actual_authority != "declared_account_id":
+                raise BtApiStoreError("execution_identity_account_authority_mismatch")
+            if canonical["account_id"] != str(expected_alias).strip().casefold():
+                raise BtApiStoreError("execution_identity_account_id_mismatch")
+        fencing_epoch = identity.get("fencing_epoch")
+        if type(fencing_epoch) is not int or fencing_epoch <= 0:
+            raise BtApiStoreError("execution_identity_fencing_epoch_invalid") from None
+
+        binding = {**canonical, "fencing_epoch": fencing_epoch}
+        identity_key = json.dumps(
+            canonical,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        )
+        generation = int(self._stream_generation)
+        with self._sdk_identity_lock:
+            previous = self._sdk_identity_bindings.get(venue)
+            if previous is not None and previous != binding:
+                raise BtApiStoreError("execution_identity_changed_within_session")
+            previous_fence = self._sdk_identity_fence_history.get(identity_key)
+            if previous_fence is not None:
+                previous_generation, previous_epoch = previous_fence
+                if previous_generation == generation and previous_epoch != fencing_epoch:
+                    raise BtApiStoreError("execution_identity_changed_within_session")
+                if previous_generation != generation and fencing_epoch <= previous_epoch:
+                    raise BtApiStoreError("execution_identity_fencing_epoch_not_advanced")
+            self._sdk_identity_bindings[venue] = dict(binding)
+            self._sdk_identity_fence_history[identity_key] = (generation, fencing_epoch)
+        return {
+            **identity,
+            "provider": canonical["provider"],
+            "environment": canonical["environment"],
+            "account_id": str(identity.get("account_id") or "").strip(),
+            "strategy_id": canonical["strategy_id"],
+            "fencing_epoch": fencing_epoch,
+            "exchange_name": venue,
+        }
+
+    @staticmethod
+    def _sdk_identity_binding_sha256(identities: Mapping[str, Mapping[str, Any]]) -> str:
+        """Hash the exact execution-identity vector without exposing credentials."""
+        rows = []
+        for venue, identity in sorted(identities.items()):
+            canonical = BtApiStore._canonical_sdk_identity(identity)
+            rows.append(
+                {
+                    "exchange_name": venue,
+                    **canonical,
+                    "fencing_epoch": int(identity.get("fencing_epoch") or 0),
+                }
+            )
+        payload = json.dumps(rows, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest() if rows else ""
+
+    def _sdk_execution_evidence(self, raw_summary: Any):
+        """Bind an SDK summary to this worker generation and durable fence."""
+        summary = _contract_mapping(raw_summary, "execution session summary")
+        errors = []
+        identities = {}
+        for venue in self._sdk_exchanges:
+            try:
+                identity = self._validated_sdk_identity(venue)
+            except BtApiStoreError as exc:
+                errors.append(f"{venue}:{exc}")
+                continue
+            identities[venue] = identity
+
+        generation = int(self._command_generation or 0)
+        if generation <= 0:
+            errors.append("execution_generation_unavailable")
+        raw_generation = summary.get("generation", summary.get("session_generation"))
+        if raw_generation not in (None, ""):
+            try:
+                if int(raw_generation) != generation:
+                    errors.append("execution_generation_mismatch")
+            except (TypeError, ValueError):
+                errors.append("execution_generation_invalid")
+
+        fencing_epochs = set()
+        for identity in identities.values():
+            try:
+                epoch = int(identity.get("fencing_epoch"))
+            except (TypeError, ValueError):
+                continue
+            if epoch > 0:
+                fencing_epochs.add(epoch)
+        fencing_epoch = next(iter(fencing_epochs)) if len(fencing_epochs) == 1 else 0
+        if fencing_epoch <= 0:
+            errors.append("execution_fencing_epoch_unavailable")
+        if len(fencing_epochs) > 1:
+            errors.append("execution_fencing_epoch_mismatch")
+        raw_fence = summary.get("fencing_epoch")
+        if raw_fence not in (None, ""):
+            try:
+                if int(raw_fence) != fencing_epoch:
+                    errors.append("execution_summary_fence_mismatch")
+            except (TypeError, ValueError):
+                errors.append("execution_summary_fence_invalid")
+
+        if summary.get("evidence_complete") is False:
+            errors.append("sdk_execution_evidence_incomplete")
+        identity_binding_sha256 = (
+            self._sdk_identity_binding_sha256(identities)
+            if len(identities) == len(self._sdk_exchanges)
+            else ""
+        )
+        summary.update(
+            generation=generation,
+            session_generation=generation,
+            fencing_epoch=fencing_epoch,
+            as_of_monotonic_ns=time.monotonic_ns(),
+            identity_binding_sha256=identity_binding_sha256,
+            evidence_complete=not errors,
+        )
+        if errors:
+            summary["trading_blocked"] = True
+            summary["evidence_errors"] = sorted(set(errors))
+        return summary, identities, errors
+
+    @staticmethod
+    def _sdk_position_snapshot_is_proven_zero(row: Any) -> bool:
+        """Identify an empty synchronous position snapshot without hiding unknown state."""
+
+        if (
+            not isinstance(row, Mapping)
+            or row.get("quantity_known") is not True
+            or row.get("quantity_exact_zero") is not True
+        ):
+            return False
+        quantity = row.get("quantity")
+        if isinstance(quantity, bool) or quantity is None:
+            return False
+        try:
+            parsed = Decimal(str(quantity))
+        except (InvalidOperation, TypeError, ValueError):
+            return False
+        return parsed.is_finite() and parsed == 0
+
+    @staticmethod
+    def _sdk_account_risk_is_expected_prebaseline(snapshot: Any) -> bool:
+        """Recognize only the SDK's clean first-start baseline-required latch."""
+
+        if not isinstance(snapshot, Mapping):
+            return False
+        blocked_reasons = snapshot.get("blocked_reasons")
+        evidence_errors = snapshot.get("evidence_errors")
+        expected_blocked_reasons = {"account_evidence_incomplete", "baseline_missing"}
+        expected_evidence_errors = {
+            "account_risk_currency_mismatch",
+            "account_risk_not_durable",
+            "account_risk_trading_blocked",
+            "invalid_baseline_equity",
+            "invalid_baseline_equity_by_venue",
+            "sdk_blocked_reasons_present",
+            "sdk_evidence_incomplete",
+        }
+        return bool(
+            snapshot.get("baseline_equity") is None
+            and snapshot.get("baseline_equity_by_venue") is None
+            and snapshot.get("loss_limit_breached") is False
+            and snapshot.get("loss_breached_at") is None
+            and snapshot.get("evidence_complete") is False
+            and snapshot.get("durable") is False
+            and snapshot.get("trading_blocked") is True
+            and snapshot.get("error_code") == "account_risk_evidence_incomplete"
+            and type(blocked_reasons) is list
+            and len(blocked_reasons) == len(expected_blocked_reasons)
+            and set(blocked_reasons) == expected_blocked_reasons
+            and type(evidence_errors) is list
+            and len(evidence_errors) == len(expected_evidence_errors)
+            and set(evidence_errors) == expected_evidence_errors
+        )
+
+    def _sdk_reconcile_snapshot(self) -> Dict[str, Any]:
+        positions = []
+        open_orders = []
+        reconciled_venues = []
+        for venue in self._sdk_exchanges:
+            venue_positions = self._require_sdk_list_result(
+                self._api.get_position(venue, None, normalized=True),
+                "get_position",
+                venue,
+            )
+            venue_open_orders = self._require_sdk_list_result(
+                self._api.get_open_orders(venue, None, normalized=True),
+                "get_open_orders",
+                venue,
+            )
+            for row in venue_positions:
+                if self._sdk_position_snapshot_is_proven_zero(row):
+                    continue
+                positions.append(
+                    {
+                        **dict(row),
+                        "exchange_name": self._public_sdk_venue(venue),
+                        "sdk_exchange_name": venue,
+                    }
+                )
+            open_orders.extend(self._sdk_broker_event(venue, row) for row in venue_open_orders)
+            # A venue is covered only after both risk-bearing reads returned.
+            reconciled_venues.append(self._public_sdk_venue(venue))
+        venue_balances = self._api.get_all_balances(normalized=True)
+        balance = self._api.get_portfolio_balance(venue_balances=venue_balances)
+        account_risk_snapshot = None
+        account_risk_errors = []
+        if self.requires_account_risk:
+            # The SDK may require a current persisted-risk read before its
+            # execution summary can prove the session clean. Read through the
+            # same validated/cache-bound contract used by public risk queries.
+            account_risk_snapshot = self._read_account_risk_snapshot(self._api)
+            if not self._sdk_account_risk_is_expected_prebaseline(account_risk_snapshot):
+                risk_error_code = account_risk_snapshot.get("error_code")
+                if (
+                    not isinstance(risk_error_code, str)
+                    or not risk_error_code
+                    or len(risk_error_code) > 128
+                    or not all(
+                        character.isalnum() or character in "._:-" for character in risk_error_code
+                    )
+                ):
+                    risk_error_code = "evidence_incomplete"
+                if account_risk_snapshot.get("evidence_complete") is not True:
+                    account_risk_errors.append(f"account_risk:{risk_error_code}")
+                if account_risk_snapshot.get("durable") is not True:
+                    account_risk_errors.append("account_risk:not_durable")
+                if account_risk_snapshot.get("trading_blocked") is not False:
+                    account_risk_errors.append("account_risk:trading_blocked")
+        get_execution_summary = getattr(self._api, "get_execution_summary", None)
+        if not callable(get_execution_summary):
+            raise BtApiStoreError("The SDK does not expose execution-session state")
+        execution_summary, execution_identities, evidence_errors = self._sdk_execution_evidence(
+            get_execution_summary()
+        )
+        evidence_errors.extend(account_risk_errors)
+
+        unknown_ids = execution_summary.get("unknown_ids")
+        if not isinstance(unknown_ids, (list, tuple, set, frozenset)):
+            evidence_errors.append("execution_summary:unknown_ids_unproven")
+            unknown_ids = []
+        trading_blocked = execution_summary.get("trading_blocked")
+        if not isinstance(trading_blocked, bool):
+            evidence_errors.append("execution_summary:trading_blocked_unproven")
+            trading_blocked = True
+        configured_venues = sorted({self._public_sdk_venue(venue) for venue in self._sdk_exchanges})
+        reconciled_venues = sorted(set(reconciled_venues))
+        if set(reconciled_venues) != set(configured_venues):
+            evidence_errors.append("venue_reconciliation_incomplete")
+        ledger_partitions = {
+            venue: {
+                key: identity.get(key)
+                for key in ("provider", "environment", "account_id", "strategy_id")
+            }
+            for venue, identity in execution_identities.items()
+        }
+        as_of_monotonic_ns = time.monotonic_ns()
+        generation = int(execution_summary.get("generation") or 0)
+        fencing_epoch = int(execution_summary.get("fencing_epoch") or 0)
+        if account_risk_snapshot is not None:
+            if account_risk_snapshot.get("fencing_epoch") != fencing_epoch:
+                evidence_errors.append("account_risk:fencing_epoch_mismatch")
+            if account_risk_snapshot.get("identity_binding_sha256") != execution_summary.get(
+                "identity_binding_sha256"
+            ):
+                evidence_errors.append("account_risk:identity_binding_mismatch")
+        evidence_errors = sorted(set(evidence_errors))
+        result = {
+            "positions": positions,
+            "open_orders": open_orders,
+            "venue_balances": venue_balances,
+            "balance": balance,
+            "configured_venues": configured_venues,
+            "reconciled_venues": reconciled_venues,
+            "execution_summary": execution_summary,
+            "unknown_ids": list(unknown_ids),
+            "trading_blocked": trading_blocked or bool(evidence_errors),
+            "execution_identities": execution_identities,
+            "identity_binding_sha256": execution_summary.get("identity_binding_sha256", ""),
+            "ledger_partitions": ledger_partitions,
+            "as_of": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+            "as_of_monotonic_ns": as_of_monotonic_ns,
+            "generation": generation,
+            "session_generation": generation,
+            "fencing_epoch": fencing_epoch,
+            "evidence_complete": not evidence_errors,
+            "evidence_errors": evidence_errors,
+        }
+        if account_risk_snapshot is not None:
+            result["account_risk_snapshot"] = account_risk_snapshot
+        return result
+
+    def enqueue_order(self, order) -> Dict[str, Any]:
+        """Queue a typed SDK order and immediately return its local receipt."""
+        self._ensure_api_ready()
+        self._require_async_sdk_commands()
+        self._start_command_worker()
+        payload = self._order_to_payload(order)
+        venue = self._sdk_exchange(payload["symbol"])
+        request = self._sdk_order_request(venue, payload)
+        client_id = request.client_order_id
+        binding = self._sdk_client_refs.get((venue, str(client_id)), {})
+        execution_contract = deepcopy(binding.get("execution_contract") or {})
+        if hasattr(order, "addinfo"):
+            order.addinfo(
+                client_order_id=client_id,
+                sdk_execution_contract=execution_contract,
+                quantity_unit=execution_contract.get("quantity_unit"),
+                position_mode=execution_contract.get("position_mode"),
+            )
+        elif isinstance(getattr(order, "info", None), dict):
+            order.info["client_order_id"] = client_id
+            order.info["sdk_execution_contract"] = execution_contract
+            order.info["quantity_unit"] = execution_contract.get("quantity_unit")
+            order.info["position_mode"] = execution_contract.get("position_mode")
+        priority_name = (
+            "close"
+            if bool(payload.get("reduce_only"))
+            or str(payload.get("offset") or "open").lower() != "open"
+            else "open"
+        )
+        order_info = getattr(order, "info", {})
+        approval_fields = {
+            key: getattr(order_info, "get", lambda *_args: None)(key)
+            for key in (
+                "approval_expires_at_utc",
+                "approval_operation_count",
+                "approval_max_order_count",
+                "approval_risk_reducing",
+            )
+        }
+        receipt = self._enqueue_sdk_command(
+            {
+                "operation": "submit",
+                "venue": venue,
+                "symbol": payload["symbol"],
+                "request": request,
+                "bt_order_ref": payload.get("bt_order_ref"),
+                "client_order_id": client_id,
+                **approval_fields,
+            },
+            priority_name=priority_name,
+        )
+        if not receipt["queued"]:
+            binding = self._sdk_client_refs.pop((venue, str(client_id)), None)
+            self._sdk_local_refs.pop(str(payload.get("bt_order_ref")), None)
+            if binding is not None:
+                for key, value in list(self._sdk_venue_refs.items()):
+                    if value is binding:
+                        self._sdk_venue_refs.pop(key, None)
+        return receipt
+
+    def enqueue_cancel(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
+        """Queue a typed cancellation while preserving its reserved capacity."""
+        self._ensure_api_ready()
+        self._require_async_sdk_commands()
+        self._start_command_worker()
+        venue, request = self._sdk_cancel_request(order_ref, dataname)
+        binding = self._sdk_local_refs.get(str(order_ref), {})
+        return self._enqueue_sdk_command(
+            {
+                "operation": "cancel",
+                "venue": venue,
+                "symbol": request.symbol,
+                "request": request,
+                "bt_order_ref": binding.get("bt_order_ref", order_ref),
+                "client_order_id": request.client_order_id,
+            },
+            priority_name="cancel",
+        )
+
+    def enqueue_query(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
+        """Queue an order reconciliation query at the highest priority."""
+        self._ensure_api_ready()
+        self._require_async_sdk_commands()
+        self._start_command_worker()
+        venue, request, binding = self._sdk_query_request(order_ref, dataname)
+        return self._enqueue_sdk_command(
+            {
+                "operation": "query",
+                "venue": venue,
+                "symbol": request.symbol,
+                "request": request,
+                "bt_order_ref": binding.get("bt_order_ref", order_ref),
+                "client_order_id": request.client_order_id,
+            },
+            priority_name="query",
+        )
+
+    def enqueue_reconcile(self) -> Dict[str, Any]:
+        """Queue a complete read-only position/open-order reconciliation."""
+        self._ensure_api_ready()
+        self._require_async_sdk_commands()
+        self._start_command_worker()
+        return self._enqueue_sdk_command(
+            {"operation": "reconcile"},
+            priority_name="reconcile",
+        )
+
+    def enqueue_account_risk_refresh(self) -> Dict[str, Any]:
+        """Queue a non-blocking SDK account-risk refresh for strategy callbacks."""
+        if not self.requires_account_risk:
+            return {"queued": False, "status": "not_required"}
+        if not self._started or not self._connected:
+            return {"queued": False, "status": "store_not_running"}
+        now = time.monotonic()
+        with self._account_risk_lock:
+            if self._account_risk_refresh_pending:
+                return {"queued": True, "status": "already_pending"}
+            if (
+                self._last_account_risk_refresh_requested
+                and now - self._last_account_risk_refresh_requested
+                < self._account_risk_refresh_interval
+            ):
+                return {"queued": False, "status": "refresh_interval"}
+            self._account_risk_refresh_pending = True
+            self._last_account_risk_refresh_requested = now
+        receipt = self._enqueue_sdk_command(
+            {"operation": "account_risk"},
+            priority_name="reconcile",
+        )
+        if receipt.get("queued") is not True:
+            with self._account_risk_lock:
+                self._account_risk_refresh_pending = False
+        return receipt
+
+    def get_command_health(self) -> Dict[str, Any]:
+        """Return queue and worker health without exposing command payloads."""
+        with self._command_condition:
+            depth = len(self._command_heap)
+            inflight = self._command_inflight
+            publications_pending = self._command_publications_pending
+            command_drop_records = list(self._command_drop_records)
+        with self._sdk_update_lock:
+            update_depth = len(self._sdk_updates)
+            update_drop_records = list(self._sdk_update_drop_records)
+        with self._risk_state_lock:
+            risk_state_latched = bool(self._command_health["risk_state_unknown"])
+            risk_incident_epoch = self._risk_incident_epoch
+            last_risk_incident_reason = self._last_risk_incident_reason
+        update_ingress = self._command_health["broker_update_ingress"]
+        update_delivered = self._command_health["broker_update_delivered"]
+        update_dropped = self._command_health["broker_update_dropped"]
+        result = {
+            **dict(self._command_health),
+            "queue_capacity": self._command_queue_size,
+            "reserved_capacity": self._command_reserved_capacity,
+            "queue_depth": depth,
+            "inflight": inflight,
+            "publications_pending": publications_pending,
+            "accepting_openings": self._command_accept_openings,
+            "worker_alive": bool(
+                self._command_worker_thread and self._command_worker_thread.is_alive()
+            ),
+            "last_error_code": self._command_last_error,
+            "shutdown_state": self._shutdown_state,
+            "session_generation": self._command_generation,
+            "restart_blocked_by_worker": self._restart_blocked_by_worker,
+            "close_thread_alive": bool(
+                self._sdk_close_thread and self._sdk_close_thread.is_alive()
+            ),
+            "close_generation": self._sdk_close_generation,
+            "restart_blocked_by_close": self._restart_blocked_by_close,
+            "broker_update_queue_depth": update_depth,
+            "broker_update_ingress": update_ingress,
+            "broker_update_delivered": update_delivered,
+            "broker_update_dropped": update_dropped,
+            "risk_state_latched": risk_state_latched,
+            "risk_incident_epoch": risk_incident_epoch,
+            "last_risk_incident_reason": last_risk_incident_reason,
+            "broker_update_conservation": (
+                update_ingress == update_delivered + update_dropped + update_depth
+            ),
+            "command_drop_records": command_drop_records,
+            "broker_update_drop_records": update_drop_records,
+            "logging_errors": _LOGGING_HEALTH["logging_errors"],
+        }
+        funding_health = self.get_funding_refresh_health()
+        result.update(
+            {
+                "funding_worker_alive": funding_health["worker_alive"],
+                "funding_queue_depth": funding_health["queue_depth"],
+                "funding_inflight": funding_health["inflight"],
+                "funding_pending": funding_health["pending"],
+                "funding_generation": funding_health["generation"],
+                "funding_restart_blocked_by_worker": funding_health["restart_blocked_by_worker"],
+                "funding_last_refresh_error": funding_health["last_refresh_error"],
+            }
+        )
+        return result
+
     def submit_order(self, order):
         """Submit a backtrader order through the unified API."""
+        if self._sdk_mode:
+            self._ensure_api_ready()
+            self._require_async_sdk_commands()
+            return self.enqueue_order(order)
         api = self._ensure_api_ready()
         payload = self._order_to_payload(order)
         order_ref = getattr(order, "ref", None)
@@ -3365,14 +5731,27 @@ class BtApiStore(LiveStoreBase):
                     "Underlying bt_api_py client does not support order submission"
                 )
         except Exception as exc:
+            self.sanitize_exception(exc)
+            execution_unknown = bool(getattr(exc, "execution_unknown", False)) or isinstance(
+                exc, TimeoutError
+            )
+            error_code = self._safe_exception_code(exc, type(exc).__name__)
+            if self._sdk_mode:
+                error_msg = (
+                    "remote execution outcome is unknown"
+                    if execution_unknown
+                    else "remote order submission failed"
+                )
+            else:
+                error_msg = str(exc)
             self.emit_runtime_event(
-                "order_reject_remote",
-                level="ERROR",
+                "order_submit_unconfirmed" if execution_unknown else "order_reject_remote",
+                level="WARNING" if execution_unknown else "ERROR",
                 order_ref=order_ref,
                 details=dict(payload),
-                error_code=type(exc).__name__,
-                error_msg=str(exc),
-                status="rejected",
+                error_code=error_code,
+                error_msg=error_msg,
+                status="unconfirmed" if execution_unknown else "rejected",
             )
             raise
 
@@ -3408,6 +5787,10 @@ class BtApiStore(LiveStoreBase):
 
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         """Cancel a provider order by reference without requiring a local Order."""
+        if self._sdk_mode:
+            self._ensure_api_ready()
+            self._require_async_sdk_commands()
+            return self.enqueue_cancel(order_ref, dataname=dataname)
         api = self._ensure_api_ready()
         details = {"order_ref": order_ref, "data_name": dataname}
         self.emit_runtime_event(
@@ -3425,14 +5808,24 @@ class BtApiStore(LiveStoreBase):
                     "Underlying bt_api_py client does not support order cancellation"
                 )
         except Exception as exc:
+            self.sanitize_exception(exc)
+            execution_unknown = bool(getattr(exc, "execution_unknown", False)) or isinstance(
+                exc, TimeoutError
+            )
+            error_code = self._safe_exception_code(exc, type(exc).__name__)
+            error_msg = (
+                "remote cancellation outcome is unknown"
+                if execution_unknown
+                else ("remote cancellation failed" if self._sdk_mode else str(exc))
+            )
             self.emit_runtime_event(
-                "order_cancel_reject_remote",
-                level="ERROR",
+                "order_cancel_unconfirmed" if execution_unknown else "order_cancel_reject_remote",
+                level="WARNING" if execution_unknown else "ERROR",
                 order_ref=order_ref,
                 details=details,
-                error_code=type(exc).__name__,
-                error_msg=str(exc),
-                status="rejected",
+                error_code=error_code,
+                error_msg=error_msg,
+                status="unconfirmed" if execution_unknown else "rejected",
             )
             raise
 
@@ -3499,8 +5892,9 @@ class BtApiStore(LiveStoreBase):
             "details": dict(details or {}),
         }
         payload.update(extra)
-        self.put_notification("runtime_event", event=payload)
-        return payload
+        safe_payload = self.redact_runtime_value(payload)
+        self.put_notification("runtime_event", event=safe_payload)
+        return safe_payload
 
     def _is_ctp_session_provider(self) -> bool:
         if self.backend == "forwarding":
@@ -3545,7 +5939,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 state = getter()
             except Exception as exc:
-                logger.debug("Failed to read CTP session state: %s", exc)
+                _safe_log("debug", "Failed to read CTP session state: %s", exc)
                 continue
             if isinstance(state, dict):
                 states.append(dict(state))
@@ -3662,6 +6056,8 @@ class BtApiStore(LiveStoreBase):
         except Exception:
             return {}
 
+        if self._sdk_mode:
+            return self.get_symbol_info(str(dataname))
         metadata = _query_contract_metadata_from_api(api, aliases or [str(dataname)], dataname)
         if not metadata:
             return {}
@@ -3680,6 +6076,2050 @@ class BtApiStore(LiveStoreBase):
                 if key:
                     self.contract_metadata[key] = dict(normalized)
         return normalized
+
+    def get_instrument_spec(self, dataname: str):
+        """Return typed SDK instrument rules as a Backtrader-compatible mapping."""
+        api = self._ensure_api_ready()
+        if self._sdk_mode and callable(getattr(api, "get_instrument_spec", None)):
+            metadata = _contract_mapping(
+                api.get_instrument_spec(self._sdk_exchange(dataname), dataname),
+                "InstrumentSpec",
+            )
+            contract_value = metadata.get("contract_value")
+            contract_multiplier = metadata.get("contract_multiplier")
+            if contract_value is not None and contract_multiplier is not None:
+                metadata.setdefault(
+                    "multiplier",
+                    Decimal(str(contract_value)) * Decimal(str(contract_multiplier)),
+                )
+            metadata.setdefault("tick_size", metadata.get("price_tick"))
+            metadata.setdefault("lot_size", metadata.get("quantity_step"))
+            metadata.setdefault("min_size", metadata.get("min_quantity"))
+            metadata.setdefault("settlement_currency", metadata.get("quote_currency"))
+        elif self._sdk_mode:
+            metadata = _contract_mapping(
+                api.get_exchange_info(self._sdk_exchange(dataname), dataname, normalized=True),
+                "instrument metadata",
+            )
+        elif callable(getattr(api, "get_instrument_spec", None)):
+            metadata = _contract_mapping(api.get_instrument_spec(dataname), "InstrumentSpec")
+        elif hasattr(api, "get_symbol_info"):
+            metadata = _contract_mapping(api.get_symbol_info(dataname), "instrument metadata")
+        else:
+            return self.get_contract_metadata(dataname)
+        self.contract_metadata[str(dataname)] = deepcopy(metadata)
+        return deepcopy(metadata)
+
+    def get_typed_instrument_spec(self, dataname: str):
+        """Return the public SDK ``InstrumentSpec`` without compatibility aliases.
+
+        Strategy runners that need cross-venue sizing use this method so they
+        do not rebuild contract semantics from Backtrader's legacy mapping.
+        """
+
+        api = self._ensure_api_ready()
+        if not self._sdk_mode or not callable(getattr(api, "get_instrument_spec", None)):
+            raise BtApiStoreError("The configured provider has no typed InstrumentSpec contract")
+        return api.get_instrument_spec(self._sdk_exchange(dataname), dataname)
+
+    def get_symbol_info(self, dataname: str):
+        """Compatibility alias for :meth:`get_instrument_spec`."""
+        return self.get_instrument_spec(dataname)
+
+    def _funding_cache_key(self, dataname: str) -> Tuple[str, str]:
+        """Return the route-qualified identity used by the funding cache."""
+        symbol = str(dataname)
+        if self._sdk_mode:
+            route = self._sdk_exchange(symbol)
+        else:
+            route = self._sdk_routes.get(symbol, self.provider)
+        return str(route), symbol
+
+    def _read_funding_snapshot_from_api(self, api: Any, dataname: str) -> Dict[str, Any]:
+        """Perform exactly one SDK/provider funding read without cache policy."""
+        if self._sdk_mode and callable(getattr(api, "get_funding_snapshot", None)):
+            return _contract_mapping(
+                api.get_funding_snapshot(self._sdk_exchange(dataname), dataname),
+                "FundingSnapshot",
+            )
+        if self._sdk_mode and callable(getattr(api, "get_funding_rate", None)):
+            return _contract_mapping(
+                api.get_funding_rate(self._sdk_exchange(dataname), dataname, normalized=True),
+                "funding snapshot",
+            )
+        if callable(getattr(api, "get_funding_snapshot", None)):
+            return _contract_mapping(api.get_funding_snapshot(dataname), "FundingSnapshot")
+        if callable(getattr(api, "get_funding_rate", None)):
+            return _contract_mapping(api.get_funding_rate(dataname), "funding snapshot")
+        raise BtApiStoreError("The provider does not expose funding rates")
+
+    def _read_funding_snapshot(self, dataname: str) -> Dict[str, Any]:
+        """Read funding through the serialized metadata transport boundary."""
+        if self._funding_restart_blocked_by_worker:
+            self._prepare_funding_refresh_start()
+        with self._funding_condition:
+            if self._funding_stop_requested and (self._started or self._connected):
+                raise BtApiStoreError("The Store is stopping; funding reads are unavailable")
+            self._funding_direct_inflight += 1
+        try:
+            api = self._ensure_api_ready()
+            with self._funding_transport_lock:
+                return self._read_funding_snapshot_from_api(api, dataname)
+        finally:
+            with self._funding_condition:
+                self._funding_direct_inflight -= 1
+                self._funding_condition.notify_all()
+
+    @staticmethod
+    def _funding_compat_snapshot(snapshot: Mapping[str, Any]) -> Dict[str, Any]:
+        """Preserve the historical synchronous API's Unix timestamp shape."""
+        snapshot = deepcopy(dict(snapshot))
+        next_funding_time = snapshot.get("next_funding_time")
+        if isinstance(next_funding_time, _dt.datetime):
+            if next_funding_time.tzinfo is None:
+                next_funding_time = next_funding_time.replace(tzinfo=_dt.timezone.utc)
+            snapshot["next_funding_time"] = next_funding_time.timestamp()
+        return snapshot
+
+    def _canonical_funding_snapshot(
+        self, snapshot: Mapping[str, Any], key: Tuple[str, str]
+    ) -> Dict[str, Any]:
+        """Deep-copy the public contract and normalize its nested freshness mapping."""
+        result = deepcopy(dict(snapshot))
+        freshness = result.get("freshness")
+        if is_dataclass(freshness) and not isinstance(freshness, type):
+            freshness = asdict(freshness)
+        elif isinstance(freshness, Mapping):
+            freshness = deepcopy(dict(freshness))
+        if freshness is not None:
+            result["freshness"] = freshness
+        # SDK metadata is an identity-bound public contract.  Filling missing
+        # fields here would make a malformed response appear to belong to the
+        # requested route.  Legacy non-SDK providers retain their compatibility
+        # defaults, while SDK responses must prove their own identity below.
+        if not self._sdk_mode:
+            result.setdefault("exchange_name", key[0])
+            result.setdefault("symbol", key[1])
+        return result
+
+    @staticmethod
+    def _funding_snapshot_invalid_reason(
+        snapshot: Mapping[str, Any],
+        now_epoch: float,
+        expected_key: Optional[Tuple[str, str]] = None,
+        max_age_seconds: Optional[float] = None,
+    ) -> str:
+        """Return the fail-closed reason for a typed funding contract."""
+        if expected_key is not None:
+            exchange_name = snapshot.get("exchange_name")
+            symbol = snapshot.get("symbol")
+            if exchange_name in (None, ""):
+                return "funding_exchange_name_missing"
+            if str(exchange_name) != expected_key[0]:
+                return "funding_exchange_name_mismatch"
+            if symbol in (None, ""):
+                return "funding_symbol_missing"
+            if str(symbol) != expected_key[1]:
+                return "funding_symbol_mismatch"
+        freshness = snapshot.get("freshness")
+        if snapshot.get("available") is not True:
+            if isinstance(freshness, Mapping):
+                reason = str(freshness.get("stale_reason") or "").strip()
+                if reason:
+                    return reason
+            return "funding_unavailable"
+        if not isinstance(freshness, Mapping):
+            return "funding_freshness_missing"
+        if freshness.get("stale") is not False:
+            return str(freshness.get("stale_reason") or "funding_stale")
+        if expected_key is not None:
+            observed_at = freshness.get("observed_at")
+            if observed_at in (None, ""):
+                return "funding_observed_at_missing"
+            if not isinstance(observed_at, _dt.datetime):
+                return "funding_observed_at_invalid"
+            if observed_at.tzinfo is None or observed_at.utcoffset() is None:
+                return "funding_observed_at_timezone_missing"
+            try:
+                observed_epoch = float(observed_at.timestamp())
+            except (OverflowError, OSError, ValueError):
+                return "funding_observed_at_invalid"
+            if not math.isfinite(observed_epoch):
+                return "funding_observed_at_invalid"
+            if observed_epoch > now_epoch:
+                return "funding_observed_at_in_future"
+            if max_age_seconds is not None and now_epoch - observed_epoch >= max_age_seconds:
+                return "funding_cache_ttl_expired"
+        if expected_key is not None:
+            try:
+                _, coerce_funding_snapshot, _ = _sdk_cross_venue_contracts()
+                coerce_funding_snapshot(
+                    snapshot,
+                    now_epoch=Decimal(str(now_epoch)),
+                    expected_exchange_name=expected_key[0],
+                    expected_symbol=expected_key[1],
+                )
+            except (BtApiStoreError, TypeError, ValueError, InvalidOperation) as exc:
+                return str(exc) or "funding_snapshot_invalid"
+        return ""
+
+    @staticmethod
+    def _funding_next_epoch(snapshot: Mapping[str, Any]) -> Optional[float]:
+        value = snapshot.get("next_funding_time")
+        try:
+            if isinstance(value, _dt.datetime):
+                if value.tzinfo is None or value.utcoffset() is None:
+                    return None
+                value = value.timestamp()
+            result = float(Decimal(str(value)))
+        except (InvalidOperation, TypeError, ValueError, OverflowError):
+            return None
+        return result if math.isfinite(result) else None
+
+    @staticmethod
+    def _funding_source_age_seconds(snapshot: Mapping[str, Any], now_epoch: float) -> float:
+        """Return the age of a previously validated SDK funding snapshot."""
+        freshness = snapshot.get("freshness")
+        if not isinstance(freshness, Mapping):
+            return 0.0
+        observed_at = freshness.get("observed_at")
+        if not isinstance(observed_at, _dt.datetime):
+            return 0.0
+        return max(now_epoch - observed_at.timestamp(), 0.0)
+
+    @staticmethod
+    def _is_funding_transport_error(exc: BaseException) -> bool:
+        """Recognize failures that cannot contradict a prior typed snapshot."""
+        if isinstance(exc, (TimeoutError, ConnectionError, OSError)):
+            return True
+        if bool(getattr(exc, "transport_error", False)) or bool(getattr(exc, "retryable", False)):
+            return True
+        name = type(exc).__name__.lower()
+        return any(token in name for token in ("connection", "network", "timeout", "transport"))
+
+    @staticmethod
+    def _typed_funding_transport_failure(snapshot: Mapping[str, Any]) -> bool:
+        """Accept only the SDK's explicit, internally consistent transport reason."""
+        freshness = snapshot.get("freshness")
+        return bool(
+            snapshot.get("available") is False
+            and snapshot.get("unavailable_reason") == "funding_transport_failed"
+            and isinstance(freshness, Mapping)
+            and freshness.get("stale") is True
+            and freshness.get("stale_reason") == "funding_transport_failed"
+        )
+
+    def _has_unexpired_funding_record_locked(
+        self,
+        key: Tuple[str, str],
+        generation: int,
+        now_monotonic: float,
+        now_epoch: float,
+    ) -> bool:
+        """Return whether the current record is still a valid last-good snapshot."""
+        record = self._funding_cache.get(key)
+        if (
+            record is None
+            or int(record.get("generation", -1)) != generation
+            or record.get("invalid_reason")
+            or now_monotonic >= float(record.get("deadline_monotonic", 0.0))
+        ):
+            return False
+        return not self._funding_snapshot_invalid_reason(
+            record["snapshot"],
+            now_epoch,
+            expected_key=key if self._sdk_mode else None,
+            max_age_seconds=self._funding_max_age_seconds if self._sdk_mode else None,
+        )
+
+    def _publish_funding_snapshot_locked(
+        self,
+        key: Tuple[str, str],
+        snapshot: Mapping[str, Any],
+        generation: int,
+    ) -> Dict[str, Any]:
+        """Publish one read atomically; caller holds ``_funding_condition``."""
+        now_monotonic = time.monotonic()
+        now_epoch = time.time()
+        normalized = self._canonical_funding_snapshot(snapshot, key)
+        invalid_reason = self._funding_snapshot_invalid_reason(
+            normalized,
+            now_epoch,
+            expected_key=key if self._sdk_mode else None,
+            max_age_seconds=self._funding_max_age_seconds if self._sdk_mode else None,
+        )
+        if invalid_reason == "funding_transport_failed" and self._typed_funding_transport_failure(
+            normalized
+        ):
+            self._funding_last_errors[key] = invalid_reason
+            self._funding_health["failed"] += 1
+            self._funding_health["transport_errors"] += 1
+            if self._has_unexpired_funding_record_locked(
+                key,
+                generation,
+                now_monotonic,
+                now_epoch,
+            ):
+                return normalized
+        next_epoch = self._funding_next_epoch(normalized)
+        source_age = (
+            self._funding_source_age_seconds(normalized, now_epoch)
+            if self._sdk_mode and not invalid_reason
+            else 0.0
+        )
+        source_origin_monotonic = now_monotonic - source_age
+        ttl_deadline = source_origin_monotonic + self._funding_max_age_seconds
+        schedule_deadline = (
+            None if next_epoch is None else now_monotonic + max(next_epoch - now_epoch, 0.0)
+        )
+        deadline = (
+            ttl_deadline if schedule_deadline is None else min(ttl_deadline, schedule_deadline)
+        )
+        if invalid_reason:
+            normalized["available"] = False
+            freshness = normalized.get("freshness")
+            if not isinstance(freshness, Mapping):
+                freshness = {"source": "btapistore_cache", "observed_at": None}
+            else:
+                freshness = dict(freshness)
+            freshness["stale"] = True
+            freshness["stale_reason"] = invalid_reason
+            normalized["freshness"] = freshness
+            self._funding_last_errors[key] = invalid_reason
+            self._funding_health["unavailable"] += 1
+        else:
+            self._funding_last_errors.pop(key, None)
+            self._funding_health["available"] += 1
+        self._funding_cache[key] = {
+            "snapshot": normalized,
+            "stored_monotonic": now_monotonic,
+            "source_age_at_store_seconds": source_age,
+            "source_origin_monotonic": source_origin_monotonic,
+            "deadline_monotonic": deadline,
+            "schedule_deadline_monotonic": schedule_deadline,
+            "next_funding_epoch": next_epoch,
+            "generation": generation,
+            "invalid_reason": invalid_reason,
+        }
+        self._funding_health["completed"] += 1
+        return normalized
+
+    def _record_funding_refresh_error_locked(
+        self, key: Tuple[str, str], exc: BaseException, generation: int
+    ) -> None:
+        """Retain last-good only for a pure transport failure."""
+        error_code = self._safe_exception_code(exc, type(exc).__name__)
+        self._funding_last_errors[key] = error_code
+        self._funding_health["failed"] += 1
+        if self._is_funding_transport_error(exc):
+            self._funding_health["transport_errors"] += 1
+            return
+        self._funding_health["contract_errors"] += 1
+        now = _dt.datetime.now(_dt.timezone.utc)
+        unavailable = {
+            "exchange_name": key[0],
+            "symbol": key[1],
+            "available": False,
+            "source": "btapistore_cache",
+            "freshness": {
+                "source": "btapistore_cache",
+                "observed_at": now,
+                "stale": True,
+                "stale_reason": "funding_refresh_failed",
+            },
+        }
+        self._publish_funding_snapshot_locked(key, unavailable, generation)
+        self._funding_last_errors[key] = error_code
+
+    def _funding_cache_view_locked(
+        self, key: Tuple[str, str], max_age_seconds: float
+    ) -> Dict[str, Any]:
+        """Build a local-only typed cache view while holding the funding lock."""
+        now_monotonic = time.monotonic()
+        now_epoch = time.time()
+        record = self._funding_cache.get(key)
+        pending = key in self._funding_pending
+        generation = self._funding_generation
+        last_error = self._funding_last_errors.get(key)
+        cache_age = None
+        deadline = None
+        invalid_reason = "funding_cache_missing"
+
+        if record is None:
+            result = {
+                "exchange_name": key[0],
+                "symbol": key[1],
+                "available": False,
+                "source": "btapistore_cache",
+                "freshness": {
+                    "source": "btapistore_cache",
+                    "observed_at": None,
+                    "stale": True,
+                    "stale_reason": invalid_reason,
+                },
+            }
+            cache_generation = generation
+        else:
+            result = deepcopy(record["snapshot"])
+            cache_generation = int(record["generation"])
+            local_cache_age = max(now_monotonic - float(record["stored_monotonic"]), 0.0)
+            source_age = max(float(record.get("source_age_at_store_seconds", 0.0)), 0.0)
+            cache_age = source_age + local_cache_age
+            source_origin = float(
+                record.get(
+                    "source_origin_monotonic",
+                    float(record["stored_monotonic"]) - source_age,
+                )
+            )
+            age_deadline = source_origin + max_age_seconds
+            schedule_deadline = record.get("schedule_deadline_monotonic")
+            configured_deadline = float(record.get("deadline_monotonic", age_deadline))
+            deadlines = [age_deadline, configured_deadline]
+            if schedule_deadline is not None:
+                deadlines.append(float(schedule_deadline))
+            deadline = min(deadlines)
+            invalid_reason = str(record.get("invalid_reason") or "")
+            if cache_generation != generation:
+                invalid_reason = "funding_cache_generation_mismatch"
+            elif generation > 0 and not self._funding_accept_results:
+                invalid_reason = "funding_cache_generation_inactive"
+            elif max_age_seconds <= 0 or cache_age >= max_age_seconds:
+                invalid_reason = "funding_cache_ttl_expired"
+            elif deadline is not None and now_monotonic >= deadline:
+                invalid_reason = (
+                    "funding_schedule_expired"
+                    if schedule_deadline is not None and now_monotonic >= float(schedule_deadline)
+                    else "funding_cache_ttl_expired"
+                )
+            else:
+                next_epoch = record.get("next_funding_epoch")
+                if next_epoch is not None and float(next_epoch) <= now_epoch:
+                    invalid_reason = "funding_schedule_expired"
+                elif not invalid_reason:
+                    invalid_reason = self._funding_snapshot_invalid_reason(
+                        result,
+                        now_epoch,
+                        expected_key=key if self._sdk_mode else None,
+                        max_age_seconds=max_age_seconds if self._sdk_mode else None,
+                    )
+
+            if invalid_reason:
+                result["available"] = False
+                freshness = result.get("freshness")
+                freshness = dict(freshness) if isinstance(freshness, Mapping) else {}
+                freshness.setdefault("source", result.get("source") or "btapistore_cache")
+                freshness.setdefault("observed_at", None)
+                freshness["stale"] = True
+                freshness["stale_reason"] = invalid_reason
+                result["freshness"] = freshness
+
+        result.update(
+            cache_age_seconds=cache_age,
+            cache_deadline_monotonic=deadline,
+            cache_generation=cache_generation,
+            funding_generation=generation,
+            refresh_pending=pending,
+            last_refresh_error=last_error,
+        )
+        return result
+
+    def request_funding_refresh(self, dataname: str, *, force: bool = False) -> Dict[str, Any]:
+        """Coalesce a non-blocking funding refresh onto the metadata-only lane."""
+        key = self._funding_cache_key(dataname)
+        now = time.monotonic()
+        with self._funding_condition:
+            if (
+                not self._started
+                or not self._connected
+                or not self._funding_accept_results
+                or self._funding_stop_requested
+                or self._api is None
+            ):
+                return {"queued": False, "status": "store_not_running"}
+            if key in self._funding_pending:
+                self._funding_health["coalesced"] += 1
+                return {"queued": True, "status": "already_pending"}
+            last_requested = self._funding_last_requested.get(key)
+            if (
+                not force
+                and last_requested is not None
+                and now - last_requested < self._funding_refresh_interval_seconds
+            ):
+                self._funding_health["throttled"] += 1
+                return {"queued": False, "status": "refresh_interval"}
+            generation = self._funding_generation
+            self._funding_last_requested[key] = now
+            self._funding_pending.add(key)
+            self._funding_queue.append((generation, key, str(dataname), self._api))
+            self._funding_health["requested"] += 1
+            self._start_funding_refresh_worker_locked()
+            self._funding_condition.notify_all()
+            return {
+                "queued": True,
+                "status": "queued",
+                "exchange_name": key[0],
+                "symbol": key[1],
+                "generation": generation,
+            }
+
+    def enqueue_funding_refresh(self, dataname: str, *, force: bool = False) -> Dict[str, Any]:
+        """Compatibility spelling for :meth:`request_funding_refresh`."""
+        return self.request_funding_refresh(dataname, force=force)
+
+    def wait_for_funding_refreshes(self, timeout: Optional[float] = None) -> bool:
+        """Wait only for tests/shutdown; normal strategy reads remain non-blocking."""
+        timeout = self._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
+        deadline = time.monotonic() + timeout
+        with self._funding_condition:
+            while (
+                self._funding_queue
+                or self._funding_inflight_key is not None
+                or self._funding_direct_inflight
+                or (
+                    self._funding_stop_requested
+                    and self._funding_worker_thread is not None
+                    and self._funding_worker_thread.is_alive()
+                )
+            ):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return False
+                self._funding_condition.wait(timeout=remaining)
+        return True
+
+    def get_cached_funding_snapshot(
+        self,
+        dataname: str,
+        *,
+        max_age_seconds: Optional[float] = None,
+        request_refresh: bool = True,
+    ) -> Dict[str, Any]:
+        """Return a pure-local funding view and optionally enqueue a refresh."""
+        max_age = (
+            self._funding_max_age_seconds if max_age_seconds is None else float(max_age_seconds)
+        )
+        if not math.isfinite(max_age) or max_age < 0:
+            raise ValueError("max_age_seconds must be finite and nonnegative")
+        key = self._funding_cache_key(dataname)
+        with self._funding_condition:
+            view = self._funding_cache_view_locked(key, max_age)
+        should_refresh = bool(
+            request_refresh
+            and (
+                view.get("available") is not True
+                or view.get("cache_age_seconds") is None
+                or float(view["cache_age_seconds"]) >= self._funding_refresh_interval_seconds
+            )
+        )
+        if should_refresh:
+            self.request_funding_refresh(dataname)
+            with self._funding_condition:
+                view = self._funding_cache_view_locked(key, max_age)
+        return view
+
+    def get_funding_refresh_health(self, dataname: Optional[str] = None) -> Dict[str, Any]:
+        """Return a self-consistent snapshot of the metadata lane and cache."""
+        key = None if dataname is None else self._funding_cache_key(dataname)
+        with self._funding_condition:
+            entries = {}
+            for entry_key, record in self._funding_cache.items():
+                entries[f"{entry_key[0]}:{entry_key[1]}"] = {
+                    "generation": record["generation"],
+                    "stored_monotonic": record["stored_monotonic"],
+                    "source_age_at_store_seconds": record.get("source_age_at_store_seconds", 0.0),
+                    "deadline_monotonic": record["deadline_monotonic"],
+                    "invalid_reason": record["invalid_reason"],
+                    "last_refresh_error": self._funding_last_errors.get(entry_key),
+                    "pending": entry_key in self._funding_pending,
+                }
+            last_error = self._funding_last_errors.get(key) if key is not None else None
+            if key is None and self._funding_last_errors:
+                last_error = next(reversed(self._funding_last_errors.values()))
+            result = {
+                **dict(self._funding_health),
+                "generation": self._funding_generation,
+                "worker_alive": bool(
+                    self._funding_worker_thread and self._funding_worker_thread.is_alive()
+                ),
+                "queue_depth": len(self._funding_queue),
+                "inflight": bool(
+                    self._funding_inflight_key is not None or self._funding_direct_inflight
+                ),
+                "inflight_key": self._funding_inflight_key,
+                "direct_inflight": self._funding_direct_inflight,
+                "pending": len(self._funding_pending),
+                "accepting_results": self._funding_accept_results,
+                "restart_blocked_by_worker": self._funding_restart_blocked_by_worker,
+                "last_refresh_error": last_error,
+                "cache_entries": entries,
+            }
+            for counter in (
+                "requested",
+                "dequeued",
+                "completed",
+                "available",
+                "unavailable",
+                "failed",
+                "transport_errors",
+                "contract_errors",
+                "coalesced",
+                "throttled",
+                "discarded_unsent",
+                "stale_generation_results",
+                "worker_stop_timeouts",
+            ):
+                result.setdefault(counter, 0)
+            return result
+
+    def get_funding_snapshot(self, dataname: str):
+        """Synchronously read funding and preserve the historical Unix-time API."""
+        key = self._funding_cache_key(dataname)
+        with self._funding_condition:
+            generation = self._funding_generation
+        try:
+            snapshot = self._read_funding_snapshot(dataname)
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            with self._funding_condition:
+                if generation == self._funding_generation and (
+                    self._funding_accept_results or generation == 0
+                ):
+                    self._record_funding_refresh_error_locked(key, exc, generation)
+            raise
+        published = snapshot
+        with self._funding_condition:
+            if generation == self._funding_generation and (
+                self._funding_accept_results or generation == 0
+            ):
+                published = self._publish_funding_snapshot_locked(key, snapshot, generation)
+        return self._funding_compat_snapshot(published)
+
+    def get_funding_rate(self, dataname: str):
+        """Compatibility alias returning the normalized funding snapshot mapping."""
+        return self.get_funding_snapshot(dataname)
+
+    def get_typed_funding_snapshot(self, dataname: str):
+        """Return the public SDK ``FundingSnapshot`` without a compatibility map."""
+
+        api = self._ensure_api_ready()
+        if not self._sdk_mode or not callable(getattr(api, "get_funding_snapshot", None)):
+            raise BtApiStoreError("The configured provider has no typed FundingSnapshot contract")
+        return api.get_funding_snapshot(self._sdk_exchange(dataname), dataname)
+
+    def get_fee_schedule(self, dataname: str, account_id: Optional[str] = None):
+        """Return account fee rates with explicit availability and freshness."""
+        api = self._ensure_api_ready()
+        venue = self._sdk_exchange(dataname) if self._sdk_mode else None
+        if self._sdk_mode and callable(getattr(api, "get_fee_schedule", None)):
+            resolved_account_id = self._sdk_account_id(venue, account_id)
+            return _contract_mapping(
+                api.get_fee_schedule(venue, dataname, resolved_account_id),
+                "FeeSchedule",
+            )
+        if callable(getattr(api, "get_fee_schedule", None)):
+            return _contract_mapping(
+                api.get_fee_schedule(dataname, account_id=account_id),
+                "FeeSchedule",
+            )
+        raise BtApiStoreError("The provider does not expose a fee schedule")
+
+    def get_typed_fee_schedule(self, dataname: str, account_id: Optional[str] = None):
+        """Return the public SDK account ``FeeSchedule`` without remapping it."""
+
+        api = self._ensure_api_ready()
+        venue = self._sdk_exchange(dataname) if self._sdk_mode else None
+        if not self._sdk_mode or not callable(getattr(api, "get_fee_schedule", None)):
+            raise BtApiStoreError("The configured provider has no typed FeeSchedule contract")
+        return api.get_fee_schedule(venue, dataname, self._sdk_account_id(venue, account_id))
+
+    def get_account_config(self, dataname: str):
+        """Return routed account mode and explicit trading permission."""
+        api = self._ensure_api_ready()
+        if self._sdk_mode:
+            return _contract_mapping(
+                api.get_account_config(self._sdk_exchange(dataname), normalized=True),
+                "account configuration",
+            )
+        if not hasattr(api, "get_account_config"):
+            raise BtApiStoreError("The provider does not expose account configuration")
+        return _contract_mapping(api.get_account_config(dataname), "account configuration")
+
+    def get_environment_info(self, dataname: str):
+        """Return the public SDK's credential-free routed environment proof."""
+        api = self._ensure_api_ready()
+        if not self._sdk_mode or not hasattr(api, "get_environment_info"):
+            raise BtApiStoreError("The provider does not expose environment information")
+        return dict(api.get_environment_info(self._sdk_exchange(dataname)))
+
+    def get_trading_readiness(
+        self,
+        dataname: str,
+        quantity_native,
+        *,
+        margin_mode: str = "cross",
+        expected_position_mode: Optional[str] = None,
+        account_id: Optional[str] = None,
+    ):
+        """Return the unified typed readiness contract as a compatibility mapping."""
+        api = self._ensure_api_ready()
+        if self._sdk_mode and callable(getattr(api, "get_trading_readiness", None)):
+            venue = self._sdk_exchange(dataname)
+            contract = api.get_trading_readiness(
+                venue,
+                dataname,
+                self._sdk_account_id(venue, account_id),
+                quantity_native,
+                margin_mode=margin_mode,
+                position_mode=expected_position_mode,
+            )
+            snapshot = _contract_mapping(contract, "TradingReadiness")
+            snapshot["ready"] = bool(getattr(contract, "ready", snapshot.get("ready", False)))
+            reasons = snapshot.get("blocked_reasons", snapshot.get("reasons", ()))
+            snapshot["reasons"] = list(reasons or ())
+            snapshot.setdefault(
+                "definite_failure",
+                bool(_DEFINITE_READINESS_REASONS.intersection(snapshot["reasons"])),
+            )
+            return snapshot
+        if self._sdk_mode:
+            snapshot = _contract_mapping(
+                api.get_order_readiness(
+                    self._sdk_exchange(dataname),
+                    dataname,
+                    quantity_native,
+                    margin_mode=margin_mode,
+                    position_mode=expected_position_mode,
+                    normalized=True,
+                ),
+                "order readiness",
+            )
+            snapshot["reasons"] = list(snapshot.get("reasons") or ())
+            return snapshot
+        if callable(getattr(api, "get_trading_readiness", None)):
+            contract = api.get_trading_readiness(
+                dataname,
+                account_id=account_id,
+                quantity_native=quantity_native,
+                margin_mode=margin_mode,
+                position_mode=expected_position_mode,
+            )
+            snapshot = _contract_mapping(contract, "TradingReadiness")
+            snapshot["ready"] = bool(getattr(contract, "ready", snapshot.get("ready", False)))
+            snapshot["reasons"] = list(
+                snapshot.get("blocked_reasons", snapshot.get("reasons", ())) or ()
+            )
+            return snapshot
+        if not hasattr(api, "get_order_readiness"):
+            raise BtApiStoreError("The provider does not expose order readiness")
+        snapshot = _contract_mapping(
+            api.get_order_readiness(
+                dataname,
+                quantity_native,
+                margin_mode=margin_mode,
+                position_mode=expected_position_mode,
+            ),
+            "order readiness",
+        )
+        snapshot["reasons"] = list(snapshot.get("reasons") or ())
+        return snapshot
+
+    def get_order_readiness(
+        self,
+        dataname: str,
+        quantity_native,
+        *,
+        margin_mode: str = "cross",
+        position_mode: Optional[str] = None,
+    ):
+        """Compatibility alias for :meth:`get_trading_readiness`."""
+        return self.get_trading_readiness(
+            dataname,
+            quantity_native,
+            margin_mode=margin_mode,
+            expected_position_mode=position_mode,
+        )
+
+    def get_venue_balances(self, force: bool = False):
+        """Return available cash and equity separately for each configured venue."""
+        api = self._ensure_api_ready()
+        if not force and self._is_cache_fresh(
+            self._last_venue_balance_refresh, self._account_cache_ttl
+        ):
+            return deepcopy(self._venue_balance_cache)
+        if self._sdk_mode:
+            balances = api.get_all_balances(normalized=True)
+        elif hasattr(api, "get_venue_balances"):
+            balances = api.get_venue_balances()
+        else:
+            raise BtApiStoreError("The provider does not expose per-venue balances")
+        self._venue_balance_cache = deepcopy(balances)
+        self._last_venue_balance_refresh = time.monotonic()
+        return deepcopy(balances)
+
+    def get_venue_balance(self, dataname: str, force: bool = False):
+        """Return the account snapshot for the venue routed to ``dataname``.
+
+        The SDK owns exchange account normalization.  This thin store method
+        only resolves Backtrader's feed symbol to the configured venue and
+        selects that venue from the shared balance snapshot.
+        """
+        balances = self.get_venue_balances(force=force)
+        if self._sdk_mode:
+            venue = self._sdk_exchange(dataname)
+        else:
+            venue = self._sdk_routes.get(str(dataname), str(dataname))
+            if venue not in balances and len(balances) == 1:
+                venue = next(iter(balances))
+        if venue not in balances:
+            raise BtApiStoreError(f"No account balance is available for venue {venue!r}")
+        return deepcopy(balances[venue])
+
+    def get_cached_venue_balance(self, dataname: str):
+        """Return a previously hydrated venue balance without transport I/O."""
+        venue = self._sdk_exchange(dataname) if self._sdk_mode else self._sdk_routes.get(dataname)
+        if venue not in self._venue_balance_cache:
+            raise BtApiStoreError(f"No cached account balance is available for venue {venue!r}")
+        return deepcopy(self._venue_balance_cache[venue])
+
+    def apply_reconcile_snapshot(self, snapshot: Mapping[str, Any]) -> None:
+        """Refresh read-only caches from a worker result on the Cerebro thread."""
+        venue_balances = snapshot.get("venue_balances")
+        if isinstance(venue_balances, Mapping):
+            self._venue_balance_cache = deepcopy(dict(venue_balances))
+            self._last_venue_balance_refresh = time.monotonic()
+        balance = snapshot.get("balance")
+        normalized = _normalise_account_balance_payload(balance)
+        if normalized is not None:
+            cash, value = normalized
+            if cash is not None:
+                self._cash = cash
+            if value is not None:
+                self._value = value
+            self._last_balance_refresh = time.monotonic()
+        positions = snapshot.get("positions")
+        if isinstance(positions, list):
+            self._positions_cache = deepcopy(positions)
+            self._last_positions_refresh = time.monotonic()
+        open_orders = snapshot.get("open_orders")
+        if isinstance(open_orders, list):
+            self._open_orders_cache = deepcopy(open_orders)
+            self._last_open_orders_refresh = time.monotonic()
+
+    def get_execution_summary(self):
+        """Read the active session, or its stop snapshot without reconnecting."""
+        if self._last_execution_summary is not None:
+            return deepcopy(self._last_execution_summary)
+        api = self._ensure_api_ready()
+        if not hasattr(api, "get_execution_summary"):
+            raise BtApiStoreError("The provider does not expose execution audit counts")
+        return deepcopy(api.get_execution_summary())
+
+    def _cache_account_risk_snapshot_before_shutdown(self) -> None:
+        """Retain an existing safe view without starting shutdown-time network I/O.
+
+        Account-risk reads can require several authenticated venue requests.  A
+        fresh read here would consume the caller's shutdown deadline before the
+        SDK transports are closed.  Runtime reconciliation already publishes an
+        identity-bound cache; when none exists, post-stop callers receive the
+        explicit unavailable contract instead of a guessed snapshot.
+        """
+        if not self._sdk_owned_api or self._api is None:
+            return
+        with self._account_risk_lock:
+            cached = (
+                self._last_account_risk_snapshot is not None
+                and self._last_account_risk_snapshot_generation == self._stream_generation
+            )
+            if not cached:
+                self._last_account_risk_snapshot = None
+                self._last_account_risk_snapshot_generation = None
+        if cached:
+            return
+        try:
+            snapshot = self._read_account_risk_snapshot(self._api)
+        except Exception as exc:
+            # Shutdown must still close a synchronous compatibility client if
+            # its optional risk diagnostic violates the public contract.
+            self.sanitize_exception(exc)
+            return
+        self._cache_account_risk_snapshot(snapshot)
+
+    def _cache_account_risk_snapshot(self, snapshot: Mapping[str, Any]) -> Dict[str, Any]:
+        """Publish one validated, redacted account-risk snapshot for callback reads."""
+        safe_snapshot = cast(Dict[str, Any], self.redact_runtime_value(dict(snapshot)))
+        with self._account_risk_lock:
+            self._last_account_risk_snapshot = deepcopy(safe_snapshot)
+            self._last_account_risk_snapshot_generation = self._stream_generation
+            self._last_account_risk_refresh_requested = time.monotonic()
+        return deepcopy(safe_snapshot)
+
+    def _cached_account_risk_unavailable(self) -> Dict[str, Any]:
+        routes = sorted(str(venue) for venue in self._sdk_exchanges)
+        return {
+            "schema_version": 1,
+            "baseline_equity": None,
+            "current_equity": None,
+            "realized_net": None,
+            "configured_venues": sorted({self._public_sdk_venue(venue) for venue in routes}),
+            "configured_venue_routes": routes,
+            "baseline_equity_by_venue": None,
+            "current_equity_by_venue": None,
+            "currency": None,
+            "generation": 0,
+            "fencing_epoch": 0,
+            "as_of_monotonic_ns": 0,
+            "owner_pid": None,
+            "clock_domain_id": "",
+            "identity_binding_sha256": "",
+            "durable": False,
+            "trading_blocked": True,
+            "loss_limit_bps": self._sdk_execution_config.get("account_maximum_loss_bps"),
+            "loss_limit_breached": False,
+            "loss_breached_at": None,
+            "loss_amount": None,
+            "loss_limit_amount": None,
+            "loss_bps_observed": None,
+            "peak_loss_bps": None,
+            "blocked_reasons": ["account_risk_cache_unavailable"],
+            "evidence_complete": False,
+            "evidence_errors": ["account_risk_cache_unavailable"],
+            "error_code": "account_risk_cache_unavailable",
+        }
+
+    def get_cached_account_risk_snapshot(self) -> Dict[str, Any]:
+        """Return callback-safe risk evidence and schedule refresh without network I/O."""
+        with self._account_risk_lock:
+            snapshot = (
+                deepcopy(self._last_account_risk_snapshot)
+                if self._last_account_risk_snapshot is not None
+                and self._last_account_risk_snapshot_generation == self._stream_generation
+                else None
+            )
+        self.enqueue_account_risk_refresh()
+        return snapshot if snapshot is not None else self._cached_account_risk_unavailable()
+
+    def get_account_risk_snapshot(self) -> Dict[str, Any]:
+        """Return SDK-owned durable account-loss evidence or an explicit blocker.
+
+        The Store deliberately does not synthesize a durable baseline or
+        realised PnL from Backtrader's process-local cash/value fields.  A
+        provider without the public SDK contract therefore returns a complete
+        fail-closed shape with ``evidence_complete=False``.
+        """
+        with self._account_risk_lock:
+            cached = (
+                deepcopy(self._last_account_risk_snapshot)
+                if self._last_account_risk_snapshot is not None
+                and self._last_account_risk_snapshot_generation == self._stream_generation
+                else None
+            )
+        if cached is not None and (self._started or self._api is None):
+            return cached
+        return self._read_account_risk_snapshot(self._api)
+
+    def initialize_account_risk_baseline(self) -> Dict[str, Any]:
+        """Ask the SDK to initialize its baseline under its authoritative flatness gate."""
+        if not self.requires_account_risk:
+            raise BtApiStoreError("account_risk_not_required")
+        snapshot = self._read_account_risk_snapshot(
+            self._ensure_api_ready(), initialize_baseline=True
+        )
+        if (
+            snapshot.get("evidence_complete") is not True
+            or snapshot.get("durable") is not True
+            or snapshot.get("trading_blocked") is not False
+        ):
+            raise BtApiStoreError("account_risk_baseline_not_proven")
+        return snapshot
+
+    def get_reconcile_snapshot(self) -> Dict[str, Any]:
+        """Return one redacted, identity-bound synchronous SDK reconciliation snapshot."""
+        if not self._sdk_mode:
+            raise BtApiStoreError("SDK reconciliation is unavailable")
+        incident_epoch = self._current_risk_incident_epoch()
+        snapshot = self._sdk_reconcile_snapshot()
+        self._maybe_clear_risk_state_latch(snapshot, incident_epoch=incident_epoch)
+        return cast(Dict[str, Any], self.redact_runtime_value(snapshot))
+
+    def _read_account_risk_snapshot(
+        self, api: Any, *, initialize_baseline: bool = False
+    ) -> Dict[str, Any]:
+        """Read, validate and redact the public SDK account-risk contract."""
+        configured_routes = sorted(
+            str(venue).strip() for venue in self._sdk_exchanges if str(venue).strip()
+        )
+        configured_venues = sorted(
+            {
+                str(venue).partition("___")[0].strip().lower()
+                for venue in configured_routes
+                if str(venue).strip()
+            }
+        )
+
+        def unavailable(error_code: str, errors: Optional[Iterable[str]] = None):
+            return self._cache_account_risk_snapshot(
+                {
+                    "schema_version": 1,
+                    "baseline_equity": None,
+                    "current_equity": None,
+                    "realized_net": None,
+                    "configured_venues": configured_venues,
+                    "configured_venue_routes": configured_routes,
+                    "baseline_equity_by_venue": None,
+                    "current_equity_by_venue": None,
+                    "currency": None,
+                    "generation": 0,
+                    "fencing_epoch": 0,
+                    "as_of_monotonic_ns": 0,
+                    "owner_pid": None,
+                    "clock_domain_id": "",
+                    "identity_binding_sha256": "",
+                    "durable": False,
+                    "trading_blocked": True,
+                    "loss_limit_bps": self._sdk_execution_config.get("account_maximum_loss_bps"),
+                    "loss_limit_breached": False,
+                    "loss_breached_at": None,
+                    "loss_amount": None,
+                    "loss_limit_amount": None,
+                    "loss_bps_observed": None,
+                    "peak_loss_bps": None,
+                    "evidence_complete": False,
+                    "evidence_errors": list(errors or (error_code,)),
+                    "error_code": error_code,
+                }
+            )
+
+        # Validate the immutable identity vector before asking the SDK to
+        # create a durable baseline. A wrong injected SDK must not mutate a
+        # different ledger before the mismatch is discovered.
+        execution_identities = {}
+        identity_errors = []
+        for venue in configured_routes:
+            try:
+                execution_identities[venue] = self._validated_sdk_identity(venue)
+            except BtApiStoreError as exc:
+                identity_errors.append(f"{venue}:{exc}")
+        if identity_errors or len(execution_identities) != len(configured_routes):
+            return unavailable("account_risk_identity_unproven", identity_errors)
+
+        getter = getattr(api, "get_account_risk_snapshot", None)
+        if not callable(getter):
+            return unavailable("account_risk_snapshot_unavailable")
+        risk_read_started_ns = time.monotonic_ns()
+        try:
+            raw_snapshot = getter(initialize_baseline=True) if initialize_baseline else getter()
+            risk_read_finished_ns = time.monotonic_ns()
+            snapshot = _contract_mapping(raw_snapshot, "account risk snapshot")
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            return unavailable(self._safe_exception_code(exc, "account_risk_snapshot_failed"))
+
+        required = {
+            "schema_version",
+            "baseline_equity",
+            "baseline_equity_by_venue",
+            "blocked_reasons",
+            "clock_domain_id",
+            "currency",
+            "current_equity",
+            "current_equity_by_venue",
+            "configured_venues",
+            "evidence_errors",
+            "ledger_identities",
+            "generation",
+            "fencing_epoch",
+            "as_of_monotonic_ns",
+            "owner_pid",
+            "durable",
+            "trading_blocked",
+            "evidence_complete",
+            "loss_limit_bps",
+            "loss_limit_breached",
+            "loss_breached_at",
+            "loss_amount",
+            "loss_limit_amount",
+            "loss_bps_observed",
+            "peak_loss_bps",
+        }
+        errors = [f"missing_{key}" for key in sorted(required.difference(snapshot))]
+        raw_routes = snapshot.get("configured_venues")
+        if isinstance(raw_routes, (list, tuple)) and all(
+            isinstance(venue, str) and venue.strip() for venue in raw_routes
+        ):
+            actual_routes = sorted(venue.strip() for venue in raw_routes)
+            if len(actual_routes) != len(set(actual_routes)):
+                errors.append("duplicate_configured_venues")
+        else:
+            actual_routes = []
+            errors.append("invalid_configured_venues")
+        if actual_routes != configured_routes:
+            errors.append("configured_venues_mismatch")
+        snapshot["configured_venue_routes"] = actual_routes
+        snapshot["configured_venues"] = sorted(
+            {self._public_sdk_venue(venue) for venue in actual_routes}
+        )
+
+        # Re-read every identity after the SDK call; the per-session binding
+        # rejects a time-of-check/time-of-use account or fence change.
+        post_call_identities = {}
+        for venue in configured_routes:
+            try:
+                post_call_identities[venue] = self._validated_sdk_identity(venue)
+            except BtApiStoreError as exc:
+                errors.append(f"{venue}:{exc}")
+        if len(post_call_identities) == len(configured_routes):
+            execution_identities = post_call_identities
+        identity_binding_sha256 = (
+            self._sdk_identity_binding_sha256(execution_identities)
+            if len(execution_identities) == len(configured_routes)
+            else ""
+        )
+        snapshot["identity_binding_sha256"] = identity_binding_sha256
+
+        raw_ledger_identities = snapshot.get("ledger_identities")
+        if not isinstance(raw_ledger_identities, list):
+            errors.append("invalid_ledger_identities")
+            raw_ledger_identities = []
+
+        def account_identity(identity):
+            canonical = self._canonical_sdk_identity(identity)
+            result = {key: canonical[key] for key in ("provider", "environment", "account_id")}
+            if canonical.get("credential_fingerprint"):
+                result["credential_fingerprint"] = canonical["credential_fingerprint"]
+            return result
+
+        expected_account_identities = sorted(
+            (account_identity(identity) for identity in execution_identities.values()),
+            key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":")),
+        )
+        expected_identity_keys = [
+            json.dumps(row, sort_keys=True, separators=(",", ":"))
+            for row in expected_account_identities
+        ]
+        if len(expected_identity_keys) != len(set(expected_identity_keys)):
+            errors.append("duplicate_account_risk_identity")
+        actual_account_identities = []
+        for raw_identity in raw_ledger_identities:
+            if not isinstance(raw_identity, Mapping):
+                errors.append("invalid_ledger_identity")
+                continue
+            actual_account_identities.append(account_identity(raw_identity))
+        actual_account_identities.sort(
+            key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":"))
+        )
+        if actual_account_identities != expected_account_identities:
+            errors.append("account_risk_identity_mismatch")
+
+        if type(snapshot.get("schema_version")) is not int or snapshot.get("schema_version") != 1:
+            errors.append("invalid_schema_version")
+
+        def equity_map(key):
+            raw = snapshot.get(key)
+            if not isinstance(raw, Mapping):
+                errors.append(f"invalid_{key}")
+                return None, set()
+            if set(raw) != set(configured_routes):
+                errors.append(f"{key}_venues_mismatch")
+            total = Decimal(0)
+            currencies = set()
+            valid = True
+            for venue in configured_routes:
+                row = raw.get(venue)
+                if not isinstance(row, Mapping):
+                    errors.append(f"invalid_{key}_{venue}")
+                    valid = False
+                    continue
+                currency = str(row.get("currency") or "").strip().upper()
+                if not currency:
+                    errors.append(f"invalid_{key}_{venue}_currency")
+                    valid = False
+                else:
+                    currencies.add(currency)
+                try:
+                    value = Decimal(str(row.get("equity")))
+                    if not value.is_finite():
+                        raise InvalidOperation
+                    total += value
+                except (InvalidOperation, TypeError, ValueError):
+                    errors.append(f"invalid_{key}_{venue}_equity")
+                    valid = False
+            return (total if valid else None), currencies
+
+        baseline_total, baseline_currencies = equity_map("baseline_equity_by_venue")
+        current_total, current_currencies = equity_map("current_equity_by_venue")
+        aggregate_values = {}
+        for key in ("baseline_equity", "current_equity"):
+            try:
+                value = Decimal(str(snapshot.get(key)))
+                if not value.is_finite():
+                    raise InvalidOperation
+                aggregate_values[key] = value
+            except (InvalidOperation, TypeError, ValueError):
+                errors.append(f"invalid_{key}")
+        if baseline_total is not None and aggregate_values.get("baseline_equity") != baseline_total:
+            errors.append("baseline_equity_aggregate_mismatch")
+        if current_total is not None and aggregate_values.get("current_equity") != current_total:
+            errors.append("current_equity_aggregate_mismatch")
+
+        configured_loss_limit = self._sdk_execution_config.get("account_maximum_loss_bps")
+        raw_loss_limit = snapshot.get("loss_limit_bps")
+        loss_limit = None
+        if configured_loss_limit is None:
+            if raw_loss_limit is not None:
+                errors.append("unexpected_account_maximum_loss_limit")
+        else:
+            try:
+                configured_loss_limit = Decimal(str(configured_loss_limit))
+                loss_limit = Decimal(str(raw_loss_limit))
+                if (
+                    not configured_loss_limit.is_finite()
+                    or configured_loss_limit <= 0
+                    or not loss_limit.is_finite()
+                    or loss_limit <= 0
+                    or loss_limit != configured_loss_limit
+                ):
+                    raise InvalidOperation
+            except (InvalidOperation, TypeError, ValueError):
+                errors.append("account_maximum_loss_limit_mismatch")
+
+        loss_limit_breached = snapshot.get("loss_limit_breached")
+        if type(loss_limit_breached) is not bool:
+            errors.append("invalid_loss_limit_breached")
+        loss_breached_at = snapshot.get("loss_breached_at")
+        if loss_limit_breached is True:
+            if (
+                isinstance(loss_breached_at, bool)
+                or not isinstance(loss_breached_at, (int, float))
+                or not math.isfinite(loss_breached_at)
+                or loss_breached_at <= 0
+            ):
+                errors.append("invalid_loss_breached_at")
+        elif loss_breached_at is not None:
+            errors.append("unexpected_loss_breached_at")
+
+        loss_values = {}
+        for key in (
+            "loss_amount",
+            "loss_limit_amount",
+            "loss_bps_observed",
+            "peak_loss_bps",
+        ):
+            raw_value = snapshot.get(key)
+            if raw_value is None:
+                loss_values[key] = None
+                continue
+            try:
+                value = Decimal(str(raw_value))
+                if not value.is_finite() or value < 0 or not isinstance(raw_value, str):
+                    raise InvalidOperation
+            except (InvalidOperation, TypeError, ValueError):
+                errors.append(f"invalid_{key}")
+                loss_values[key] = None
+            else:
+                loss_values[key] = value
+
+        if loss_limit is None:
+            if loss_limit_breached is not False or any(
+                value is not None for value in loss_values.values()
+            ):
+                errors.append("unexpected_account_loss_state")
+        elif baseline_total is not None and current_total is not None and baseline_total > 0:
+            expected_loss = max(baseline_total - current_total, Decimal("0"))
+            expected_limit_amount = baseline_total * loss_limit / Decimal("10000")
+            expected_loss_bps = expected_loss * Decimal("10000") / baseline_total
+            if loss_values["loss_amount"] != expected_loss:
+                errors.append("account_loss_amount_mismatch")
+            if loss_values["loss_limit_amount"] != expected_limit_amount:
+                errors.append("account_loss_limit_amount_mismatch")
+            if loss_values["loss_bps_observed"] != expected_loss_bps:
+                errors.append("account_loss_bps_mismatch")
+            peak = loss_values["peak_loss_bps"]
+            if peak is None or peak < expected_loss_bps:
+                errors.append("account_peak_loss_bps_mismatch")
+            if loss_limit_breached is False and expected_loss_bps >= loss_limit:
+                errors.append("account_loss_latch_missing")
+        aggregate_currency = snapshot.get("currency")
+        if not isinstance(aggregate_currency, str) or not aggregate_currency.strip():
+            errors.append("invalid_currency")
+        else:
+            aggregate_currency = aggregate_currency.strip().upper()
+            if baseline_currencies != {aggregate_currency} or current_currencies != {
+                aggregate_currency
+            }:
+                errors.append("account_risk_currency_mismatch")
+            snapshot["currency"] = aggregate_currency
+        if snapshot.get("realized_net") is not None:
+            try:
+                if not Decimal(str(snapshot["realized_net"])).is_finite():
+                    raise InvalidOperation
+            except (InvalidOperation, TypeError, ValueError):
+                errors.append("invalid_realized_net")
+        for key in ("generation", "fencing_epoch", "as_of_monotonic_ns", "owner_pid"):
+            value = snapshot.get(key)
+            if type(value) is not int or value <= 0:
+                errors.append(f"invalid_{key}")
+        if snapshot.get("generation") != snapshot.get("fencing_epoch"):
+            errors.append("account_risk_generation_fence_mismatch")
+        owner_pid = snapshot.get("owner_pid")
+        clock_domain_id = snapshot.get("clock_domain_id")
+        if owner_pid != os.getpid() or clock_domain_id != f"process:{owner_pid}:monotonic":
+            errors.append("account_risk_clock_domain_mismatch")
+        as_of_monotonic_ns = snapshot.get("as_of_monotonic_ns")
+        if type(as_of_monotonic_ns) is int:
+            if as_of_monotonic_ns < risk_read_started_ns:
+                errors.append("account_risk_timestamp_precedes_call")
+            elif as_of_monotonic_ns > risk_read_finished_ns:
+                errors.append("account_risk_timestamp_in_future")
+        for key in ("durable", "trading_blocked", "evidence_complete"):
+            if not isinstance(snapshot.get(key), bool):
+                errors.append(f"invalid_{key}")
+        sdk_evidence_errors = snapshot.get("evidence_errors")
+        if not isinstance(sdk_evidence_errors, Mapping):
+            errors.append("invalid_sdk_evidence_errors")
+        elif sdk_evidence_errors:
+            errors.append("sdk_evidence_errors_present")
+        blocked_reasons = snapshot.get("blocked_reasons")
+        if not isinstance(blocked_reasons, list):
+            errors.append("invalid_blocked_reasons")
+        elif blocked_reasons:
+            errors.append("sdk_blocked_reasons_present")
+        if snapshot.get("durable") is not True:
+            errors.append("account_risk_not_durable")
+        if snapshot.get("trading_blocked") is not False:
+            errors.append("account_risk_trading_blocked")
+        if snapshot.get("evidence_complete") is not True:
+            errors.append("sdk_evidence_incomplete")
+
+        risk_fence = snapshot.get("fencing_epoch")
+        execution_fences = {
+            identity.get("fencing_epoch") for identity in execution_identities.values()
+        }
+        if len(execution_fences) != 1 or risk_fence not in execution_fences:
+            errors.append("account_risk_fencing_epoch_mismatch")
+
+        if errors or snapshot.get("evidence_complete") is not True:
+            snapshot.update(
+                durable=False,
+                trading_blocked=True,
+                evidence_complete=False,
+                evidence_errors=sorted(set(errors or ("sdk_evidence_incomplete",))),
+                error_code="account_risk_evidence_incomplete",
+            )
+        return self._cache_account_risk_snapshot(snapshot)
+
+    def _sdk_exchange(self, dataname):
+        """Resolve a Backtrader feed binding to an SDK exchange name."""
+        venue = self._sdk_routes.get(str(dataname))
+        if venue is None and len(self._sdk_exchanges) == 1:
+            venue = next(iter(self._sdk_exchanges))
+        if venue not in self._sdk_exchanges:
+            raise BtApiStoreError("A symbol_routes entry is required for this feed")
+        return venue
+
+    def _sdk_account_id(self, venue, supplied=None):
+        """Resolve an authenticated account through the SDK-owned ledger identity."""
+        identity = self._validated_sdk_identity(venue)
+        account_id = str(identity.get("account_id") or "")
+        if supplied not in (None, ""):
+            supplied_id = str(supplied).strip().casefold()
+            allowed = {account_id.casefold()}
+            account_alias = identity.get("account_alias")
+            if account_alias not in (None, ""):
+                allowed.add(str(account_alias).strip().casefold())
+            if supplied_id not in allowed:
+                raise BtApiStoreError("The requested account_id does not match the SDK ledger")
+        return account_id
+
+    def _warm_sdk_command_types(self) -> Dict[str, Any]:
+        """Load public bt_api_py request models outside the order hot path."""
+        if not self._sdk_command_types:
+            from bt_api_py import (
+                CancelOrderRequest,
+                OrderRequest,
+                OrderType,
+                QueryOrderRequest,
+                Side,
+            )
+
+            self._sdk_command_types.update(
+                CancelOrderRequest=CancelOrderRequest,
+                OrderRequest=OrderRequest,
+                OrderType=OrderType,
+                QueryOrderRequest=QueryOrderRequest,
+                Side=Side,
+            )
+        return self._sdk_command_types
+
+    def get_symbol_routes(self) -> Dict[str, str]:
+        """Return a copy of the framework symbol-to-SDK venue bindings."""
+        return dict(self._sdk_routes)
+
+    def _sdk_order_request(self, venue, payload):
+        """Convert a framework Order and bind its reference before the SDK call."""
+        command_types = self._warm_sdk_command_types()
+        OrderRequest = command_types["OrderRequest"]
+        OrderType = command_types["OrderType"]
+        Side = command_types["Side"]
+
+        account_id = self._sdk_account_id(venue)
+        client_id = str(payload.get("client_order_id") or self._api.new_client_order_id(venue))
+        binding = {
+            "symbol": payload["symbol"],
+            "exchange_name": venue,
+            "account_id": account_id,
+            "client_order_id": client_id,
+            "bt_order_ref": payload.get("bt_order_ref"),
+        }
+        previous = self._sdk_client_refs.get((venue, client_id))
+        if previous and previous.get("bt_order_ref") != binding["bt_order_ref"]:
+            raise BtApiStoreError("client_order_id is already bound to another Backtrader order")
+        request = OrderRequest(
+            symbol=payload["symbol"],
+            account_id=account_id,
+            client_order_id=client_id,
+            side=Side(payload["side"]),
+            order_type=OrderType(payload["order_type"]),
+            quantity=Decimal(str(payload["size"])),
+            price=Decimal(str(payload["price"])) if payload.get("price") is not None else None,
+            quantity_unit=(
+                payload.get("quantity_unit")
+                or self.contract_metadata.get(payload["symbol"], {}).get("quantity_unit")
+                or "native"
+            ),
+            time_in_force=str(payload.get("time_in_force", "GTC")).upper(),
+            reduce_only=bool(payload.get("reduce_only", False)),
+            **{
+                key: payload[key]
+                for key in (
+                    "position_side",
+                    "position_id",
+                    "offset",
+                    "exchange_id",
+                    "position_mode",
+                )
+                if payload.get(key) is not None
+            },
+        )
+
+        def public_value(value):
+            return getattr(value, "value", value)
+
+        binding["execution_contract"] = {
+            "side": str(public_value(request.side)).strip().lower(),
+            "position_side": public_value(getattr(request, "position_side", None)),
+            "offset": public_value(getattr(request, "offset", None)),
+            "position_mode": public_value(getattr(request, "position_mode", None)),
+            "quantity_unit": str(public_value(request.quantity_unit)).strip().lower(),
+            "requested_quantity": str(request.quantity),
+            "reduce_only": bool(request.reduce_only),
+        }
+        self._sdk_client_refs[(venue, client_id)] = binding
+        self._sdk_local_refs[str(binding["bt_order_ref"])] = binding
+        return request
+
+    def _sdk_broker_event(self, venue, event):
+        """Attach framework identity without interpreting execution state or fees."""
+        result = dict(event)
+        client_id = str(result.get("client_order_id") or result.get("order_ref") or "")
+        order_id = str(result.get("order_id") or "")
+        binding = self._sdk_client_refs.get((venue, client_id)) or (
+            self._sdk_venue_refs.get((venue, order_id)) if order_id else None
+        )
+        if binding is None:
+            binding = {
+                "symbol": result["symbol"],
+                "exchange_name": venue,
+                "account_id": self._sdk_account_id(venue),
+                "client_order_id": client_id,
+                "bt_order_ref": None,
+            }
+        for key in ("order_id", "order_ref", "exchange_id", "front_id", "session_id"):
+            if result.get(key) not in (None, ""):
+                binding[key] = result[key]
+        if client_id:
+            self._sdk_client_refs[(venue, client_id)] = binding
+        if order_id:
+            self._sdk_venue_refs[(venue, order_id)] = binding
+        result.update(
+            data_name=binding["symbol"],
+            bt_order_ref=binding.get("bt_order_ref"),
+            external_order_id=f"{venue}:{order_id}" if order_id else None,
+            venue_order_id=order_id,
+        )
+        return result
+
+    def _sdk_cancel_request(self, reference, dataname):
+        """Translate local/scoped references into the SDK's public cancellation type."""
+        CancelOrderRequest = self._warm_sdk_command_types()["CancelOrderRequest"]
+
+        reference = str(reference)
+        venue = self._sdk_exchange(dataname) if dataname is not None else None
+        binding = self._sdk_local_refs.get(reference)
+        if binding is None:
+            candidates = [
+                item
+                for key, item in self._sdk_client_refs.items()
+                if key[1] == reference and (venue is None or key[0] == venue)
+            ]
+            candidates += [
+                item
+                for (name, order_id), item in self._sdk_venue_refs.items()
+                if (reference == f"{name}:{order_id}" or reference == order_id)
+                and (venue is None or name == venue)
+            ]
+            if candidates and all(item is candidates[0] for item in candidates):
+                binding = candidates[0]
+        if binding is None or (venue is not None and binding["exchange_name"] != venue):
+            raise BtApiStoreError("The cancellation reference has no unambiguous feed binding")
+        venue = binding["exchange_name"]
+        request = CancelOrderRequest(
+            symbol=binding["symbol"],
+            account_id=self._sdk_account_id(venue, binding.get("account_id")),
+            client_order_id=binding.get("client_order_id") or None,
+            **{
+                key: binding[key]
+                for key in (
+                    "order_id",
+                    "order_ref",
+                    "exchange_id",
+                    "front_id",
+                    "session_id",
+                )
+                if binding.get(key) not in (None, "")
+            },
+        )
+        return venue, request
+
+    def _sdk_query_request(self, reference, dataname):
+        """Translate a framework/scoped reference into the SDK query contract."""
+        QueryOrderRequest = self._warm_sdk_command_types()["QueryOrderRequest"]
+
+        reference = str(reference)
+        venue = self._sdk_exchange(dataname) if dataname is not None else None
+        binding = self._sdk_local_refs.get(reference)
+        if binding is None:
+            candidates = [
+                item
+                for key, item in self._sdk_client_refs.items()
+                if key[1] == reference and (venue is None or key[0] == venue)
+            ]
+            candidates += [
+                item
+                for (name, order_id), item in self._sdk_venue_refs.items()
+                if (reference == f"{name}:{order_id}" or reference == order_id)
+                and (venue is None or name == venue)
+            ]
+            if candidates and all(item is candidates[0] for item in candidates):
+                binding = candidates[0]
+        if binding is None or (venue is not None and binding["exchange_name"] != venue):
+            raise BtApiStoreError("The query reference has no unambiguous feed binding")
+        venue = binding["exchange_name"]
+        request = QueryOrderRequest(
+            symbol=binding["symbol"],
+            account_id=self._sdk_account_id(venue, binding.get("account_id")),
+            client_order_id=binding.get("client_order_id") or None,
+            **{
+                key: binding[key]
+                for key in (
+                    "order_id",
+                    "order_ref",
+                    "exchange_id",
+                    "front_id",
+                    "session_id",
+                )
+                if binding.get(key) not in (None, "")
+            },
+        )
+        return venue, request, binding
+
+    def _apply_sdk_account_push(self, venue, event):
+        """Refresh cached venue cash/value from a partial WSS account push.
+
+        Single-denomination pushes carry top-level ``cash``/``value`` and may
+        replace the stale REST snapshot for this venue only; multi-coin pushes
+        stay audit-only. Local order/position accounting is never touched.
+        """
+        cash, value = event.get("cash"), event.get("value")
+        if not isinstance(cash, (int, float)) or not isinstance(value, (int, float)):
+            self.emit_runtime_event("venue_account_update", venue=venue)
+            return
+        cache = dict(self._venue_balance_cache.get(venue) or {})
+        cache.update(cash=float(cash), value=float(value))
+        self._venue_balance_cache[venue] = cache
+        self._last_venue_balance_refresh = time.monotonic()
+        self.emit_runtime_event("venue_account_update", venue=venue)
+
+    def get_orderbook_drop_counts(self):
+        """Return per-symbol counts of books evicted by bounded depth queues."""
+        return dict(self._sdk_book_drops)
+
+    @staticmethod
+    def _market_event_kind(event: Any) -> str:
+        """Return the canonical market kind without interpreting venue payloads."""
+        if isinstance(event, Mapping):
+            return str(event.get("kind") or "market").lower()
+        return str(getattr(event, "event_type", "market") or "market").lower()
+
+    def _mark_feed_inflight(self, event: Any) -> None:
+        symbol = str(getattr(event, "symbol", "") or "")
+        if not symbol:
+            return
+        kind = self._market_event_kind(event)
+        self._stream_health[symbol][f"{kind}_feed_inflight"] += 1
+
+    def _record_market_drop(
+        self,
+        event: Any,
+        reason: str,
+        *,
+        safety_impact: str = "stream_marked_stale",
+        mark_stale: bool = True,
+    ) -> None:
+        """Record one canonical market event as explicitly discarded."""
+        getter = (
+            event.get
+            if isinstance(event, Mapping)
+            else lambda key, default=None: getattr(event, key, default)
+        )
+        symbol = str(getter("symbol", "") or "")
+        if not symbol:
+            return
+        kind = self._market_event_kind(event)
+        event_id = str(getter("event_id", "") or "")
+        counters = self._stream_health[symbol]
+        counters["store_dropped"] += 1
+        counters[f"{kind}_store_dropped"] += 1
+        state = self._stream_state[symbol]
+        state.update(
+            last_drop_event_id=event_id,
+            last_drop_kind=kind,
+            last_drop_reason=str(reason),
+        )
+        if mark_stale:
+            state.update(
+                stale=True,
+                stale_reason=str(reason),
+                continuity_status="gap",
+            )
+        self._market_drop_records[symbol].append(
+            {
+                "event_id": event_id,
+                "kind": kind,
+                "reason": str(reason),
+                "safety_impact": str(safety_impact),
+                "stream_generation": self._stream_generation,
+            }
+        )
+
+    def mark_feed_dropped(self, event: Any, reason: str) -> None:
+        """Close a polled event's accounting when the Feed cannot dispatch it."""
+        symbol = str(getattr(event, "symbol", "") or "")
+        if not symbol:
+            return
+        event_id = str(getattr(event, "event_id", "") or "")
+        dropped = self._feed_dropped_ids[symbol]
+        if event_id and event_id in dropped:
+            dropped.move_to_end(event_id)
+            self._stream_health[symbol]["feed_drop_alias"] += 1
+            return
+        if event_id:
+            dropped[event_id] = None
+            if len(dropped) > self._strategy_delivery_id_limit:
+                dropped.popitem(last=False)
+        kind = self._market_event_kind(event)
+        inflight_key = f"{kind}_feed_inflight"
+        if self._stream_health[symbol][inflight_key] > 0:
+            self._stream_health[symbol][inflight_key] -= 1
+        self._record_market_drop(event, reason, safety_impact="event_not_visible_to_strategy")
+
+    def mark_strategy_delivered(self, event: Any) -> None:
+        """Account for a standard event after its strategy callback returns."""
+        symbol = str(getattr(event, "symbol", "") or "")
+        if not symbol:
+            return
+        event_id = str(getattr(event, "event_id", "") or "")
+        if event_id:
+            delivered = self._strategy_delivered_ids[symbol]
+            if event_id in delivered:
+                delivered.move_to_end(event_id)
+                self._stream_health[symbol]["strategy_delivery_alias"] += 1
+                return
+            delivered[event_id] = None
+            if len(delivered) > self._strategy_delivery_id_limit:
+                delivered.popitem(last=False)
+        counters = self._stream_health[symbol]
+        kind = self._market_event_kind(event)
+        inflight_key = f"{kind}_feed_inflight"
+        if counters[inflight_key] > 0:
+            counters[inflight_key] -= 1
+        counters["strategy_delivered"] += 1
+        counters[f"{kind}_strategy_delivered"] += 1
+
+    def get_stream_health(self, dataname: Optional[str] = None) -> Dict[str, Any]:
+        """Return causal stream counters and the current fail-closed state."""
+        symbols = (
+            [str(dataname)]
+            if dataname is not None
+            else sorted(set(self._stream_health) | set(self._stream_state))
+        )
+        result = {}
+        for symbol in symbols:
+            counters = dict(self._stream_health[symbol])
+            state = dict(self._stream_state[symbol])
+            book_ingress = counters.get("orderbook_sdk_ingress", 0)
+            book_coalesced = counters.get("orderbook_sdk_coalesced", 0)
+            book_dropped = counters.get("orderbook_store_dropped", 0)
+            book_delivered = counters.get("orderbook_strategy_delivered", 0)
+            book_inflight = counters.get("orderbook_feed_inflight", 0)
+            book_queue_depth = len(self._sdk_books[symbol])
+            result[symbol] = {
+                **counters,
+                **state,
+                "book_queue_depth": book_queue_depth,
+                "tick_queue_depth": len(self._sdk_ticks[symbol]),
+                "store_dropped": counters.get("store_dropped", 0),
+                "strategy_delivered": counters.get("strategy_delivered", 0),
+                "sdk_ingress": counters.get("sdk_ingress", 0),
+                "sdk_coalesced": counters.get("sdk_coalesced", 0),
+                "book_ingress": book_ingress,
+                "book_coalesced": book_coalesced,
+                "book_dropped": book_dropped,
+                "book_strategy_delivered": book_delivered,
+                "book_feed_inflight": book_inflight,
+                "book_conservation": (
+                    book_ingress
+                    == book_coalesced
+                    + book_dropped
+                    + book_delivered
+                    + book_inflight
+                    + book_queue_depth
+                ),
+                "market_drop_records": list(self._market_drop_records[symbol]),
+                "stream_generation": self._stream_generation,
+                "stale": bool(state.get("stale", False)),
+            }
+        if dataname is not None:
+            return result.get(str(dataname), {"stale": False})
+        return result
+
+    def is_stream_ready(self, dataname: str) -> bool:
+        """Return false after an explicit gap, stale event, disconnect, or drop."""
+        return not bool(self._stream_state[str(dataname)].get("stale", False))
+
+    def _record_sdk_market_event(self, venue: str, raw_event: Mapping[str, Any]):
+        """Attach Store-side continuity evidence without decoding venue protocols."""
+        event = dict(raw_event)
+        symbol = str(event.get("symbol") or "")
+        if not symbol:
+            return None
+        counters = self._stream_health[symbol]
+        state = self._stream_state[symbol]
+        try:
+            coalesced_count = max(int(event.get("coalesced_count", 1) or 1), 1)
+        except (TypeError, ValueError):
+            coalesced_count = 1
+        counters["sdk_ingress"] += coalesced_count
+        counters["sdk_coalesced"] += coalesced_count - 1
+        kind = str(event.get("kind") or "market").lower()
+        counters[f"{kind}_sdk_ingress"] += coalesced_count
+        counters[f"{kind}_sdk_coalesced"] += coalesced_count - 1
+        event["coalesced_count"] = coalesced_count
+        event.setdefault("event_id", uuid.uuid4().hex)
+        received_monotonic_ns = event.get("received_monotonic_ns")
+        clock_domain_id = event.get("clock_domain_id")
+        if (
+            isinstance(received_monotonic_ns, bool)
+            or not isinstance(received_monotonic_ns, int)
+            or received_monotonic_ns <= 0
+            or not isinstance(clock_domain_id, str)
+            or not clock_domain_id.strip()
+        ):
+            # Receive-clock provenance belongs to bt_api_py, where the raw
+            # transport event first enters the unified interface.  Restamping
+            # it here would make unrelated clocks appear comparable.
+            self._record_market_drop(event, "causal_provenance_missing_or_invalid")
+            return None
+        event["clock_domain_id"] = clock_domain_id.strip()
+        event.setdefault("received_wall_time", event.get("local_time") or time.time())
+        event.setdefault("exchange_time", event.get("timestamp"))
+        event.setdefault("source", "bt_api_py")
+        raw_snapshot_kind = event.get("snapshot_or_delta")
+        raw_continuity = event.get("continuity_status") or event.get("continuity")
+        raw_sequence = event.get("sequence")
+        raw_previous_sequence = event.get("previous_sequence")
+        if kind == "orderbook":
+            try:
+                _, _, normalize_orderbook_evidence = _sdk_cross_venue_contracts()
+                sequence, previous_sequence, snapshot_kind, continuity = normalize_orderbook_evidence(
+                    raw_sequence,
+                    raw_previous_sequence,
+                    raw_snapshot_kind,
+                    raw_continuity,
+                )
+            except (BtApiStoreError, ValueError) as exc:
+                self._record_market_drop(event, str(exc))
+                return None
+        else:
+            snapshot_kind = str(raw_snapshot_kind or "snapshot").strip().lower()
+            continuity = str(raw_continuity or "unknown").strip().lower()
+            try:
+                sequence = int(raw_sequence or 0)
+            except (TypeError, ValueError):
+                sequence = 0
+            try:
+                previous_sequence = (
+                    int(raw_previous_sequence) if raw_previous_sequence not in (None, "") else None
+                )
+            except (TypeError, ValueError):
+                previous_sequence = None
+        event["snapshot_or_delta"] = snapshot_kind
+        event["continuity_status"] = continuity
+        explicit_stale = bool(event.get("stale", False))
+        stale_reason = str(event.get("stale_reason") or "")
+        sequence_key = (venue, symbol)
+        previous_seen = self._sdk_sequences.get(sequence_key)
+        event["sequence"] = sequence
+        event["previous_sequence"] = previous_sequence
+
+        is_snapshot = event["snapshot_or_delta"] == "snapshot"
+        if sequence and previous_seen is not None and not is_snapshot:
+            if sequence < previous_seen:
+                counters["out_of_order"] += 1
+                self._record_market_drop(event, "sequence_out_of_order")
+                return None
+            if sequence == previous_seen:
+                counters["duplicate"] += 1
+                self._record_market_drop(
+                    event,
+                    "duplicate_sequence",
+                    safety_impact="duplicate_removed_without_state_change",
+                    mark_stale=False,
+                )
+                return None
+            if previous_sequence is not None and previous_sequence != previous_seen:
+                continuity = "gap"
+                stale_reason = "sequence_gap"
+
+        event["_sequence_key"] = sequence_key
+        event["_sequence_value"] = sequence
+        unhealthy = continuity in {
+            "gap",
+            "stale",
+            "disconnected",
+            "checksum_failed",
+            "out_of_order",
+        }
+        if unhealthy:
+            counters["sequence_gap" if continuity == "gap" else continuity] += 1
+            explicit_stale = True
+            stale_reason = stale_reason or continuity
+        if explicit_stale:
+            counters["stale"] += 1
+            state.update(stale=True, stale_reason=stale_reason or "stale_event")
+            event.update(stale=True, stale_reason=state["stale_reason"])
+        elif is_snapshot and continuity in {"ok", "continuous", "recovered", "snapshot"}:
+            # Snapshot recovery is provisional until the native object validates.
+            # Otherwise a crossed/empty book can falsely clear a prior gap.
+            event["_recovery_candidate"] = True
+            if state.get("stale"):
+                event.update(
+                    stale=True,
+                    stale_reason=state.get("stale_reason") or "recovery_pending_validation",
+                )
+            else:
+                event.update(stale=False, stale_reason="")
+        elif state.get("stale"):
+            # A continuous delta cannot recover a previously broken book. Keep
+            # every delivered event unsafe until the SDK emits a valid snapshot.
+            event.update(stale=True, stale_reason=state.get("stale_reason") or "stale_stream")
+        state.update(
+            continuity_status=(
+                "recovery_pending" if event.get("_recovery_candidate") else continuity
+            ),
+            last_event_id=event["event_id"],
+            clock_domain_id=event["clock_domain_id"],
+            last_received_monotonic_ns=event["received_monotonic_ns"],
+        )
+        event["continuity_status"] = continuity
+        return event
+
+    def _accept_sdk_market_event(self, event: Mapping[str, Any], native_event: Any) -> None:
+        """Commit sequence and recovery state only after native validation succeeds."""
+        sequence = event.get("_sequence_value")
+        sequence_key = event.get("_sequence_key")
+        if sequence and isinstance(sequence_key, tuple):
+            self._sdk_sequences[sequence_key] = int(sequence)
+        if not event.get("_recovery_candidate"):
+            return
+        symbol = str(event.get("symbol") or "")
+        continuity = str(event.get("continuity_status") or "unknown")
+        self._stream_state[symbol].update(
+            stale=False,
+            stale_reason="",
+            continuity_status=continuity,
+            last_event_id=str(event.get("event_id") or ""),
+        )
+        if isinstance(native_event, dict):
+            native_event.update(stale=False, stale_reason="")
+        else:
+            native_event.stale = False
+            native_event.stale_reason = ""
+
+    def _mark_stream_disconnected(self, venue: str, event: Mapping[str, Any]) -> None:
+        symbol = event.get("symbol")
+        symbols = (
+            [str(symbol)]
+            if symbol
+            else [name for name, route in self._sdk_routes.items() if route == venue]
+        )
+        for name in symbols:
+            self._stream_health[name]["disconnect"] += 1
+            self._stream_state[name].update(
+                stale=True,
+                stale_reason="stream_disconnected",
+                continuity_status="disconnected",
+            )
+
+    def _drain_sdk_events(self):
+        """Convert standard SDK events to native objects on the Cerebro thread."""
+        for venue in self._sdk_exchanges:
+            poll_events = getattr(self._api, "poll_events", None)
+            if callable(poll_events):
+                events = poll_events(
+                    venue,
+                    max_raw_items=(
+                        self._sdk_event_batch_size if self.uses_async_commands else None
+                    ),
+                    coalesce_market_snapshots=(
+                        self._sdk_coalesce_market_snapshots
+                        if self.uses_async_commands
+                        else ("orderbook",)
+                    ),
+                )
+            else:
+                events = []
+                for _ in range(100):
+                    event = self._api.poll_event(venue)
+                    if event is None:
+                        break
+                    events.append(event)
+            for event in events:
+                kind, symbol = event["kind"], event.get("symbol")
+                if kind in {"order", "trade"}:
+                    self._append_sdk_update(self._sdk_broker_event(venue, event))
+                elif kind == "account":
+                    self._apply_sdk_account_push(venue, event)
+                elif kind == "position":
+                    # Position pushes are audit-only: startup-policy brokers
+                    # own local leg accounting from confirmed fills.
+                    self.emit_runtime_event("venue_position_update", venue=venue)
+                elif kind in {"disconnect", "disconnected"}:
+                    self._mark_stream_disconnected(venue, event)
+                elif symbol in self._subscribed_datanames and self._sdk_exchange(symbol) == venue:
+                    event = self._record_sdk_market_event(venue, event)
+                    if event is None:
+                        continue
+                    common = {
+                        key: event[key]
+                        for key in (
+                            "timestamp",
+                            "symbol",
+                            "exchange",
+                            "asset_type",
+                            "local_time",
+                            "exchange_time",
+                            "received_wall_time",
+                            "received_monotonic_ns",
+                            "clock_domain_id",
+                            "sequence",
+                            "previous_sequence",
+                            "snapshot_or_delta",
+                            "continuity_status",
+                            "stale",
+                            "stale_reason",
+                            "source",
+                            "event_id",
+                            "coalesced_count",
+                        )
+                        if key in event
+                    }
+                    if kind == "orderbook":
+                        try:
+                            book = OrderBookSnapshot(
+                                **common,
+                                bids=event["bids"],
+                                asks=event["asks"],
+                            )
+                        except (KeyError, TypeError, ValueError):
+                            self._record_market_drop(event, "invalid_orderbook_snapshot")
+                            continue
+                        if not book.validate():
+                            self._record_market_drop(event, "invalid_orderbook_snapshot")
+                            continue
+                        self._accept_sdk_market_event(event, book)
+                        queue = self._sdk_books[symbol]
+                        if queue.maxlen is not None and len(queue) >= queue.maxlen:
+                            evicted = queue.popleft()
+                            self._sdk_book_drops[symbol] = self._sdk_book_drops.get(symbol, 0) + 1
+                            self._record_market_drop(
+                                evicted,
+                                "store_orderbook_queue_overflow",
+                                safety_impact="newest_book_retained_but_stream_marked_stale",
+                            )
+                            self._stream_state[symbol]["last_enqueued_event_id"] = book.event_id
+                            book.stale = True
+                            book.stale_reason = "store_orderbook_queue_overflow"
+                            book.continuity_status = "gap"
+                        queue.append(book)
+                    elif kind == "tick":
+                        try:
+                            tick = TickEvent(
+                                **common,
+                                **{
+                                    key: event[key]
+                                    for key in (
+                                        "price",
+                                        "volume",
+                                        "direction",
+                                        "trade_id",
+                                        "bid_price",
+                                        "ask_price",
+                                        "bid_volume",
+                                        "ask_volume",
+                                    )
+                                    if key in event
+                                },
+                            )
+                        except (TypeError, ValueError):
+                            self._record_market_drop(event, "invalid_tick")
+                            continue
+                        if not tick.validate():
+                            self._record_market_drop(event, "invalid_tick")
+                            continue
+                        self._accept_sdk_market_event(event, tick)
+                        queue = self._sdk_ticks[symbol]
+                        if queue.maxlen is not None and len(queue) >= queue.maxlen:
+                            evicted = queue.popleft()
+                            self._sdk_tick_drops[symbol] = self._sdk_tick_drops.get(symbol, 0) + 1
+                            self._record_market_drop(
+                                evicted,
+                                "store_tick_queue_overflow",
+                                safety_impact="newest_tick_retained_but_stream_marked_stale",
+                            )
+                            self._stream_state[symbol]["last_enqueued_event_id"] = tick.event_id
+                            tick.stale = True
+                            tick.stale_reason = "store_tick_queue_overflow"
+                            tick.continuity_status = "gap"
+                        queue.append(tick)
+                    elif kind == "bar":
+                        self._accept_sdk_market_event(event, event)
+                        self._live_bars[symbol].append(_normalize_bar(event))
+                    else:
+                        self._record_market_drop(
+                            event,
+                            "unsupported_market_event_kind",
+                            safety_impact="event_not_consumed_by_store",
+                        )
 
     def _seed_bar_cache(self, target, source):
         """Seed internal bar caches from initialization data."""
@@ -3712,6 +8152,10 @@ class BtApiStore(LiveStoreBase):
 
     def _ensure_api_ready(self):
         """Instantiate and connect the underlying bt_api_py client on demand."""
+        if self._funding_restart_blocked_by_worker:
+            self._prepare_funding_refresh_start()
+        if self._sdk_mode and (self._restart_blocked_by_worker or self._restart_blocked_by_close):
+            self._prepare_sdk_start()
         if self.provider in _PLACEHOLDER_PROVIDERS:
             raise BtApiProviderNotImplementedError(
                 f"provider '{self.provider}' is reserved for future bt_api_py support"
@@ -3719,6 +8163,36 @@ class BtApiStore(LiveStoreBase):
 
         if self._connected:
             return self._api
+
+        if self._sdk_mode and not self._sdk_configured:
+            options = {**self._config, **self._api_kwargs}
+            execution = options.get(
+                "execution_config",
+                {key: options[key] for key in _SDK_EXECUTION_CONFIG_KEYS if key in options},
+            )
+            if self._api is None:
+                # Creating a fresh owned client starts a new SDK session even
+                # when the caller connects lazily rather than through start().
+                self._last_account_risk_snapshot = None
+                self._last_account_risk_snapshot_generation = None
+                from bt_api_py import BtApi
+
+                self._api = (self._api_cls or BtApi)(
+                    exchange_kwargs=self._sdk_exchanges,
+                    execution_config=execution,
+                    debug=options.get("debug", False),
+                    **{
+                        key: options[key]
+                        for key in ("transport_mode", "forwarding_config", "event_bus")
+                        if key in options
+                    },
+                )
+            elif "execution_config" in options or any(
+                key in options for key in _SDK_EXECUTION_CONFIG_KEYS
+            ):
+                self._api.configure_execution(execution)
+            self._sdk_configured = True
+            self._last_execution_summary = None
 
         if self._api is None:
             if self.backend == "forwarding":
@@ -3747,6 +8221,7 @@ class BtApiStore(LiveStoreBase):
             elif hasattr(self._api, "start"):
                 self._api.start()
         except Exception as exc:
+            self.sanitize_exception(exc)
             if ctp_session_provider:
                 self._emit_ctp_session_events(emit_success=False)
             self.emit_runtime_event(
@@ -3769,8 +8244,33 @@ class BtApiStore(LiveStoreBase):
             except BtApiStoreError:
                 self._connected = False
                 raise
+        try:
+            self.get_balance()
+        except Exception:
+            self._connected = False
+            if self._sdk_mode:
+                api = self._api
+                try:
+                    get_execution_summary = getattr(api, "get_execution_summary", None)
+                    if callable(get_execution_summary):
+                        self._last_execution_summary = deepcopy(get_execution_summary())
+                except Exception:
+                    # Execution auditing is best effort while preserving the
+                    # original account-readiness failure for the caller.
+                    pass
+                if api is not None:
+                    closed, close_error = self._bounded_sdk_close(
+                        api, self._command_shutdown_timeout
+                    )
+                    if closed and close_error is None:
+                        self._shutdown_state = "PASS"
+                if self._sdk_owned_api:
+                    self._api = None
+                self._sdk_configured = False
+            elif hasattr(self._api, "disconnect"):
+                self._api.disconnect()
+            raise
         self.emit_runtime_event("store_ready", status="ready")
-        self.get_balance()
         return self._api
 
     def _create_forwarding_client(self):
@@ -3874,6 +8374,22 @@ class BtApiStore(LiveStoreBase):
         )
         if exchange_id:
             payload["exchange_id"] = exchange_id
+
+        info = getattr(order, "info", {})
+        for key in (
+            "time_in_force",
+            "reduce_only",
+            "client_order_id",
+            "quantity_unit",
+            "position_id",
+            "position_mode",
+            "front_id",
+            "session_id",
+            "order_ref",
+        ):
+            value = info.get(key)
+            if value is not None:
+                payload[key] = value
 
         return payload
 

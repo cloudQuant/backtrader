@@ -253,12 +253,67 @@ docs/                  Sphinx docs (EN + ZH) + design/bug notes
 scripts/               optimize_code.sh, refresh_strategy_durations.py,
                        run_strategy_branch_compare.py, …
 studies/               research/diagnostic scripts (e.g. branch_compare/)
+examples/012_1_midfreq_cross_exchange/  mid-frequency OKX/Binance perpetual example
+examples/012_2_event_driven_cross_exchange/ event-driven OKX/Binance perpetual candidate
+examples/strategy-candidate-manifest.json  hash-bound research/demo admission manifest
+examples/strategy_candidate_approval.py  candidate-specific receipt/provenance policy
 Makefile pyproject.toml setup.py pytest.ini requirements.txt conftest.py
 ```
 
 The three AI products are not vendored and are not Git submodules. Make product
 changes, packaging releases, and product-specific acceptance changes in their
 respective repositories; this repository only links to them from its README.
+
+The cross-exchange arbitrage examples use `BtApiStore.getdata()` / `BtApiFeed`
+with `orderbook_as_ticks=True` and `TimeFrame.Ticks`. Native `notify_orderbook`
+callbacks drive `bt.Strategy.buy/sell` and `notify_order`; `BtApiBroker` routes
+demo orders through public `BtApi` methods with `normalized=True`.
+The SDK owns venue schemas, request mapping and optional execution-session state
+(durable intents, unique client IDs, uncertain-order reconciliation and fees).
+`bt_api_py.cross_venue` owns only provider-neutral, stateless typed execution
+planning: quantity lattices, executable VWAP, cost accounting, funding schedule
+validation and normalized orderbook evidence. It consumes SDK contracts and
+does not own a client, account, order, pair state, alpha, or compensation policy.
+The store holds `BtApi` directly and only maps framework orders, references and
+native market-data objects; there is no second Backtrader trading client.
+`examples/strategy_candidate_approval.py` binds the two example candidates'
+manifest, offline receipt and source provenance. It is example admission policy,
+not a Backtrader utility or SDK protocol.
+OKX endpoint selection belongs to the SDK through
+`api_region=global|eea|us|tr`: REST plus public/private/business WebSockets use
+one atomic region/environment profile. Global/EEA/US support production and
+demo; TR currently supports only production, so `tr+demo` fails before network
+I/O. OKX 50119 proves that the selected credential/domain combination was
+rejected; by itself it does not distinguish region, key, secret, passphrase,
+expiry, or permission causes.
+Funding is a typed SDK read model. `BtApiStore` refreshes it on a separate
+single-concurrency read-only lane with request coalescing, TTL/schedule-boundary
+expiry, and generation fencing; strategy callbacks only read the local cache.
+This snapshot supports entry reserves and settlement-window risk. The SDK does
+not yet expose a unified, pagination-complete, account-bound OKX/Binance funding
+cashflow ledger, so a cycle crossing settlement cannot claim complete realized
+net PnL. The production status is
+`PRODUCTION_BLOCKED_ACTUAL_FUNDING_CASHFLOW_LEDGER`: venue-level single-page raw
+income/bills parsers do not prove pagination coverage, identity, deduplication,
+aggregation, settlement latency, or a complete empty result. Idle risk also
+advances without a new bar through `notify_idle` polling.
+The `exchange_kwargs` and `symbol_routes`
+configuration supports multiple providers in a single broker. Amounts remain native units
+(OKX contracts / Binance BTC); strategy sizing uses metadata multipliers.
+The examples require independently verified dual-side/hedge mode and maintain
+long/short legs separately; no net-position fallback is accepted. `shadow` uses
+public production books with zero orders/fills/PnL, `paper-live` uses public books
+with local hypothetical fills, and only `demo` can submit exchange orders. Demo
+writes additionally require a strategy-specific, hash-bound approval receipt.
+Both Iteration 21 frozen candidates failed their pre-OOS calibration cost screen,
+so their `paper-live` simulated-fill and `demo` order paths remain prohibited;
+read-only shadow and demo preflight remain available. Any new economic attempt
+requires a new candidate ID, preregistration, and untouched holdout.
+Credentials are kept in each example's ignored `.env`. Deterministic `replay`
+reports are formula fixtures with zero orders/fills and no PnL; the native
+Store/Feed/Cerebro/Broker path is tested separately. The second candidate is
+classified as event-driven and remains `HFT FAIL/NOT_ADMITTED` until end-to-end
+latency, queue and real-fill evidence exists.
 
 ## Tests
 

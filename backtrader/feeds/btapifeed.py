@@ -5,18 +5,28 @@ from __future__ import annotations
 
 import collections
 import datetime as _dt
+import math
 import time as _time
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
 from ..events import BarEvent
 from ..feed import DataBase
-from ..stores.btapistore import _normalize_bar
+from ..stores.btapistore import _normalize_bar, _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger
 from .livefeed import LiveFeedBase
 
 logger = get_logger(__name__)
+_LOGGING_HEALTH = collections.Counter()
+
+
+def _safe_log(level, message, *args):
+    """Keep a failing log sink outside feed control flow."""
+    try:
+        getattr(logger, level)(_redact_diagnostic(message), *map(_redact_diagnostic, args))
+    except Exception:
+        _LOGGING_HEALTH["logging_errors"] += 1
 
 
 _UTC = _dt.timezone.utc
@@ -94,8 +104,37 @@ def _tick_datetime(tick):
     return _dt.datetime.fromtimestamp(_tick_timestamp(tick), _UTC).replace(tzinfo=None)
 
 
+def _causal_event_kwargs(event):
+    """Copy standard timing and identity fields into derived events."""
+    return {
+        key: _tick_value(event, key, default=None)
+        for key in (
+            "exchange_time",
+            "received_wall_time",
+            "received_monotonic_ns",
+            "clock_domain_id",
+            "sequence",
+            "previous_sequence",
+            "snapshot_or_delta",
+            "continuity_status",
+            "stale",
+            "stale_reason",
+            "source",
+            "event_id",
+            "coalesced_count",
+        )
+        if _tick_value(event, key, default=None) is not None
+    }
+
+
 class BtApiFeed(DataBase, LiveFeedBase):
-    """Data feed that backfills and streams bars through BtApiStore."""
+    """Data feed that backfills and streams bars through BtApiStore.
+
+    ``orderbook_as_ticks=True`` exposes each depth snapshot as a zero-volume
+    midpoint tick bar before calling ``notify_orderbook``. This gives native
+    broker orders a valid feed price and clock even without trade/bar streams.
+    It requires ``timeframe=TimeFrame.Ticks``.
+    """
 
     params = (
         ("store", None),
@@ -106,6 +145,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         ("dispatch_ticks", True),
         ("dispatch_orderbooks", True),
         ("dispatch_bars", True),
+        ("orderbook_as_ticks", False),
     )
 
     def __init__(self, *args, **kwargs):
@@ -141,37 +181,55 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self._live_notified = False
         self._bar_builder = None
         self._history_backfilled = bool(self._history)
+        self._continuity_degraded = False
+        self._session_active = False
 
     def start(self):
         """Start the feed, register it, and backfill if configured."""
-        super().start()
+        new_session = not self._session_active
+        if new_session:
+            self._live_notified = False
+            self._continuity_degraded = False
+        try:
+            super().start()
+            if self.p.orderbook_as_ticks and self._timeframe != TimeFrame.Ticks:
+                raise ValueError("orderbook_as_ticks requires timeframe=TimeFrame.Ticks")
 
-        if self.store is None:
-            self.store = getattr(self, "_store", None)
+            if self.store is None:
+                self.store = getattr(self, "_store", None)
 
-        if self.store is None:
-            return
+            if self.store is None:
+                self._session_active = True
+                return
 
-        self.store.start(data=self)
-        self.store.register(self)
+            self.store.start(data=self)
+            self.store.register(self)
 
-        if self.p.backfill_start and not self._history and not self._history_backfilled:
-            try:
-                bars = self.store.fetch_history(
-                    self._dataname,
-                    timeframe=self._timeframe,
-                    compression=self._compression,
-                )
-                self._history.extend(bars)
-                self._history_backfilled = True
-            except Exception as e:
-                logger.debug("Failed to backfill history: %s", e)
+            if self.p.backfill_start and not self._history and not self._history_backfilled:
+                try:
+                    bars = self.store.fetch_history(
+                        self._dataname,
+                        timeframe=self._timeframe,
+                        compression=self._compression,
+                    )
+                    self._history.extend(bars)
+                    self._history_backfilled = True
+                except Exception as e:
+                    _safe_log("debug", "Failed to backfill history: %s", e)
 
-        self.store.subscribe(self._dataname)
+            self.store.subscribe(self._dataname)
+            self._session_active = True
+        except Exception:
+            if new_session:
+                self._session_active = False
+            raise
 
     def stop(self):
         """Stop the feed."""
-        super().stop()
+        try:
+            super().stop()
+        finally:
+            self._session_active = False
 
     def islive(self) -> bool:
         """Return whether this feed has a configured live data source."""
@@ -183,6 +241,11 @@ class BtApiFeed(DataBase, LiveFeedBase):
         store = self.store or getattr(self, "_store", None)
         if store is None:
             return bool(self.p.live_bars)
+
+        # Cerebro queries islive before Store.start. A public BtApi event
+        # source is live without the legacy supports_live_* duck protocol.
+        if getattr(store, "_sdk_mode", False):
+            return True
 
         live_cache = getattr(store, "_live_bars", {})
         if dataname is not None and live_cache.get(dataname):
@@ -220,7 +283,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     if bool(getattr(api, capability)(dataname)):
                         return True
                 except Exception as e:
-                    logger.debug("%s check failed: %s", capability, e)
+                    _safe_log("debug", "%s check failed: %s", capability, e)
 
         live_ticks = getattr(api, "live_ticks", None)
         if live_ticks is not None:
@@ -266,6 +329,13 @@ class BtApiFeed(DataBase, LiveFeedBase):
         if self._history:
             return self._load_history()
 
+        if self.p.orderbook_as_ticks:
+            if self._load_orderbook_tick():
+                return True
+            if self._qcheck > 0:
+                _time.sleep(self._qcheck)
+            return None
+
         drained_ticks = self._drain_live_ticks()
         drained_orderbooks = self._drain_live_orderbooks()
 
@@ -290,10 +360,69 @@ class BtApiFeed(DataBase, LiveFeedBase):
     def _check(self, forcedata=None):
         """Drain live ticks while waiting for the next completed bar."""
         super()._check(forcedata=forcedata)
+        if self.p.orderbook_as_ticks:
+            return  # _load must establish the feed clock before the callback.
         drained_ticks = self._drain_live_ticks()
         drained_orderbooks = self._drain_live_orderbooks()
         if not self._history and (drained_ticks or drained_orderbooks):
             self._mark_live()
+
+    def _load_orderbook_tick(self):
+        """Load one snapshot per turn so neither another venue nor the broker starves."""
+        if self.store is None:
+            return False
+        orderbook = self.store.poll_orderbook(self._dataname)
+        if orderbook is None:
+            return False
+        if self._handle_event_health(orderbook):
+            if self.p.dispatch_orderbooks:
+                self._dispatch_event("orderbook", EventPriority.ORDERBOOK, orderbook)
+            else:
+                self._mark_event_dropped(orderbook, "orderbook_dispatch_disabled")
+            return False
+        bids = _tick_value(orderbook, "bids", default=[]) or []
+        asks = _tick_value(orderbook, "asks", default=[]) or []
+        if not bids or not asks:
+            self._mark_event_dropped(orderbook, "orderbook_missing_top_of_book")
+            return False
+        bid, ask = float(bids[0][0]), float(asks[0][0])
+        if not math.isfinite(bid) or not math.isfinite(ask) or bid <= 0 or ask < bid:
+            self._mark_event_dropped(orderbook, "orderbook_invalid_top_of_book")
+            return False
+        midpoint = (bid + ask) / 2.0
+        stamp = _tick_timestamp(orderbook)
+        bar = BarEvent(
+            timestamp=stamp,
+            symbol=self._dataname,
+            exchange=_tick_value(orderbook, "exchange", default=""),
+            asset_type=_tick_value(orderbook, "asset_type", default="futures"),
+            local_time=_tick_value(orderbook, "local_time", default=stamp),
+            **_causal_event_kwargs(orderbook),
+            open=midpoint,
+            high=midpoint,
+            low=midpoint,
+            close=midpoint,
+            volume=0.0,
+        )
+        self._load_bar(
+            {
+                "datetime": _tick_datetime(orderbook),
+                "open": midpoint,
+                "high": midpoint,
+                "low": midpoint,
+                "close": midpoint,
+                "volume": 0.0,
+                "openinterest": 0.0,
+            }
+        )
+        self._mark_live()
+        if self.p.dispatch_orderbooks:
+            self._dispatch_event("orderbook", EventPriority.ORDERBOOK, orderbook)
+        else:
+            self._mark_event_dropped(orderbook, "orderbook_dispatch_disabled")
+        if self.p.dispatch_bars:
+            self._dispatch_event("bar", EventPriority.BAR, bar)
+        return True
 
     def _load_bar(self, bar) -> bool:
         """Write a normalized bar into line buffers."""
@@ -320,12 +449,25 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 break
             drained = True
 
+            if self._handle_event_health(tick):
+                if self.p.dispatch_ticks:
+                    self._dispatch_event(
+                        channel_type="tick",
+                        priority=EventPriority.TICK,
+                        event_data=tick,
+                    )
+                else:
+                    self._mark_event_dropped(tick, "tick_dispatch_disabled")
+                continue
+
             if self.p.dispatch_ticks:
                 self._dispatch_event(
                     channel_type="tick",
                     priority=EventPriority.TICK,
                     event_data=tick,
                 )
+            else:
+                self._mark_event_dropped(tick, "tick_dispatch_disabled")
             self._ingest_tick(tick)
         return drained
 
@@ -341,12 +483,16 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 break
             drained = True
 
+            self._handle_event_health(orderbook)
+
             if self.p.dispatch_orderbooks:
                 self._dispatch_event(
                     channel_type="orderbook",
                     priority=EventPriority.ORDERBOOK,
                     event_data=orderbook,
                 )
+            else:
+                self._mark_event_dropped(orderbook, "orderbook_dispatch_disabled")
         return drained
 
     def _ingest_tick(self, tick):
@@ -371,6 +517,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     exchange=_tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
                     asset_type=_tick_value(tick, "asset_type", "assetType", default="futures"),
                     local_time=_tick_value(tick, "local_time", "LocalTime", default=None),
+                    **_causal_event_kwargs(tick),
                     open=price,
                     high=price,
                     low=price,
@@ -405,6 +552,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             exchange=_tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
             asset_type=_tick_value(tick, "asset_type", "assetType", default="futures"),
             local_time=_tick_value(tick, "local_time", "LocalTime", default=None),
+            **current["causal"],
             open=current["open"],
             high=current["high"],
             low=current["low"],
@@ -426,6 +574,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "volume": volume,
             "openinterest": openinterest,
             "last_timestamp": _tick_timestamp(tick),
+            "causal": _causal_event_kwargs(tick),
         }
 
     def _enqueue_bar_event(self, bar_event, bar_datetime):
@@ -453,20 +602,79 @@ class BtApiFeed(DataBase, LiveFeedBase):
         """Dispatch a tick/bar event into Cerebro's channel callback surface."""
         env = getattr(self, "_env", None)
         if env is None or not hasattr(env, "dispatch_channel_event"):
-            return
+            self._mark_event_dropped(event_data, "strategy_dispatch_unavailable")
+            return False
 
-        env.dispatch_channel_event(
-            Event(
-                timestamp=_tick_timestamp(event_data),
-                priority=priority,
-                channel_type=channel_type,
-                channel_name=self._dataname,
-                data=event_data,
-            )
+        event = Event(
+            timestamp=_tick_timestamp(event_data),
+            priority=priority,
+            channel_type=channel_type,
+            channel_name=self._dataname,
+            data=event_data,
         )
+        # Only feed-origin events carry this private reference. Channel queues
+        # already drive the matching broker in their own event loop.
+        event._source_feed = self
+        try:
+            env.dispatch_channel_event(event)
+        except Exception:
+            self._mark_event_dropped(event_data, "strategy_dispatch_failed")
+            raise
+        if self.store is not None and hasattr(self.store, "mark_strategy_delivered"):
+            self.store.mark_strategy_delivered(event_data)
+        return True
+
+    def _mark_event_dropped(self, event_data, reason):
+        """Close Store conservation accounting for an undispatched feed event."""
+        marker = getattr(self.store, "mark_feed_dropped", None)
+        if callable(marker):
+            marker(event_data, reason)
+
+    def _handle_event_health(self, event_data):
+        """Emit feed status transitions and tell callers whether data is unsafe."""
+        stale = bool(_tick_value(event_data, "stale", default=False))
+        continuity = str(
+            _tick_value(event_data, "continuity_status", "continuity", default="unknown")
+            or "unknown"
+        ).lower()
+        unhealthy = stale or continuity in {
+            "gap",
+            "stale",
+            "disconnected",
+            "checksum_failed",
+            "out_of_order",
+        }
+        if unhealthy:
+            if not self._continuity_degraded:
+                self.put_notification(
+                    self.DELAYED,
+                    stale_reason=_tick_value(
+                        event_data, "stale_reason", default=continuity or "stale"
+                    ),
+                    event_id=_tick_value(event_data, "event_id", default=""),
+                )
+                # A later verified recovery is a fresh LIVE transition.
+                self._live_notified = False
+            self._continuity_degraded = True
+            return True
+        if self._continuity_degraded and continuity in {
+            "ok",
+            "continuous",
+            "recovered",
+            "snapshot",
+        }:
+            self._continuity_degraded = False
+            self._mark_live()
+        return False
+
+    def get_logging_health(self):
+        """Return the number of feed log-sink failures observed in this process."""
+        return dict(_LOGGING_HEALTH)
 
     def _mark_live(self):
         """Emit the LIVE status exactly once when real-time traffic begins."""
+        if self._continuity_degraded:
+            return
         if not self._live_notified:
             self.put_notification(self.LIVE)
             self._live_notified = True

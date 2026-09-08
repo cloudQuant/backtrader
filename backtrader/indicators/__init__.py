@@ -98,6 +98,7 @@ else:
     from .envelope import *
     from .heikinashi import *
     from .lrsi import *
+    from .spread import *
     from .macd import *
     from .momentum import *
     from .oscillator import *

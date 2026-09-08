@@ -2,12 +2,12 @@
 
 import pytest
 
-from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
-
 
 @pytest.fixture
 def btapi_client():
     """Provide a fake bt_api_py client for integration tests."""
+    from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar
+
     return FakeBtApiClient(
         balance={"cash": 3000.0, "value": 3200.0},
         positions=[{"instrument": DEFAULT_SYMBOL, "volume": 3, "price": 100.0}],
@@ -24,6 +24,8 @@ def btapi_client():
 @pytest.fixture
 def btapi_store(btapi_client):
     """Provide a unified BtApiStore instance for integration tests."""
+    from tests.fixtures.fake_btapi import make_store
+
     store = make_store(api=btapi_client)
     yield store
     store.stop()

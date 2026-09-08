@@ -58,6 +58,12 @@ class TickBroker(BrokerBase):
         int2pnl: Assign generated interest to profit and loss (default: True).
     """
 
+    # Tick matching happens in process_tick/process_orderbook, so polling the
+    # broker while a live feed is temporarily silent is side-effect free.  The
+    # flag also lets Cerebro drain order notifications produced by notify_idle
+    # risk controls without inventing a data bar.
+    next_without_bar = True
+
     cash = ParameterDescriptor(default=100000.0, doc="Starting cash")
     slippage_perc = ParameterDescriptor(default=0.0, doc="Slippage as fraction of price")
     slippage_fixed = ParameterDescriptor(default=0.0, doc="Fixed slippage amount")
@@ -98,6 +104,8 @@ class TickBroker(BrokerBase):
         super().__init__(**kwargs)
         self._cash = self.get_param("cash")
         self._value = self._cash
+        self.startingcash = self._cash
+        self.startingvalue = self._value
         self._orders = []
         self._pending_orders = []
         self._order_history = []
@@ -141,6 +149,8 @@ class TickBroker(BrokerBase):
         super().start()
         self._cash = self.get_param("cash")
         self._value = self._cash
+        self.startingcash = self._cash
+        self.startingvalue = self._value
         self._pending_orders = []
         self._order_history = []
         self._positions = collections.defaultdict(Position)
@@ -291,24 +301,47 @@ class TickBroker(BrokerBase):
         return self._cash
 
     def getvalue(self, datas=None):
-        """Get portfolio value including open positions."""
+        """Value positions from the latest tick/book and their commission scheme.
+
+        Futures cash excludes the margin frozen at entry. Add that margin
+        back, together with PnL since the last cash adjustment; native contract
+        counts are not stock quantities. Reading value never settles cash.
+        """
         val = self._cash
         if self._is_dual_side_mode():
             symbols = set(self.long_positions) | set(self.short_positions) | set(self._positions)
             for symbol in symbols:
-                last_tick = self._last_tick.get(symbol)
-                if last_tick is None:
-                    continue
-                val += self.long_positions[symbol].size * last_tick.price
-                val -= self.short_positions[symbol].size * last_tick.price
+                for side, positions in (
+                    (POSITION_SIDE_LONG, self.long_positions),
+                    (POSITION_SIDE_SHORT, self.short_positions),
+                ):
+                    position = positions.get(symbol)
+                    if position is not None and position.size:
+                        val += self._marked_position_value(
+                            symbol, self._make_signed_position(side, position)
+                        )
             return val
 
         for data_name, pos in self._positions.items():
             if pos.size != 0:
-                last_tick = self._last_tick.get(data_name)
-                if last_tick is not None:
-                    val += pos.size * last_tick.price
+                val += self._marked_position_value(data_name, pos)
         return val
+
+    def _marked_position_value(self, symbol, position):
+        tick = self._last_tick.get(symbol)
+        book = self._last_orderbook.get(symbol)
+        price = position.price
+        if tick is not None:
+            price = tick.price
+        if book is not None and (tick is None or book.timestamp >= tick.timestamp):
+            if book.bids and book.asks:
+                price = (book.bids[0][0] + book.asks[0][0]) / 2.0
+        comminfo = self.comminfo.get(symbol, self.comminfo[None])
+        if comminfo.stocklike:
+            return position.size * price
+        margin = comminfo.getvalue(position, position.price) / comminfo.get_leverage()
+        adjusted_from = position.adjbase if position.adjbase is not None else position.price
+        return margin + comminfo.cashadjust(position.size, adjusted_from, price)
 
     def getposition(self, data, side=None):
         """Get current position for a data feed."""
@@ -328,6 +361,16 @@ class TickBroker(BrokerBase):
         don't have LineSeries data (avoids len(data) call in Order.submit).
         """
         self._freeze_position_mode("first order submission")
+        # Matching models consume order attributes, while Strategy.buy/sell
+        # kwargs are retained in info. Preserve both views of the same flags.
+        tif = getattr(order, "time_in_force", order.info.get("time_in_force", "GTC"))
+        order.time_in_force = str(getattr(tif, "value", tif)).upper()
+        order.reduce_only = order.info.get("reduce_only", getattr(order, "reduce_only", False))
+        if not isinstance(order.reduce_only, bool):
+            order.addinfo(reject_reason="INVALID_REDUCE_ONLY")
+            order.reject(self)
+            self.notify(order)
+            return order
         order.status = Order.Submitted
         order.broker = self
         order.plen = 0
@@ -620,6 +663,9 @@ class TickBroker(BrokerBase):
         for order in matched:
             self._remove_pending_order(order)
 
+        for order in active_orders:
+            self._cancel_ioc_remainder(order, tick_event, source="tick")
+
     def process_orderbook(self, ob_event, data=None):
         """Process an order book snapshot and match pending orders.
 
@@ -681,26 +727,14 @@ class TickBroker(BrokerBase):
                     matched.append(order)
                     continue
                 if exchange_result.action == "FILL":
-                    fill_price, fill_size = self._aggregate_exchange_fills(exchange_result.fills)
+                    fill_price, fill_size = self._aggregate_exchange_fills(
+                        exchange_result.fills, max_size=self._get_matching_size(order)
+                    )
                     if fill_size > 0:
                         self._execute(
                             order, fill_price, fill_size, ob_event, source="orderbook_depth"
                         )
-                    tif = getattr(order, "time_in_force", "GTC")
-                    if tif == "IOC" and order.alive():
-                        order.addinfo(cancel_reason="IOC_REMAINDER_CANCELLED")
-                        order.cancel()
-                        self.notify(order)
-                        self._order_history.append(
-                            {
-                                "timestamp": ob_event.timestamp,
-                                "symbol": data_name,
-                                "side": "buy" if order.isbuy() else "sell",
-                                "status": "canceled",
-                                "reason": "IOC_REMAINDER_CANCELLED",
-                                "source": "orderbook_depth",
-                            }
-                        )
+                    if self._cancel_ioc_remainder(order, ob_event, source="orderbook_depth"):
                         matched.append(order)
                         continue
                     if not order.alive() or not self.get_param("allow_partial"):
@@ -1183,6 +1217,34 @@ class TickBroker(BrokerBase):
         for order in matched:
             self._remove_pending_order(order)
 
+        # An IOC which could not cross the book must not become a resting
+        # maker order and fill on a later snapshot.
+        for order in active_orders:
+            self._cancel_ioc_remainder(order, ob_event, source="orderbook_depth")
+
+    def _cancel_ioc_remainder(self, order, event, source):
+        """Finish an IOC after its first matching opportunity, including zero fill."""
+        if getattr(order, "time_in_force", "GTC") != "IOC" or not order.alive():
+            return False
+        self._cancel_remainder(order, event, source, "IOC_REMAINDER_CANCELLED")
+        return True
+
+    def _cancel_remainder(self, order, event, source, reason):
+        order.addinfo(cancel_reason=reason)
+        order.cancel()
+        self.notify(order)
+        self._remove_pending_order(order)
+        self._order_history.append(
+            {
+                "timestamp": event.timestamp,
+                "symbol": self._get_data_name(order.data),
+                "side": "buy" if order.isbuy() else "sell",
+                "status": "canceled",
+                "reason": reason,
+                "source": source,
+            }
+        )
+
     def _try_match(self, order, tick):
         """Try to match an order against a tick.
 
@@ -1195,7 +1257,7 @@ class TickBroker(BrokerBase):
         """
         exectype = order.exectype
         price = tick.price
-        size = order.remaining_size if hasattr(order, "remaining_size") else order.size
+        size = self._get_remaining_size(order)
 
         if exectype == Order.Market:
             fill_price = self._apply_slippage(price, order.isbuy())
@@ -1255,7 +1317,7 @@ class TickBroker(BrokerBase):
             Tuple of (avg_fill_price, fill_size) or None.
         """
         exectype = order.exectype
-        target_size = self._get_remaining_size(order)
+        target_size = self._get_matching_size(order)
         max_levels = self.get_param("max_depth_levels")
 
         if exectype == Order.Market:
@@ -1368,15 +1430,34 @@ class TickBroker(BrokerBase):
         return price - impact
 
     @staticmethod
-    def _aggregate_exchange_fills(fills):
+    def _aggregate_exchange_fills(fills, max_size=None):
         total_size = 0.0
         total_value = 0.0
         for price, size, _role in fills:
+            if max_size is not None:
+                size = min(size, max_size - total_size)
+            if size <= 0:
+                break
             total_value += price * size
             total_size += size
         if total_size <= 0.0:
             return (0.0, 0.0)
         return (total_value / total_size, total_size)
+
+    def _get_matching_size(self, order):
+        """Cap depth traversal before calculating VWAP for a reduce-only order."""
+        remaining = self._get_remaining_size(order)
+        if not getattr(order, "reduce_only", False):
+            return remaining
+        data_name = self._get_data_name(order.data)
+        if self._is_dual_side_mode():
+            side = normalize_position_side(getattr(order.info, "position_side", None))
+            position = self._make_signed_position(side, self._get_leg_position(data_name, side))
+        else:
+            position = self._positions[data_name]
+        if position.size and (position.size > 0) != order.isbuy():
+            return min(remaining, abs(position.size))
+        return remaining  # _execute rejects fills which cannot reduce a position.
 
     @staticmethod
     def _resolve_commission_role(source):
@@ -1394,6 +1475,25 @@ class TickBroker(BrokerBase):
             event: The event that triggered the fill.
             source: Source tag for order history.
         """
+        if not order.alive():
+            return None
+        fill_size = min(float(fill_size), self._get_remaining_size(order))
+        if fill_size <= 1e-12:
+            return None
+        reduce_only = bool(getattr(order, "reduce_only", False))
+        if reduce_only:
+            data_name = self._get_data_name(order.data)
+            if self._is_dual_side_mode():
+                side = normalize_position_side(getattr(order.info, "position_side", None))
+                current = self._make_signed_position(side, self._get_leg_position(data_name, side))
+            else:
+                current = self._positions[data_name]
+            # Recheck at fill time: other pending reduce-only orders may
+            # already have consumed this position since submission.
+            if not current.size or (current.size > 0) == order.isbuy():
+                self._cancel_remainder(order, event, source, "REDUCE_ONLY_NO_POSITION")
+                return None
+            fill_size = min(fill_size, abs(current.size))
         if self._is_dual_side_mode():
             return self._execute_dual_side(order, fill_price, fill_size, event, source=source)
         data_name = self._get_data_name(order.data)
@@ -1476,6 +1576,9 @@ class TickBroker(BrokerBase):
             psize=psize,
             pprice=pprice,
         )
+        if self._get_remaining_size(order) <= 1e-12:
+            order.executed.remsize = 0.0
+            order.completed()
         order.addcomminfo(comminfo)
         self.notify(order)
         self._state_tracker.on_fill(
@@ -1510,6 +1613,9 @@ class TickBroker(BrokerBase):
 
         self._recorder.record(event.timestamp, data_name, self._order_history[-1])
 
+        if reduce_only and abs(position.size) <= 1e-12 and order.alive():
+            self._cancel_remainder(order, event, source, "POSITION_DEPLETED")
+
         if popened and not opened:
             order.margin()
             self.notify(order)
@@ -1522,7 +1628,7 @@ class TickBroker(BrokerBase):
         exec_size = fill_size if order.isbuy() else -fill_size
         offset = getattr(order.info, "offset", None)
 
-        if offset == "close":
+        if offset in {"close", "close_today", "close_yesterday"}:
             available = abs(float(signed_position.size or 0.0))
             if available <= 1e-12:
                 order.reject()
@@ -1611,6 +1717,9 @@ class TickBroker(BrokerBase):
             psize=psize,
             pprice=pprice,
         )
+        if self._get_remaining_size(order) <= 1e-12:
+            order.executed.remsize = 0.0
+            order.completed()
         order.addcomminfo(comminfo)
         self.notify(order)
         self._state_tracker.on_fill(
@@ -1650,7 +1759,10 @@ class TickBroker(BrokerBase):
         self._recorder.record(event.timestamp, data_name, self._order_history[-1])
 
         if (
-            offset == "close"
+            (
+                offset in {"close", "close_today", "close_yesterday"}
+                or getattr(order, "reduce_only", False)
+            )
             and abs(self._get_leg_position(data_name, position_side).size) <= 1e-12
             and order.alive()
         ):
@@ -1665,10 +1777,12 @@ class TickBroker(BrokerBase):
     @staticmethod
     def _get_remaining_size(order):
         """Return remaining absolute size for an order."""
-        remaining = getattr(getattr(order, "executed", None), "remsize", None)
+        executed = getattr(order, "executed", None)
+        remaining = getattr(executed, "remsize", None)
         if remaining is None:
             remaining = order.size
-        return abs(remaining)
+        unfilled = max(0.0, abs(order.size) - abs(getattr(executed, "size", 0.0)))
+        return min(abs(remaining), unfilled)
 
     def next(self):
         """Called by Cerebro on each iteration.

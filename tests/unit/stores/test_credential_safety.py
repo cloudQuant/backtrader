@@ -12,6 +12,8 @@ from backtrader.stores.btapistore import BtApiStore
 
 SECRET_PASSWORD = "sup3r-secret-pw"
 SECRET_AUTH_CODE = "AUTHCODE-9988"
+SECRET_API_KEY = "nested-api-key"
+SECRET_PASSPHRASE = "nested-passphrase"
 
 
 def _make_ctp_store():
@@ -83,3 +85,72 @@ def test_mask_sensitive_is_case_insensitive():
     """Sensitive key matching ignores case."""
     masked = BtApiStore._mask_sensitive({"PassWord": SECRET_PASSWORD})
     assert masked["PassWord"] == "***"
+
+
+def test_mask_sensitive_recursively_masks_exchange_kwargs_without_mutating_input():
+    """Nested venue credentials are masked while ordinary options remain usable."""
+    config = {
+        "exchange_kwargs": {
+            "BINANCE___SWAP": {
+                "apiKey": SECRET_API_KEY,
+                "api_secret": "binance-secret",
+                "testnet": True,
+                "timeout_ms": 5_000,
+            },
+            "OKX___SWAP": {
+                "public_key": "okx-public-key",
+                "secret": "okx-secret",
+                "passphrase": SECRET_PASSPHRASE,
+                "options": {
+                    "account_credential": "nested-credential",
+                    "simulated": True,
+                },
+            },
+        },
+        "symbol_routes": [
+            {
+                "symbol": "BTC-USDT-SWAP",
+                "venue_token": "route-token",
+                "leverage": 2,
+            }
+        ],
+        "ordinary_tuple": (
+            "visible",
+            {"auth_token": "tuple-token", "market_data_only": True},
+        ),
+    }
+
+    masked = BtApiStore._mask_sensitive(config)
+
+    assert masked["exchange_kwargs"]["BINANCE___SWAP"] == {
+        "apiKey": "***",
+        "api_secret": "***",
+        "testnet": True,
+        "timeout_ms": 5_000,
+    }
+    assert masked["exchange_kwargs"]["OKX___SWAP"] == {
+        "public_key": "***",
+        "secret": "***",
+        "passphrase": "***",
+        "options": {
+            "account_credential": "***",
+            "simulated": True,
+        },
+    }
+    assert masked["symbol_routes"] == [
+        {
+            "symbol": "BTC-USDT-SWAP",
+            "venue_token": "***",
+            "leverage": 2,
+        }
+    ]
+    assert masked["ordinary_tuple"] == (
+        "visible",
+        {"auth_token": "***", "market_data_only": True},
+    )
+    assert isinstance(masked["ordinary_tuple"], tuple)
+
+    assert config["exchange_kwargs"]["BINANCE___SWAP"]["apiKey"] == SECRET_API_KEY
+    assert config["exchange_kwargs"]["OKX___SWAP"]["passphrase"] == SECRET_PASSPHRASE
+    assert masked["exchange_kwargs"] is not config["exchange_kwargs"]
+    assert masked["symbol_routes"] is not config["symbol_routes"]

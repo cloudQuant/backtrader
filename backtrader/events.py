@@ -25,8 +25,18 @@ Example:
 """
 
 from abc import ABC, abstractmethod
+import os
+import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from typing import List, Optional, Tuple
+
+_CLOCK_DOMAIN_ID = f"process-{os.getpid()}-{uuid.uuid4().hex}"
+
+
+def _event_id() -> str:
+    """Return an opaque process-local identity for causal event accounting."""
+    return uuid.uuid4().hex
 
 
 @dataclass
@@ -50,6 +60,37 @@ class EventData(ABC):
     exchange: str = ""
     asset_type: str = "spot"
     local_time: Optional[float] = None
+    exchange_time: Optional[float] = None
+    received_wall_time: Optional[float] = None
+    received_monotonic_ns: Optional[int] = None
+    clock_domain_id: str = _CLOCK_DOMAIN_ID
+    sequence: int = 0
+    previous_sequence: Optional[int] = None
+    snapshot_or_delta: str = ""
+    continuity_status: str = "unknown"
+    stale: bool = False
+    stale_reason: str = ""
+    source: str = ""
+    event_id: str = field(default_factory=_event_id)
+    coalesced_count: int = 1
+
+    def __post_init__(self) -> None:
+        """Fill receive-clock metadata without confusing it with exchange time."""
+        if self.exchange_time is None:
+            self.exchange_time = self.timestamp
+        if self.received_wall_time is None:
+            self.received_wall_time = self.local_time or time.time()
+        if self.received_monotonic_ns is None:
+            self.received_monotonic_ns = time.monotonic_ns()
+        if not self.clock_domain_id:
+            self.clock_domain_id = _CLOCK_DOMAIN_ID
+        if not self.event_id:
+            self.event_id = _event_id()
+
+    @property
+    def continuity(self) -> str:
+        """Compatibility alias for the canonical continuity status."""
+        return self.continuity_status
 
     @property
     @abstractmethod
@@ -59,6 +100,7 @@ class EventData(ABC):
     def to_dict(self) -> dict:
         """Convert event data to a dictionary for serialization."""
         result = asdict(self)
+        result["continuity"] = self.continuity_status
         # Include dynamically-set attributes (e.g. datetime set by btapifeed)
         if hasattr(self, "datetime") and "datetime" not in result:
             result["datetime"] = getattr(self, "datetime")
@@ -77,10 +119,26 @@ class EventData(ABC):
         if self.local_time is not None:
             if not isinstance(self.local_time, (int, float)) or self.local_time <= 0:
                 return False
+        if self.exchange_time is not None and (
+            not isinstance(self.exchange_time, (int, float)) or self.exchange_time <= 0
+        ):
+            return False
+        if self.received_wall_time is not None and (
+            not isinstance(self.received_wall_time, (int, float)) or self.received_wall_time <= 0
+        ):
+            return False
+        if self.received_monotonic_ns is not None and (
+            not isinstance(self.received_monotonic_ns, int) or self.received_monotonic_ns <= 0
+        ):
+            return False
+        if not isinstance(self.coalesced_count, int) or self.coalesced_count < 1:
+            return False
+        if self.stale and not self.stale_reason:
+            return False
         return True
 
 
-@dataclass
+@dataclass(init=False)
 class TickEvent(EventData):
     """Tick/trade event data.
 
@@ -106,6 +164,66 @@ class TickEvent(EventData):
     ask_price: Optional[float] = None
     bid_volume: Optional[float] = None
     ask_volume: Optional[float] = None
+
+    def __init__(
+        self,
+        timestamp: float,
+        symbol: str,
+        exchange: str = "",
+        asset_type: str = "spot",
+        local_time: Optional[float] = None,
+        price: float = 0.0,
+        volume: float = 0.0,
+        direction: str = "buy",
+        trade_id: str = "",
+        bid_price: Optional[float] = None,
+        ask_price: Optional[float] = None,
+        bid_volume: Optional[float] = None,
+        ask_volume: Optional[float] = None,
+        *,
+        exchange_time: Optional[float] = None,
+        received_wall_time: Optional[float] = None,
+        received_monotonic_ns: Optional[int] = None,
+        clock_domain_id: str = _CLOCK_DOMAIN_ID,
+        sequence: int = 0,
+        previous_sequence: Optional[int] = None,
+        snapshot_or_delta: str = "",
+        continuity_status: str = "unknown",
+        stale: bool = False,
+        stale_reason: str = "",
+        source: str = "",
+        event_id: Optional[str] = None,
+        coalesced_count: int = 1,
+    ) -> None:
+        EventData.__init__(
+            self,
+            timestamp,
+            symbol,
+            exchange,
+            asset_type,
+            local_time,
+            exchange_time,
+            received_wall_time,
+            received_monotonic_ns,
+            clock_domain_id,
+            sequence,
+            previous_sequence,
+            snapshot_or_delta,
+            continuity_status,
+            stale,
+            stale_reason,
+            source,
+            event_id or _event_id(),
+            coalesced_count,
+        )
+        self.price = price
+        self.volume = volume
+        self.direction = direction
+        self.trade_id = trade_id
+        self.bid_price = bid_price
+        self.ask_price = ask_price
+        self.bid_volume = bid_volume
+        self.ask_volume = ask_volume
 
     @property
     def event_type(self) -> str:
@@ -145,7 +263,7 @@ class TickEvent(EventData):
         return True
 
 
-@dataclass
+@dataclass(init=False)
 class OrderBookSnapshot(EventData):
     """Order book depth snapshot.
 
@@ -159,6 +277,54 @@ class OrderBookSnapshot(EventData):
 
     bids: List[Tuple[float, float]] = field(default_factory=list)
     asks: List[Tuple[float, float]] = field(default_factory=list)
+
+    def __init__(
+        self,
+        timestamp: float,
+        symbol: str,
+        exchange: str = "",
+        asset_type: str = "spot",
+        local_time: Optional[float] = None,
+        bids: Optional[List[Tuple[float, float]]] = None,
+        asks: Optional[List[Tuple[float, float]]] = None,
+        *,
+        exchange_time: Optional[float] = None,
+        received_wall_time: Optional[float] = None,
+        received_monotonic_ns: Optional[int] = None,
+        clock_domain_id: str = _CLOCK_DOMAIN_ID,
+        sequence: int = 0,
+        previous_sequence: Optional[int] = None,
+        snapshot_or_delta: str = "",
+        continuity_status: str = "unknown",
+        stale: bool = False,
+        stale_reason: str = "",
+        source: str = "",
+        event_id: Optional[str] = None,
+        coalesced_count: int = 1,
+    ) -> None:
+        EventData.__init__(
+            self,
+            timestamp,
+            symbol,
+            exchange,
+            asset_type,
+            local_time,
+            exchange_time,
+            received_wall_time,
+            received_monotonic_ns,
+            clock_domain_id,
+            sequence,
+            previous_sequence,
+            snapshot_or_delta,
+            continuity_status,
+            stale,
+            stale_reason,
+            source,
+            event_id or _event_id(),
+            coalesced_count,
+        )
+        self.bids = list(bids or ())
+        self.asks = list(asks or ())
 
     @property
     def event_type(self) -> str:
@@ -226,7 +392,7 @@ class OrderBookSnapshot(EventData):
         return True
 
 
-@dataclass
+@dataclass(init=False)
 class FundingEvent(EventData):
     """Funding rate event for perpetual contracts.
 
@@ -241,6 +407,58 @@ class FundingEvent(EventData):
     mark_price: float = 0.0
     next_funding_time: float = 0.0
     predicted_rate: float = 0.0
+
+    def __init__(
+        self,
+        timestamp: float,
+        symbol: str,
+        exchange: str = "",
+        asset_type: str = "spot",
+        local_time: Optional[float] = None,
+        rate: float = 0.0,
+        mark_price: float = 0.0,
+        next_funding_time: float = 0.0,
+        predicted_rate: float = 0.0,
+        *,
+        exchange_time: Optional[float] = None,
+        received_wall_time: Optional[float] = None,
+        received_monotonic_ns: Optional[int] = None,
+        clock_domain_id: str = _CLOCK_DOMAIN_ID,
+        sequence: int = 0,
+        previous_sequence: Optional[int] = None,
+        snapshot_or_delta: str = "",
+        continuity_status: str = "unknown",
+        stale: bool = False,
+        stale_reason: str = "",
+        source: str = "",
+        event_id: Optional[str] = None,
+        coalesced_count: int = 1,
+    ) -> None:
+        EventData.__init__(
+            self,
+            timestamp,
+            symbol,
+            exchange,
+            asset_type,
+            local_time,
+            exchange_time,
+            received_wall_time,
+            received_monotonic_ns,
+            clock_domain_id,
+            sequence,
+            previous_sequence,
+            snapshot_or_delta,
+            continuity_status,
+            stale,
+            stale_reason,
+            source,
+            event_id or _event_id(),
+            coalesced_count,
+        )
+        self.rate = rate
+        self.mark_price = mark_price
+        self.next_funding_time = next_funding_time
+        self.predicted_rate = predicted_rate
 
     @property
     def event_type(self) -> str:
@@ -273,7 +491,7 @@ class FundingEvent(EventData):
         return True
 
 
-@dataclass
+@dataclass(init=False)
 class BarEvent(EventData):
     """OHLCV bar event data.
 
@@ -294,6 +512,62 @@ class BarEvent(EventData):
     close: float = 0.0
     volume: float = 0.0
     openinterest: float = 0.0
+
+    def __init__(
+        self,
+        timestamp: float,
+        symbol: str,
+        exchange: str = "",
+        asset_type: str = "spot",
+        local_time: Optional[float] = None,
+        open: float = 0.0,
+        high: float = 0.0,
+        low: float = 0.0,
+        close: float = 0.0,
+        volume: float = 0.0,
+        openinterest: float = 0.0,
+        *,
+        exchange_time: Optional[float] = None,
+        received_wall_time: Optional[float] = None,
+        received_monotonic_ns: Optional[int] = None,
+        clock_domain_id: str = _CLOCK_DOMAIN_ID,
+        sequence: int = 0,
+        previous_sequence: Optional[int] = None,
+        snapshot_or_delta: str = "",
+        continuity_status: str = "unknown",
+        stale: bool = False,
+        stale_reason: str = "",
+        source: str = "",
+        event_id: Optional[str] = None,
+        coalesced_count: int = 1,
+    ) -> None:
+        EventData.__init__(
+            self,
+            timestamp,
+            symbol,
+            exchange,
+            asset_type,
+            local_time,
+            exchange_time,
+            received_wall_time,
+            received_monotonic_ns,
+            clock_domain_id,
+            sequence,
+            previous_sequence,
+            snapshot_or_delta,
+            continuity_status,
+            stale,
+            stale_reason,
+            source,
+            event_id or _event_id(),
+            coalesced_count,
+        )
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+        self.openinterest = openinterest
 
     @property
     def event_type(self) -> str:

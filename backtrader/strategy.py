@@ -2206,6 +2206,15 @@ class Strategy(StrategyBase):
             **kwargs: Additional keyword arguments passed to add_timer
         """
 
+    def notify_idle(self):
+        """Receive a live-engine poll when no data bar or tick was produced.
+
+        Live brokers may still need strategies to advance execution deadlines,
+        reconciliation and risk controls while market data is silent.  The
+        default hook is intentionally empty and is only dispatched for strategy
+        classes that override it.
+        """
+
     def notify_cashvalue(self, cash, value):
         """Notify the current cash and value of the strategy's broker.
 

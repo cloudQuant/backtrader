@@ -12,6 +12,18 @@ Example:
 
 import collections
 import copy
+import hashlib
+import json
+import os
+import time
+import uuid
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+
+try:
+    import fcntl as _fcntl
+except ImportError:  # pragma: no cover - unsupported hosts fail closed at runtime
+    _fcntl = None
 
 from backtrader.brokers.tickbroker import TickBroker
 from backtrader.parameters import ParameterDescriptor
@@ -50,6 +62,18 @@ class MixBroker(TickBroker):
     max_ob_window = ParameterDescriptor(default=100, doc="Per-symbol order book window size")
     max_bar_history = ParameterDescriptor(default=200, doc="Per-symbol completed bar history size")
     default_sma_period = ParameterDescriptor(default=20, doc="Incrementally maintained SMA period")
+    account_risk_ledger_path = ParameterDescriptor(
+        default=None,
+        doc="Ignored local path for durable paper account-risk evidence",
+    )
+    account_risk_venues = ParameterDescriptor(
+        default=(),
+        doc="Canonical provider ids covered by the paper account-risk ledger",
+    )
+    account_risk_persist_interval = ParameterDescriptor(
+        default=0.05,
+        doc="Minimum seconds between mark-to-market ledger writes",
+    )
 
     def __init__(self, **kwargs):
         """Initialize the broker and its mid-frequency state containers.
@@ -58,6 +82,14 @@ class MixBroker(TickBroker):
             **kwargs: Forwarded to :class:`TickBroker`'s constructor.
         """
         super().__init__(**kwargs)
+        self._account_risk_lock_handle = None
+        self._account_risk_owner_token = uuid.uuid4().hex
+        self._account_risk_realized_net = Decimal("0")
+        self._account_risk_last_persist_ns = 0
+        self._account_risk_failed = True
+        self._account_risk_snapshot = self._unavailable_account_risk_snapshot(
+            "account_risk_ledger_not_started"
+        )
         self._reset_midfreq_state()
 
     def start(self):
@@ -69,6 +101,281 @@ class MixBroker(TickBroker):
         """
         super().start()
         self._reset_midfreq_state()
+        self._start_account_risk_ledger()
+
+    @staticmethod
+    def _canonical_risk_venue(venue):
+        return str(venue or "").partition("___")[0].strip().lower()
+
+    def _configured_risk_venues(self):
+        raw = self.get_param("account_risk_venues") or ()
+        if isinstance(raw, str):
+            raw = [item for item in raw.split(",") if item.strip()]
+        return sorted(
+            {
+                self._canonical_risk_venue(venue)
+                for venue in raw
+                if self._canonical_risk_venue(venue)
+            }
+        )
+
+    def _account_risk_identity_sha256(self):
+        """Bind paper-risk evidence to its exact durable ledger and venue set."""
+        ledger_value = self.get_param("account_risk_ledger_path")
+        payload = {
+            "authority": "MixBroker",
+            "configured_venues": self._configured_risk_venues(),
+            "ledger_path": (
+                str(Path(ledger_value).expanduser().resolve())
+                if ledger_value not in (None, "")
+                else ""
+            ),
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def _unavailable_account_risk_snapshot(self, error_code):
+        return {
+            "baseline_equity": None,
+            "current_equity": None,
+            "realized_net": None,
+            "configured_venues": self._configured_risk_venues(),
+            "generation": 0,
+            "fencing_epoch": 0,
+            "as_of_monotonic_ns": 0,
+            "owner_pid": os.getpid(),
+            "clock_domain_id": f"process:{os.getpid()}:monotonic",
+            "identity_binding_sha256": self._account_risk_identity_sha256(),
+            "durable": False,
+            "trading_blocked": True,
+            "evidence_complete": False,
+            "evidence_errors": [str(error_code)],
+            "error_code": str(error_code),
+        }
+
+    @staticmethod
+    def _decimal(value, name):
+        try:
+            result = Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValueError(f"invalid_{name}") from exc
+        if not result.is_finite():
+            raise ValueError(f"invalid_{name}")
+        return result
+
+    def _start_account_risk_ledger(self):
+        """Acquire one writer lease and continue the durable paper account."""
+        self._release_account_risk_ledger()
+        self._account_risk_owner_token = uuid.uuid4().hex
+        self._account_risk_realized_net = Decimal("0")
+        self._account_risk_last_persist_ns = 0
+        self._account_risk_failed = True
+        ledger_value = self.get_param("account_risk_ledger_path")
+        venues = self._configured_risk_venues()
+        if ledger_value in (None, ""):
+            self._account_risk_snapshot = self._unavailable_account_risk_snapshot(
+                "account_risk_ledger_path_required"
+            )
+            return
+        if not venues:
+            self._account_risk_snapshot = self._unavailable_account_risk_snapshot(
+                "account_risk_venues_required"
+            )
+            return
+        if _fcntl is None:
+            self._account_risk_snapshot = self._unavailable_account_risk_snapshot(
+                "account_risk_locking_unavailable"
+            )
+            return
+
+        ledger_path = Path(ledger_value).expanduser().resolve()
+        lock_path = ledger_path.with_name(f"{ledger_path.name}.lock")
+        try:
+            ledger_path.parent.mkdir(parents=True, exist_ok=True)
+            lock_handle = lock_path.open("a+", encoding="utf-8")
+            self._account_risk_lock_handle = lock_handle
+            _fcntl.flock(lock_handle.fileno(), _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+
+            generation = 1
+            fencing_epoch = 1
+            baseline = self._decimal(self.getvalue(), "baseline_equity")
+            current = baseline
+            if ledger_path.exists():
+                prior = json.loads(ledger_path.read_text(encoding="utf-8"))
+                if not isinstance(prior, dict) or prior.get("schema_version") != 2:
+                    raise ValueError("account_risk_ledger_schema_invalid")
+                if prior.get("session_state") != "closed":
+                    raise ValueError("account_risk_ledger_previous_session_active")
+                prior_venues = sorted(
+                    self._canonical_risk_venue(venue)
+                    for venue in prior.get("configured_venues", ())
+                )
+                if prior_venues != venues:
+                    raise ValueError("account_risk_ledger_venues_mismatch")
+                generation = int(prior.get("generation", 0)) + 1
+                fencing_epoch = int(prior.get("fencing_epoch", 0)) + 1
+                if generation <= 1 or fencing_epoch <= 1:
+                    raise ValueError("account_risk_ledger_fence_invalid")
+                baseline = self._decimal(prior.get("baseline_equity"), "baseline_equity")
+                current = self._decimal(prior.get("current_equity"), "current_equity")
+                realized = self._decimal(prior.get("realized_net"), "realized_net")
+                if baseline <= 0:
+                    raise ValueError("account_risk_ledger_baseline_invalid")
+                self._account_risk_realized_net = realized
+                # A sealed paper epoch is required to be flat.  Hydrate the
+                # new in-memory broker from its durable equity instead of
+                # silently restoring the configured starting cash.
+                self._cash = float(current)
+                self._value = self._cash
+                self.startingcash = self._cash
+                self.startingvalue = self._value
+
+            lock_handle.seek(0)
+            lock_handle.truncate()
+            json.dump(
+                {
+                    "owner_token": self._account_risk_owner_token,
+                    "owner_pid": os.getpid(),
+                    "generation": generation,
+                    "fencing_epoch": fencing_epoch,
+                },
+                lock_handle,
+                separators=(",", ":"),
+            )
+            lock_handle.flush()
+            os.fsync(lock_handle.fileno())
+            self._account_risk_snapshot = {
+                "baseline_equity": baseline,
+                "current_equity": current,
+                "realized_net": self._account_risk_realized_net,
+                "configured_venues": venues,
+                "generation": generation,
+                "fencing_epoch": fencing_epoch,
+                "as_of_monotonic_ns": 0,
+                "owner_pid": os.getpid(),
+                "clock_domain_id": f"process:{os.getpid()}:monotonic",
+                "identity_binding_sha256": self._account_risk_identity_sha256(),
+                "durable": False,
+                "trading_blocked": True,
+                "evidence_complete": False,
+            }
+            self._account_risk_failed = False
+            self._persist_account_risk_snapshot(force=True)
+        except Exception as exc:
+            code = "account_risk_ledger_locked" if isinstance(exc, BlockingIOError) else str(exc)
+            if not code.startswith("account_risk_"):
+                code = "account_risk_ledger_start_failed"
+            self._account_risk_snapshot = self._unavailable_account_risk_snapshot(code)
+            self._release_account_risk_ledger()
+
+    def _atomic_write_account_risk(self, payload):
+        ledger_path = Path(self.get_param("account_risk_ledger_path")).expanduser().resolve()
+        temporary = ledger_path.with_name(
+            f".{ledger_path.name}.{self._account_risk_owner_token}.tmp"
+        )
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        descriptor = None
+        try:
+            descriptor = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+                0o600,
+            )
+            with os.fdopen(descriptor, "wb") as handle:
+                descriptor = None
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, ledger_path)
+            directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+            directory_fd = os.open(ledger_path.parent, directory_flags)
+            try:
+                os.fsync(directory_fd)
+            finally:
+                os.close(directory_fd)
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
+            try:
+                temporary.unlink()
+            except FileNotFoundError:
+                pass
+
+    def _persist_account_risk_snapshot(self, *, force=False, session_state="active"):
+        if self._account_risk_lock_handle is None or self._account_risk_failed:
+            return False
+        now_ns = time.monotonic_ns()
+        interval_ns = int(
+            max(float(self.get_param("account_risk_persist_interval") or 0.0), 0.0) * 1_000_000_000
+        )
+        if not force and now_ns - self._account_risk_last_persist_ns < interval_ns:
+            return True
+        try:
+            current = self._decimal(self.getvalue(), "current_equity")
+            snapshot = {
+                **self._account_risk_snapshot,
+                "current_equity": current,
+                "realized_net": self._account_risk_realized_net,
+                "as_of_monotonic_ns": now_ns,
+                "owner_pid": os.getpid(),
+                "clock_domain_id": f"process:{os.getpid()}:monotonic",
+                "durable": True,
+                "trading_blocked": False,
+                "evidence_complete": True,
+            }
+            payload = {
+                **snapshot,
+                "schema_version": 2,
+                "session_state": session_state,
+                "broker": "MixBroker",
+                "baseline_equity": str(snapshot["baseline_equity"]),
+                "current_equity": str(snapshot["current_equity"]),
+                "realized_net": str(snapshot["realized_net"]),
+            }
+            self._atomic_write_account_risk(payload)
+            self._account_risk_snapshot = snapshot
+            self._account_risk_last_persist_ns = now_ns
+            return True
+        except Exception:
+            self._account_risk_failed = True
+            self._account_risk_snapshot = {
+                **self._unavailable_account_risk_snapshot("account_risk_ledger_persist_failed"),
+                "configured_venues": self._configured_risk_venues(),
+            }
+            self._release_account_risk_ledger()
+            return False
+
+    def _release_account_risk_ledger(self):
+        handle = self._account_risk_lock_handle
+        self._account_risk_lock_handle = None
+        if handle is None:
+            return
+        try:
+            if _fcntl is not None:
+                _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+        finally:
+            handle.close()
+
+    def get_account_risk_snapshot(self):
+        """Return a copy of the last atomically persisted paper-risk state."""
+        self._persist_account_risk_snapshot(force=False)
+        return copy.deepcopy(self._account_risk_snapshot)
+
+    def stop(self):
+        """Seal the durable paper epoch and release its single-writer lease."""
+        flat = not any(order.alive() for order in self.pending_orders) and not any(
+            abs(float(position.size or 0.0)) > 1e-12
+            for positions in (self.positions, self.long_positions, self.short_positions)
+            for position in positions.values()
+        )
+        try:
+            self._persist_account_risk_snapshot(
+                force=True,
+                session_state="closed" if flat else "unsafe_open_exposure",
+            )
+        finally:
+            self._release_account_risk_ledger()
+        return super().stop()
 
     def _reset_midfreq_state(self):
         """(Re)create the per-symbol windows, history buffers and context.
@@ -91,6 +398,7 @@ class MixBroker(TickBroker):
     def process_tick(self, tick_event, data=None):
         """Forward the tick to :class:`TickBroker` for execution."""
         super().process_tick(tick_event, data)
+        self._persist_account_risk_snapshot(force=False)
 
     def process_orderbook(self, ob_event, data=None):
         """Forward the order-book update and append it to the per-symbol window.
@@ -102,6 +410,7 @@ class MixBroker(TickBroker):
         """
         super().process_orderbook(ob_event, data)
         self._ob_window[ob_event.symbol].append(copy.deepcopy(ob_event))
+        self._persist_account_risk_snapshot(force=False)
 
     def process_bar(self, bar_event, data=None):
         """Record the completed bar and refresh its rolling indicators.
@@ -116,6 +425,37 @@ class MixBroker(TickBroker):
         symbol = bar_event.symbol
         self._completed_bars[symbol].append(copy.deepcopy(bar_event))
         self._update_bar_indicators(symbol)
+        self._persist_account_risk_snapshot(force=False)
+
+    def _record_account_risk_fills(self, history_start):
+        if self._account_risk_lock_handle is None or self._account_risk_failed:
+            return
+        try:
+            for row in self._order_history[history_start:]:
+                pnl = self._decimal(row.get("pnl", 0), "realized_pnl")
+                commission = self._decimal(row.get("commission", 0), "commission")
+                self._account_risk_realized_net += pnl - commission
+            if len(self._order_history) > history_start:
+                self._persist_account_risk_snapshot(force=True)
+        except Exception:
+            self._account_risk_failed = True
+            self._account_risk_snapshot = self._unavailable_account_risk_snapshot(
+                "account_risk_fill_accounting_failed"
+            )
+            self._release_account_risk_ledger()
+
+    def _execute(self, order, fill_price, fill_size, event, source="tick"):
+        history_start = len(self._order_history)
+        result = super()._execute(order, fill_price, fill_size, event, source=source)
+        if not self._is_dual_side_mode():
+            self._record_account_risk_fills(history_start)
+        return result
+
+    def _execute_dual_side(self, order, fill_price, fill_size, event, source="tick"):
+        history_start = len(self._order_history)
+        result = super()._execute_dual_side(order, fill_price, fill_size, event, source=source)
+        self._record_account_risk_fills(history_start)
+        return result
 
     def _update_bar_indicators(self, symbol):
         """Incrementally maintain the SMA indicator for ``symbol``.
