@@ -24,10 +24,11 @@ from docx.shared import Inches
 from docx.text.paragraph import Paragraph
 from PIL import Image, ImageDraw, ImageFont
 
-ROOT = Path(__file__).resolve().parents[3]
+SUITE_DIR = Path(__file__).resolve().parent
+ROOT = SUITE_DIR.parents[3]
 TEMPLATE = ROOT / "docs/_internal/opts/requirements/迭代1-穿透式认证/期货程序化交易系统功能测试过程记录报告.docx"
-OUTPUT = ROOT / "examples/live_certification/hongyuan_penetration/期货程序化交易系统功能测试过程记录报告.docx"
-RESULTS_ROOT = ROOT / "examples/live_certification/hongyuan_penetration/reports/latest"
+OUTPUT = SUITE_DIR / "期货程序化交易系统功能测试过程记录报告.docx"
+RESULTS_ROOT = SUITE_DIR / "reports" / "latest"
 SCREENSHOT_DIR = RESULTS_ROOT / "docx_log_screenshots"
 VERSION_FILE = ROOT / "backtrader/version.py"
 PACKAGE_DIR = ROOT / "backtrader"

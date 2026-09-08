@@ -1,0 +1,30 @@
+# High-frequency calendar arbitrage: rebar dominant vs next-dominant quarterly.
+strategy: PairArbitrageStrategy
+symbols: [auto]          # auto -> rb dominant + next dominant (run.py resolves)
+simnow_env: new_7x24
+run_timeout_seconds: 180
+broker:
+  position_mode: net
+  position_sync_policy: startup
+# SimNow 7x24 account queries may return empty; margin adequacy is
+# enforced authoritatively by the exchange instead of locally.
+  cash_check_enabled: false
+  force_refresh_queries: false
+  account_refresh_interval: 3600.0
+  open_orders_refresh_interval: 3600.0
+feed:
+  timeframe: ticks
+  compression: 1
+  backfill_start: false
+strategy_params:
+  period: 60
+  entry_z: 1.5
+  exit_z: 0.3
+  confirmations: 1
+  min_interval: 0.1
+  order_lots: 1
+  max_pairs: 5
+  max_loss: 2000.0
+  max_holding_seconds: 120.0
+  slippage_ticks: 2.0
+  tick_size: 1.0

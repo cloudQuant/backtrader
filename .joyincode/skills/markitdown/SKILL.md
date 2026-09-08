@@ -1,10 +1,14 @@
 ---
 name: markitdown
-description: 将Word文档转为markdown文件
+description: 将 Word/PDF/PPT/Excel 等文档转为 Markdown 文件。用户提到 markitdown、word转markdown、word转md、convert_to_markdown 时触发
 ---
 
-# Word转Markdown
-## 步骤1：上传文件
+# 文档转 Markdown
+
+三步流程：**curl 上传文件拿 URI → 脚本调用 MCP 转换 → stdout 重定向保存 .md**。脚本仅标准库实现、内部强制 UTF-8 输出（Windows 控制台无乱码）；端点/超时配置在 `scripts/markitdown.config.json`。
+
+## 步骤1：上传文件（获取 URI）
+
 将文件通过接口`https://jc.joyintech.com/jupiter-ai/codehelper/markitdown/upload`上传
 
 响应示例：
@@ -21,21 +25,27 @@ curl -s -X POST -F "file=@<源文件路径>" "https://jc.joyintech.com/jupiter-a
 > Windows PowerShell 下用 `curl.exe`（`curl` 是 `Invoke-WebRequest` 别名）
 
 ## 步骤2：调用 MCP 转换服务
-- 使用MCP服务`https://jc.joyintech.com/jc/mcp/markitdown`的 convert_to_markdown 工具
-- 将步骤1返回的 `data` 值作为 `uri` 参数
-- 请求头为 `Accept: application/json, text/event-stream`
 
-### ⚠️ **乱码问题**
-**不要用 PowerShell 的 `Invoke-RestMethod` / `Invoke-WebRequest` 调用此服务。**
+**推荐：用 `-o` 直接输出到文件**（脚本以 UTF-8 写入，不受 Shell 重定向编码影响）：
 
-根因：PowerShell 5.1 默认不按 UTF-8 解码 HTTP 响应体，`Get-Content`（即使指定 `-Encoding UTF8`）输出到控制台时也按 GBK 编码，会把 MCP 返回的 UTF-8 中文显示成乱码，误导你以为"服务端返回乱码"，实际是客户端显示层问题。
+```bash
+python .joyincode/skills/markitdown/scripts/markitdown.py convert_to_markdown uri=file:///data/2026xxxx/xxx.docx -o document.md
+```
 
-## 步骤3：提取并保存 Markdown
-- 响应是 JSON-RPC 格式，Markdown 内容在 `result.content[0].text` 中
-- 必须以 UTF-8 读取步骤2的临时响应文件再解析，避免编码二次污染
-- 保存后删除临时文件
+> 以上命令从项目根目录执行。脚本路径为 `.joyincode/skills/markitdown/scripts/markitdown.py`（项目根目录下没有 `scripts/` 目录），也可改用脚本绝对路径。
 
-### 图片下载
+如需 stdout 输出（管道/重定向场景），也可不加 `-o`：
+
+```bash
+python .joyincode/skills/markitdown/scripts/markitdown.py convert_to_markdown uri=file:///data/2026xxxx/xxx.docx > document.md
+```
+
+> 注意：Windows PowerShell 下 `>` 重定向会把输出转成 UTF-16 并按 GBK 解码，导致中文乱码。
+
+无需手动解析 JSON-RPC 或处理临时响应文件编码——脚本已封装。
+
+## 步骤3（可选）：下载图片
+
 若生成的md文件中包含图片 `![xxxx](docx_images/xxxx.png)`，可调用以下接口批量获取图片文件
 
 接口地址：
@@ -48,7 +58,15 @@ curl -s -X POST -F "file=@<源文件路径>" "https://jc.joyintech.com/jupiter-a
 - 成功返回 `application/zip` 文件流。部分文件不存在或路径非法时自动跳过，仅打包有效文件
 - 若无文件可下载，返回json：`{ "code":"没有可下载的文件", "data":"4d7c11690c0c468e8ce8246fb7c268dc", "message":"没有可下载的文件" }`
 
-### 排障指引
-若看到乱码，**优先怀疑客户端读取/显示层编码，而非服务端**：
-- Windows 下用 Read 工具读取步骤2保存的响应文件——若内容正确，说明服务端无问题
-- **不要因此去安装本地 markitdown 包绕路转换。**
+## 使用规则
+
+1. **先上传再转换**：脚本不含上传，必须先经步骤1拿到 `file:///...` URI
+2. **乱码已由脚本解决**：直接重定向到文件即可；不要用 PowerShell `Invoke-RestMethod`/`Invoke-WebRequest` 手动调 MCP（GBK 乱码），也不要安装本地 markitdown 包绕路转换
+3. **通用方法**：`python .joyincode/skills/markitdown/scripts/markitdown.py method <方法名>` 可调用任意 MCP 方法（如 `ping`/`tools/list`）；无参数运行列出全部工具与方法
+
+## 故障排查
+
+| 现象 | 处理 |
+|---|---|
+| 连接失败/超时/406 | `python .joyincode/skills/markitdown/scripts/markitdown.py method ping` 验证连通性；确认 `markitdown.config.json` 的 endpoint 为 `https://jc.joyintech.com/jc/mcp/markitdown`、timeout 足够 |
+| 报错找不到配置文件 | 从项目根目录运行，或用脚本绝对路径 |
