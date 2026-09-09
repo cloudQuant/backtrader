@@ -53,6 +53,14 @@ def _config() -> dict:
     return runner.load_config(EXAMPLE / "config.yaml")[0]
 
 
+@pytest.fixture(autouse=True)
+def _isolate_example_dotenv(monkeypatch):
+    """Keep unit results independent of an operator's ignored local credentials/profile."""
+
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.delenv("ITER22_SIMNOW_PROFILE", raising=False)
+
+
 def _quote(**overrides):
     event = datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc).timestamp()
     value = {
@@ -280,6 +288,13 @@ def _snapshot(config: dict, *, trading_day="20260910", stage_b=False, account_re
         for index, (name, value) in enumerate(records.items())
     }
     return {
+        "read_only_safe": True,
+        "write_request_free": True,
+        "request_count_delta": {
+            "settlement_confirm": 0,
+            "order_insert": 0,
+            "order_action": 0,
+        },
         "session": {
             "connected": True,
             "read_only_ready": True,
@@ -335,6 +350,89 @@ def test_default_config_and_front_profiles_are_fail_closed():
         "preflight_sha256",
     }
     assert set(runner.ARMING_PROOF_KEYS) == expected_arming_proof_keys
+
+
+def test_effective_profile_selection_is_frozen_copied_and_hash_bound():
+    config = _config()
+    default = runner.effective_profile_config(config, {})
+    second = runner.effective_profile_config(
+        config, {"ITER22_SIMNOW_PROFILE": "simnow_second_7x24"}
+    )
+    selected_during_load, _path = runner.load_config(
+        EXAMPLE / "config.yaml",
+        env_values={"ITER22_SIMNOW_PROFILE": "simnow_second_7x24"},
+    )
+
+    assert config["environment"] == "simnow_first_group1"
+    assert default["environment"] == "simnow_first_group1"
+    assert second["environment"] == "simnow_second_7x24"
+    assert selected_during_load["environment"] == "simnow_second_7x24"
+    assert runner.config_hash(second) != runner.config_hash(default)
+    assert runner.resolve_fronts(second, {}) == {
+        "profile": "simnow_second_7x24",
+        "profile_basis": "simnow_second_7x24",
+        "sdk_profile": "set2_7x24",
+        "market_alignment": "engineering_only",
+        "td_front": "tcp://180.168.146.187:10130",
+        "md_front": "tcp://180.168.146.187:10131",
+    }
+    with pytest.raises(runner.RunnerConfigurationError, match="exact frozen"):
+        runner.effective_profile_config(config, {"ITER22_SIMNOW_PROFILE": "set2_7x24"})
+    with pytest.raises(runner.RunnerConfigurationError, match="exact frozen"):
+        runner.effective_profile_config(config, {"ITER22_SIMNOW_PROFILE": " simnow_second_7x24"})
+    with pytest.raises(runner.RunnerConfigurationError, match="selected SimNow profile"):
+        runner.resolve_fronts(
+            second,
+            {
+                "CTP_TD_FRONT": "tcp://180.168.146.187:10201",
+                "CTP_MD_FRONT": "tcp://180.168.146.187:10211",
+            },
+        )
+
+
+def test_reachable_front_selection_stays_within_the_selected_sdk_family():
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    calls = []
+
+    def selector(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            profile="set2_7x24_4000x",
+            td_front="tcp://fixture-td",
+            md_front="tcp://fixture-md",
+        )
+
+    resolved = runner.resolve_fronts(
+        config,
+        {},
+        select_reachable=True,
+        reachable_selector=selector,
+    )
+
+    assert calls == [
+        {
+            "env": "set2",
+            "profile": "set2_7x24_4000x",
+            "require_profile": "set2_7x24_4000x",
+        }
+    ]
+    assert resolved["profile"] == "simnow_second_7x24"
+    assert resolved["sdk_profile"] == "set2_7x24_4000x"
+    assert resolved["td_front"] == "tcp://fixture-td"
+    assert resolved["md_front"] == "tcp://fixture-md"
+
+    with pytest.raises(runner.RunnerConfigurationError, match="required exact profile"):
+        runner.resolve_fronts(
+            config,
+            {},
+            select_reachable=True,
+            reachable_selector=lambda **_kwargs: SimpleNamespace(
+                profile="set2_7x24",
+                td_front="tcp://fixture-td",
+                md_front="tcp://fixture-md",
+            ),
+        )
 
 
 def test_profile_endpoints_are_frozen_and_receipt_cannot_follow_an_override(monkeypatch, tmp_path):
@@ -567,6 +665,457 @@ def test_cli_rejects_meaningless_mode_option_combinations(arguments):
         runner.main(arguments)
 
 
+def test_api_diagnostic_parser_and_invocation_reject_unsafe_combinations(monkeypatch, tmp_path):
+    parser = runner.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--api-diagnostic", "--preflight-only"])
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--api-diagnostic", "--prepare-settlement"])
+
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    with pytest.raises(runner.RunnerConfigurationError, match="shadow observation"):
+        runner.run_api_diagnostic(
+            config,
+            mode="simnow",
+            purpose="observation",
+            receipt=None,
+            output_directory=tmp_path / "simnow-is-forbidden",
+            run_seconds=0.0,
+        )
+    assert not (tmp_path / "simnow-is-forbidden").exists()
+    with pytest.raises(runner.RunnerConfigurationError, match="does not consume run duration"):
+        runner.run_api_diagnostic(
+            config,
+            mode="shadow",
+            purpose="observation",
+            receipt=None,
+            output_directory=tmp_path / "duration-is-forbidden",
+            run_seconds=1.0,
+        )
+    assert not (tmp_path / "duration-is-forbidden").exists()
+
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_first_group1")
+    with pytest.raises(runner.RunnerConfigurationError, match="simnow_second_7x24"):
+        runner.main(["--api-diagnostic"])
+
+
+def test_settlement_session_establishment_uses_read_only_verification_before_validation():
+    calls = []
+    session = {
+        "connected": True,
+        "read_only_ready": True,
+        "trading_ready": False,
+        "auto_settlement_confirm": False,
+        "environment_profile": "set1_group1_vpn",
+        "request_counts": {
+            "settlement_confirm": 0,
+            "order_insert": 0,
+            "order_action": 0,
+        },
+    }
+
+    class Store:
+        def verify_ctp_settlement(self, *, timeout):
+            calls.append(("verify", timeout))
+            return {"read_only_safe": True, "evidence_complete": False}
+
+        def get_ctp_session_state(self):
+            calls.append(("session", None))
+            return copy.deepcopy(session)
+
+    result = runner.establish_read_only_ctp_session(
+        Store(),
+        expected_profile="set1_group1_vpn",
+    )
+
+    assert result == {"read_only_safe": True, "evidence_complete": False}
+    assert calls == [("verify", 5.0), ("session", None)]
+
+
+def test_set2_api_diagnostic_is_query_only_and_never_claims_strategy_success(monkeypatch, tmp_path):
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    config["evidence"].update(
+        minimum_free_bytes=1,
+        state_directory=str(tmp_path / "state"),
+    )
+    snapshot = _snapshot(config)
+    snapshot["session"].update(
+        environment_profile="set2_7x24",
+        account_fingerprint="acct_0123456789abcdef",
+    )
+    snapshot["snapshot_sha256"] = "a" * 64
+    calls = []
+    write_calls = []
+    snapshot_calls = []
+    contract_exchange = str(config["contract_selection"]["exchange"]).upper()
+
+    class DiagnosticStore:
+        def start(self):
+            calls.append("start")
+
+        def stop(self):
+            calls.append("stop")
+            return {
+                "shutdown_state": "PASS",
+                "last_error_code": "",
+                "worker_alive": False,
+                "close_thread_alive": False,
+            }
+
+        def get_ctp_preflight_snapshot(self, **kwargs):
+            calls.append(("snapshot", dict(kwargs)))
+            return copy.deepcopy(snapshot)
+
+        def get_ctp_session_state(self):
+            calls.append("session")
+            return copy.deepcopy(snapshot["session"])
+
+        def subscribe(self, *_args, **_kwargs):
+            write_calls.append("subscribe")
+            raise AssertionError("API diagnostic must not subscribe")
+
+        def verify_ctp_settlement(self, *_args, **_kwargs):
+            write_calls.append("settlement_verify")
+            raise AssertionError("API diagnostic must not verify settlement")
+
+        def prepare_ctp_settlement(self, *_args, **_kwargs):
+            write_calls.append("settlement_prepare")
+            raise AssertionError("API diagnostic must not prepare settlement")
+
+        def configure_ctp_execution_authorization(self, *_args, **_kwargs):
+            write_calls.append("execution_authorization")
+            raise AssertionError("API diagnostic must not arm execution")
+
+    identity = {
+        "profile": "simnow_second_7x24",
+        "profile_basis": "simnow_second_7x24",
+        "sdk_profile": "set2_7x24",
+        "market_alignment": "engineering_only",
+        "account_fingerprint": "acct_0123456789abcdef",
+    }
+    store = DiagnosticStore()
+    built = {}
+
+    def build_store(config_arg, _env, **kwargs):
+        built["config"] = copy.deepcopy(config_arg)
+        built["kwargs"] = dict(kwargs)
+        return store, identity, []
+
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(runner, "_build_live_store", build_store)
+    monkeypatch.setattr(runner, "runtime_component_identities", dict)
+    original_public_snapshot = runner.public_preflight_snapshot
+
+    def observed_public_snapshot(*args, **kwargs):
+        snapshot_calls.append((args, dict(kwargs)))
+        return original_public_snapshot(*args, **kwargs)
+
+    monkeypatch.setattr(runner, "public_preflight_snapshot", observed_public_snapshot)
+    monkeypatch.setattr(
+        runner,
+        "native_probe",
+        lambda: {
+            "accepted": True,
+            "ctp_package_sha256": "b" * 64,
+            "loaded_module_sha256": "c" * 64,
+            "native_files": [],
+            "native_loaded": True,
+        },
+    )
+
+    output = tmp_path / "api-diagnostic"
+    result = runner.run_api_diagnostic(
+        config,
+        mode="shadow",
+        purpose="observation",
+        receipt=None,
+        output_directory=output,
+        run_seconds=0.0,
+        run_id="set2-api-diagnostic",
+    )
+
+    assert built["config"]["environment"] == "simnow_second_7x24"
+    assert built["kwargs"]["allow_order_writes"] is False
+    assert built["kwargs"]["mode"] == "shadow"
+    assert snapshot_calls == [
+        ((store, None), {"product_id": "SA", "exchange_id": contract_exchange})
+    ]
+    assert calls == [
+        "start",
+        ("snapshot", {"product_id": "SA", "exchange_id": contract_exchange}),
+        "session",
+        "stop",
+    ]
+    assert write_calls == []
+    assert result["status"] == "PASS_API_DIAGNOSTIC"
+    assert result["strategy_status"] == "NOT_RUN"
+    assert result["g3_gate_status"] == "NOT_RUN_API_DIAGNOSTIC"
+    assert result["g4_gate_status"] == "NOT_RUN_API_DIAGNOSTIC"
+    assert result["request_counts"] == {
+        "settlement_confirm": 0,
+        "order_insert": 0,
+        "order_action": 0,
+        "order_cancel": 0,
+        "account_change": 0,
+    }
+
+    snapshot_with_write = copy.deepcopy(snapshot)
+    snapshot_with_write["request_count_delta"]["order_action"] = 1
+    with pytest.raises(runner.PreflightError, match="state-changing request"):
+        runner.validate_api_diagnostic_snapshot(snapshot_with_write, identity=identity)
+
+    diagnostic = json.loads((output / "api_diagnostic.json").read_text(encoding="utf-8"))
+    assert diagnostic["status"] == "PASS_API_DIAGNOSTIC"
+    assert diagnostic["strategy_status"] == "NOT_RUN"
+    assert diagnostic["contract_selection_status"] == "NOT_RUN_API_DIAGNOSTIC_NO_CONTRACT"
+    assert diagnostic["reconciliation_status"] == "NOT_RUN_API_DIAGNOSTIC_NO_EXECUTION"
+    assert diagnostic["shutdown"]["shutdown_state"] == "PASS"
+    assert diagnostic["query_evidence"]["account"]["record_count"] == 1
+    assert diagnostic["session"]["request_count_delta"] == {
+        "settlement_confirm": 0,
+        "order_insert": 0,
+        "order_action": 0,
+    }
+    serialized_diagnostic = json.dumps(diagnostic, sort_keys=True)
+    assert '"records":' not in serialized_diagnostic
+    assert "100000" not in serialized_diagnostic
+    assert json.loads((output / "preflight.json").read_text(encoding="utf-8"))["status"] == (
+        "PASS_API_DIAGNOSTIC"
+    )
+    assert json.loads((output / "contract_selection.json").read_text(encoding="utf-8"))[
+        "status"
+    ] == ("NOT_RUN_API_DIAGNOSTIC_NO_CONTRACT")
+    assert json.loads((output / "reconciliation.json").read_text(encoding="utf-8"))["status"] == (
+        "NOT_RUN_API_DIAGNOSTIC_NO_EXECUTION"
+    )
+    assert json.loads((output / "daily_report.json").read_text(encoding="utf-8"))[
+        "strategy_status"
+    ] == ("NOT_RUN")
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["environment"] == "simnow_second_7x24"
+    assert manifest["environment_profile"] == "set2_7x24"
+    assert manifest["strategy_status"] == "NOT_RUN"
+    assert manifest["exit_status"] == "PASS_API_DIAGNOSTIC"
+
+
+def test_set2_api_diagnostic_stops_store_when_start_raises(monkeypatch, tmp_path):
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    config["evidence"].update(
+        minimum_free_bytes=1,
+        state_directory=str(tmp_path / "state"),
+    )
+    calls = []
+
+    class FailingStartStore:
+        def start(self):
+            calls.append("start")
+            raise RuntimeError("simulated start failure")
+
+        def stop(self):
+            calls.append("stop")
+
+    identity = {
+        "profile": "simnow_second_7x24",
+        "profile_basis": "simnow_second_7x24",
+        "sdk_profile": "set2_7x24",
+        "market_alignment": "engineering_only",
+        "account_fingerprint": "acct_0123456789abcdef",
+    }
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(
+        runner,
+        "_build_live_store",
+        lambda *_args, **_kwargs: (FailingStartStore(), identity, []),
+    )
+    monkeypatch.setattr(runner, "runtime_component_identities", dict)
+    monkeypatch.setattr(
+        runner,
+        "native_probe",
+        lambda: {
+            "accepted": True,
+            "ctp_package_sha256": "b" * 64,
+            "loaded_module_sha256": "c" * 64,
+            "native_files": [],
+            "native_loaded": True,
+        },
+    )
+
+    output = tmp_path / "api-diagnostic-start-failure"
+    with pytest.raises(RuntimeError, match="simulated start failure"):
+        runner.run_api_diagnostic(
+            config,
+            mode="shadow",
+            purpose="observation",
+            receipt=None,
+            output_directory=output,
+            run_seconds=0.0,
+            run_id="set2-api-start-failure",
+        )
+
+    assert calls == ["start", "stop"]
+    assert json.loads((output / "api_diagnostic.json").read_text(encoding="utf-8"))["status"] == (
+        "FAIL_CLOSED"
+    )
+    assert json.loads((output / "manifest.json").read_text(encoding="utf-8"))["exit_status"] == (
+        "FAIL_CLOSED"
+    )
+
+
+def test_api_diagnostic_writes_safe_evidence_when_live_store_construction_fails(
+    monkeypatch, tmp_path
+):
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    config["evidence"].update(
+        minimum_free_bytes=1,
+        state_directory=str(tmp_path / "state"),
+    )
+    secret = "construction-secret-not-for-evidence"
+    raw_front = "tcp://198.51.100.77:4567"
+
+    def fail_build(*_args, **_kwargs):
+        raise RuntimeError(f"selector failed at {raw_front} with {secret}")
+
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(runner, "_build_live_store", fail_build)
+
+    output = tmp_path / "api-diagnostic-construction-failure"
+    with pytest.raises(RuntimeError, match="selector failed"):
+        runner.run_api_diagnostic(
+            config,
+            mode="shadow",
+            purpose="observation",
+            receipt=None,
+            output_directory=output,
+            run_seconds=0.0,
+            run_id="set2-api-construction-failure",
+        )
+
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    diagnostic = json.loads((output / "api_diagnostic.json").read_text(encoding="utf-8"))
+    serialized = "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted(output.glob("*.json"))
+    )
+    assert manifest["exit_status"] == "FAIL_CLOSED"
+    assert manifest["failure_stage"] == "live_store_construction"
+    assert manifest["failure_code"] == "RuntimeError"
+    assert manifest["account_fingerprint"] is None
+    assert diagnostic == {
+        "error_code": "RuntimeError",
+        "failure_stage": "live_store_construction",
+        "g3_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+        "g4_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+        "message": "live_store_construction_failed",
+        "schema_version": "iter22.ctp-api-diagnostic.v1",
+        "status": "FAIL_CLOSED",
+        "strategy_status": "NOT_RUN",
+    }
+    assert secret not in serialized
+    assert raw_front not in serialized
+
+
+def test_set2_api_diagnostic_rejects_incomplete_shutdown_before_writing_pass(monkeypatch, tmp_path):
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    config["evidence"].update(
+        minimum_free_bytes=1,
+        state_directory=str(tmp_path / "state"),
+    )
+    snapshot = _snapshot(config)
+    snapshot["session"].update(
+        environment_profile="set2_7x24",
+        account_fingerprint="acct_0123456789abcdef",
+    )
+    snapshot["snapshot_sha256"] = "a" * 64
+    calls = []
+
+    class IncompleteStopStore:
+        def start(self):
+            calls.append("start")
+
+        def stop(self):
+            calls.append("stop")
+            return {
+                "shutdown_state": "INCOMPLETE",
+                "last_error_code": "",
+                "worker_alive": True,
+                "close_thread_alive": False,
+            }
+
+        def get_ctp_preflight_snapshot(self, **kwargs):
+            calls.append(("snapshot", kwargs))
+            return copy.deepcopy(snapshot)
+
+        def get_ctp_session_state(self):
+            calls.append("session")
+            return copy.deepcopy(snapshot["session"])
+
+    identity = {
+        "profile": "simnow_second_7x24",
+        "profile_basis": "simnow_second_7x24",
+        "sdk_profile": "set2_7x24",
+        "market_alignment": "engineering_only",
+        "account_fingerprint": "acct_0123456789abcdef",
+    }
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(
+        runner,
+        "_build_live_store",
+        lambda *_args, **_kwargs: (IncompleteStopStore(), identity, []),
+    )
+    monkeypatch.setattr(runner, "runtime_component_identities", dict)
+    monkeypatch.setattr(
+        runner,
+        "native_probe",
+        lambda: {
+            "accepted": True,
+            "ctp_package_sha256": "b" * 64,
+            "loaded_module_sha256": "c" * 64,
+            "native_files": [],
+            "native_loaded": True,
+        },
+    )
+
+    output = tmp_path / "api-diagnostic-incomplete-shutdown"
+    with pytest.raises(runner.PreflightError, match="shutdown is not PASS"):
+        runner.run_api_diagnostic(
+            config,
+            mode="shadow",
+            purpose="observation",
+            receipt=None,
+            output_directory=output,
+            run_seconds=0.0,
+            run_id="set2-api-incomplete-shutdown",
+        )
+
+    assert calls == [
+        "start",
+        (
+            "snapshot",
+            {
+                "product_id": "SA",
+                "exchange_id": str(config["contract_selection"]["exchange"]).upper(),
+            },
+        ),
+        "session",
+        "stop",
+    ]
+    diagnostic = json.loads((output / "api_diagnostic.json").read_text(encoding="utf-8"))
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert diagnostic["status"] == "FAIL_CLOSED"
+    assert manifest["api_diagnostic_status"] == "FAIL_CLOSED_API_DIAGNOSTIC"
+    assert manifest["exit_status"] == "FAIL_CLOSED"
+
+
 @pytest.mark.parametrize(
     ("state", "completed", "monitor_exit", "expected_exit_code"),
     [
@@ -599,8 +1148,11 @@ def test_cli_recovery_exit_code_requires_sdk_completed_stopped_flat(
             "monitor_exit": monitor_exit,
         },
     }
-    monkeypatch.setattr(runner, "load_config", lambda _path: ({}, tmp_path / "config.yaml"))
+    monkeypatch.setattr(
+        runner, "load_config", lambda _path, **_kwargs: ({}, tmp_path / "config.yaml")
+    )
     monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setattr(runner, "effective_profile_config", lambda config, _env: config)
     monkeypatch.setattr(runner, "validate_receipt", lambda *_args, **_kwargs: {"valid": True})
     monkeypatch.setattr(runner, "_run_id", lambda _mode: "cli-recovery")
     monkeypatch.setattr(
@@ -863,6 +1415,21 @@ def test_contract_auto_fails_without_authoritative_calendar():
         runner.select_contract([_instrument()], policy, today=date(2026, 9, 9))
 
 
+def test_calendar_reader_fails_closed_for_hash_matched_invalid_json(tmp_path):
+    """A present, hash-matched artifact still needs a valid calendar document."""
+
+    artifact = tmp_path / "invalid-calendar.json"
+    artifact.write_text("{invalid calendar json", encoding="utf-8")
+    config = _config()
+    config["trading_calendar"] = {
+        "artifact": str(artifact),
+        "sha256": reporting.sha256_file(artifact),
+    }
+
+    with pytest.raises(runner.PreflightError, match="BLOCKED_CTP_TRADING_CALENDAR"):
+        runner._load_trading_calendar(config)
+
+
 def test_contract_auto_uses_complete_previous_trading_day_oi_and_volume():
     policy = _config()["contract_selection"]
     first = {
@@ -1092,6 +1659,11 @@ def test_live_store_uses_one_managed_btapi_session_and_common_journal(tmp_path):
         state_directory=tmp_path,
         allow_order_writes=True,
         store_cls=FakeStore,
+        reachable_selector=lambda **_kwargs: SimpleNamespace(
+            profile="set1_group1_vpn",
+            td_front="tcp://fixture-td",
+            md_front="tcp://fixture-md",
+        ),
     )
     second, _identity, _secrets = runner._build_live_store(
         _config(),
@@ -1101,6 +1673,11 @@ def test_live_store_uses_one_managed_btapi_session_and_common_journal(tmp_path):
         state_directory=tmp_path,
         allow_order_writes=False,
         store_cls=FakeStore,
+        reachable_selector=lambda **_kwargs: SimpleNamespace(
+            profile="set1_group1_vpn",
+            td_front="tcp://fixture-td",
+            md_front="tcp://fixture-md",
+        ),
     )
     assert first.kwargs["provider"] == "btapi"
     assert first.kwargs["backend"] == "direct"
@@ -1184,6 +1761,112 @@ def test_shadow_full_network_run_holds_account_lock_before_store_start(monkeypat
         ("store_start", None),
         ("lock_exit", "writer.lock"),
     ]
+
+
+def test_run_network_records_calendar_gate_in_failure_evidence(monkeypatch, tmp_path):
+    """A missing authoritative calendar is a G3 block, not a generic failure."""
+
+    config = _config()
+    config["evidence"].update(
+        minimum_free_bytes=1,
+        state_directory=str(tmp_path / "state"),
+    )
+    calls = []
+    write_calls = []
+
+    class CalendarGateStore:
+        def start(self):
+            calls.append("start")
+
+        def stop(self):
+            calls.append("stop")
+
+        def verify_ctp_settlement(self, *, timeout):
+            calls.append(("settlement", timeout))
+            return {"evidence_complete": True, "read_only_safe": True}
+
+        def subscribe(self, *_args, **_kwargs):
+            write_calls.append("subscribe")
+            raise AssertionError("calendar-blocked preflight must not subscribe")
+
+        def prepare_ctp_settlement(self, *_args, **_kwargs):
+            write_calls.append("settlement_prepare")
+            raise AssertionError("calendar-blocked preflight must not prepare settlement")
+
+        def configure_ctp_execution_authorization(self, *_args, **_kwargs):
+            write_calls.append("execution_authorization")
+            raise AssertionError("calendar-blocked preflight must not arm execution")
+
+    identity = {
+        "profile": "simnow_first_group1",
+        "profile_basis": "simnow_first_group1",
+        "sdk_profile": "set1_group1",
+        "market_alignment": "actual_market_hours",
+        "account_fingerprint": "acct_0123456789abcdef",
+    }
+    store = CalendarGateStore()
+    monkeypatch.setattr(
+        runner,
+        "_build_live_store",
+        lambda *_args, **_kwargs: (store, identity, []),
+    )
+    monkeypatch.setattr(
+        runner,
+        "native_probe",
+        lambda: {
+            "accepted": True,
+            "bt_api_ctp_version": "test",
+            "bt_api_ctp_path": "/test",
+            "ctp_package_sha256": "a" * 64,
+            "native_files": [],
+            "native_loaded": True,
+        },
+    )
+    monkeypatch.setattr(runner, "runtime_component_identities", dict)
+
+    def stage_a_snapshot(*_args, **kwargs):
+        calls.append(("stage_a_snapshot", dict(kwargs)))
+        return {"stage": "a"}
+
+    def calendar_block(*_args, **_kwargs):
+        calls.append("validate_stage_a")
+        raise runner.PreflightError(
+            "BLOCKED_CTP_TRADING_CALENDAR: remaining trading days are unproven"
+        )
+
+    monkeypatch.setattr(runner, "public_preflight_snapshot", stage_a_snapshot)
+    monkeypatch.setattr(runner, "validate_stage_a", calendar_block)
+
+    output = tmp_path / "calendar-gate-failure"
+    with pytest.raises(runner.PreflightError, match="BLOCKED_CTP_TRADING_CALENDAR"):
+        runner.run_network(
+            config,
+            mode="simnow",
+            purpose="observation",
+            preflight_only=True,
+            prepare_settlement=False,
+            receipt=None,
+            output_directory=output,
+            run_seconds=0.0,
+        )
+
+    assert calls == [
+        "start",
+        ("settlement", 5.0),
+        ("stage_a_snapshot", {"product_id": "SA", "exchange_id": "CZCE"}),
+        "validate_stage_a",
+        "stop",
+    ]
+    assert write_calls == []
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    failure = json.loads((output / "failure.json").read_text(encoding="utf-8"))
+    reconciliation = json.loads((output / "reconciliation.json").read_text(encoding="utf-8"))
+    daily_report = json.loads((output / "daily_report.json").read_text(encoding="utf-8"))
+    for payload in (manifest, failure, reconciliation, daily_report):
+        assert payload["g3_gate_status"] == "BLOCKED_CTP_TRADING_CALENDAR"
+        assert payload["g4_gate_status"] == "BLOCKED_G3"
+    assert manifest["exit_status"] == "FAIL_CLOSED"
+    assert failure["status"] == "FAIL_CLOSED"
 
 
 @pytest.mark.parametrize("monitor_exit", ["flat_completed", "forced_termination"])
@@ -1288,6 +1971,7 @@ def test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_ev
         "recovery_required": True,
     }
     snapshots = iter([{"stage": "a"}, {"stage": "b"}])
+    snapshot_calls = []
     monkeypatch.setattr(runner, "AccountLock", ObservedLock)
     monkeypatch.setattr(
         runner,
@@ -1305,7 +1989,12 @@ def test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_ev
             "native_loaded": True,
         },
     )
-    monkeypatch.setattr(runner, "public_preflight_snapshot", lambda *_args: next(snapshots))
+
+    def public_snapshot(*args, **kwargs):
+        snapshot_calls.append((args, kwargs))
+        return next(snapshots)
+
+    monkeypatch.setattr(runner, "public_preflight_snapshot", public_snapshot)
     monkeypatch.setattr(runner, "validate_stage_a", lambda *_args, **_kwargs: stage_a)
     monkeypatch.setattr(runner, "validate_preflight", lambda *_args, **_kwargs: dict(stage_b))
     monkeypatch.setattr(
@@ -1350,6 +2039,11 @@ def test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_ev
         "store_stop",
         "lock_exit",
     ]
+    assert len(snapshot_calls) == 2
+    assert snapshot_calls[0][0][1] is None
+    assert snapshot_calls[0][1] == {"product_id": "SA", "exchange_id": "CZCE"}
+    assert snapshot_calls[1][0][1] == "SA701"
+    assert snapshot_calls[1][1] == {"exchange_id": "CZCE"}
     manifest = json.loads(
         (tmp_path / "recovery-monitor" / "manifest.json").read_text(encoding="utf-8")
     )

@@ -3368,6 +3368,11 @@ class BtApiStore(LiveStoreBase):
         self._command_stop_requested = False
         self._command_accept_openings = not self._sdk_require_account_risk
         self._sdk_execution_arming = False
+        # Set only immediately before a public CTP SDK arm call.  A failed
+        # post-commit arm can leave the SDK leased while the local config still
+        # says market-data-only, so shutdown must retain this fact until an
+        # explicit public disarm or completed recovery proves revocation.
+        self._ctp_sdk_arm_attempted = False
         self._accept_command_completions = False
         self._restart_blocked_by_worker = False
         self._restart_blocked_by_close = False
@@ -3754,6 +3759,11 @@ class BtApiStore(LiveStoreBase):
         clear_authorization: bool = False,
     ) -> None:
         """Revoke any SDK write lease and retain only market-data capability."""
+        ctp_unarmed = not (
+            self._ctp_sdk_arm_attempted
+            or self._sdk_execution_config.get("market_data_only") is not True
+            or self._ctp_execution_recovery_armed
+        )
         self._sdk_execution_config["market_data_only"] = True
         self._ctp_execution_recovery_armed = False
         with self._command_condition:
@@ -3764,12 +3774,22 @@ class BtApiStore(LiveStoreBase):
             self._ctp_execution_authorization_consumed = False
         api = self._api
         disarm = getattr(api, "disarm_execution", None) if api is not None else None
-        if callable(disarm):
+        # CTP's SDK disarm prepares an account stream even if the session was
+        # never armed.  At ordinary Store shutdown, a fresh read-only CTP
+        # session therefore needs no disarm; an actual arm attempt, recovery
+        # arm, or non-read-only local state still requires revocation.  Other
+        # fail-closed transitions retain their existing explicit disarm.
+        skip_unarmed_ctp_stop_disarm = (
+            str(reason or "") == "store_stop" and self._is_ctp_session_provider() and ctp_unarmed
+        )
+        if callable(disarm) and not skip_unarmed_ctp_stop_disarm:
             try:
                 disarm(str(reason or "store_market_data_only"))
             except Exception as exc:
                 self.sanitize_exception(exc)
                 self._command_last_error = self._safe_exception_code(exc, "execution_disarm_failed")
+            else:
+                self._ctp_sdk_arm_attempted = False
 
     def _prepare_sdk_execution_authorization(self, reason: str) -> Dict[str, Any]:
         """Enter a reusable read-only state without revoking the next arm.
@@ -7084,12 +7104,25 @@ class BtApiStore(LiveStoreBase):
         *,
         instrument_id: Optional[str],
         exchange_id: str,
+        product_id: str,
         timeout: float,
         include_reference_data: bool,
         read_only: bool,
     ) -> Dict[str, Any]:
         if not self._is_ctp_session_provider():
             raise BtApiStoreError("CTP query snapshots require a CTP provider")
+        # CTP's trade query has no ProductID field.  A product-level Stage A
+        # therefore narrows trades to its configured exchange, while Stage B
+        # narrows them further to the frozen instrument.  Positions and orders
+        # intentionally remain account-wide: they are the safety evidence that
+        # blocks an opening when any external exposure or active order exists.
+        exchange_id = _coerce_text(exchange_id).upper()
+        instrument_id = _coerce_text(instrument_id).upper() or None
+        trade_query_scope = {
+            "instrument_id": instrument_id or "",
+            "exchange_id": exchange_id,
+        }
+        trade_query_kwargs = {name: value for name, value in trade_query_scope.items() if value}
         total_timeout = float(timeout)
         if not math.isfinite(total_timeout) or total_timeout < 0:
             raise ValueError("CTP query timeout must be finite and nonnegative")
@@ -7107,14 +7140,27 @@ class BtApiStore(LiveStoreBase):
             ("account", "query_account_result", {}),
             ("positions", "query_positions_result", {}),
             ("orders", "query_orders_result", {}),
-            ("trades", "query_trades_result", {}),
+            ("trades", "query_trades_result", trade_query_kwargs),
         ]
         if include_reference_data:
+            # ``ProductID`` was added to the public CTP facade for the Stage A
+            # product scan.  Do not pass an empty value through the legacy
+            # direct-client signature: older compatible clients only accept
+            # instrument/exchange filters, and Stage B already has the exact
+            # frozen instrument constraint.  A nonempty Stage A ProductID is
+            # deliberately retained so an implementation that cannot enforce
+            # it reports an incomplete snapshot rather than broadening scope.
+            instrument_query_kwargs = {
+                "instrument_id": instrument_id or "",
+                "exchange_id": exchange_id,
+            }
+            if product_id:
+                instrument_query_kwargs["product_id"] = product_id
             query_specs.append(
                 (
                     "instruments",
                     "query_instruments_result",
-                    {"instrument_id": instrument_id or "", "exchange_id": exchange_id},
+                    instrument_query_kwargs,
                 )
             )
             if instrument_id:
@@ -7177,6 +7223,11 @@ class BtApiStore(LiveStoreBase):
                             result = self._ctp_query_failure(
                                 name, session_before, type(exc).__name__
                             )
+                if name == "trades":
+                    # Persist the requested server-side constraints with the
+                    # terminal evidence.  The response is checked against this
+                    # scope below rather than trusting the remote filter alone.
+                    result["requested_scope"] = dict(trade_query_scope)
                 query_results[name] = result
 
         session_after = self._read_ctp_session_state()
@@ -7313,6 +7364,47 @@ class BtApiStore(LiveStoreBase):
                 if row.get("TradingDay") not in (None, ""):
                     trading_day = str(row["TradingDay"])
                     break
+
+        def _scope_trading_day(value: Any) -> str:
+            return re.sub(r"[^0-9]", "", _coerce_text(value))
+
+        trade_scope = {
+            **trade_query_scope,
+            "trading_day": _scope_trading_day(trading_day),
+        }
+        trade_result = query_results["trades"]
+        trade_result["requested_scope"] = dict(trade_scope)
+        trade_scope_errors = []
+        for row in trade_rows:
+            if exchange_id and _coerce_text(row.get("ExchangeID")).upper() != exchange_id:
+                trade_scope_errors.append("trades_response_exchange_scope_mismatch")
+            if (
+                instrument_id
+                and _normalize_ctp_instrument(row.get("InstrumentID"), exchange_id).upper()
+                != instrument_id
+            ):
+                trade_scope_errors.append("trades_response_instrument_scope_mismatch")
+            if (
+                trade_scope["trading_day"]
+                and _scope_trading_day(row.get("TradingDay")) != trade_scope["trading_day"]
+            ):
+                trade_scope_errors.append("trades_response_trading_day_scope_mismatch")
+        if trade_scope_errors:
+            # A native callback did arrive, but it does not prove the requested
+            # read scope.  Mark the local acceptance result incomplete so all
+            # callers retain the same fail-closed completion contract.
+            trade_result.update(
+                {
+                    "complete": False,
+                    "scope_valid": False,
+                    "scope_validation_errors": sorted(set(trade_scope_errors)),
+                    "error_code": "trade_scope_validation_failed",
+                    "error_message": "trade_scope_validation_failed",
+                }
+            )
+            errors.extend(trade_scope_errors)
+        else:
+            trade_result["scope_valid"] = True
         semantic = {
             "connection_generation": next(iter(generations), 0),
             "account_fingerprint": next(iter(fingerprints), ""),
@@ -7482,10 +7574,12 @@ class BtApiStore(LiveStoreBase):
         instrument_id: Optional[str] = None,
         *,
         exchange_id: str = "",
+        product_id: str = "",
         timeout: float = 15.0,
         read_only: bool = True,
     ) -> Dict[str, Any]:
         """Query one fail-closed CTP startup snapshot through the bound client."""
+        exchange_id = _coerce_text(exchange_id).upper()
         if instrument_id:
             parsed_instrument, parsed_exchange = _split_ctp_symbol(instrument_id)
             instrument_id = parsed_instrument or str(instrument_id)
@@ -7493,9 +7587,11 @@ class BtApiStore(LiveStoreBase):
             canonical_scope = _canonical_ctp_scope(instrument_id, exchange_id)
             if canonical_scope:
                 exchange_id, instrument_id = canonical_scope.split(".", 1)
+        product_id = str(product_id or "").strip().upper()
         snapshot = self._build_ctp_query_snapshot(
             instrument_id=instrument_id,
             exchange_id=exchange_id,
+            product_id=product_id,
             timeout=max(float(timeout), 0.0),
             include_reference_data=True,
             read_only=read_only,
@@ -7510,6 +7606,7 @@ class BtApiStore(LiveStoreBase):
         snapshot = self._build_ctp_query_snapshot(
             instrument_id=None,
             exchange_id="",
+            product_id="",
             timeout=max(float(timeout), 0.0),
             include_reference_data=False,
             read_only=False,
@@ -8424,6 +8521,7 @@ class BtApiStore(LiveStoreBase):
                 "revoked_generation": raw["revoked_generation"],
             }
             with self._command_condition:
+                self._ctp_sdk_arm_attempted = False
                 self._ctp_execution_recovery_abort_result = result
             return deepcopy(result)
 
@@ -8460,6 +8558,7 @@ class BtApiStore(LiveStoreBase):
             if not callable(arm):
                 raise BtApiStoreError("Public SDK execution recovery arming is unavailable")
             sdk_call_started = True
+            self._ctp_sdk_arm_attempted = True
             raw = arm(proof=normalized, recovery_token_sha256=token)
             if not isinstance(raw, Mapping) or set(raw) != _CTP_EXECUTION_RECOVERY_ARM_FIELDS:
                 raise BtApiStoreError("SDK execution recovery arming returned an invalid shape")
@@ -8650,6 +8749,7 @@ class BtApiStore(LiveStoreBase):
             if not stale:
                 self._sdk_execution_config["market_data_only"] = True
                 self._command_accept_openings = False
+                self._ctp_sdk_arm_attempted = False
                 self._ctp_execution_recovery_armed = False
                 self._ctp_execution_recovery_completed = True
                 self._ctp_execution_authorization_consumed = True
@@ -8800,6 +8900,7 @@ class BtApiStore(LiveStoreBase):
                         + ",".join(sorted(mismatches))
                     )
                 try:
+                    self._ctp_sdk_arm_attempted = True
                     result = arm(proof=proof)
                     if not isinstance(result, Mapping) or not (
                         result.get("armed") is True

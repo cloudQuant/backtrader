@@ -79,6 +79,16 @@ SDK_PROFILE_NAMES = {
     "simnow_first_group2": "set1_group2",
     "simnow_second_7x24": "set2_7x24",
 }
+SDK_REACHABLE_PROFILE_FAMILIES = {
+    "set1": frozenset({"set1_group1", "set1_group1_vpn", "set1_group2"}),
+    "set2": frozenset({"set2_7x24", "set2_7x24_4000x", "set2_7x24_vpn"}),
+}
+# The frozen Iteration 22 profile still records the historical set2 front as
+# its static configuration.  A live construction probes the named SDK route
+# below, where the 4000x pair must carry its own strict CTP profile name.
+SDK_REACHABLE_PROFILE_TARGETS = {
+    "simnow_second_7x24": "set2_7x24_4000x",
+}
 FROZEN_PROFILES = {
     "simnow_first_group1": {
         "kind": "simnow",
@@ -184,6 +194,15 @@ WRITE_REQUEST_COUNT_KEYS = (
     "order_insert",
     "order_action",
 )
+PROFILE_SELECTION_ENV = "ITER22_SIMNOW_PROFILE"
+API_DIAGNOSTIC_PROFILE = "simnow_second_7x24"
+API_DIAGNOSTIC_QUERY_NAMES = (
+    "account",
+    "positions",
+    "orders",
+    "trades",
+    "instruments",
+)
 CREDENTIAL_KEY_PARTS = (
     "password",
     "passwd",
@@ -287,7 +306,9 @@ def _load_env_file(path: Path) -> None:
             os.environ[key] = value
 
 
-def load_config(path: Path | str = DEFAULT_CONFIG) -> tuple[dict[str, Any], Path]:
+def load_config(
+    path: Path | str = DEFAULT_CONFIG, *, env_values: Mapping[str, str] | None = None
+) -> tuple[dict[str, Any], Path]:
     config_path = Path(path)
     if not config_path.is_absolute():
         candidate = HERE / config_path
@@ -297,8 +318,35 @@ def load_config(path: Path | str = DEFAULT_CONFIG) -> tuple[dict[str, Any], Path
     raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise RunnerConfigurationError("config root must be a mapping")
-    validate_config(raw)
-    return raw, config_path.resolve()
+    if env_values is None:
+        validate_config(raw)
+        return raw, config_path.resolve()
+    return effective_profile_config(raw, env_values), config_path.resolve()
+
+
+def effective_profile_config(
+    config: Mapping[str, Any], env_values: Mapping[str, str]
+) -> dict[str, Any]:
+    """Copy ``config`` and bind it to one frozen SimNow profile.
+
+    ``ITER22_SIMNOW_PROFILE`` is intentionally a profile *name*, never a
+    free-form front address.  The copied configuration is the only object
+    handed to validation, receipt binding, hashing, and runtime construction.
+    ``_load_env_file`` preserves pre-existing process values, so process
+    environment values naturally override this example's local ``.env``.
+    """
+
+    effective = deepcopy(dict(config))
+    configured = str(effective.get("environment") or "").strip()
+    override = env_values.get(PROFILE_SELECTION_ENV)
+    selected = configured if override is None or override == "" else str(override)
+    if selected not in FROZEN_PROFILES:
+        raise RunnerConfigurationError(
+            f"{PROFILE_SELECTION_ENV} must be one exact frozen SimNow profile name"
+        )
+    effective["environment"] = selected
+    validate_config(effective)
+    return effective
 
 
 def validate_config(config: Mapping[str, Any]) -> None:
@@ -526,7 +574,67 @@ def runtime_component_identities() -> dict[str, Any]:
     }
 
 
-def resolve_fronts(config: Mapping[str, Any], env: Mapping[str, str]) -> dict[str, str]:
+def _sdk_profile_family(profile: str) -> str:
+    normalized = str(profile or "").strip().lower()
+    for family, profiles in SDK_REACHABLE_PROFILE_FAMILIES.items():
+        if normalized in profiles:
+            return family
+    raise RunnerConfigurationError("configured SimNow profile has no approved SDK family")
+
+
+def _select_reachable_ctp_fronts(
+    configured_profile: str,
+    *,
+    reachable_selector: Callable[..., Any] | None = None,
+) -> tuple[str, str, str]:
+    """Choose one TCP-reachable pair from the SDK's frozen profile family.
+
+    The CTP plugin owns the endpoint registry and probes TD/MD without
+    credentials. This runner never derives a route from VPN geography and
+    accepts only the named profiles recorded in ``SDK_REACHABLE_PROFILE_FAMILIES``.
+    """
+
+    family = _sdk_profile_family(configured_profile)
+    selector = reachable_selector
+    if selector is None:
+        try:
+            from bt_api_ctp.ctp_env_selector import select_reachable_ctp_environment
+        except ImportError as exc:
+            raise RunnerConfigurationError(
+                "bt_api_ctp with reachable SimNow profile selection is required"
+            ) from exc
+        selector = select_reachable_ctp_environment
+    require_exact_profile = configured_profile in SDK_REACHABLE_PROFILE_TARGETS.values()
+    selector_kwargs: dict[str, str] = {"env": family}
+    if require_exact_profile:
+        selector_kwargs.update(
+            profile=configured_profile,
+            require_profile=configured_profile,
+        )
+    else:
+        selector_kwargs["require_profile"] = family
+    selection = selector(**selector_kwargs)
+    profile = str(getattr(selection, "profile", "") or "").strip().lower()
+    td_front = str(getattr(selection, "td_front", "") or "").strip()
+    md_front = str(getattr(selection, "md_front", "") or "").strip()
+    if require_exact_profile and profile != configured_profile:
+        raise RunnerConfigurationError(
+            "reachable CTP selection did not return the required exact profile"
+        )
+    if profile not in SDK_REACHABLE_PROFILE_FAMILIES[family] or not td_front or not md_front:
+        raise RunnerConfigurationError(
+            "reachable CTP selection did not return one complete approved profile"
+        )
+    return profile, td_front, md_front
+
+
+def resolve_fronts(
+    config: Mapping[str, Any],
+    env: Mapping[str, str],
+    *,
+    select_reachable: bool = False,
+    reachable_selector: Callable[..., Any] | None = None,
+) -> dict[str, str]:
     profile_name = str(config["environment"])
     profile = _mapping(config["profiles"][profile_name])
     td_override = str(
@@ -551,14 +659,34 @@ def resolve_fronts(config: Mapping[str, Any], env: Mapping[str, str]) -> dict[st
                 "explicit CTP fronts must match one complete approved SimNow profile"
             )
         selected_profile = matches[0]
+        if selected_profile != profile_name:
+            raise RunnerConfigurationError(
+                "explicit CTP fronts must match the selected SimNow profile"
+            )
         profile = _mapping(config["profiles"][selected_profile])
-    return {
+    resolved = {
         "profile": selected_profile,
         "profile_basis": profile_name,
         "sdk_profile": SDK_PROFILE_NAMES.get(selected_profile, ""),
         "market_alignment": str(profile.get("market_alignment")),
         "td_front": td_override or str(profile["td_front"]),
         "md_front": md_override or str(profile["md_front"]),
+    }
+    if not select_reachable or td_override:
+        return resolved
+    reachable_profile = SDK_REACHABLE_PROFILE_TARGETS.get(
+        selected_profile,
+        resolved["sdk_profile"],
+    )
+    sdk_profile, td_front, md_front = _select_reachable_ctp_fronts(
+        reachable_profile,
+        reachable_selector=reachable_selector,
+    )
+    return {
+        **resolved,
+        "sdk_profile": sdk_profile,
+        "td_front": td_front,
+        "md_front": md_front,
     }
 
 
@@ -1034,11 +1162,23 @@ def _load_trading_calendar(config: Mapping[str, Any]) -> dict[str, Any] | None:
     artifact = Path(artifact_name)
     if not artifact.is_absolute():
         artifact = (HERE / artifact).resolve()
-    if not artifact.is_file() or sha256_file(artifact) != expected_hash:
+    try:
+        actual_hash = sha256_file(artifact) if artifact.is_file() else ""
+    except OSError as exc:
+        raise PreflightError(
+            "BLOCKED_CTP_TRADING_CALENDAR: artifact is unavailable for hash verification"
+        ) from exc
+    if actual_hash != expected_hash:
         raise PreflightError("BLOCKED_CTP_TRADING_CALENDAR: artifact is missing or hash-mismatched")
-    payload = json.loads(artifact.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(artifact.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise PreflightError(
+            "BLOCKED_CTP_TRADING_CALENDAR: artifact is unreadable or invalid JSON"
+        ) from exc
     if (
-        payload.get("schema_version") != "iter22.czce-trading-calendar.v1"
+        not isinstance(payload, Mapping)
+        or payload.get("schema_version") != "iter22.czce-trading-calendar.v1"
         or str(payload.get("exchange") or "").upper() not in {"CZCE", "ZCE"}
         or not payload.get("source")
         or not payload.get("as_of_utc")
@@ -1341,14 +1481,20 @@ def _complete_query(value: Any, name: str) -> dict[str, Any]:
     return result
 
 
-def _invoke_public(store: Any, names: tuple[str, ...], *args) -> Any:
+def _invoke_public(store: Any, names: tuple[str, ...], *args, **kwargs) -> Any:
     for name in names:
         method = getattr(store, name, None)
         if not callable(method):
             continue
         signature = inspect.signature(method)
-        if args and len(signature.parameters) > 0:
-            return method(*args)
+        if args or kwargs:
+            try:
+                signature.bind(*args, **kwargs)
+            except TypeError:
+                # Do not silently drop a requested CTP scope and issue an
+                # unbounded fallback query.
+                return None
+            return method(*args, **kwargs)
         return method()
     return None
 
@@ -1372,12 +1518,25 @@ QUERY_METHODS = {
 }
 
 
-def public_preflight_snapshot(store: Any, instrument: str | None = None) -> dict[str, Any]:
+def public_preflight_snapshot(
+    store: Any,
+    instrument: str | None = None,
+    *,
+    product_id: str | None = None,
+    exchange_id: str | None = None,
+) -> dict[str, Any]:
     """Read only public Store contracts; never reach into native/client attributes."""
 
     combined = getattr(store, "get_ctp_preflight_snapshot", None)
     if callable(combined):
-        raw = combined(instrument_id=instrument) if instrument else combined()
+        query_kwargs = {}
+        if instrument:
+            query_kwargs["instrument_id"] = instrument
+        elif product_id:
+            query_kwargs["product_id"] = str(product_id).strip().upper()
+        if exchange_id:
+            query_kwargs["exchange_id"] = str(exchange_id).strip().upper()
+        raw = combined(**query_kwargs) if query_kwargs else combined()
         snapshot = _mapping(raw)
         queries = _mapping(snapshot.get("query_results") or snapshot.get("queries"))
         if "commission_rate" in queries:
@@ -1398,11 +1557,26 @@ def public_preflight_snapshot(store: Any, instrument: str | None = None) -> dict
     for name, methods in QUERY_METHODS.items():
         if name in {"fees", "margin"} and not instrument:
             continue
-        value = (
-            _invoke_public(store, methods, instrument)
-            if name in {"fees", "margin"}
-            else _invoke_public(store, methods)
-        )
+        if name in {"fees", "margin"}:
+            value = _invoke_public(store, methods, instrument)
+        elif name == "trades":
+            scope = {}
+            if instrument:
+                scope["instrument_id"] = instrument
+            if exchange_id:
+                scope["exchange_id"] = str(exchange_id).strip().upper()
+            value = _invoke_public(store, methods, **scope)
+        elif name == "instruments":
+            scope = {}
+            if instrument:
+                scope["instrument_id"] = instrument
+            if product_id:
+                scope["product_id"] = str(product_id).strip().upper()
+            if exchange_id:
+                scope["exchange_id"] = str(exchange_id).strip().upper()
+            value = _invoke_public(store, methods, **scope)
+        else:
+            value = _invoke_public(store, methods)
         queries[name] = _complete_query(value, name)
     return {"session": _mapping(session), "queries": queries}
 
@@ -1727,6 +1901,138 @@ def _validate_read_only_session(
     if session.get("read_only_ready") is not True:
         raise PreflightError("CTP read-only session is not ready")
     return session, counts
+
+
+def establish_read_only_ctp_session(
+    store: BtApiStore,
+    *,
+    expected_profile: str,
+) -> dict[str, Any]:
+    """Connect through a read-only settlement query before a confirmation write.
+
+    A newly built BtApi facade owns a CTP request feed but does not start its
+    native session until the first typed operation. Settlement preparation must
+    therefore establish that session through a query which cannot confirm
+    settlement or submit/cancel an order, then prove the resulting state before
+    taking the explicit confirmation branch.
+    """
+
+    initial_verification = store.verify_ctp_settlement(timeout=5.0)
+    if initial_verification.get("read_only_safe") is not True:
+        raise PreflightError("initial settlement readback did not prove zero write requests")
+    session_before = store.get_ctp_session_state()
+    _validate_read_only_session(
+        {"session": session_before},
+        expected_profile=expected_profile,
+        allowed_confirm_count=0,
+    )
+    return initial_verification
+
+
+def validate_api_diagnostic_snapshot(
+    snapshot: Mapping[str, Any], *, identity: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Validate the Set-2 API diagnostic without selecting a strategy contract.
+
+    This deliberately proves only the managed CTP session and the five public
+    query families required to identify it.  It neither treats an instrument
+    list as a contract-selection result nor treats API connectivity as strategy
+    execution evidence.
+    """
+
+    session, request_counts = _validate_read_only_session(
+        snapshot,
+        expected_profile=str(identity.get("sdk_profile") or ""),
+    )
+    if snapshot.get("read_only_safe") is not True:
+        raise PreflightError("query snapshot did not prove read_only_safe=true")
+    if snapshot.get("write_request_free") is not True:
+        raise PreflightError("query snapshot did not prove write_request_free=true")
+    request_count_delta, delta_complete = _strict_request_counts(
+        snapshot.get("request_count_delta")
+    )
+    if not delta_complete:
+        raise PreflightError("query snapshot write request delta is incomplete")
+    if any(request_count_delta[name] != 0 for name in WRITE_REQUEST_COUNT_KEYS):
+        raise PreflightError("query snapshot observed a state-changing request")
+    for name in API_DIAGNOSTIC_QUERY_NAMES:
+        _query_records(snapshot, name)
+    query_identity = _stage_identity(
+        snapshot,
+        API_DIAGNOSTIC_QUERY_NAMES,
+        str(identity.get("account_fingerprint") or ""),
+    )
+    session_account = str(session.get("account_fingerprint") or "")
+    expected_account = str(identity.get("account_fingerprint") or "")
+    if not session_account or _account_core(session_account) != _account_core(expected_account):
+        raise PreflightError("session account fingerprint differs from configured account")
+    if _account_core(session_account) != _account_core(query_identity["account_fingerprint"]):
+        raise PreflightError("session and public query account fingerprints differ")
+    if str(session.get("trading_day") or "") != query_identity["trading_day"]:
+        raise PreflightError("session and public query TradingDay differ")
+    if int(session.get("connection_generation") or 0) != int(
+        query_identity["connection_generation"]
+    ):
+        raise PreflightError("session and public query connection generation differ")
+
+    query_evidence = _query_evidence(snapshot, API_DIAGNOSTIC_QUERY_NAMES)
+    snapshot_hash = str(snapshot.get("snapshot_sha256") or "").lower()
+    if _HEX64.fullmatch(snapshot_hash) is None:
+        snapshot_hash = sha256_json(
+            {
+                "session": {
+                    "account_fingerprint": session_account,
+                    "trading_day": query_identity["trading_day"],
+                    "connection_generation": query_identity["connection_generation"],
+                    "environment_profile": session.get("environment_profile"),
+                    "auto_settlement_confirm": session.get("auto_settlement_confirm"),
+                    "request_counts": request_counts,
+                },
+                "request_count_delta": request_count_delta,
+                "queries": query_evidence,
+            }
+        )
+    return {
+        "schema_version": "iter22.ctp-api-diagnostic.v1",
+        "status": "PASS_API_DIAGNOSTIC",
+        "strategy_status": "NOT_RUN",
+        "session": {
+            "connected": session.get("connected") is True,
+            "read_only_ready": session.get("read_only_ready") is True,
+            "trading_ready": session.get("trading_ready") is True,
+            "auto_settlement_confirm": session.get("auto_settlement_confirm"),
+            "environment_profile": session.get("environment_profile"),
+            "account_fingerprint": session_account,
+            "trading_day": query_identity["trading_day"],
+            "connection_generation": query_identity["connection_generation"],
+            "request_counts": request_counts,
+            "request_count_delta": request_count_delta,
+        },
+        "query_identity": query_identity,
+        "query_evidence": query_evidence,
+        "query_snapshot_sha256": snapshot_hash,
+        "query_names": list(API_DIAGNOSTIC_QUERY_NAMES),
+    }
+
+
+def validate_api_diagnostic_shutdown(health: Any) -> dict[str, Any]:
+    """Require the Store to prove a clean shutdown before accepting the diagnostic."""
+
+    if not isinstance(health, Mapping):
+        raise PreflightError("Store shutdown did not return health evidence")
+    if health.get("shutdown_state") != "PASS":
+        raise PreflightError("Store shutdown is not PASS")
+    if health.get("last_error_code") not in {None, ""}:
+        raise PreflightError("Store shutdown reported an error")
+    for field in ("worker_alive", "close_thread_alive"):
+        if health.get(field) is not False:
+            raise PreflightError(f"Store shutdown did not prove {field}=false")
+    return {
+        "shutdown_state": "PASS",
+        "last_error_code": "",
+        "worker_alive": False,
+        "close_thread_alive": False,
+    }
 
 
 def validate_stage_a(
@@ -2835,6 +3141,7 @@ def _build_live_store(
     allow_order_writes: bool,
     api_cls=None,
     store_cls=BtApiStore,
+    reachable_selector: Callable[..., Any] | None = None,
 ) -> tuple[BtApiStore, dict[str, Any], list[str]]:
     """Build the only managed CTP client through ``provider='btapi'``.
 
@@ -2847,7 +3154,12 @@ def _build_live_store(
         raise RunnerConfigurationError("order writes are permitted only in simnow mode")
     if allow_order_writes and purpose not in {"engineering_smoke", "natural_signal"}:
         raise RunnerConfigurationError("order writes require an admitted SimNow purpose")
-    fronts = resolve_fronts(config, env_values)
+    fronts = resolve_fronts(
+        config,
+        env_values,
+        select_reachable=True,
+        reachable_selector=reachable_selector,
+    )
     credential_values = credentials(env_values)
     account_id_hash = account_fingerprint(
         credential_values["broker_id"], credential_values["investor_id"]
@@ -3868,6 +4180,486 @@ def _validate_network_invocation(
     return 0
 
 
+def _validate_api_diagnostic_invocation(
+    config: Mapping[str, Any],
+    *,
+    mode: str,
+    purpose: str,
+    receipt: AdmissionReceipt | None,
+    run_seconds: float,
+) -> None:
+    """Reject every API-diagnostic invocation that could become a trading run."""
+
+    validate_config(config)
+    profile = str(config.get("environment") or "")
+    profile_config = _mapping(_mapping(config.get("profiles")).get(profile))
+    if (
+        profile != API_DIAGNOSTIC_PROFILE
+        or profile_config.get("market_alignment") != "engineering_only"
+    ):
+        raise RunnerConfigurationError(
+            "--api-diagnostic requires the simnow_second_7x24 engineering-only profile"
+        )
+    if mode != "shadow":
+        raise RunnerConfigurationError("--api-diagnostic is a shadow observation only")
+    if purpose != "observation":
+        raise RunnerConfigurationError("--api-diagnostic requires purpose=observation")
+    if receipt is not None:
+        raise RunnerConfigurationError("--api-diagnostic never consumes an admission receipt")
+    if not math.isfinite(float(run_seconds)) or float(run_seconds) != 0:
+        raise RunnerConfigurationError("--api-diagnostic does not consume run duration")
+
+
+def _api_diagnostic_reference_scope(config: Mapping[str, Any]) -> dict[str, str | None]:
+    """Return the bounded reference-data scope for the Set-2 diagnostic.
+
+    Set-2 is an engineering-only session.  It must prove the public
+    instruments query without issuing an unbounded all-market request, but it
+    never selects a concrete contract or begins strategy preflight.
+    """
+
+    selection = _mapping(config.get("contract_selection"))
+    product_id = str(selection.get("product") or "").strip().upper()
+    exchange_id = str(selection.get("exchange") or "").strip().upper()
+    if not product_id or not exchange_id:
+        raise RunnerConfigurationError(
+            "--api-diagnostic requires a bounded contract_selection product and exchange"
+        )
+    return {
+        "instrument_id": None,
+        "product_id": product_id,
+        "exchange_id": exchange_id,
+    }
+
+
+def _write_api_diagnostic_construction_failure(
+    *,
+    config: Mapping[str, Any],
+    output_directory: Path,
+    mode: str,
+    purpose: str,
+    run_id: str,
+    failure: BaseException,
+) -> None:
+    """Persist a credential-safe fail-closed record before a Store exists.
+
+    Reachable-front selection and Store construction happen before credentials
+    can be reduced to their account fingerprint.  Keep this fallback payload
+    deliberately small: it records the stable exception class and stage, never
+    an exception message, endpoint, config body, or environment value.
+    """
+
+    evidence_config = _mapping(config.get("evidence"))
+    try:
+        reporter = EvidenceWriter(
+            output_directory,
+            secret_values=(),
+            min_free_bytes=int(evidence_config["minimum_free_bytes"]),
+            rotate_bytes=int(evidence_config["rotate_bytes"]),
+            audit_queue_limit=min(
+                int(evidence_config["audit_queue_limit"]),
+                int(evidence_config["quote_queue_limit"]),
+            ),
+        )
+    except Exception:
+        # The original construction error remains authoritative.  This best-
+        # effort path must not emit an unsafe raw fallback when the evidence
+        # destination itself is unavailable.
+        return
+
+    manifest: dict[str, Any] | None = None
+    try:
+        manifest = reporter.manifest(
+            run_id=run_id,
+            purpose=purpose,
+            mode=mode,
+            environment=str(config.get("environment") or ""),
+            candidate_id=str(config.get("candidate_id") or ""),
+            config_hash=config_hash(config),
+            code_hash=code_hash(),
+            data_hash="",
+            account_id_hash="",
+            instrument="",
+            trading_day="",
+            started_at_utc=datetime.now(timezone.utc).isoformat(),
+            fee_source="",
+            hypothetical_fills=False,
+        )
+        manifest.update(
+            api_diagnostic_status="FAIL_CLOSED_API_DIAGNOSTIC",
+            strategy_status="NOT_RUN",
+            g3_gate_status="NOT_RUN_API_DIAGNOSTIC",
+            g4_gate_status="NOT_RUN_API_DIAGNOSTIC",
+            execution_basis="none",
+            failure_stage="live_store_construction",
+            failure_code=type(failure).__name__,
+            source_components={},
+            retention={"status": "NOT_APPLICABLE_API_DIAGNOSTIC"},
+        )
+        failure_payload = {
+            "schema_version": "iter22.ctp-api-diagnostic.v1",
+            "status": "FAIL_CLOSED",
+            "strategy_status": "NOT_RUN",
+            "g3_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "g4_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "failure_stage": "live_store_construction",
+            "error_code": type(failure).__name__,
+            "message": "live_store_construction_failed",
+        }
+        reporter.write_json("api_diagnostic.json", failure_payload)
+        reporter.write_json(
+            "preflight.json",
+            {
+                "status": "FAIL_CLOSED_API_DIAGNOSTIC",
+                "strategy_status": "NOT_RUN",
+                "failure_stage": "live_store_construction",
+            },
+        )
+        reporter.write_json(
+            "contract_selection.json",
+            {"status": "NOT_RUN_API_DIAGNOSTIC_NO_CONTRACT"},
+        )
+        reporter.write_json(
+            "reconciliation.json",
+            {"status": "NOT_RUN_API_DIAGNOSTIC_NO_EXECUTION"},
+        )
+        reporter.write_json(
+            "daily_report.json",
+            {
+                "status": "FAIL_CLOSED_API_DIAGNOSTIC",
+                "strategy_status": "NOT_RUN",
+                "pnl_fields_emitted": False,
+            },
+        )
+    except Exception:
+        # Avoid replacing the selector/Store error or serializing it while
+        # attempting to report a secondary evidence failure.
+        pass
+    finally:
+        if manifest is not None:
+            try:
+                reporter.finalize_manifest(manifest, "FAIL_CLOSED")
+            except Exception:
+                pass
+        else:
+            try:
+                reporter.close()
+            except Exception:
+                pass
+
+
+def _network_failure_gate_status(
+    failure: BaseException, manifest: Mapping[str, Any]
+) -> dict[str, str]:
+    """Keep fail-closed network evidence explicit about an unmet gate."""
+
+    default_g3 = str(manifest.get("g3_gate_status") or "NOT_RUN")
+    default_g4 = str(manifest.get("g4_gate_status") or "NOT_RUN")
+    if isinstance(failure, PreflightError) and str(failure).startswith(
+        "BLOCKED_CTP_TRADING_CALENDAR:"
+    ):
+        return {
+            "g3_gate_status": "BLOCKED_CTP_TRADING_CALENDAR",
+            "g4_gate_status": "BLOCKED_G3",
+        }
+    return {"g3_gate_status": default_g3, "g4_gate_status": default_g4}
+
+
+def run_api_diagnostic(
+    config: Mapping[str, Any],
+    *,
+    mode: str,
+    purpose: str,
+    receipt: AdmissionReceipt | None,
+    output_directory: Path,
+    run_seconds: float,
+    run_id: str | None = None,
+) -> dict[str, Any]:
+    """Run the narrow Set-2 CTP API/session diagnostic.
+
+    The diagnostic starts the existing managed Store in its default
+    ``market_data_only`` state, performs one public query snapshot, and stops.
+    It never selects an SA contract, verifies/prepares settlement, subscribes,
+    arms execution, or invokes order/cancel APIs.
+    """
+
+    _load_env_file(HERE / ".env")
+    config = effective_profile_config(config, os.environ)
+    _validate_api_diagnostic_invocation(
+        config,
+        mode=mode,
+        purpose=purpose,
+        receipt=receipt,
+        run_seconds=run_seconds,
+    )
+    reference_query_scope = _api_diagnostic_reference_scope(config)
+    output_directory = _claim_output_directory(output_directory)
+    run_id = run_id or _run_id("api-diagnostic")
+    evidence_config = _mapping(config["evidence"])
+    state_directory = (HERE / str(_mapping(config["evidence"])["state_directory"])).resolve()
+    try:
+        store, identity, secrets = _build_live_store(
+            config,
+            os.environ,
+            mode="shadow",
+            purpose="observation",
+            state_directory=state_directory,
+            allow_order_writes=False,
+        )
+    except BaseException as exc:
+        _write_api_diagnostic_construction_failure(
+            config=config,
+            output_directory=output_directory,
+            mode=mode,
+            purpose=purpose,
+            run_id=run_id,
+            failure=exc,
+        )
+        raise
+    reporter = EvidenceWriter(
+        output_directory,
+        secret_values=secrets,
+        min_free_bytes=int(evidence_config["minimum_free_bytes"]),
+        rotate_bytes=int(evidence_config["rotate_bytes"]),
+        audit_queue_limit=min(
+            int(evidence_config["audit_queue_limit"]),
+            int(evidence_config["quote_queue_limit"]),
+        ),
+    )
+    manifest = reporter.manifest(
+        run_id=run_id,
+        purpose=purpose,
+        mode=mode,
+        environment=str(config["environment"]),
+        candidate_id=str(config["candidate_id"]),
+        config_hash=config_hash(config),
+        code_hash=code_hash(),
+        data_hash="",
+        account_id_hash=identity["account_fingerprint"],
+        instrument="",
+        trading_day="",
+        started_at_utc=datetime.now(timezone.utc).isoformat(),
+        fee_source="",
+        hypothetical_fills=False,
+    )
+    manifest.update(
+        environment_profile=identity["sdk_profile"],
+        profile_basis=identity["profile_basis"],
+        market_alignment=identity["market_alignment"],
+        source_components=runtime_component_identities(),
+        execution_basis="none",
+        api_diagnostic_status="PENDING",
+        strategy_status="NOT_RUN",
+        g3_gate_status="NOT_RUN_API_DIAGNOSTIC",
+        g4_gate_status="NOT_RUN_API_DIAGNOSTIC",
+        retention={"status": "NOT_APPLICABLE_API_DIAGNOSTIC"},
+        research_status=str(_mapping(config.get("research")).get("status") or ""),
+    )
+    store_start_attempted = False
+    failure: BaseException | None = None
+    exit_status = "FAIL_CLOSED"
+    result: dict[str, Any] | None = None
+    try:
+        probe = native_probe()
+        reporter.write_json("native_probe.json", probe)
+        manifest["source_components"]["bt_api_ctp"] = {
+            "module": "bt_api_ctp",
+            "version": probe.get("bt_api_ctp_version"),
+            "path": probe.get("bt_api_ctp_path"),
+            "sha256": probe.get("ctp_package_sha256"),
+            "package_manifest": probe.get("ctp_package_manifest") or [],
+            "package_manifest_verified": probe.get("ctp_package_manifest_verified") is True,
+            "native_files": probe.get("native_files") or [],
+            "native_loaded": probe.get("native_loaded") is True,
+        }
+        if not probe.get("accepted"):
+            raise PreflightError("CTP native probe did not prove the target extension is loaded")
+
+        # ``start`` can allocate native resources before a later connection or
+        # authentication failure.  Treat the call itself as requiring cleanup,
+        # rather than only a fully returned start, so the failure path closes
+        # the managed Store as well.
+        store_start_attempted = True
+        store.start()
+        snapshot = public_preflight_snapshot(
+            store,
+            reference_query_scope["instrument_id"],
+            product_id=str(reference_query_scope["product_id"]),
+            exchange_id=str(reference_query_scope["exchange_id"]),
+        )
+        diagnostic = validate_api_diagnostic_snapshot(snapshot, identity=identity)
+        terminal_session = _mapping(store.get_ctp_session_state())
+        _validate_read_only_session(
+            {"session": terminal_session}, expected_profile=identity["sdk_profile"]
+        )
+        if _account_core(terminal_session.get("account_fingerprint")) != _account_core(
+            diagnostic["query_identity"]["account_fingerprint"]
+        ):
+            raise PreflightError("terminal session account fingerprint differs from public queries")
+        if (
+            str(terminal_session.get("trading_day") or "")
+            != diagnostic["query_identity"]["trading_day"]
+        ):
+            raise PreflightError("terminal session TradingDay differs from public queries")
+        if int(terminal_session.get("connection_generation") or 0) != int(
+            diagnostic["query_identity"]["connection_generation"]
+        ):
+            raise PreflightError("terminal session generation differs from public queries")
+
+        api_diagnostic = {
+            **diagnostic,
+            "mode": mode,
+            "purpose": purpose,
+            "profile": identity["profile"],
+            "sdk_profile": identity["sdk_profile"],
+            "market_alignment": identity["market_alignment"],
+            "reference_query_scope": reference_query_scope,
+            "g3_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "g4_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "contract_selection_status": "NOT_RUN_API_DIAGNOSTIC_NO_CONTRACT",
+            "reconciliation_status": "NOT_RUN_API_DIAGNOSTIC_NO_EXECUTION",
+            "daily_report_status": "NOT_RUN_API_DIAGNOSTIC",
+            "execution_basis": "none",
+            "pnl_fields_emitted": False,
+        }
+        shutdown = store.stop()
+        store_start_attempted = False
+        api_diagnostic["shutdown"] = validate_api_diagnostic_shutdown(shutdown)
+        diagnostic_hash = sha256_json(api_diagnostic)
+        manifest.update(
+            api_diagnostic_status="PASS_API_DIAGNOSTIC",
+            api_diagnostic_sha256=diagnostic_hash,
+            preflight_sha256=diagnostic["query_snapshot_sha256"],
+            trading_day=diagnostic["query_identity"]["trading_day"],
+            network_data_identity={
+                "provider": "btapi",
+                "exchange": CTP_EXCHANGE,
+                "account_fingerprint": identity["account_fingerprint"],
+                "environment_profile": identity["sdk_profile"],
+                "trading_day": diagnostic["query_identity"]["trading_day"],
+                "connection_generation": diagnostic["query_identity"]["connection_generation"],
+                "query_snapshot_sha256": diagnostic["query_snapshot_sha256"],
+                "instrument": None,
+            },
+        )
+        manifest["data_hash"] = sha256_json(manifest["network_data_identity"])
+        reporter.write_json("api_diagnostic.json", api_diagnostic)
+        reporter.write_json(
+            "preflight.json",
+            {
+                "status": "PASS_API_DIAGNOSTIC",
+                "strategy_status": "NOT_RUN",
+                "session": diagnostic["session"],
+                "query_identity": diagnostic["query_identity"],
+                "query_evidence": diagnostic["query_evidence"],
+                "query_snapshot_sha256": diagnostic["query_snapshot_sha256"],
+                "reference_query_scope": reference_query_scope,
+            },
+        )
+        reporter.write_json(
+            "contract_selection.json",
+            {
+                "status": "NOT_RUN_API_DIAGNOSTIC_NO_CONTRACT",
+                "reason": "api diagnostic does not select an SA contract",
+            },
+        )
+        reporter.write_json(
+            "reconciliation.json",
+            {
+                "status": "NOT_RUN_API_DIAGNOSTIC_NO_EXECUTION",
+                "complete": False,
+                "strategy_status": "NOT_RUN",
+            },
+        )
+        reporter.write_json(
+            "daily_report.json",
+            {
+                "status": "NOT_RUN_API_DIAGNOSTIC",
+                "mode": mode,
+                "purpose": purpose,
+                "strategy_status": "NOT_RUN",
+                "pnl_fields_emitted": False,
+                "execution_basis": "none",
+            },
+        )
+        result = {
+            "run_id": run_id,
+            "mode": mode,
+            "purpose": purpose,
+            "status": "PASS_API_DIAGNOSTIC",
+            "strategy_status": "NOT_RUN",
+            "g3_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "g4_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "account_fingerprint": identity["account_fingerprint"],
+            "environment_profile": identity["sdk_profile"],
+            "query_snapshot_sha256": diagnostic["query_snapshot_sha256"],
+            "request_counts": diagnostic["session"]["request_counts"],
+            "request_count_delta": diagnostic["session"]["request_count_delta"],
+            "api_diagnostic_sha256": diagnostic_hash,
+            "evidence_directory": str(output_directory),
+        }
+        exit_status = "PASS_API_DIAGNOSTIC"
+    except BaseException as exc:
+        failure = exc
+        manifest.update(
+            api_diagnostic_status="FAIL_CLOSED_API_DIAGNOSTIC",
+            strategy_status="NOT_RUN",
+            g3_gate_status="NOT_RUN_API_DIAGNOSTIC",
+            g4_gate_status="NOT_RUN_API_DIAGNOSTIC",
+        )
+        failure_payload = {
+            "schema_version": "iter22.ctp-api-diagnostic.v1",
+            "status": "FAIL_CLOSED",
+            "strategy_status": "NOT_RUN",
+            "g3_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "g4_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+            "error_code": type(exc).__name__,
+            "message": str(exc),
+        }
+        for filename, payload in (
+            ("api_diagnostic.json", failure_payload),
+            (
+                "preflight.json",
+                {"status": "FAIL_CLOSED_API_DIAGNOSTIC", "strategy_status": "NOT_RUN"},
+            ),
+            ("contract_selection.json", {"status": "NOT_RUN_API_DIAGNOSTIC_NO_CONTRACT"}),
+            ("reconciliation.json", {"status": "NOT_RUN_API_DIAGNOSTIC_NO_EXECUTION"}),
+            (
+                "daily_report.json",
+                {
+                    "status": "FAIL_CLOSED_API_DIAGNOSTIC",
+                    "strategy_status": "NOT_RUN",
+                    "pnl_fields_emitted": False,
+                },
+            ),
+        ):
+            try:
+                reporter.write_json(filename, payload)
+            except Exception:
+                pass
+    finally:
+        if store_start_attempted:
+            try:
+                shutdown = store.stop()
+                store_start_attempted = False
+                if failure is None:
+                    validate_api_diagnostic_shutdown(shutdown)
+            except BaseException as exc:
+                if failure is None:
+                    failure = exc
+                    exit_status = "FAIL_CLOSED"
+        try:
+            reporter.finalize_manifest(manifest, exit_status)
+        except BaseException as exc:
+            if failure is None:
+                failure = exc
+    if failure is not None:
+        raise failure
+    if result is None:
+        raise RuntimeError("API diagnostic ended without a report")
+    return result
+
+
 def run_network(
     config: Mapping[str, Any],
     *,
@@ -3886,6 +4678,7 @@ def run_network(
     # before revalidating a signed receipt, and do both before claiming an
     # output directory or constructing a Store.
     _load_env_file(HERE / ".env")
+    config = effective_profile_config(config, os.environ)
     if receipt is not None and mode == "simnow" and not preflight_only and not prepare_settlement:
         receipt = _revalidate_admission_receipt(
             receipt,
@@ -3957,6 +4750,7 @@ def run_network(
             sha256_file(receipt["_path"]) if receipt and receipt.get("_path") else None
         ),
         source_components=runtime_component_identities(),
+        g3_gate_status="NOT_RUN",
         g4_gate_status="NOT_RUN",
         execution_basis=("simnow_native" if allow_order_writes else "none"),
         research_status=str(_mapping(config.get("research")).get("status") or ""),
@@ -4031,18 +4825,20 @@ def run_network(
         store_started = True
 
         if prepare_settlement:
-            session_before = store.get_ctp_session_state()
-            _validate_read_only_session(
-                {"session": session_before},
+            initial_verification = establish_read_only_ctp_session(
+                store,
                 expected_profile=identity["sdk_profile"],
-                allowed_confirm_count=0,
             )
             with AccountLock(state_directory / identity["account_fingerprint"] / "writer.lock"):
                 preparation = store.prepare_ctp_settlement(timeout=5.0)
                 verification = store.verify_ctp_settlement(timeout=5.0)
             reporter.write_json(
                 "settlement_preparation.json",
-                {"preparation": preparation, "verification": verification},
+                {
+                    "initial_read_only_verification": initial_verification,
+                    "preparation": preparation,
+                    "verification": verification,
+                },
             )
             if preparation.get("evidence_complete") is not True:
                 raise PreflightError("explicit settlement confirmation was not proven")
@@ -4106,9 +4902,24 @@ def run_network(
                     )
 
             # Stage A deliberately omits instrument-specific margin/commission
-            # queries.  It proves the account, execution state and complete
-            # contract universe before freezing one actual SA month.
-            snapshot_a = public_preflight_snapshot(store, None)
+            # queries. It proves the account and execution state while using
+            # the server-side SA product filter to avoid an unbounded global
+            # instrument response before freezing one actual SA month.
+            contract_exchange = (
+                str(_mapping(config.get("contract_selection")).get("exchange") or "")
+                .strip()
+                .upper()
+            )
+            if not contract_exchange:
+                raise PreflightError(
+                    "contract selection exchange is required for scoped trade query"
+                )
+            snapshot_a = public_preflight_snapshot(
+                store,
+                None,
+                product_id="SA",
+                exchange_id=contract_exchange,
+            )
             stage_a = validate_stage_a(
                 snapshot_a,
                 config,
@@ -4120,7 +4931,11 @@ def run_network(
 
             # Stage B queries fee/margin for the already frozen instrument and
             # rejects any generation/account/TradingDay change between stages.
-            snapshot_b = public_preflight_snapshot(store, instrument)
+            snapshot_b = public_preflight_snapshot(
+                store,
+                instrument,
+                exchange_id=contract_exchange,
+            )
             preflight = validate_preflight(
                 snapshot_b,
                 config,
@@ -4644,6 +5459,8 @@ def run_network(
                 )
     except BaseException as exc:
         failure = exc
+        gate_status = _network_failure_gate_status(exc, manifest)
+        manifest.update(gate_status)
         controlled_drain = {"status": "NOT_STARTED"}
         if broker is not None:
             shutdown_state = getattr(broker, "get_shutdown_state", None)
@@ -4665,6 +5482,7 @@ def run_network(
             "status": "FAIL_CLOSED",
             "error_code": type(exc).__name__,
             "message": str(exc),
+            **gate_status,
             "controlled_drain": controlled_drain,
         }
         for filename, payload in (
@@ -4675,6 +5493,7 @@ def run_network(
                     "status": "NOT_PROVEN",
                     "position_lots": None,
                     "unknown_intents": None,
+                    **gate_status,
                     "failure": safe_failure,
                 },
             ),
@@ -4685,6 +5504,7 @@ def run_network(
                     "purpose": purpose,
                     "status": "FAIL_CLOSED",
                     "pnl_fields_emitted": False if mode == "shadow" else None,
+                    **gate_status,
                 },
             ),
         ):
@@ -4741,6 +5561,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="explicit SimNow settlement confirmation plus read-only verification",
     )
+    actions.add_argument(
+        "--api-diagnostic",
+        action="store_true",
+        help="Set-2 read-only CTP API/session query diagnostic; never runs the strategy",
+    )
     parser.add_argument(
         "--admission-receipt",
         type=Path,
@@ -4785,8 +5610,8 @@ def _cli_report_exit_code(report: Mapping[str, Any]) -> int:
 def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    config, _path = load_config(args.config)
     _load_env_file(HERE / ".env")
+    config, _path = load_config(args.config, env_values=os.environ)
     mode = args.mode or str(config.get("mode", "shadow"))
     if args.scenario is not None and mode != "replay":
         raise RunnerConfigurationError("--scenario is valid only in replay mode")
@@ -4794,17 +5619,18 @@ def main(argv=None) -> int:
         raise RunnerConfigurationError("replay does not consume a network trading purpose")
     if mode == "replay" and args.run_seconds != 0:
         raise RunnerConfigurationError("--run-seconds is valid only in a network mode")
-    if (args.preflight_only or args.prepare_settlement) and args.run_seconds != 0:
+    read_only_action = args.preflight_only or args.prepare_settlement or args.api_diagnostic
+    if read_only_action and args.run_seconds != 0:
         raise RunnerConfigurationError("read-only/preparation actions do not consume run duration")
-    if (args.preflight_only or args.prepare_settlement) and mode == "replay":
+    if read_only_action and mode == "replay":
         raise RunnerConfigurationError(
-            "--preflight-only/--prepare-settlement require a network mode"
+            "--preflight-only/--prepare-settlement/--api-diagnostic require a network mode"
         )
     if args.prepare_settlement and mode != "simnow":
         raise RunnerConfigurationError("--prepare-settlement is valid only in simnow mode")
     if args.admission_receipt and mode != "simnow":
         raise RunnerConfigurationError("--admission-receipt is valid only in simnow mode")
-    if args.admission_receipt and (args.preflight_only or args.prepare_settlement):
+    if args.admission_receipt and read_only_action:
         raise RunnerConfigurationError(
             "admission receipts are not consumed by read-only/preparation actions"
         )
@@ -4812,6 +5638,7 @@ def main(argv=None) -> int:
         mode == "simnow"
         and not args.preflight_only
         and not args.prepare_settlement
+        and not args.api_diagnostic
         and args.admission_receipt is None
     ):
         raise RunnerConfigurationError("simnow order mode requires --admission-receipt")
@@ -4822,9 +5649,25 @@ def main(argv=None) -> int:
             raise RunnerConfigurationError(
                 "preflight and settlement preparation use purpose=observation"
             )
-    elif mode == "simnow" and args.purpose not in {"engineering_smoke", "natural_signal"}:
+    elif (
+        mode == "simnow"
+        and not args.api_diagnostic
+        and args.purpose
+        not in {
+            "engineering_smoke",
+            "natural_signal",
+        }
+    ):
         raise RunnerConfigurationError(
             "SimNow order runs require engineering_smoke or natural_signal purpose"
+        )
+    if args.api_diagnostic:
+        _validate_api_diagnostic_invocation(
+            config,
+            mode=mode,
+            purpose=args.purpose,
+            receipt=None,
+            run_seconds=args.run_seconds,
         )
     if args.max_smoke_entry_attempts is not None and not 1 <= args.max_smoke_entry_attempts <= 2:
         raise RunnerConfigurationError("--max-smoke-entry-attempts must be one or two")
@@ -4842,14 +5685,24 @@ def main(argv=None) -> int:
             mode=mode,
             purpose=args.purpose,
         )
-    run_id = _run_id(mode)
+    run_id = _run_id("api-diagnostic" if args.api_diagnostic else mode)
     output_directory = _evidence_directory(config, run_id, args.output_dir)
     retention_root = (
         (HERE / str(_mapping(config["evidence"])["directory"])).resolve()
         if args.output_dir is None
         else None
     )
-    if mode == "replay":
+    if args.api_diagnostic:
+        report = run_api_diagnostic(
+            config,
+            mode=mode,
+            purpose=args.purpose,
+            receipt=None,
+            output_directory=output_directory,
+            run_seconds=args.run_seconds,
+            run_id=run_id,
+        )
+    elif mode == "replay":
         scenario = args.scenario or str(_mapping(config["replay"])["scenario"])
         report = run_replay(
             config,

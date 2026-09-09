@@ -162,6 +162,24 @@ class CompleteQueryClient(FakeBtApiClient):
         return {"unknown_ids": [], "active_orders": 0, "unmatched_trade_count": 0}
 
 
+class LegacyInstrumentSignatureClient(CompleteQueryClient):
+    """Direct CTP fixture whose instrument query predates ProductID support."""
+
+    def __init__(self):
+        super().__init__()
+        self.instrument_filters = []
+
+    def query_instruments_result(self, instrument_id="", exchange_id="", timeout=5):
+        self.instrument_filters.append(
+            {
+                "instrument_id": instrument_id,
+                "exchange_id": exchange_id,
+                "timeout": timeout,
+            }
+        )
+        return self._result("instruments")
+
+
 class ManagedBtApiClient(CompleteQueryClient):
     """Only the managed public CTP facade is available to the Store."""
 
@@ -169,6 +187,7 @@ class ManagedBtApiClient(CompleteQueryClient):
         super().__init__()
         self.exchange_kwargs = {"CTP___FUTURE": {"auto_settlement_confirm": False}}
         self.public_queries = []
+        self.public_query_kwargs = []
         self.armed_proofs = []
         self.session_fingerprint = "0123456789abcdef"
         self.execution_config = None
@@ -215,6 +234,7 @@ class ManagedBtApiClient(CompleteQueryClient):
     def query_ctp_result(self, exchange_name, query_type, **kwargs):
         assert exchange_name == "CTP___FUTURE"
         self.public_queries.append(query_type)
+        self.public_query_kwargs.append(dict(kwargs))
         methods = {
             "account": self.query_account_result,
             "positions": self.query_positions_result,
@@ -577,6 +597,31 @@ def test_ctp_store_start_enters_read_only_without_irreversible_sdk_disarm():
     assert client.armed is False
     assert client.disarm_reasons == []
     store.stop()
+    assert client.disarm_reasons == []
+
+
+def test_ctp_store_stop_disarms_after_an_actual_sdk_arm_attempt():
+    client, store, proof, _grant, _configured = _authorized_store()
+
+    store.arm_sdk_execution(proof)
+
+    assert store._ctp_sdk_arm_attempted is True
+    store.stop()
+    assert client.disarm_reasons == ["store_stop"]
+    assert store._ctp_sdk_arm_attempted is False
+
+
+def test_ctp_store_stop_disarms_after_an_actual_recovery_arm_attempt():
+    client, store, proof, _grant, _configured = _authorized_store()
+    client.recovery_report = _recovery_report()
+    plan = store.prepare_execution_recovery(proof)
+
+    store.arm_execution_recovery(proof, recovery_token_sha256=plan["recovery_token_sha256"])
+
+    assert store._ctp_sdk_arm_attempted is True
+    store.stop()
+    assert client.disarm_reasons == ["store_stop"]
+    assert store._ctp_sdk_arm_attempted is False
 
 
 def test_authorization_preparation_requires_public_reusable_sdk_transition():
@@ -1381,6 +1426,8 @@ def test_store_rejects_invalid_sdk_arm_result_and_keeps_openings_frozen():
 
     assert store._sdk_execution_config["market_data_only"] is True
     assert store._command_accept_openings is False
+    assert client.disarm_reasons == ["execution_arm_post_commit_failure"]
+    assert store._ctp_sdk_arm_attempted is False
 
 
 def test_empty_incomplete_query_is_not_interpreted_as_zero_records():
@@ -1549,6 +1596,95 @@ def test_provider_btapi_uses_managed_public_ctp_facade_and_preserves_metadata():
     assert snapshot["write_request_free"] is True
     assert snapshot["unknown_intent_count"] == 0
     assert snapshot["unmatched_trade_count"] == 0
+
+
+def test_preflight_product_filter_is_forwarded_to_the_managed_ctp_facade():
+    client = ManagedBtApiClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+    )
+
+    snapshot = store.get_ctp_preflight_snapshot(product_id="sa", exchange_id="czce", timeout=0)
+
+    assert snapshot["query_results"]["instruments"]["complete"] is True
+    instrument_index = client.public_queries.index("instruments")
+    assert client.public_query_kwargs[instrument_index]["product_id"] == "SA"
+    assert client.public_query_kwargs[instrument_index]["exchange_id"] == "CZCE"
+    trades_index = client.public_queries.index("trades")
+    assert client.public_query_kwargs[trades_index]["exchange_id"] == "CZCE"
+    assert snapshot["query_results"]["trades"]["requested_scope"] == {
+        "instrument_id": "",
+        "exchange_id": "CZCE",
+        "trading_day": "20260909",
+    }
+
+
+def test_preflight_scopes_stage_b_trades_to_the_frozen_instrument():
+    client = ManagedBtApiClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+        symbol_routes={"CZCE.SA609": "CTP___FUTURE"},
+    )
+
+    snapshot = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
+
+    trades_index = client.public_queries.index("trades")
+    assert client.public_query_kwargs[trades_index]["instrument_id"] == "SA609"
+    assert client.public_query_kwargs[trades_index]["exchange_id"] == "CZCE"
+    assert snapshot["query_results"]["trades"]["requested_scope"] == {
+        "instrument_id": "SA609",
+        "exchange_id": "CZCE",
+        "trading_day": "20260909",
+    }
+    assert snapshot["query_results"]["trades"]["scope_valid"] is True
+
+
+def test_preflight_keeps_legacy_direct_instrument_query_compatible_without_product_filter():
+    client = LegacyInstrumentSignatureClient()
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    stage_b = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
+
+    assert stage_b["evidence_complete"] is True
+    assert client.instrument_filters == [
+        {"instrument_id": "SA609", "exchange_id": "CZCE", "timeout": 0.0}
+    ]
+
+    stage_a = store.get_ctp_preflight_snapshot(
+        product_id="SA",
+        exchange_id="CZCE",
+        timeout=0,
+    )
+
+    assert stage_a["evidence_complete"] is False
+    assert stage_a["query_results"]["instruments"]["error_code"] == "TypeError"
+    assert len(client.instrument_filters) == 1
+
+
+def test_preflight_rejects_trade_rows_outside_the_requested_scope():
+    client = CompleteQueryClient()
+    client.rows["trades"] = [
+        {"ExchangeID": "SHFE", "InstrumentID": "RB701", "TradingDay": "20260908"}
+    ]
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
+
+    trades = snapshot["query_results"]["trades"]
+    assert trades["complete"] is False
+    assert trades["scope_valid"] is False
+    assert trades["error_code"] == "trade_scope_validation_failed"
+    assert set(trades["scope_validation_errors"]) == {
+        "trades_response_exchange_scope_mismatch",
+        "trades_response_instrument_scope_mismatch",
+        "trades_response_trading_day_scope_mismatch",
+    }
+    assert snapshot["evidence_complete"] is False
+    assert "trades_response_exchange_scope_mismatch" in snapshot["evidence_errors"]
 
 
 def test_settlement_prepare_and_verify_expose_request_count_evidence():

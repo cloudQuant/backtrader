@@ -4,12 +4,17 @@
 订单准入、日内风险状态和证据文件接入 Backtrader 原生
 `Cerebro -> BtApiFeed -> bt.Strategy -> BtApiBroker -> BtApiStore` 链路。
 网络模式只创建一个由 `BtApiStore(provider="btapi")` 管理的顶层 `BtApi`；示例不访问
-native Trader，也不创建第二个查询或交易客户端。
+native Trader，也不创建第二个查询或交易客户端。CTP native 只使用 `bt_api_ctp` 随包提供的
+bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 
 当前候选固定为 `iter22-sa-v0`，研究状态为 `RESEARCH_NOT_ESTABLISHED`。本地 replay
 只能证明公式、事件顺序、原生 Feed/Strategy/Broker 装配、零 SDK 写请求和证据可复现，
 不能证明真实行情、成交、收益或 G3/G4。未在本机运行的 SimNow 项均应判为 `NOT_RUN`；
 缺少权威交易日历或上一完整 TradingDay 的全市场排名证据时应判为 `BLOCKED`。
+
+当前第一套的受控外部验证已完成认证/登录、显式结算确认及只读回查、产品范围合约查询和深度行情连接。runner 的只读 preflight 已到达 `BLOCKED_CTP_TRADING_CALENDAR`。另一次独立受控 API 验证将一手非市价限价单撤单至 `CANCELED`，零成交且进程退出码为 0。这些都是 `PASS_CONTROLLED_CTP_MECHANICS` 子证据，不构成 G3 的 60 分钟观察，也不构成 G4 的策略开平闭环、归零对账、收益或经济性证据。
+
+第二套 7×24 的受限 `shadow --api-diagnostic` 已实际通过 `PASS_API_DIAGNOSTIC`：五类只读查询完整、三类状态变更请求计数增量为零，且受管 Store 停止健康为 `PASS`。该诊断以冻结候选的产品和交易所仅作为参考数据范围，不选择具体月份合约、不订阅行情、不运行策略；其 `strategy_status=NOT_RUN`，G3/G4 均为 `NOT_RUN_API_DIAGNOSTIC`。
 
 ## 模式和写入边界
 
@@ -18,6 +23,7 @@ native Trader，也不创建第二个查询或交易客户端。
 | `replay` | 不联网，本地 fixture | 禁止 | 不生成 | 不运行 |
 | `shadow --preflight-only` | 只读 | 禁止 | 不生成 | 只读核验 |
 | `shadow` | 只读观察 | 禁止 | 不生成 | 不确认 |
+| `shadow --api-diagnostic` | 第二套 7x24 的托管只读 API 查询 | 禁止 | 不生成 | 不确认 |
 | `simnow --preflight-only` | 只读 | 禁止 | 不生成 | 只读核验 |
 | `simnow --prepare-settlement` | `market_data_only` | 禁止 | 不生成 | 唯一显式确认动作，随后只读回查 |
 | admitted `simnow` | 托管交易会话 | receipt 限定 | 实际回报才记录 | 启动时只读核验 |
@@ -42,12 +48,35 @@ replay 使用 `fixtures/sa_v0_replay.json`，经过真实 `BtApiFeed` 的 tick �
 聚合和 `Cerebro` 策略回调。`execution_basis=none`、`hypothetical_fills=false`、
 `pnl_fields_emitted=false`；`trend`/`reverse` 场景也保持零订单。
 
-网络运行前，把 `.env.example` 复制为本目录 `.env` 并填写本地值。runner 优先读取
+网络运行前，在本目录创建忽略版本控制的 `.env` 并填写本地值。runner 优先读取
 `CTP_*`，也兼容 `SIMNOW_*` 和仓库已有的小写 `simnow_*`；任何日志、报告和 manifest
-都不得保存原值，只保存 `acct_<sha256(broker:investor)[:16]>`。第一套第一组是默认
-profile：TD `180.168.146.187:10201`、MD `180.168.146.187:10211`；第一套第二组和
-7x24 第二套也只能以 config 中完整成对的 profile 使用。显式覆盖必须同时提供 MD/TD，
-并且恰好匹配一个批准 profile。
+都不得保存原值，只保存 `acct_<sha256(broker:investor)[:16]>`。`.env` 中的
+`ITER22_SIMNOW_PROFILE=simnow_first_group1` 是默认选择，适用于期货实际交易时段的第一套
+观察/预检。允许的值只有冻结 profile 名：`simnow_first_group1`、
+`simnow_first_group2`、`simnow_second_7x24`。进程环境中的同名变量优先于 `.env`，因此可在
+不改动本地文件的前提下临时选择第二套。profile 选择进入有效 config，进而绑定 manifest、
+config hash、身份校验和 Store 运行时；不能用任意前置地址替代它。若仍设置
+`CTP_TD_FRONT`/`CTP_MD_FRONT`，二者必须同时存在、精确匹配冻结 pair，并且与所选 profile
+相同。
+
+第二套 API 连通性诊断（以冻结候选的产品/交易所作有界参考数据查询；不选择具体 SA 合约、不订阅行情、不运行策略）：
+
+```bash
+ITER22_SIMNOW_PROFILE=simnow_second_7x24 \
+  /Users/yunjinqi/opt/anaconda3/bin/conda run -n base python \
+  examples/013_3_sa_midfreq_simnow/run.py --mode shadow --purpose observation --api-diagnostic \
+  --output-dir /tmp/iter22-sa-set2-api
+```
+
+该动作只启动由 `BtApiStore` 托管的 `market_data_only` 会话，并执行公开的 account、positions、
+orders、trades 完整查询；instruments 查询以冻结候选的产品和交易所作为有界参考数据范围，避免
+未限定的全市场查询。它要求 `auto_settlement_confirm=false`、完整且一致的
+账户/TradingDay/generation/profile 身份，以及零 `settlement_confirm`、`order_insert`、
+`order_action` 计数；不调用结算预检、结算确认、订阅、报单或撤单。
+`api_diagnostic.json` 只保存会话/查询元数据、记录数和 hash，不保存账户记录或凭据。成功为
+`PASS_API_DIAGNOSTIC`，同时固定 `strategy_status=NOT_RUN`、G3/G4 为
+`NOT_RUN_API_DIAGNOSTIC`：它证明的是 API/session/query 路径，不是行情、信号、下单、成交或
+策略成功。
 
 只读预检：
 
@@ -67,6 +96,7 @@ SimNow 当日首次准备结算状态是独立动作，不能与 preflight 或 r
 
 后续进程仍以 `auto_settlement_confirm=false` 登录，并通过公共
 `verify_ctp_settlement()` 只读回查当前账户、TradingDay 和 connection generation。
+第一套已有一次显式确认和同会话回查成功记录；每个策略运行仍必须自行生成并绑定其新鲜证据，不能复用该机械验证代替 G3/G4。
 完整 SimNow 运行还必须提供与候选、config hash、code hash、profile、月份、用途和
 G1/G2/G3 绑定的 receipt：
 
@@ -110,13 +140,15 @@ SIGINT/SIGTERM 也会先落盘最终恢复证据，再以退出码 3 和
 `RECOVERY_FORCED_TERMINATION` 结束。其它 `MANUAL_INTERVENTION` 同样返回 3，便于 CI 和
 运维系统把它识别为需要处理的非成功终态。
 
+macOS arm64 随包 CTP framework 的 shutdown 在 native `Join()` 仍存活时先解绑回调并保留 native、SWIG director 和 Join 生命周期到进程退出，避免 `Release()` 竞争。受控会话已能以退出码 0 结束；这只是 native 生命周期安全证据，不表示策略停止、账户归零或 G4 通过。
+
 ## 合约冻结与当前阻断
 
 CTP `InstrumentField` 提供 `ExpireDate`，但不提供“剩余交易日”或上一完整 TradingDay
 全市场 OI/Volume 排名。runner 不用自然日、工作日或当日累计行情代替这些证据。
-默认 `contract_selection.mode=auto` 因此会明确返回
-`BLOCKED_CTP_TRADING_CALENDAR` 或
-`BLOCKED_CTP_PRIOR_DAY_RANKING_EVIDENCE`，不会静默降级到手工月份。
+当前第一套 `shadow --preflight-only` 已在会话和受控查询完成后明确返回
+`BLOCKED_CTP_TRADING_CALENDAR`，不会静默降级到手工月份。日历补齐后，如仍缺上一完整
+TradingDay 的全市场排名证据，自动选择将继续以 `BLOCKED_CTP_PRIOR_DAY_RANKING_EVIDENCE` 失败关闭。
 
 要运行 shadow/G3，可准备一个冻结的 CZCE 交易日历。示例 schema：
 
@@ -140,7 +172,7 @@ CTP `InstrumentField` 提供 `ExpireDate`，但不提供“剩余交易日”或
 把 artifact 的相对或绝对路径及 hash 写入 `trading_calendar`，然后显式冻结月份：
 
 ```yaml
-instrument: SA701
+instrument: "<approved-actual-SA-instrument>"
 contract_selection:
   mode: manual
   product: SA
@@ -158,10 +190,10 @@ trading_calendar:
 
 `manual_trading_days_to_expiry` 不是自由声明值。runner 从 CTP session `TradingDay` 开始，
 用冻结日历数到该 `InstrumentField.ExpireDate`，并要求计算值、source、hash 与 config 完全
-一致。夜盘仍以 CTP TradingDay 为基准。Stage A 还要求完整 account/positions/orders/
-trades/instruments 查询，验证实际月份存在、`IsTrading`、`ExpireDate`、PriceTick=1、
-VolumeMultiple=20、最小手数=1；Stage B 再为冻结月份查询费用和保证金，并拒绝两个阶段
-之间任何账户、TradingDay、generation 或 metadata 变化。涨跌停只接受本 generation、
+一致。夜盘仍以 CTP TradingDay 为基准。Stage A 以产品和交易所范围查询合约，并以交易所范围
+查询成交后验证响应未越界；它要求完整 account/positions/orders/trades/instruments 查询。
+Stage B 对冻结月份的成交查询同时限定合约和交易所、验证响应范围，再查询费用和保证金，并拒绝
+两个阶段之间任何账户、TradingDay、generation 或 metadata 变化。涨跌停只接受本 generation、
 本 TradingDay 的有效 `ctp.quote.v2` 行情，不能从静态合约或费用查询伪造。
 
 ## 冻结策略规则
