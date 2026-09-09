@@ -1,0 +1,136 @@
+mode: shadow
+environment: simnow_first_group1
+candidate_id: iter22-sa-v0
+instrument: null
+timezone: Asia/Shanghai
+
+profiles:
+  simnow_first_group1:
+    kind: simnow
+    market_alignment: actual_market_hours
+    td_front: tcp://180.168.146.187:10201
+    md_front: tcp://180.168.146.187:10211
+  simnow_first_group2:
+    kind: simnow
+    market_alignment: actual_market_hours
+    td_front: tcp://180.168.146.187:10202
+    md_front: tcp://180.168.146.187:10212
+  simnow_second_7x24:
+    kind: simnow
+    market_alignment: engineering_only
+    td_front: tcp://180.168.146.187:10130
+    md_front: tcp://180.168.146.187:10131
+
+contract_selection:
+  mode: auto
+  product: SA
+  exchange: CZCE
+  minimum_trading_days_to_expiry: 5
+  manual_reviewed_at: null
+  manual_source: null
+  manual_trading_days_to_expiry: null
+  manual_trading_days_source: null
+  manual_trading_days_evidence_sha256: null
+
+# Required for both automatic expiry gating and a manual frozen month. The
+# artifact must follow iter22.czce-trading-calendar.v1; null fails closed.
+trading_calendar:
+  artifact: null
+  sha256: null
+
+feed:
+  timeframe: minutes
+  compression: 1
+  dispatch_ticks: true
+  dispatch_bars: true
+  backfill_start: false
+  qcheck: 0.20
+
+warmup:
+  bars: 60
+  quote_seconds: 60
+
+signal:
+  entry_score: 0.35
+  exit_score: 0.10
+  confirm_seconds: 2
+  confirm_quotes: 3
+  weights:
+    h_imbalance: 0.45
+    h_micro_dev: 0.20
+    h_ofi: 0.25
+    h_momentum: 0.10
+    score_h: 0.40
+    score_k: 0.60
+    k_trend: 0.65
+    k_return3: 0.35
+
+execution:
+  order_type: limit
+  time_in_force: GFD
+  entry_timeout_seconds: 3
+  cancel_timeout_seconds: 5
+  entry_protection_ticks: 1
+  max_exit_requotes: 2
+
+risk:
+  lots: 1
+  max_position_lots: 1
+  min_hold_seconds: 60
+  max_hold_seconds: 900
+  daily_loss_cny: 500
+  daily_loss_equity_fraction: 0.005
+  maximum_consecutive_losses: 3
+  cooldown_seconds: 60
+  maximum_entry_attempts: 30
+  maximum_write_requests: 100
+  emergency_write_reserve: 20
+  cash_check_enabled: true
+  drain_timeout_seconds: 120
+
+quality:
+  max_quote_age_seconds: 2
+  exit_quote_age_seconds: 5
+  max_bar_age_seconds: 90
+  maximum_spread_ticks: 2
+  minimum_depth_lots: 5
+  watermark_milliseconds: 500
+
+metadata_expectation:
+  price_tick: 1
+  volume_multiple: 20
+  minimum_order_lots: 1
+
+fee_policy:
+  require_account_verified_for_simnow: true
+  conservative_manual: null
+  replay_fixture:
+    source: synthetic_formula_fixture
+    verified: false
+    open_money_rate: 0
+    open_volume_rate: 2
+    close_money_rate: 0
+    close_volume_rate: 4
+    close_today_money_rate: 0
+    close_today_volume_rate: 4
+    entry_slip_ticks: 1
+    exit_slip_ticks: 1
+    edge_buffer_ticks: 1
+
+research:
+  status: RESEARCH_NOT_ESTABLISHED
+
+evidence:
+  directory: reports
+  state_directory: state
+  minimum_free_bytes: 1000000000
+  quote_queue_limit: 10000
+  audit_queue_limit: 10000
+  rotate_bytes: 100000000
+  retain_trading_days: 20
+
+replay:
+  fixture: fixtures/sa_v0_replay.json
+  scenario: no_signal
+  hypothetical_fills: false
+  starting_cash: 1000000

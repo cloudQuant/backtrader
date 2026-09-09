@@ -3239,7 +3239,9 @@ def test_ctp_offset_inference_rejects_when_pretrade_position_refresh_fails():
         def __init__(self):
             super().__init__(
                 balance={"cash": 1_000_000.0, "value": 1_000_000.0},
-                positions=[{"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}],
+                positions=[
+                    {"instrument": symbol, "direction": "long", "volume": 1, "price": 4000.0}
+                ],
                 history={symbol: [make_bar(0, 4000.0, 4010.0, 3990.0, 4005.0)]},
             )
             self.fail_positions = False
@@ -3345,7 +3347,7 @@ def test_local_cash_validation_rejects_opening_order_without_risk_price():
             owner=None,
             data=data,
             size=1,
-            exectype=bt.Order.Market,
+            exectype=bt.Order.Limit,
         )
 
         assert order.status == bt.Order.Rejected
@@ -3544,9 +3546,7 @@ def test_batch_cancel_cancels_remote_open_orders_after_restart():
         cancelled = broker.batch_cancel()
 
         assert cancelled == client.open_orders
-        assert client.cancelled_orders == [
-            {"order_ref": "remote-1", "dataname": DEFAULT_SYMBOL}
-        ]
+        assert client.cancelled_orders == [{"order_ref": "remote-1", "dataname": DEFAULT_SYMBOL}]
 
         runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
         matching = [
@@ -4614,9 +4614,7 @@ def test_oversized_trade_update_is_clipped_to_order_remaining():
         assert len(client.submitted_orders) == 2
 
         events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
-        clipped = [
-            event for event in events if event["event_type"] == "trade_update_size_clipped"
-        ]
+        clipped = [event for event in events if event["event_type"] == "trade_update_size_clipped"]
         assert clipped
         assert clipped[-1]["error_code"] == "trade_size_exceeds_remaining"
         assert clipped[-1]["details"]["requested_fill_qty"] == pytest.approx(2.0)
@@ -4792,9 +4790,7 @@ def test_remote_trade_update_net_inverse_futures_uses_contract_value():
     """Inverse live fills must use contract value for PnL, value and fees."""
     symbol = "BTC-USD-SWAP"
     client = FakeBtApiClient(
-        positions=[
-            {"instrument": symbol, "direction": "long", "volume": 100, "price": 50000.0}
-        ],
+        positions=[{"instrument": symbol, "direction": "long", "volume": 100, "price": 50000.0}],
         history={symbol: [make_bar(0, 50000.0, 50100.0, 49900.0, 50010.0)]},
     )
     store = make_store(
@@ -4887,7 +4883,7 @@ def test_remote_trade_update_uses_close_today_commission_rate():
             data=data,
             size=1,
             price=4010.0,
-            exectype=bt.Order.Market,
+            exectype=bt.Order.Limit,
             offset="close_today",
         )
 
@@ -4950,7 +4946,7 @@ def test_remote_trade_update_uses_close_yesterday_commission_rate():
             data=data,
             size=1,
             price=4010.0,
-            exectype=bt.Order.Market,
+            exectype=bt.Order.Limit,
             offset="close_yesterday",
         )
 
@@ -5014,7 +5010,7 @@ def test_remote_trade_update_uses_mixed_close_today_commission_when_missing_remo
             data=data,
             size=1,
             price=4010.0,
-            exectype=bt.Order.Market,
+            exectype=bt.Order.Limit,
             offset="close_today",
         )
 

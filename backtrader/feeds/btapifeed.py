@@ -30,6 +30,50 @@ def _safe_log(level, message, *args):
 
 
 _UTC = _dt.timezone.utc
+_CTP_INVALID_ABS = 1.0e50
+
+
+def _set_tick_value(tick, name, value):
+    """Set one normalized field on mapping and object event shapes."""
+    if isinstance(tick, dict):
+        tick[name] = value
+    else:
+        setattr(tick, name, value)
+
+
+def _finite_market_number(value):
+    """Return a finite market number, rejecting CTP's DBL_MAX-style sentinels."""
+    if value in (None, "") or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(number) or abs(number) >= _CTP_INVALID_ABS:
+        return None
+    return number
+
+
+def _as_utc_datetime(value):
+    """Parse an event-time field without silently replacing invalid source time."""
+    if isinstance(value, _dt.datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            return value.replace(tzinfo=_UTC)
+        return value.astimezone(_UTC)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        try:
+            return _dt.datetime.fromtimestamp(_coerce_epoch_seconds(value), _UTC)
+        except (OSError, OverflowError, TypeError, ValueError):
+            return None
+    if isinstance(value, str) and value.strip():
+        try:
+            parsed = _dt.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            parsed = parsed.replace(tzinfo=_UTC)
+        return parsed.astimezone(_UTC)
+    return None
 
 
 def _coerce_epoch_seconds(value):
@@ -64,6 +108,10 @@ def _tick_value(tick, *names, default=None):
 
 
 def _tick_timestamp(tick):
+    event_time = _as_utc_datetime(_tick_value(tick, "event_time_utc", default=None))
+    if event_time is not None:
+        return event_time.timestamp()
+
     value = _tick_value(tick, "timestamp", "Timestamp", default=None)
     if value is not None:
         return _coerce_epoch_seconds(value)
@@ -83,6 +131,10 @@ def _tick_timestamp(tick):
 
 
 def _tick_datetime(tick):
+    event_time = _as_utc_datetime(_tick_value(tick, "event_time_utc", default=None))
+    if event_time is not None:
+        return event_time.replace(tzinfo=None)
+
     timestamp_value = _tick_value(tick, "timestamp", "Timestamp", default=None)
     if timestamp_value not in (None, ""):
         try:
@@ -146,6 +198,11 @@ class BtApiFeed(DataBase, LiveFeedBase):
         ("dispatch_orderbooks", True),
         ("dispatch_bars", True),
         ("orderbook_as_ticks", False),
+        ("bar_watermark_ms", 500),
+        ("event_time_max_age", 2.0),
+        ("receive_time_max_age", 2.0),
+        ("price_tick", None),
+        ("clock", None),
     )
 
     def __init__(self, *args, **kwargs):
@@ -180,6 +237,14 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self._live = collections.deque(_normalize_bar(bar) for bar in (self.p.live_bars or []))
         self._live_notified = False
         self._bar_builder = None
+        self._bar_builders = collections.OrderedDict()
+        self._bar_quality_overrides = collections.defaultdict(set)
+        self._max_event_timestamp = None
+        self._last_ingest_monotonic_ns = None
+        self._last_closed_bucket_end = None
+        self._last_connection_generation = None
+        self._bar_sequence = 0
+        self._tick_consumer_claimed = False
         self._history_backfilled = bool(self._history)
         self._continuity_degraded = False
         self._session_active = False
@@ -190,6 +255,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         if new_session:
             self._live_notified = False
             self._continuity_degraded = False
+        claimed_this_start = False
         try:
             super().start()
             if self.p.orderbook_as_ticks and self._timeframe != TimeFrame.Ticks:
@@ -217,9 +283,23 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 except Exception as e:
                     _safe_log("debug", "Failed to backfill history: %s", e)
 
+            claim = getattr(self.store, "claim_tick_consumer", None)
+            if (
+                callable(claim)
+                and not self.p.orderbook_as_ticks
+                and not self._tick_consumer_claimed
+            ):
+                claim(self._dataname, self)
+                self._tick_consumer_claimed = True
+                claimed_this_start = True
             self.store.subscribe(self._dataname)
             self._session_active = True
         except Exception:
+            if claimed_this_start and self.store is not None:
+                release = getattr(self.store, "release_tick_consumer", None)
+                if callable(release):
+                    release(self._dataname, self)
+                self._tick_consumer_claimed = False
             if new_session:
                 self._session_active = False
             raise
@@ -229,6 +309,21 @@ class BtApiFeed(DataBase, LiveFeedBase):
         try:
             super().stop()
         finally:
+            if self._tick_consumer_claimed and self.store is not None:
+                release = getattr(self.store, "release_tick_consumer", None)
+                if callable(release):
+                    release(self._dataname, self)
+            # A live partial bucket is not a completed market bar.  Clear it
+            # during teardown without dispatching a synthetic notify_bar after
+            # Cerebro has already stopped the strategy.
+            self._bar_builders.clear()
+            self._bar_builder = None
+            self._bar_quality_overrides.clear()
+            self._max_event_timestamp = None
+            self._last_ingest_monotonic_ns = None
+            self._last_closed_bucket_end = None
+            self._last_connection_generation = None
+            self._tick_consumer_claimed = False
             self._session_active = False
 
     def islive(self) -> bool:
@@ -329,6 +424,13 @@ class BtApiFeed(DataBase, LiveFeedBase):
         if self._history:
             return self._load_history()
 
+        # Preserve the causal pair between a completed bar callback and the
+        # matching data-line advance.  Do not consume newer ticks while an
+        # already completed bar is waiting for Strategy.next().
+        if self._live:
+            self._mark_live()
+            return self._load_bar(self._live.popleft())
+
         if self.p.orderbook_as_ticks:
             if self._load_orderbook_tick():
                 return True
@@ -338,6 +440,10 @@ class BtApiFeed(DataBase, LiveFeedBase):
 
         drained_ticks = self._drain_live_ticks()
         drained_orderbooks = self._drain_live_orderbooks()
+        self._flush_ready_bars(reason="load")
+        # If this turn already produced a line bar, deliver it before an EOF
+        # watermark is allowed to close the following bucket.
+        source_exhausted = False if self._live else self._handle_source_exhaustion()
 
         if self._live:
             bar = self._live.popleft()
@@ -347,6 +453,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
             bar = None
 
         if bar is None:
+            if source_exhausted and not self._bar_builders:
+                return False
             if drained_ticks or drained_orderbooks:
                 self._mark_live()
             if self._qcheck > 0:
@@ -362,8 +470,12 @@ class BtApiFeed(DataBase, LiveFeedBase):
         super()._check(forcedata=forcedata)
         if self.p.orderbook_as_ticks:
             return  # _load must establish the feed clock before the callback.
+        if self._live:
+            return  # _load must pair the queued callback with its line bar.
         drained_ticks = self._drain_live_ticks()
         drained_orderbooks = self._drain_live_orderbooks()
+        self._flush_ready_bars(reason="idle")
+        self._handle_source_exhaustion()
         if not self._history and (drained_ticks or drained_orderbooks):
             self._mark_live()
 
@@ -437,17 +549,26 @@ class BtApiFeed(DataBase, LiveFeedBase):
         return True
 
     def _drain_live_ticks(self):
-        """Drain queued live ticks and aggregate them into completed bars."""
+        """Consume ticks only until the next completed bar boundary.
+
+        A single ``_load`` turn may inspect many ticks inside one bucket, but
+        it must stop as soon as any bar event closes.  Otherwise callbacks for
+        several future bars can run before the first matching data-line/next
+        turn, which makes the strategy observe the final callback repeatedly.
+        """
         if self.store is None or not hasattr(self.store, "poll_tick"):
             return False
 
         drained = False
 
         while True:
+            bar_sequence_before = self._bar_sequence
             tick = self.store.poll_tick(self._dataname)
             if tick is None:
                 break
             drained = True
+
+            self._prepare_tick(tick)
 
             if self._handle_event_health(tick):
                 if self.p.dispatch_ticks:
@@ -469,7 +590,39 @@ class BtApiFeed(DataBase, LiveFeedBase):
             else:
                 self._mark_event_dropped(tick, "tick_dispatch_disabled")
             self._ingest_tick(tick)
+            self._flush_ready_bars(reason="tick")
+            if self._bar_sequence != bar_sequence_before:
+                break
         return drained
+
+    def _handle_source_exhaustion(self):
+        """Finalize an explicitly finite source and report natural EOF.
+
+        Live transports do not expose this contract and therefore continue to
+        return ``None`` while idle.  Deterministic replay sources may declare
+        both exhaustion and their final event-time watermark.  A missing or
+        insufficient watermark invalidates any residual bucket rather than
+        promoting a partial bar to executable data.
+        """
+
+        store = self.store
+        exhausted = getattr(store, "is_source_exhausted", None) if store is not None else None
+        if not callable(exhausted) or not exhausted(self._dataname):
+            return False
+
+        watermark_reader = getattr(store, "get_source_event_time_watermark", None)
+        watermark = watermark_reader(self._dataname) if callable(watermark_reader) else None
+        watermark_dt = _as_utc_datetime(watermark)
+        if watermark_dt is not None:
+            watermark_ts = watermark_dt.timestamp()
+            if self._max_event_timestamp is None or watermark_ts > self._max_event_timestamp:
+                self._max_event_timestamp = watermark_ts
+                self._last_ingest_monotonic_ns = self._now_monotonic_ns()
+            self._flush_ready_bars(reason="source_exhausted")
+
+        if self._bar_builders:
+            self._flush_ready_bars(reason="source_exhausted_incomplete", force_invalid=True)
+        return True
 
     def _drain_live_orderbooks(self):
         if self.store is None or not hasattr(self.store, "poll_orderbook"):
@@ -500,14 +653,21 @@ class BtApiFeed(DataBase, LiveFeedBase):
         tick_dt = _tick_datetime(tick)
         tick_ts = _tick_timestamp(tick)
 
-        price = float(_tick_value(tick, "price", "last_price", "LastPrice", default=0.0) or 0.0)
-        if price <= 0:
+        price = _finite_market_number(
+            _tick_value(tick, "price", "last_price", "LastPrice", default=None)
+        )
+        if price is None or price <= 0 or not bool(_tick_value(tick, "bar_eligible", default=True)):
             return
 
-        volume = float(_tick_value(tick, "volume", "Volume", default=0.0) or 0.0)
-        openinterest = float(
-            _tick_value(tick, "openinterest", "open_interest", "OpenInterest", default=0.0) or 0.0
+        volume = _finite_market_number(
+            _tick_value(tick, "delta_volume", "volume", "Volume", default=0.0)
         )
+        if volume is None or volume <= 0:
+            return
+        openinterest = _finite_market_number(
+            _tick_value(tick, "openinterest", "open_interest", "OpenInterest", default=0.0)
+        )
+        openinterest = max(openinterest or 0.0, 0.0)
 
         if self._timeframe == TimeFrame.Ticks:
             self._enqueue_bar_event(
@@ -530,11 +690,12 @@ class BtApiFeed(DataBase, LiveFeedBase):
             return
 
         bucket_start = self._get_bucket_start(tick_dt)
-        current = self._bar_builder
+        current = self._bar_builders.get(bucket_start)
         if current is None:
-            self._bar_builder = self._new_bar_builder(
-                bucket_start, tick, price, volume, openinterest
-            )
+            current = self._new_bar_builder(bucket_start, tick, price, volume, openinterest)
+            self._bar_builders[bucket_start] = current
+            self._bar_builders.move_to_end(bucket_start)
+            self._bar_builder = current
             return
 
         if bucket_start == current["bucket_start"]:
@@ -544,29 +705,18 @@ class BtApiFeed(DataBase, LiveFeedBase):
             current["volume"] += volume
             current["openinterest"] = openinterest
             current["last_timestamp"] = tick_ts
+            current["last_ingest_seq"] = _tick_value(
+                tick, "ingest_seq", "sequence", default=current["last_ingest_seq"]
+            )
+            current["quality_flags"].update(_tick_value(tick, "quality_flags", default=()) or ())
             return
-
-        completed = BarEvent(
-            timestamp=current["last_timestamp"],
-            symbol=self._dataname,
-            exchange=_tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
-            asset_type=_tick_value(tick, "asset_type", "assetType", default="futures"),
-            local_time=_tick_value(tick, "local_time", "LocalTime", default=None),
-            **current["causal"],
-            open=current["open"],
-            high=current["high"],
-            low=current["low"],
-            close=current["close"],
-            volume=current["volume"],
-            openinterest=current["openinterest"],
-        )
-        self._enqueue_bar_event(completed, current["bucket_start"])
-        self._bar_builder = self._new_bar_builder(bucket_start, tick, price, volume, openinterest)
 
     def _new_bar_builder(self, bucket_start, tick, price, volume, openinterest):
         """Create the mutable state for an in-progress aggregated bar."""
+        ingest_seq = _tick_value(tick, "ingest_seq", "sequence", default=0)
         return {
             "bucket_start": bucket_start,
+            "bucket_end": self._get_bucket_end(bucket_start),
             "open": price,
             "high": price,
             "low": price,
@@ -575,9 +725,20 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "openinterest": openinterest,
             "last_timestamp": _tick_timestamp(tick),
             "causal": _causal_event_kwargs(tick),
+            "exchange": _tick_value(tick, "exchange", "exchange_id", "ExchangeID", default=""),
+            "asset_type": _tick_value(tick, "asset_type", "assetType", default="futures"),
+            "trading_day": _tick_value(tick, "trading_day", "TradingDay", default=""),
+            "action_day": _tick_value(tick, "action_day", "ActionDay", default=""),
+            "connection_generation": _tick_value(
+                tick, "connection_generation", "stream_generation", default=None
+            ),
+            "first_ingest_seq": ingest_seq,
+            "last_ingest_seq": ingest_seq,
+            "volume_complete": bool(_tick_value(tick, "volume_complete", default=True)),
+            "quality_flags": set(_tick_value(tick, "quality_flags", default=()) or ()),
         }
 
-    def _enqueue_bar_event(self, bar_event, bar_datetime):
+    def _enqueue_bar_event(self, bar_event, bar_datetime, *, deliver_lines=True):
         """Queue a completed bar for both notify_bar and line delivery."""
         bar_event.datetime = bar_datetime
         if self.p.dispatch_bars:
@@ -586,17 +747,403 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 priority=EventPriority.BAR,
                 event_data=bar_event,
             )
-        self._live.append(
-            {
-                "datetime": bar_datetime,
-                "open": bar_event.open,
-                "high": bar_event.high,
-                "low": bar_event.low,
-                "close": bar_event.close,
-                "volume": bar_event.volume,
-                "openinterest": bar_event.openinterest,
-            }
+        if deliver_lines:
+            self._live.append(
+                {
+                    "datetime": bar_datetime,
+                    "open": bar_event.open,
+                    "high": bar_event.high,
+                    "low": bar_event.low,
+                    "close": bar_event.close,
+                    "volume": bar_event.volume,
+                    "openinterest": bar_event.openinterest,
+                }
+            )
+
+    def _now_monotonic_ns(self):
+        clock = self.p.clock
+        method = getattr(clock, "monotonic_ns", None) if clock is not None else None
+        if callable(method):
+            return int(method())
+        method = getattr(clock, "monotonic_now", None) if clock is not None else None
+        if callable(method):
+            return int(float(method()) * 1_000_000_000)
+        method = getattr(clock, "monotonic", None) if clock is not None else None
+        if callable(method):
+            return int(float(method()) * 1_000_000_000)
+        return _time.monotonic_ns()
+
+    def _event_time_watermark(self):
+        if self._max_event_timestamp is None:
+            return None
+        elapsed = 0.0
+        if self._last_ingest_monotonic_ns is not None:
+            elapsed = (
+                max(
+                    self._now_monotonic_ns() - self._last_ingest_monotonic_ns,
+                    0,
+                )
+                / 1_000_000_000.0
+            )
+        return self._max_event_timestamp + elapsed
+
+    def _cached_price_tick(self):
+        configured = _finite_market_number(self.p.price_tick)
+        if configured is not None and configured > 0:
+            return configured
+        store = self.store
+        metadata = getattr(store, "contract_metadata", {}) if store is not None else {}
+        candidates = [self._dataname]
+        text = str(self._dataname or "")
+        for separator in (".", ":", "/"):
+            candidates.extend(part for part in text.split(separator) if part)
+        for key in candidates:
+            row = metadata.get(key) if isinstance(metadata, dict) else None
+            if not isinstance(row, dict):
+                continue
+            value = _finite_market_number(
+                row.get("price_tick") or row.get("tick_size") or row.get("min_price_tick")
+            )
+            if value is not None and value > 0:
+                return value
+        return None
+
+    @staticmethod
+    def _on_price_grid(value, price_tick):
+        if value is None or price_tick is None:
+            return True
+        scaled = value / price_tick
+        return math.isfinite(scaled) and abs(scaled - round(scaled)) <= 1e-8
+
+    def _add_bar_quality_override(self, bucket_start, *flags):
+        """Retain blocking evidence only while its minute can still be built."""
+        if bucket_start is None:
+            return
+        bucket_end = self._get_bucket_end(bucket_start)
+        if self._last_closed_bucket_end is not None and bucket_end <= self._last_closed_bucket_end:
+            return
+        self._bar_quality_overrides[bucket_start].update(flag for flag in flags if flag)
+
+    def _prune_bar_quality_overrides(self, watermark=None):
+        """Discard override-only buckets after their watermark can no longer admit data."""
+        if not self._bar_quality_overrides:
+            return
+        watermark = self._event_time_watermark() if watermark is None else watermark
+        watermark_delay = max(float(self.p.bar_watermark_ms or 0.0), 0.0) / 1000.0
+        for bucket_start in list(self._bar_quality_overrides):
+            if bucket_start in self._bar_builders:
+                continue
+            bucket_end = self._get_bucket_end(bucket_start)
+            already_closed = (
+                self._last_closed_bucket_end is not None
+                and bucket_end <= self._last_closed_bucket_end
+            )
+            deadline = bucket_end.replace(tzinfo=_UTC).timestamp() + watermark_delay
+            if already_closed or (watermark is not None and deadline <= watermark):
+                self._bar_quality_overrides.pop(bucket_start, None)
+
+    def _prepare_tick(self, tick):
+        """Normalize one tick's schema, quality, ordering and volume semantics."""
+        schema = str(_tick_value(tick, "schema_version", default="") or "").strip()
+        if not schema:
+            schema = "backtrader.tick.v1"
+            _set_tick_value(tick, "schema_version", schema)
+            semantics = "delta"
+            _set_tick_value(tick, "volume_semantics", semantics)
+            legacy = True
+        else:
+            semantics = str(_tick_value(tick, "volume_semantics", default="") or "").strip().lower()
+            legacy = False
+
+        flags = set(_tick_value(tick, "quality_flags", default=()) or ())
+        if legacy:
+            flags.add("LEGACY_SCHEMA")
+
+        if semantics in {"delta", "incremental"}:
+            delta = _finite_market_number(
+                _tick_value(tick, "delta_volume", "volume", "Volume", default=None)
+            )
+            semantics = "delta"
+        elif semantics in {"cumulative", "cum", "total"}:
+            # Conversion is owned by the SDK/Store. Feed never differences a
+            # declared cumulative value because doing so can double-difference.
+            delta = _finite_market_number(_tick_value(tick, "delta_volume", default=None))
+            semantics = "cumulative"
+            if delta is None:
+                flags.add("DELTA_VOLUME_MISSING")
+        else:
+            delta = None
+            flags.add("VOLUME_SEMANTICS_UNKNOWN")
+        if delta is None or delta < 0:
+            flags.add("DELTA_VOLUME_INVALID")
+            delta = 0.0
+        _set_tick_value(tick, "volume_semantics", semantics)
+        _set_tick_value(tick, "delta_volume", delta)
+
+        cumulative = _finite_market_number(
+            _tick_value(tick, "cum_volume", "cumulative_volume", default=None)
         )
+        if cumulative is not None:
+            _set_tick_value(tick, "cum_volume", cumulative)
+            _set_tick_value(tick, "cumulative_volume", cumulative)
+
+        price = _finite_market_number(
+            _tick_value(tick, "price", "last_price", "LastPrice", default=None)
+        )
+        bid = _finite_market_number(_tick_value(tick, "bid_price", "BidPrice1", default=None))
+        ask = _finite_market_number(_tick_value(tick, "ask_price", "AskPrice1", default=None))
+        bid_size = _finite_market_number(
+            _tick_value(tick, "bid_volume", "bid_size", "BidVolume1", default=None)
+        )
+        ask_size = _finite_market_number(
+            _tick_value(tick, "ask_volume", "ask_size", "AskVolume1", default=None)
+        )
+        ctp_schema = schema.startswith("ctp.")
+        if price is None or price <= 0:
+            flags.add("LAST_PRICE_INVALID")
+        if ctp_schema:
+            if bid is None or bid <= 0:
+                flags.add("BID_PRICE_INVALID")
+            if ask is None or ask <= 0:
+                flags.add("ASK_PRICE_INVALID")
+            if bid_size is None or bid_size < 0:
+                flags.add("BID_SIZE_INVALID")
+            elif bid_size == 0:
+                flags.add("BID_DEPTH_ZERO")
+            if ask_size is None or ask_size < 0:
+                flags.add("ASK_SIZE_INVALID")
+            elif ask_size == 0:
+                flags.add("ASK_DEPTH_ZERO")
+            if bid is not None and ask is not None and bid > ask:
+                flags.add("CROSSED_BOOK")
+
+        price_tick = self._cached_price_tick()
+        if ctp_schema and price_tick is None:
+            flags.add("PRICE_TICK_UNKNOWN")
+        elif price_tick is not None:
+            for name, value in (("LAST", price), ("BID", bid), ("ASK", ask)):
+                if value is not None and value > 0 and not self._on_price_grid(value, price_tick):
+                    flags.add(f"{name}_PRICE_OFF_GRID")
+
+        strict_ctp_v2 = schema == "ctp.quote.v2"
+        raw_event_time = _tick_value(tick, "event_time_utc", default=None)
+        if strict_ctp_v2 and raw_event_time in (None, ""):
+            flags.add("EVENT_TIME_MISSING")
+        event_dt = _as_utc_datetime(
+            raw_event_time
+            if raw_event_time not in (None, "")
+            else _tick_value(tick, "timestamp", "datetime", default=None)
+        )
+        if event_dt is None:
+            flags.add("EVENT_TIME_INVALID")
+        raw_recv_time = _tick_value(tick, "recv_time_utc", default=None)
+        if strict_ctp_v2 and raw_recv_time in (None, ""):
+            flags.add("RECV_TIME_MISSING")
+        received_wall = _as_utc_datetime(
+            raw_recv_time
+            if raw_recv_time not in (None, "")
+            else _tick_value(tick, "received_wall_time", "local_time", default=None)
+        )
+        if strict_ctp_v2 and received_wall is None:
+            flags.add("RECV_TIME_INVALID")
+        if received_wall is not None and event_dt is not None:
+            event_age = (received_wall - event_dt).total_seconds()
+            _set_tick_value(tick, "event_age_seconds", event_age)
+            maximum = max(float(self.p.event_time_max_age or 0.0), 0.0)
+            if ctp_schema and (event_age < -0.5 or (maximum and event_age > maximum)):
+                flags.add("EVENT_TIME_STALE")
+
+        raw_recv_mono = _tick_value(tick, "recv_monotonic_ns", default=None)
+        if strict_ctp_v2 and raw_recv_mono in (None, ""):
+            flags.add("RECV_MONOTONIC_MISSING")
+        recv_mono = (
+            raw_recv_mono
+            if raw_recv_mono not in (None, "")
+            else _tick_value(tick, "received_monotonic_ns", default=None)
+        )
+        if isinstance(recv_mono, int) and recv_mono > 0:
+            recv_age = max(self._now_monotonic_ns() - recv_mono, 0) / 1_000_000_000.0
+            _set_tick_value(tick, "recv_age_seconds", recv_age)
+            maximum = max(float(self.p.receive_time_max_age or 0.0), 0.0)
+            if ctp_schema and maximum and recv_age > maximum:
+                flags.add("RECEIVE_TIME_STALE")
+        elif strict_ctp_v2:
+            flags.add("RECV_MONOTONIC_INVALID")
+
+        tick_ts = event_dt.timestamp() if event_dt is not None else None
+        raw_timestamp = _finite_market_number(
+            _tick_value(tick, "timestamp", "Timestamp", default=None)
+        )
+        if strict_ctp_v2 and event_dt is not None and raw_timestamp is not None:
+            raw_timestamp = _coerce_epoch_seconds(raw_timestamp)
+            if abs(raw_timestamp - tick_ts) > 1.0e-6:
+                flags.add("EVENT_TIME_CONFLICT")
+        prior_watermark = self._event_time_watermark()
+        bucket_start = (
+            self._get_bucket_start(event_dt.replace(tzinfo=None)) if event_dt is not None else None
+        )
+        bucket_end = self._get_bucket_end(bucket_start) if bucket_start is not None else None
+        bucket_end_ts = (
+            bucket_end.replace(tzinfo=_UTC).timestamp() if bucket_end is not None else None
+        )
+        watermark_delay = max(float(self.p.bar_watermark_ms or 0.0), 0.0) / 1000.0
+        if (
+            self._timeframe != TimeFrame.Ticks
+            and prior_watermark is not None
+            and bucket_end_ts is not None
+            and bucket_end_ts + watermark_delay <= prior_watermark
+        ):
+            flags.add("LATE_AFTER_WATERMARK")
+        elif (
+            self._max_event_timestamp is not None
+            and tick_ts is not None
+            and tick_ts < self._max_event_timestamp
+        ):
+            flags.add("OUT_OF_ORDER_EVENT_TIME")
+            if delta > 0:
+                flags.add("ORDERING_VOLUME_GAP")
+                if bucket_start is not None:
+                    self._add_bar_quality_override(bucket_start, "ORDERING_VOLUME_GAP")
+                current_start = self._get_bucket_start(
+                    _dt.datetime.fromtimestamp(self._max_event_timestamp, _UTC).replace(tzinfo=None)
+                )
+                self._add_bar_quality_override(current_start, "ORDERING_VOLUME_GAP")
+
+        generation = _tick_value(tick, "connection_generation", "stream_generation", default=None)
+        if generation not in (None, ""):
+            if (
+                self._last_connection_generation is not None
+                and generation != self._last_connection_generation
+            ):
+                for builder in self._bar_builders.values():
+                    builder["quality_flags"].add("CONNECTION_GENERATION_CHANGED")
+                self._flush_ready_bars(reason="generation", force_invalid=True)
+                self._max_event_timestamp = None
+                flags.add("CONNECTION_GENERATION_CHANGED")
+                self._add_bar_quality_override(bucket_start, "CONNECTION_GENERATION_CHANGED")
+            self._last_connection_generation = generation
+
+        if (
+            self._timeframe != TimeFrame.Ticks
+            and bucket_end is not None
+            and self._last_closed_bucket_end is not None
+            and bucket_end <= self._last_closed_bucket_end
+        ):
+            flags.add("BUCKET_ALREADY_CLOSED")
+
+        if tick_ts is not None and "EVENT_TIME_CONFLICT" not in flags:
+            if self._max_event_timestamp is None or tick_ts >= self._max_event_timestamp:
+                self._max_event_timestamp = tick_ts
+            self._last_ingest_monotonic_ns = self._now_monotonic_ns()
+
+        blocking = {
+            flag
+            for flag in flags
+            if flag
+            not in {
+                "LEGACY_SCHEMA",
+                "NO_TRADE",
+                "VOLUME_BASELINE",
+            }
+        }
+        volume_complete = bool(_tick_value(tick, "volume_complete", default=not ctp_schema))
+        if ctp_schema and not volume_complete and delta > 0:
+            blocking.add("VOLUME_INCOMPLETE")
+            flags.add("VOLUME_INCOMPLETE")
+        # A rejected snapshot can still prove that an already-open bucket is
+        # incomplete. Preserve that evidence before _ingest_tick declines to
+        # mutate OHLCV. Otherwise a later watermark could publish the earlier
+        # trades as a deceptively complete bar after a volume/order/time gap.
+        if bucket_start is not None and blocking:
+            already_closed = (
+                self._last_closed_bucket_end is not None
+                and bucket_end is not None
+                and bucket_end <= self._last_closed_bucket_end
+            )
+            if not already_closed:
+                self._add_bar_quality_override(bucket_start, *blocking)
+        execution_eligible = not blocking and all(
+            value is not None and value > 0 for value in (bid, ask, bid_size, ask_size)
+        )
+        bar_eligible = not blocking and price is not None and price > 0 and delta > 0
+        _set_tick_value(tick, "quality_flags", tuple(sorted(flags)))
+        _set_tick_value(tick, "quality", "GOOD" if not blocking else "INVALID")
+        _set_tick_value(tick, "execution_eligible", execution_eligible)
+        _set_tick_value(tick, "bar_eligible", bar_eligible)
+        self._prune_bar_quality_overrides()
+
+    def _flush_ready_bars(self, *, reason, force_invalid=False):
+        """Close trade-backed buckets once the event-time watermark has passed."""
+        watermark = self._event_time_watermark()
+        if not self._bar_builders:
+            self._prune_bar_quality_overrides(watermark)
+            return 0
+        watermark_delay = max(float(self.p.bar_watermark_ms or 0.0), 0.0) / 1000.0
+        closed = 0
+        for bucket_start in sorted(self._bar_builders):
+            current = self._bar_builders[bucket_start]
+            bucket_end = current["bucket_end"]
+            deadline = bucket_end.replace(tzinfo=_UTC).timestamp() + watermark_delay
+            if not force_invalid and (watermark is None or watermark < deadline):
+                continue
+            flags = set(current["quality_flags"])
+            flags.update(self._bar_quality_overrides.pop(bucket_start, set()))
+            if force_invalid:
+                flags.add("FORCED_INVALIDATION")
+            complete = bool(current["volume_complete"] and not flags.difference({"LEGACY_SCHEMA"}))
+            available_ts = max(deadline, watermark or deadline)
+            available_at = _dt.datetime.fromtimestamp(available_ts, _UTC)
+            self._bar_sequence += 1
+            first_seq = current["first_ingest_seq"]
+            last_seq = current["last_ingest_seq"]
+            generation = current["connection_generation"]
+            bar_id = (
+                f"{self._dataname}:{bucket_start.isoformat()}:{generation}:"
+                f"{first_seq}-{last_seq}"
+            )
+            completed = BarEvent(
+                timestamp=bucket_end.replace(tzinfo=_UTC).timestamp(),
+                symbol=self._dataname,
+                exchange=current["exchange"],
+                asset_type=current["asset_type"],
+                local_time=available_ts,
+                **current["causal"],
+                open=current["open"],
+                high=current["high"],
+                low=current["low"],
+                close=current["close"],
+                volume=current["volume"],
+                openinterest=current["openinterest"],
+            )
+            extensions = {
+                "bucket_start": bucket_start.replace(tzinfo=_UTC),
+                "bucket_end": bucket_end.replace(tzinfo=_UTC),
+                "closed_at": available_at,
+                "available_at": available_at,
+                "bar_available_at": available_at,
+                "complete": complete,
+                "quality": "GOOD" if complete else "INVALID",
+                "quality_flags": tuple(sorted(flags)),
+                "volume_complete": bool(current["volume_complete"]),
+                "first_ingest_seq": first_seq,
+                "last_ingest_seq": last_seq,
+                "trading_day": current["trading_day"],
+                "action_day": current["action_day"],
+                "connection_generation": generation,
+                "bar_id": bar_id,
+                "decision_version": bar_id,
+                "closure_reason": reason,
+                "bar_sequence": self._bar_sequence,
+            }
+            for name, value in extensions.items():
+                setattr(completed, name, value)
+            self._enqueue_bar_event(completed, bucket_start, deliver_lines=complete)
+            del self._bar_builders[bucket_start]
+            self._last_closed_bucket_end = bucket_end
+            closed += 1
+        self._bar_builder = next(reversed(self._bar_builders.values()), None)
+        self._prune_bar_quality_overrides(watermark)
+        return closed
 
     def _dispatch_event(self, channel_type, priority, event_data):
         """Dispatch a tick/bar event into Cerebro's channel callback surface."""
@@ -643,6 +1190,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "disconnected",
             "checksum_failed",
             "out_of_order",
+            "invalid",
         }
         if unhealthy:
             if not self._continuity_degraded:
@@ -696,3 +1244,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
 
         # Fall back to minute-style bucketing for other sub-day frames.
         return dt_value.replace(second=0)
+
+    def _get_bucket_end(self, bucket_start):
+        """Return the exclusive right edge for a feed bucket."""
+        if self._timeframe == TimeFrame.Ticks:
+            return bucket_start
+        if self._timeframe == TimeFrame.Seconds:
+            return bucket_start + _dt.timedelta(seconds=self._compression)
+        if self._timeframe == TimeFrame.Minutes:
+            return bucket_start + _dt.timedelta(minutes=self._compression)
+        if self._timeframe == TimeFrame.Days:
+            return bucket_start + _dt.timedelta(days=self._compression)
+        return bucket_start + _dt.timedelta(minutes=self._compression)

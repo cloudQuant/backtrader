@@ -13,6 +13,7 @@ import collections
 import datetime as _dt
 import hashlib
 import heapq
+import hmac
 import importlib
 import inspect
 import itertools
@@ -20,6 +21,7 @@ import json
 import math
 import os
 import re
+import sys
 import threading
 import time
 import uuid
@@ -110,8 +112,136 @@ _SDK_EXECUTION_CONFIG_KEYS = (
     "account_ids",
     "required_environments",
     "strategy_id",
+    "strategy_identity_sha256",
     "account_maximum_loss_bps",
     "account_risk_max_age_seconds",
+)
+
+_CTP_EXECUTION_ARM_FIELDS = frozenset(
+    {
+        "account_fingerprint",
+        "trading_day",
+        "instrument",
+        "connection_generation",
+        "environment_profile",
+        "receipt_sha256",
+        "native_sha256",
+        "ctp_package_sha256",
+        "source_hashes_sha256",
+        "dependency_hashes_sha256",
+        "preflight_sha256",
+    }
+)
+
+_CTP_WRITE_REQUEST_TYPES = (
+    "settlement_confirm",
+    "order_insert",
+    "order_action",
+)
+
+_CTP_EXECUTION_AUTHORIZATION_FIELDS = frozenset(
+    {
+        "schema_version",
+        "authorization_kind",
+        "authorization_key_id",
+        "receipt_sha256",
+        "signature_hmac_sha256",
+        "issued_at_utc",
+        "expires_at_utc",
+        "account_fingerprint",
+        "trading_day",
+        "instrument",
+        "connection_generation",
+        "environment_profile",
+        "stage_a_snapshot_sha256",
+        "stage_a_query_request_ids",
+        "stage_b_snapshot_sha256",
+        "stage_b_query_request_ids",
+        "preflight_sha256",
+        "runtime_executable_sha256",
+        "native_sha256",
+        "ctp_package_sha256",
+        "source_hashes_sha256",
+        "dependency_hashes_sha256",
+        "evidence_hashes_sha256",
+        "gate_statuses",
+    }
+)
+
+_CTP_STAGE_A_QUERY_NAMES = ("account", "positions", "orders", "trades", "instruments")
+_CTP_STAGE_B_QUERY_NAMES = _CTP_STAGE_A_QUERY_NAMES + ("margin_rate", "commission_rate")
+
+_CTP_EXECUTION_RECOVERY_FIELDS = frozenset(
+    {
+        "schema_version",
+        "status",
+        "recovery_required",
+        "can_arm_execution",
+        "can_arm_recovery",
+        "account_fingerprint",
+        "trading_day",
+        "instrument",
+        "connection_generation",
+        "strategy_id",
+        "execution_cycle_id",
+        "remote_position",
+        "owned_position",
+        "allowed_closes",
+        "allowed_cancels",
+        "allowed_actions",
+        "unknown_ids",
+        "evidence_errors",
+        "journal_sha256",
+        "fencing_epoch",
+        "recovery_token_sha256",
+    }
+)
+_CTP_RECOVERY_POSITION_FIELDS = frozenset(
+    {"long_today", "long_yesterday", "short_today", "short_yesterday"}
+)
+_CTP_RECOVERY_CLOSE_FIELDS = frozenset(
+    {
+        "execution_cycle_id",
+        "symbol",
+        "exchange_id",
+        "position_side",
+        "side",
+        "offset",
+        "quantity",
+        "quantity_unit",
+    }
+)
+_CTP_RECOVERY_CANCEL_FIELDS = frozenset(
+    {
+        "execution_cycle_id",
+        "symbol",
+        "exchange_id",
+        "client_order_id",
+        "order_id",
+        "order_ref",
+        "front_id",
+        "session_id",
+    }
+)
+_CTP_EXECUTION_RECOVERY_ARM_FIELDS = frozenset(
+    {
+        "armed",
+        "market_data_only",
+        "recovery_only",
+        "proof_sha256",
+        "recovery_token_sha256",
+        "execution_cycle_id",
+    }
+)
+_CTP_EXECUTION_RECOVERY_COMPLETE_FIELDS = frozenset(
+    {
+        "completed",
+        "armed",
+        "market_data_only",
+        "recovery_only",
+        "requires_new_preflight",
+        "recovery_token_sha256",
+    }
 )
 
 _DEFINITE_READINESS_REASONS = frozenset(
@@ -354,6 +484,64 @@ _CTP_TRADE_FIELDS = (
     "Volume",
     "reserve1",
     "reserve2",
+)
+_CTP_QUERY_RECORD_FIELDS = tuple(
+    dict.fromkeys(
+        _CTP_ORDER_FIELDS
+        + _CTP_TRADE_FIELDS
+        + (
+            "AccountID",
+            "Available",
+            "Balance",
+            "CloseProfit",
+            "Commission",
+            "CloseRatioByMoney",
+            "CloseRatioByVolume",
+            "CloseTodayRatioByMoney",
+            "CloseTodayRatioByVolume",
+            "CurrMargin",
+            "EndDelivDate",
+            "ExchangeID",
+            "ExpireDate",
+            "InstrumentID",
+            "InstLifePhase",
+            "IsTrading",
+            "InvestUnitID",
+            "InvestorID",
+            "LongFrozen",
+            "LongMarginRatio",
+            "LongMarginRatioByMoney",
+            "LongMarginRatioByVolume",
+            "LowerLimitPrice",
+            "MaxLimitOrderVolume",
+            "MaxMarketOrderVolume",
+            "MinLimitOrderVolume",
+            "MinMarketOrderVolume",
+            "OpenDate",
+            "OpenInterest",
+            "OpenRatioByMoney",
+            "OpenRatioByVolume",
+            "PosiDirection",
+            "Position",
+            "PositionCost",
+            "PositionProfit",
+            "PriceTick",
+            "ProductID",
+            "ShortFrozen",
+            "ShortMarginRatio",
+            "ShortMarginRatioByMoney",
+            "ShortMarginRatioByVolume",
+            "StartDelivDate",
+            "TodayPosition",
+            "TradingDay",
+            "UpperLimitPrice",
+            "Volume",
+            "VolumeMultiple",
+            "YdPosition",
+            "ranking_trading_day",
+            "trading_days_to_expiry",
+        )
+    )
 )
 
 
@@ -1290,6 +1478,20 @@ def _normalize_ctp_instrument(instrument: Any, exchange_id: Any = "") -> str:
     return text
 
 
+def _canonical_ctp_scope(symbol: Any, exchange_id: Any = "") -> str:
+    """Return an exchange-qualified CTP instrument or an empty string."""
+    instrument, parsed_exchange = _split_ctp_symbol(symbol)
+    exchange = _coerce_text(exchange_id or parsed_exchange).upper()
+    instrument = _normalize_ctp_instrument(instrument, exchange).upper()
+    product_match = re.fullmatch(r"([A-Z]+)(\d{3,4})", instrument)
+    if not exchange and product_match and product_match.group(1) in _CZCE_PRODUCT_PREFIXES:
+        exchange = "CZCE"
+        instrument = _normalize_ctp_instrument(instrument, exchange).upper()
+    if exchange not in _CTP_EXCHANGES or re.fullmatch(r"[A-Z]+\d{3,4}", instrument) is None:
+        return ""
+    return f"{exchange}.{instrument}"
+
+
 def _positive_int_lot(value: Any, field_name: str) -> int:
     if isinstance(value, bool) or value in (None, ""):
         raise BtApiStoreError(f"CTP order {field_name} must be a positive integer lot")
@@ -1529,6 +1731,10 @@ def _create_ctp_wrapper_class():
             self.password = kwargs.get("password", "")
             self.app_id = kwargs.get("app_id", "simnow_client_test")
             self.auth_code = kwargs.get("auth_code", "0000000000000000")
+            auto_confirm = kwargs.get("auto_settlement_confirm", True)
+            if isinstance(auto_confirm, str):
+                auto_confirm = auto_confirm.strip().lower() in {"1", "true", "yes", "on"}
+            self.auto_settlement_confirm = bool(auto_confirm)
 
             self.md_client = None
             self.trader_client = None
@@ -1566,14 +1772,24 @@ def _create_ctp_wrapper_class():
             self.md_client.on_error = self._handle_md_error
 
             # Create trader client
-            self.trader_client = TraderClient(
-                front=self.td_front,
-                broker_id=self.broker_id,
-                user_id=self.user_id,
-                password=self.password,
-                app_id=self.app_id,
-                auth_code=self.auth_code,
-            )
+            trader_kwargs = {
+                "front": self.td_front,
+                "broker_id": self.broker_id,
+                "user_id": self.user_id,
+                "password": self.password,
+                "app_id": self.app_id,
+                "auth_code": self.auth_code,
+            }
+            try:
+                trader_parameters = inspect.signature(TraderClient).parameters.values()
+            except (TypeError, ValueError):
+                trader_parameters = ()
+            if any(
+                item.name == "auto_settlement_confirm" or item.kind == inspect.Parameter.VAR_KEYWORD
+                for item in trader_parameters
+            ):
+                trader_kwargs["auto_settlement_confirm"] = self.auto_settlement_confirm
+            self.trader_client = TraderClient(**trader_kwargs)
             self.trader_client.on_login = self._handle_trader_login
             self.trader_client.on_order = self._handle_order
             self.trader_client.on_trade = self._handle_trade
@@ -1622,13 +1838,64 @@ def _create_ctp_wrapper_class():
         def get_session_state(self):
             """Return CTP trader auth/login state from the underlying client."""
             if self.trader_client and hasattr(self.trader_client, "get_session_state"):
-                return self.trader_client.get_session_state()
+                state = dict(self.trader_client.get_session_state())
+                state.setdefault("auto_settlement_confirm", self.auto_settlement_confirm)
+                return state
             return {
                 "connected": bool(self._connected),
                 "ready": False,
                 "auth_state": "unknown",
                 "login_state": "unknown",
+                "auto_settlement_confirm": self.auto_settlement_confirm,
             }
+
+        def _query_result(self, method_name, **kwargs):
+            """Delegate a typed query without converting incomplete results to empty data."""
+            if not self.trader_client:
+                raise BtApiStoreError("CTP trader client is not available")
+            method = getattr(self.trader_client, method_name, None)
+            if not callable(method):
+                raise BtApiStoreError(f"CTP query capability unavailable: {method_name}")
+            return method(**kwargs)
+
+        def query_account_result(self, timeout=5):
+            return self._query_result("query_account_result", timeout=timeout)
+
+        def query_positions_result(self, timeout=5):
+            return self._query_result("query_positions_result", timeout=timeout)
+
+        def query_orders_result(self, timeout=5, **kwargs):
+            return self._query_result("query_orders_result", timeout=timeout, **kwargs)
+
+        def query_trades_result(self, timeout=5, **kwargs):
+            return self._query_result("query_trades_result", timeout=timeout, **kwargs)
+
+        def query_instruments_result(self, instrument_id="", exchange_id="", timeout=5):
+            return self._query_result(
+                "query_instruments_result",
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                timeout=timeout,
+            )
+
+        def query_instrument_margin_rate_result(
+            self, instrument_id, exchange_id="", hedge_flag="1", timeout=5
+        ):
+            return self._query_result(
+                "query_instrument_margin_rate_result",
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                hedge_flag=hedge_flag,
+                timeout=timeout,
+            )
+
+        def query_instrument_commission_rate_result(self, instrument_id, exchange_id="", timeout=5):
+            return self._query_result(
+                "query_instrument_commission_rate_result",
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                timeout=timeout,
+            )
 
         def subscribe(self, symbols):
             """Subscribe to market data."""
@@ -2006,8 +2273,16 @@ def _create_ctp_wrapper_class():
                 raise BtApiStoreError("CTP order payload requires a valid symbol")
 
             order_type = str(payload.get("order_type") or "limit").lower()
-            if order_type not in {"limit", "market"}:
+            if order_type != "limit":
                 raise BtApiStoreError(f"Unsupported CTP order type: {order_type}")
+
+            time_in_force = str(payload.get("time_in_force") or "GFD").strip().upper()
+            if time_in_force in {"GOOD_FOR_DAY", "GOOD-FOR-DAY"}:
+                time_in_force = "GFD"
+            if time_in_force != "GFD":
+                raise BtApiStoreError(
+                    f"Unsupported CTP time_in_force: {time_in_force or '<empty>'}; GFD required"
+                )
 
             side = str(payload.get("side") or "buy").lower()
             direction = _CTP_DIRECTION_FLAG.get(side)
@@ -2028,6 +2303,8 @@ def _create_ctp_wrapper_class():
             )
 
             price = _coerce_float(payload.get("price"), 0.0)
+            if price <= 0:
+                raise BtApiStoreError("CTP limit order requires a positive price")
             req_id = self._next_request_id()
 
             field = CThostFtdcInputOrderField()
@@ -2048,35 +2325,10 @@ def _create_ctp_wrapper_class():
             if exchange_id:
                 field.ExchangeID = exchange_id
 
-            if order_type == "market" or price <= 0:
-                # Chinese futures exchanges do not support true market orders
-                # (OrderPriceType="1" / AnyPrice).  Convert to a limit order
-                # using the last tick price ± 5 ticks so the order is accepted
-                # by the exchange.
-                last_price = self._last_tick_price.get(instrument)
-                if last_price is None or last_price <= 0:
-                    raise BtApiStoreError(
-                        f"CTP market order for {instrument} rejected: "
-                        f"no recent tick price available to convert to limit order"
-                    )
-                price_tick = self._get_price_tick(instrument)
-                slippage = price_tick * 5
-                if side == "buy":
-                    limit_price = last_price + slippage
-                else:
-                    limit_price = max(last_price - slippage, price_tick)
-                field.OrderPriceType = "2"  # LimitPrice
-                field.TimeCondition = "3"  # GFD (good for day)
-                field.VolumeCondition = "1"  # AnyVolume
-                field.LimitPrice = round(limit_price, 4)
-                price = field.LimitPrice
-            else:
-                if price <= 0:
-                    raise BtApiStoreError("CTP limit order requires a positive price")
-                field.OrderPriceType = "2"
-                field.TimeCondition = "3"
-                field.VolumeCondition = "1"
-                field.LimitPrice = price
+            field.OrderPriceType = "2"
+            field.TimeCondition = "3"
+            field.VolumeCondition = "1"
+            field.LimitPrice = price
 
             ret = self.trader_client.api.ReqOrderInsert(field, req_id)
             if ret != 0:
@@ -2091,6 +2343,7 @@ def _create_ctp_wrapper_class():
                 "offset": offset,
                 "price": price,
                 "size": volume,
+                "time_in_force": "GFD",
                 "front_id": int(getattr(self.trader_client, "_front_id", 0) or 0),
                 "session_id": int(getattr(self.trader_client, "_session_id", 0) or 0),
             }
@@ -2973,6 +3226,22 @@ class BtApiStore(LiveStoreBase):
             self._api_kwargs.update(kwargs)
         self._apply_env_gateway_overrides()
         sdk_options = {**self._config, **self._api_kwargs}
+        self._ctp_execution_authorization_key_id = str(
+            sdk_options.get("execution_authorization_key_id")
+            or os.environ.get("BT_CTP_EXECUTION_AUTHORIZATION_KEY_ID")
+            or ""
+        ).strip()
+        self._ctp_execution_authorization_secret = str(
+            sdk_options.get("execution_authorization_secret")
+            or os.environ.get("BT_CTP_EXECUTION_AUTHORIZATION_SECRET")
+            or ""
+        )
+        for private_option in (
+            "execution_authorization_key_id",
+            "execution_authorization_secret",
+        ):
+            self._config.pop(private_option, None)
+            self._api_kwargs.pop(private_option, None)
         self._sdk_mode = self.provider == "btapi" and (
             (
                 "exchange_kwargs" in sdk_options
@@ -3098,6 +3367,7 @@ class BtApiStore(LiveStoreBase):
         self._command_generation = 0
         self._command_stop_requested = False
         self._command_accept_openings = not self._sdk_require_account_risk
+        self._sdk_execution_arming = False
         self._accept_command_completions = False
         self._restart_blocked_by_worker = False
         self._restart_blocked_by_close = False
@@ -3133,6 +3403,41 @@ class BtApiStore(LiveStoreBase):
         self._connected = False
         self._started = False
         self._data_feeds: list = []
+        self._tick_consumers: Dict[str, Any] = {}
+        self._latest_ticks: Dict[str, Any] = {}
+        self._latest_tick_lock = threading.Lock()
+        self._ctp_query_lock = threading.RLock()
+        query_interval = float(
+            sdk_options.get(
+                "ctp_query_min_interval_seconds",
+                getattr(api, "ctp_query_min_interval_seconds", 1.0),
+            )
+        )
+        if not math.isfinite(query_interval) or query_interval < 0:
+            raise ValueError("ctp_query_min_interval_seconds must be finite and nonnegative")
+        query_max_age = float(sdk_options.get("ctp_query_max_age_seconds", 30.0))
+        if not math.isfinite(query_max_age) or query_max_age < 0:
+            raise ValueError("ctp_query_max_age_seconds must be finite and nonnegative")
+        self._ctp_query_min_interval_seconds = query_interval
+        self._ctp_query_max_age_seconds = query_max_age
+        self._ctp_query_last_started_monotonic: Optional[float] = None
+        self._last_ctp_preflight_snapshot: Optional[Dict[str, Any]] = None
+        self._ctp_preflight_history: Deque[Dict[str, Any]] = collections.deque(maxlen=2)
+        self._last_ctp_reconciliation_snapshot: Optional[Dict[str, Any]] = None
+        self._ctp_execution_authorization: Optional[Dict[str, Any]] = None
+        self._ctp_execution_authorization_sha256: Optional[str] = None
+        self._ctp_execution_authorization_consumed = False
+        self._ctp_execution_recovery: Optional[Dict[str, Any]] = None
+        self._ctp_execution_recovery_proof: Optional[Dict[str, Any]] = None
+        self._ctp_execution_recovery_armed = False
+        self._ctp_execution_recovery_completed = False
+        self._ctp_execution_recovery_cancel_requested = False
+        self._ctp_execution_recovery_abort_result: Optional[Dict[str, Any]] = None
+        self._ctp_execution_recovery_abort_lock = threading.Lock()
+        self._ctp_execution_recovery_completion_lock = threading.RLock()
+        self._ctp_execution_recovery_generation = 0
+        self._ctp_execution_recovery_completion_pending = False
+        self._ctp_execution_recovery_completion_receipt: Optional[Dict[str, Any]] = None
         self._broker = None
         self.notifs: Deque[Any] = collections.deque()
         self._historical_bars: dict = collections.defaultdict(collections.deque)
@@ -3442,6 +3747,75 @@ class BtApiStore(LiveStoreBase):
             return default
         return text
 
+    def _force_sdk_market_data_only(
+        self,
+        reason: str,
+        *,
+        clear_authorization: bool = False,
+    ) -> None:
+        """Revoke any SDK write lease and retain only market-data capability."""
+        self._sdk_execution_config["market_data_only"] = True
+        self._ctp_execution_recovery_armed = False
+        with self._command_condition:
+            self._command_accept_openings = False
+        if clear_authorization:
+            self._ctp_execution_authorization = None
+            self._ctp_execution_authorization_sha256 = None
+            self._ctp_execution_authorization_consumed = False
+        api = self._api
+        disarm = getattr(api, "disarm_execution", None) if api is not None else None
+        if callable(disarm):
+            try:
+                disarm(str(reason or "store_market_data_only"))
+            except Exception as exc:
+                self.sanitize_exception(exc)
+                self._command_last_error = self._safe_exception_code(exc, "execution_disarm_failed")
+
+    def _prepare_sdk_execution_authorization(self, reason: str) -> Dict[str, Any]:
+        """Enter a reusable read-only state without revoking the next arm.
+
+        ``disarm_execution`` is an irreversible fence for the current SDK
+        generation.  Authorization preparation therefore uses the distinct
+        public SDK transition and refuses to emulate it for older clients.
+        """
+        self._sdk_execution_config["market_data_only"] = True
+        with self._command_condition:
+            self._command_accept_openings = False
+        api = self._ensure_api_ready()
+        prepare = getattr(api, "prepare_execution_authorization", None)
+        if not callable(prepare):
+            raise BtApiStoreError(
+                "Public SDK reusable execution-authorization preparation is unavailable"
+            )
+        try:
+            result = prepare(reason=str(reason or "execution_authorization_reconfigured"))
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            raise BtApiStoreError("SDK execution-authorization preparation failed") from None
+        if not isinstance(result, Mapping) or not (
+            result.get("armed") is False
+            and result.get("market_data_only") is True
+            and result.get("reusable") is True
+        ):
+            raise BtApiStoreError("SDK execution-authorization preparation is not reusable")
+        return dict(result)
+
+    def _reset_ctp_session_evidence(self, reason: str, *, disarm: bool = True) -> None:
+        """Discard evidence and authorization tied to an earlier CTP session."""
+        with self._ctp_query_lock:
+            self._last_ctp_preflight_snapshot = None
+            self._last_ctp_reconciliation_snapshot = None
+            self._ctp_preflight_history.clear()
+            self._ctp_query_last_started_monotonic = None
+            with self._command_condition:
+                self._invalidate_ctp_execution_recovery_locked()
+            if disarm:
+                self._force_sdk_market_data_only(reason, clear_authorization=True)
+            else:
+                self._ctp_execution_authorization = None
+                self._ctp_execution_authorization_sha256 = None
+                self._ctp_execution_authorization_consumed = False
+
     def start(self, data=None, broker=None):
         """Start the store and attach broker/feed instances."""
         if data is not None and data not in self._data_feeds:
@@ -3452,6 +3826,31 @@ class BtApiStore(LiveStoreBase):
 
         if not self._started:
             self._prepare_funding_refresh_start()
+            if not self._sdk_mode and self._restart_blocked_by_worker:
+                worker = self._command_worker_thread
+                if worker is not None and worker.is_alive():
+                    raise BtApiStoreError(
+                        "Cannot restart while the previous CTP query worker is still running"
+                    )
+                self._command_worker_thread = None
+                self._restart_blocked_by_worker = False
+                self._clear_sdk_updates("session_restart")
+            # Query and quote evidence is scoped to one transport session.
+            # A reconnect must establish fresh identity-bound snapshots before
+            # either opening orders or shutdown pricing can use it.
+            if self._is_ctp_session_provider():
+                # Starting a read-only CTP Store must not call the SDK's
+                # irreversible per-generation disarm.  The configured SDK
+                # session is kept market-data-only until a later, freshly
+                # verified authorization explicitly arms it.
+                self._sdk_execution_config["market_data_only"] = True
+                with self._command_condition:
+                    self._command_accept_openings = False
+                self._reset_ctp_session_evidence("store_start_clears_ctp_evidence", disarm=False)
+            else:
+                self._reset_ctp_session_evidence("store_start_clears_ctp_evidence", disarm=False)
+            with self._latest_tick_lock:
+                self._latest_ticks.clear()
             if self._sdk_mode:
                 self._prepare_sdk_start()
                 self._reset_sdk_stream_generation()
@@ -3679,6 +4078,7 @@ class BtApiStore(LiveStoreBase):
             update_depth = len(self._sdk_updates)
             if (
                 self._command_health["risk_state_unknown"]
+                or self._sdk_execution_arming
                 or self._command_heap
                 or self._command_inflight
                 or self._command_publications_pending
@@ -3978,12 +4378,36 @@ class BtApiStore(LiveStoreBase):
         with self._risk_state_lock:
             return self._risk_incident_epoch
 
+    def _invalidate_ctp_execution_recovery_locked(self) -> int:
+        """Invalidate Store recovery state while holding the command condition."""
+        self._ctp_execution_recovery_generation += 1
+        self._ctp_execution_recovery = None
+        self._ctp_execution_recovery_proof = None
+        self._ctp_execution_recovery_armed = False
+        self._ctp_execution_recovery_completed = False
+        self._ctp_execution_recovery_cancel_requested = False
+        self._ctp_execution_recovery_abort_result = None
+        self._ctp_execution_recovery_completion_pending = False
+        self._ctp_execution_recovery_completion_receipt = None
+        return self._ctp_execution_recovery_generation
+
+    def _clear_recovery_completion_pending_locked(self, receipt_id: Any) -> bool:
+        """Clear only the matching recovery-completion claim under the queue lock."""
+        receipt = self._ctp_execution_recovery_completion_receipt
+        if not isinstance(receipt, Mapping) or receipt.get("receipt_id") != receipt_id:
+            return False
+        self._ctp_execution_recovery_completion_pending = False
+        self._ctp_execution_recovery_completion_receipt = None
+        return True
+
     def _discard_pending_commands_locked(self, reason: str) -> int:
         """Discard every command that has not begun network execution."""
         count = 0
         while self._command_heap:
             _, _, command = heapq.heappop(self._command_heap)
             self._record_command_drop_locked(command, reason)
+            if command.get("operation") == "execution_recovery_complete":
+                self._clear_recovery_completion_pending_locked(command.get("receipt_id"))
             count += 1
         return count
 
@@ -4080,18 +4504,36 @@ class BtApiStore(LiveStoreBase):
         deadline = time.monotonic() + (
             self._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
         )
+        # Query and quote evidence is session-bound and becomes unusable as
+        # soon as shutdown starts, even if disconnect later times out.
+        self._reset_ctp_session_evidence("store_stop", disarm=False)
+        with self._latest_tick_lock:
+            self._latest_ticks.clear()
         self._signal_funding_refresh_stop()
         if self._sdk_mode and not self.uses_async_commands:
             return self._stop_synchronous_sdk(max(deadline - time.monotonic(), 0.0))
         self._venue_balance_cache = {}
         self._last_venue_balance_refresh = 0.0
         partial_owned_sdk = self._sdk_mode and self._sdk_owned_api and self._api is not None
-        if not self._connected and not self._started and not partial_owned_sdk:
+        with self._command_condition:
+            command_activity = bool(
+                self._command_worker_thread is not None
+                or self._command_heap
+                or self._command_inflight
+                or self._command_publications_pending
+            )
+        if (
+            not self._connected
+            and not self._started
+            and not partial_owned_sdk
+            and not command_activity
+        ):
             return self.get_command_health()
 
         worker_stopped = True
         if self._sdk_mode:
             self.freeze_openings("store_stop")
+        if command_activity:
             drained = self.wait_for_commands(
                 max(deadline - time.monotonic(), 0.0), stop_on_timeout=True
             )
@@ -4113,6 +4555,9 @@ class BtApiStore(LiveStoreBase):
         if not funding_worker_stopped:
             self._shutdown_state = "INCOMPLETE"
 
+        if self._sdk_mode:
+            self._force_sdk_market_data_only("store_stop", clear_authorization=True)
+
         try:
             if self._connected:
                 self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
@@ -4131,9 +4576,9 @@ class BtApiStore(LiveStoreBase):
                                 self._api,
                                 max(deadline - time.monotonic(), 0.0),
                             )
-                elif hasattr(self._api, "disconnect"):
+                elif worker_stopped and hasattr(self._api, "disconnect"):
                     self._api.disconnect()
-                elif hasattr(self._api, "stop"):
+                elif worker_stopped and hasattr(self._api, "stop"):
                     self._api.stop()
         finally:
             if self._sdk_mode:
@@ -4158,14 +4603,33 @@ class BtApiStore(LiveStoreBase):
                         "FAIL",
                     }:
                         self._shutdown_state = "PASS"
-            self._connected = False
+            elif worker_stopped:
+                # Legacy/native CTP reconciliation uses the same worker even
+                # though it is not an SDK execution session.
+                self._clear_sdk_updates("store_stopped")
+                if self._shutdown_state not in {"INCOMPLETE", "FAIL"}:
+                    self._shutdown_state = "PASS"
+            if not self._sdk_mode and not worker_stopped:
+                # The CTP query still owns the legacy transport.  Preserve the
+                # true connection state so a later restart reuses that session
+                # instead of issuing a second connect against a live client.
+                self.emit_runtime_event(
+                    "store_disconnect_incomplete",
+                    status="incomplete",
+                    details={"reason": "ctp_query_worker_still_running"},
+                )
+            else:
+                self._connected = False
             self._started = False
             self._subscribed_datanames.clear()
-            self.emit_runtime_event("store_disconnected", status="disconnected")
+            self._tick_consumers.clear()
+            if not self._connected:
+                self.emit_runtime_event("store_disconnected", status="disconnected")
         return self.get_command_health()
 
     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
         """Preserve the pre-worker lifecycle for SDK-compatible fixture/legacy clients."""
+        self._force_sdk_market_data_only("store_stop", clear_authorization=True)
         self._venue_balance_cache = {}
         self._last_venue_balance_refresh = 0.0
         self._sdk_client_refs.clear()
@@ -4207,6 +4671,7 @@ class BtApiStore(LiveStoreBase):
             self._connected = False
             self._started = False
             self._subscribed_datanames.clear()
+            self._tick_consumers.clear()
             self.emit_runtime_event("store_disconnected", status="disconnected")
         return self.get_command_health()
 
@@ -4411,6 +4876,22 @@ class BtApiStore(LiveStoreBase):
         if feed not in self._data_feeds:
             self._data_feeds.append(feed)
 
+    def claim_tick_consumer(self, dataname: str, feed: Any) -> None:
+        """Reserve a symbol's destructive tick cursor for one authoritative Feed."""
+        key = str(dataname)
+        owner = self._tick_consumers.get(key)
+        if owner is not None and owner is not feed:
+            raise BtApiStoreError(
+                f"Live ticks for {key!r} already have an authoritative Feed consumer"
+            )
+        self._tick_consumers[key] = feed
+
+    def release_tick_consumer(self, dataname: str, feed: Any) -> None:
+        """Release a tick cursor only when it is still owned by *feed*."""
+        key = str(dataname)
+        if self._tick_consumers.get(key) is feed:
+            self._tick_consumers.pop(key, None)
+
     def subscribe(self, dataname: str):
         """Subscribe to market data for the given symbol."""
         api = self._ensure_api_ready()
@@ -4569,11 +5050,28 @@ class BtApiStore(LiveStoreBase):
             tick = self._sdk_ticks[dataname].popleft() if self._sdk_ticks[dataname] else None
             if tick is not None:
                 self._mark_feed_inflight(tick)
-            return tick
-        if hasattr(api, "poll_tick"):
-            return api.poll_tick(dataname)
-        if hasattr(api, "get_next_tick"):
-            return api.get_next_tick(dataname)
+        elif hasattr(api, "poll_tick"):
+            tick = api.poll_tick(dataname)
+        elif hasattr(api, "get_next_tick"):
+            tick = api.get_next_tick(dataname)
+        else:
+            tick = None
+        if tick is not None:
+            with self._latest_tick_lock:
+                self._latest_ticks[dataname] = deepcopy(tick)
+        return tick
+
+    def get_latest_tick_snapshot(self, dataname: str):
+        """Return the last consumed tick without issuing market-data I/O."""
+        aliases = _contract_metadata_aliases(dataname)
+        with self._latest_tick_lock:
+            for alias in aliases:
+                if alias in self._latest_ticks:
+                    return deepcopy(self._latest_ticks[alias])
+            alias_set = set(aliases)
+            for key, tick in self._latest_ticks.items():
+                if alias_set.intersection(_contract_metadata_aliases(key)):
+                    return deepcopy(tick)
         return None
 
     def poll_orderbook(self, dataname: str):
@@ -4611,6 +5109,30 @@ class BtApiStore(LiveStoreBase):
             return bool(live_ticks.get(dataname))
 
         return False
+
+    def is_source_exhausted(self, dataname: str) -> bool:
+        """Return explicit EOF for a finite fixture/replay source.
+
+        Absence of the capability always means "still live".  Network clients
+        therefore retain their existing idle behavior, while a deterministic
+        source can let a feed end naturally after all buffered bars have been
+        delivered.
+        """
+
+        if not self._connected:
+            return False
+        api = self._ensure_api_ready()
+        method = getattr(api, "is_source_exhausted", None)
+        return bool(method(dataname)) if callable(method) else False
+
+    def get_source_event_time_watermark(self, dataname: str):
+        """Return a finite source's final event-time watermark, if declared."""
+
+        if not self._connected:
+            return None
+        api = self._ensure_api_ready()
+        method = getattr(api, "get_source_event_time_watermark", None)
+        return method(dataname) if callable(method) else None
 
     def has_pending_orderbook(self, dataname: str) -> bool:
         """Return whether the API has queued live orderbooks for a symbol."""
@@ -4959,6 +5481,10 @@ class BtApiStore(LiveStoreBase):
     async def _execute_sdk_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
         """Execute one typed SDK command and return a main-thread completion."""
         operation = command["operation"]
+        request = command.get("request")
+        recovery_submit = bool(
+            operation == "submit" and getattr(request, "execution_role", None) == "recovery_exit"
+        )
         completion = {
             "kind": "command_completion",
             "command": operation,
@@ -4975,6 +5501,17 @@ class BtApiStore(LiveStoreBase):
         try:
             if operation == "reconcile":
                 result = await asyncio.to_thread(self._sdk_reconcile_snapshot)
+            elif operation == "ctp_reconcile":
+                result = await asyncio.to_thread(
+                    self.get_ctp_reconciliation_snapshot,
+                    timeout=max(float(command.get("timeout") or 0.0), 0.0),
+                )
+            elif operation == "execution_recovery_complete":
+                result = await asyncio.to_thread(
+                    self._complete_queued_execution_recovery,
+                    recovery_token_sha256=command["recovery_token_sha256"],
+                    recovery_generation=command["recovery_generation"],
+                )
             elif operation == "account_risk":
                 result = await asyncio.to_thread(
                     self._read_account_risk_snapshot, self._ensure_api_ready()
@@ -5006,6 +5543,14 @@ class BtApiStore(LiveStoreBase):
             else:
                 completion.update(success=True, status="completed", response=result)
                 self._command_health["completed"] += 1
+        except asyncio.CancelledError:
+            with self._command_condition:
+                if operation == "execution_recovery_complete":
+                    self._clear_recovery_completion_pending_locked(command.get("receipt_id"))
+                if operation == "account_risk":
+                    with self._account_risk_lock:
+                        self._account_risk_refresh_pending = False
+            raise
         except Exception as exc:
             self.sanitize_exception(exc)
             definite_reject = bool(getattr(exc, "definite_reject", False))
@@ -5018,6 +5563,7 @@ class BtApiStore(LiveStoreBase):
                 or isinstance(exc, TimeoutError)
                 or (operation in {"submit", "cancel"} and not definite_reject)
             )
+            error_code = self._safe_exception_code(exc, type(exc).__name__)
             completion.update(
                 success=False,
                 status="unknown" if execution_unknown else "failed",
@@ -5025,7 +5571,7 @@ class BtApiStore(LiveStoreBase):
                 remote_write_attempted=execution_unknown,
                 definite_reject=definite_reject,
                 terminal_confirmed=definite_reject,
-                error_code=self._safe_exception_code(exc, type(exc).__name__),
+                error_code=error_code,
                 error_msg=(
                     "remote execution outcome is unknown"
                     if execution_unknown
@@ -5036,8 +5582,25 @@ class BtApiStore(LiveStoreBase):
             if execution_unknown:
                 self._command_health["unknown"] += 1
                 self._latch_risk_state_unknown(completion["error_code"])
+            elif definite_reject and str(error_code).startswith("execution_arm_"):
+                self._force_sdk_market_data_only(error_code, clear_authorization=False)
+                self._latch_risk_state_unknown(error_code)
             self._command_last_error = completion["error_code"]
+        if recovery_submit and completion.get("success") is not True:
+            try:
+                await asyncio.to_thread(
+                    self.abort_execution_recovery,
+                    "execution_recovery_dispatch_failed",
+                )
+            except Exception as exc:
+                self.sanitize_exception(exc)
+                completion["recovery_abort_error_code"] = self._safe_exception_code(
+                    exc, "execution_recovery_abort_failed"
+                )
         completion["completed_monotonic_ns"] = time.monotonic_ns()
+        if operation == "execution_recovery_complete":
+            with self._command_condition:
+                self._clear_recovery_completion_pending_locked(command.get("receipt_id"))
         if operation == "account_risk":
             with self._account_risk_lock:
                 self._account_risk_refresh_pending = False
@@ -5210,6 +5773,22 @@ class BtApiStore(LiveStoreBase):
             derived_account_id = f"{expected_provider.lower()}-credential-{fingerprint}"
             if canonical["account_id"] != derived_account_id:
                 raise BtApiStoreError("execution_identity_account_id_mismatch")
+        elif (
+            expected_provider == "CTP"
+            and self._sdk_execution_config.get("market_data_only") is False
+        ):
+            if actual_authority != "account_fingerprint":
+                raise BtApiStoreError("execution_identity_account_authority_mismatch")
+            if re.fullmatch(r"acct_[0-9a-f]{16}", canonical["account_id"]) is None:
+                raise BtApiStoreError("execution_identity_account_id_mismatch")
+            actual_alias = str(identity.get("account_alias") or "").strip().casefold()
+            if actual_alias != canonical["account_id"]:
+                raise BtApiStoreError("execution_identity_account_alias_mismatch")
+            if (
+                expected_alias not in (None, "")
+                and actual_alias != str(expected_alias).strip().casefold()
+            ):
+                raise BtApiStoreError("execution_identity_account_alias_mismatch")
         else:
             if self.backend == "direct" and expected_provider in {"BINANCE", "OKX"}:
                 raise BtApiStoreError("execution_identity_fingerprint_missing")
@@ -5317,6 +5896,27 @@ class BtApiStore(LiveStoreBase):
 
         if summary.get("evidence_complete") is False:
             errors.append("sdk_execution_evidence_incomplete")
+        execution_is_armed = self._sdk_execution_config.get("market_data_only") is False
+        sdk_evidence_errors = summary.get("evidence_errors")
+        arm_error_codes = {
+            str(value)
+            for value in (sdk_evidence_errors if isinstance(sdk_evidence_errors, list) else ())
+            if str(value).startswith("execution_arm_")
+        }
+        if execution_is_armed:
+            if summary.get("armed") is not True:
+                errors.append("execution_arm_not_armed")
+            if summary.get("market_data_only") is not False:
+                errors.append("execution_arm_market_data_only")
+            if summary.get("arm_revoked") is not False:
+                errors.append(str(summary.get("revocation_reason") or "execution_arm_revoked"))
+            if arm_error_codes:
+                errors.extend(sorted(arm_error_codes))
+        if execution_is_armed and any(str(error).startswith("execution_arm_") for error in errors):
+            self._force_sdk_market_data_only(
+                "execution_arm_evidence_lost", clear_authorization=False
+            )
+            self._latch_risk_state_unknown("execution_arm_evidence_lost")
         identity_binding_sha256 = (
             self._sdk_identity_binding_sha256(identities)
             if len(identities) == len(self._sdk_exchanges)
@@ -5507,7 +6107,25 @@ class BtApiStore(LiveStoreBase):
         return result
 
     def enqueue_order(self, order) -> Dict[str, Any]:
-        """Queue a typed SDK order and immediately return its local receipt."""
+        """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
+
+        info = getattr(order, "info", {})
+        get_info = getattr(info, "get", lambda *_args: None)
+        recovery_exit = get_info("execution_role") == "recovery_exit"
+        try:
+            receipt = self._enqueue_order_command(order)
+        except Exception:
+            if recovery_exit:
+                self.abort_execution_recovery("execution_recovery_dispatch_failed")
+            raise
+        if recovery_exit and (
+            not isinstance(receipt, Mapping) or receipt.get("queued") is not True
+        ):
+            self.abort_execution_recovery("execution_recovery_dispatch_failed")
+        return deepcopy(receipt)
+
+    def _enqueue_order_command(self, order) -> Dict[str, Any]:
+        """Build and queue one typed SDK order."""
         self._ensure_api_ready()
         self._require_async_sdk_commands()
         self._start_command_worker()
@@ -5612,6 +6230,102 @@ class BtApiStore(LiveStoreBase):
             {"operation": "reconcile"},
             priority_name="reconcile",
         )
+
+    def enqueue_ctp_reconciliation(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+        """Queue one complete CTP read round on the existing SDK command worker."""
+        self._ensure_api_ready()
+        if not self._is_ctp_session_provider() or not self.supports_complete_ctp_queries():
+            return {
+                "queued": False,
+                "status": "rejected",
+                "error_code": "ctp_query_capability_unavailable",
+            }
+        self._require_async_sdk_commands()
+        self._start_command_worker()
+        return self._enqueue_sdk_command(
+            {
+                "operation": "ctp_reconcile",
+                "timeout": max(float(timeout), 0.0),
+            },
+            priority_name="reconcile",
+        )
+
+    def enqueue_execution_recovery_completion(
+        self, *, recovery_token_sha256: str
+    ) -> Dict[str, Any]:
+        """Run the SDK-owned two-round recovery completion off the Cerebro thread."""
+        token = self._require_sha256(recovery_token_sha256, "recovery_token_sha256")
+        with self._ctp_execution_recovery_completion_lock:
+            with self._command_condition:
+                recovery = self._ctp_execution_recovery
+                recovery_generation = self._ctp_execution_recovery_generation
+                if (
+                    self._ctp_execution_recovery_completion_pending
+                    and isinstance(self._ctp_execution_recovery_completion_receipt, Mapping)
+                    and isinstance(recovery, Mapping)
+                    and token == recovery.get("recovery_token_sha256")
+                ):
+                    return deepcopy(self._ctp_execution_recovery_completion_receipt)
+                recovery_can_complete = (
+                    not self._ctp_execution_recovery_completed
+                    and not self._ctp_execution_recovery_completion_pending
+                    and isinstance(recovery, Mapping)
+                    and (
+                        (
+                            recovery.get("status") == "RECOVERABLE"
+                            and self._ctp_execution_recovery_armed
+                            and recovery.get("allowed_actions") == ["close"]
+                        )
+                        or (
+                            recovery.get("status") == "FLAT"
+                            and not self._ctp_execution_recovery_armed
+                            and recovery.get("allowed_actions") == ["complete"]
+                        )
+                    )
+                )
+                if not recovery_can_complete:
+                    raise BtApiStoreError("SDK execution recovery is not completable")
+                if token != recovery.get("recovery_token_sha256"):
+                    raise BtApiStoreError("SDK execution recovery token mismatch")
+            try:
+                self._ensure_api_ready()
+                self._require_async_sdk_commands()
+                self._start_command_worker()
+                with self._command_condition:
+                    if (
+                        recovery_generation != self._ctp_execution_recovery_generation
+                        or self._ctp_execution_recovery is not recovery
+                        or token != recovery.get("recovery_token_sha256")
+                    ):
+                        raise BtApiStoreError("SDK execution recovery plan became stale")
+                    receipt = self._enqueue_sdk_command(
+                        {
+                            "operation": "execution_recovery_complete",
+                            "recovery_token_sha256": token,
+                            "recovery_generation": recovery_generation,
+                        },
+                        priority_name="reconcile",
+                    )
+                    if not isinstance(receipt, Mapping) or receipt.get("queued") is not True:
+                        raise BtApiStoreError("SDK execution recovery completion was not queued")
+                    self._ctp_execution_recovery_completion_pending = True
+                    self._ctp_execution_recovery_completion_receipt = dict(receipt)
+                return dict(receipt)
+            except Exception:
+                with self._command_condition:
+                    receipt = self._ctp_execution_recovery_completion_receipt
+                    if (
+                        recovery_generation == self._ctp_execution_recovery_generation
+                        and isinstance(receipt, Mapping)
+                        and token == recovery.get("recovery_token_sha256")
+                    ):
+                        self._ctp_execution_recovery_completion_pending = False
+                        self._ctp_execution_recovery_completion_receipt = None
+                self._force_sdk_market_data_only(
+                    "execution_recovery_completion_queue_failed",
+                    clear_authorization=False,
+                )
+                raise
 
     def enqueue_account_risk_refresh(self) -> Dict[str, Any]:
         """Queue a non-blocking SDK account-risk refresh for strategy callbacks."""
@@ -5896,12 +6610,37 @@ class BtApiStore(LiveStoreBase):
         self.put_notification("runtime_event", event=safe_payload)
         return safe_payload
 
+    def _ctp_sdk_venues(self) -> Tuple[str, ...]:
+        """Return explicitly configured CTP SDK routes without opening an adapter."""
+        candidates = set(self._sdk_exchanges)
+        candidates.update(self._sdk_routes.values())
+        public_exchange_kwargs = getattr(self._api, "exchange_kwargs", None)
+        if isinstance(public_exchange_kwargs, Mapping):
+            candidates.update(public_exchange_kwargs)
+        return tuple(
+            sorted(
+                {
+                    str(venue).strip()
+                    for venue in candidates
+                    if str(venue).strip().partition("___")[0].upper() == "CTP"
+                }
+            )
+        )
+
+    def _ctp_sdk_exchange_name(self) -> str:
+        venues = self._ctp_sdk_venues()
+        if len(venues) != 1:
+            raise BtApiStoreError("Exactly one configured CTP SDK exchange is required")
+        return venues[0]
+
     def _is_ctp_session_provider(self) -> bool:
         if self.backend == "forwarding":
             return False
         provider = str(self.provider or "").strip().lower()
         if provider in {"ctp", "ctp_gateway"}:
             return True
+        if provider == "btapi":
+            return len(self._ctp_sdk_venues()) == 1
         if self.backend != "gateway":
             return False
         exchange = (
@@ -5925,6 +6664,17 @@ class BtApiStore(LiveStoreBase):
         return {key: value for key, value in details.items() if value not in {"", None}}
 
     def _read_ctp_session_state(self) -> Dict[str, Any]:
+        if str(self.provider or "").strip().lower() == "btapi":
+            getter = getattr(self._api, "get_ctp_session_state", None)
+            if not callable(getter):
+                return {}
+            try:
+                state = getter(exchange_name=self._ctp_sdk_exchange_name())
+            except Exception as exc:
+                _safe_log("debug", "Failed to read CTP SDK session state: %s", exc)
+                return {}
+            return dict(state) if isinstance(state, Mapping) else {}
+
         targets = [self._api]
         for attr in ("trader_client", "_client"):
             target = getattr(self._api, attr, None)
@@ -5973,6 +6723,2128 @@ class BtApiStore(LiveStoreBase):
             return score
 
         return max(states, key=_state_score)
+
+    def _ctp_query_targets(self) -> List[Any]:
+        """Return bounded CTP query adapters, preferring one complete public surface."""
+        if str(self.provider or "").strip().lower() == "btapi":
+            # The SDK facade keeps execution-session ownership intact.  In
+            # particular, do not call get_request_api() or inspect its feed
+            # registry, both of which bypass the managed execution boundary.
+            return [self._api] if callable(getattr(self._api, "query_ctp_result", None)) else []
+        queue = [self._api]
+        targets: List[Any] = []
+        seen = set()
+        while queue and len(targets) < 8:
+            target = queue.pop(0)
+            if target is None or id(target) in seen:
+                continue
+            seen.add(id(target))
+            targets.append(target)
+            for name in ("trader_client", "_trader", "_client", "feed"):
+                nested = getattr(target, name, None)
+                if nested is not None and id(nested) not in seen:
+                    queue.append(nested)
+        method_names = (
+            "query_account_result",
+            "query_positions_result",
+            "query_orders_result",
+            "query_trades_result",
+            "query_instruments_result",
+            "query_instrument_margin_rate_result",
+            "query_instrument_commission_rate_result",
+        )
+        return sorted(
+            targets,
+            key=lambda item: sum(callable(getattr(item, name, None)) for name in method_names),
+            reverse=True,
+        )
+
+    def supports_complete_ctp_queries(self, *, include_reference_data: bool = False) -> bool:
+        """Report whether one adapter exposes the typed terminal-query contract."""
+        if str(self.provider or "").strip().lower() == "btapi":
+            return bool(
+                len(self._ctp_sdk_venues()) == 1
+                and callable(getattr(self._api, "query_ctp_result", None))
+            )
+        required = [
+            "query_account_result",
+            "query_positions_result",
+            "query_orders_result",
+            "query_trades_result",
+        ]
+        if include_reference_data:
+            required.extend(
+                [
+                    "query_instruments_result",
+                    "query_instrument_margin_rate_result",
+                    "query_instrument_commission_rate_result",
+                ]
+            )
+        return any(
+            all(callable(getattr(target, name, None)) for name in required)
+            for target in self._ctp_query_targets()
+        )
+
+    def _invoke_ctp_query(
+        self,
+        target: Any,
+        request_type: str,
+        method_name: str,
+        *,
+        timeout: float,
+        kwargs: Mapping[str, Any],
+    ) -> Any:
+        """Invoke either the managed SDK facade or the legacy typed client."""
+        if str(self.provider or "").strip().lower() == "btapi":
+            method = getattr(target, "query_ctp_result", None)
+            if not callable(method):
+                raise BtApiStoreError("query_capability_unavailable")
+            return method(
+                self._ctp_sdk_exchange_name(),
+                request_type,
+                timeout=timeout,
+                **dict(kwargs),
+            )
+        method = getattr(target, method_name, None)
+        if not callable(method):
+            raise BtApiStoreError("query_capability_unavailable")
+        return method(timeout=timeout, **dict(kwargs))
+
+    @staticmethod
+    def _ctp_request_counts(session: Mapping[str, Any]) -> Optional[Dict[str, int]]:
+        raw = session.get("request_counts")
+        if not isinstance(raw, Mapping):
+            return None
+        if any(name not in raw for name in _CTP_WRITE_REQUEST_TYPES):
+            return None
+        counts: Dict[str, int] = {}
+        for key, value in raw.items():
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                return None
+            counts[str(key)] = value
+        return counts
+
+    @staticmethod
+    def _ctp_request_count_delta(
+        before: Optional[Mapping[str, int]], after: Optional[Mapping[str, int]]
+    ) -> Optional[Dict[str, int]]:
+        if before is None or after is None:
+            return None
+        keys = set(before) | set(after)
+        if any(key not in before or key not in after for key in _CTP_WRITE_REQUEST_TYPES):
+            return None
+        delta = {key: after.get(key, 0) - before.get(key, 0) for key in sorted(keys)}
+        if any(value < 0 for value in delta.values()):
+            return None
+        return delta
+
+    @staticmethod
+    def _normalise_ctp_instrument_row(row: Mapping[str, Any]) -> Dict[str, Any]:
+        value = dict(row)
+        aliases = {
+            "instrument_id": "InstrumentID",
+            "exchange_id": "ExchangeID",
+            "product_id": "ProductID",
+            "expire_date": "ExpireDate",
+            "is_trading": "IsTrading",
+            "price_tick": "PriceTick",
+            "volume_multiple": "VolumeMultiple",
+            "minimum_order_volume": "MinLimitOrderVolume",
+            "lower_limit_price": "LowerLimitPrice",
+            "upper_limit_price": "UpperLimitPrice",
+            "open_interest": "OpenInterest",
+            "volume": "Volume",
+            "ranking_trading_day": "TradingDay",
+        }
+        for alias, raw_name in aliases.items():
+            if alias not in value and value.get(raw_name) not in (None, ""):
+                value[alias] = value[raw_name]
+        return value
+
+    @staticmethod
+    def _ctp_query_record_to_public(record: Any) -> Dict[str, Any]:
+        """Convert a typed/CTP record to a stable, credential-safe mapping."""
+        if isinstance(record, Mapping):
+            value = dict(record)
+        elif is_dataclass(record):
+            value = asdict(record)
+        else:
+            initializer = getattr(record, "init_data", None)
+            if callable(initializer):
+                try:
+                    initialized = initializer()
+                except Exception:
+                    initialized = None
+                if initialized is not None and initialized is not record:
+                    return BtApiStore._ctp_query_record_to_public(initialized)
+            value = {}
+            for raw_name in ("order_info", "position_info", "account_info", "trade_info"):
+                raw = getattr(record, raw_name, None)
+                if isinstance(raw, Mapping):
+                    value.update({key: raw[key] for key in _CTP_QUERY_RECORD_FIELDS if key in raw})
+            all_data = getattr(record, "get_all_data", None)
+            if callable(all_data):
+                try:
+                    public_data = all_data()
+                except Exception:
+                    public_data = None
+                if isinstance(public_data, Mapping):
+                    value.update(dict(public_data))
+            value.update(_ctp_extract_fields(record, _CTP_QUERY_RECORD_FIELDS))
+            getter_fields = {
+                "order_id": "get_order_id",
+                "client_order_id": "get_client_order_id",
+                "order_size": "get_order_size",
+                "order_price": "get_order_price",
+                "side": "get_order_side",
+                "status": "get_order_status",
+                "offset": "get_order_offset",
+                "exchange_id": "get_order_exchange_id",
+                "executed_qty": "get_executed_qty",
+                "instrument_id": "get_order_symbol_name",
+            }
+            for field, getter_name in getter_fields.items():
+                getter = getattr(record, getter_name, None)
+                if not callable(getter):
+                    continue
+                try:
+                    item = getter()
+                except Exception:
+                    continue
+                enum_value = getattr(item, "value", item)
+                if enum_value not in (None, ""):
+                    value[field] = enum_value
+            if not value:
+                raw = getattr(record, "__dict__", None)
+                if isinstance(raw, dict):
+                    value = {key: item for key, item in raw.items() if not key.startswith("_")}
+        safe = _redact_diagnostic(value)
+        return dict(safe) if isinstance(safe, Mapping) else {"record_type": type(record).__name__}
+
+    @classmethod
+    def _normalise_ctp_query_result(cls, result: Any, request_type: str) -> Dict[str, Any]:
+        """Preserve explicit completion evidence; never infer success from an empty list."""
+        if isinstance(result, Mapping):
+            data = dict(result)
+            nested = data.get("query_result")
+            if isinstance(nested, Mapping):
+                data = {
+                    **{key: value for key, value in data.items() if key != "query_result"},
+                    **dict(nested),
+                }
+            records = data.get("records")
+        else:
+            converter = getattr(result, "as_dict", None)
+            if callable(converter):
+                try:
+                    data = dict(converter(include_records=False))
+                except TypeError:
+                    data = dict(converter())
+            elif is_dataclass(result):
+                data = asdict(result)
+            else:
+                data = {
+                    key: getattr(result, key, None)
+                    for key in (
+                        "request_type",
+                        "request_id",
+                        "connection_generation",
+                        "account_fingerprint",
+                        "started_at_utc",
+                        "completed_at_utc",
+                        "is_last_seen",
+                        "error_code",
+                        "error_message",
+                        "timed_out",
+                        "complete",
+                        "late_callback_count",
+                        "unsupported",
+                    )
+                }
+            records = getattr(result, "records", data.get("records"))
+        records_schema_valid = isinstance(records, (list, tuple))
+        if not records_schema_valid:
+            records = ()
+        data["records"] = [cls._ctp_query_record_to_public(row) for row in records]
+        data["expected_request_type"] = request_type
+        actual_request_type = str(data.get("request_type") or "").strip().lower()
+        data["expected_request_type"] = request_type
+        data["request_type_matches"] = actual_request_type == request_type
+        data["records_schema_valid"] = records_schema_valid
+        data.setdefault("unsupported", False)
+        data.setdefault("late_callback_count", 0)
+        return data
+
+    @staticmethod
+    def _ctp_query_result_complete(result: Mapping[str, Any]) -> bool:
+        error_code = result.get("error_code")
+        try:
+            request_id = int(result.get("request_id") or 0)
+            generation = int(result.get("connection_generation") or 0)
+        except (TypeError, ValueError):
+            return False
+        return bool(
+            result.get("complete") is True
+            and result.get("is_last_seen") is True
+            and result.get("timed_out") is False
+            and result.get("unsupported") is not True
+            and error_code in (None, "", 0, "0")
+            and result.get("completed_at_utc") not in (None, "")
+            and request_id > 0
+            and generation > 0
+            and str(result.get("account_fingerprint") or "").strip()
+            and result.get("request_type_matches") is True
+            and result.get("records_schema_valid") is True
+            and isinstance(result.get("records"), list)
+        )
+
+    @staticmethod
+    def _ctp_query_failure(request_type: str, session: Mapping[str, Any], code: str):
+        return {
+            "request_type": request_type,
+            "request_id": 0,
+            "connection_generation": int(session.get("connection_generation") or 0),
+            "account_fingerprint": str(session.get("account_fingerprint") or ""),
+            "started_at_utc": _dt.datetime.now(_UTC).isoformat(),
+            "completed_at_utc": None,
+            "is_last_seen": False,
+            "error_code": code,
+            "error_message": code,
+            "timed_out": "timeout" in str(code).lower() or "deadline" in str(code).lower(),
+            "complete": False,
+            "records": [],
+            "expected_request_type": request_type,
+            "request_type_matches": True,
+            "records_schema_valid": True,
+            "late_callback_count": 0,
+            "unsupported": code == "query_capability_unavailable",
+        }
+
+    def _reserve_ctp_query_slot(self, deadline: Optional[float]) -> Optional[float]:
+        """Reserve one rate-limited query slot and return its remaining deadline."""
+        now = time.monotonic()
+        if self._ctp_query_last_started_monotonic is not None:
+            due = self._ctp_query_last_started_monotonic + self._ctp_query_min_interval_seconds
+            if deadline is not None and due >= deadline:
+                return None
+            if due > now:
+                time.sleep(due - now)
+                now = time.monotonic()
+        if deadline is not None and now >= deadline:
+            return None
+        self._ctp_query_last_started_monotonic = now
+        return max(deadline - now, 0.0) if deadline is not None else 0.0
+
+    @staticmethod
+    def _stable_ctp_query_rows(rows: Any) -> List[Dict[str, Any]]:
+        values = [dict(row) for row in rows or () if isinstance(row, Mapping)]
+        return sorted(
+            values,
+            key=lambda row: json.dumps(row, sort_keys=True, separators=(",", ":"), default=str),
+        )
+
+    @classmethod
+    def _ctp_order_row_is_active(cls, row: Mapping[str, Any]) -> bool:
+        raw_status = row.get("status")
+        status = str(raw_status or "").strip().lower()
+        if not status:
+            status = _normalize_ctp_order_status(
+                row.get("OrderStatus"), row.get("OrderSubmitStatus"), "submitted"
+            )
+        if status in {
+            "canceled",
+            "cancelled",
+            "completed",
+            "filled",
+            "rejected",
+            "expired",
+        }:
+            return False
+        remaining = row.get("remaining", row.get("VolumeTotal"))
+        if remaining not in (None, ""):
+            try:
+                return float(remaining) > 0
+            except (TypeError, ValueError):
+                return True
+        return True
+
+    @staticmethod
+    def _ctp_position_row_is_nonzero(row: Mapping[str, Any]) -> bool:
+        for key in ("quantity", "size", "volume", "Position"):
+            if row.get(key) in (None, ""):
+                continue
+            try:
+                return abs(float(row[key])) > 1e-12
+            except (TypeError, ValueError):
+                return True
+        return bool(row)
+
+    def _build_ctp_query_snapshot(
+        self,
+        *,
+        instrument_id: Optional[str],
+        exchange_id: str,
+        timeout: float,
+        include_reference_data: bool,
+        read_only: bool,
+    ) -> Dict[str, Any]:
+        if not self._is_ctp_session_provider():
+            raise BtApiStoreError("CTP query snapshots require a CTP provider")
+        total_timeout = float(timeout)
+        if not math.isfinite(total_timeout) or total_timeout < 0:
+            raise ValueError("CTP query timeout must be finite and nonnegative")
+        query_started_monotonic = time.monotonic()
+        # ``timeout=0`` is retained as the existing immediate fixture/probe
+        # mode. Positive values are one deadline for the entire query group,
+        # never a fresh timeout for every individual request.
+        deadline = query_started_monotonic + total_timeout if total_timeout > 0 else None
+        self._ensure_api_ready()
+        session_before = self._read_ctp_session_state()
+        request_counts_before = self._ctp_request_counts(session_before)
+        targets = self._ctp_query_targets()
+        target = targets[0] if targets else None
+        query_specs = [
+            ("account", "query_account_result", {}),
+            ("positions", "query_positions_result", {}),
+            ("orders", "query_orders_result", {}),
+            ("trades", "query_trades_result", {}),
+        ]
+        if include_reference_data:
+            query_specs.append(
+                (
+                    "instruments",
+                    "query_instruments_result",
+                    {"instrument_id": instrument_id or "", "exchange_id": exchange_id},
+                )
+            )
+            if instrument_id:
+                query_specs.extend(
+                    [
+                        (
+                            "margin_rate",
+                            "query_instrument_margin_rate_result",
+                            {"instrument_id": instrument_id, "exchange_id": exchange_id},
+                        ),
+                        (
+                            "commission_rate",
+                            "query_instrument_commission_rate_result",
+                            {"instrument_id": instrument_id, "exchange_id": exchange_id},
+                        ),
+                    ]
+                )
+            else:
+                query_specs.extend(
+                    [
+                        ("margin_rate", "", {}),
+                        ("commission_rate", "", {}),
+                    ]
+                )
+
+        query_results: Dict[str, Dict[str, Any]] = {}
+        with self._ctp_query_lock:
+            for name, method_name, kwargs in query_specs:
+                if not method_name or target is None:
+                    result = self._ctp_query_failure(
+                        name,
+                        session_before,
+                        (
+                            "instrument_id_required"
+                            if not method_name
+                            else "query_capability_unavailable"
+                        ),
+                    )
+                else:
+                    request_timeout = (
+                        self._reserve_ctp_query_slot(deadline) if deadline is not None else 0.0
+                    )
+                    if request_timeout is None:
+                        result = self._ctp_query_failure(
+                            name, session_before, "query_deadline_exceeded"
+                        )
+                    else:
+                        try:
+                            result = self._normalise_ctp_query_result(
+                                self._invoke_ctp_query(
+                                    target,
+                                    name,
+                                    method_name,
+                                    timeout=request_timeout,
+                                    kwargs=kwargs,
+                                ),
+                                name,
+                            )
+                        except Exception as exc:
+                            result = self._ctp_query_failure(
+                                name, session_before, type(exc).__name__
+                            )
+                query_results[name] = result
+
+        session_after = self._read_ctp_session_state()
+        request_counts_after = self._ctp_request_counts(session_after)
+        request_count_delta = self._ctp_request_count_delta(
+            request_counts_before, request_counts_after
+        )
+        session = session_after if session_after else session_before
+
+        errors = [
+            f"{name}_query_incomplete"
+            for name, result in query_results.items()
+            if not self._ctp_query_result_complete(result)
+        ]
+        for name, result in query_results.items():
+            if result.get("request_type_matches") is not True:
+                errors.append(f"{name}_request_type_mismatch")
+            if result.get("records_schema_valid") is not True:
+                errors.append(f"{name}_records_schema_invalid")
+        generations = {
+            int(result["connection_generation"])
+            for result in query_results.values()
+            if self._ctp_query_result_complete(result)
+        }
+        fingerprints = {
+            str(result["account_fingerprint"])
+            for result in query_results.values()
+            if self._ctp_query_result_complete(result)
+        }
+        if len(generations) != 1:
+            errors.append("query_generation_mismatch")
+        if len(fingerprints) != 1:
+            errors.append("query_account_fingerprint_mismatch")
+
+        def _session_generation(value: Mapping[str, Any]) -> int:
+            raw = value.get("connection_generation")
+            if isinstance(raw, bool):
+                return 0
+            try:
+                parsed = int(raw or 0)
+            except (TypeError, ValueError):
+                return 0
+            return parsed if parsed > 0 else 0
+
+        generation_before = _session_generation(session_before)
+        generation_after = _session_generation(session_after)
+        fingerprint_before = str(session_before.get("account_fingerprint") or "").strip()
+        fingerprint_after = str(session_after.get("account_fingerprint") or "").strip()
+        trading_day_before = str(session_before.get("trading_day") or "").strip()
+        trading_day_after = str(session_after.get("trading_day") or "").strip()
+        if generation_before <= 0 or generation_after <= 0:
+            errors.append("session_generation_missing")
+        elif generation_before != generation_after:
+            errors.append("session_generation_changed")
+        if fingerprint_before == "" or fingerprint_after == "":
+            errors.append("session_account_fingerprint_missing")
+        elif fingerprint_before != fingerprint_after:
+            errors.append("session_account_fingerprint_changed")
+        if trading_day_before == "" or trading_day_after == "":
+            errors.append("session_trading_day_missing")
+        elif trading_day_before != trading_day_after:
+            errors.append("session_trading_day_changed")
+        if generation_after > 0 and generations != {generation_after}:
+            errors.append("query_generation_session_mismatch")
+        if fingerprint_after and fingerprints != {fingerprint_after}:
+            errors.append("query_account_fingerprint_session_mismatch")
+
+        all_request_ids: Dict[str, int] = {}
+        for name, result in query_results.items():
+            raw_request_id = result.get("request_id")
+            if isinstance(raw_request_id, bool):
+                parsed_request_id = 0
+            else:
+                try:
+                    parsed_request_id = int(raw_request_id or 0)
+                except (TypeError, ValueError):
+                    parsed_request_id = 0
+            all_request_ids[name] = parsed_request_id
+        positive_request_ids = [value for value in all_request_ids.values() if value > 0]
+        if len(set(positive_request_ids)) != len(positive_request_ids):
+            errors.append("query_request_id_not_unique")
+        session_ready = bool(session.get("read_only_ready") is True or session.get("ready") is True)
+        if not session_ready:
+            errors.append("ctp_session_not_ready")
+        auto_confirm = session.get(
+            "auto_settlement_confirm",
+            getattr(target, "auto_settlement_confirm", None) if target is not None else None,
+        )
+        write_request_free = bool(
+            request_count_delta is not None
+            and all(request_count_delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES)
+        )
+        if request_count_delta is None:
+            errors.append("request_count_evidence_missing")
+        elif not write_request_free:
+            errors.append("unexpected_write_request_during_query")
+        read_only_safe = auto_confirm is False and write_request_free
+        if read_only and not read_only_safe:
+            if auto_confirm is not False:
+                errors.append("auto_settlement_confirm_not_disabled")
+
+        account_rows = self._stable_ctp_query_rows(query_results["account"]["records"])
+        position_rows = self._stable_ctp_query_rows(query_results["positions"]["records"])
+        order_rows = self._stable_ctp_query_rows(query_results["orders"]["records"])
+        trade_rows = self._stable_ctp_query_rows(query_results["trades"]["records"])
+        instrument_rows = [
+            self._normalise_ctp_instrument_row(row)
+            for row in self._stable_ctp_query_rows(
+                query_results.get("instruments", {}).get("records", ())
+            )
+        ]
+        margin_rate_rows = self._stable_ctp_query_rows(
+            query_results.get("margin_rate", {}).get("records", ())
+        )
+        commission_rate_rows = self._stable_ctp_query_rows(
+            query_results.get("commission_rate", {}).get("records", ())
+        )
+        for row in order_rows:
+            row.setdefault(
+                "status",
+                _normalize_ctp_order_status(
+                    row.get("OrderStatus"), row.get("OrderSubmitStatus"), "submitted"
+                ),
+            )
+            row.setdefault("order_ref", str(row.get("OrderRef") or "").strip())
+            row.setdefault(
+                "external_order_id",
+                str(row.get("OrderSysID") or row.get("OrderRef") or "").strip(),
+            )
+            row.setdefault("remaining", _coerce_int(row.get("VolumeTotal"), 0))
+        trading_day = trading_day_after or trading_day_before
+        if not trading_day:
+            for row in account_rows + position_rows + trade_rows:
+                if row.get("TradingDay") not in (None, ""):
+                    trading_day = str(row["TradingDay"])
+                    break
+        semantic = {
+            "connection_generation": next(iter(generations), 0),
+            "account_fingerprint": next(iter(fingerprints), ""),
+            "trading_day": trading_day,
+            "account": account_rows,
+            "positions": position_rows,
+            "orders": order_rows,
+            "trades": trade_rows,
+        }
+        fingerprint = hashlib.sha256(
+            json.dumps(semantic, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+        ).hexdigest()
+        active_orders = [row for row in order_rows if self._ctp_order_row_is_active(row)]
+        nonzero_positions = [row for row in position_rows if self._ctp_position_row_is_nonzero(row)]
+        required_query_names = ("account", "positions", "orders", "trades")
+        request_ids = {name: all_request_ids[name] for name in required_query_names}
+        composite_request_id = "|".join(
+            f"{name}:{request_ids[name]}" for name in required_query_names
+        )
+        execution_summary = None
+        summary_getter = getattr(self._api, "get_execution_summary", None)
+        if callable(summary_getter):
+            try:
+                candidate_summary = summary_getter()
+            except Exception:
+                candidate_summary = None
+            if isinstance(candidate_summary, Mapping):
+                execution_summary = dict(candidate_summary)
+        unknown_ids = (
+            execution_summary.get("unknown_ids") if isinstance(execution_summary, Mapping) else None
+        )
+        unknown_intent_count = (
+            len(unknown_ids) if isinstance(unknown_ids, (list, tuple, set)) else None
+        )
+        unmatched_trade_count = (
+            execution_summary.get("unmatched_trade_count")
+            if isinstance(execution_summary, Mapping)
+            else None
+        )
+        if not isinstance(unmatched_trade_count, int) or isinstance(unmatched_trade_count, bool):
+            unmatched_trade_count = None
+        position_lots = 0.0
+        for row in position_rows:
+            raw_position = next(
+                (
+                    row.get(key)
+                    for key in ("quantity", "size", "volume", "Position")
+                    if row.get(key) not in (None, "")
+                ),
+                0.0,
+            )
+            try:
+                position_lots += abs(float(raw_position))
+            except (TypeError, ValueError):
+                position_lots = None
+                break
+        complete = not errors
+        timed_out = any(bool(query_results[name].get("timed_out")) for name in required_query_names)
+        all_last_seen = all(
+            query_results[name].get("is_last_seen") is True for name in required_query_names
+        )
+        first_error = next(
+            (
+                query_results[name].get("error_code")
+                for name in query_results
+                if query_results[name].get("error_code") not in (None, "", 0, "0")
+            ),
+            errors[0] if errors else None,
+        )
+        return {
+            "schema_version": "backtrader.ctp.preflight.v1",
+            "captured_at_utc": _dt.datetime.now(_UTC).isoformat(),
+            "session": deepcopy(_redact_diagnostic(session)),
+            "session_before": deepcopy(_redact_diagnostic(session_before)),
+            "session_after": deepcopy(_redact_diagnostic(session_after)),
+            "auto_settlement_confirm": auto_confirm,
+            "read_only_safe": read_only_safe,
+            "request_counts_before": request_counts_before,
+            "request_counts_after": request_counts_after,
+            "request_count_delta": request_count_delta,
+            "write_request_free": write_request_free,
+            "instrument_id": instrument_id or "",
+            "exchange_id": exchange_id,
+            "query_results": deepcopy(query_results),
+            "account": account_rows,
+            "positions": position_rows,
+            "orders": order_rows,
+            "trades": trade_rows,
+            "instruments": instrument_rows,
+            "margin_rate": margin_rate_rows,
+            "commission_rate": commission_rate_rows,
+            "active_orders": active_orders,
+            "nonzero_positions": nonzero_positions,
+            "connection_generation": semantic["connection_generation"],
+            "account_fingerprint": semantic["account_fingerprint"],
+            "reconciliation_fingerprint": fingerprint,
+            "snapshot_hash": fingerprint,
+            "request_ids": request_ids,
+            "all_request_ids": all_request_ids,
+            "request_id": composite_request_id,
+            "trading_day": trading_day,
+            "complete": complete,
+            "is_last_seen": all_last_seen,
+            "timed_out": timed_out,
+            "error_code": first_error,
+            "completed_monotonic": time.monotonic(),
+            "started_monotonic": query_started_monotonic,
+            "position_lots": position_lots,
+            "active_order_count": len(active_orders),
+            "unknown_intent_count": unknown_intent_count,
+            "unmatched_trade_count": unmatched_trade_count,
+            "execution_summary": deepcopy(_redact_diagnostic(execution_summary)),
+            "evidence_complete": complete,
+            "evidence_errors": sorted(set(errors)),
+            "flat": not active_orders and not nonzero_positions,
+        }
+
+    @staticmethod
+    def _ctp_preflight_snapshot_sha256(snapshot: Mapping[str, Any]) -> str:
+        """Hash the complete stable evidence returned by one preflight query group."""
+        fields = (
+            "schema_version",
+            "session_before",
+            "session_after",
+            "auto_settlement_confirm",
+            "read_only_safe",
+            "request_counts_before",
+            "request_counts_after",
+            "request_count_delta",
+            "write_request_free",
+            "instrument_id",
+            "exchange_id",
+            "query_results",
+            "account",
+            "positions",
+            "orders",
+            "trades",
+            "instruments",
+            "margin_rate",
+            "commission_rate",
+            "connection_generation",
+            "account_fingerprint",
+            "request_ids",
+            "all_request_ids",
+            "trading_day",
+            "complete",
+            "is_last_seen",
+            "timed_out",
+            "error_code",
+            "evidence_complete",
+            "evidence_errors",
+            "flat",
+        )
+        material = {field: snapshot.get(field) for field in fields}
+        return hashlib.sha256(
+            json.dumps(
+                material,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+
+    def get_ctp_preflight_snapshot(
+        self,
+        instrument_id: Optional[str] = None,
+        *,
+        exchange_id: str = "",
+        timeout: float = 15.0,
+        read_only: bool = True,
+    ) -> Dict[str, Any]:
+        """Query one fail-closed CTP startup snapshot through the bound client."""
+        if instrument_id:
+            parsed_instrument, parsed_exchange = _split_ctp_symbol(instrument_id)
+            instrument_id = parsed_instrument or str(instrument_id)
+            exchange_id = exchange_id or parsed_exchange
+            canonical_scope = _canonical_ctp_scope(instrument_id, exchange_id)
+            if canonical_scope:
+                exchange_id, instrument_id = canonical_scope.split(".", 1)
+        snapshot = self._build_ctp_query_snapshot(
+            instrument_id=instrument_id,
+            exchange_id=exchange_id,
+            timeout=max(float(timeout), 0.0),
+            include_reference_data=True,
+            read_only=read_only,
+        )
+        snapshot["snapshot_sha256"] = self._ctp_preflight_snapshot_sha256(snapshot)
+        self._last_ctp_preflight_snapshot = deepcopy(snapshot)
+        self._ctp_preflight_history.append(deepcopy(snapshot))
+        return snapshot
+
+    def get_ctp_reconciliation_snapshot(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+        """Query account/positions/orders/trades with terminal completion evidence."""
+        snapshot = self._build_ctp_query_snapshot(
+            instrument_id=None,
+            exchange_id="",
+            timeout=max(float(timeout), 0.0),
+            include_reference_data=False,
+            read_only=False,
+        )
+        snapshot["schema_version"] = "backtrader.ctp.reconciliation.v1"
+        self._last_ctp_reconciliation_snapshot = deepcopy(snapshot)
+        return snapshot
+
+    def prepare_ctp_settlement(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+        """Explicitly confirm CTP settlement and return before/after request evidence."""
+        if not self._is_ctp_session_provider():
+            raise BtApiStoreError("CTP settlement preparation requires a CTP provider")
+        self._ensure_api_ready()
+        before = self._read_ctp_session_state()
+        before_counts = self._ctp_request_counts(before)
+        provider = str(self.provider or "").strip().lower()
+        method = None
+        kwargs: Dict[str, Any] = {"timeout": max(float(timeout), 0.0)}
+        if provider == "btapi":
+            method = getattr(self._api, "confirm_ctp_settlement", None)
+            kwargs["exchange_name"] = self._ctp_sdk_exchange_name()
+        else:
+            for target in self._ctp_query_targets():
+                candidate = getattr(target, "confirm_settlement", None)
+                if callable(candidate):
+                    method = candidate
+                    break
+        success = False
+        error_code = None
+        if not callable(method):
+            error_code = "settlement_confirmation_capability_unavailable"
+        else:
+            try:
+                success = bool(method(**kwargs))
+            except Exception as exc:
+                error_code = type(exc).__name__
+        after = self._read_ctp_session_state()
+        after_counts = self._ctp_request_counts(after)
+        delta = self._ctp_request_count_delta(before_counts, after_counts)
+        settlement_delta = delta.get("settlement_confirm") if delta is not None else None
+        order_insert_delta = delta["order_insert"] if delta is not None else None
+        order_action_delta = delta["order_action"] if delta is not None else None
+        confirmed = str(after.get("settlement_state") or "").strip().lower() == "confirmed"
+        evidence_complete = bool(
+            success
+            and confirmed
+            and settlement_delta == 1
+            and order_insert_delta == 0
+            and order_action_delta == 0
+        )
+        if not evidence_complete and error_code is None:
+            error_code = "settlement_confirmation_evidence_incomplete"
+        return {
+            "schema_version": "backtrader.ctp.settlement-preparation.v1",
+            "exchange_name": self._ctp_sdk_exchange_name() if provider == "btapi" else "CTP",
+            "success": success,
+            "evidence_complete": evidence_complete,
+            "error_code": error_code,
+            "before_session": deepcopy(_redact_diagnostic(before)),
+            "after_session": deepcopy(_redact_diagnostic(after)),
+            "request_counts_before": before_counts,
+            "request_counts_after": after_counts,
+            "request_count_delta": delta,
+            "settlement_confirm_delta": settlement_delta,
+            "order_insert_delta": order_insert_delta,
+            "order_action_delta": order_action_delta,
+        }
+
+    def verify_ctp_settlement(self, *, timeout: float = 5.0) -> Dict[str, Any]:
+        """Verify existing settlement state using a read-only server query."""
+        if not self._is_ctp_session_provider():
+            raise BtApiStoreError("CTP settlement verification requires a CTP provider")
+        self._ensure_api_ready()
+        before = self._read_ctp_session_state()
+        before_counts = self._ctp_request_counts(before)
+        provider = str(self.provider or "").strip().lower()
+        method = None
+        kwargs: Dict[str, Any] = {"timeout": max(float(timeout), 0.0)}
+        if provider == "btapi":
+            method = getattr(self._api, "verify_ctp_settlement", None)
+            kwargs["exchange_name"] = self._ctp_sdk_exchange_name()
+        else:
+            for target in self._ctp_query_targets():
+                candidate = getattr(target, "verify_settlement_confirmation", None)
+                if callable(candidate):
+                    method = candidate
+                    break
+        if callable(method):
+            try:
+                result = self._normalise_ctp_query_result(
+                    method(**kwargs), "settlement_confirmation"
+                )
+            except Exception as exc:
+                result = self._ctp_query_failure(
+                    "settlement_confirmation", before, type(exc).__name__
+                )
+        else:
+            result = self._ctp_query_failure(
+                "settlement_confirmation",
+                before,
+                "settlement_verification_capability_unavailable",
+            )
+        after = self._read_ctp_session_state()
+        after_counts = self._ctp_request_counts(after)
+        delta = self._ctp_request_count_delta(before_counts, after_counts)
+        write_request_free = bool(
+            delta is not None and all(delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES)
+        )
+        session_confirmed = bool(
+            str(after.get("settlement_state") or "").strip().lower() == "confirmed"
+            and after.get("trading_ready") is True
+        )
+        evidence_complete = bool(
+            self._ctp_query_result_complete(result) and write_request_free and session_confirmed
+        )
+        error_code = None
+        if not evidence_complete:
+            error_code = result.get("error_code") or "settlement_verification_evidence_incomplete"
+        return {
+            "schema_version": "backtrader.ctp.settlement-verification.v1",
+            "exchange_name": self._ctp_sdk_exchange_name() if provider == "btapi" else "CTP",
+            "query_result": deepcopy(result),
+            "complete": evidence_complete,
+            "is_last_seen": result.get("is_last_seen") is True,
+            "timed_out": bool(result.get("timed_out")),
+            "error_code": error_code,
+            "evidence_complete": evidence_complete,
+            "read_only_safe": write_request_free,
+            "before_session": deepcopy(_redact_diagnostic(before)),
+            "after_session": deepcopy(_redact_diagnostic(after)),
+            "request_counts_before": before_counts,
+            "request_counts_after": after_counts,
+            "request_count_delta": delta,
+        }
+
+    def get_ctp_query_health(self) -> Dict[str, Any]:
+        """Return cached query evidence only while it matches the live CTP session."""
+        snapshot = self._last_ctp_preflight_snapshot
+        if snapshot is None:
+            return {
+                "supported": self.supports_complete_ctp_queries(include_reference_data=True),
+                "evidence_complete": False,
+                "evidence_errors": ["ctp_query_snapshot_missing"],
+            }
+        health = deepcopy(snapshot)
+        errors = set(health.get("evidence_errors") or ())
+        current = self._read_ctp_session_state()
+
+        def positive_generation(value: Any) -> int:
+            if isinstance(value, bool):
+                return 0
+            try:
+                parsed = int(value or 0)
+            except (TypeError, ValueError):
+                return 0
+            return parsed if parsed > 0 else 0
+
+        snapshot_generation = positive_generation(health.get("connection_generation"))
+        current_generation = positive_generation(current.get("connection_generation"))
+        snapshot_account = str(health.get("account_fingerprint") or "").strip()
+        current_account = str(current.get("account_fingerprint") or "").strip()
+        snapshot_trading_day = str(health.get("trading_day") or "").strip()
+        current_trading_day = str(current.get("trading_day") or "").strip()
+        if current_generation <= 0:
+            errors.add("current_session_generation_missing")
+        elif snapshot_generation != current_generation:
+            errors.add("ctp_query_snapshot_generation_stale")
+        if not current_account:
+            errors.add("current_session_account_fingerprint_missing")
+        elif snapshot_account != current_account:
+            errors.add("ctp_query_snapshot_account_stale")
+        if not current_trading_day:
+            errors.add("current_session_trading_day_missing")
+        elif snapshot_trading_day != current_trading_day:
+            errors.add("ctp_query_snapshot_trading_day_stale")
+        if current.get("read_only_ready") is not True and current.get("ready") is not True:
+            errors.add("current_ctp_session_not_ready")
+
+        completed = health.get("completed_monotonic")
+        try:
+            age = time.monotonic() - float(completed)
+        except (TypeError, ValueError, OverflowError):
+            age = math.inf
+        if not math.isfinite(age) or age < 0:
+            errors.add("ctp_query_snapshot_clock_invalid")
+        elif age > self._ctp_query_max_age_seconds:
+            errors.add("ctp_query_snapshot_stale")
+        health["age_seconds"] = age
+        health["current_session"] = deepcopy(_redact_diagnostic(current))
+        health["supported"] = self.supports_complete_ctp_queries(include_reference_data=True)
+        health["evidence_errors"] = sorted(errors)
+        health["evidence_complete"] = bool(snapshot.get("evidence_complete") is True and not errors)
+        return health
+
+    def get_ctp_session_state(self) -> Dict[str, Any]:
+        """Return cached SDK/native CTP session evidence without starting a query."""
+        if not self._is_ctp_session_provider():
+            raise BtApiStoreError("CTP session state requires a CTP provider")
+        if self._api is None:
+            return {
+                "connected": False,
+                "read_only_ready": False,
+                "trading_ready": False,
+                "request_counts": {},
+            }
+        return deepcopy(_redact_diagnostic(self._read_ctp_session_state()))
+
+    @staticmethod
+    def _sha256_json(value: Any) -> str:
+        return hashlib.sha256(
+            json.dumps(
+                value,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+
+    @staticmethod
+    def _require_sha256(value: Any, field: str) -> str:
+        text = str(value or "").strip().lower()
+        if re.fullmatch(r"[0-9a-f]{64}", text) is None:
+            raise BtApiStoreError(f"CTP execution authorization {field} is invalid")
+        return text
+
+    @staticmethod
+    def _is_sha256_hex(value: Any) -> bool:
+        return re.fullmatch(r"[0-9a-f]{64}", str(value or "")) is not None
+
+    @staticmethod
+    def _authorization_utc(value: Any, field: str) -> _dt.datetime:
+        try:
+            parsed = _dt.datetime.fromisoformat(str(value or "").replace("Z", "+00:00"))
+        except ValueError:
+            parsed = None
+        if parsed is None or parsed.tzinfo is None or parsed.utcoffset() is None:
+            raise BtApiStoreError(f"CTP execution authorization {field} is invalid")
+        return parsed.astimezone(_UTC)
+
+    @staticmethod
+    def _authorization_query_ids(
+        value: Any, expected_names: Tuple[str, ...], field: str
+    ) -> Dict[str, int]:
+        if not isinstance(value, Mapping) or set(value) != set(expected_names):
+            raise BtApiStoreError(f"CTP execution authorization {field} is invalid")
+        result: Dict[str, int] = {}
+        for name in expected_names:
+            request_id = value[name]
+            if not isinstance(request_id, int) or isinstance(request_id, bool) or request_id <= 0:
+                raise BtApiStoreError(f"CTP execution authorization {field} is invalid")
+            result[name] = request_id
+        if len(set(result.values())) != len(result):
+            raise BtApiStoreError(f"CTP execution authorization {field} is invalid")
+        return result
+
+    @staticmethod
+    def _snapshot_query_ids(
+        snapshot: Mapping[str, Any], names: Tuple[str, ...]
+    ) -> Optional[Dict[str, int]]:
+        query_results = snapshot.get("query_results")
+        if not isinstance(query_results, Mapping):
+            return None
+        result: Dict[str, int] = {}
+        for name in names:
+            item = query_results.get(name)
+            if not isinstance(item, Mapping) or not BtApiStore._ctp_query_result_complete(item):
+                return None
+            request_id = item.get("request_id")
+            if not isinstance(request_id, int) or isinstance(request_id, bool) or request_id <= 0:
+                return None
+            result[name] = request_id
+        return result
+
+    @staticmethod
+    def _normalized_account_fingerprint(value: Any) -> str:
+        account = str(value or "").strip().lower()
+        return account if account.startswith("acct_") else f"acct_{account}" if account else ""
+
+    def _validate_authorization_snapshots(self, grant: Mapping[str, Any]) -> None:
+        if len(self._ctp_preflight_history) != 2:
+            raise BtApiStoreError("CTP execution authorization requires fresh Stage A/B evidence")
+        stage_a, stage_b = tuple(self._ctp_preflight_history)
+        if stage_a.get("instrument_id") not in (None, ""):
+            raise BtApiStoreError("CTP execution authorization Stage A scope is invalid")
+        if stage_a.get("read_only_safe") is not True or stage_b.get("read_only_safe") is not True:
+            raise BtApiStoreError("CTP execution authorization preflight was not read-only")
+        stage_a_ids = self._snapshot_query_ids(stage_a, _CTP_STAGE_A_QUERY_NAMES)
+        stage_b_ids = self._snapshot_query_ids(stage_b, _CTP_STAGE_B_QUERY_NAMES)
+        if stage_a_ids is None or stage_b_ids is None:
+            raise BtApiStoreError("CTP execution authorization query evidence is incomplete")
+        supplied_a_ids = self._authorization_query_ids(
+            grant.get("stage_a_query_request_ids"),
+            _CTP_STAGE_A_QUERY_NAMES,
+            "stage_a_query_request_ids",
+        )
+        supplied_b_ids = self._authorization_query_ids(
+            grant.get("stage_b_query_request_ids"),
+            _CTP_STAGE_B_QUERY_NAMES,
+            "stage_b_query_request_ids",
+        )
+        if supplied_a_ids != stage_a_ids or supplied_b_ids != stage_b_ids:
+            raise BtApiStoreError(
+                "CTP execution authorization query IDs do not match Store evidence"
+            )
+        if set(stage_a_ids.values()).intersection(stage_b_ids.values()):
+            raise BtApiStoreError("CTP execution authorization query IDs are not independent")
+        if grant.get("stage_a_snapshot_sha256") != stage_a.get("snapshot_sha256"):
+            raise BtApiStoreError("CTP execution authorization Stage A hash mismatch")
+        if grant.get("stage_b_snapshot_sha256") != stage_b.get("snapshot_sha256"):
+            raise BtApiStoreError("CTP execution authorization Stage B hash mismatch")
+
+        account_a = self._normalized_account_fingerprint(stage_a.get("account_fingerprint"))
+        account_b = self._normalized_account_fingerprint(stage_b.get("account_fingerprint"))
+        scope_b = _canonical_ctp_scope(stage_b.get("instrument_id"), stage_b.get("exchange_id"))
+        expected = {
+            "account_fingerprint": account_b,
+            "trading_day": stage_b.get("trading_day"),
+            "connection_generation": stage_b.get("connection_generation"),
+            "instrument": scope_b,
+        }
+        observed = {field: grant.get(field) for field in expected}
+        if expected != observed:
+            raise BtApiStoreError("CTP execution authorization does not match Stage B identity")
+        if (
+            account_a != account_b
+            or stage_a.get("trading_day") != stage_b.get("trading_day")
+            or stage_a.get("connection_generation") != stage_b.get("connection_generation")
+        ):
+            raise BtApiStoreError("CTP execution authorization Stage A/B identity changed")
+        session = stage_b.get("session_after") or stage_b.get("session") or {}
+        if not isinstance(session, Mapping) or (
+            grant.get("environment_profile") != session.get("environment_profile")
+        ):
+            raise BtApiStoreError("CTP execution authorization environment profile mismatch")
+
+    @staticmethod
+    def _recovery_position(value: Any, field_name: str) -> Dict[str, int]:
+        if not isinstance(value, Mapping) or set(value) != _CTP_RECOVERY_POSITION_FIELDS:
+            raise BtApiStoreError(f"CTP execution recovery {field_name} has an invalid shape")
+        result = {}
+        for name in sorted(_CTP_RECOVERY_POSITION_FIELDS):
+            raw = value.get(name)
+            if not isinstance(raw, str) or re.fullmatch(r"0|[1-9][0-9]*", raw) is None:
+                raise BtApiStoreError(
+                    f"CTP execution recovery {field_name}.{name} is not a canonical lot string"
+                )
+            result[name] = int(raw)
+        return result
+
+    @classmethod
+    def _validate_execution_recovery_report(
+        cls,
+        report: Any,
+        *,
+        proof: Mapping[str, Any],
+        strategy_id: str,
+    ) -> Dict[str, Any]:
+        if not isinstance(report, Mapping) or set(report) != _CTP_EXECUTION_RECOVERY_FIELDS:
+            raise BtApiStoreError("SDK execution recovery report has an invalid shape")
+        result = deepcopy(dict(report))
+        if result.get("schema_version") != "bt_api.execution-recovery.v1":
+            raise BtApiStoreError("SDK execution recovery schema_version is invalid")
+        status = result.get("status")
+        if status not in {"FLAT", "RECOVERABLE", "MANUAL_INTERVENTION"}:
+            raise BtApiStoreError("SDK execution recovery status is invalid")
+        if any(
+            not isinstance(result.get(name), bool)
+            for name in ("recovery_required", "can_arm_execution", "can_arm_recovery")
+        ):
+            raise BtApiStoreError("SDK execution recovery admission flags are invalid")
+        expected_account = cls._normalized_account_fingerprint(proof.get("account_fingerprint"))
+        observed_account = cls._normalized_account_fingerprint(result.get("account_fingerprint"))
+        if not expected_account or observed_account != expected_account:
+            raise BtApiStoreError("SDK execution recovery account_fingerprint mismatch")
+        if result.get("trading_day") != proof.get("trading_day"):
+            raise BtApiStoreError("SDK execution recovery trading_day mismatch")
+        if result.get("instrument") != proof.get("instrument"):
+            raise BtApiStoreError("SDK execution recovery instrument mismatch")
+        if result.get("connection_generation") != proof.get("connection_generation"):
+            raise BtApiStoreError("SDK execution recovery connection_generation mismatch")
+        if not strategy_id or result.get("strategy_id") != strategy_id:
+            raise BtApiStoreError("SDK execution recovery strategy_id mismatch")
+        fencing_epoch = result.get("fencing_epoch")
+        if type(fencing_epoch) is not int or fencing_epoch <= 0:
+            raise BtApiStoreError("SDK execution recovery fencing_epoch is invalid")
+        if (
+            type(result.get("unknown_ids")) is not list
+            or type(result.get("evidence_errors")) is not list
+        ):
+            raise BtApiStoreError("SDK execution recovery evidence lists are invalid")
+        if any(
+            not isinstance(item, str) or not item
+            for name in ("unknown_ids", "evidence_errors")
+            for item in result[name]
+        ):
+            raise BtApiStoreError("SDK execution recovery evidence identifiers are invalid")
+
+        remote = cls._recovery_position(result.get("remote_position"), "remote_position")
+        owned = cls._recovery_position(result.get("owned_position"), "owned_position")
+        if any(owned[name] > remote[name] for name in _CTP_RECOVERY_POSITION_FIELDS):
+            raise BtApiStoreError("SDK execution recovery owned position exceeds remote position")
+        allowed_closes = result.get("allowed_closes")
+        allowed_cancels = result.get("allowed_cancels")
+        allowed_actions = result.get("allowed_actions")
+        if (
+            type(allowed_closes) is not list
+            or type(allowed_cancels) is not list
+            or type(allowed_actions) is not list
+            or any(type(action) is not str for action in allowed_actions)
+        ):
+            raise BtApiStoreError("SDK execution recovery allowed actions are invalid")
+
+        cycle_id = result.get("execution_cycle_id")
+        if cycle_id not in (None, "") and (
+            not isinstance(cycle_id, str) or cycle_id != cycle_id.strip() or len(cycle_id) > 128
+        ):
+            raise BtApiStoreError("SDK execution recovery execution_cycle_id is invalid")
+        close_totals = {"long": 0, "short": 0}
+        seen_closes = set()
+        for item in allowed_closes:
+            if not isinstance(item, Mapping) or set(item) != _CTP_RECOVERY_CLOSE_FIELDS:
+                raise BtApiStoreError("SDK execution recovery close action has an invalid shape")
+            action = dict(item)
+            if action.get("execution_cycle_id") != cycle_id:
+                raise BtApiStoreError("SDK execution recovery close cycle mismatch")
+            if _canonical_ctp_scope(action.get("symbol"), action.get("exchange_id")) != result.get(
+                "instrument"
+            ):
+                raise BtApiStoreError("SDK execution recovery close instrument mismatch")
+            position_side = str(action.get("position_side") or "").lower()
+            side = str(action.get("side") or "").lower()
+            offset = str(action.get("offset") or "").lower()
+            if position_side not in {"long", "short"} or side != (
+                "sell" if position_side == "long" else "buy"
+            ):
+                raise BtApiStoreError("SDK execution recovery close direction is invalid")
+            # CZCE exposes the generic close flag.  Today/yesterday inventory
+            # remains part of the ownership proof, but it must not be turned
+            # into SHFE/INE-specific close-today/close-yesterday instructions.
+            if offset != "close":
+                raise BtApiStoreError("SDK execution recovery CZCE close offset is invalid")
+            quantity = action.get("quantity")
+            if (
+                not isinstance(quantity, str)
+                or re.fullmatch(r"[1-9][0-9]*", quantity) is None
+                or action.get("quantity_unit") != "contracts"
+            ):
+                raise BtApiStoreError("SDK execution recovery close quantity is invalid")
+            action_identity = json.dumps(
+                action, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            if action_identity in seen_closes:
+                raise BtApiStoreError("SDK execution recovery close action is duplicated")
+            seen_closes.add(action_identity)
+            close_totals[position_side] += int(quantity)
+
+        seen_cancels = set()
+        for item in allowed_cancels:
+            if not isinstance(item, Mapping) or set(item) != _CTP_RECOVERY_CANCEL_FIELDS:
+                raise BtApiStoreError("SDK execution recovery cancel action has an invalid shape")
+            action = dict(item)
+            if action.get("execution_cycle_id") != cycle_id:
+                raise BtApiStoreError("SDK execution recovery cancel cycle mismatch")
+            if _canonical_ctp_scope(action.get("symbol"), action.get("exchange_id")) != result.get(
+                "instrument"
+            ):
+                raise BtApiStoreError("SDK execution recovery cancel instrument mismatch")
+            identifiers = tuple(
+                action.get(name) for name in ("client_order_id", "order_id", "order_ref")
+            )
+            if not any(value not in (None, "") for value in identifiers):
+                raise BtApiStoreError("SDK execution recovery cancel identity is incomplete")
+            for name in ("client_order_id", "order_id", "order_ref", "front_id", "session_id"):
+                value = action.get(name)
+                if isinstance(value, (Mapping, list, tuple, set, bool)):
+                    raise BtApiStoreError("SDK execution recovery cancel identity is invalid")
+            action_identity = json.dumps(
+                action, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            if action_identity in seen_cancels:
+                raise BtApiStoreError("SDK execution recovery cancel action is duplicated")
+            seen_cancels.add(action_identity)
+
+        remote_total = sum(remote.values())
+        owned_total = sum(owned.values())
+        owned_sides = {
+            "long": owned["long_today"] + owned["long_yesterday"],
+            "short": owned["short_today"] + owned["short_yesterday"],
+        }
+        token = result.get("recovery_token_sha256")
+        journal = result.get("journal_sha256")
+        if status == "FLAT":
+            token = str(result.get("recovery_token_sha256") or "")
+            journal = str(result.get("journal_sha256") or "")
+            if not (
+                result["recovery_required"] is False
+                and result["can_arm_execution"] is True
+                and result["can_arm_recovery"] is False
+                and cycle_id is None
+                and remote_total == 0
+                and owned_total == 0
+                and not allowed_closes
+                and not allowed_cancels
+                and allowed_actions == ["complete"]
+                and cls._is_sha256_hex(token)
+                and cls._is_sha256_hex(journal)
+                and not result["unknown_ids"]
+                and not result["evidence_errors"]
+            ):
+                raise BtApiStoreError("SDK execution recovery FLAT evidence is contradictory")
+        elif status == "RECOVERABLE":
+            token = str(result.get("recovery_token_sha256") or "")
+            journal = str(result.get("journal_sha256") or "")
+            if not (
+                result["recovery_required"] is True
+                and result["can_arm_execution"] is False
+                and result["can_arm_recovery"] is True
+                and owned == remote
+                and (owned_total > 0 or bool(allowed_cancels))
+                and isinstance(cycle_id, str)
+                and bool(cycle_id)
+                and cls._is_sha256_hex(token)
+                and cls._is_sha256_hex(journal)
+                and not result["unknown_ids"]
+                and not result["evidence_errors"]
+                and not (allowed_closes and allowed_cancels)
+                and bool(allowed_closes or allowed_cancels)
+                and allowed_actions == (["cancel"] if allowed_cancels else ["close"])
+            ):
+                raise BtApiStoreError(
+                    "SDK execution recovery RECOVERABLE evidence is contradictory"
+                )
+            if allowed_closes and close_totals != owned_sides:
+                raise BtApiStoreError("SDK execution recovery closes do not cover owned position")
+            if allowed_cancels and allowed_closes:
+                raise BtApiStoreError(
+                    "SDK execution recovery cannot close before cancel completion"
+                )
+        else:
+            journal = result.get("journal_sha256")
+            if not (
+                result["recovery_required"] is True
+                and result["can_arm_execution"] is False
+                and result["can_arm_recovery"] is False
+                and cycle_id is None
+                and not allowed_closes
+                and not allowed_cancels
+                and not allowed_actions
+                and result.get("recovery_token_sha256") is None
+                and type(result["evidence_errors"]) is list
+                and bool(result["evidence_errors"])
+                and len(result["evidence_errors"]) == len(set(result["evidence_errors"]))
+                and (journal is None or cls._is_sha256_hex(journal))
+            ):
+                raise BtApiStoreError(
+                    "SDK execution recovery MANUAL_INTERVENTION evidence is contradictory"
+                )
+        return result
+
+    def _validate_recovery_proof(self, proof: Mapping[str, Any]) -> Tuple[Dict[str, Any], str]:
+        if str(self.provider or "").strip().lower() != "btapi":
+            raise BtApiStoreError("SDK execution recovery requires provider='btapi'")
+        if not isinstance(proof, Mapping) or set(proof) != _CTP_EXECUTION_ARM_FIELDS:
+            raise BtApiStoreError("SDK execution recovery proof has an invalid shape")
+        try:
+            normalized = deepcopy(dict(proof))
+            proof_sha256 = self._sha256_json(normalized)
+        except (TypeError, ValueError):
+            raise BtApiStoreError("SDK execution recovery proof is not canonical JSON") from None
+        grant = self._ctp_execution_authorization
+        if not isinstance(grant, Mapping) or not self._ctp_execution_authorization_sha256:
+            raise BtApiStoreError("SDK execution recovery authorization is missing")
+        for field in _CTP_EXECUTION_ARM_FIELDS:
+            if normalized.get(field) != grant.get(field):
+                raise BtApiStoreError(
+                    f"SDK execution recovery proof differs from authorization: {field}"
+                )
+        self._validate_authorization_snapshots(grant)
+        snapshot = self.get_ctp_query_health()
+        if (
+            snapshot.get("evidence_complete") is not True
+            or snapshot.get("read_only_safe") is not True
+        ):
+            raise BtApiStoreError("Current CTP preflight evidence is incomplete or stale")
+        session = snapshot.get("current_session")
+        if not isinstance(session, Mapping):
+            session = snapshot.get("session")
+        session = session if isinstance(session, Mapping) else {}
+        expected = {
+            "account_fingerprint": self._normalized_account_fingerprint(
+                snapshot.get("account_fingerprint")
+            ),
+            "trading_day": snapshot.get("trading_day"),
+            "instrument": _canonical_ctp_scope(
+                snapshot.get("instrument_id"), snapshot.get("exchange_id")
+            ),
+            "connection_generation": snapshot.get("connection_generation"),
+            "environment_profile": session.get("environment_profile"),
+        }
+        observed = {
+            **normalized,
+            "account_fingerprint": self._normalized_account_fingerprint(
+                normalized.get("account_fingerprint")
+            ),
+        }
+        mismatches = [name for name, value in expected.items() if observed.get(name) != value]
+        if mismatches:
+            raise BtApiStoreError(
+                "SDK execution recovery proof does not match current preflight: "
+                + ",".join(sorted(mismatches))
+            )
+        configured_venues = set(self._sdk_exchanges)
+        configured_venues.update(str(value) for value in self._sdk_routes.values())
+        public_exchange_kwargs = getattr(self._api, "exchange_kwargs", None)
+        if isinstance(public_exchange_kwargs, Mapping):
+            configured_venues.update(str(value) for value in public_exchange_kwargs)
+        configured_venues = {value.strip() for value in configured_venues if value.strip()}
+        if configured_venues != {self._ctp_sdk_exchange_name()}:
+            raise BtApiStoreError("SDK execution recovery requires one sole CTP provider")
+        return normalized, proof_sha256
+
+    def configure_ctp_execution_authorization(self, grant: Mapping[str, Any]) -> Dict[str, Any]:
+        """Verify and bind one signed CTP capability to fresh Store evidence."""
+        with self._ctp_execution_recovery_completion_lock:
+            return self._configure_ctp_execution_authorization_locked(grant)
+
+    def _configure_ctp_execution_authorization_locked(
+        self, grant: Mapping[str, Any]
+    ) -> Dict[str, Any]:
+        """Configure authorization while recovery completion is serialized."""
+        with self._command_condition:
+            self._ctp_execution_authorization = None
+            self._ctp_execution_authorization_sha256 = None
+            self._ctp_execution_authorization_consumed = False
+            recovery_generation = self._invalidate_ctp_execution_recovery_locked()
+        self._prepare_sdk_execution_authorization("execution_authorization_reconfigured")
+        if str(self.provider or "").strip().lower() != "btapi":
+            raise BtApiStoreError("CTP execution authorization requires provider='btapi'")
+        if not isinstance(grant, Mapping) or set(grant) != _CTP_EXECUTION_AUTHORIZATION_FIELDS:
+            raise BtApiStoreError("CTP execution authorization has an invalid shape")
+        grant = deepcopy(dict(grant))
+        if grant.get("schema_version") != "backtrader.ctp.execution-authorization.v1":
+            raise BtApiStoreError("CTP execution authorization schema is unsupported")
+        try:
+            grant_sha256 = self._sha256_json(grant)
+        except (TypeError, ValueError):
+            raise BtApiStoreError("CTP execution authorization is not canonical JSON") from None
+
+        if grant.get("authorization_kind") != "hmac_sha256":
+            raise BtApiStoreError("CTP execution authorization kind is unsupported")
+        key_id = self._ctp_execution_authorization_key_id
+        approval_key = self._ctp_execution_authorization_secret
+        if not key_id or len(approval_key.encode("utf-8")) < 32:
+            raise BtApiStoreError("CTP execution authorization trust root is unavailable")
+        if not hmac.compare_digest(str(grant.get("authorization_key_id") or ""), key_id):
+            raise BtApiStoreError("CTP execution authorization key identity mismatch")
+        supplied_signature = self._require_sha256(
+            grant.get("signature_hmac_sha256"), "signature_hmac_sha256"
+        )
+        unsigned_grant = {
+            key: value for key, value in grant.items() if key != "signature_hmac_sha256"
+        }
+        expected_signature = hmac.new(
+            approval_key.encode("utf-8"),
+            json.dumps(
+                unsigned_grant,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+        if not hmac.compare_digest(supplied_signature, expected_signature):
+            raise BtApiStoreError("CTP execution authorization HMAC is invalid")
+
+        issued = self._authorization_utc(grant.get("issued_at_utc"), "issued_at_utc")
+        expires = self._authorization_utc(grant.get("expires_at_utc"), "expires_at_utc")
+        now = _dt.datetime.now(_UTC)
+        if issued > now or expires <= now or issued >= expires:
+            raise BtApiStoreError("CTP execution authorization validity interval is invalid")
+
+        hashes = (
+            "stage_a_snapshot_sha256",
+            "stage_b_snapshot_sha256",
+            "preflight_sha256",
+            "runtime_executable_sha256",
+            "native_sha256",
+            "ctp_package_sha256",
+            "source_hashes_sha256",
+            "dependency_hashes_sha256",
+            "evidence_hashes_sha256",
+            "receipt_sha256",
+        )
+        for field in hashes:
+            normalized_hash = self._require_sha256(grant.get(field), field)
+            if grant.get(field) != normalized_hash:
+                raise BtApiStoreError(f"CTP execution authorization {field} must be lowercase")
+        try:
+            with open(sys.executable, "rb") as executable_file:
+                runtime_sha256 = hashlib.sha256(executable_file.read()).hexdigest()
+        except OSError:
+            raise BtApiStoreError("CTP execution authorization runtime is unavailable") from None
+        if grant["runtime_executable_sha256"] != runtime_sha256:
+            raise BtApiStoreError("CTP execution authorization runtime hash mismatch")
+
+        if grant.get("gate_statuses") != {"G1": "PASS", "G2": "PASS", "G3": "PASS"}:
+            raise BtApiStoreError("CTP execution authorization gates are not PASS")
+        if re.fullmatch(r"CZCE\.SA\d{3}", str(grant.get("instrument") or "")) is None:
+            raise BtApiStoreError("CTP execution authorization instrument is invalid")
+        generation = grant.get("connection_generation")
+        if not isinstance(generation, int) or isinstance(generation, bool) or generation <= 0:
+            raise BtApiStoreError("CTP execution authorization connection_generation is invalid")
+        if not str(grant.get("environment_profile") or "").strip():
+            raise BtApiStoreError("CTP execution authorization environment_profile is invalid")
+        self._validate_authorization_snapshots(grant)
+        with self._command_condition:
+            if recovery_generation != self._ctp_execution_recovery_generation:
+                stale = True
+            else:
+                stale = False
+                self._ctp_execution_authorization = grant
+                self._ctp_execution_authorization_sha256 = grant_sha256
+                self._ctp_execution_authorization_consumed = False
+        if stale:
+            self._force_sdk_market_data_only(
+                "execution_authorization_configuration_stale",
+                clear_authorization=True,
+            )
+            raise BtApiStoreError("CTP execution authorization configuration became stale")
+        return {
+            "configured": True,
+            "grant_sha256": grant_sha256,
+            "market_data_only": True,
+        }
+
+    def prepare_execution_recovery(self, proof: Mapping[str, Any]) -> Dict[str, Any]:
+        """Ask the SDK for the sole account-bound recovery decision.
+
+        This bridge never infers ownership from the broker's in-memory orders.
+        Missing APIs, malformed evidence, and identity mismatches remain
+        read-only and are surfaced as errors to the runner.
+        """
+
+        with self._ctp_execution_recovery_completion_lock:
+            return self._prepare_execution_recovery_locked(proof)
+
+    def _prepare_execution_recovery_locked(self, proof: Mapping[str, Any]) -> Dict[str, Any]:
+        """Prepare a recovery plan while completion transport is serialized."""
+
+        self._sdk_execution_config["market_data_only"] = True
+        with self._command_condition:
+            self._command_accept_openings = False
+            recovery_generation = self._invalidate_ctp_execution_recovery_locked()
+        try:
+            normalized, _proof_sha256 = self._validate_recovery_proof(proof)
+        except Exception:
+            self._force_sdk_market_data_only(
+                "execution_recovery_prepare_rejected", clear_authorization=False
+            )
+            raise
+        try:
+            api = self._ensure_api_ready()
+        except Exception:
+            self._force_sdk_market_data_only(
+                "execution_recovery_prepare_api_unavailable", clear_authorization=False
+            )
+            raise
+        prepare = getattr(api, "prepare_execution_recovery", None)
+        if not callable(prepare):
+            self._force_sdk_market_data_only(
+                "execution_recovery_prepare_unavailable", clear_authorization=False
+            )
+            raise BtApiStoreError("Public SDK execution recovery capability is unavailable")
+        try:
+            raw = prepare(proof=normalized)
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            self._force_sdk_market_data_only(
+                "execution_recovery_prepare_failed", clear_authorization=False
+            )
+            raise BtApiStoreError("SDK execution recovery preparation failed") from None
+        try:
+            result = self._validate_execution_recovery_report(
+                raw,
+                proof=normalized,
+                strategy_id=str(self._sdk_execution_config.get("strategy_id") or ""),
+            )
+        except Exception:
+            self._force_sdk_market_data_only(
+                "execution_recovery_prepare_invalid", clear_authorization=False
+            )
+            raise
+        with self._command_condition:
+            if recovery_generation != self._ctp_execution_recovery_generation:
+                stale = True
+            else:
+                stale = False
+                self._ctp_execution_recovery = result
+                self._ctp_execution_recovery_proof = normalized
+        if stale:
+            self._force_sdk_market_data_only(
+                "execution_recovery_prepare_stale", clear_authorization=False
+            )
+            raise BtApiStoreError("SDK execution recovery preparation became stale")
+        return deepcopy(result)
+
+    def get_execution_recovery_snapshot(self) -> Optional[Dict[str, Any]]:
+        """Return the last SDK-validated immutable recovery decision."""
+
+        if self._ctp_execution_recovery is None:
+            return None
+        return deepcopy(self._ctp_execution_recovery)
+
+    def get_strategy_identity_sha256(self) -> str:
+        """Return the immutable strategy identity bound into managed requests."""
+
+        return str(self._sdk_execution_config.get("strategy_identity_sha256") or "")
+
+    @property
+    def execution_recovery_armed(self) -> bool:
+        """Return whether the current SDK lease permits recovery actions only."""
+
+        return bool(self._ctp_execution_recovery_armed)
+
+    def abort_execution_recovery(self, reason: str) -> Dict[str, Any]:
+        """Strictly revoke a recovery lease and invalidate its local proof."""
+
+        normalized_reason = str(reason or "execution_recovery_aborted").strip()
+        if (
+            not normalized_reason
+            or len(normalized_reason) > 128
+            or not all(
+                character.isalnum() or character in "._:-" for character in normalized_reason
+            )
+        ):
+            normalized_reason = "execution_recovery_aborted"
+        with self._ctp_execution_recovery_abort_lock:
+            with self._command_condition:
+                cached = self._ctp_execution_recovery_abort_result
+                if isinstance(cached, Mapping):
+                    return deepcopy(dict(cached))
+                self._ctp_execution_recovery_generation += 1
+                self._command_accept_openings = False
+                self._sdk_execution_config["market_data_only"] = True
+                self._ctp_execution_recovery_armed = False
+                self._ctp_execution_recovery_proof = None
+                self._ctp_execution_recovery_completion_pending = False
+                self._ctp_execution_recovery_completion_receipt = None
+                recovery = self._ctp_execution_recovery
+                expected_generation = (
+                    recovery.get("connection_generation") if isinstance(recovery, Mapping) else None
+                )
+            api = self._api
+            disarm = getattr(api, "disarm_execution", None) if api is not None else None
+            try:
+                if not callable(disarm):
+                    raise BtApiStoreError("Public SDK execution disarm capability is unavailable")
+                raw = disarm(normalized_reason)
+                observed_reason = str(raw.get("reason") or "") if isinstance(raw, Mapping) else ""
+                revocation_reason = (
+                    str(raw.get("revocation_reason") or "") if isinstance(raw, Mapping) else ""
+                )
+                reasons_valid = all(
+                    value
+                    and len(value) <= 128
+                    and all(character.isalnum() or character in "._:-" for character in value)
+                    for value in (observed_reason, revocation_reason)
+                )
+                valid = (
+                    isinstance(raw, Mapping)
+                    and set(raw)
+                    == {
+                        "armed",
+                        "market_data_only",
+                        "reason",
+                        "revocation_reason",
+                        "revoked_generation",
+                    }
+                    and raw.get("armed") is False
+                    and raw.get("market_data_only") is True
+                    and reasons_valid
+                    and hmac.compare_digest(observed_reason, revocation_reason)
+                    and type(expected_generation) is int
+                    and expected_generation > 0
+                    and raw.get("revoked_generation") == expected_generation
+                )
+                if not valid:
+                    raise BtApiStoreError("SDK execution recovery abort was not proven")
+            except Exception as exc:
+                self.sanitize_exception(exc)
+                with self._command_condition:
+                    self._command_stop_requested = True
+                    self._accept_command_completions = False
+                    self._discard_pending_commands_locked("execution_recovery_abort_failed")
+                    self._command_condition.notify_all()
+                self._connected = False
+                self._started = False
+                self._shutdown_state = "FAIL"
+                if api is not None:
+                    self._bounded_sdk_close(api, self._command_shutdown_timeout)
+                if isinstance(exc, BtApiStoreError):
+                    raise
+                raise BtApiStoreError("SDK execution recovery abort failed") from None
+            result = {
+                "aborted": True,
+                "market_data_only": True,
+                "recovery_only": False,
+                "reason": observed_reason,
+                "revocation_reason": revocation_reason,
+                "revoked_generation": raw["revoked_generation"],
+            }
+            with self._command_condition:
+                self._ctp_execution_recovery_abort_result = result
+            return deepcopy(result)
+
+    def arm_execution_recovery(
+        self,
+        proof: Mapping[str, Any],
+        *,
+        recovery_token_sha256: str,
+    ) -> Dict[str, Any]:
+        """Arm only the actions present in one SDK-issued recovery plan."""
+
+        with self._command_condition:
+            self._command_accept_openings = False
+            self._sdk_execution_arming = True
+        sdk_call_started = False
+        try:
+            normalized, proof_sha256 = self._validate_recovery_proof(proof)
+            recovery = self._ctp_execution_recovery
+            cached_proof = self._ctp_execution_recovery_proof
+            if not isinstance(recovery, Mapping) or cached_proof != normalized:
+                raise BtApiStoreError("SDK execution recovery plan is missing or stale")
+            if (
+                recovery.get("status") != "RECOVERABLE"
+                or recovery.get("can_arm_recovery") is not True
+            ):
+                raise BtApiStoreError("SDK execution recovery is not armable")
+            token = self._require_sha256(recovery_token_sha256, "recovery_token_sha256")
+            if token != recovery.get("recovery_token_sha256"):
+                raise BtApiStoreError("SDK execution recovery token mismatch")
+            if self._ctp_execution_recovery_armed:
+                raise BtApiStoreError("SDK execution recovery token was already armed")
+            api = self._ensure_api_ready()
+            arm = getattr(api, "arm_execution_recovery", None)
+            if not callable(arm):
+                raise BtApiStoreError("Public SDK execution recovery arming is unavailable")
+            sdk_call_started = True
+            raw = arm(proof=normalized, recovery_token_sha256=token)
+            if not isinstance(raw, Mapping) or set(raw) != _CTP_EXECUTION_RECOVERY_ARM_FIELDS:
+                raise BtApiStoreError("SDK execution recovery arming returned an invalid shape")
+            result = dict(raw)
+            if not (
+                result.get("armed") is True
+                and result.get("market_data_only") is False
+                and result.get("recovery_only") is True
+                and result.get("proof_sha256") == proof_sha256
+                and result.get("recovery_token_sha256") == token
+                and result.get("execution_cycle_id") == recovery.get("execution_cycle_id")
+            ):
+                raise BtApiStoreError("SDK execution recovery arming returned contradictory state")
+            self._sdk_execution_config["market_data_only"] = False
+            self._ctp_execution_recovery_armed = True
+            return deepcopy(result)
+        except Exception:
+            if sdk_call_started:
+                self._force_sdk_market_data_only(
+                    "execution_recovery_arm_post_commit_failure",
+                    clear_authorization=False,
+                )
+            raise
+        finally:
+            with self._command_condition:
+                self._command_accept_openings = False
+                self._sdk_execution_arming = False
+
+    def cancel_execution_recovery_orders(self, *, recovery_token_sha256: str) -> list:
+        """Queue exactly the SDK-approved cancellation set without local Order objects."""
+
+        recovery = self._ctp_execution_recovery
+        if not isinstance(recovery, Mapping) or not self._ctp_execution_recovery_armed:
+            raise BtApiStoreError("SDK execution recovery is not armed")
+        token = self._require_sha256(recovery_token_sha256, "recovery_token_sha256")
+        if token != recovery.get("recovery_token_sha256"):
+            raise BtApiStoreError("SDK execution recovery token mismatch")
+        actions = list(recovery.get("allowed_cancels") or ())
+        if not actions:
+            return []
+        with self._command_condition:
+            if self._ctp_execution_recovery_cancel_requested:
+                raise BtApiStoreError("SDK execution recovery cancellation was already requested")
+            self._ctp_execution_recovery_cancel_requested = True
+        try:
+            self._ensure_api_ready()
+            self._require_async_sdk_commands()
+            self._start_command_worker()
+            venue = self._ctp_sdk_exchange_name()
+            receipts = []
+            for index, action in enumerate(actions):
+                symbol = str(action["symbol"])
+                client_order_id = action.get("client_order_id")
+                order_id = action.get("order_id")
+                order_ref = action.get("order_ref")
+                reference = next(
+                    str(value)
+                    for value in (client_order_id, order_id, order_ref)
+                    if value not in (None, "")
+                )
+                local_ref = f"recovery:{token[:12]}:{index}"
+                binding = {
+                    "symbol": symbol,
+                    "exchange_name": venue,
+                    "account_id": self._sdk_account_id(venue),
+                    "client_order_id": client_order_id,
+                    "bt_order_ref": local_ref,
+                    "order_id": order_id,
+                    "order_ref": order_ref,
+                    "exchange_id": action.get("exchange_id"),
+                    "front_id": action.get("front_id"),
+                    "session_id": action.get("session_id"),
+                }
+                self._sdk_local_refs[reference] = binding
+                if client_order_id not in (None, ""):
+                    self._sdk_client_refs[(venue, str(client_order_id))] = binding
+                if order_id not in (None, ""):
+                    self._sdk_venue_refs[(venue, str(order_id))] = binding
+                receipt = self.enqueue_cancel(reference, dataname=None)
+                if not isinstance(receipt, Mapping) or receipt.get("queued") is not True:
+                    raise BtApiStoreError("SDK execution recovery cancellation was not queued")
+                receipts.append(dict(receipt))
+        except Exception:
+            self._force_sdk_market_data_only(
+                "execution_recovery_cancel_failed", clear_authorization=False
+            )
+            raise
+        return receipts
+
+    def complete_execution_recovery(self, *, recovery_token_sha256: str) -> Dict[str, Any]:
+        """Let the SDK prove two-round flatness and revoke the recovery lease once."""
+
+        with self._ctp_execution_recovery_completion_lock:
+            return self._complete_execution_recovery_locked(
+                recovery_token_sha256=recovery_token_sha256
+            )
+
+    def _complete_queued_execution_recovery(
+        self,
+        *,
+        recovery_token_sha256: str,
+        recovery_generation: int,
+    ) -> Dict[str, Any]:
+        """Complete only the recovery generation claimed by one queued receipt."""
+        with self._ctp_execution_recovery_completion_lock:
+            return self._complete_execution_recovery_locked(
+                recovery_token_sha256=recovery_token_sha256,
+                expected_generation=recovery_generation,
+            )
+
+    def _complete_execution_recovery_locked(
+        self,
+        *,
+        recovery_token_sha256: str,
+        expected_generation: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Complete recovery while holding the per-token serialization lock."""
+
+        with self._command_condition:
+            recovery = self._ctp_execution_recovery
+            recovery_generation = self._ctp_execution_recovery_generation
+            if expected_generation is not None and expected_generation != recovery_generation:
+                raise BtApiStoreError("SDK execution recovery completion receipt is stale")
+            recovery_can_complete = (
+                not self._ctp_execution_recovery_completed
+                and isinstance(recovery, Mapping)
+                and (
+                    (
+                        recovery.get("status") == "RECOVERABLE"
+                        and self._ctp_execution_recovery_armed
+                        and recovery.get("allowed_actions") == ["close"]
+                    )
+                    or (
+                        recovery.get("status") == "FLAT"
+                        and not self._ctp_execution_recovery_armed
+                        and recovery.get("allowed_actions") == ["complete"]
+                    )
+                )
+            )
+            if not recovery_can_complete:
+                raise BtApiStoreError("SDK execution recovery is not completable")
+            token = self._require_sha256(recovery_token_sha256, "recovery_token_sha256")
+            if token != recovery.get("recovery_token_sha256"):
+                raise BtApiStoreError("SDK execution recovery token mismatch")
+        complete = getattr(self._ensure_api_ready(), "complete_execution_recovery", None)
+        if not callable(complete):
+            self._force_sdk_market_data_only(
+                "execution_recovery_completion_unavailable", clear_authorization=False
+            )
+            raise BtApiStoreError("Public SDK execution recovery completion is unavailable")
+        try:
+            raw = complete(recovery_token_sha256=token)
+        except asyncio.CancelledError:
+            self._force_sdk_market_data_only(
+                "execution_recovery_completion_cancelled", clear_authorization=False
+            )
+            raise
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            self._force_sdk_market_data_only(
+                "execution_recovery_completion_failed", clear_authorization=False
+            )
+            raise BtApiStoreError("SDK execution recovery completion failed") from None
+        if not isinstance(raw, Mapping) or set(raw) != _CTP_EXECUTION_RECOVERY_COMPLETE_FIELDS:
+            self._force_sdk_market_data_only(
+                "execution_recovery_completion_invalid", clear_authorization=False
+            )
+            raise BtApiStoreError("SDK execution recovery completion returned an invalid shape")
+        result = dict(raw)
+        if not (
+            result.get("completed") is True
+            and result.get("armed") is False
+            and result.get("market_data_only") is True
+            and result.get("recovery_only") is False
+            and result.get("requires_new_preflight") is True
+            and result.get("recovery_token_sha256") == token
+        ):
+            self._force_sdk_market_data_only(
+                "execution_recovery_completion_invalid", clear_authorization=False
+            )
+            raise BtApiStoreError("SDK execution recovery completion did not prove flatness")
+        with self._command_condition:
+            stale = (
+                recovery_generation != self._ctp_execution_recovery_generation
+                or self._ctp_execution_recovery is not recovery
+                or token != recovery.get("recovery_token_sha256")
+            )
+            if not stale:
+                self._sdk_execution_config["market_data_only"] = True
+                self._command_accept_openings = False
+                self._ctp_execution_recovery_armed = False
+                self._ctp_execution_recovery_completed = True
+                self._ctp_execution_authorization_consumed = True
+        if stale:
+            self._force_sdk_market_data_only(
+                "execution_recovery_completion_stale", clear_authorization=False
+            )
+            raise BtApiStoreError("SDK execution recovery completion became stale")
+        return deepcopy(result)
+
+    def arm_sdk_execution(self, proof: Mapping[str, Any]) -> Dict[str, Any]:
+        """Consume one signed capability and atomically arm the managed SDK."""
+        if str(self.provider or "").strip().lower() != "btapi":
+            raise BtApiStoreError("SDK execution arming requires provider='btapi'")
+        with self._command_condition:
+            self._command_accept_openings = False
+            self._sdk_execution_arming = True
+        try:
+            if not isinstance(proof, Mapping) or set(proof) != _CTP_EXECUTION_ARM_FIELDS:
+                raise BtApiStoreError("SDK execution arming proof has an invalid shape")
+            if (
+                isinstance(self._ctp_execution_recovery, Mapping)
+                and not self._ctp_execution_recovery_completed
+            ):
+                raise BtApiStoreError(
+                    "SDK execution recovery must complete before ordinary execution arming"
+                )
+            try:
+                proof = dict(proof)
+                expected_hash = self._sha256_json(proof)
+            except (TypeError, ValueError):
+                raise BtApiStoreError("SDK execution arming proof is not canonical JSON") from None
+
+            grant = self._ctp_execution_authorization
+            if not isinstance(grant, Mapping) or not self._ctp_execution_authorization_sha256:
+                raise BtApiStoreError("SDK execution arming authorization is missing")
+            if self._ctp_execution_authorization_consumed:
+                raise BtApiStoreError("SDK execution arming authorization was already consumed")
+            # An attempted arm consumes the capability even when a later check
+            # fails. Retrying requires a freshly verified receipt and Stage A/B.
+            self._ctp_execution_authorization_consumed = True
+            expires = self._authorization_utc(grant.get("expires_at_utc"), "expires_at_utc")
+            if expires <= _dt.datetime.now(_UTC):
+                raise BtApiStoreError("SDK execution arming authorization expired")
+            unsigned_grant = {
+                key: value for key, value in grant.items() if key != "signature_hmac_sha256"
+            }
+            current_signature = hmac.new(
+                self._ctp_execution_authorization_secret.encode("utf-8"),
+                json.dumps(
+                    unsigned_grant,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
+            if not hmac.compare_digest(
+                str(grant.get("signature_hmac_sha256") or ""), current_signature
+            ):
+                raise BtApiStoreError("SDK execution arming authorization changed")
+            try:
+                with open(sys.executable, "rb") as executable_file:
+                    runtime_hash = hashlib.sha256(executable_file.read()).hexdigest()
+            except OSError:
+                raise BtApiStoreError("SDK execution arming runtime is unavailable") from None
+            if runtime_hash != grant.get("runtime_executable_sha256"):
+                raise BtApiStoreError("SDK execution arming runtime changed")
+
+            self._validate_authorization_snapshots(grant)
+            grant_to_proof = {
+                "account_fingerprint": grant.get("account_fingerprint"),
+                "trading_day": grant.get("trading_day"),
+                "instrument": grant.get("instrument"),
+                "connection_generation": grant.get("connection_generation"),
+                "environment_profile": grant.get("environment_profile"),
+                "receipt_sha256": grant.get("receipt_sha256"),
+                "native_sha256": grant.get("native_sha256"),
+                "ctp_package_sha256": grant.get("ctp_package_sha256"),
+                "source_hashes_sha256": grant.get("source_hashes_sha256"),
+                "dependency_hashes_sha256": grant.get("dependency_hashes_sha256"),
+                "preflight_sha256": grant.get("preflight_sha256"),
+            }
+            proof_mismatches = sorted(
+                field for field, expected in grant_to_proof.items() if proof.get(field) != expected
+            )
+            if proof_mismatches:
+                raise BtApiStoreError(
+                    "SDK execution arming proof differs from authorization: "
+                    + ",".join(proof_mismatches)
+                )
+
+            configured_venues = set(self._sdk_exchanges)
+            configured_venues.update(str(value) for value in self._sdk_routes.values())
+            public_exchange_kwargs = getattr(self._api, "exchange_kwargs", None)
+            if isinstance(public_exchange_kwargs, Mapping):
+                configured_venues.update(str(value) for value in public_exchange_kwargs)
+            configured_venues = {value.strip() for value in configured_venues if value.strip()}
+            ctp_venue = self._ctp_sdk_exchange_name()
+            if configured_venues != {ctp_venue}:
+                raise BtApiStoreError("SDK execution arming requires one sole CTP provider")
+
+            with self._ctp_query_lock:
+                api = self._ensure_api_ready()
+                arm = getattr(api, "arm_execution_from_preflight", None)
+                if not callable(arm):
+                    raise BtApiStoreError("Public SDK execution arming capability is unavailable")
+                snapshot = self.get_ctp_query_health()
+                if (
+                    snapshot.get("evidence_complete") is not True
+                    or snapshot.get("read_only_safe") is not True
+                ):
+                    raise BtApiStoreError("Current CTP preflight evidence is incomplete or stale")
+
+                current_session = snapshot.get("current_session")
+                if not isinstance(current_session, Mapping):
+                    current_session = snapshot.get("session")
+                current_session = current_session if isinstance(current_session, Mapping) else {}
+                snapshot_account = self._normalized_account_fingerprint(
+                    snapshot.get("account_fingerprint")
+                )
+                proof_account = self._normalized_account_fingerprint(
+                    proof.get("account_fingerprint")
+                )
+                expected = {
+                    "account_fingerprint": snapshot_account,
+                    "trading_day": snapshot.get("trading_day"),
+                    "instrument": _canonical_ctp_scope(
+                        snapshot.get("instrument_id"), snapshot.get("exchange_id")
+                    ),
+                    "connection_generation": snapshot.get("connection_generation"),
+                    "environment_profile": current_session.get("environment_profile"),
+                }
+                observed = {
+                    "account_fingerprint": proof_account,
+                    "trading_day": proof.get("trading_day"),
+                    "instrument": proof.get("instrument"),
+                    "connection_generation": proof.get("connection_generation"),
+                    "environment_profile": proof.get("environment_profile"),
+                }
+                mismatches = [
+                    field for field, value in expected.items() if observed[field] != value
+                ]
+                if mismatches:
+                    raise BtApiStoreError(
+                        "SDK execution arming proof does not match current preflight: "
+                        + ",".join(sorted(mismatches))
+                    )
+                try:
+                    result = arm(proof=proof)
+                    if not isinstance(result, Mapping) or not (
+                        result.get("armed") is True
+                        and result.get("market_data_only") is False
+                        and result.get("proof_sha256") == expected_hash
+                    ):
+                        raise BtApiStoreError("SDK execution arming returned an invalid result")
+                    post_health = self.get_ctp_query_health()
+                    if (
+                        post_health.get("evidence_complete") is not True
+                        or post_health.get("read_only_safe") is not True
+                        or self._normalized_account_fingerprint(
+                            post_health.get("account_fingerprint")
+                        )
+                        != proof_account
+                        or post_health.get("trading_day") != proof.get("trading_day")
+                        or post_health.get("connection_generation")
+                        != proof.get("connection_generation")
+                    ):
+                        raise BtApiStoreError(
+                            "SDK execution arming post-commit session check failed"
+                        )
+                    summary_getter = getattr(api, "get_execution_summary", None)
+                    summary = summary_getter() if callable(summary_getter) else None
+                    if not isinstance(summary, Mapping) or not (
+                        summary.get("armed") is True
+                        and summary.get("market_data_only") is False
+                        and summary.get("arm_revoked") is False
+                        and summary.get("arm_proof_sha256") == expected_hash
+                    ):
+                        raise BtApiStoreError(
+                            "SDK execution arming summary did not confirm the lease"
+                        )
+                except Exception:
+                    self._force_sdk_market_data_only(
+                        "execution_arm_post_commit_failure", clear_authorization=False
+                    )
+                    raise
+                self._sdk_execution_config["market_data_only"] = False
+                return dict(result)
+        finally:
+            # SDK arming never bypasses the Broker-side account-risk gate.
+            with self._command_condition:
+                self._command_accept_openings = False
+                self._sdk_execution_arming = False
 
     @staticmethod
     def _ctp_error_from_state(state: Dict[str, Any], key: str, default_msg: str) -> Tuple[str, str]:
@@ -7463,6 +10335,12 @@ class BtApiStore(LiveStoreBase):
 
         account_id = self._sdk_account_id(venue)
         client_id = str(payload.get("client_order_id") or self._api.new_client_order_id(venue))
+        strategy_identity_sha256 = str(
+            self._sdk_execution_config.get("strategy_identity_sha256") or ""
+        )
+        supplied_strategy_identity = str(payload.get("strategy_identity_sha256") or "")
+        if supplied_strategy_identity and supplied_strategy_identity != strategy_identity_sha256:
+            raise BtApiStoreError("Order strategy identity differs from SDK execution config")
         binding = {
             "symbol": payload["symbol"],
             "exchange_name": venue,
@@ -7496,9 +10374,16 @@ class BtApiStore(LiveStoreBase):
                     "offset",
                     "exchange_id",
                     "position_mode",
+                    "execution_cycle_id",
+                    "execution_role",
                 )
                 if payload.get(key) is not None
             },
+            **(
+                {"strategy_identity_sha256": strategy_identity_sha256}
+                if strategy_identity_sha256
+                else {}
+            ),
         )
 
         def public_value(value):
@@ -7512,6 +10397,9 @@ class BtApiStore(LiveStoreBase):
             "quantity_unit": str(public_value(request.quantity_unit)).strip().lower(),
             "requested_quantity": str(request.quantity),
             "reduce_only": bool(request.reduce_only),
+            "strategy_identity_sha256": getattr(request, "strategy_identity_sha256", None),
+            "execution_cycle_id": getattr(request, "execution_cycle_id", None),
+            "execution_role": getattr(request, "execution_role", None),
         }
         self._sdk_client_refs[(venue, client_id)] = binding
         self._sdk_local_refs[str(binding["bt_order_ref"])] = binding
@@ -7809,6 +10697,12 @@ class BtApiStore(LiveStoreBase):
     def _record_sdk_market_event(self, venue: str, raw_event: Mapping[str, Any]):
         """Attach Store-side continuity evidence without decoding venue protocols."""
         event = dict(raw_event)
+        event.setdefault("received_monotonic_ns", event.get("recv_monotonic_ns"))
+        event.setdefault("sequence", event.get("ingest_seq", 0))
+        event.setdefault("volume", event.get("delta_volume"))
+        event.setdefault("price", event.get("last_price"))
+        event.setdefault("bid_volume", event.get("bid_size"))
+        event.setdefault("ask_volume", event.get("ask_size"))
         symbol = str(event.get("symbol") or "")
         if not symbol:
             return None
@@ -7850,11 +10744,13 @@ class BtApiStore(LiveStoreBase):
         if kind == "orderbook":
             try:
                 _, _, normalize_orderbook_evidence = _sdk_cross_venue_contracts()
-                sequence, previous_sequence, snapshot_kind, continuity = normalize_orderbook_evidence(
-                    raw_sequence,
-                    raw_previous_sequence,
-                    raw_snapshot_kind,
-                    raw_continuity,
+                sequence, previous_sequence, snapshot_kind, continuity = (
+                    normalize_orderbook_evidence(
+                        raw_sequence,
+                        raw_previous_sequence,
+                        raw_snapshot_kind,
+                        raw_continuity,
+                    )
                 )
             except (BtApiStoreError, ValueError) as exc:
                 self._record_market_drop(event, str(exc))
@@ -8093,6 +10989,35 @@ class BtApiStore(LiveStoreBase):
                         except (TypeError, ValueError):
                             self._record_market_drop(event, "invalid_tick")
                             continue
+                        for key in (
+                            "schema_version",
+                            "volume_semantics",
+                            "cum_volume",
+                            "cumulative_volume",
+                            "delta_volume",
+                            "volume_complete",
+                            "volume_quality",
+                            "trading_day",
+                            "action_day",
+                            "event_time_utc",
+                            "recv_time_utc",
+                            "recv_monotonic_ns",
+                            "connection_generation",
+                            "ingest_seq",
+                            "quality",
+                            "quality_flags",
+                            "event_time_source",
+                            "instrument_id",
+                            "exchange_id",
+                            "update_time",
+                            "update_millisec",
+                            "turnover",
+                            "open_interest",
+                            "lower_limit_price",
+                            "upper_limit_price",
+                        ):
+                            if key in event:
+                                setattr(tick, key, deepcopy(event[key]))
                         if not tick.validate():
                             self._record_market_drop(event, "invalid_tick")
                             continue
@@ -8166,10 +11091,7 @@ class BtApiStore(LiveStoreBase):
 
         if self._sdk_mode and not self._sdk_configured:
             options = {**self._config, **self._api_kwargs}
-            execution = options.get(
-                "execution_config",
-                {key: options[key] for key in _SDK_EXECUTION_CONFIG_KEYS if key in options},
-            )
+            execution = dict(self._sdk_execution_config)
             if self._api is None:
                 # Creating a fresh owned client starts a new SDK session even
                 # when the caller connects lazily rather than through start().
@@ -8386,6 +11308,9 @@ class BtApiStore(LiveStoreBase):
             "front_id",
             "session_id",
             "order_ref",
+            "execution_cycle_id",
+            "execution_role",
+            "strategy_identity_sha256",
         ):
             value = info.get(key)
             if value is not None:

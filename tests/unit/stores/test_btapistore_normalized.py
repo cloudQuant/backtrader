@@ -1076,6 +1076,40 @@ def test_positions_keep_all_dual_side_lots_and_native_detail_rows():
     assert positions[1]["yesterday"] == 3 and all(p["multiplier"] == 300 for p in positions)
 
 
+def test_legacy_ctp_declared_account_identity_remains_valid_without_execution_arm():
+    account_id = "fixture-ctp-future-account"
+    execution = {"account_ids": {CTP: account_id}}
+    sdk = FakeSdk(exchange_kwargs={CTP: {}}, execution_config=execution)
+    store = store_for(
+        sdk,
+        exchange_kwargs={CTP: {}},
+        symbol_routes={"IF2609": CTP},
+        account_ids={CTP: account_id},
+    )
+
+    identity = store._validated_sdk_identity(CTP)
+
+    assert "market_data_only" not in store._sdk_execution_config
+    assert identity["account_authority"] == "declared_account_id"
+    assert identity["account_id"] == account_id
+
+
+def test_explicit_ctp_execution_arm_requires_account_fingerprint_authority():
+    account_id = "fixture-ctp-future-account"
+    execution = {"account_ids": {CTP: account_id}, "market_data_only": False}
+    sdk = FakeSdk(exchange_kwargs={CTP: {}}, execution_config=execution)
+    store = store_for(
+        sdk,
+        exchange_kwargs={CTP: {}},
+        symbol_routes={"IF2609": CTP},
+        account_ids={CTP: account_id},
+        market_data_only=False,
+    )
+
+    with pytest.raises(BtApiStoreError, match="execution_identity_account_authority_mismatch"):
+        store._validated_sdk_identity(CTP)
+
+
 @pytest.mark.parametrize("position_mode", ["net", "dual_side"])
 def test_broker_start_ignores_unrouted_zero_positions_before_feeds_start(position_mode):
     sdk = FakeSdk()

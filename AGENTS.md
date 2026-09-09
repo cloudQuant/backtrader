@@ -255,6 +255,7 @@ scripts/               optimize_code.sh, refresh_strategy_durations.py,
 studies/               research/diagnostic scripts (e.g. branch_compare/)
 examples/012_1_midfreq_cross_exchange/  mid-frequency OKX/Binance perpetual example
 examples/012_2_event_driven_cross_exchange/ event-driven OKX/Binance perpetual candidate
+examples/013_3_sa_midfreq_simnow/ controlled CTP/SimNow SA mid-frequency example
 examples/strategy-candidate-manifest.json  hash-bound research/demo admission manifest
 examples/strategy_candidate_approval.py  candidate-specific receipt/provenance policy
 Makefile pyproject.toml setup.py pytest.ini requirements.txt conftest.py
@@ -314,6 +315,15 @@ reports are formula fixtures with zero orders/fills and no PnL; the native
 Store/Feed/Cerebro/Broker path is tested separately. The second candidate is
 classified as event-driven and remains `HFT FAIL/NOT_ADMITTED` until end-to-end
 latency, queue and real-fill evidence exists.
+
+The Iteration 22 SA example uses one authoritative `BtApiFeed` to dispatch CTP
+quote events and form watermark-closed one-minute bars. CTP trading admission
+requires typed terminal account/position/order/trade/reference queries bound to
+one stable connection generation and account fingerprint. `replay` is an
+offline zero-write path, `shadow` is read-only, and `simnow` additionally
+requires a hash-bound approval receipt plus a complete first-set observation
+gate. The example never treats replay output or a single SimNow day as evidence
+that the strategy is profitable.
 
 ## Tests
 

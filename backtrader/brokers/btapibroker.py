@@ -6,6 +6,7 @@ from __future__ import annotations
 import collections
 import datetime as _dt
 import math
+import re
 import threading
 import time
 from copy import deepcopy
@@ -258,6 +259,9 @@ class BtApiBroker(BrokerBase):
         ("flatten_on_stop", True),
         ("approval_expires_at_utc", None),
         ("approval_max_order_count", None),
+        ("require_complete_ctp_evidence", False),
+        ("ctp_quote_max_age_seconds", 2.0),
+        ("execution_recovery", None),
     )
 
     def __init__(self, **kwargs):
@@ -334,10 +338,81 @@ class BtApiBroker(BrokerBase):
         self._sdk_readiness = {}
         self._last_reconcile_result = None
         self._periodic_reconcile_pending = False
+        self._ctp_reconciliation_required = False
+        self._ctp_reconciliation_rounds = 0
+        self._ctp_reconciliation_fingerprint = None
+        self._ctp_reconciliation_generation = None
+        self._ctp_reconciliation_account_fingerprint = None
+        self._ctp_reconciliation_request_ids = None
+        self._ctp_reconciliation_unknown_intent_count = None
+        self._ctp_reconciliation_unmatched_trade_count = None
+        self._ctp_reconciliation_event_epoch = 0
+        self._ctp_reconciliation_round_event_epoch = None
+        self._ctp_reconciliation_reason = ""
+        self._ctp_reconciliation_pending = False
+        self._ctp_reconciliation_callbacks = []
+        self._last_ctp_reconciliation_result = None
+        self._execution_recovery_completion_pending = False
+        self._execution_recovery_completion_callbacks = []
+        self._execution_recovery_completion_lock = threading.RLock()
+        self._execution_recovery_completion_receipt = None
+        self._last_execution_recovery_completion = None
+        self._execution_recovery_close_attempted = False
+        self._execution_recovery_aborted = False
+        self._execution_recovery_abort_result = None
         self._shutdown_summary = {"status": "NOT_STARTED"}
+        self._execution_recovery = deepcopy(self.p.execution_recovery)
         BrokerBase.set_param(
             self, "position_mode", normalize_position_mode(self.get_param("position_mode"))
         )
+
+    def _validate_execution_recovery_startup(self, remote_open_orders):
+        """Bind hydrated broker state to the SDK-owned recovery plan."""
+
+        recovery = self._execution_recovery
+        getter = getattr(self.store, "get_execution_recovery_snapshot", None)
+        current = getter() if callable(getter) else None
+        if not isinstance(recovery, dict) or current != recovery:
+            raise ValueError("SDK recovery plan is missing or changed before broker startup")
+        if not bool(getattr(self.store, "execution_recovery_armed", False)):
+            raise ValueError("SDK recovery-only execution lease is not armed")
+        if (
+            recovery.get("status") != "RECOVERABLE"
+            or recovery.get("can_arm_recovery") is not True
+            or type(recovery.get("allowed_closes")) is not list
+            or not recovery.get("allowed_closes")
+            or recovery.get("allowed_cancels") != []
+        ):
+            raise ValueError("SDK recovery plan is not ready for position closure")
+        if remote_open_orders:
+            raise ValueError("SDK recovery closure requires canceled remote orders")
+
+        instrument = str(recovery.get("instrument") or "").upper().split(".")[-1]
+        long_lots = 0
+        short_lots = 0
+        for key, position in self.long_positions.items():
+            quantity = abs(float(position.size or 0.0))
+            if quantity and str(key).upper().split(".")[-1] != instrument:
+                raise ValueError("SDK recovery broker position is outside the proven instrument")
+            long_lots += quantity
+        for key, position in self.short_positions.items():
+            quantity = abs(float(position.size or 0.0))
+            if quantity and str(key).upper().split(".")[-1] != instrument:
+                raise ValueError("SDK recovery broker position is outside the proven instrument")
+            short_lots += quantity
+        owned = recovery.get("owned_position") or {}
+        expected_long = int(owned.get("long_today", -1)) + int(owned.get("long_yesterday", -1))
+        expected_short = int(owned.get("short_today", -1)) + int(owned.get("short_yesterday", -1))
+        if (
+            not float(long_lots).is_integer()
+            or not float(short_lots).is_integer()
+            or int(long_lots) != expected_long
+            or int(short_lots) != expected_short
+        ):
+            raise ValueError("SDK recovery broker position differs from the owned position")
+        if long_lots and short_lots:
+            raise ValueError("SDK recovery does not support simultaneous long and short legs")
+        return deepcopy(recovery)
 
     def start(self):
         """Start the broker and hydrate account state from the store."""
@@ -356,6 +431,9 @@ class BtApiBroker(BrokerBase):
             )
 
         is_sdk = bool(getattr(self.store, "_sdk_mode", False))
+        recovery_requested = self._execution_recovery is not None
+        if recovery_requested and not is_sdk:
+            raise ValueError("Execution recovery requires the managed SDK broker")
         self._startup_ready = False
         if is_sdk:
             # A connected Store is insufficient authority for opening orders.
@@ -382,9 +460,9 @@ class BtApiBroker(BrokerBase):
                 force=True,
                 raise_errors=is_sdk,
             )
-            if is_sdk and remote_open_orders:
+            if is_sdk and remote_open_orders and not recovery_requested:
                 raise ValueError("SDK startup requires a proven empty remote open-order set")
-            if bool(getattr(self.store, "requires_account_risk", False)):
+            if bool(getattr(self.store, "requires_account_risk", False)) and not recovery_requested:
                 initialize_risk = getattr(self.store, "initialize_account_risk_baseline", None)
                 if not callable(initialize_risk):
                     raise ValueError("SDK account-risk baseline capability is unavailable")
@@ -397,24 +475,35 @@ class BtApiBroker(BrokerBase):
                 ):
                     raise ValueError("SDK account-risk baseline is not proven")
             if is_sdk:
-                get_reconcile_snapshot = getattr(self.store, "get_reconcile_snapshot", None)
-                if not callable(get_reconcile_snapshot):
-                    raise ValueError("SDK startup reconciliation capability is unavailable")
-                startup_reconcile = get_reconcile_snapshot()
-                if not self._reconcile_proves_flat(startup_reconcile):
-                    raise ValueError("SDK startup execution state is not proven clean and flat")
-                self._last_reconcile_result = deepcopy(startup_reconcile)
+                if recovery_requested:
+                    self._execution_recovery = self._validate_execution_recovery_startup(
+                        remote_open_orders
+                    )
+                else:
+                    get_reconcile_snapshot = getattr(self.store, "get_reconcile_snapshot", None)
+                    if not callable(get_reconcile_snapshot):
+                        raise ValueError("SDK startup reconciliation capability is unavailable")
+                    startup_reconcile = get_reconcile_snapshot()
+                    if not self._reconcile_proves_flat(startup_reconcile):
+                        raise ValueError("SDK startup execution state is not proven clean and flat")
+                    self._last_reconcile_result = deepcopy(startup_reconcile)
             self.startingcash = self._cash
             self.startingvalue = self._value
             self._freeze_position_mode("start()")
             if is_sdk:
-                enable_store_openings = getattr(
-                    self.store, "enable_openings_after_account_risk", None
-                )
-                if not callable(enable_store_openings):
-                    raise ValueError("SDK opening-admission capability is unavailable")
-                enable_store_openings()
-                self._trading_enabled = True
+                if recovery_requested:
+                    freeze_openings = getattr(self.store, "freeze_openings", None)
+                    if callable(freeze_openings):
+                        freeze_openings("execution_recovery_only")
+                    self._trading_enabled = False
+                else:
+                    enable_store_openings = getattr(
+                        self.store, "enable_openings_after_account_risk", None
+                    )
+                    if not callable(enable_store_openings):
+                        raise ValueError("SDK opening-admission capability is unavailable")
+                    enable_store_openings()
+                    self._trading_enabled = True
             self._startup_ready = True
         except Exception:
             # A partially hydrated broker must not look live.  The Store may
@@ -422,6 +511,11 @@ class BtApiBroker(BrokerBase):
             self._live_started = False
             self._startup_ready = False
             if is_sdk:
+                if recovery_requested:
+                    try:
+                        self.abort_execution_recovery("execution_recovery_startup_failed")
+                    except Exception as exc:
+                        self._sanitize_exception(exc)
                 self._trading_enabled = False
                 self._positions_snapshot_loaded = False
                 self._last_positions_refresh = 0.0
@@ -439,6 +533,118 @@ class BtApiBroker(BrokerBase):
                 if callable(freeze_openings):
                     freeze_openings("broker_start_failed")
             raise
+
+    def get_execution_recovery(self):
+        """Return the SDK-validated recovery plan bound at broker startup."""
+
+        return deepcopy(self._execution_recovery)
+
+    def abort_execution_recovery(self, reason="execution_recovery_aborted"):
+        """Revoke the current recovery lease once and keep routing read-only."""
+
+        self._trading_enabled = False
+        self._strategy_paused = True
+        self._execution_recovery_close_attempted = True
+        if self._execution_recovery_aborted:
+            return deepcopy(self._execution_recovery_abort_result)
+        abort = getattr(self.store, "abort_execution_recovery", None)
+        if not callable(abort):
+            raise ValueError("SDK execution recovery abort capability is unavailable")
+        result = abort(str(reason or "execution_recovery_aborted"))
+        if not isinstance(result, dict) or not (
+            result.get("aborted") is True
+            and result.get("market_data_only") is True
+            and result.get("recovery_only") is False
+        ):
+            raise ValueError("SDK execution recovery abort was not proven")
+        self._execution_recovery_aborted = True
+        self._execution_recovery_abort_result = deepcopy(result)
+        return deepcopy(result)
+
+    def _abort_recovery_dispatch(self, order, reason):
+        if self._execution_recovery is None:
+            return
+        try:
+            self.abort_execution_recovery(reason)
+        except Exception as exc:
+            self._sanitize_exception(exc)
+            self._emit_runtime_event(
+                "execution_recovery_abort_failed",
+                level="ERROR",
+                error_code=self._safe_exception_code(exc, "execution_recovery_abort_failed"),
+            )
+
+    def complete_execution_recovery(self, *, recovery_token_sha256):
+        """Delegate final two-round recovery reconciliation to the SDK."""
+
+        recovery = self._execution_recovery
+        if not isinstance(recovery, dict) or (
+            recovery.get("recovery_token_sha256") != recovery_token_sha256
+        ):
+            raise ValueError("Execution recovery token does not match the broker plan")
+        complete = getattr(self.store, "complete_execution_recovery", None)
+        if not callable(complete):
+            raise ValueError("SDK execution recovery completion capability is unavailable")
+        result = complete(recovery_token_sha256=recovery_token_sha256)
+        if not isinstance(result, dict) or result.get("completed") is not True:
+            raise ValueError("SDK execution recovery completion was not proven")
+        with self._execution_recovery_completion_lock:
+            self._last_execution_recovery_completion = {
+                "completed": True,
+                "status": "completed",
+                "error_code": None,
+            }
+        return deepcopy(result)
+
+    def _reject_execution_recovery_completion(self, error_code):
+        with self._execution_recovery_completion_lock:
+            self._execution_recovery_completion_pending = False
+            self._execution_recovery_completion_receipt = None
+            self._execution_recovery_completion_callbacks.clear()
+        try:
+            self.abort_execution_recovery(error_code)
+        except Exception as exc:
+            self._sanitize_exception(exc)
+        return {"queued": False, "error_code": error_code}
+
+    def request_execution_recovery_completion(self, callback, *, recovery_token_sha256):
+        """Queue SDK-owned recovery completion and notify on the Cerebro thread."""
+        with self._execution_recovery_completion_lock:
+            if not callable(callback):
+                return self._reject_execution_recovery_completion("recovery_callback_not_callable")
+            recovery = self._execution_recovery
+            if not isinstance(recovery, dict) or (
+                recovery.get("recovery_token_sha256") != recovery_token_sha256
+            ):
+                return self._reject_execution_recovery_completion("recovery_token_mismatch")
+            if callback not in self._execution_recovery_completion_callbacks:
+                self._execution_recovery_completion_callbacks.append(callback)
+            if self._execution_recovery_completion_pending:
+                return deepcopy(
+                    self._execution_recovery_completion_receipt
+                    or {"queued": True, "status": "already_pending"}
+                )
+            enqueue = getattr(self.store, "enqueue_execution_recovery_completion", None)
+            if not callable(enqueue):
+                return self._reject_execution_recovery_completion("recovery_completion_unavailable")
+            try:
+                receipt = enqueue(recovery_token_sha256=recovery_token_sha256)
+            except Exception as exc:
+                self._sanitize_exception(exc)
+                return self._reject_execution_recovery_completion(
+                    self._safe_exception_code(exc, "recovery_completion_failed")
+                )
+            self._execution_recovery_completion_pending = bool(
+                isinstance(receipt, dict) and receipt.get("queued") is True
+            )
+            if not self._execution_recovery_completion_pending:
+                return self._reject_execution_recovery_completion(
+                    str(receipt.get("error_code") or "recovery_completion_not_queued")
+                    if isinstance(receipt, dict)
+                    else "recovery_completion_not_queued"
+                )
+            self._execution_recovery_completion_receipt = deepcopy(receipt)
+            return deepcopy(self._redact_runtime_value(receipt))
 
     def _run_sdk_preflight(self):
         """Prove account permission, routed position mode, and order readiness."""
@@ -714,13 +920,27 @@ class BtApiBroker(BrokerBase):
         }
         self._emit_runtime_event("broker_winddown_started", status="running")
 
-        active = list(self.get_orders_open())
-        for order in active:
+        recovery_session = self._execution_recovery is not None
+        with self._execution_recovery_completion_lock:
+            recovery_completion_proven = bool(
+                isinstance(self._last_execution_recovery_completion, dict)
+                and self._last_execution_recovery_completion.get("completed") is True
+            )
+        if recovery_session:
+            summary["recovery_completion_proven"] = recovery_completion_proven
+        if recovery_session and not recovery_completion_proven:
             try:
-                self.cancel(order)
-                summary["cancel_requested"] += 1
+                self.abort_execution_recovery("execution_recovery_broker_stop")
             except Exception:
-                summary["reason"] = "cancel_request_failed"
+                summary.update(status="FAIL", reason="execution_recovery_abort_failed")
+        active = list(self.get_orders_open())
+        if not recovery_session:
+            for order in active:
+                try:
+                    self.cancel(order)
+                    summary["cancel_requested"] += 1
+                except Exception:
+                    summary["reason"] = "cancel_request_failed"
 
         if self._wait_and_drain(deadline):
             # Cancel completions queue identity-preserving order queries. Drain
@@ -735,7 +955,8 @@ class BtApiBroker(BrokerBase):
         ]
         summary["unknown_orders"] = len(uncertain)
         if (
-            bool(self.p.flatten_on_stop)
+            not recovery_session
+            and bool(self.p.flatten_on_stop)
             and not uncertain
             and not self.get_orders_open()
             and not self._position_audit_blocked
@@ -755,6 +976,44 @@ class BtApiBroker(BrokerBase):
 
         result = self._last_reconcile_result
         flat_proven = result is not None and self._reconcile_proves_flat(result)
+        remote_open_orders = result.get("open_orders") if isinstance(result, dict) else None
+        remote_positions = result.get("positions") if isinstance(result, dict) else None
+        execution_summary = result.get("execution_summary") if isinstance(result, dict) else None
+        local_active_order_count = sum(1 for order in self.orders.values() if order.alive())
+        local_position_count = sum(
+            1
+            for position_store in (
+                (self.long_positions, self.short_positions)
+                if self._is_dual_side_mode()
+                else (self.positions,)
+            )
+            for position in position_store.values()
+            if abs(float(position.size or 0.0)) > 1e-12
+        )
+        summary.update(
+            remote_flat_proven=bool(flat_proven),
+            active_order_count=(
+                max(local_active_order_count, len(remote_open_orders))
+                if type(remote_open_orders) is list
+                else None
+            ),
+            local_position_count=local_position_count,
+            remote_position_count=(
+                len(remote_positions) if type(remote_positions) is list else None
+            ),
+            unknown_intent_count=(
+                len(execution_summary.get("unknown_ids"))
+                if isinstance(execution_summary, dict)
+                and type(execution_summary.get("unknown_ids")) is list
+                else None
+            ),
+            unmatched_trade_count=(
+                execution_summary.get("unmatched_trade_count")
+                if isinstance(execution_summary, dict)
+                and type(execution_summary.get("unmatched_trade_count")) is int
+                else None
+            ),
+        )
         if isinstance(result, dict) and result.get("error_code"):
             summary.update(status="BLOCKED", reason="final_reconcile_unavailable")
         elif time.monotonic() >= deadline:
@@ -776,10 +1035,30 @@ class BtApiBroker(BrokerBase):
         store_state = store_health.get("shutdown_state") if isinstance(store_health, dict) else None
         summary["store_shutdown_state"] = store_state or "UNPROVEN"
         if summary["status"] != "FAIL":
-            if flat_proven and store_state == "PASS":
-                summary.update(status="PASS", reason="remote_flat_proven")
-            elif store_state == "FAIL":
+            strict_shutdown_evidence = bool(
+                self.p.require_complete_ctp_evidence or recovery_session
+            )
+            shutdown_counts_clear = True
+            if strict_shutdown_evidence:
+                exact_zero_fields = (
+                    "active_order_count",
+                    "local_position_count",
+                    "remote_position_count",
+                    "unknown_intent_count",
+                    "unmatched_trade_count",
+                )
+                shutdown_counts_clear = all(
+                    type(summary.get(field)) is int and summary[field] == 0
+                    for field in exact_zero_fields
+                )
+            if store_state == "FAIL":
                 summary.update(status="FAIL", reason="store_shutdown_failed")
+            elif recovery_session and not recovery_completion_proven:
+                summary.update(status="INCOMPLETE", reason="execution_recovery_completion_unproven")
+            elif flat_proven and shutdown_counts_clear and store_state == "PASS":
+                summary.update(status="PASS", reason="remote_flat_proven")
+            elif not shutdown_counts_clear:
+                summary.update(status="INCOMPLETE", reason="shutdown_state_not_flat")
             elif store_state != "PASS":
                 summary.update(status="INCOMPLETE", reason="store_shutdown_incomplete")
 
@@ -800,6 +1079,217 @@ class BtApiBroker(BrokerBase):
         self._drain_store_updates()
         return completed
 
+    @staticmethod
+    def _quote_value(quote, *names):
+        for name in names:
+            value = quote.get(name) if isinstance(quote, dict) else getattr(quote, name, None)
+            if value not in (None, ""):
+                return value
+        return None
+
+    @staticmethod
+    def _quote_datetime_utc(value):
+        """Parse an explicitly UTC quote timestamp without trusting local time."""
+        if isinstance(value, bool) or value in (None, ""):
+            return None
+        if isinstance(value, _dt.datetime):
+            parsed = value
+        elif isinstance(value, (int, float)):
+            try:
+                timestamp = float(value)
+                if not math.isfinite(timestamp):
+                    return None
+                if abs(timestamp) > 10_000_000_000:
+                    timestamp /= 1000.0
+                parsed = _dt.datetime.fromtimestamp(timestamp, _dt.timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                return None
+        elif isinstance(value, str):
+            try:
+                parsed = _dt.datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+            except ValueError:
+                return None
+        else:
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed.astimezone(_dt.timezone.utc)
+
+    def _current_ctp_instrument_row(self, health, data_name):
+        """Select a currently tradable instrument row bound to this data feed."""
+        if not isinstance(health, dict) or health.get("evidence_complete") is not True:
+            return None
+        aliases = set(self._symbol_aliases(data_name))
+        snapshot_instrument = str(health.get("instrument_id") or "").strip()
+        if snapshot_instrument and not aliases.intersection(
+            self._symbol_aliases(snapshot_instrument)
+        ):
+            return None
+        rows = health.get("instruments")
+        if not isinstance(rows, list):
+            return None
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            instrument = row.get("instrument_id") or row.get("InstrumentID")
+            exchange = row.get("exchange_id") or row.get("ExchangeID")
+            candidates = set(self._symbol_aliases(instrument))
+            if instrument and exchange:
+                candidates.update(self._symbol_aliases(f"{exchange}.{instrument}"))
+            if not aliases.intersection(candidates):
+                continue
+            raw_trading = row.get("is_trading", row.get("IsTrading"))
+            trading = raw_trading is True or (
+                type(raw_trading) in {int, float} and raw_trading == 1
+            )
+            if isinstance(raw_trading, str):
+                trading = raw_trading.strip().lower() in {"1", "true", "yes"}
+            return row if trading else None
+        return None
+
+    def _ctp_shutdown_limit_price(self, data, is_buy):
+        """Return a fresh opponent-price close limit protected by at most one tick."""
+        getter = getattr(self.store, "get_latest_tick_snapshot", None)
+        if not callable(getter):
+            return None
+        data_name = self._position_key(data)
+        quote = getter(data_name)
+        if quote is None:
+            return None
+        if str(self._quote_value(quote, "schema_version") or "") != "ctp.quote.v2":
+            return None
+        if str(self._quote_value(quote, "quality") or "").strip().upper() != "GOOD":
+            return None
+        raw_flags = self._quote_value(quote, "quality_flags") or ()
+        if isinstance(raw_flags, str):
+            raw_flags = (raw_flags,)
+        try:
+            blocking_flags = {
+                str(flag) for flag in raw_flags if str(flag) not in {"NO_TRADE", "VOLUME_BASELINE"}
+            }
+        except TypeError:
+            return None
+        if blocking_flags:
+            return None
+        health_getter = getattr(self.store, "get_ctp_query_health", None)
+        health = health_getter() if callable(health_getter) else {}
+        instrument = self._current_ctp_instrument_row(health, data_name)
+        if instrument is None:
+            return None
+        ready = getattr(self.store, "is_stream_ready", None)
+        if callable(ready) and ready(data_name) is not True:
+            return None
+        if bool(self._quote_value(quote, "stale")):
+            return None
+        continuity = str(self._quote_value(quote, "continuity_status", "continuity") or "")
+        if continuity in {"gap", "disconnected", "stale", "invalid"}:
+            return None
+
+        bid = self._first_number(self._quote_value(quote, "bid_price", "BidPrice1"))
+        ask = self._first_number(self._quote_value(quote, "ask_price", "AskPrice1"))
+        bid_size = self._first_number(
+            self._quote_value(quote, "bid_volume", "bid_size", "BidVolume1")
+        )
+        ask_size = self._first_number(
+            self._quote_value(quote, "ask_volume", "ask_size", "AskVolume1")
+        )
+        if (
+            not all(
+                value is not None and math.isfinite(value) and 0 < value < 1.0e50
+                for value in (bid, ask, bid_size, ask_size)
+            )
+            or bid > ask
+        ):
+            return None
+
+        received_ns = self._quote_value(quote, "recv_monotonic_ns", "received_monotonic_ns")
+        maximum_age = float(self.p.ctp_quote_max_age_seconds)
+        if not math.isfinite(maximum_age) or maximum_age < 0:
+            return None
+        if type(received_ns) is not int or received_ns <= 0:
+            return None
+        age = max(time.monotonic_ns() - received_ns, 0) / 1_000_000_000.0
+        if age > maximum_age:
+            return None
+
+        event_time = self._quote_datetime_utc(self._quote_value(quote, "event_time_utc"))
+        recv_time = self._quote_datetime_utc(self._quote_value(quote, "recv_time_utc"))
+        if event_time is None or recv_time is None:
+            return None
+        event_age = (recv_time - event_time).total_seconds()
+        recv_wall_age = (_dt.datetime.now(_dt.timezone.utc) - recv_time).total_seconds()
+        if (
+            event_age < -0.5
+            or event_age > maximum_age
+            or recv_wall_age < -0.5
+            or recv_wall_age > maximum_age
+        ):
+            return None
+
+        session_getter = getattr(self.store, "get_ctp_session_state", None)
+        if not callable(session_getter):
+            return None
+        try:
+            session = session_getter()
+            quote_generation = int(
+                self._quote_value(quote, "connection_generation", "stream_generation") or 0
+            )
+            session_generation = int(session.get("connection_generation") or 0)
+        except (TypeError, ValueError):
+            return None
+        if quote_generation <= 0 or quote_generation != session_generation:
+            return None
+
+        rules = self._contract_rules_for(data_name)
+        price_tick = self._first_number(
+            self._quote_value(quote, "price_tick", "PriceTick"),
+            instrument.get("price_tick"),
+            instrument.get("PriceTick"),
+            rules.get("min_price_tick"),
+            rules.get("price_tick"),
+            rules.get("tick_size"),
+        )
+        lower = self._first_number(
+            self._quote_value(quote, "lower_limit_price", "LowerLimitPrice"),
+            instrument.get("lower_limit_price"),
+            instrument.get("LowerLimitPrice"),
+            rules.get("lower_limit_price"),
+            rules.get("LowerLimitPrice"),
+        )
+        upper = self._first_number(
+            self._quote_value(quote, "upper_limit_price", "UpperLimitPrice"),
+            instrument.get("upper_limit_price"),
+            instrument.get("UpperLimitPrice"),
+            rules.get("upper_limit_price"),
+            rules.get("UpperLimitPrice"),
+        )
+        if (
+            not all(
+                value is not None and math.isfinite(value) and 0 < value < 1.0e50
+                for value in (price_tick, lower, upper)
+            )
+            or lower > upper
+        ):
+            return None
+
+        def on_grid(value):
+            scaled = value / price_tick
+            return math.isfinite(scaled) and abs(scaled - round(scaled)) <= 1e-8
+
+        if not all(on_grid(value) for value in (bid, ask, lower, upper)):
+            return None
+        opponent = ask if is_buy else bid
+        protected = min(ask + price_tick, upper) if is_buy else max(bid - price_tick, lower)
+        if (
+            protected < lower
+            or protected > upper
+            or not on_grid(protected)
+            or (is_buy and (protected < opponent or protected - opponent > price_tick + 1e-12))
+            or (not is_buy and (protected > opponent or opponent - protected > price_tick + 1e-12))
+        ):
+            return None
+        return protected
+
     def _submit_known_position_closes(self):
         """Generate typed reduce-only orders only for locally proven position legs."""
         data_by_key = {
@@ -816,16 +1306,25 @@ class BtApiBroker(BrokerBase):
                 missing_data.append((key, position_side))
                 return
             method = self.buy if is_buy else self.sell
+            kwargs = {}
+            if self._requires_explicit_offset(data):
+                price = self._ctp_shutdown_limit_price(data, is_buy)
+                if price is None:
+                    missing_data.append((key, position_side, "ctp_close_quote_unproven"))
+                    return
+                kwargs.update(exectype=OrderBase.Limit, price=price)
+            else:
+                kwargs["exectype"] = OrderBase.Market
             orders.append(
                 method(
                     None,
                     data,
                     size=abs(float(size)),
-                    exectype=OrderBase.Market,
                     position_side=position_side,
                     offset="close",
                     reduce_only=True,
                     shutdown_order=True,
+                    **kwargs,
                 )
             )
 
@@ -960,6 +1459,10 @@ class BtApiBroker(BrokerBase):
         """Return the last bounded winddown result."""
         return deepcopy(self._shutdown_summary)
 
+    def get_shutdown_summary(self):
+        """Return the public bounded winddown evidence used by run acceptance."""
+        return self.get_shutdown_state()
+
     def get_last_reconcile_result(self):
         """Return a credential-safe copy of the latest remote risk snapshot."""
         return deepcopy(self._redact_runtime_value(self._last_reconcile_result))
@@ -987,6 +1490,380 @@ class BtApiBroker(BrokerBase):
             isinstance(safe_receipt, dict) and safe_receipt.get("queued") is True
         )
         return safe_receipt
+
+    def _begin_ctp_reconciliation(self, reason):
+        """Latch the CTP reopen barrier until two stable complete reads agree."""
+        self._ctp_reconciliation_required = True
+        self._ctp_reconciliation_rounds = 0
+        self._ctp_reconciliation_fingerprint = None
+        self._ctp_reconciliation_generation = None
+        self._ctp_reconciliation_account_fingerprint = None
+        self._ctp_reconciliation_request_ids = None
+        self._ctp_reconciliation_unknown_intent_count = None
+        self._ctp_reconciliation_unmatched_trade_count = None
+        self._ctp_reconciliation_round_event_epoch = None
+        self._ctp_reconciliation_reason = str(reason or "ctp_reconciliation_required")
+
+    def _reset_ctp_reconciliation_rounds(self, reason):
+        self._ctp_reconciliation_rounds = 0
+        self._ctp_reconciliation_fingerprint = None
+        self._ctp_reconciliation_generation = None
+        self._ctp_reconciliation_account_fingerprint = None
+        self._ctp_reconciliation_request_ids = None
+        self._ctp_reconciliation_unknown_intent_count = None
+        self._ctp_reconciliation_unmatched_trade_count = None
+        self._ctp_reconciliation_round_event_epoch = None
+        self._ctp_reconciliation_reason = str(reason or "ctp_reconciliation_incomplete")
+
+    def _ctp_local_positions_flat(self):
+        stores = (
+            (self.long_positions, self.short_positions)
+            if self._is_dual_side_mode()
+            else (self.positions,)
+        )
+        return all(
+            abs(float(position.size or 0.0)) <= 1e-12
+            for position_store in stores
+            for position in position_store.values()
+        )
+
+    @staticmethod
+    def _ctp_query_row_identifiers(row):
+        return {
+            str(row.get(key))
+            for key in (
+                "external_order_id",
+                "order_id",
+                "id",
+                "order_ref",
+                "OrderSysID",
+                "OrderRef",
+                "client_order_id",
+            )
+            if row.get(key) not in (None, "")
+        }
+
+    @classmethod
+    def _ctp_order_query_identity_complete(cls, row):
+        if not isinstance(row, dict):
+            return False
+        order_ref = cls._extract_update_value(row, "order_ref", "OrderRef")
+        order_sys_id = cls._extract_update_value(
+            row, "external_order_id", "order_sys_id", "OrderSysID"
+        )
+        front_id = cls._extract_update_value(row, "front_id", "FrontID")
+        session_id = cls._extract_update_value(row, "session_id", "SessionID")
+        exchange_id = (
+            str(cls._extract_update_value(row, "exchange_id", "ExchangeID") or "").strip().upper()
+        )
+        instrument_id = (
+            str(cls._extract_update_value(row, "instrument_id", "InstrumentID") or "")
+            .strip()
+            .upper()
+        )
+        trading_day = str(cls._extract_update_value(row, "trading_day", "TradingDay") or "").strip()
+        try:
+            valid_session = int(front_id) > 0 and int(session_id) > 0
+        except (TypeError, ValueError):
+            valid_session = False
+        status = cls._normalize_remote_order_status(row.get("status"))
+        order_sys_required = status not in {"rejected"}
+        return bool(
+            order_ref not in (None, "")
+            and (order_sys_id not in (None, "") or not order_sys_required)
+            and valid_session
+            and exchange_id in {"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"}
+            and re.fullmatch(r"[A-Z]+\d{3,4}", instrument_id)
+            and re.fullmatch(r"\d{8}", trading_day)
+        )
+
+    @classmethod
+    def _ctp_trade_query_identity_complete(cls, row):
+        if not isinstance(row, dict):
+            return False
+        required = (
+            cls._extract_update_value(row, "trade_id", "TradeID"),
+            cls._extract_update_value(row, "order_sys_id", "OrderSysID"),
+            cls._extract_update_value(row, "exchange_id", "ExchangeID"),
+            cls._extract_update_value(row, "instrument_id", "InstrumentID"),
+            cls._extract_update_value(row, "trading_day", "TradingDay", "TradeDate"),
+        )
+        if any(value in (None, "") for value in required):
+            return False
+        exchange = str(required[2]).strip().upper()
+        instrument = str(required[3]).strip().upper()
+        trading_day = str(required[4]).strip()
+        return bool(
+            exchange in {"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"}
+            and re.fullmatch(r"[A-Z]+\d{3,4}", instrument)
+            and re.fullmatch(r"\d{8}", trading_day)
+        )
+
+    def _ctp_terminal_query_row(self, order, rows):
+        identifiers = {
+            str(value)
+            for value in (
+                getattr(order, "ref", None),
+                self._order_info_get(order, "external_order_id"),
+                self._order_info_get(order, "ctp_order_ref"),
+                self._order_info_get(order, "client_order_id"),
+            )
+            if value not in (None, "")
+        }
+        for row in rows:
+            if not self._ctp_order_query_identity_complete(row) or not identifiers.intersection(
+                self._ctp_query_row_identifiers(row)
+            ):
+                continue
+            row_instrument = self._extract_update_value(row, "instrument_id", "InstrumentID")
+            row_exchange = self._extract_update_value(row, "exchange_id", "ExchangeID")
+            row_aliases = set(self._symbol_aliases(row_instrument))
+            row_aliases.update(self._symbol_aliases(f"{row_exchange}.{row_instrument}"))
+            if not set(self._symbol_aliases(self._position_key(order.data))).intersection(
+                row_aliases
+            ):
+                continue
+            status = self._normalize_remote_order_status(row.get("status"))
+            if status in {"canceled", "rejected", "expired"}:
+                return {**row, "status": status}
+        return None
+
+    def get_ctp_reconciliation_state(self):
+        """Return the public two-round CTP reopen-barrier state."""
+        return {
+            "required": bool(self._ctp_reconciliation_required),
+            "complete": not self._ctp_reconciliation_required,
+            "consecutive_complete_rounds": int(self._ctp_reconciliation_rounds),
+            "required_rounds": 2,
+            "connection_generation": self._ctp_reconciliation_generation,
+            "account_fingerprint": self._ctp_reconciliation_account_fingerprint,
+            "request_ids": deepcopy(self._ctp_reconciliation_request_ids),
+            "unknown_intent_count": self._ctp_reconciliation_unknown_intent_count,
+            "unmatched_trade_count": self._ctp_reconciliation_unmatched_trade_count,
+            "reconciliation_fingerprint": self._ctp_reconciliation_fingerprint,
+            "event_epoch": self._ctp_reconciliation_event_epoch,
+            "reason": self._ctp_reconciliation_reason,
+        }
+
+    def record_ctp_reconciliation(self, snapshot):
+        """Advance the reopen barrier only for two unchanged complete flat snapshots."""
+        if not isinstance(snapshot, dict) or snapshot.get("evidence_complete") is not True:
+            self._reset_ctp_reconciliation_rounds("query_evidence_incomplete")
+            return self.get_ctp_reconciliation_state()
+        if snapshot.get("flat") is not True:
+            self._reset_ctp_reconciliation_rounds("remote_exposure_not_flat")
+            return self.get_ctp_reconciliation_state()
+        unknown_intent_count = snapshot.get("unknown_intent_count")
+        unmatched_trade_count = snapshot.get("unmatched_trade_count")
+        counts_complete = all(
+            isinstance(value, int) and not isinstance(value, bool)
+            for value in (unknown_intent_count, unmatched_trade_count)
+        )
+        if not counts_complete:
+            self._reset_ctp_reconciliation_rounds("execution_summary_incomplete")
+            return self.get_ctp_reconciliation_state()
+        if unknown_intent_count != 0 or unmatched_trade_count != 0:
+            self._reset_ctp_reconciliation_rounds("execution_summary_not_clear")
+            self._ctp_reconciliation_unknown_intent_count = unknown_intent_count
+            self._ctp_reconciliation_unmatched_trade_count = unmatched_trade_count
+            return self.get_ctp_reconciliation_state()
+        fingerprint = str(snapshot.get("reconciliation_fingerprint") or "")
+        account = str(snapshot.get("account_fingerprint") or "")
+        try:
+            generation = int(snapshot.get("connection_generation") or 0)
+        except (TypeError, ValueError):
+            generation = 0
+        if len(fingerprint) != 64 or not account or generation <= 0:
+            self._reset_ctp_reconciliation_rounds("query_identity_incomplete")
+            return self.get_ctp_reconciliation_state()
+        query_results = snapshot.get("query_results")
+        required_queries = ("account", "positions", "orders", "trades")
+        if not isinstance(query_results, dict):
+            self._reset_ctp_reconciliation_rounds("query_request_ids_incomplete")
+            return self.get_ctp_reconciliation_state()
+        try:
+            request_ids = tuple(
+                int(query_results[name].get("request_id") or 0) for name in required_queries
+            )
+        except (AttributeError, KeyError, TypeError, ValueError):
+            request_ids = ()
+        if len(request_ids) != len(required_queries) or any(value <= 0 for value in request_ids):
+            self._reset_ctp_reconciliation_rounds("query_request_ids_incomplete")
+            return self.get_ctp_reconciliation_state()
+        if len(set(request_ids)) != len(request_ids):
+            self._reset_ctp_reconciliation_rounds("query_request_ids_not_independent")
+            return self.get_ctp_reconciliation_state()
+        if self._pending_trade_updates:
+            self._reset_ctp_reconciliation_rounds("unmatched_trade_updates")
+            return self.get_ctp_reconciliation_state()
+
+        rows = snapshot.get("orders")
+        if not isinstance(rows, list):
+            self._reset_ctp_reconciliation_rounds("order_query_invalid")
+            return self.get_ctp_reconciliation_state()
+        trades = snapshot.get("trades")
+        if not all(self._ctp_order_query_identity_complete(row) for row in rows):
+            self._reset_ctp_reconciliation_rounds("order_query_identity_incomplete")
+            return self.get_ctp_reconciliation_state()
+        if not isinstance(trades, list) or not all(
+            self._ctp_trade_query_identity_complete(row) for row in trades
+        ):
+            self._reset_ctp_reconciliation_rounds("trade_query_identity_incomplete")
+            return self.get_ctp_reconciliation_state()
+        alive = [order for order in self.orders.values() if order.alive()]
+        terminal_unknowns = {}
+        for order in alive:
+            if bool(self._order_info_get(order, "execution_unknown", False)):
+                terminal = self._ctp_terminal_query_row(order, rows)
+                if terminal is not None:
+                    terminal_unknowns[order.ref] = terminal
+                    continue
+            self._reset_ctp_reconciliation_rounds("local_order_not_terminal")
+            return self.get_ctp_reconciliation_state()
+        if not self._ctp_local_positions_flat():
+            self._reset_ctp_reconciliation_rounds("local_position_not_flat")
+            return self.get_ctp_reconciliation_state()
+
+        same_round = bool(
+            self._ctp_reconciliation_fingerprint == fingerprint
+            and self._ctp_reconciliation_generation == generation
+            and self._ctp_reconciliation_account_fingerprint == account
+            and self._ctp_reconciliation_round_event_epoch == self._ctp_reconciliation_event_epoch
+        )
+        if same_round and self._ctp_reconciliation_request_ids is not None:
+            if set(request_ids).intersection(self._ctp_reconciliation_request_ids):
+                self._ctp_reconciliation_reason = "query_snapshot_replayed"
+                return self.get_ctp_reconciliation_state()
+        self._ctp_reconciliation_rounds = self._ctp_reconciliation_rounds + 1 if same_round else 1
+        self._ctp_reconciliation_fingerprint = fingerprint
+        self._ctp_reconciliation_generation = generation
+        self._ctp_reconciliation_account_fingerprint = account
+        self._ctp_reconciliation_request_ids = request_ids
+        self._ctp_reconciliation_unknown_intent_count = unknown_intent_count
+        self._ctp_reconciliation_unmatched_trade_count = unmatched_trade_count
+        self._ctp_reconciliation_round_event_epoch = self._ctp_reconciliation_event_epoch
+        self._ctp_reconciliation_reason = "awaiting_second_complete_snapshot"
+        if self._ctp_reconciliation_rounds < 2:
+            return self.get_ctp_reconciliation_state()
+
+        for ref, update in terminal_unknowns.items():
+            resolved = dict(update)
+            resolved.setdefault("kind", "order")
+            resolved["bt_order_ref"] = ref
+            resolved["terminal_confirmed"] = True
+            self._apply_order_update(resolved, from_query=True)
+        if (
+            any(order.alive() for order in self.orders.values())
+            or not self._ctp_local_positions_flat()
+        ):
+            self._reset_ctp_reconciliation_rounds("local_state_did_not_converge")
+            return self.get_ctp_reconciliation_state()
+        self._ctp_reconciliation_required = False
+        self._ctp_reconciliation_reason = "two_complete_snapshots_agree"
+        return self.get_ctp_reconciliation_state()
+
+    def reconcile_ctp_execution(self, *, timeout=5.0):
+        """Perform one public, read-only CTP reconciliation round."""
+        method = getattr(self.store, "get_ctp_reconciliation_snapshot", None)
+        if not callable(method):
+            self._reset_ctp_reconciliation_rounds("query_capability_unavailable")
+            return self.get_ctp_reconciliation_state()
+        try:
+            snapshot = method(timeout=timeout)
+        except Exception:
+            self._reset_ctp_reconciliation_rounds("query_failed")
+            return self.get_ctp_reconciliation_state()
+        state = self.record_ctp_reconciliation(snapshot)
+        state["snapshot"] = deepcopy(self._redact_runtime_value(snapshot))
+        return state
+
+    def request_ctp_reconciliation(self, callback=None, *, timeout=5.0):
+        """Queue one complete CTP query round and deliver it from :meth:`next`."""
+        if callback is not None and not callable(callback):
+            return {"queued": False, "error_code": "reconciliation_callback_not_callable"}
+        callbacks = [callback] if callback is not None else []
+        if callback is None:
+            cerebro = getattr(self, "cerebro", None)
+            for strategy in getattr(cerebro, "runningstrats", ()) or ():
+                notifier = getattr(strategy, "notify_reconciliation", None)
+                if callable(notifier):
+                    callbacks.append(notifier)
+        for notifier in callbacks:
+            if notifier not in self._ctp_reconciliation_callbacks:
+                self._ctp_reconciliation_callbacks.append(notifier)
+        if self._ctp_reconciliation_pending:
+            return {"queued": True, "status": "already_pending"}
+        method = getattr(self.store, "enqueue_ctp_reconciliation", None)
+        if not callable(method):
+            self._ctp_reconciliation_callbacks.clear()
+            return {"queued": False, "error_code": "ctp_query_capability_unavailable"}
+        try:
+            receipt = method(timeout=max(float(timeout), 0.0))
+        except Exception as exc:
+            self._sanitize_exception(exc)
+            self._ctp_reconciliation_callbacks.clear()
+            return {
+                "queued": False,
+                "error_code": self._safe_exception_code(exc, "ctp_reconcile_request_failed"),
+            }
+        safe_receipt = deepcopy(self._redact_runtime_value(receipt))
+        self._ctp_reconciliation_pending = bool(
+            isinstance(safe_receipt, dict) and safe_receipt.get("queued") is True
+        )
+        if not self._ctp_reconciliation_pending:
+            self._ctp_reconciliation_callbacks.clear()
+        return safe_receipt
+
+    def get_last_ctp_reconciliation_result(self):
+        """Return the most recent callback-safe result without issuing network I/O."""
+        return deepcopy(self._redact_runtime_value(self._last_ctp_reconciliation_result))
+
+    def _ctp_reconciliation_callback_snapshot(self, snapshot, state):
+        """Attach main-thread ledger evidence to one complete-query snapshot."""
+        result = deepcopy(self._redact_runtime_value(snapshot))
+        local_unknown = sum(
+            1
+            for order in self.orders.values()
+            if order.alive() and bool(self._order_info_get(order, "execution_unknown", False))
+        )
+        remote_unknown = result.get("unknown_intent_count")
+        unknown_count = (
+            max(int(remote_unknown), local_unknown)
+            if isinstance(remote_unknown, int) and not isinstance(remote_unknown, bool)
+            else local_unknown
+        )
+        remote_unmatched = result.get("unmatched_trade_count")
+        unmatched_count = len(self._pending_trade_updates)
+        if isinstance(remote_unmatched, int) and not isinstance(remote_unmatched, bool):
+            unmatched_count = max(remote_unmatched, unmatched_count)
+        local_active = sum(1 for order in self.orders.values() if order.alive())
+        remote_active = result.get("active_order_count")
+        active_count = local_active
+        if isinstance(remote_active, int) and not isinstance(remote_active, bool):
+            active_count = max(remote_active, local_active)
+        local_position_lots = sum(
+            abs(float(position.size or 0.0))
+            for position_store in (
+                (self.long_positions, self.short_positions)
+                if self._is_dual_side_mode()
+                else (self.positions,)
+            )
+            for position in position_store.values()
+        )
+        remote_position_lots = result.get("position_lots")
+        position_lots = local_position_lots
+        if isinstance(remote_position_lots, (int, float)) and not isinstance(
+            remote_position_lots, bool
+        ):
+            position_lots = max(abs(float(remote_position_lots)), local_position_lots)
+        result.update(
+            position_lots=position_lots,
+            active_order_count=active_count,
+            unknown_intent_count=unknown_count,
+            unmatched_trade_count=unmatched_count,
+            broker_reconciliation_state=deepcopy(state),
+        )
+        return result
 
     def get_execution_summary(self):
         """Return the SDK execution-session summary through a safe public view."""
@@ -1226,6 +2103,14 @@ class BtApiBroker(BrokerBase):
             code, message = approval_error
             return self._reject_order(order, code, message)
 
+        if (
+            self._execution_recovery is not None
+            and self._order_info_get(order, "execution_role") == "recovery_exit"
+        ):
+            # The recovery token authorizes one exact action.  Any rejected,
+            # timed-out, or ambiguous remote attempt requires a fresh SDK plan.
+            self._execution_recovery_close_attempted = True
+
         try:
             order.submit(self)
             order.addcomminfo(self.getcommissioninfo(order.data))
@@ -1275,6 +2160,8 @@ class BtApiBroker(BrokerBase):
             self.notify(order)
             if not queued_receipt:
                 self._apply_submit_response_fill(order, response)
+            if risk_reducing and self._requires_explicit_offset(order.data):
+                self._begin_ctp_reconciliation("risk_reducing_order_submitted")
             return order
         except TimeoutError as exc:
             self._sanitize_exception(exc)
@@ -1317,6 +2204,19 @@ class BtApiBroker(BrokerBase):
             return None
 
         if not order.alive():
+            return order
+
+        if (
+            self._execution_recovery is not None
+            and self._order_info_get(order, "execution_role") == "recovery_exit"
+        ):
+            self._abort_recovery_dispatch(order, "execution_recovery_cancel_requires_refresh")
+            order.addinfo(
+                execution_unknown=True,
+                recovery_refresh_required=True,
+                cancel_requested_remote=False,
+            )
+            self.notify(order)
             return order
 
         if bool(self._order_info_get(order, "cancel_requested_remote", False)):
@@ -1416,6 +2316,7 @@ class BtApiBroker(BrokerBase):
 
     def _accept_unknown_submission(self, order, exc, error_code):
         """Keep an ambiguously submitted order alive under its original identity."""
+        self._abort_recovery_dispatch(order, "execution_recovery_dispatch_unknown")
         order.accept(self)
         order.addinfo(
             execution_unknown=True,
@@ -1429,6 +2330,8 @@ class BtApiBroker(BrokerBase):
         client_ref = self._order_info_get(order, "client_order_id")
         if client_ref not in (None, ""):
             self._remember_client_ref(order, client_ref)
+        if self._requires_explicit_offset(order.data):
+            self._begin_ctp_reconciliation("unknown_order_submission")
         self.notify(order)
         return order
 
@@ -1451,6 +2354,100 @@ class BtApiBroker(BrokerBase):
         offset = str(getattr(info, "get", lambda *_: None)("offset") or "open").lower()
         reduce_only = bool(getattr(info, "get", lambda *_: False)("reduce_only"))
         return reduce_only or offset != "open"
+
+    def _managed_execution_order_error(self, order):
+        """Bind and validate the identity carried by managed CTP writes."""
+
+        identity_reader = getattr(self.store, "get_strategy_identity_sha256", None)
+        strategy_identity = str(identity_reader() if callable(identity_reader) else "")
+        recovery = self._execution_recovery
+        if not strategy_identity and recovery is None:
+            return None
+        if re.fullmatch(r"[0-9a-f]{64}", strategy_identity) is None:
+            return (
+                "strategy_identity_unproven",
+                "Managed execution requires the configured strategy identity",
+            )
+        supplied_identity = str(self._order_info_get(order, "strategy_identity_sha256") or "")
+        if supplied_identity and supplied_identity != strategy_identity:
+            return (
+                "strategy_identity_mismatch",
+                "Order strategy identity differs from the managed execution session",
+            )
+        order.addinfo(strategy_identity_sha256=strategy_identity)
+
+        cycle_id = self._order_info_get(order, "execution_cycle_id")
+        role = str(self._order_info_get(order, "execution_role") or "")
+        offset = str(self._order_info_get(order, "offset") or "open").lower()
+        if (
+            not isinstance(cycle_id, str)
+            or cycle_id != cycle_id.strip()
+            or not cycle_id
+            or len(cycle_id) > 128
+            or role not in {"entry", "exit", "recovery_exit"}
+        ):
+            return (
+                "execution_identity_incomplete",
+                "Managed execution requires an explicit cycle and role",
+            )
+        if role == "entry" and offset != "open":
+            return "execution_role_mismatch", "Entry role requires an opening order"
+        if role in {"exit", "recovery_exit"} and offset != "close":
+            return "execution_role_mismatch", "Exit role requires a generic CZCE close"
+
+        if recovery is None:
+            if role == "recovery_exit":
+                return (
+                    "execution_recovery_not_active",
+                    "Recovery exit requires an SDK-issued recovery plan",
+                )
+            return None
+        if role != "recovery_exit":
+            return (
+                "execution_recovery_only",
+                "This broker session accepts only the SDK-issued recovery close",
+            )
+        if self._execution_recovery_close_attempted:
+            return (
+                "execution_recovery_close_consumed",
+                "The SDK-issued recovery close was already attempted",
+            )
+
+        data_name = self._position_key(order.data).upper().split(".")[-1]
+        side = "buy" if order.isbuy() else "sell"
+        position_side = str(self._order_info_get(order, "position_side") or "").lower()
+        exchange_id = str(self._order_info_get(order, "exchange_id") or "").upper()
+        quantity_unit = str(self._order_info_get(order, "quantity_unit") or "").lower()
+        requested = abs(float(order.size or 0.0))
+        action_matches = False
+        if math.isfinite(requested) and requested > 0 and requested.is_integer():
+            for action in recovery.get("allowed_closes") or ():
+                if not isinstance(action, dict):
+                    continue
+                try:
+                    action_quantity = int(action.get("quantity"))
+                except (TypeError, ValueError):
+                    continue
+                action_matches = bool(
+                    action.get("execution_cycle_id") == cycle_id
+                    and str(action.get("symbol") or "").upper().split(".")[-1] == data_name
+                    and str(action.get("exchange_id") or "").upper() == exchange_id
+                    and str(action.get("position_side") or "").lower() == position_side
+                    and str(action.get("side") or "").lower() == side
+                    and str(action.get("offset") or "").lower() == "close"
+                    and action_quantity == int(requested)
+                    and action.get("quantity") == str(action_quantity)
+                    and str(action.get("quantity_unit") or "").lower() == "contracts"
+                    and quantity_unit == "contracts"
+                )
+                if action_matches:
+                    break
+        if not action_matches:
+            return (
+                "execution_recovery_action_mismatch",
+                "Order differs from the SDK-issued recovery close",
+            )
+        return None
 
     @staticmethod
     def _parse_approval_expiry(value):
@@ -1497,9 +2494,22 @@ class BtApiBroker(BrokerBase):
 
     def _placement_safety_error(self, order):
         """Fail closed for new exposure after unknown execution or bad market data."""
+        managed_error = self._managed_execution_order_error(order)
+        if managed_error is not None:
+            return managed_error
         if self._is_risk_reducing_order(order):
             return None
-        if not self._uses_async_commands():
+        is_ctp_order = self._requires_explicit_offset(order.data)
+        uses_async_commands = self._uses_async_commands()
+        if is_ctp_order and self._ctp_reconciliation_required:
+            return (
+                "ctp_reconciliation_required",
+                "New CTP exposure is blocked until two complete reconciliation snapshots agree",
+            )
+        # The legacy synchronous non-CTP adapters predate Store command/stream
+        # health and keep their existing pre-trade audit path.  Native CTP must
+        # still pass the stricter gates below even on a synchronous adapter.
+        if not is_ctp_order and not uses_async_commands:
             return None
         unknown_orders = [
             candidate
@@ -1526,6 +2536,51 @@ class BtApiBroker(BrokerBase):
                 "cancel_intent_active",
                 "New exposure is blocked until the pending cancellation reaches a terminal state",
             )
+        if is_ctp_order:
+            capability = getattr(self.store, "supports_complete_ctp_queries", None)
+            capability_ready = bool(
+                callable(capability) and capability(include_reference_data=True)
+            )
+            if self.p.require_complete_ctp_evidence and not capability_ready:
+                return (
+                    "ctp_query_capability_unavailable",
+                    "New CTP exposure requires the typed startup-query capability",
+                )
+            if capability_ready:
+                getter = getattr(self.store, "get_ctp_query_health", None)
+                health = getter() if callable(getter) else {}
+                if not isinstance(health, dict) or health.get("evidence_complete") is not True:
+                    return (
+                        "ctp_query_evidence_incomplete",
+                        "New CTP exposure is blocked until typed startup queries complete",
+                    )
+                if self.p.require_complete_ctp_evidence:
+                    if (
+                        self._current_ctp_instrument_row(health, self._position_key(order.data))
+                        is None
+                    ):
+                        return (
+                            "ctp_instrument_state_unproven",
+                            "New CTP exposure requires current tradable-instrument evidence",
+                        )
+                    unknown_count = health.get("unknown_intent_count")
+                    unmatched_count = health.get("unmatched_trade_count")
+                    counts_complete = all(
+                        isinstance(value, int) and not isinstance(value, bool)
+                        for value in (unknown_count, unmatched_count)
+                    )
+                    if not counts_complete:
+                        return (
+                            "ctp_execution_summary_incomplete",
+                            "New CTP exposure requires complete execution-ledger counts",
+                        )
+                    if unknown_count != 0 or unmatched_count != 0:
+                        return (
+                            "ctp_execution_summary_not_clear",
+                            "New CTP exposure is blocked by unresolved execution evidence",
+                        )
+        if not uses_async_commands:
+            return None
         health_method = getattr(self.store, "get_command_health", None)
         if callable(health_method):
             health = health_method()
@@ -3101,6 +4156,11 @@ class BtApiBroker(BrokerBase):
 
     def _validate_order(self, order):
         """Run lightweight local validation before the order reaches the store."""
+        if self._requires_explicit_offset(order.data) and self._order_type_name(order) != "limit":
+            return (
+                "unsupported_order_type",
+                "CTP orders require an explicit limit price and cannot use Market execution",
+            )
         if not bool(self.p.validation_enabled):
             return None
 
@@ -3123,6 +4183,10 @@ class BtApiBroker(BrokerBase):
         type_error = self._validate_order_type(order, rules)
         if type_error is not None:
             return type_error
+
+        tif_error = self._validate_time_in_force(order)
+        if tif_error is not None:
+            return tif_error
 
         if self._is_dual_side_mode() and self._order_info_get(order, "offset") in {
             "close",
@@ -3156,6 +4220,23 @@ class BtApiBroker(BrokerBase):
         if cash_error is not None:
             return cash_error
 
+        return None
+
+    def _validate_time_in_force(self, order):
+        """Freeze the first CTP strategy contract to explicit GFD orders."""
+        if not self._requires_explicit_offset(order.data):
+            return None
+        value = self._order_info_get(order, "time_in_force")
+        if value in (None, ""):
+            order.addinfo(time_in_force="GFD")
+            return None
+        normalized = str(value).strip().upper().replace("-", "_")
+        if normalized not in {"GFD", "GOOD_FOR_DAY"}:
+            return (
+                "unsupported_time_in_force",
+                f"CTP first-version orders require GFD; received {normalized or '<unknown>'}",
+            )
+        order.addinfo(time_in_force="GFD")
         return None
 
     @classmethod
@@ -3270,7 +4351,7 @@ class BtApiBroker(BrokerBase):
         if configured:
             return {str(item or "").strip().lower() for item in configured if item}
         if self._requires_explicit_offset(order.data):
-            return {"market", "limit"}
+            return {"limit"}
         return None
 
     def _validate_order_type(self, order, rules):
@@ -3399,6 +4480,7 @@ class BtApiBroker(BrokerBase):
 
     def _reject_order(self, order, error_code, error_msg):
         """Reject an order locally and emit a structured runtime event."""
+        self._abort_recovery_dispatch(order, "execution_recovery_dispatch_failed")
         error_code = str(self._redact_runtime_value(error_code))
         error_msg = str(self._redact_runtime_value(error_msg))
         order.addinfo(error_code=error_code, error_msg=error_msg)
@@ -3722,7 +4804,10 @@ class BtApiBroker(BrokerBase):
                 continue
             if alias_set.intersection(self._symbol_aliases(key)):
                 rules.update(value)
-        if self._uses_async_commands():
+        # SDK metadata is startup-cached even when a compatibility adapter
+        # executes commands synchronously.  Do not turn an order-type check
+        # into a synchronous SDK metadata request on the strategy thread.
+        if bool(getattr(self.store, "_sdk_mode", False)) or self._uses_async_commands():
             store_metadata = getattr(self.store, "contract_metadata", {})
             for alias in aliases:
                 rules.update(store_metadata.get(alias, {}))
@@ -3789,6 +4874,26 @@ class BtApiBroker(BrokerBase):
 
             for update in self._iter_broker_update_rows(raw_update):
                 kind = str(update.get("kind") or "").lower()
+                command = str(update.get("command") or "")
+                ctp_query_completion = bool(
+                    kind == "command_completion" and command == "ctp_reconcile"
+                )
+                execution_evidence_update = bool(
+                    kind in {"order", "trade", "error"}
+                    or (
+                        kind == "command_completion"
+                        and command in {"submit", "cancel", "query", "reconcile"}
+                    )
+                )
+                if not ctp_query_completion:
+                    self._ctp_reconciliation_event_epoch += 1
+                    if self._ctp_reconciliation_required:
+                        self._reset_ctp_reconciliation_rounds("broker_update_between_snapshots")
+                    elif self._ctp_reconciliation_rounds >= 2 and execution_evidence_update:
+                        # A late execution-side event makes the last flat
+                        # snapshot obsolete even when the two-round gate had
+                        # already opened.
+                        self._begin_ctp_reconciliation("broker_update_after_reconciliation")
                 if kind == "order":
                     self._apply_order_update(update)
                 elif kind == "trade":
@@ -3801,6 +4906,81 @@ class BtApiBroker(BrokerBase):
     def _apply_command_completion(self, update):
         """Apply worker results on the Cerebro thread without treating REST ACKs as fills."""
         command = str(update.get("command") or "")
+        if command == "execution_recovery_complete":
+            response = update.get("response")
+            completed = bool(
+                update.get("success") is True
+                and isinstance(response, dict)
+                and response.get("completed") is True
+                and response.get("armed") is False
+                and response.get("market_data_only") is True
+                and response.get("recovery_only") is False
+                and response.get("requires_new_preflight") is True
+            )
+            notification = {
+                "completed": completed,
+                "status": "completed" if completed else "failed",
+                "error_code": (
+                    None
+                    if completed
+                    else (update.get("error_code") or "recovery_completion_unproven")
+                ),
+            }
+            with self._execution_recovery_completion_lock:
+                self._execution_recovery_completion_pending = False
+                self._execution_recovery_completion_receipt = None
+                callbacks = tuple(self._execution_recovery_completion_callbacks)
+                self._execution_recovery_completion_callbacks.clear()
+                prior = self._last_execution_recovery_completion
+                if not (
+                    isinstance(prior, dict)
+                    and prior.get("completed") is True
+                    and notification["completed"] is False
+                ):
+                    self._last_execution_recovery_completion = deepcopy(notification)
+            for callback in callbacks:
+                try:
+                    callback(deepcopy(notification))
+                except Exception as exc:
+                    self._sanitize_exception(exc)
+                    self._emit_runtime_event(
+                        "execution_recovery_completion_callback_failed",
+                        level="ERROR",
+                        error_code=type(exc).__name__,
+                    )
+            return
+        if command == "ctp_reconcile":
+            self._ctp_reconciliation_pending = False
+            callbacks = tuple(self._ctp_reconciliation_callbacks)
+            self._ctp_reconciliation_callbacks.clear()
+            response = update.get("response")
+            if update.get("success") is True and isinstance(response, dict):
+                state = self.record_ctp_reconciliation(response)
+                notification = self._ctp_reconciliation_callback_snapshot(response, state)
+            else:
+                self._reset_ctp_reconciliation_rounds("query_failed")
+                state = self.get_ctp_reconciliation_state()
+                notification = {
+                    "schema_version": "backtrader.ctp.reconciliation.v1",
+                    "complete": False,
+                    "is_last_seen": False,
+                    "timed_out": False,
+                    "error_code": update.get("error_code") or "ctp_reconciliation_failed",
+                    "evidence_complete": False,
+                    "broker_reconciliation_state": state,
+                }
+            self._last_ctp_reconciliation_result = deepcopy(notification)
+            for callback in callbacks:
+                try:
+                    callback(deepcopy(notification))
+                except Exception as exc:
+                    self._sanitize_exception(exc)
+                    self._emit_runtime_event(
+                        "ctp_reconciliation_callback_failed",
+                        level="ERROR",
+                        error_code=type(exc).__name__,
+                    )
+            return
         if command == "reconcile":
             self._periodic_reconcile_pending = False
             if update.get("success") is True and isinstance(update.get("response"), dict):
@@ -3880,6 +5060,7 @@ class BtApiBroker(BrokerBase):
         if command != "submit":
             return
         if isinstance(response, dict) and response.get("execution_unknown") is True:
+            self._abort_recovery_dispatch(order, "execution_recovery_dispatch_unknown")
             if order.status < order.Accepted:
                 order.accept(self)
             order.addinfo(
@@ -3895,6 +5076,7 @@ class BtApiBroker(BrokerBase):
             and response.get("definite_reject") is True
             and response.get("terminal_confirmed") is True
         ):
+            self._abort_recovery_dispatch(order, "execution_recovery_dispatch_failed")
             self._apply_order_update(response)
             return
         if update.get("success") is True:
@@ -3909,6 +5091,7 @@ class BtApiBroker(BrokerBase):
             self.notify(order)
             return
         if update.get("execution_unknown") is True:
+            self._abort_recovery_dispatch(order, "execution_recovery_dispatch_unknown")
             if order.status < order.Accepted:
                 order.accept(self)
             order.addinfo(
@@ -3920,6 +5103,7 @@ class BtApiBroker(BrokerBase):
             self._request_order_reconcile(order)
             return
         if order.alive():
+            self._abort_recovery_dispatch(order, "execution_recovery_dispatch_failed")
             order.addinfo(
                 error_code=(
                     "remote_submit_rejected"
