@@ -1,0 +1,77 @@
+{
+  "created_at_utc": "2026-09-09T01:57:19.819643+00:00",
+  "decision_checksum": 59125,
+  "excluded_boundaries": [
+    "CTP network transit",
+    "broker/exchange queueing",
+    "order acknowledgement and fill latency",
+    "evidence recording"
+  ],
+  "hardware": {
+    "architecture": "arm64",
+    "cpu_model": "Apple M2",
+    "executable": "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "load_average_at_start": [
+      1.41796875,
+      1.70751953125,
+      1.923828125
+    ],
+    "logical_cpu_count": 8,
+    "memory_bytes": 17179869184,
+    "physical_cpu_count": 8,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "python": "3.11.8"
+  },
+  "input": {
+    "frozen_before_measurement": true,
+    "frozen_snapshot_path": "/private/tmp/iter22-latency-root.4t5qDZ/run/frozen_snapshots.jsonl",
+    "frozen_snapshot_sha256": "332020548ea045b410ff6841a1cda6faed58669751f9ea0fb7765e85cbb6021f",
+    "generator": "iter22_integer_tick_quote_fixture_v1",
+    "interval_seconds": 0.05,
+    "schema_version": "ctp.quote.v2",
+    "trading_day": "20260909"
+  },
+  "measurement_boundary": "local normalize_quote -> bounded QuoteFeatureWindow -> frozen signal fusion",
+  "percentiles_ms": {
+    "max": 1.316083,
+    "p50": 0.352833,
+    "p95": 0.372875,
+    "p99": 0.394958
+  },
+  "raw_durations": {
+    "path": "/private/tmp/iter22-latency-root.4t5qDZ/run/latencies_ns.txt",
+    "sha256": "4e2184e4b915fcfb935df4df86d5257b252a9b45192204e77ad65864bab6d2cd",
+    "unit": "nanoseconds"
+  },
+  "recording_enabled": false,
+  "required_sample_count": 100000,
+  "sample_count": 100000,
+  "schema_version": "iter22.latency_benchmark.v1",
+  "source_sha256": {
+    "examples/013_3_sa_midfreq_simnow/features.py": "cb969813dd3eb1fe46950cb3a441d0a47eed2f3a02d97a9862b614353ffce831",
+    "examples/013_3_sa_midfreq_simnow/reporting.py": "a3e8a0f0300ca6986a7306935bacb2d00eaa08eb0a92f1c85973e46edd7c6ed0",
+    "examples/013_3_sa_midfreq_simnow/signal_model.py": "dedca3d508be14bb51200f0444e907d38a38341a0b03364d90865e535e81a1fb",
+    "scripts/run_iteration22_ctp_benchmarks.py": "8ccb5bfed7004b08c38b8a98324eee163f6aec91d6da6c48c62c01baa12126e8"
+  },
+  "source_sha256_at_end": {
+    "examples/013_3_sa_midfreq_simnow/features.py": "cb969813dd3eb1fe46950cb3a441d0a47eed2f3a02d97a9862b614353ffce831",
+    "examples/013_3_sa_midfreq_simnow/reporting.py": "a3e8a0f0300ca6986a7306935bacb2d00eaa08eb0a92f1c85973e46edd7c6ed0",
+    "examples/013_3_sa_midfreq_simnow/signal_model.py": "dedca3d508be14bb51200f0444e907d38a38341a0b03364d90865e535e81a1fb",
+    "scripts/run_iteration22_ctp_benchmarks.py": "8ccb5bfed7004b08c38b8a98324eee163f6aec91d6da6c48c62c01baa12126e8"
+  },
+  "source_sha256_at_start": {
+    "examples/013_3_sa_midfreq_simnow/features.py": "cb969813dd3eb1fe46950cb3a441d0a47eed2f3a02d97a9862b614353ffce831",
+    "examples/013_3_sa_midfreq_simnow/reporting.py": "a3e8a0f0300ca6986a7306935bacb2d00eaa08eb0a92f1c85973e46edd7c6ed0",
+    "examples/013_3_sa_midfreq_simnow/signal_model.py": "dedca3d508be14bb51200f0444e907d38a38341a0b03364d90865e535e81a1fb",
+    "scripts/run_iteration22_ctp_benchmarks.py": "8ccb5bfed7004b08c38b8a98324eee163f6aec91d6da6c48c62c01baa12126e8"
+  },
+  "source_stable": true,
+  "status": "PASS",
+  "threshold": {
+    "maximum": 20.0,
+    "metric": "p99_ms"
+  },
+  "throughput_per_second": 2799.6011287217157,
+  "wall_elapsed_seconds": 35.719374083,
+  "warmup_sample_count": 2000
+}

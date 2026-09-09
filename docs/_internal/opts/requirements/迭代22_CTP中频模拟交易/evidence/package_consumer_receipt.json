@@ -1,0 +1,41 @@
+{
+  "schema_version": "iter22.package-consumer-receipt.v1",
+  "recorded_at": "2026-09-09T00:00:00+08:00",
+  "source_commits": {
+    "backtrader": "c26e2e22",
+    "bt_api_py": "23562d16ab94993e11c39ded02874b7dc685ffee",
+    "bt_api_ctp": "ea6dbf81f8183fdca60c560bb2efd1afae61ad6b"
+  },
+  "wheels": {
+    "backtrader-1.3.0-py3-none-any.whl": "87942094b8689bb6510c4bee762b6b599ab58f53c8680519bfbf5bb692aaa783",
+    "bt_api_py-0.15.3-py3-none-any.whl": "083701dd9a72b7c7a74501344ac0095e90ecd339919f2cd555adc8df3610d9bd",
+    "bt_api_ctp-2.0.0-cp311-cp311-macosx_11_0_arm64.whl": "9726acfd4c8bed5233190f621122cdf936eaae08e2930f086359e92124007bb5"
+  },
+  "runtime": {
+    "platform_scope": "macOS arm64 / Python 3.11 / Anaconda base",
+    "native_loaded": true,
+    "native_sha256": "61bd6692d5f8215025545f2156536a63d9571c405bba1f0b4cdb97a517b6777a",
+    "imports_resolved_from_consumer_venv_site_packages": [
+      "backtrader",
+      "bt_api_py",
+      "bt_api_ctp"
+    ]
+  },
+  "external_replay": {
+    "cwd": "/private/tmp",
+    "pythonpath": "",
+    "python_no_user_site": true,
+    "command": "run.py --mode replay --scenario no_signal",
+    "exit_code": 0,
+    "manifest_exit_status": "PASS_REPLAY_PATH",
+    "quotes": 7500,
+    "bars": 106,
+    "orders": 0,
+    "trades": 0,
+    "pnl_fields_emitted": false,
+    "sdk_write_requests": 0,
+    "position_lots": 0,
+    "unknown_intents": 0
+  },
+  "limitation": "consumer venv was created with system-site-packages; the three asserted packages were nevertheless individually verified to resolve from this venv site-packages. This receipt is package/replay evidence only, not a SimNow or cross-platform acceptance result."
+}

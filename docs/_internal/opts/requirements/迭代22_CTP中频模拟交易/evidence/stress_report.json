@@ -1,0 +1,2808 @@
+{
+  "acceptance": {
+    "exit_code": 0,
+    "failed_gates": [],
+    "profile_gates": {
+      "full_rss_windows_complete": true
+    },
+    "runtime_gates": {
+      "dropped_clear": true,
+      "event_count_matches_schedule": true,
+      "evidence_counts_match": true,
+      "opening_allowed": true,
+      "pending_clear": true,
+      "requested_schedule_complete": true,
+      "requested_wall_clock_complete": true,
+      "resource_sampling_healthy": true,
+      "rss_peak_within_limit": true,
+      "rss_sampling_healthy": true,
+      "runtime_clean": true,
+      "schedule_lag_within_limit": true,
+      "segment_integrity": true,
+      "source_stable": true,
+      "writer_healthy": true
+    },
+    "status": "PASS"
+  },
+  "complete_profile_requested": true,
+  "created_at_utc": "2026-09-09T06:03:50.752415+00:00",
+  "deadline_policy": "stop_generation_at_monotonic_deadline_without_catch_up",
+  "elapsed_seconds": 14400.000064083957,
+  "event_count": 504000,
+  "evidence": {
+    "counts_match": true,
+    "directory": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence",
+    "dropped_counts": {
+      "bars": 0,
+      "orders": 0,
+      "quotes": 0,
+      "risk_events": 0,
+      "signals": 0,
+      "trades": 0
+    },
+    "enqueued_counts": {
+      "bars": 240,
+      "orders": 0,
+      "quotes": 504000,
+      "risk_events": 0,
+      "signals": 504000,
+      "trades": 0
+    },
+    "expected_counts": {
+      "bars": 240,
+      "orders": 0,
+      "quotes": 504000,
+      "risk_events": 0,
+      "signals": 504000,
+      "trades": 0
+    },
+    "failure_reason": null,
+    "healthy": true,
+    "max_pending_counts": {
+      "bars": 1,
+      "orders": 0,
+      "quotes": 82,
+      "risk_events": 0,
+      "signals": 83,
+      "trades": 0
+    },
+    "max_pending_total": 165,
+    "opening_allowed": true,
+    "pending_counts": {
+      "bars": 0,
+      "orders": 0,
+      "quotes": 0,
+      "risk_events": 0,
+      "signals": 0,
+      "trades": 0
+    },
+    "persisted_counts": {
+      "bars": 240,
+      "orders": 0,
+      "quotes": 504000,
+      "risk_events": 0,
+      "signals": 504000,
+      "trades": 0
+    },
+    "queue_limit": 10000,
+    "rotate_bytes": 100000000,
+    "rotation_counts": {
+      "bars": 0,
+      "orders": 0,
+      "quotes": 3,
+      "risk_events": 0,
+      "signals": 3,
+      "trades": 0
+    },
+    "segment_errors": [],
+    "segment_line_counts": {
+      "bars": 240,
+      "orders": 0,
+      "quotes": 504000,
+      "risk_events": 0,
+      "signals": 504000,
+      "trades": 0
+    },
+    "segment_manifest": {
+      "bars": [
+        {
+          "active": true,
+          "ends_with_newline": true,
+          "line_count": 240,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/bars.jsonl",
+          "rotation_index": null,
+          "sha256": "df661c01657f0eb10d18dbdc35b72f11514e0bffc74ee40d3ce7694d6d6e50ed",
+          "size_bytes": 19810
+        }
+      ],
+      "orders": [],
+      "quotes": [
+        {
+          "active": false,
+          "ends_with_newline": true,
+          "line_count": 150219,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/quotes.jsonl.0001",
+          "rotation_index": 1,
+          "sha256": "fc6b221db29c3f4b5c5ce26cc8bc674e83625867e7882ed80d1ebbdd7aabe400",
+          "size_bytes": 99999485
+        },
+        {
+          "active": false,
+          "ends_with_newline": true,
+          "line_count": 149784,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/quotes.jsonl.0002",
+          "rotation_index": 2,
+          "sha256": "c4e1b5d29763b4ac9577a86473fa13282bf02840ea821dc4b29754e9f55767b6",
+          "size_bytes": 99999882
+        },
+        {
+          "active": false,
+          "ends_with_newline": true,
+          "line_count": 149713,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/quotes.jsonl.0003",
+          "rotation_index": 3,
+          "sha256": "674f169dd3886dbb13fd3e0e093c1e53dbf897260eb53affefdaedfbaa7dbfd7",
+          "size_bytes": 99999855
+        },
+        {
+          "active": true,
+          "ends_with_newline": true,
+          "line_count": 54284,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/quotes.jsonl",
+          "rotation_index": null,
+          "sha256": "9320f684710ebfa7b71ef102e2015b1ecc12088bf0206e0e138af3ef5de48bf8",
+          "size_bytes": 36257760
+        }
+      ],
+      "risk_events": [],
+      "signals": [
+        {
+          "active": false,
+          "ends_with_newline": true,
+          "line_count": 139417,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/signals.jsonl.0001",
+          "rotation_index": 1,
+          "sha256": "df5867396d0bad2b322448ae3aae2113f95ee7a21ee68c8317a1a29fe14259c0",
+          "size_bytes": 99999947
+        },
+        {
+          "active": false,
+          "ends_with_newline": true,
+          "line_count": 138629,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/signals.jsonl.0002",
+          "rotation_index": 2,
+          "sha256": "95f351abb996bd203a366858551cb0d7260dfdc362f3ef8008ea04fc8f2a0780",
+          "size_bytes": 99999852
+        },
+        {
+          "active": false,
+          "ends_with_newline": true,
+          "line_count": 138625,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/signals.jsonl.0003",
+          "rotation_index": 3,
+          "sha256": "9af1b7a0353fe1aec44a3b228f02fc873f01c4222d06e7ff1df9a7e96d65fd83",
+          "size_bytes": 99999794
+        },
+        {
+          "active": true,
+          "ends_with_newline": true,
+          "line_count": 87329,
+          "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/evidence/signals.jsonl",
+          "rotation_index": null,
+          "sha256": "ce70786ad6141a16e4b49abc74e58958a342d2832d5123007facc64bc10ab87f",
+          "size_bytes": 62985349
+        }
+      ],
+      "trades": []
+    }
+  },
+  "hardware": {
+    "architecture": "arm64",
+    "cpu_model": "Apple M2",
+    "executable": "/Users/yunjinqi/opt/anaconda3/bin/python",
+    "load_average_at_start": [
+      1.5966796875,
+      1.6708984375,
+      1.82861328125
+    ],
+    "logical_cpu_count": 8,
+    "memory_bytes": 17179869184,
+    "physical_cpu_count": 8,
+    "platform": "macOS-26.5.1-arm64-arm-64bit",
+    "python": "3.11.8"
+  },
+  "last_event_due_elapsed_seconds": 14399.95,
+  "last_event_started_elapsed_seconds": 14399.950643084012,
+  "maximum_schedule_lag_seconds": 1.8803371249232441,
+  "peak_process_tree_rss_bytes": 50855936,
+  "peak_rss_limit_bytes": 536870912,
+  "profile": {
+    "base_events_per_second": 20.0,
+    "burst_events_per_second": 200.0,
+    "burst_seconds_each_minute": 5.0,
+    "duration_seconds": 14400.0,
+    "sample_interval_seconds": 1.0
+  },
+  "required_profile": {
+    "base_events_per_second": 20.0,
+    "burst_events_per_second": 200.0,
+    "burst_seconds_each_minute": 5.0,
+    "duration_seconds": 14400,
+    "expected_base_events_per_minute": 1100,
+    "expected_burst_events_per_minute": 1000,
+    "expected_minute_count": 240,
+    "expected_total_events": 504000,
+    "expected_total_events_per_minute": 2100,
+    "maximum_rss_sample_interval_seconds": 2.0,
+    "maximum_sample_interval_seconds": 60.0,
+    "maximum_schedule_lag_seconds": 2.0,
+    "minimum_rss_window_coverage_ratio": 0.9,
+    "rss_poll_interval_seconds": 1.0
+  },
+  "resource_invalid_sample_count": 0,
+  "resource_samples": {
+    "count": 14178,
+    "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/resource_samples.jsonl",
+    "sha256": "c002b0a923debb422ecaeadcc3932476ccd97f4d712dc72a8da58476dcd6c5d5"
+  },
+  "resource_sampling_error_count": 0,
+  "rss_samples": {
+    "count": 14178,
+    "path": "/private/tmp/iter22-stress-root.vK9Cxr/run/rss_samples.jsonl",
+    "poll_interval_seconds": 1.0,
+    "sha256": "703729e7257282abfe11abb4303a5da915dc5a0995220a35b4298e14ddef30ab"
+  },
+  "rss_windows": {
+    "allowed_growth_bytes": 33554432,
+    "coverage_complete": true,
+    "duration_complete": true,
+    "first_stable_p95_bytes": 39141376,
+    "growth_bytes": -2588672,
+    "invalid_sample_count": 0,
+    "last_p95_bytes": 36552704,
+    "minimum_coverage_ratio": 0.9,
+    "required_window_count": 7,
+    "sampling_error_count": 0,
+    "series_quality": {
+      "duplicate_slot_count": 0,
+      "first_elapsed_seconds": 4.833913408219814e-06,
+      "invalid_sample_count": 0,
+      "invalid_timestamp_count": 0,
+      "last_elapsed_seconds": 14400.000064083957,
+      "maximum_allowed_interval_seconds": 2.0,
+      "maximum_interval_seconds": 1.9203873329097405,
+      "nonincreasing_timestamp_count": 0,
+      "raw_sample_count": 14178,
+      "sampling_error_count": 0,
+      "status": "PASS",
+      "unique_slot_count": 14178,
+      "valid": true
+    },
+    "status": "PASS",
+    "windows": [
+      {
+        "coverage_ratio": 0.9855555555555555,
+        "coverage_status": "PASS",
+        "end_seconds": 3600,
+        "expected_sample_count": 1800,
+        "index": 0,
+        "invalid_sample_count": 0,
+        "minimum_sample_count": 1620,
+        "p95_rss_bytes": 39141376,
+        "sample_count": 1774,
+        "start_seconds": 1800
+      },
+      {
+        "coverage_ratio": 0.985,
+        "coverage_status": "PASS",
+        "end_seconds": 5400,
+        "expected_sample_count": 1800,
+        "index": 1,
+        "invalid_sample_count": 0,
+        "minimum_sample_count": 1620,
+        "p95_rss_bytes": 39501824,
+        "sample_count": 1773,
+        "start_seconds": 3600
+      },
+      {
+        "coverage_ratio": 0.9827777777777778,
+        "coverage_status": "PASS",
+        "end_seconds": 7200,
+        "expected_sample_count": 1800,
+        "index": 2,
+        "invalid_sample_count": 0,
+        "minimum_sample_count": 1620,
+        "p95_rss_bytes": 37847040,
+        "sample_count": 1769,
+        "start_seconds": 5400
+      },
+      {
+        "coverage_ratio": 0.9855555555555555,
+        "coverage_status": "PASS",
+        "end_seconds": 9000,
+        "expected_sample_count": 1800,
+        "index": 3,
+        "invalid_sample_count": 0,
+        "minimum_sample_count": 1620,
+        "p95_rss_bytes": 36782080,
+        "sample_count": 1774,
+        "start_seconds": 7200
+      },
+      {
+        "coverage_ratio": 0.985,
+        "coverage_status": "PASS",
+        "end_seconds": 10800,
+        "expected_sample_count": 1800,
+        "index": 4,
+        "invalid_sample_count": 0,
+        "minimum_sample_count": 1620,
+        "p95_rss_bytes": 36356096,
+        "sample_count": 1773,
+        "start_seconds": 9000
+      },
+      {
+        "coverage_ratio": 0.9833333333333333,
+        "coverage_status": "PASS",
+        "end_seconds": 12600,
+        "expected_sample_count": 1800,
+        "index": 5,
+        "invalid_sample_count": 0,
+        "minimum_sample_count": 1620,
+        "p95_rss_bytes": 50364416,
+        "sample_count": 1770,
+        "start_seconds": 10800
+      },
+      {
+        "coverage_ratio": 0.9838888888888889,
+        "coverage_status": "PASS",
+        "end_seconds": 14400,
+        "expected_sample_count": 1800,
+        "index": 6,
+        "invalid_sample_count": 0,
+        "minimum_sample_count": 1620,
+        "p95_rss_bytes": 36552704,
+        "sample_count": 1771,
+        "start_seconds": 12600
+      }
+    ]
+  },
+  "schedule": {
+    "default_constants_valid": true,
+    "expected_minute_count": 240,
+    "expected_total_events": 504000,
+    "minutes": [
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 0,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 1,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 2,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 3,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 4,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 5,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 6,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 7,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 8,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 9,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 10,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 11,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 12,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 13,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 14,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 15,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 16,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 17,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 18,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 19,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 20,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 21,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 22,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 23,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 24,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 25,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 26,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 27,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 28,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 29,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 30,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 31,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 32,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 33,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 34,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 35,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 36,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 37,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 38,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 39,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 40,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 41,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 42,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 43,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 44,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 45,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 46,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 47,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 48,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 49,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 50,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 51,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 52,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 53,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 54,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 55,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 56,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 57,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 58,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 59,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 60,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 61,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 62,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 63,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 64,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 65,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 66,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 67,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 68,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 69,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 70,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 71,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 72,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 73,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 74,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 75,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 76,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 77,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 78,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 79,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 80,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 81,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 82,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 83,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 84,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 85,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 86,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 87,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 88,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 89,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 90,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 91,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 92,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 93,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 94,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 95,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 96,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 97,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 98,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 99,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 100,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 101,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 102,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 103,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 104,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 105,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 106,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 107,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 108,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 109,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 110,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 111,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 112,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 113,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 114,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 115,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 116,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 117,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 118,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 119,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 120,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 121,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 122,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 123,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 124,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 125,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 126,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 127,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 128,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 129,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 130,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 131,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 132,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 133,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 134,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 135,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 136,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 137,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 138,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 139,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 140,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 141,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 142,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 143,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 144,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 145,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 146,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 147,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 148,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 149,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 150,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 151,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 152,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 153,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 154,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 155,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 156,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 157,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 158,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 159,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 160,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 161,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 162,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 163,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 164,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 165,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 166,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 167,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 168,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 169,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 170,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 171,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 172,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 173,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 174,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 175,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 176,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 177,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 178,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 179,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 180,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 181,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 182,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 183,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 184,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 185,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 186,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 187,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 188,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 189,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 190,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 191,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 192,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 193,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 194,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 195,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 196,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 197,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 198,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 199,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 200,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 201,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 202,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 203,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 204,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 205,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 206,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 207,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 208,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 209,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 210,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 211,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 212,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 213,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 214,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 215,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 216,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 217,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 218,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 219,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 220,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 221,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 222,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 223,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 224,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 225,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 226,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 227,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 228,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 229,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 230,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 231,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 232,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 233,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 234,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 235,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 236,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 237,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 238,
+        "status": "PASS",
+        "total_events": 2100
+      },
+      {
+        "base_events": 1100,
+        "burst_events": 1000,
+        "expected_base_events": 1100,
+        "expected_burst_events": 1000,
+        "expected_total_events": 2100,
+        "minute_index": 239,
+        "status": "PASS",
+        "total_events": 2100
+      }
+    ],
+    "observed_minute_count": 240,
+    "observed_total_events": 504000,
+    "required_default_base_events_per_minute": 1100,
+    "required_default_burst_events_per_minute": 1000,
+    "required_default_minute_count": 240,
+    "required_default_total_events": 504000,
+    "required_default_total_events_per_minute": 2100,
+    "status": "PASS",
+    "valid": true
+  },
+  "schedule_lag_status": "PASS",
+  "schema_version": "iter22.resource_benchmark.v2",
+  "source_sha256": {
+    "examples/013_3_sa_midfreq_simnow/features.py": "cb969813dd3eb1fe46950cb3a441d0a47eed2f3a02d97a9862b614353ffce831",
+    "examples/013_3_sa_midfreq_simnow/reporting.py": "a3e8a0f0300ca6986a7306935bacb2d00eaa08eb0a92f1c85973e46edd7c6ed0",
+    "examples/013_3_sa_midfreq_simnow/signal_model.py": "dedca3d508be14bb51200f0444e907d38a38341a0b03364d90865e535e81a1fb",
+    "scripts/run_iteration22_ctp_benchmarks.py": "8ccb5bfed7004b08c38b8a98324eee163f6aec91d6da6c48c62c01baa12126e8"
+  },
+  "source_sha256_at_end": {
+    "examples/013_3_sa_midfreq_simnow/features.py": "cb969813dd3eb1fe46950cb3a441d0a47eed2f3a02d97a9862b614353ffce831",
+    "examples/013_3_sa_midfreq_simnow/reporting.py": "a3e8a0f0300ca6986a7306935bacb2d00eaa08eb0a92f1c85973e46edd7c6ed0",
+    "examples/013_3_sa_midfreq_simnow/signal_model.py": "dedca3d508be14bb51200f0444e907d38a38341a0b03364d90865e535e81a1fb",
+    "scripts/run_iteration22_ctp_benchmarks.py": "8ccb5bfed7004b08c38b8a98324eee163f6aec91d6da6c48c62c01baa12126e8"
+  },
+  "source_sha256_at_start": {
+    "examples/013_3_sa_midfreq_simnow/features.py": "cb969813dd3eb1fe46950cb3a441d0a47eed2f3a02d97a9862b614353ffce831",
+    "examples/013_3_sa_midfreq_simnow/reporting.py": "a3e8a0f0300ca6986a7306935bacb2d00eaa08eb0a92f1c85973e46edd7c6ed0",
+    "examples/013_3_sa_midfreq_simnow/signal_model.py": "dedca3d508be14bb51200f0444e907d38a38341a0b03364d90865e535e81a1fb",
+    "scripts/run_iteration22_ctp_benchmarks.py": "8ccb5bfed7004b08c38b8a98324eee163f6aec91d6da6c48c62c01baa12126e8"
+  },
+  "source_stable": true,
+  "status": "PASS",
+  "wall_clock_duration_status": "PASS"
+}
