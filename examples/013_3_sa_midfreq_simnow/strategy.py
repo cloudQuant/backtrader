@@ -106,6 +106,14 @@ class RuntimeControl:
             self.stop_reason = str(reason)
 
 
+def _publish_trade_logger_context_if_ready(strategy: Any, *, force: bool = False) -> bool:
+    """Publish only for a fully initialized strategy, not bare test holders."""
+    if not hasattr(strategy, "_trade_logger_context_dirty"):
+        return False
+    strategy._mark_trade_logger_context_dirty()
+    return strategy._publish_trade_logger_context(force=force)
+
+
 class SAMidFrequencyStrategy(bt.Strategy):
     """Frozen v0 candidate using native EMA/ATR and level-one snapshots."""
 
@@ -232,7 +240,6 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self._qualified_bars = 0
         self._first_bar_end: float | None = None
         self._last_bar_end: float | None = None
-        self._final_report: Optional[dict[str, Any]] = None
         self._terminal_session_state: dict[str, Any] = {}
         self._evidence_failure_count = 0
         self._evidence_failure_reason = ""
@@ -248,6 +255,18 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self._recovery_allowed_close: dict[str, Any] | None = None
         self._recovery_completion: dict[str, Any] | None = None
         self._clock = self.p.clock or SystemClock()
+        # The generic observer owns the report envelope.  Keep the SA
+        # extension live on meaningful transitions and at a bounded quote
+        # cadence; never serialize it once per market-data callback.
+        self._trade_logger_context_dirty = True
+        self._trade_logger_context_revision = 0
+        self._trade_logger_last_attempted_quotes = 0
+        self._trade_logger_last_attempted_revision = -1
+        self._trade_logger_context_published = False
+        self._trade_logger_context_failed_since_success = False
+        self._trade_logger_context_failure_count = 0
+        self._trade_logger_context_last_error = None
+        self._trade_logger_context_last_failure_recorded = None
 
     @property
     def reporter(self):
@@ -322,6 +341,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         event = {"state": state, "reason": reason, "monotonic": now}
         self._state_history.append(event)
         self._record("risk_events", {"event": "state_transition", **event})
+        _publish_trade_logger_context_if_ready(self)
 
     def _bind_startup_recovery(self, initial_position: int) -> bool:
         """Accept only the exact recovery close issued by the managed SDK."""
@@ -544,6 +564,9 @@ class SAMidFrequencyStrategy(bt.Strategy):
             self._block("invalid_completed_bar:" + (invalid_reason or "quality"))
             self.last_minute = None
             self.confirmation.reset()
+            # Live feeds may call ``next`` for each still-open minute.  The
+            # invalid-bar counter is sampled by the bounded quote cadence;
+            # publishing it here would serialize context once per tick.
             return
         current_close = float(self.data.close[0])
         current_volume = float(self.data.volume[0])
@@ -592,6 +615,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         if len(self.closed_bars) < self.p.warmup_bars:
             self._block("warmup_bars")
         self.confirmation.reset()
+        _publish_trade_logger_context_if_ready(self)
 
     def notify_tick(self, tick: Any) -> None:
         raw_event_time = _event_value(tick, "event_time_utc", "timestamp", default=None)
@@ -677,6 +701,8 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self.last_fast = self.quote_window.calculate()
         self._advance_time(recv_mono, quote.event_time)
         self._evaluate_entry(quote)
+        if self._qualified_quotes - getattr(self, "_trade_logger_last_attempted_quotes", 0) >= 128:
+            _publish_trade_logger_context_if_ready(self)
 
     def _reject_quote(self, reason: str) -> None:
         self._invalid_quotes += 1
@@ -1349,6 +1375,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         )
         self._orders.append(record)
         self._record("orders", record)
+        _publish_trade_logger_context_if_ready(self)
         executed = abs(float(order.executed.size))
         now = float(self._clock.monotonic_now())
         if role == "recovery_exit" and bool(order.info.get("execution_unknown")):
@@ -1447,6 +1474,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         }
         self._trades.append(record)
         self._record("trades", record)
+        _publish_trade_logger_context_if_ready(self)
         if self.p.risk_store is not None:
             try:
                 self.p.risk_store.record_closed_trade(gross, fee)
@@ -1818,6 +1846,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "cycle_binding_complete": cycle_binding_complete,
         }
         self._reconciliation_proofs.append(proof)
+        _publish_trade_logger_context_if_ready(self)
         if phase == "closed" and cycle_identity_sha256:
             for trade in reversed(self._trades):
                 if (
@@ -1963,20 +1992,120 @@ class SAMidFrequencyStrategy(bt.Strategy):
             self._transition("MANUAL_INTERVENTION", "recovery_completion_missing")
         if self._gross_position_lots() != 0 and self.state != "MANUAL_INTERVENTION":
             self._transition("MANUAL_INTERVENTION", "engine_stopped_with_position")
-        self._final_report = self._make_report()
+        _publish_trade_logger_context_if_ready(self, force=True)
 
-    def _make_report(self) -> dict[str, Any]:
+    @staticmethod
+    def _finite_lots(value: Any) -> int | None:
+        """Normalize an exact, non-negative local-cache contract quantity."""
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(numeric) or numeric < 0 or not numeric.is_integer():
+            return None
+        return int(numeric)
+
+    @staticmethod
+    def _cached_mapping_value(mapping: Mapping[str, Any], data: Any) -> Any:
+        """Look up a feed using the local cache's object or stable-name key."""
+        candidates = (data, getattr(data, "_name", None), getattr(data, "_dataname", None))
+        for key in candidates:
+            # Feed ``==`` builds a Backtrader line operation and can dereference
+            # a not-yet-populated current bar.  Only literal cache-key tests
+            # are safe in startup reporting.
+            if key is None or (isinstance(key, str) and not key):
+                continue
+            try:
+                value = mapping.get(key)
+            except (AttributeError, TypeError):
+                value = None
+            if value is not None:
+                return value
+        return None
+
+    def _cached_report_position_lots(self) -> tuple[int | None, bool]:
+        """Return local cached gross exposure without calling ``getposition``.
+
+        Live CTP brokers may refresh synchronously from ``getposition``.  The
+        generic report path is intentionally forbidden from doing that.  New
+        broker caches expose ``position_legs`` so a dual-side account retains
+        both legs; an older cache can only prove a net position and is marked
+        incomplete rather than silently reporting a hedge as flat.
+        """
+        report_data = self._report_data()
+        if report_data is None:
+            return None, False
+        getter = getattr(self.broker, "get_cached_report_state", None)
+        if not callable(getter):
+            return None, False
+        try:
+            state = getter()
+        except Exception:
+            return None, False
+        if not isinstance(state, Mapping):
+            return None, False
+
+        legs = state.get("position_legs")
+        if isinstance(legs, Mapping):
+            cached_legs = self._cached_mapping_value(legs, report_data)
+            if isinstance(cached_legs, Mapping):
+                long_position = cached_legs.get("long")
+                short_position = cached_legs.get("short")
+                long_lots = self._finite_lots(
+                    long_position.get("size")
+                    if isinstance(long_position, Mapping)
+                    else getattr(long_position, "size", 0)
+                )
+                short_lots = self._finite_lots(
+                    short_position.get("size")
+                    if isinstance(short_position, Mapping)
+                    else getattr(short_position, "size", 0)
+                )
+                if long_lots is not None and short_lots is not None:
+                    return long_lots + short_lots, True
+
+        positions = state.get("positions")
+        cached_position = (
+            self._cached_mapping_value(positions, report_data)
+            if isinstance(positions, Mapping)
+            else None
+        )
+        raw_net_lots = (
+            cached_position.get("size")
+            if isinstance(cached_position, Mapping)
+            else getattr(cached_position, "size", None)
+        )
+        try:
+            net_lots = self._finite_lots(abs(float(raw_net_lots)))
+        except (TypeError, ValueError):
+            net_lots = None
+        if net_lots is None:
+            return None, False
+        get_param = getattr(self.broker, "get_param", None)
+        mode = str(get_param("position_mode", "net") if callable(get_param) else "net").lower()
+        return net_lots, mode != "dual_side"
+
+    def _report_context(self) -> dict[str, Any]:
+        """Return SA-specific evidence for TradeLogger's report extension.
+
+        TradeLogger owns the generic runtime snapshot and freezes the final
+        report.  This strategy only supplies the controlled CTP state needed
+        by the Iteration 22 admission, reconciliation, and G3/G4 judges.
+        """
+        report_data = self._report_data()
+        cached_position_lots, position_cache_complete = self._cached_report_position_lots()
         base = {
             "strategy": type(self).__name__,
             "candidate_id": self.p.candidate_id,
             "mode": self.p.mode,
             "purpose": self.p.purpose,
-            "instrument": self.p.instrument or self.data._name,
+            "instrument": self.p.instrument or getattr(report_data, "_name", None),
             "trading_day": self.p.trading_day,
             "account_fingerprint": self.p.account_fingerprint or None,
             "state": self.state,
             "state_reason": self.state_reason,
-            "position_lots": self._gross_position_lots(),
+            "position_lots": cached_position_lots,
+            "position_lots_cache_complete": position_cache_complete,
             "active_order": self._active_order.ref if self._active_order is not None else None,
             "unknown_intents": self._unknown_intents,
             "invalid_quotes": self._invalid_quotes,
@@ -2005,6 +2134,11 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "engineering_trigger_fired": self._engineering_trigger_fired,
             "session_calendar_sha256": self.p.session_calendar_sha256 or None,
             "exit_requotes_used": self._exit_requotes_used,
+            "trade_logger_context": {
+                "published": self._trade_logger_context_published,
+                "failure_count": self._trade_logger_context_failure_count,
+                "last_error": self._trade_logger_context_last_error,
+            },
             "execution_recovery": {
                 "recovery_only": self._recovery_only,
                 "status": (
@@ -2067,5 +2201,84 @@ class SAMidFrequencyStrategy(bt.Strategy):
             base["net_pnl"] = sum(item["net_pnl"] for item in self._trades)
         return base
 
-    def report(self) -> dict[str, Any]:
-        return self._final_report or self._make_report()
+    def _mark_trade_logger_context_dirty(self) -> None:
+        self._trade_logger_context_dirty = True
+        self._trade_logger_context_revision += 1
+
+    def _record_trade_logger_context_failure(
+        self, reason: str, exc: Exception | None = None
+    ) -> None:
+        """Persist a bounded, secret-free diagnostic for a failed publication."""
+        exception_type = type(exc).__name__ if exc is not None else None
+        diagnostic = f"{reason}:{exception_type or ''}".rstrip(":")
+        observer_result = "returned_false" if reason == "update_rejected" else None
+        self._trade_logger_context_last_error = diagnostic
+        if self._trade_logger_context_last_failure_recorded == diagnostic:
+            return
+        self._trade_logger_context_last_failure_recorded = diagnostic
+        self._trade_logger_context_failure_count += 1
+        # EvidenceWriter is already the controlled durable diagnostics lane.
+        # Do not retain provider exception text, which can contain credentials.
+        self._record(
+            "risk_events",
+            {
+                "event": "trade_logger_context_publish_failed",
+                "reason": reason,
+                "exception_type": exception_type,
+                "observer_result": observer_result,
+                "failure_count": self._trade_logger_context_failure_count,
+            },
+        )
+
+    def _report_data(self) -> Any | None:
+        """Read a feed only when its line aliases are available locally."""
+        try:
+            return self.data
+        except (AttributeError, IndexError):
+            return None
+
+    def _publish_trade_logger_context(self, *, force: bool = False) -> bool:
+        """Publish SA state into the live generic report without broker I/O.
+
+        The extension is updated on state/bar/order/trade transitions and once
+        per 128 valid quotes.  A rejected/raised observer update stays dirty,
+        but retry cadence follows the last attempt rather than every quote.
+        """
+        qualified_quotes = int(getattr(self, "_qualified_quotes", 0))
+        context_revision = int(getattr(self, "_trade_logger_context_revision", 0))
+        last_attempted_revision = int(getattr(self, "_trade_logger_last_attempted_revision", -1))
+        last_attempted_quotes = int(getattr(self, "_trade_logger_last_attempted_quotes", 0))
+        if (
+            not force
+            and context_revision == last_attempted_revision
+            and qualified_quotes - last_attempted_quotes < 128
+        ):
+            return True
+        observer = getattr(getattr(self, "stats", None), "trade_logger", None)
+        update = getattr(observer, "update_report_context", None)
+        if not callable(update):
+            self._trade_logger_last_attempted_quotes = qualified_quotes
+            self._trade_logger_last_attempted_revision = context_revision
+            self._trade_logger_context_failed_since_success = True
+            self._record_trade_logger_context_failure("observer_unavailable")
+            return False
+        try:
+            accepted = bool(update(self._report_context(), namespace="sa_midfreq"))
+        except Exception as exc:
+            self._trade_logger_last_attempted_quotes = qualified_quotes
+            self._trade_logger_last_attempted_revision = context_revision
+            self._trade_logger_context_failed_since_success = True
+            self._record_trade_logger_context_failure("update_raised", exc)
+            return False
+        self._trade_logger_last_attempted_quotes = qualified_quotes
+        self._trade_logger_last_attempted_revision = context_revision
+        if not accepted:
+            self._trade_logger_context_failed_since_success = True
+            self._record_trade_logger_context_failure("update_rejected")
+            return False
+        self._trade_logger_context_dirty = False
+        self._trade_logger_context_published = True
+        self._trade_logger_context_failed_since_success = False
+        self._trade_logger_context_last_error = None
+        self._trade_logger_context_last_failure_recorded = None
+        return True

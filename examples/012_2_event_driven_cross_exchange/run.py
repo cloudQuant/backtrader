@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 import threading
 import time
-from typing import Mapping
+from typing import Mapping, Optional
 
 import backtrader as bt
 from backtrader.brokers.hft.exchange import SimpleExchangeModel
@@ -85,6 +85,47 @@ def mode_policy(mode):
 def _canonical_hash(value) -> str:
     payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+BUSINESS_SUMMARY_VOLATILE_FIELDS = frozenset(
+    {
+        "business_summary",
+        "business_summary_hash",
+        # The generic observer envelope carries a per-run id, lifecycle
+        # timestamps and callback telemetry.  Operators still receive it in
+        # the complete report, but it is not an input to replay economics.
+        "trade_logger",
+    }
+)
+
+
+def business_summary(report: Mapping[str, object]) -> dict[str, object]:
+    """Return the deterministic business projection of a runner report.
+
+    ``TradeLogger`` is intentionally retained in the complete output for
+    operational diagnostics.  Its lifecycle metadata is not deterministic
+    across otherwise equivalent replays, so the projection omits it.
+    """
+
+    if not isinstance(report, Mapping):
+        raise RunnerConfigurationError("report must be a mapping")
+    return {
+        key: value for key, value in report.items() if key not in BUSINESS_SUMMARY_VOLATILE_FIELDS
+    }
+
+
+def business_summary_hash(report: Mapping[str, object]) -> str:
+    """Hash the deterministic business projection, excluding observer telemetry."""
+
+    return _canonical_hash(business_summary(report))
+
+
+def _attach_business_summary(report: dict[str, object]) -> None:
+    """Attach an inspectable projection and its hash after report finalization."""
+
+    projection = business_summary(report)
+    report["business_summary"] = projection
+    report["business_summary_hash"] = _canonical_hash(projection)
 
 
 def _file_sha256(path: Path, label: str) -> str:
@@ -576,17 +617,18 @@ def run_replay(
         "fee_source": dict.fromkeys(VENUE_SYMBOLS, "conservative_bound"),
         "fee_rate_per_fill": {venue: str(rule.taker_fee) for venue, rule in engine.rules.items()},
         "reject_reasons": dict(engine.reject_reasons),
-        "engine": engine.report(),
+        "engine": engine.snapshot(),
         "profitability_claim": "NONE_SYNTHETIC_FIXTURE_ONLY",
     }
     report.update(_formula_fixture_metrics())
-    report["markouts_quote"] = engine.report()["markouts_quote"]
+    report["markouts_quote"] = engine.snapshot()["markouts_quote"]
     if scenario == "no_edge" and intent is not None:
         report["status"] = "FORMULA_CHECK_FAIL"
     if scenario == "gap" and not engine.reject_reasons["sequence_gap"]:
         report["status"] = "FORMULA_CHECK_FAIL"
     if scenario == "unknown" and final_state != "FORMULA_UNKNOWN_BRANCH":
         report["status"] = "FORMULA_CHECK_FAIL"
+    _attach_business_summary(report)
     return report
 
 
@@ -1040,6 +1082,74 @@ def _paper_flatness(broker):
     return {"flat": flat, "positions": positions, "open_orders": len(broker.get_orders_open())}
 
 
+def _trade_logger_report(strategy):
+    """Return the frozen generic report and its frozen candidate extension."""
+
+    trade_logger = getattr(getattr(strategy, "stats", None), "trade_logger", None)
+    final_report = getattr(trade_logger, "final_report", None)
+    generic_report = final_report() if callable(final_report) else None
+    if not isinstance(generic_report, Mapping) or generic_report.get("finalized") is not True:
+        raise RunnerConfigurationError("TradeLogger final report is unavailable")
+
+    generic_report = dict(generic_report)
+    extensions = generic_report.get("extensions", {})
+    domain_context = extensions.get("cross_venue") if isinstance(extensions, Mapping) else None
+    if not isinstance(domain_context, Mapping) or not domain_context:
+        raise RunnerConfigurationError("TradeLogger final report is missing cross_venue evidence")
+    return generic_report, dict(domain_context)
+
+
+def _post_run_reconciliation_revision(
+    frozen_context: Mapping[str, object],
+    reconciled_context: Mapping[str, object],
+    reconcile_snapshot: Optional[Mapping[str, object]],
+    execution_summary: Optional[Mapping[str, object]],
+) -> dict[str, object]:
+    """Bind a post-stop reconciliation to the frozen Observer evidence.
+
+    The generic ``TradeLogger`` report is deliberately immutable after its
+    ``stop`` lifecycle.  A remote reconciliation may only complete after that
+    point, so it is emitted as a separately hash-bound revision instead of
+    silently replacing the frozen ``extensions.cross_venue`` value.
+    """
+
+    if not isinstance(frozen_context, Mapping) or not frozen_context:
+        raise RunnerConfigurationError("frozen cross_venue evidence is unavailable")
+    if not isinstance(reconciled_context, Mapping) or not reconciled_context:
+        raise RunnerConfigurationError("reconciled cross_venue evidence is unavailable")
+    if reconcile_snapshot is not None and not isinstance(reconcile_snapshot, Mapping):
+        raise RunnerConfigurationError("post-run reconcile snapshot is invalid")
+    if execution_summary is not None and not isinstance(execution_summary, Mapping):
+        raise RunnerConfigurationError("post-run execution summary is invalid")
+
+    frozen = dict(frozen_context)
+    reconciled = dict(reconciled_context)
+    revision = {
+        "schema_version": 1,
+        "revision_type": "post_run_reconciliation",
+        "status": "APPLIED_AFTER_TRADE_LOGGER_FINALIZATION",
+        "frozen_trade_logger_extension": frozen,
+        "frozen_trade_logger_extension_sha256": _canonical_hash(frozen),
+        "reconciled_cross_venue_extension": reconciled,
+        "reconciled_cross_venue_extension_sha256": _canonical_hash(reconciled),
+        "reconciliation_required_before": frozen.get("reconciliation_required") is True,
+        "remote_flat_proven_after": reconciled.get("remote_flat_proven") is True,
+        "outcome": (
+            "REMOTE_FLAT_PROVEN"
+            if reconciled.get("remote_flat_proven") is True
+            else "REMOTE_FLAT_NOT_PROVEN"
+        ),
+        "reconcile_snapshot_sha256": (
+            _canonical_hash(dict(reconcile_snapshot)) if reconcile_snapshot is not None else None
+        ),
+        "execution_summary_sha256": (
+            _canonical_hash(dict(execution_summary)) if execution_summary is not None else None
+        ),
+    }
+    revision["revision_sha256"] = _canonical_hash(revision)
+    return revision
+
+
 def _realized_metrics(strategy_report):
     rows = strategy_report.get("execution_economics", ())
     if not isinstance(rows, (list, tuple)):
@@ -1392,6 +1502,17 @@ def run_network(
             initial_value = decimal_value(broker.getvalue(), "initial_broker_value")
             cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
             cerebro.setbroker(broker)
+            cerebro.addobserver(
+                bt.observers.TradeLogger,
+                obsname="trade_logger",
+                log_dir=str(HERE / "reports" / "trade_logger"),
+                log_positions=False,
+                log_indicators=False,
+                log_ticks=False,
+                log_bars=False,
+                log_value=False,
+                log_position_snapshot=False,
+            )
             for symbol in VENUE_SYMBOLS.values():
                 cerebro.adddata(
                     store.getdata(
@@ -1436,7 +1557,8 @@ def run_network(
                 strategy = cerebro.run()[0]
             finally:
                 timer.cancel()
-            strategy_report = strategy.report()
+            trade_logger_report, strategy_report = _trade_logger_report(strategy)
+            effective_strategy_report = strategy_report
             final_value = decimal_value(broker.getvalue(), "final_broker_value")
             broker_value_change = final_value - initial_value
             submitted = int(strategy_report.get("submitted_order_count", 0) or 0)
@@ -1450,6 +1572,7 @@ def run_network(
             account_risk_snapshot = None
             approval_lease_status = None
             paper_flatness = None
+            post_run_reconciliation = None
             if mode == "demo":
                 shutdown_state = broker.get_shutdown_state()
                 reconcile_snapshot = broker.get_last_reconcile_result()
@@ -1460,13 +1583,27 @@ def run_network(
                         reconcile_snapshot,
                         execution_summary=execution_summary,
                     )
-                    strategy_report = strategy.report()
+                    effective_strategy_report = dict(strategy.trade_logger_context())
+                    post_run_reconciliation = _post_run_reconciliation_revision(
+                        strategy_report,
+                        effective_strategy_report,
+                        reconcile_snapshot,
+                        execution_summary,
+                    )
                 account_risk_snapshot = broker.get_account_risk_snapshot()
             elif mode == "paper-live":
                 paper_flatness = _paper_flatness(broker)
                 account_risk_snapshot = broker.get_account_risk_snapshot()
 
-            metrics, economics_complete = _realized_metrics(strategy_report)
+            metrics, economics_complete = _realized_metrics(effective_strategy_report)
+            strategy_assessment_evidence = {
+                "source": (
+                    "post_run_reconciliation.reconciled_cross_venue_extension"
+                    if post_run_reconciliation is not None
+                    else "trade_logger.extensions.cross_venue"
+                ),
+                "cross_venue_sha256": _canonical_hash(effective_strategy_report),
+            }
             report = {
                 "status": "NETWORK_RUN_PENDING_SHUTDOWN_PROOF",
                 "mode": mode,
@@ -1488,12 +1625,15 @@ def run_network(
                 "execution_status": "NOT_RUN" if mode == "shadow" else "EXECUTION_OBSERVED",
                 "execution_economics_complete": economics_complete,
                 "broker_value_change": str(broker_value_change),
-                "cost_breakdown": strategy_report.get("cost_breakdowns", []),
+                "cost_breakdown": effective_strategy_report.get("cost_breakdowns", []),
                 "fee_source": fee_sources,
                 "funding_source": funding_sources,
                 "fee_rate_per_fill": {venue: str(rule.taker_fee) for venue, rule in rules.items()},
-                "reject_reasons": strategy_report.get("reject_reasons", {}),
+                "reject_reasons": effective_strategy_report.get("reject_reasons", {}),
                 "strategy": strategy_report,
+                "strategy_assessment_evidence": strategy_assessment_evidence,
+                "trade_logger": trade_logger_report,
+                "post_run_reconciliation": post_run_reconciliation,
                 "broker_shutdown": shutdown_state,
                 "reconcile_snapshot": reconcile_snapshot,
                 "execution_summary": execution_summary,
@@ -1532,6 +1672,7 @@ def run_network(
                 if store_stop_proven and readiness_complete
                 else "PREFLIGHT_INCOMPLETE"
             )
+        _attach_business_summary(report)
         return report
     if mode == "shadow":
         report["status"] = "SHADOW_PASS" if store_stop_proven else "INCOMPLETE"
@@ -1543,23 +1684,25 @@ def run_network(
             and risk_snapshot.get("evidence_complete") is True
             and risk_snapshot.get("durable") is True
             and report.get("execution_economics_complete") is True
-            and not report["strategy"].get("reconciliation_required")
-            and not report["strategy"].get("unknown_execution")
+            and not effective_strategy_report.get("reconciliation_required")
+            and not effective_strategy_report.get("unknown_execution")
         )
         report["status"] = "PAPER_OBSERVATION_PASS" if paper_safe else "INCOMPLETE"
     else:
         shutdown_safe = (report.get("broker_shutdown") or {}).get("status") == "PASS"
         summary_safe = _execution_summary_proven(report.get("execution_summary"))
         risk_snapshot = report.get("account_risk_snapshot") or {}
-        funding_safe = _funding_economics_proven(report["strategy"])
+        funding_safe = _funding_economics_proven(effective_strategy_report)
         lease_safe = _approval_lease_status_proven(
             report.get("approval_lease_status"),
             report.get("approval_lease"),
         )
         strategy_safe = bool(
-            not report["strategy"].get("reconciliation_required")
-            and not report["strategy"].get("unknown_execution")
-            and (report["fills"] == 0 or report["strategy"].get("remote_flat_proven") is True)
+            not effective_strategy_report.get("reconciliation_required")
+            and not effective_strategy_report.get("unknown_execution")
+            and (
+                report["fills"] == 0 or effective_strategy_report.get("remote_flat_proven") is True
+            )
         )
         demo_safe = bool(
             store_stop_proven
@@ -1578,6 +1721,7 @@ def run_network(
             if demo_safe
             else ("INCOMPLETE_INSUFFICIENT_SAMPLE" if report["fills"] == 0 else "INCOMPLETE")
         )
+    _attach_business_summary(report)
     return report
 
 
@@ -1643,6 +1787,8 @@ __all__ = [
     "MANIFEST_PATH",
     "MODES",
     "RunnerConfigurationError",
+    "business_summary",
+    "business_summary_hash",
     "event_path_models_from_candidate",
     "load_candidate",
     "load_config",

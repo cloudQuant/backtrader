@@ -241,6 +241,62 @@ def strategy_stub(risk_config=None):
     return strategy
 
 
+def test_mid_trade_logger_context_is_published_live_from_cached_broker_state():
+    strategy = strategy_stub()
+    strategy.pair_state = None
+    strategy.pending_order = None
+    strategy.cancel_requested = False
+    strategy.unknown = False
+    strategy.awaiting_reconciliation = False
+    strategy.remote_flat_proven = False
+    strategy.order_records = {}
+    getter_calls = []
+    cached_state_calls = []
+
+    def forbidden_getvalue():
+        getter_calls.append("getvalue")
+        raise AssertionError("live broker getter must not be used for TradeLogger context")
+
+    def cached_report_state():
+        cached_state_calls.append("cached")
+        return {"value": D("1234.5")}
+
+    strategy.broker = SimpleNamespace(
+        getvalue=forbidden_getvalue,
+        get_cached_report_state=cached_report_state,
+    )
+
+    class RecordingTradeLogger:
+        def __init__(self):
+            self.contexts = []
+
+        def update_report_context(self, context, *, namespace):
+            self.contexts.append((namespace, context))
+            return True
+
+    trade_logger = RecordingTradeLogger()
+    strategy.stats = SimpleNamespace(trade_logger=trade_logger)
+
+    strategy.start()
+    assert len(trade_logger.contexts) == 1
+    assert trade_logger.contexts[-1][0] == "cross_venue"
+    assert trade_logger.contexts[-1][1]["broker_value"] == "1234.5"
+    assert getter_calls == []
+    assert cached_state_calls == ["cached"]
+
+    # High-rate same-state callbacks only compare the local signature: they do
+    # not rebuild the extension or call even the local cached-state getter.
+    assert [strategy._publish_trade_logger_context() for _ in range(100)] == [False] * 100
+    assert len(trade_logger.contexts) == 1
+    assert cached_state_calls == ["cached"]
+
+    strategy.remote_flat_proven = True
+    assert strategy._publish_trade_logger_context() is True
+    assert len(trade_logger.contexts) == 2
+    assert trade_logger.contexts[-1][1]["remote_flat_proven"] is True
+    assert cached_state_calls == ["cached", "cached"]
+
+
 def test_dynamic_funding_pair_fails_closed_at_runtime_and_recovers():
     strategy = strategy_stub()
     current = {"value": typed_funding_pair()}
@@ -876,6 +932,8 @@ def test_direction_qualification_mapping_round_trips_through_serialized_dicts():
 
 
 def test_public_shadow_observes_qualified_intent_with_zero_execution_accounting():
+    assert not hasattr(mid.CrossExchangeArbitrageStrategy, "report")
+    assert hasattr(mid.MidFrequencyEngine, "report")
     venue_rules = rules()
     risk_config = risk()
     strategy = object.__new__(mid.CrossExchangeArbitrageStrategy)
@@ -895,12 +953,13 @@ def test_public_shadow_observes_qualified_intent_with_zero_execution_accounting(
     strategy.broker = SimpleNamespace(getvalue=lambda: 100)
     mid.CrossExchangeArbitrageStrategy.__init__(strategy)
     strategy.engine._wall_clock = lambda: D("10")
+    assert strategy.engine.report() == strategy.engine.snapshot()
     seed(strategy.engine)
 
     strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", "1", 1))
     strategy.notify_orderbook(orderbook_event("binance", "101", "101.1", "1", 1))
 
-    report = strategy.report()
+    report = strategy.trade_logger_context()
     assert len(strategy.engine.intent_history) == 1
     assert report["submitted_order_count"] == 0
     assert report["confirmed_fill_events"] == 0

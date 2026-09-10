@@ -1137,7 +1137,13 @@ class MidFrequencyEngine:
     def mark_closed(self) -> None:
         self.active_pair = None
 
-    def report(self) -> Mapping[str, object]:
+    def snapshot(self) -> Mapping[str, object]:
+        """Return the engine's domain evidence outside a Cerebro run.
+
+        Formula replay has no strategy or observer lifecycle, so its domain
+        evidence remains available as a snapshot rather than pretending that
+        a framework-level observer was involved.
+        """
         return {
             "strategy_id": "012_1_midfreq_cross_exchange",
             "model": "robust_executable_basis_mean_reversion",
@@ -1152,6 +1158,16 @@ class MidFrequencyEngine:
                 for direction, artifact in self.model_qualifications.items()
             },
         }
+
+    def report(self) -> Mapping[str, object]:
+        """Return :meth:`snapshot` under the legacy formula-engine API.
+
+        ``CrossExchangeArbitrageStrategy.report`` was intentionally removed
+        in favor of the framework-level ``TradeLogger`` report.  This engine
+        remains public and is also used by formula replay without a Cerebro
+        lifecycle, so retain its historical method as a compatibility alias.
+        """
+        return self.snapshot()
 
 
 def _book_from_event(event, venue: str, rule: InstrumentRule, funding) -> BookState:
@@ -1264,6 +1280,8 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         )
         self._funding_states: Dict[str, FundingState] = {}
         self._funding_history = deque(maxlen=256)
+        self._trade_logger_last_context_signature = None
+        self._trade_logger_context_published_at = Decimal("-Infinity")
 
     @staticmethod
     def _now():
@@ -1298,6 +1316,8 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         state.setdefault("_funding_states", {})
         state.setdefault("_funding_history", deque(maxlen=256))
         state.setdefault("_last_idle_funding_check", Decimal("-Infinity"))
+        state.setdefault("_trade_logger_last_context_signature", None)
+        state.setdefault("_trade_logger_context_published_at", Decimal("-Infinity"))
 
     @staticmethod
     def _wall_now() -> Decimal:
@@ -1867,6 +1887,15 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             self._begin_flatten(self.pair_state["exposures"], "invalid_market_data")
 
     def notify_orderbook(self, event):
+        """Process a book and refresh report context only when it is due."""
+
+        self._ensure_runtime_state()
+        try:
+            return self._notify_orderbook(event)
+        finally:
+            self._publish_trade_logger_context()
+
+    def _notify_orderbook(self, event):
         venue = SYMBOL_VENUES.get(event.symbol)
         if venue is None:
             return
@@ -1966,6 +1995,15 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         )
 
     def notify_idle(self):
+        """Advance deadlines and refresh the low-rate runtime report context."""
+
+        self._ensure_runtime_state()
+        try:
+            return self._notify_idle()
+        finally:
+            self._publish_trade_logger_context()
+
+    def _notify_idle(self):
         """Advance execution and risk deadlines while live books are silent."""
 
         self._ensure_runtime_state()
@@ -2525,6 +2563,15 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         return True
 
     def notify_order(self, order):
+        """Handle an order update and immediately publish its state transition."""
+
+        self._ensure_runtime_state()
+        try:
+            return self._notify_order(order)
+        finally:
+            self._publish_trade_logger_context()
+
+    def _notify_order(self, order):
         self._ensure_runtime_state()
         venue = SYMBOL_VENUES.get(getattr(getattr(order, "data", None), "_name", None))
         pair_state = getattr(self, "pair_state", None)
@@ -2700,9 +2747,69 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             self.unhedged_durations.append(self._now() - self.unhedged_started)
             self.unhedged_started = None
 
-    def report(self) -> Mapping[str, object]:
+    def start(self) -> None:
+        """Publish the initial candidate state after observers have started."""
+
         self._ensure_runtime_state()
-        base = dict(self.engine.report())
+        self._publish_trade_logger_context(force=True)
+
+    def _cached_broker_value_for_report(self):
+        """Read an already-synchronized portfolio value without provider I/O."""
+
+        getter = getattr(getattr(self, "broker", None), "get_cached_report_state", None)
+        if not callable(getter):
+            return None
+        try:
+            cached = getter()
+        except Exception:
+            return None
+        if not isinstance(cached, Mapping):
+            return None
+        value = cached.get("value")
+        if value is None:
+            return None
+        try:
+            return str(decimal_value(value, "cached_broker_value"))
+        except (ArithmeticError, CrossExchangeValueError, TypeError, ValueError):
+            return None
+
+    def _trade_logger_context_signature(self):
+        """Return a small local-only signature for low-rate report publication."""
+
+        self._ensure_runtime_state()
+        pair_state = self.pair_state if isinstance(self.pair_state, Mapping) else {}
+        pending_order = self.pending_order
+        return (
+            bool(getattr(self.engine, "active_pair", None)),
+            bool(getattr(self.engine, "halted_unknown", False)),
+            self.unknown,
+            self.awaiting_reconciliation,
+            self.remote_flat_proven,
+            pair_state.get("phase"),
+            bool(pair_state.get("risk_exit_reason")),
+            len(pair_state.get("fills", {})),
+            len(pair_state.get("exposures", {})),
+            getattr(pending_order, "ref", None),
+            getattr(pending_order, "status", None),
+            self.cancel_requested,
+            self.submitted_order_count,
+            self._confirmed_fill_event_count,
+            len(self.order_records),
+            len(self.execution_economics_history),
+            self.account_loss_kill_switch,
+            self.account_risk_status,
+            self.funding_evidence_status,
+        )
+
+    def trade_logger_context(self) -> Mapping[str, object]:
+        """Return cross-venue evidence for ``TradeLogger.extensions``.
+
+        ``TradeLogger`` owns generic orders, trades, portfolio values and
+        real-time snapshots.  This strategy supplies only the model and
+        execution facts which are specific to this two-venue candidate.
+        """
+        self._ensure_runtime_state()
+        base = dict(self.engine.snapshot())
         fees = sum(
             (row["commission"] for row in self._fill_cumulative.values()),
             Decimal(0),
@@ -2732,9 +2839,37 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             reconciliation_required=self.unknown or self.awaiting_reconciliation,
             remote_flat_proven=self.remote_flat_proven,
             unhedged_duration_max=str(max(self.unhedged_durations, default=Decimal(0))),
-            broker_value=str(decimal_value(self.broker.getvalue(), "broker_value")),
+            broker_value=self._cached_broker_value_for_report(),
         )
         return base
+
+    def _publish_trade_logger_context(self, *, force: bool = False) -> bool:
+        """Publish state transitions immediately and stable books at most once a second."""
+
+        trade_logger = getattr(getattr(self, "stats", None), "trade_logger", None)
+        update = getattr(trade_logger, "update_report_context", None)
+        if not callable(update):
+            return False
+        signature = self._trade_logger_context_signature()
+        now = self._now()
+        previous_signature = self._trade_logger_last_context_signature
+        previous_published_at = self._trade_logger_context_published_at
+        due = now - previous_published_at >= Decimal(1)
+        if not force and signature == previous_signature and not due:
+            return False
+        try:
+            published = bool(update(self.trade_logger_context(), namespace="cross_venue"))
+        except Exception:
+            published = False
+        if published or not force:
+            self._trade_logger_last_context_signature = signature
+            self._trade_logger_context_published_at = now
+        return published
+
+    def stop(self) -> None:
+        """Publish final domain evidence while ``TradeLogger`` remains mutable."""
+
+        self._publish_trade_logger_context(force=True)
 
 
 __all__ = [

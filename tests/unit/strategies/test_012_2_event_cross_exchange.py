@@ -226,6 +226,56 @@ def strategy_stub(risk_config=None):
     return strategy
 
 
+def test_event_trade_logger_context_is_published_live_from_cached_broker_state():
+    strategy = strategy_stub()
+    getter_calls = []
+    cached_state_calls = []
+
+    def forbidden_getvalue():
+        getter_calls.append("getvalue")
+        raise AssertionError("live broker getter must not be used for TradeLogger context")
+
+    def cached_report_state():
+        cached_state_calls.append("cached")
+        return {"value": D("1234.5")}
+
+    strategy.broker = SimpleNamespace(
+        request_reconcile=lambda: {"queued": True},
+        getvalue=forbidden_getvalue,
+        get_cached_report_state=cached_report_state,
+    )
+
+    class RecordingTradeLogger:
+        def __init__(self):
+            self.contexts = []
+
+        def update_report_context(self, context, *, namespace):
+            self.contexts.append((namespace, context))
+            return True
+
+    trade_logger = RecordingTradeLogger()
+    strategy.stats = SimpleNamespace(trade_logger=trade_logger)
+
+    strategy.start()
+    assert len(trade_logger.contexts) == 1
+    assert trade_logger.contexts[-1][0] == "cross_venue"
+    assert trade_logger.contexts[-1][1]["broker_value"] == "1234.5"
+    assert getter_calls == []
+    assert cached_state_calls == ["cached"]
+
+    # The event-driven path must not serialize the full report or call even
+    # the local cached-state getter for every same-state book update.
+    assert [strategy._publish_trade_logger_context() for _ in range(100)] == [False] * 100
+    assert len(trade_logger.contexts) == 1
+    assert cached_state_calls == ["cached"]
+
+    strategy.remote_flat_proven = True
+    assert strategy._publish_trade_logger_context() is True
+    assert len(trade_logger.contexts) == 2
+    assert trade_logger.contexts[-1][1]["remote_flat_proven"] is True
+    assert cached_state_calls == ["cached", "cached"]
+
+
 def test_event_runtime_funding_pair_fails_closed_and_recovers():
     strategy = strategy_stub()
     current = {"value": typed_funding_pair()}
@@ -644,6 +694,8 @@ def test_ac_event_004_mature_depth_qualified_opportunity_creates_event_intent():
 
 
 def test_public_shadow_observes_mature_intent_with_zero_execution_accounting():
+    assert not hasattr(hft.CrossExchangeArbitrageStrategy, "report")
+    assert hasattr(hft.EventArbitrageEngine, "report")
     strategy = object.__new__(hft.CrossExchangeArbitrageStrategy)
     strategy.p = SimpleNamespace(
         rules=rules(),
@@ -661,12 +713,13 @@ def test_public_shadow_observes_mature_intent_with_zero_execution_accounting():
     ]
     strategy.broker = SimpleNamespace(getvalue=lambda: 100)
     hft.CrossExchangeArbitrageStrategy.__init__(strategy)
+    assert strategy.engine.report() == strategy.engine.snapshot()
 
     for now, sequence in (("0", 1), (".25", 2), (".5", 3)):
         strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", now, sequence))
         strategy.notify_orderbook(orderbook_event("binance", "101", "101.1", now, sequence))
 
-    report = strategy.report()
+    report = strategy.trade_logger_context()
     assert len(strategy.engine.intents) >= 1
     assert report["submitted_order_count"] == 0
     assert report["confirmed_fill_events"] == 0
@@ -983,7 +1036,7 @@ def test_missing_path_model_is_fail_closed_even_with_configured_path_p99():
     assert mature(engine) is None
     assert not engine.intents
     assert engine.reject_reasons["event_model_missing"] == 1
-    assert engine.report()["admission"]["configured_path_p99_is_evidence"] is False
+    assert engine.snapshot()["admission"]["configured_path_p99_is_evidence"] is False
 
 
 def test_path_model_must_match_current_fee_and_depth_buckets():
@@ -1752,12 +1805,12 @@ def test_late_commission_adjustment_invalidates_flat_proof_without_adding_a_fill
     assert strategy.engine.reject_reasons["late_known_order_update"] == 1
 
 
-def test_strategy_report_separates_submissions_from_unique_confirmed_fills():
+def test_strategy_context_separates_submissions_from_unique_confirmed_fills():
     strategy = strategy_stub()
     strategy.submitted_order_count = 3
     strategy._confirmed_fill_event_count = 1
 
-    report = strategy.report()
+    report = strategy.trade_logger_context()
 
     assert report["submitted_order_count"] == 3
     assert report["confirmed_fill_events"] == 1

@@ -510,6 +510,7 @@ def test_receipt_rejects_critical_runtime_identity_drift(monkeypatch, tmp_path):
     identities = runner.runtime_component_identities()
     assert set(identities) == {
         "backtrader",
+        "backtrader_trade_logger",
         "backtrader_store",
         "backtrader_feed",
         "backtrader_broker",
@@ -519,7 +520,8 @@ def test_receipt_rejects_critical_runtime_identity_drift(monkeypatch, tmp_path):
     }
     assert all(item["found"] and item["path"] and item["sha256"] for item in identities.values())
     drifted = runner.dependency_identity_hashes()
-    drifted["backtrader_store"] = "0" * 64
+    assert identities["backtrader_trade_logger"]["module"] == "backtrader.observers.trade_logger"
+    drifted["backtrader_trade_logger"] = "0" * 64
     monkeypatch.setattr(runner, "dependency_identity_hashes", lambda: drifted)
     with pytest.raises(runner.RunnerConfigurationError, match="dependency hashes"):
         runner.validate_receipt(
@@ -528,6 +530,30 @@ def test_receipt_rejects_critical_runtime_identity_drift(monkeypatch, tmp_path):
             mode="simnow",
             purpose="engineering_smoke",
         )
+
+
+def test_final_sa_report_requires_frozen_trade_logger_extension():
+    generic = {
+        "finalized": True,
+        "run_id": "generic-run",
+        "extensions": {"sa_midfreq": {"closed_bars": 64, "state": "STOPPED_FLAT"}},
+    }
+    strategy = SimpleNamespace(
+        stats=SimpleNamespace(
+            trade_logger=SimpleNamespace(final_report=lambda: copy.deepcopy(generic))
+        )
+    )
+    result = runner._final_sa_report(strategy)
+    assert result["closed_bars"] == 64
+    assert result["trade_logger"] == generic
+
+    generic["finalized"] = False
+    with pytest.raises(RuntimeError, match="not finalized"):
+        runner._final_sa_report(strategy)
+
+    generic.update(finalized=True, extensions={})
+    with pytest.raises(RuntimeError, match="missing the sa_midfreq extension"):
+        runner._final_sa_report(strategy)
 
 
 @pytest.mark.parametrize("unchecked", [True, False])
@@ -3073,6 +3099,7 @@ def test_retention_deletes_only_released_unprotected_runs_and_audits_protection(
 
 
 def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
+    assert not hasattr(strategy_module.SAMidFrequencyStrategy, "report")
     config = _config()
     first = runner.run_replay(
         config,
@@ -3087,6 +3114,22 @@ def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
         run_id="replay-second",
     )
     assert first["business_summary_hash"] == second["business_summary_hash"]
+    assert first["trade_logger"]["finalized"] is True
+    assert first["trade_logger"]["extensions"]["sa_midfreq"]["mode"] == "replay"
+    # Each completed 1m BtApiFeed bar reaches both the native callback surface
+    # and the LineSeries path. TradeLogger reports each source bar once.
+    fixture = json.loads((EXAMPLE / config["replay"]["fixture"]).read_text(encoding="utf-8"))
+    expected_source_bars = sum(
+        int(
+            (
+                datetime.fromisoformat(session_end).timestamp()
+                - datetime.fromisoformat(session_start).timestamp()
+            )
+            // 60
+        )
+        for session_start, session_end in fixture["sessions"]
+    )
+    assert first["trade_logger"]["event_counts"]["bars"] == expected_source_bars
     assert first["runtime_chain"] == {
         "cerebro": "backtrader.cerebro.Cerebro",
         "store": "backtrader.stores.btapistore.BtApiStore",
@@ -3114,6 +3157,203 @@ def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
     assert manifest["execution_basis"] == "none"
     assert manifest["evidence_dropped_counts"] == dict.fromkeys(reporting.EvidenceWriter.STREAMS, 0)
     assert manifest["source_components"]["backtrader"]["path"].startswith(str(REPO))
+    assert manifest["source_components"]["backtrader_trade_logger"]["path"].endswith(
+        "backtrader/observers/trade_logger.py"
+    )
+    trade_logger_directory = tmp_path / "first" / "trade-logger"
+    assert (trade_logger_directory / "system.log").is_file()
+    for high_rate_file in (
+        "tick.log",
+        "bar.log",
+        "position.log",
+        "indicator.log",
+        "value.log",
+        "current_position.yaml",
+    ):
+        assert not (trade_logger_directory / high_rate_file).exists()
+
+
+def test_sa_trade_logger_extension_is_visible_in_a_live_cerebro_snapshot(monkeypatch, tmp_path):
+    snapshots = []
+    original_attach = runner._attach_trade_logger
+
+    def attach_with_probe(cerebro, output_directory):
+        original_attach(cerebro, output_directory)
+
+        class SnapshotProbe(bt.Analyzer):
+            def next(self):
+                snapshots.append(copy.deepcopy(self.strategy.stats.trade_logger.snapshot()))
+
+        cerebro.addanalyzer(SnapshotProbe, _name="trade_logger_snapshot_probe")
+
+    monkeypatch.setattr(runner, "_attach_trade_logger", attach_with_probe)
+    runner.run_replay(
+        _config(),
+        output_directory=tmp_path / "snapshot-live",
+        scenario="no_signal",
+        run_id="snapshot-live",
+    )
+
+    live_extensions = [
+        item.get("extensions", {}).get("sa_midfreq", {})
+        for item in snapshots
+        if item.get("finalized") is False
+    ]
+    assert live_extensions
+    assert any(item.get("mode") == "replay" for item in live_extensions)
+    assert any(item.get("closed_bars", 0) > 0 for item in live_extensions)
+
+
+def test_sa_trade_logger_update_failure_is_diagnosed_and_fails_closed(monkeypatch, tmp_path):
+    def reject_context(_self, _mapping, namespace="strategy"):
+        assert namespace == "sa_midfreq"
+        raise RuntimeError("observer test rejection")
+
+    monkeypatch.setattr(bt.observers.TradeLogger, "update_report_context", reject_context)
+    output_directory = tmp_path / "context-failure"
+
+    with pytest.raises(RuntimeError, match="missing the sa_midfreq extension"):
+        runner.run_replay(
+            _config(),
+            output_directory=output_directory,
+            scenario="no_signal",
+            run_id="context-failure",
+        )
+
+    records = [
+        json.loads(line)
+        for line in (output_directory / "risk_events.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    diagnostics = [
+        item for item in records if item.get("event") == "trade_logger_context_publish_failed"
+    ]
+    assert any(
+        item["reason"] == "update_raised" and item["exception_type"] == "RuntimeError"
+        for item in diagnostics
+    )
+    assert not any(item["exception_type"] == "IndexError" for item in diagnostics)
+    failure = json.loads((output_directory / "failure.json").read_text(encoding="utf-8"))
+    assert failure["status"] == "FAIL_CLOSED"
+
+
+def test_sa_stale_trade_logger_extension_is_rejected_without_per_tick_retries(
+    monkeypatch, tmp_path
+):
+    """A later publication failure cannot export the earlier live snapshot."""
+    original_update = bt.observers.TradeLogger.update_report_context
+    calls = []
+
+    def accept_once_then_raise(observer, mapping, namespace="strategy"):
+        calls.append(namespace)
+        if len(calls) == 1:
+            return original_update(observer, mapping, namespace=namespace)
+        raise RuntimeError("injected publication failure")
+
+    monkeypatch.setattr(bt.observers.TradeLogger, "update_report_context", accept_once_then_raise)
+    output_directory = tmp_path / "stale-context"
+
+    with pytest.raises(RuntimeError, match="stale after a publish failure"):
+        runner.run_replay(
+            _config(),
+            output_directory=output_directory,
+            scenario="no_signal",
+            run_id="stale-context",
+        )
+
+    records = [
+        json.loads(line)
+        for line in (output_directory / "risk_events.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert any(
+        item.get("event") == "trade_logger_context_publish_failed"
+        and item.get("reason") == "update_raised"
+        and item.get("exception_type") == "RuntimeError"
+        for item in records
+    )
+    # The replay has thousands of quotes.  Publication remains bounded by
+    # completed bars plus the 128-quote cadence, rather than every quote.
+    assert 2 <= len(calls) < 200
+    failure = json.loads((output_directory / "failure.json").read_text(encoding="utf-8"))
+    assert failure["status"] == "FAIL_CLOSED"
+
+
+def test_sa_report_position_lots_use_dual_leg_cache_without_broker_queries():
+    class Broker:
+        def __init__(self):
+            self.getposition_calls = 0
+
+        def get_param(self, name, default=None):
+            return "dual_side" if name == "position_mode" else default
+
+        def get_cached_report_state(self):
+            return {
+                "positions": {"SA701": SimpleNamespace(size=0)},
+                "position_legs": {
+                    "SA701": {
+                        "long": SimpleNamespace(size=1),
+                        "short": SimpleNamespace(size=1),
+                    }
+                },
+            }
+
+        def getposition(self, _data, **_kwargs):
+            self.getposition_calls += 1
+            raise AssertionError("report cache helper must not call getposition")
+
+    broker = Broker()
+    holder = SimpleNamespace(broker=broker, data=SimpleNamespace(_name="SA701"))
+    holder._finite_lots = strategy_module.SAMidFrequencyStrategy._finite_lots
+    holder._cached_mapping_value = strategy_module.SAMidFrequencyStrategy._cached_mapping_value
+    holder._report_data = strategy_module.SAMidFrequencyStrategy._report_data.__get__(holder)
+
+    lots, complete = strategy_module.SAMidFrequencyStrategy._cached_report_position_lots(holder)
+
+    assert (lots, complete) == (2, True)
+    assert broker.getposition_calls == 0
+
+    class NetOnlyBroker(Broker):
+        def get_cached_report_state(self):
+            return {"positions": {"SA701": {"size": -3}}}
+
+    holder.broker = NetOnlyBroker()
+    lots, complete = strategy_module.SAMidFrequencyStrategy._cached_report_position_lots(holder)
+    assert (lots, complete) == (3, False)
+    assert holder.broker.getposition_calls == 0
+
+
+def test_business_summary_hash_excludes_trade_logger_runtime_telemetry():
+    report = {
+        "state": "STOPPED_FLAT",
+        "closed_bars": 64,
+        "orders": [],
+        "trade_logger": {
+            "run_id": "observer-run-1",
+            "generated_at": "2026-09-10T00:00:01+00:00",
+            "started_at": "2026-09-10T00:00:00+00:00",
+            "finalized_at": "2026-09-10T00:00:01+00:00",
+            "event_counts": {"bars": 64, "ticks": 65},
+            "monitoring": {"counts": {"observer_callbacks": 64}},
+        },
+    }
+    expected = reporting.business_summary_hash(report)
+
+    runtime_changed = copy.deepcopy(report)
+    runtime_changed["trade_logger"].update(
+        run_id="observer-run-2",
+        generated_at="2026-09-10T00:02:00+00:00",
+        finalized_at="2026-09-10T00:02:00+00:00",
+        event_counts={"bars": 999, "ticks": 1001},
+    )
+    runtime_changed["business_summary_hash"] = expected
+    assert reporting.business_summary_hash(runtime_changed) == expected
+
+    business_changed = copy.deepcopy(runtime_changed)
+    business_changed["closed_bars"] = 63
+    assert reporting.business_summary_hash(business_changed) != expected
 
 
 def test_replay_client_exposes_frozen_eof_watermark_without_runstop():

@@ -5,9 +5,11 @@ so their identical ``strategy.py``/``run.py`` basenames never collide inside
 one pytest process.
 """
 
+import copy
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -108,6 +110,69 @@ def _replay(run_module, scenario):
     return report
 
 
+@pytest.mark.parametrize("runner_fixture", ("run1", "run2"))
+def test_final_pair_report_requires_frozen_trade_logger_extension(request, runner_fixture):
+    """A pair runner must never export a live Observer snapshot as final evidence."""
+    runner = request.getfixturevalue(runner_fixture)
+    generic = {
+        "finalized": True,
+        "run_id": "generic-run",
+        "extensions": {"pair_arbitrage": {"halted": False, "positions": {}}},
+    }
+    strategy = SimpleNamespace(
+        stats=SimpleNamespace(trade_logger=SimpleNamespace(final_report=lambda: generic))
+    )
+
+    result = runner._final_pair_report(strategy)
+    assert result["halted"] is False
+    assert result["trade_logger"] == generic
+
+    generic["finalized"] = False
+    with pytest.raises(RuntimeError, match="not finalized"):
+        runner._final_pair_report(strategy)
+
+    generic.update(finalized=True, extensions={})
+    with pytest.raises(RuntimeError, match="missing the pair_arbitrage extension"):
+        runner._final_pair_report(strategy)
+
+    generic["extensions"] = {"pair_arbitrage": {"halted": False, "positions": {}}}
+    strategy._trade_logger_context_failed_since_success = True
+    with pytest.raises(RuntimeError, match="stale after a publish failure"):
+        runner._final_pair_report(strategy)
+
+
+@pytest.mark.parametrize("runner_fixture", ("run1", "run2"))
+def test_pair_extension_is_visible_in_a_live_trade_logger_snapshot(
+    request, monkeypatch, runner_fixture
+):
+    """The strategy extension is observable before TradeLogger freezes it."""
+    import backtrader as bt
+
+    runner = request.getfixturevalue(runner_fixture)
+    snapshots = []
+    original_attach = runner._attach_trade_logger
+
+    def attach_with_probe(cerebro, output_directory):
+        original_attach(cerebro, output_directory)
+
+        class SnapshotProbe(bt.Analyzer):
+            def next(self):
+                snapshots.append(copy.deepcopy(self.strategy.stats.trade_logger.snapshot()))
+
+        cerebro.addanalyzer(SnapshotProbe, _name="trade_logger_snapshot_probe")
+
+    monkeypatch.setattr(runner, "_attach_trade_logger", attach_with_probe)
+    runner.run_replay("no_edge")
+
+    live_extensions = [
+        item.get("extensions", {}).get("pair_arbitrage", {})
+        for item in snapshots
+        if item.get("finalized") is False
+    ]
+    assert live_extensions
+    assert any(item.get("ticks_seen", 0) > 0 for item in live_extensions)
+
+
 @pytest.mark.parametrize("scenario", ["profitable", "loss", "no_edge"])
 def test_example1_replay_scenarios(scenario, run1):
     report = _replay(run1, scenario)
@@ -147,3 +212,168 @@ def test_yaml_configs_match_strategy_defaults_and_runners(run1, run2):
         assert set(params).issubset(set(defaults))
         assert config["symbols"] == ["auto"]
         assert config["simnow_env"] == "new_7x24"
+
+
+@pytest.mark.parametrize("runner_fixture", ("run1", "run2"))
+@pytest.mark.parametrize("scenario", ("profitable", "loss", "no_edge"))
+def test_pair_replay_business_summary_is_stable_without_runtime_telemetry(
+    request, runner_fixture, scenario
+):
+    runner = request.getfixturevalue(runner_fixture)
+
+    first = runner.run_replay(scenario)
+    second = runner.run_replay(scenario)
+
+    assert first["trade_logger"]["finalized"] is True
+    assert first["business_summary"] == second["business_summary"]
+    assert first["business_summary_hash"] == second["business_summary_hash"]
+    assert "trade_logger" not in first["business_summary"]
+
+
+@pytest.mark.parametrize("runner_fixture", ("run1", "run2"))
+def test_pair_business_summary_hash_excludes_trade_logger_runtime_data(request, runner_fixture):
+    runner = request.getfixturevalue(runner_fixture)
+    report = {
+        "scenario": "no_edge",
+        "positions": {"leg": 0.0},
+        "execution_state": {"pending_order_ref": 5},
+        "orders": [{"ref": 5, "symbol": "leg", "status": "Completed"}],
+        "results": [{"action": "open", "order_refs": [5]}],
+        "trade_logger": {
+            "run_id": "observer-1",
+            "generated_at": "2026-09-10T00:00:00+00:00",
+            "event_counts": {"ticks": 1},
+        },
+    }
+
+    expected = runner.business_summary_hash(report)
+    changed = copy.deepcopy(report)
+    changed["trade_logger"] = {
+        "run_id": "observer-2",
+        "generated_at": "2026-09-10T00:02:00+00:00",
+        "event_counts": {"ticks": 999},
+    }
+    changed["business_summary_hash"] = expected
+    changed["execution_state"] = {"pending_order_ref": 10}
+    changed["orders"] = [{"ref": 10, "symbol": "leg", "status": "Completed"}]
+    changed["results"] = [{"action": "open", "order_refs": [10]}]
+
+    assert runner.business_summary_hash(changed) == expected
+    changed["positions"] = {"leg": 1.0}
+    assert runner.business_summary_hash(changed) != expected
+
+
+class _GetterForbiddenBroker:
+    def __init__(self):
+        self.calls = {"cached": 0, "getvalue": 0, "getposition": 0}
+
+    def get_cached_report_state(self):
+        self.calls["cached"] += 1
+        return {
+            "value": 125.0,
+            "positions": {
+                "first": SimpleNamespace(size=2.0),
+                "second": SimpleNamespace(size=-2.0),
+            },
+        }
+
+    def getvalue(self):
+        self.calls["getvalue"] += 1
+        raise AssertionError("report context must not call getvalue")
+
+    def getposition(self, _data):
+        self.calls["getposition"] += 1
+        raise AssertionError("report context must not call getposition")
+
+
+@pytest.mark.parametrize("strategy_fixture", ("ex1", "ex2"))
+def test_pair_report_context_uses_cached_state_only(request, strategy_fixture):
+    strategy_class = request.getfixturevalue(strategy_fixture).PairArbitrageStrategy
+    broker = _GetterForbiddenBroker()
+    first = SimpleNamespace(_name="first")
+    second = SimpleNamespace(_name="second")
+    holder = SimpleNamespace(
+        broker=broker,
+        datas=(first, second),
+        initial_value=100.0,
+        ticks_seen=4,
+        orders={},
+        results=[],
+        open_attempts=0,
+        halted=False,
+        halt_reason="",
+        current_pair=None,
+        pending_order=None,
+        active_pair=None,
+        stage=None,
+    )
+    holder._finite_float = strategy_class._finite_float
+    holder._cached_position_size = strategy_class._cached_position_size
+    holder._cached_broker_report_state = strategy_class._cached_broker_report_state.__get__(holder)
+    holder._cached_positions = strategy_class._cached_positions.__get__(holder)
+    holder._report_execution_state = strategy_class._report_execution_state.__get__(holder)
+
+    context = strategy_class._report_context(holder)
+
+    assert context["portfolio_value"] == 125.0
+    assert context["net_pnl"] == 25.0
+    assert context["positions"] == {"first": 2.0, "second": -2.0}
+    assert broker.calls == {"cached": 1, "getvalue": 0, "getposition": 0}
+
+
+@pytest.mark.parametrize(
+    ("strategy_fixture", "ticks_seen", "expected_updates"),
+    (("ex1", 1, 1), ("ex2", 1, 0), ("ex2", 128, 1)),
+)
+def test_pair_context_publication_is_rate_bounded(
+    request, strategy_fixture, ticks_seen, expected_updates
+):
+    strategy_class = request.getfixturevalue(strategy_fixture).PairArbitrageStrategy
+    updates = []
+    holder = SimpleNamespace(
+        trade_logger_tick_interval=strategy_class.trade_logger_tick_interval,
+        ticks_seen=ticks_seen,
+        _trade_logger_context_revision=0,
+        _trade_logger_last_attempted_revision=0,
+        _trade_logger_last_attempted_tick=0,
+        _trade_logger_context_dirty=False,
+        _trade_logger_context_failed_since_success=False,
+        _trade_logger_context_last_error=None,
+        stats=SimpleNamespace(
+            trade_logger=SimpleNamespace(
+                update_report_context=lambda context, namespace: updates.append(
+                    (context, namespace)
+                )
+                or True
+            )
+        ),
+        _report_context=lambda: {"ticks_seen": ticks_seen},
+    )
+
+    assert strategy_class._publish_trade_logger_context(holder) is True
+    assert len(updates) == expected_updates
+
+
+def test_highfreq_pair_publish_failure_is_rate_bounded_and_final_report_is_rejected(
+    run2, monkeypatch
+):
+    """A failed HFT publication must not make every tick serialize context."""
+    import backtrader as bt
+
+    original_update = bt.observers.TradeLogger.update_report_context
+    calls = []
+
+    def accept_once_then_raise(observer, mapping, namespace="strategy"):
+        calls.append(namespace)
+        if len(calls) == 1:
+            return original_update(observer, mapping, namespace=namespace)
+        raise RuntimeError("injected publication failure")
+
+    monkeypatch.setattr(bt.observers.TradeLogger, "update_report_context", accept_once_then_raise)
+    with pytest.raises(RuntimeError, match="stale after a publish failure"):
+        run2.run_replay("no_edge")
+
+    # The replay has 120 ticks, below the 128-tick cadence.  The failed
+    # startup-state publication and forced final attempt are still allowed;
+    # a per-tick retry would have produced hundreds of calls.
+    assert 2 <= len(calls) < 10

@@ -6,9 +6,12 @@
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import math
 import sys
+import tempfile
+from collections.abc import Mapping
 from collections import deque
 from pathlib import Path
 
@@ -42,6 +45,26 @@ DEFAULT_CONFIG = "config.yaml"
 PRODUCT_CALENDARS = {"m": (1, 3, 5, 7, 8, 9, 11, 12), "rm": (1, 3, 5, 7, 8, 9, 11, 12)}
 CZCE_PRODUCTS = frozenset({"rm"})
 MIN_DAYS_TO_EXPIRY = 45
+BUSINESS_SUMMARY_VOLATILE_FIELDS = frozenset(
+    {
+        # TradeLogger is the complete runtime envelope.  Its run id,
+        # timestamps and callback counters intentionally vary across an
+        # equivalent replay and therefore are not business inputs.
+        "trade_logger",
+        "business_summary",
+        "business_summary_hash",
+    }
+)
+BUSINESS_SUMMARY_VOLATILE_NESTED_FIELDS = frozenset(
+    {
+        # ``Order.ref`` is process-global in Backtrader.  The raw report keeps
+        # it for operator traceability, but an equivalent replay receives a
+        # different sequence after another run in the same interpreter.
+        "ref",
+        "order_refs",
+        "pending_order_ref",
+    }
+)
 
 
 def _contract_code(product, year, month):
@@ -96,6 +119,81 @@ def configure_commissions(broker, symbols, params):
             ),
             name=symbol,
         )
+
+
+def _attach_trade_logger(cerebro, log_dir):
+    """Attach the generic report owner under a stable strategy-local name."""
+    cerebro.addobserver(
+        bt.observers.TradeLogger,
+        obsname="trade_logger",
+        log_dir=str(log_dir),
+        log_format="json",
+        log_to_console=False,
+        log_positions=False,
+        log_indicators=False,
+        log_ticks=False,
+        log_bars=False,
+        log_value=False,
+        log_position_snapshot=False,
+    )
+
+
+def _final_pair_report(strategy):
+    """Read the frozen pair-arbitrage extension from TradeLogger."""
+    observer = getattr(getattr(strategy, "stats", None), "trade_logger", None)
+    final_report = getattr(observer, "final_report", None)
+    if not callable(final_report):
+        raise RuntimeError("named TradeLogger final report is unavailable")
+    generic = final_report()
+    if not isinstance(generic, dict):
+        raise RuntimeError("TradeLogger did not freeze a final report")
+    if generic.get("finalized") is not True:
+        raise RuntimeError("TradeLogger final report is not finalized")
+    extensions = generic.get("extensions")
+    context = extensions.get("pair_arbitrage") if isinstance(extensions, dict) else None
+    if not isinstance(context, dict) or not context:
+        raise RuntimeError("TradeLogger final report is missing the pair_arbitrage extension")
+    if bool(getattr(strategy, "_trade_logger_context_failed_since_success", False)):
+        raise RuntimeError("TradeLogger pair_arbitrage extension is stale after a publish failure")
+    return {**context, "trade_logger": generic}
+
+
+def business_summary(report):
+    """Return replay-stable pair data without observer or process telemetry."""
+
+    def stable_value(value):
+        if isinstance(value, Mapping):
+            return {
+                key: stable_value(nested)
+                for key, nested in value.items()
+                if key not in BUSINESS_SUMMARY_VOLATILE_NESTED_FIELDS
+            }
+        if isinstance(value, (list, tuple)):
+            return [stable_value(item) for item in value]
+        return value
+
+    return stable_value(
+        {key: value for key, value in report.items() if key not in BUSINESS_SUMMARY_VOLATILE_FIELDS}
+    )
+
+
+def business_summary_hash(report):
+    """Hash the stable pair business summary, excluding TradeLogger runtime data."""
+    payload = json.dumps(
+        business_summary(report),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _attach_business_summary(report):
+    summary = business_summary(report)
+    report["business_summary"] = summary
+    report["business_summary_hash"] = business_summary_hash(report)
+    return report
 
 
 # ---------------- synthetic replay ----------------
@@ -202,15 +300,17 @@ def run_replay(scenario="profitable"):
         )
     # The replay client stops Cerebro once its synthetic ticks are exhausted.
     client.set_stop_callback(cerebro.runstop)
-    cerebro.addstrategy(STRATEGY_CLASS)
-    strategy = cerebro.run(preload=False, runonce=False)[0]
-    report = strategy.report()
+    with tempfile.TemporaryDirectory(prefix="bt-013-1-replay-") as report_directory:
+        _attach_trade_logger(cerebro, Path(report_directory))
+        cerebro.addstrategy(STRATEGY_CLASS)
+        strategy = cerebro.run(preload=False, runonce=False)[0]
+        report = _final_pair_report(strategy)
     report.update(
         scenario=scenario,
         symbols=symbols,
         evidence="Synthetic CTP tick replay; does not establish live profitability",
     )
-    return report
+    return _attach_business_summary(report)
 
 
 # ---------------- SimNow live ----------------
@@ -231,6 +331,10 @@ def run_live(args):
     cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
     cerebro.setbroker(broker)
     add_live_feeds(cerebro, store, {**config, "symbols": symbols})
+    _attach_trade_logger(
+        cerebro,
+        HERE / "reports" / "trade-logger" / dt.datetime.now().strftime("%Y%m%d_%H%M%S"),
+    )
     cerebro.addstrategy(STRATEGY_CLASS, **dict(config.get("strategy_params") or {}))
     timeout = float(config.get("run_timeout_seconds", 300))
     print(
@@ -243,9 +347,9 @@ def run_live(args):
         )
     )
     strategies = run_cerebro_with_timeout(cerebro, timeout)
-    report = strategies[0].report()
+    report = _final_pair_report(strategies[0])
     report.update(symbols=symbols, mode="simnow_live")
-    return report
+    return _attach_business_summary(report)
 
 
 def main():

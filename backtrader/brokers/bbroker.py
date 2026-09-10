@@ -1192,6 +1192,24 @@ class BackBroker(BrokerBase):
             return self._sync_net_position(data)
         return self.positions[data]
 
+    def get_cached_report_state(self):
+        """Return the broker's already-computed state without recalculation."""
+        positions = dict(self.positions)
+        position_legs = {}
+        if self._is_dual_side_mode():
+            for data in set(self.long_positions) | set(self.short_positions):
+                positions[data] = self._sync_net_position(data)
+                position_legs[data] = {
+                    "long": self.long_positions.get(data),
+                    "short": self.short_positions.get(data),
+                }
+        return {
+            "cash": self._cash,
+            "value": self._value,
+            "positions": positions,
+            "position_legs": position_legs,
+        }
+
     def orderstatus(self, order):
         """Get the status of an order.
 

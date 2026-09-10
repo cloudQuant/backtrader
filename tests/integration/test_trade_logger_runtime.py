@@ -10,9 +10,15 @@ import pytest
 
 from backtrader.brokers.tickbroker import TickBroker
 from backtrader.channel import DataChannel, StreamingEventQueue
-from backtrader.events import TickEvent
+from backtrader.events import BarEvent, TickEvent
 
-from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store, make_tick
+from tests.fixtures.fake_btapi import (
+    DEFAULT_SYMBOL,
+    FakeBtApiClient,
+    make_bar,
+    make_store,
+    make_tick,
+)
 
 
 def _read_json_lines(path):
@@ -188,7 +194,11 @@ def test_trade_logger_records_store_and_data_runtime_events(tmp_path):
     assert store_event_time.tzinfo is not None
     assert store_event_time.utcoffset() == dt.timedelta(0)
 
-    assert any(entry["status"] == "LIVE" for entry in system_entries if entry["event_type"] == "data_status")
+    assert any(
+        entry["status"] == "LIVE"
+        for entry in system_entries
+        if entry["event_type"] == "data_status"
+    )
     assert "order_submit_request" in monitor_events
     assert "order_submit_accepted" in monitor_events
     assert "order_cancel_request" in monitor_events
@@ -451,7 +461,11 @@ def test_trade_logger_records_batch_cancel_failures_in_error_log(tmp_path):
 
     assert "order_cancel_reject_remote" in error_events
     assert "batch_cancel_failed" in error_events
-    assert any(entry["status"] == "partial" for entry in error_entries if entry["event_type"] == "batch_cancel_failed")
+    assert any(
+        entry["status"] == "partial"
+        for entry in error_entries
+        if entry["event_type"] == "batch_cancel_failed"
+    )
 
 
 @pytest.mark.integration
@@ -521,9 +535,7 @@ def test_trade_logger_records_channel_mode_runtime_logs_without_datas(tmp_path):
             self.pending_order = None
             self.completed_orders = 0
             self._last_order_status = {}
-            self.placeholder_data = {
-                self.p.symbol: ChannelPlaceholderData(self.p.symbol)
-            }
+            self.placeholder_data = {self.p.symbol: ChannelPlaceholderData(self.p.symbol)}
 
         @property
         def data_obj(self):
@@ -582,10 +594,110 @@ def test_trade_logger_records_channel_mode_runtime_logs_without_datas(tmp_path):
     assert "session_started" in system_events
     assert "session_stopped" in system_events
     assert [entry["price"] for entry in tick_entries] == [100.0, 101.0, 99.0, 98.0]
-    assert any(entry["status"] == "Completed" and entry["data_name"] == symbol for entry in order_entries)
-    assert any(entry["isclosed"] is True and entry["data_name"] == symbol for entry in trade_entries)
+    assert any(
+        entry["status"] == "Completed" and entry["data_name"] == symbol for entry in order_entries
+    )
+    assert any(
+        entry["isclosed"] is True and entry["data_name"] == symbol for entry in trade_entries
+    )
     assert len(value_entries) == 4
     assert any(entry["data_name"] == symbol for entry in position_entries)
+
+
+@pytest.mark.integration
+def test_trade_logger_generic_report_marks_channel_refs_and_counts_real_bars(tmp_path):
+    """Channel-only reports retain positions and do not classify ticks as bars."""
+    symbol = "BTC/USDT"
+
+    class LegacyMarkForbiddenTickBroker(TickBroker):
+        """Fail if the report regresses to an unspecified live mark hook."""
+
+        def get_mark_price(self, data):
+            raise AssertionError("generic report must call get_cached_mark_price only")
+
+    tick_channel = MemoryChannel(
+        "tick",
+        symbol,
+        [
+            TickEvent(timestamp=1.0, symbol=symbol, price=100.0, volume=1.0),
+            TickEvent(timestamp=2.0, symbol=symbol, price=100.0, volume=1.0),
+            TickEvent(timestamp=3.0, symbol=symbol, price=120.0, volume=1.0),
+        ],
+    )
+    bar_channel = MemoryChannel(
+        "bar",
+        symbol,
+        [
+            BarEvent(
+                timestamp=4.0,
+                symbol=symbol,
+                open=120.0,
+                high=120.0,
+                low=120.0,
+                close=120.0,
+                volume=1.0,
+            )
+        ],
+    )
+    queue = StreamingEventQueue(
+        channels=[tick_channel, bar_channel], preload_window=1.0, adaptive=False
+    )
+
+    class ChannelReferenceStrategy(bt.Strategy):
+        """Submit through Cerebro's channel reference without a placeholder feed."""
+
+        def __init__(self):
+            self.submitted = False
+
+        def start(self):
+            self.trade_logger = self.stats.trade_logger
+
+        def notify_tick(self, tick):
+            if self.submitted:
+                return
+            self.submitted = True
+            self.buy(data=self.get_hft_data(tick.symbol), size=1, exectype=bt.Order.Market)
+
+    cerebro = bt.Cerebro(stdstats=False)
+    broker = LegacyMarkForbiddenTickBroker(cash=1_000.0)
+    broker.setcommission(commission=0.0, name=symbol)
+    cerebro.setbroker(broker)
+    cerebro.addstrategy(ChannelReferenceStrategy)
+    cerebro.addobserver(
+        bt.observers.TradeLogger,
+        obsname="trade_logger",
+        log_dir=str(tmp_path),
+        log_orders=False,
+        log_trades=False,
+        log_positions=False,
+        log_indicators=False,
+        log_signals=False,
+        log_ticks=False,
+        log_bars=False,
+        log_system=False,
+        log_monitoring=False,
+        log_errors=False,
+        log_value=False,
+        log_position_snapshot=False,
+    )
+
+    strategy = cerebro.run(channel=queue)[0]
+    report = strategy.stats.trade_logger.final_report()
+
+    assert strategy.datas == []
+    assert set(strategy._hft_data_refs) == {symbol}
+    assert report is not None
+    assert report["finalized"] is True
+    assert report["event_counts"]["ticks"] == 3
+    assert report["event_counts"]["bars"] == 1
+    assert report["positions"][symbol]["size"] == 1
+    assert report["positions"][symbol]["current_price"] == pytest.approx(120.0)
+    assert report["positions"][symbol]["value"] == pytest.approx(120.0)
+    assert report["portfolio"]["cash"] == pytest.approx(900.0)
+    assert report["portfolio"]["value"] == pytest.approx(1_020.0)
+    assert report["portfolio"]["cash"] + report["positions"][symbol]["value"] == pytest.approx(
+        report["portfolio"]["value"]
+    )
 
 
 @pytest.mark.integration

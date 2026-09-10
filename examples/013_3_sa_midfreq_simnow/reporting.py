@@ -531,7 +531,32 @@ class EvidenceWriter:
         self.write_json("manifest.json", updated)
 
 
+BUSINESS_SUMMARY_VOLATILE_FIELDS = frozenset(
+    {
+        "run_id",
+        "started_at_utc",
+        "ended_at_utc",
+        "evidence_directory",
+        "business_summary_hash",
+        # TradeLogger is retained in the emitted report as a complete generic
+        # runtime envelope.  It has its own timestamps, run id, monitoring and
+        # callback counts, none of which are replay-business inputs.
+        "trade_logger",
+    }
+)
+
+
 def business_summary_hash(report: Mapping[str, Any]) -> str:
-    ignored = {"run_id", "started_at_utc", "ended_at_utc", "evidence_directory"}
-    normalized = {key: value for key, value in report.items() if key not in ignored}
+    """Hash the deterministic SA business summary, not runtime telemetry.
+
+    The complete ``trade_logger`` payload remains available to operators in
+    the report.  It is intentionally omitted from this hash because its
+    lifecycle timestamps and observer telemetry change for equivalent replay
+    runs.  Excluding an already-assigned hash also makes this function
+    idempotent when callers validate a persisted report.
+    """
+
+    normalized = {
+        key: value for key, value in report.items() if key not in BUSINESS_SUMMARY_VOLATILE_FIELDS
+    }
     return sha256_json(normalized)

@@ -29,8 +29,10 @@ Example:
 """
 
 import collections
+import copy
 import json
 import logging
+import math
 import os
 import time
 import uuid
@@ -44,6 +46,26 @@ logger = get_logger(__name__)
 
 # Shanghai timezone (UTC+8) used for all log timestamps
 _SHANGHAI_TZ = timezone(timedelta(hours=8))
+
+# The report is deliberately an in-memory observer product.  It must stay
+# independent from the file/MySQL logging switches below so a caller can keep
+# a lightweight, real-time status view without producing another stream of
+# high-frequency log records.
+_REPORT_SCHEMA_VERSION = 1
+_REPORT_EVENT_KEYS = (
+    "orders",
+    "trades",
+    "signals",
+    "ticks",
+    "bars",
+    "store",
+    "data",
+    "errors",
+)
+# Completed feed callbacks are normally consumed by the immediately following
+# LineSeries observer step. Keep a bounded safety window for malformed/custom
+# events whose timestamp never reaches that step.
+_REPORT_PENDING_BAR_LIMIT = 1024
 
 # Optional MySQL support
 try:
@@ -93,6 +115,10 @@ class TradeLogger(Observer):
         mysql_password (str): MySQL password. Default: ''
         mysql_database (str): MySQL database. Default: 'backtrader'
 
+        report_max_records (int): Maximum retained order and trade callback
+            summaries in the in-memory report. Default: 100. Set to 0 to
+            retain counters only.
+
     Example:
         >>> cerebro.addobserver(bt.observers.TradeLogger,
         ...                     log_dir='./logs',
@@ -127,6 +153,8 @@ class TradeLogger(Observer):
         "submit_cancel_total_warn_threshold": 0,
         "duplicate_order_warn_threshold": 0,
         "duplicate_order_window_seconds": 60.0,
+        # In-memory generic report settings. These do not enable any file I/O.
+        "report_max_records": 100,
         # MySQL settings - disabled by default
         "mysql_enabled": False,
         "mysql_host": "localhost",
@@ -165,6 +193,673 @@ class TradeLogger(Observer):
         self._duplicate_requests = collections.defaultdict(collections.deque)
         self._triggered_thresholds = set()
         self._loggers_initialized = False
+        self._init_report_state()
+
+    # ------------------------------------------------------------------
+    # Generic in-memory report API
+    # ------------------------------------------------------------------
+
+    def _init_report_state(self):
+        """Initialize bounded, JSON-safe report state for this observer run."""
+        try:
+            record_limit = max(0, int(self.p.report_max_records))
+        except (AttributeError, TypeError, ValueError):
+            record_limit = 100
+
+        self._report_record_limit = record_limit
+        self._report_event_counts = collections.Counter(dict.fromkeys(_REPORT_EVENT_KEYS, 0))
+        self._report_dispatched_line_bars = collections.OrderedDict()
+        self._report_orders = collections.deque(maxlen=record_limit)
+        self._report_trades = collections.deque(maxlen=record_limit)
+        self._report_dropped_records = collections.Counter({"orders": 0, "trades": 0})
+        self._report_extensions = {}
+        self._report_portfolio = {"cash": None, "value": None}
+        self._report_positions = {}
+        self._report_strategy = {"name": "Unknown", "module": None}
+        self._report_provider = ""
+        self._report_session_id = ""
+        self._report_monitoring_thresholds = {}
+        self._report_started_at = None
+        self._report_last_updated_at = self._log_time_str()
+        self._report_last_event_at = None
+        self._report_finalized_at = None
+        self._report_finalized = False
+        self._final_report = None
+
+    @classmethod
+    def _normalize_report_context_value(cls, value, active=None):
+        """Strictly normalize a value accepted by ``update_report_context``.
+
+        Strategy context is part of an exported report, so accepting arbitrary
+        Python objects here would make the contract depend on ``json.dumps``
+        implementation details.  Only JSON primitives, mappings with string
+        keys, and list/tuple containers are accepted.  ``active`` tracks the
+        current recursion path to reject cycles while allowing shared values.
+        """
+        if active is None:
+            active = set()
+
+        if value is None or isinstance(value, (bool, str, int)):
+            return value
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError("report context floats must be finite")
+            return value
+
+        if isinstance(value, Mapping):
+            value_id = id(value)
+            if value_id in active:
+                raise ValueError("report context cannot contain cycles")
+            active.add(value_id)
+            try:
+                normalized = {}
+                for key, item in value.items():
+                    if not isinstance(key, str):
+                        raise TypeError("report context mapping keys must be strings")
+                    normalized[key] = cls._normalize_report_context_value(item, active)
+                return normalized
+            finally:
+                active.remove(value_id)
+
+        if isinstance(value, (list, tuple)):
+            value_id = id(value)
+            if value_id in active:
+                raise ValueError("report context cannot contain cycles")
+            active.add(value_id)
+            try:
+                return [cls._normalize_report_context_value(item, active) for item in value]
+            finally:
+                active.remove(value_id)
+
+        raise TypeError(f"report context value is not JSON-safe: {type(value).__name__}")
+
+    @classmethod
+    def _normalize_report_context(cls, mapping):
+        """Return a strict JSON-safe context mapping, or ``None`` when invalid."""
+        if not isinstance(mapping, Mapping):
+            return None
+        try:
+            normalized = cls._normalize_report_context_value(mapping)
+        except (TypeError, ValueError, RecursionError):
+            return None
+        return normalized if isinstance(normalized, dict) else None
+
+    @classmethod
+    def _report_json_safe_value(cls, value, active=None):
+        """Best-effort JSON-safe conversion for framework event summaries.
+
+        Incoming broker/store objects are intentionally less strict than
+        caller-provided report context.  A logging observer must never break a
+        trading run because a provider supplied an unusual value, so opaque
+        values are represented as strings and non-finite numbers become null.
+        """
+        if active is None:
+            active = set()
+
+        if value is None or isinstance(value, (bool, str, int)):
+            return value
+        if isinstance(value, float):
+            return value if math.isfinite(value) else None
+        if isinstance(value, datetime):
+            return cls._event_time_str(value, "")
+
+        if isinstance(value, Mapping):
+            value_id = id(value)
+            if value_id in active:
+                return "<cycle>"
+            active.add(value_id)
+            try:
+                return {
+                    str(key): cls._report_json_safe_value(item, active)
+                    for key, item in value.items()
+                }
+            except Exception:
+                return "<unavailable-mapping>"
+            finally:
+                active.remove(value_id)
+
+        if isinstance(value, (list, tuple, set, frozenset)):
+            value_id = id(value)
+            if value_id in active:
+                return "<cycle>"
+            active.add(value_id)
+            try:
+                return [cls._report_json_safe_value(item, active) for item in value]
+            except Exception:
+                return ["<unavailable-sequence>"]
+            finally:
+                active.remove(value_id)
+
+        item_method = getattr(value, "item", None)
+        if callable(item_method):
+            try:
+                return cls._report_json_safe_value(item_method(), active)
+            except Exception:
+                pass
+        try:
+            return str(value)
+        except Exception:
+            return f"<{type(value).__name__}>"
+
+    def _report_touch(self, event_time=None):
+        """Advance the report's in-memory as-of timestamp."""
+        if not hasattr(self, "_report_last_updated_at"):
+            return
+        timestamp = event_time or self._log_time_str()
+        self._report_last_updated_at = timestamp
+        self._report_last_event_at = timestamp
+
+    def _refresh_report_metadata(self):
+        """Cache framework metadata outside of ``snapshot()``."""
+        if not hasattr(self, "_report_strategy") or getattr(self, "_report_finalized", False):
+            return
+
+        owner = getattr(self, "_owner", None)
+        strategy_name = self._get_strategy_name()
+        strategy_module = None
+        try:
+            strategy_module = owner.__class__.__module__ if owner is not None else None
+        except Exception:
+            strategy_module = None
+
+        self._report_strategy = {
+            "name": self._report_json_safe_value(strategy_name),
+            "module": self._report_json_safe_value(strategy_module),
+        }
+        self._report_provider = self._report_json_safe_value(self._store_provider())
+        self._report_session_id = self._report_json_safe_value(self._session_id())
+        try:
+            self._report_monitoring_thresholds = self._report_json_safe_value(
+                self._configured_risk_thresholds()
+            )
+        except Exception:
+            self._report_monitoring_thresholds = {}
+
+    def _has_active_report_bar(self, owner):
+        """Return whether the strategy has advanced to a safe current bar.
+
+        With preloaded data, ``data.close[0]`` may point at the final buffered
+        value during ``start()``.  Strategy length is still zero then, so do
+        not construct a price-bearing position snapshot until a real strategy
+        callback has begun.
+        """
+        try:
+            return owner is not None and len(owner) > 0
+        except Exception:
+            return False
+
+    @staticmethod
+    def _report_timestamp_key(value):
+        """Return a millisecond UTC key for a bar event or line datetime."""
+        if isinstance(value, datetime):
+            dt_value = value
+        elif isinstance(value, (int, float)):
+            try:
+                return int(round(float(value) * 1000.0))
+            except (TypeError, ValueError, OverflowError):
+                return None
+        else:
+            return None
+        if dt_value.tzinfo is None or dt_value.utcoffset() is None:
+            dt_value = dt_value.replace(tzinfo=timezone.utc)
+        try:
+            return int(round(dt_value.timestamp() * 1000.0))
+        except (OverflowError, OSError, ValueError):
+            return None
+
+    @classmethod
+    def _report_bar_event_identity(cls, bar):
+        """Identify one dispatched bar using its symbol and event timestamp."""
+        name = getattr(bar, "symbol", None) or getattr(bar, "_name", None)
+        # BtApiFeed sets ``bar.datetime`` to the same bucket start it writes
+        # into LineSeries, while a completed BarEvent's transport timestamp
+        # can be the bucket end. Prefer the line timestamp for deduplication.
+        timestamp = cls._report_timestamp_key(getattr(bar, "datetime", None))
+        if timestamp is None:
+            timestamp = cls._report_timestamp_key(getattr(bar, "timestamp", None))
+        return (str(name), timestamp) if name not in (None, "") and timestamp is not None else None
+
+    @classmethod
+    def _report_data_bar_identities(cls, data):
+        """Identify the current line bar under every stable data name.
+
+        ``Cerebro.adddata(feed, name=...)`` decorates ``_name`` but leaves a
+        live feed's transport ``_dataname`` intact.  Feed callbacks carry the
+        latter, so both names must participate in completed-bar
+        deduplication.
+        """
+        names = cls._report_data_names(data)
+        if not names:
+            return set()
+        data_datetime = getattr(data, "datetime", None)
+        converter = getattr(data_datetime, "datetime", None)
+        if callable(converter):
+            try:
+                timestamp = cls._report_timestamp_key(converter(0))
+                if timestamp is not None:
+                    return {(name, timestamp) for name in names}
+            except Exception:
+                pass
+        try:
+            numeric = data_datetime[0]
+            to_datetime = getattr(data, "num2date", None)
+            if callable(to_datetime):
+                timestamp = cls._report_timestamp_key(to_datetime(numeric))
+                if timestamp is not None:
+                    return {(name, timestamp) for name in names}
+        except Exception:
+            pass
+        return set()
+
+    def _consume_dispatched_line_bar(self, owner):
+        """Return whether the current observer step already has a bar event.
+
+        BtApiFeed can dispatch a synthesized bar to native callbacks and then
+        deliver the same bar through its regular line buffer.  The callback
+        has already incremented ``bars``; consume its identity here so the
+        subsequent observer ``next`` does not double count it.
+        """
+        pending = getattr(self, "_report_dispatched_line_bars", None)
+        if not pending:
+            return False
+        current = set()
+        for data in getattr(owner, "datas", ()) or ():
+            current.update(self._report_data_bar_identities(data))
+        pending_identities = set(pending)
+        matching = pending_identities.intersection(current)
+        if not matching:
+            return False
+        if isinstance(pending, Mapping):
+            for identity in matching:
+                pending.pop(identity, None)
+        else:
+            # Tolerate legacy test fixtures/instances that created the old
+            # set before the bounded OrderedDict implementation landed.
+            pending.difference_update(matching)
+        return True
+
+    @classmethod
+    def _owner_line_data_names(cls, owner):
+        """Return all stable names represented by the owner's LineSeries feeds."""
+        names = set()
+        for data in getattr(owner, "datas", ()) or ():
+            names.update(cls._report_data_names(data))
+        return names
+
+    def _remember_dispatched_line_bar(self, identity, owner):
+        """Queue a dedup identity only for an active LineSeries feed.
+
+        Runtime strategies can forward diagnostic bars alongside their feed
+        bars. A foreign symbol has no corresponding observer ``next`` step,
+        so storing it would leak one identity per event in a long live run.
+        The ordered window also bounds malformed matching events that cannot
+        be consumed because their timestamps do not align with LineSeries.
+        """
+        if identity is None or identity[0] not in self._owner_line_data_names(owner):
+            return
+        pending = getattr(self, "_report_dispatched_line_bars", None)
+        if not isinstance(pending, collections.OrderedDict):
+            pending = collections.OrderedDict()
+            self._report_dispatched_line_bars = pending
+        pending[identity] = None
+        pending.move_to_end(identity)
+        while len(pending) > _REPORT_PENDING_BAR_LIMIT:
+            pending.popitem(last=False)
+
+    def _report_position_summary(self, data, position, data_name):
+        """Return local broker position state without requesting store metadata.
+
+        File logs retain their richer contract metadata path.  The generic
+        in-memory report must never trigger a provider/API lookup in a hot
+        strategy callback, so it derives only from the feed, broker position,
+        and configured commission object already resident in the process.
+        """
+        if data is None:
+            # A live broker can cache account positions for symbols the
+            # strategy has not subscribed to. Preserve the account state in
+            # the report without guessing a current mark or commission setup.
+            return {
+                "size": self._report_json_safe_value(getattr(position, "size", None)),
+                "price": self._report_json_safe_value(getattr(position, "price", None)),
+                "value": None,
+                "current_price": None,
+                "multiplier": None,
+            }
+
+        current_price = self._current_position_price(data, position)
+        comminfo = self._cached_commission_info_for_data(data)
+        multiplier = self._positive_float(self._comminfo_param(comminfo, "mult"), 1.0)
+        market_value = float(position.size) * current_price * multiplier
+        return {
+            "size": self._report_json_safe_value(position.size),
+            "price": self._report_json_safe_value(position.price),
+            "value": self._report_json_safe_value(market_value),
+            "current_price": self._report_json_safe_value(current_price),
+            "multiplier": self._report_json_safe_value(multiplier),
+        }
+
+    @staticmethod
+    def _report_data_names(data):
+        """Return stable report names for a feed, cache key, or plain symbol."""
+        names = set()
+        for name in (getattr(data, "_name", None), getattr(data, "_dataname", None)):
+            # PandasData keeps its source DataFrame in ``_dataname``. It is
+            # not an account identity and comparing it to an empty string
+            # raises an ambiguous-truth-value error, so accept scalar names
+            # only.
+            if isinstance(name, str) and name:
+                names.add(name)
+            elif isinstance(name, (int, float)) and not isinstance(name, bool):
+                names.add(str(name))
+        if not names:
+            if isinstance(data, str) and data:
+                names.add(data)
+            elif isinstance(data, (int, float)) and not isinstance(data, bool):
+                names.add(str(data))
+        return names
+
+    @classmethod
+    def _cached_position_for_data(cls, positions, data, data_name, aliases=()):
+        """Read a position from a broker's local report-state mapping only."""
+        if not isinstance(positions, Mapping):
+            return None
+
+        accepted_names = {str(data_name), *(str(alias) for alias in aliases)}
+        if data is not None:
+            try:
+                if data in positions:
+                    return positions[data]
+            except (TypeError, KeyError):
+                pass
+        try:
+            direct = positions.get(data_name)
+            if direct is not None:
+                return direct
+        except (AttributeError, TypeError):
+            pass
+        try:
+            for key, value in positions.items():
+                if cls._report_data_names(key).intersection(accepted_names):
+                    return value
+        except Exception:
+            pass
+        return None
+
+    def _cached_position_legs_for_data(self, position_legs, data, data_name):
+        """Return the local long/short leg mapping for one data identity.
+
+        ``position_legs`` is optional because ordinary net-position brokers do
+        not need it.  Dual-side brokers use the same identity rules as their
+        net ``positions`` entry, so a feed object and its display name work
+        consistently for both maps.
+        """
+        legs = self._cached_position_for_data(
+            position_legs, data, data_name, self._report_data_names(data)
+        )
+        return legs if isinstance(legs, Mapping) else {}
+
+    def _report_position_entry(self, data, position, cached_legs, data_name):
+        """Build one net-plus-gross position entry from local cached objects."""
+        leg_summaries = {}
+        for side in ("long", "short"):
+            leg_position = cached_legs.get(side)
+            if leg_position is None:
+                continue
+            leg_summaries[side] = self._report_position_summary(data, leg_position, data_name)
+
+        if position is None and not leg_summaries:
+            return None
+
+        # A custom dual-side broker may intentionally expose only gross legs.
+        # Keep the absence of a normalized net view explicit rather than
+        # inventing a price or a signed value.
+        summary = (
+            self._report_position_summary(data, position, data_name)
+            if position is not None
+            else {
+                "size": None,
+                "price": None,
+                "value": None,
+                "current_price": None,
+                "multiplier": None,
+            }
+        )
+        if leg_summaries:
+            summary["position_mode"] = "dual_side"
+            summary["position_legs"] = leg_summaries
+        return summary
+
+    def _cached_broker_report_state(self):
+        """Read the explicit local-only broker report cache, if available."""
+        broker = getattr(getattr(self, "_owner", None), "broker", None)
+        getter = getattr(broker, "get_cached_report_state", None)
+        if not callable(getter):
+            return {}
+        try:
+            state = getter()
+        except Exception as exc:
+            logger.debug("Failed to read cached broker report state: %s", exc)
+            return {}
+        return state if isinstance(state, Mapping) else {}
+
+    def _refresh_report_state(self, *, include_positions=True):
+        """Cache explicit local broker state without file, MySQL, or provider I/O."""
+        if not hasattr(self, "_report_portfolio") or getattr(self, "_report_finalized", False):
+            return
+
+        self._refresh_report_metadata()
+        state = self._cached_broker_report_state()
+        self._report_portfolio = {
+            "cash": self._report_json_safe_value(state.get("cash")),
+            "value": self._report_json_safe_value(state.get("value")),
+        }
+
+        owner = getattr(self, "_owner", None)
+        if not include_positions or not self._has_active_report_bar(owner):
+            return
+
+        positions = {}
+        cached_positions = state.get("positions", {})
+        cached_position_legs = state.get("position_legs", {})
+        known_cache_names = set()
+        for data in self._iter_position_datas():
+            try:
+                data_name = str(
+                    getattr(data, "_name", None) or getattr(data, "_dataname", None) or data
+                )
+                aliases = self._report_data_names(data)
+                known_cache_names.update(aliases)
+                position = self._cached_position_for_data(
+                    cached_positions, data, data_name, aliases
+                )
+                cached_legs = self._cached_position_legs_for_data(
+                    cached_position_legs, data, data_name
+                )
+                summary = self._report_position_entry(data, position, cached_legs, data_name)
+                if summary is None:
+                    continue
+                positions[data_name] = summary
+            except Exception as exc:
+                logger.debug("Failed to collect report position state: %s", exc)
+
+        # A broker's report cache represents account state, not only the
+        # current strategy subscription. Preserve cached symbols that are not
+        # LineSeries/HFT references, while making their unavailable mark and
+        # commission fields explicit. This keeps a live account's unrelated
+        # risk visible without initiating a provider query.
+        cache_keys = []
+        for cached_map in (cached_positions, cached_position_legs):
+            if not isinstance(cached_map, Mapping):
+                continue
+            try:
+                cache_keys.extend(cached_map.keys())
+            except Exception:
+                continue
+        for cache_key in cache_keys:
+            cache_names = self._report_data_names(cache_key)
+            if not cache_names:
+                continue
+            data_name = sorted(cache_names)[0]
+            if cache_names.intersection(known_cache_names) or data_name in positions:
+                continue
+            try:
+                position = self._cached_position_for_data(
+                    cached_positions, cache_key, data_name, cache_names
+                )
+                cached_legs = self._cached_position_legs_for_data(
+                    cached_position_legs, cache_key, data_name
+                )
+                summary = self._report_position_entry(None, position, cached_legs, data_name)
+                if summary is not None:
+                    positions[data_name] = summary
+            except Exception as exc:
+                logger.debug("Failed to collect cached account position state: %s", exc)
+        self._report_positions = positions
+
+    def _start_report(self):
+        """Mark the report active and capture the initial framework state."""
+        if not hasattr(self, "_report_started_at") or getattr(self, "_report_finalized", False):
+            return
+        timestamp = self._log_time_str()
+        self._report_started_at = timestamp
+        # Do not read a price-bearing feed field during start: preloaded data
+        # can otherwise expose the final bar before strategy execution starts.
+        self._refresh_report_state(include_positions=False)
+        self._report_touch(timestamp)
+
+    def _record_report_event(self, event_name, payload=None, record_kind=None):
+        """Record a generic callback count and optionally a bounded summary."""
+        if not hasattr(self, "_report_event_counts") or getattr(self, "_report_finalized", False):
+            return
+
+        if event_name in _REPORT_EVENT_KEYS:
+            self._report_event_counts[event_name] += 1
+
+        event_time = None
+        if isinstance(payload, Mapping):
+            event_time = (
+                payload.get("log_time") or payload.get("event_time") or payload.get("datetime")
+            )
+
+        if record_kind in {"orders", "trades"} and payload is not None:
+            records = self._report_orders if record_kind == "orders" else self._report_trades
+            maxlen = records.maxlen
+            if not maxlen:
+                self._report_dropped_records[record_kind] += 1
+            else:
+                if len(records) >= maxlen:
+                    self._report_dropped_records[record_kind] += 1
+                records.append(self._report_json_safe_value(payload))
+
+        self._report_touch(event_time)
+
+    def update_report_context(self, mapping, namespace="strategy"):
+        """Shallow-merge JSON-safe strategy context into a report namespace.
+
+        The operation is atomic: invalid values, cycles, non-string mapping
+        keys, and non-finite floats return ``False`` without changing any
+        existing context.  Context is immutable after the observer freezes its
+        final report in :meth:`stop`.
+        """
+        if (
+            not isinstance(namespace, str)
+            or not namespace.strip()
+            or not hasattr(self, "_report_extensions")
+            or getattr(self, "_report_finalized", False)
+        ):
+            return False
+
+        normalized = self._normalize_report_context(mapping)
+        if normalized is None:
+            return False
+
+        existing = self._report_extensions.get(namespace, {})
+        merged = dict(existing)
+        merged.update(normalized)
+        self._report_extensions[namespace] = merged
+        self._report_touch()
+        return True
+
+    def _report_monitoring_snapshot(self):
+        """Return a JSON-safe copy of monitoring state already held in memory."""
+        counts = getattr(self, "_monitoring", {}) or {}
+        triggered = getattr(self, "_triggered_thresholds", set()) or set()
+        try:
+            triggered_values = sorted("|".join(map(str, value)) for value in triggered)
+        except Exception:
+            triggered_values = []
+        return {
+            "counts": self._report_json_safe_value(dict(counts)),
+            "configured_thresholds": copy.deepcopy(
+                getattr(self, "_report_monitoring_thresholds", {})
+            ),
+            "triggered_thresholds": triggered_values,
+        }
+
+    def _build_report_snapshot(self):
+        """Build a report from cached state only; never scan or write logs here."""
+        event_counts = getattr(self, "_report_event_counts", {})
+        records_dropped = getattr(self, "_report_dropped_records", {})
+        return {
+            "schema_version": _REPORT_SCHEMA_VERSION,
+            "finalized": bool(getattr(self, "_report_finalized", False)),
+            "generated_at": getattr(self, "_report_last_updated_at", None),
+            "run_id": self._report_json_safe_value(getattr(self, "_run_id", None)),
+            "started_at": getattr(self, "_report_started_at", None),
+            "finalized_at": getattr(self, "_report_finalized_at", None),
+            "last_event_at": getattr(self, "_report_last_event_at", None),
+            "strategy": copy.deepcopy(getattr(self, "_report_strategy", {"name": "Unknown"})),
+            "provider": copy.deepcopy(getattr(self, "_report_provider", "")),
+            "session_id": copy.deepcopy(getattr(self, "_report_session_id", "")),
+            "portfolio": copy.deepcopy(
+                getattr(self, "_report_portfolio", {"cash": None, "value": None})
+            ),
+            "positions": copy.deepcopy(getattr(self, "_report_positions", {})),
+            "event_counts": {key: int(event_counts.get(key, 0)) for key in _REPORT_EVENT_KEYS},
+            "monitoring": self._report_monitoring_snapshot(),
+            "order_summaries": copy.deepcopy(list(getattr(self, "_report_orders", ()))),
+            "trade_summaries": copy.deepcopy(list(getattr(self, "_report_trades", ()))),
+            "records_dropped": {
+                "orders": int(records_dropped.get("orders", 0)),
+                "trades": int(records_dropped.get("trades", 0)),
+            },
+            "extensions": copy.deepcopy(getattr(self, "_report_extensions", {})),
+        }
+
+    def snapshot(self):
+        """Return a deep-copied, real-time report from in-memory cached state.
+
+        This method does not initialize loggers, query log files, write to
+        files/MySQL, or request store/provider metadata.  Before returning it
+        refreshes local broker state when a strategy has reached a current bar,
+        so a call from ``Strategy.next`` sees that same bar rather than the
+        observer's previous callback.
+        """
+        final_report = getattr(self, "_final_report", None)
+        if getattr(self, "_report_finalized", False) and final_report is not None:
+            return copy.deepcopy(final_report)
+        self._refresh_report_state()
+        return copy.deepcopy(self._build_report_snapshot())
+
+    def final_report(self):
+        """Return the frozen final report after :meth:`stop`, otherwise ``None``."""
+        final_report = getattr(self, "_final_report", None)
+        return copy.deepcopy(final_report) if final_report is not None else None
+
+    def report(self):
+        """Return the current live snapshot, or the frozen final report after stop."""
+        return self.snapshot()
+
+    def _freeze_report(self):
+        """Freeze the final report exactly once after the strategy has stopped."""
+        if not hasattr(self, "_report_finalized") or self._report_finalized:
+            return
+        timestamp = self._log_time_str()
+        self._report_finalized = True
+        self._report_finalized_at = timestamp
+        self._report_last_updated_at = timestamp
+        self._report_last_event_at = timestamp
+        self._final_report = self._build_report_snapshot()
 
     def start(self):
         """Called at the start of the backtest/live run."""
@@ -176,6 +871,7 @@ class TradeLogger(Observer):
                     if self not in self._owner._lineiterators[self._ltype]:
                         self._owner._lineiterators[self._ltype].append(self)
         self._ensure_loggers_initialized()
+        self._start_report()
         self._log_event(
             "system",
             "session_started",
@@ -471,6 +1167,7 @@ class TradeLogger(Observer):
         return payload
 
     def _log_internal_error(self, source, exc):
+        self._record_report_event("errors")
         try:
             self._log_event(
                 "error",
@@ -894,26 +1591,46 @@ class TradeLogger(Observer):
             return 0.0
 
     def _iter_position_datas(self):
-        """Yield data-like objects that can be queried for positions."""
+        """Yield known data identities without creating broker-side state."""
         if not hasattr(self, "_owner") or self._owner is None:
             return []
 
-        datas = list(getattr(self._owner, "datas", []) or [])
-        if datas:
-            return datas
+        result = []
+        names = set()
+
+        def add(data):
+            if data is None:
+                return
+            name = str(getattr(data, "_name", None) or getattr(data, "_dataname", None) or data)
+            if name in names:
+                return
+            names.add(name)
+            result.append(data)
+
+        for data in getattr(self._owner, "datas", []) or []:
+            add(data)
 
         placeholder_data = getattr(self._owner, "placeholder_data", None)
         if isinstance(placeholder_data, dict):
-            return [data for _, data in sorted(placeholder_data.items()) if data is not None]
-
-        if placeholder_data:
+            for _, data in sorted(placeholder_data.items()):
+                add(data)
+        elif placeholder_data:
             try:
-                return [data for data in placeholder_data if data is not None]
+                for data in placeholder_data:
+                    add(data)
             except TypeError:
-                # placeholder_data is not iterable; fall through to empty list.
                 pass
 
-        return []
+        # Channel-only strategies receive these stable references from Cerebro
+        # before their event callbacks.  They are required when a strategy
+        # intentionally has neither a LineSeries data feed nor a hand-made
+        # placeholder object.
+        hft_refs = getattr(self._owner, "_hft_data_refs", None)
+        if isinstance(hft_refs, Mapping):
+            for _, data in sorted(hft_refs.items()):
+                add(data)
+
+        return result
 
     @staticmethod
     def _float_or_none(value):
@@ -932,14 +1649,42 @@ class TradeLogger(Observer):
         return number
 
     def _current_position_price(self, data, position):
-        """Best-effort current price for position valuation."""
+        """Best-effort local mark price for generic position valuation."""
         try:
             return float(data.close[0])
         except Exception:
-            return float(getattr(position, "price", 0.0) or 0.0)
+            pass
+
+        # TickBroker and compatible brokers expose this explicit local-cache
+        # hook. Do not fall back to a generic broker getter here: live
+        # implementations may make an account/provider request from those.
+        try:
+            broker = getattr(self._owner, "broker", None)
+            mark_price = getattr(broker, "get_cached_mark_price", None)
+            if callable(mark_price):
+                value = mark_price(data)
+                if value is not None:
+                    return float(value)
+        except (TypeError, ValueError):
+            pass
+        except Exception as exc:
+            logger.debug("Failed to read cached broker mark price: %s", exc)
+        return float(getattr(position, "price", 0.0) or 0.0)
+
+    def _cached_commission_info_for_data(self, data):
+        """Return configured commission info without calling a broker method."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            comminfo = getattr(broker, "comminfo", None)
+            if isinstance(comminfo, Mapping):
+                name = getattr(data, "_name", None) or getattr(data, "_dataname", None)
+                return comminfo.get(name, comminfo.get(None))
+        except Exception as exc:
+            logger.debug("Failed to read commission info: %s", exc)
+        return None
 
     def _commission_info_for_data(self, data):
-        """Return broker commission info for a data feed when available."""
+        """Return broker commission info for legacy file log enrichment."""
         try:
             broker = getattr(self._owner, "broker", None)
             getter = getattr(broker, "getcommissioninfo", None)
@@ -1136,6 +1881,16 @@ class TradeLogger(Observer):
     def next(self):
         """Called on every bar - log positions and indicators."""
         self._ensure_loggers_initialized()
+        # In a regular Cerebro run, an observer step is one real bar unless a
+        # feed already dispatched that same bar to ``notify_bar_event``.  In a
+        # channel-only run Cerebro invokes ``_next`` for every event, including
+        # ticks/order books/funding; channel bars are counted exclusively by
+        # ``notify_bar_event`` so they are neither misclassified nor doubled.
+        owner = getattr(self, "_owner", None)
+        if owner is None or (
+            bool(getattr(owner, "datas", ())) and not self._consume_dispatched_line_bar(owner)
+        ):
+            self._record_report_event("bars")
 
         # Set dummy line value (required for observer)
         self.lines.dummy[0] = 0
@@ -1167,13 +1922,26 @@ class TradeLogger(Observer):
         """Log order status changes."""
         self._ensure_loggers_initialized()
 
+        try:
+            log_data = self._format_order(order)
+            self._record_report_event("orders", log_data, record_kind="orders")
+        except Exception as exc:
+            self._record_report_event("orders")
+            self._log_internal_error("notify_order", exc)
+            return
+
+        is_rejected = str(order.getstatusname()).lower() == "rejected"
+        if is_rejected:
+            self._record_report_event("errors")
+
+        # Reporting is independent from file logging.  Preserve the existing
+        # output behavior when order logging itself is disabled.
         if not self.p.log_orders:
             return
 
-        log_data = self._format_order(order)
         self._emit_payload(self._order_logger, log_data, text_line=self._format_order_text(order))
 
-        if str(order.getstatusname()).lower() == "rejected":
+        if is_rejected:
             self._log_event(
                 "error",
                 "order_rejected",
@@ -1194,10 +1962,17 @@ class TradeLogger(Observer):
         """Log trade information."""
         self._ensure_loggers_initialized()
 
+        try:
+            log_data = self._format_trade(trade)
+            self._record_report_event("trades", log_data, record_kind="trades")
+        except Exception as exc:
+            self._record_report_event("trades")
+            self._log_internal_error("notify_trade", exc)
+            return
+
         if not self.p.log_trades:
             return
 
-        log_data = self._format_trade(trade)
         self._emit_payload(self._trade_logger, log_data, text_line=self._format_trade_text(trade))
 
         # MySQL logging
@@ -1216,9 +1991,6 @@ class TradeLogger(Observer):
         """
         self._ensure_loggers_initialized()
 
-        if not self.p.log_signals:
-            return
-
         owner_data_name = getattr(getattr(self._owner, "data", None), "_name", None)
         if owner_data_name is None:
             position_datas = self._iter_position_datas()
@@ -1235,6 +2007,11 @@ class TradeLogger(Observer):
             "reason": reason or "",
             "strategy_name": self._get_strategy_name(),
         }
+        self._record_report_event("signals", log_data)
+
+        if not self.p.log_signals:
+            return
+
         self._emit_payload(
             self._signal_logger,
             log_data,
@@ -1258,6 +2035,7 @@ class TradeLogger(Observer):
             tick: Tick data object with attributes like symbol, price, volume, etc.
         """
         self._ensure_loggers_initialized()
+        self._record_report_event("ticks")
 
         if not self.p.log_ticks or not self._tick_logger:
             return
@@ -1327,6 +2105,18 @@ class TradeLogger(Observer):
             bar: Bar data object with attributes like symbol, open, high, low, close, volume.
         """
         self._ensure_loggers_initialized()
+        self._record_report_event("bars")
+        owner = getattr(self, "_owner", None)
+        # Feed-origin completed bars are also delivered into LineSeries for a
+        # subsequent standard observer step.  Remember only those line-backed
+        # bars; incomplete diagnostic bars have no matching ``next`` call.
+        if (
+            owner is not None
+            and bool(getattr(owner, "datas", ()))
+            and getattr(bar, "complete", True) is not False
+        ):
+            identity = self._report_bar_event_identity(bar)
+            self._remember_dispatched_line_bar(identity, owner)
 
         if not self.p.log_bars or not self._bar_logger:
             return
@@ -1388,6 +2178,7 @@ class TradeLogger(Observer):
     def notify_store_event(self, msg, *args, **kwargs):
         """Log a structured runtime event forwarded from a store."""
         self._ensure_loggers_initialized()
+        self._record_report_event("store")
 
         event = kwargs.get("event")
         if not isinstance(event, dict):
@@ -1405,6 +2196,7 @@ class TradeLogger(Observer):
         category = "system"
         if level in {"ERROR", "CRITICAL"} or event.get("error_code") or event.get("error_msg"):
             category = "error"
+            self._record_report_event("errors")
         elif event_type.startswith(("order_", "duplicate_", "batch_cancel_")):
             category = "monitor"
 
@@ -1432,6 +2224,7 @@ class TradeLogger(Observer):
     def notify_data_event(self, data, status, *args, **kwargs):
         """Log data-feed runtime status forwarded from Cerebro."""
         self._ensure_loggers_initialized()
+        self._record_report_event("data")
 
         data_name = getattr(data, "_name", None) or getattr(data, "_dataname", None) or repr(data)
         status_names = getattr(data, "_NOTIFNAMES", ())
@@ -1443,6 +2236,7 @@ class TradeLogger(Observer):
         level = "INFO"
         if status_name in {"DISCONNECTED", "CONNBROKEN"}:
             level = "ERROR"
+            self._record_report_event("errors")
         elif status_name == "DELAYED":
             level = "WARNING"
 
@@ -1926,28 +2720,38 @@ class TradeLogger(Observer):
 
     def stop(self):
         """Called at the end of the backtest/live run."""
-        if self.p.log_monitoring:
+        # Strategy.stop() runs before Observer.stop() in both normal and
+        # channel lifecycles, so any final update_report_context call is now
+        # present. Legacy file sinks can fail independently of the generic
+        # report, so finalization belongs in ``finally``.
+        try:
+            self._refresh_report_state()
+            if self.p.log_monitoring:
+                self._log_event(
+                    "monitor",
+                    "monitoring_summary",
+                    level="INFO",
+                    details=dict(self._monitoring),
+                )
+
             self._log_event(
-                "monitor",
-                "monitoring_summary",
+                "system",
+                "session_stopped",
                 level="INFO",
-                details=dict(self._monitoring),
+                details={"observer": self.__class__.__name__},
             )
 
-        self._log_event(
-            "system",
-            "session_stopped",
-            level="INFO",
-            details={"observer": self.__class__.__name__},
-        )
-
-        # Save final position snapshot
-        if self.p.log_position_snapshot:
-            self._save_position_snapshot()
-
-        # Close MySQL connection
-        if self._mysql_conn:
+            # Save final position snapshot
+            if self.p.log_position_snapshot:
+                self._save_position_snapshot()
+        except Exception as exc:
+            self._log_internal_error("stop", exc)
+        finally:
+            # Close MySQL connection and always freeze the generic report.
             try:
-                self._mysql_conn.close()
-            except Exception as e:
-                logger.debug("Failed to close MySQL connection: %s", e)
+                if self._mysql_conn:
+                    self._mysql_conn.close()
+            except Exception as exc:
+                logger.debug("Failed to close MySQL connection: %s", exc)
+            finally:
+                self._freeze_report()

@@ -327,15 +327,56 @@ class TickBroker(BrokerBase):
                 val += self._marked_position_value(data_name, pos)
         return val
 
-    def _marked_position_value(self, symbol, position):
+    def get_cached_report_state(self):
+        """Return local matching state for observers without provider I/O."""
+        positions = dict(self._positions)
+        position_legs = {}
+        if self._is_dual_side_mode():
+            for symbol in set(self.long_positions) | set(self.short_positions):
+                positions[symbol] = self._sync_net_position(symbol)
+                position_legs[symbol] = {
+                    "long": self.long_positions.get(symbol),
+                    "short": self.short_positions.get(symbol),
+                }
+        return {
+            "cash": self._cash,
+            "value": self.getvalue(),
+            "positions": positions,
+            "position_legs": position_legs,
+        }
+
+    def _mark_price_for_symbol(self, symbol, fallback=None):
+        """Return the latest local tick/book mark for one symbol.
+
+        The precedence deliberately matches :meth:`_marked_position_value`:
+        a newer valid order book midpoint supersedes a tick; otherwise the
+        most recent tick is used.  No provider call is made here.
+        """
         tick = self._last_tick.get(symbol)
         book = self._last_orderbook.get(symbol)
-        price = position.price
+        price = fallback
         if tick is not None:
-            price = tick.price
+            price = getattr(tick, "price", price)
         if book is not None and (tick is None or book.timestamp >= tick.timestamp):
             if book.bids and book.asks:
                 price = (book.bids[0][0] + book.asks[0][0]) / 2.0
+        return price
+
+    def get_cached_mark_price(self, data):
+        """Return a local mark price for a data reference, if one is cached."""
+        symbol = self._get_data_name(data)
+        price = self._mark_price_for_symbol(symbol)
+        try:
+            return float(price) if price is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    def get_mark_price(self, data):
+        """Compatibility alias for :meth:`get_cached_mark_price`."""
+        return self.get_cached_mark_price(data)
+
+    def _marked_position_value(self, symbol, position):
+        price = self._mark_price_for_symbol(symbol, position.price)
         comminfo = self.comminfo.get(symbol, self.comminfo[None])
         if comminfo.stocklike:
             return position.size * price

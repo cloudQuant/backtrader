@@ -50,6 +50,7 @@ RUNTIME_SOURCE_MODULES = (
     ("backtrader.channel", "backtrader.channel", "backtrader"),
     ("backtrader.trade", "backtrader.trade", "backtrader"),
     ("backtrader.sizer", "backtrader.sizer", "backtrader"),
+    ("backtrader.trade_logger", "backtrader.observers.trade_logger", "backtrader"),
     ("backtrader.broker_base", "backtrader.broker", "backtrader"),
     ("backtrader.feed_base", "backtrader.feed", "backtrader"),
     ("backtrader.position", "backtrader.position", "backtrader"),
@@ -309,9 +310,8 @@ def _local_distribution_root(distribution_name: str) -> Optional[Path]:
     for candidate in path.parents:
         if not (candidate / ".git").exists():
             continue
-        if (
-            _git_root(candidate) == candidate
-            and _checkout_contains_distribution_source(candidate, distribution_name)
+        if _git_root(candidate) == candidate and _checkout_contains_distribution_source(
+            candidate, distribution_name
         ):
             return candidate
     return None

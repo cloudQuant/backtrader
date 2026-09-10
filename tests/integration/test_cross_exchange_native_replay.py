@@ -112,9 +112,21 @@ def _offline_books(rules, venue_symbols):
 @pytest.mark.integration
 @pytest.mark.parametrize(("runner", "strategy_module"), EXAMPLES)
 def test_cross_exchange_shadow_consumes_native_orderbooks_without_execution(
-    runner, strategy_module
+    runner, strategy_module, tmp_path
 ):
     """Both examples consume Store/Feed events while shadow stays execution-free."""
+
+    class SnapshotRecordingStrategy(strategy_module.CrossExchangeArbitrageStrategy):
+        """Prove the generic observer carries domain state during a live callback."""
+
+        def __init__(self):
+            super().__init__()
+            self.realtime_trade_logger_reports = []
+
+        def notify_orderbook(self, event):
+            super().notify_orderbook(event)
+            self.realtime_trade_logger_reports.append(self.stats.trade_logger.snapshot())
+
     rules = runner.replay_rules()
     risk = runner.risk_from_config(runner.load_config())
     venue_symbols = strategy_module.VENUE_SYMBOLS
@@ -127,6 +139,16 @@ def test_cross_exchange_shadow_consumes_native_orderbooks_without_execution(
     )
     cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
     cerebro.setbroker(broker)
+    cerebro.addobserver(
+        bt.observers.TradeLogger,
+        obsname="trade_logger",
+        log_dir=str(tmp_path / "trade-logger"),
+        log_positions=False,
+        log_indicators=False,
+        log_ticks=False,
+        log_bars=False,
+        log_position_snapshot=False,
+    )
 
     feeds = []
     for venue, symbol in venue_symbols.items():
@@ -150,7 +172,7 @@ def test_cross_exchange_shadow_consumes_native_orderbooks_without_execution(
         cerebro.adddata(feed, name=symbol)
 
     cerebro.addstrategy(
-        strategy_module.CrossExchangeArbitrageStrategy,
+        SnapshotRecordingStrategy,
         rules=rules,
         risk=risk,
         funding={venue: (Decimal(0), Decimal("99999999999")) for venue in venue_symbols},
@@ -169,7 +191,9 @@ def test_cross_exchange_shadow_consumes_native_orderbooks_without_execution(
         store.stop()
 
     strategy = results[0]
-    report = strategy.report()
+    trade_report = strategy.stats.trade_logger.final_report()
+    assert trade_report is not None
+    report = trade_report["extensions"]["cross_venue"]
     expected_symbols = set(venue_symbols.values())
     final_value = broker.getvalue()
 
@@ -177,7 +201,7 @@ def test_cross_exchange_shadow_consumes_native_orderbooks_without_execution(
     assert type(cerebro) is bt.Cerebro
     assert type(broker) is MixBroker
     assert all(type(feed) is BtApiFeed for feed in feeds)
-    assert type(strategy) is strategy_module.CrossExchangeArbitrageStrategy
+    assert isinstance(strategy, strategy_module.CrossExchangeArbitrageStrategy)
     assert not hasattr(client, "submit_order")
     assert not hasattr(client, "cancel_order")
     assert not hasattr(client, "poll_broker_update")
@@ -200,3 +224,12 @@ def test_cross_exchange_shadow_consumes_native_orderbooks_without_execution(
     assert final_value == pytest.approx(initial_value)
     assert Decimal(str(final_value)) - Decimal(str(initial_value)) == 0
     assert Decimal(report["broker_value"]) == Decimal(str(initial_value))
+    assert trade_report["finalized"] is True
+    assert strategy.realtime_trade_logger_reports
+    for live_report in strategy.realtime_trade_logger_reports:
+        assert live_report["finalized"] is False
+        assert live_report["extensions"]["cross_venue"]["strategy_id"] == report["strategy_id"]
+    # BtApiFeed dispatches each book-derived bar to native callbacks and also
+    # delivers it through its LineSeries. TradeLogger must count the two
+    # source bars once each, not once per callback path.
+    assert trade_report["event_counts"]["bars"] == sum(client.served.values())

@@ -1,9 +1,11 @@
 import ast
+import copy
 from dataclasses import replace
 import hashlib
 import importlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -99,6 +101,10 @@ def test_manifest_uniquely_resolves_two_runnable_candidates():
             == hashlib.sha256((directory / candidate["strategy_module"]).read_bytes()).hexdigest()
         )
         assert (
+            candidate["runner_sha256"]
+            == hashlib.sha256((directory / candidate["entrypoint"]).read_bytes()).hexdigest()
+        )
+        assert (
             candidate["config_sha256"]
             == hashlib.sha256((directory / "config.yaml").read_bytes()).hexdigest()
         )
@@ -183,6 +189,109 @@ def test_replay_mechanics_fixtures_have_stable_report_contract(strategy_id, scen
         assert report["final_state"] == "FORMULA_UNKNOWN_BRANCH"
     else:
         assert report["final_state"] == "NO_EXECUTION"
+
+
+@pytest.mark.parametrize("strategy_id", tuple(MODULES))
+def test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetry(strategy_id):
+    runner = MODULES[strategy_id]
+    first = runner.run_replay("no_edge")
+    second = runner.run_replay("no_edge")
+
+    assert first["business_summary"] == runner.business_summary(first)
+    assert first["business_summary_hash"] == runner.business_summary_hash(first)
+    assert first["business_summary"] == second["business_summary"]
+    assert first["business_summary_hash"] == second["business_summary_hash"]
+
+    telemetry_changed = copy.deepcopy(first)
+    telemetry_changed["trade_logger"] = {
+        "run_id": "different-observer-run",
+        "generated_at": "2026-09-10T00:02:00+00:00",
+        "finalized_at": "2026-09-10T00:02:01+00:00",
+        "monitoring": {"counts": {"observer_callbacks": 999}},
+    }
+    assert runner.business_summary_hash(telemetry_changed) == first["business_summary_hash"]
+
+    business_changed = copy.deepcopy(telemetry_changed)
+    business_changed["final_state"] = "DIFFERENT_BUSINESS_STATE"
+    assert runner.business_summary_hash(business_changed) != first["business_summary_hash"]
+
+
+@pytest.mark.parametrize("strategy_id", tuple(MODULES))
+@pytest.mark.parametrize(
+    ("strategy", "message"),
+    (
+        (
+            SimpleNamespace(
+                stats=SimpleNamespace(trade_logger=SimpleNamespace(final_report=lambda: None))
+            ),
+            "TradeLogger final report is unavailable",
+        ),
+        (
+            SimpleNamespace(
+                stats=SimpleNamespace(
+                    trade_logger=SimpleNamespace(
+                        final_report=lambda: {"finalized": False, "extensions": {"cross_venue": {}}}
+                    )
+                )
+            ),
+            "TradeLogger final report is unavailable",
+        ),
+        (
+            SimpleNamespace(
+                stats=SimpleNamespace(
+                    trade_logger=SimpleNamespace(
+                        final_report=lambda: {"finalized": True, "extensions": {}}
+                    )
+                )
+            ),
+            "TradeLogger final report is missing cross_venue evidence",
+        ),
+    ),
+)
+def test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension(
+    strategy_id, strategy, message
+):
+    with pytest.raises(MODULES[strategy_id].RunnerConfigurationError, match=message):
+        MODULES[strategy_id]._trade_logger_report(strategy)
+
+
+@pytest.mark.parametrize("strategy_id", tuple(MODULES))
+def test_post_run_reconciliation_is_a_hash_bound_revision_of_frozen_trade_logger_evidence(
+    strategy_id,
+):
+    runner = MODULES[strategy_id]
+    frozen = {
+        "reconciliation_required": True,
+        "remote_flat_proven": False,
+        "confirmed_fill_events": 2,
+    }
+    reconciled = {
+        **frozen,
+        "reconciliation_required": False,
+        "remote_flat_proven": True,
+    }
+    reconcile_snapshot = {"generation": 7, "positions": [], "open_orders": []}
+    execution_summary = {"generation": 7, "identity_binding_sha256": "a" * 64}
+
+    revision = runner._post_run_reconciliation_revision(
+        frozen,
+        reconciled,
+        reconcile_snapshot,
+        execution_summary,
+    )
+
+    assert frozen["remote_flat_proven"] is False
+    assert revision["status"] == "APPLIED_AFTER_TRADE_LOGGER_FINALIZATION"
+    assert revision["outcome"] == "REMOTE_FLAT_PROVEN"
+    assert revision["frozen_trade_logger_extension"] == frozen
+    assert revision["reconciled_cross_venue_extension"] == reconciled
+    assert revision["frozen_trade_logger_extension_sha256"] == runner._canonical_hash(frozen)
+    assert revision["reconciled_cross_venue_extension_sha256"] == runner._canonical_hash(reconciled)
+    assert revision["reconcile_snapshot_sha256"] == runner._canonical_hash(reconcile_snapshot)
+    assert revision["execution_summary_sha256"] == runner._canonical_hash(execution_summary)
+    hash_payload = dict(revision)
+    revision_hash = hash_payload.pop("revision_sha256")
+    assert revision_hash == runner._canonical_hash(hash_payload)
 
 
 @pytest.mark.parametrize("directory", (MID, EVENT))

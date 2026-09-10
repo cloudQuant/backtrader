@@ -232,6 +232,16 @@ Stage B 对冻结月份的成交查询同时限定合约和交易所、验证响
 manifest 绑定本示例源码、fixture/config、实际导入的 backtrader/bt_api_py 路径、版本和
 文件 hash；网络模式还绑定 bt_api_ctp package/native 文件身份。证据只保留账户指纹。
 
+runner 同时以 `obsname="trade_logger"` 挂载通用 `bt.observers.TradeLogger`。它可在运行中
+通过 `snapshot()` 返回内存中的订单、成交、持仓、资金和事件计数，并在策略 `stop()` 后通过
+`final_report()` 冻结最终快照。SA 策略启动时即可把状态机、受控 CTP 会话、对账和 G3/G4 所需字段
+写入 `extensions.sa_midfreq`；首个完成 bar 之前持仓缓存会明确标为不完整。状态转换、完成 bar、订单
+或成交会立即更新，连续有效报价每 128 条至多更新一次。报告上下文只读取 broker 的
+`get_cached_report_state()` 本地缓存，不会因生成快照刷新账户或持仓。发布被拒绝或抛出异常时，会以
+不含异常正文的受控诊断写入 `risk_events.jsonl`，后续重试仍按最近一次尝试的报价水位节流；若停止时
+最后成功快照之后仍有发布失败，或扩展缺失，runner 失败关闭，而不会导出陈旧或不完整验收结果。
+`EvidenceWriter` 仍是高频审计证据和 fsync 失败关闭的唯一权威来源，TradeLogger 不替代它。
+
 默认报告根目录按 manifest 中冻结的 TradingDay 管理。每个网络运行只接受一个
 TradingDay，因此该运行内的 `quotes.jsonl` 是单 TradingDay 分片。保留策略保留最新
 20 个不同 TradingDay。超过窗口也不会自动删除：旧运行必须先有

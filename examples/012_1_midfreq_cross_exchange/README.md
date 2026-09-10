@@ -72,3 +72,16 @@ manifest；临时 manifest、普通 SHA 收据、过期或证据不完整的收�
 和 demo 还必须证明账户风险账本、确认成交经济、对账和平仓终态完整。
 如以后提出新的经济假设，必须使用新的 candidate ID、重新预注册并保留独立 holdout；不能
 通过降低成本或改写当前候选状态恢复准入。
+
+经过 `Cerebro` 的网络运行会挂载命名为 `trade_logger` 的通用
+`bt.observers.TradeLogger`。它实时汇总订单、成交、持仓、资金和事件计数，并在停止后冻结
+通用报告；本策略只通过 `extensions.cross_venue` 补充模型、逐腿确认成交、资金费、风险和
+对账证据。公式 replay 没有 `Cerebro` 生命周期，因此只导出引擎领域 `snapshot()`，不会伪造
+Observer 报告。
+
+策略按本地轻量状态签名把 `cross_venue` 扩展发布到运行中的 `TradeLogger.snapshot()`；相同签名的
+高频盘口最多每秒刷新一次，因此非签名明细最多约一秒后可见。完整网络报告保留 Observer 的
+`run_id`、时间戳和监控遥测，同时提供排除这些易变字段的 `business_summary` 与
+`business_summary_hash`，用于确定性公式 replay 的可重复业务核验。若未来 demo 在 Observer 冻结后
+才完成远端对账，输出会写入带前后扩展及哈希的 `post_run_reconciliation` 修订证据，不会改写冻结的
+`trade_logger.extensions.cross_venue`。

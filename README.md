@@ -204,16 +204,26 @@ Comprehensive observer for real-time logging during backtests:
 - **Strategy indicators**: Optionally log strategy-calculated indicators in data files
 - **Configurable format**: Tab-separated `.log` (default) or standard `.csv`
 - **MySQL persistence**: Order/trade/position logs saved to MySQL (`bt_order`, `bt_trade`, `bt_position`)
+- **Generic in-memory report**: `snapshot()` provides a detached real-time status view and
+  `final_report()` returns the immutable report frozen after the strategy stops. It works with
+  any Backtrader broker, store, feed, or strategy and does not require file or MySQL logging.
+  Core brokers expose cached cash, value, and positions through a local-only report-state API,
+  so a snapshot does not trigger a live account request. This guarantee covers the in-memory
+  report API; enabled legacy file sinks retain their own broker-read behavior.
 
 ```python
 cerebro.addobserver(
     bt.observers.TradeLogger,
+    obsname='trade_logger',
     log_dir='logs',
     log_indicators=True,
     file_format='log',          # 'log' or 'csv'
     # mysql_enabled=True,       # optional MySQL persistence
     # mysql_database='backtrder_web',
 )
+
+# Inside a strategy: self.stats.trade_logger.snapshot()
+# After cerebro.run(): strategies[0].stats.trade_logger.final_report()
 ```
 
 ### 📦 Modular Architecture

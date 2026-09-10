@@ -290,6 +290,48 @@ def _mapping(value: Any) -> dict[str, Any]:
         return {}
 
 
+def _attach_trade_logger(cerebro: bt.Cerebro, output_directory: Path) -> None:
+    """Attach the framework-level report owner for one controlled SA run.
+
+    EvidenceWriter remains the authoritative durable audit lane for high-rate
+    quote, bar, signal, order, trade, and risk evidence.  TradeLogger keeps
+    the generic in-memory runtime report and a compact operational log set.
+    """
+    cerebro.addobserver(
+        bt.observers.TradeLogger,
+        obsname="trade_logger",
+        log_dir=str(output_directory / "trade-logger"),
+        log_format="json",
+        log_to_console=False,
+        log_ticks=False,
+        log_bars=False,
+        log_positions=False,
+        log_indicators=False,
+        log_value=False,
+        log_position_snapshot=False,
+    )
+
+
+def _final_sa_report(strategy: Any) -> dict[str, Any]:
+    """Read the frozen SA extension from the named generic TradeLogger."""
+    observer = getattr(getattr(strategy, "stats", None), "trade_logger", None)
+    final_report = getattr(observer, "final_report", None)
+    if not callable(final_report):
+        raise RuntimeError("named TradeLogger final report is unavailable")
+    generic = final_report()
+    if not isinstance(generic, Mapping):
+        raise RuntimeError("TradeLogger did not freeze a final report")
+    if generic.get("finalized") is not True:
+        raise RuntimeError("TradeLogger final report is not finalized")
+    extensions = _mapping(generic.get("extensions"))
+    context = _mapping(extensions.get("sa_midfreq"))
+    if not context:
+        raise RuntimeError("TradeLogger final report is missing the sa_midfreq extension")
+    if bool(getattr(strategy, "_trade_logger_context_failed_since_success", False)):
+        raise RuntimeError("TradeLogger sa_midfreq extension is stale after a publish failure")
+    return {**context, "trade_logger": generic}
+
+
 def _load_env_file(path: Path) -> None:
     """Load this example's local .env without evaluating shell syntax."""
 
@@ -565,6 +607,9 @@ def runtime_component_identities() -> dict[str, Any]:
 
     return {
         "backtrader": module_identity("backtrader", "backtrader"),
+        "backtrader_trade_logger": module_identity(
+            "backtrader.observers.trade_logger", "backtrader"
+        ),
         "backtrader_store": module_identity("backtrader.stores.btapistore", "backtrader"),
         "backtrader_feed": module_identity("backtrader.feeds.btapifeed", "backtrader"),
         "backtrader_broker": module_identity("backtrader.brokers.btapibroker", "backtrader"),
@@ -2997,6 +3042,7 @@ def run_replay(
             clock=clock,
         )
         cerebro.adddata(feed, name=instrument)
+        _attach_trade_logger(cerebro, output_directory)
         risk_store = DailyRiskStore(output_directory / "replay-risk.json")
         risk_store.load_or_create(
             account_fingerprint="acct_replay_fixture",
@@ -3025,7 +3071,7 @@ def run_replay(
         )
         cerebro.addstrategy(SAMidFrequencyStrategy, **params)
         strategies = cerebro.run(preload=False, runonce=False)
-        report = strategies[0].report()
+        report = _final_sa_report(strategies[0])
         report.update(
             run_id=run_id,
             scenario=scenario,
@@ -5292,6 +5338,7 @@ def run_network(
                     **feed_config,
                 )
                 cerebro.adddata(feed, name=instrument)
+                _attach_trade_logger(cerebro, output_directory)
                 control = RuntimeControl()
                 deadline = time.monotonic() + float(run_seconds) if run_seconds > 0 else None
                 params = _strategy_params(
@@ -5342,7 +5389,7 @@ def run_network(
                     signal.signal(signal.SIGINT, previous_sigint)
                     signal.signal(signal.SIGTERM, previous_sigterm)
 
-                result = strategies[0].report()
+                result = _final_sa_report(strategies[0])
                 shutdown_reader = getattr(broker, "get_shutdown_summary", None)
                 shutdown_summary = _mapping(shutdown_reader()) if callable(shutdown_reader) else {}
                 manifest["controlled_drain"] = shutdown_summary

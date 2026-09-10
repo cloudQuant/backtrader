@@ -61,3 +61,16 @@ holdout，并禁止 paper-live 和 demo 订单写入。只读 `demo --preflight`
 历史分支标签；它不下单、不模拟成交、不计算 PnL，`FORMULA_CHECK_PASS` 只表示公式与拒绝
 分支符合预期。网络报告只有在 Store 停机守恒通过后才可为 `SHADOW_PASS`；paper/demo 还
 必须取得账户风险账本、确认成交经济、对账和平仓终态。paper 或短期 demo 也不证明可持续盈利。
+
+经过 `Cerebro` 的网络运行会挂载命名为 `trade_logger` 的通用
+`bt.observers.TradeLogger`。它实时汇总订单、成交、持仓、资金和事件计数，并在停止后冻结
+通用报告；本策略只通过 `extensions.cross_venue` 补充路径模型、markout、逐腿确认成交、
+风险和对账证据。公式 replay 没有 `Cerebro` 生命周期，因此只导出引擎领域 `snapshot()`，
+不会伪造 Observer 报告。
+
+策略按本地轻量状态签名把 `cross_venue` 扩展发布到运行中的 `TradeLogger.snapshot()`；相同签名的
+高频盘口最多每秒刷新一次，因此非签名明细最多约一秒后可见。完整网络报告保留 Observer 的
+`run_id`、时间戳和监控遥测，同时提供排除这些易变字段的 `business_summary` 与
+`business_summary_hash`，用于确定性公式 replay 的可重复业务核验。若未来 demo 在 Observer 冻结后
+才完成远端对账，输出会写入带前后扩展及哈希的 `post_run_reconciliation` 修订证据，不会改写冻结的
+`trade_logger.extensions.cross_venue`。

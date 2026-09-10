@@ -7,6 +7,7 @@ z-score（指标在 next() 中就绪），限价参考 ``notify_tick`` 缓存的
 """
 
 import math
+from collections.abc import Mapping
 
 import backtrader as bt
 import backtrader.indicators as btind
@@ -23,6 +24,10 @@ def close_offset(symbol):
 
 class PairArbitrageStrategy(bt.Strategy):
     """Two-leg mean-reversion pair arbitrage driven by SpreadZScore."""
+
+    # Keep HFT report extension serialization bounded: state transitions are
+    # immediate, while tick-count telemetry is refreshed every 128 ticks.
+    trade_logger_tick_interval = 128
 
     params = (
         ("period", 60),
@@ -63,7 +68,12 @@ class PairArbitrageStrategy(bt.Strategy):
         self._confirmations = 0
         self._last_evaluation = -math.inf
         self._started_at = None
-        self._final_report = None
+        self._trade_logger_context_dirty = True
+        self._trade_logger_context_revision = 0
+        self._trade_logger_last_attempted_tick = 0
+        self._trade_logger_last_attempted_revision = -1
+        self._trade_logger_context_failed_since_success = False
+        self._trade_logger_context_last_error = None
 
     def start(self):
         self.initial_value = self.broker.getvalue()
@@ -71,9 +81,13 @@ class PairArbitrageStrategy(bt.Strategy):
             if abs(self.broker.getposition(data).size) > 1e-12:
                 self.halt("Dedicated SimNow strategy requires initially flat positions")
                 break
+        self._mark_trade_logger_context_dirty()
+        self._publish_trade_logger_context(force=True)
 
     def halt(self, reason):
         self.halted, self.halt_reason = True, reason
+        self._mark_trade_logger_context_dirty()
+        self._publish_trade_logger_context()
 
     # ---------------- market data ----------------
 
@@ -86,6 +100,11 @@ class PairArbitrageStrategy(bt.Strategy):
         ask = getattr(tick, "ask_price", None) or tick.price
         if bid and ask and ask >= bid:
             self._quotes[symbol] = (float(bid), float(ask))
+        if self.ticks_seen - self._trade_logger_last_attempted_tick >= int(
+            self.trade_logger_tick_interval
+        ):
+            self._mark_trade_logger_context_dirty()
+            self._publish_trade_logger_context()
 
     def _now(self):
         return bt.num2date(self.data0.datetime[0]).timestamp()
@@ -107,25 +126,31 @@ class PairArbitrageStrategy(bt.Strategy):
     # ---------------- main loop ----------------
 
     def next(self):
-        if self.halted:
-            return
-        now = self._now()
-        if self._started_at is None:
-            self._started_at = now
-        if self.pending_order is not None:
-            if now - self.current_pair["last_submit"] > self.p.order_timeout:
-                try:
-                    self.cancel(self.pending_order)
-                finally:
-                    self.halt("Order deadline exceeded; reconcile remaining exposure")
-            return
-        if self.current_pair is not None:
-            self._advance_pair(now)
-            return
-        if self.active_pair is not None:
-            self._manage_open_pair(now)
-            return
-        self._try_open(now)
+        try:
+            if self.halted:
+                return
+            now = self._now()
+            if self._started_at is None:
+                self._started_at = now
+                self._mark_trade_logger_context_dirty()
+            if self.pending_order is not None:
+                if now - self.current_pair["last_submit"] > self.p.order_timeout:
+                    try:
+                        self.cancel(self.pending_order)
+                    finally:
+                        self.halt("Order deadline exceeded; reconcile remaining exposure")
+                return
+            if self.current_pair is not None:
+                self._advance_pair(now)
+                return
+            if self.active_pair is not None:
+                self._manage_open_pair(now)
+                return
+            self._try_open(now)
+        finally:
+            # This is a no-op unless state changed or the bounded tick interval
+            # elapsed, so it does not serialize a report for every HFT event.
+            self._publish_trade_logger_context()
 
     def _try_open(self, now):
         if self.open_attempts >= self.p.max_pairs:
@@ -149,6 +174,7 @@ class PairArbitrageStrategy(bt.Strategy):
             return
         self._confirmations = 0
         self.open_attempts += 1
+        self._mark_trade_logger_context_dirty()
         self._begin_legs(
             [
                 {"symbol": direction[0], "side": "sell", "lots": self.p.order_lots},
@@ -177,6 +203,7 @@ class PairArbitrageStrategy(bt.Strategy):
             "last_submit": self._now(),
         }
         self.stage = "legs"
+        self._mark_trade_logger_context_dirty()
         self._submit_next_leg()
 
     def _submit_next_leg(self):
@@ -208,6 +235,7 @@ class PairArbitrageStrategy(bt.Strategy):
         self.current_pair["last_submit"] = self._now()
         self.current_pair["order_refs"].append(order.ref)
         self.pending_order = order
+        self._mark_trade_logger_context_dirty()
 
     def notify_order(self, order):
         self.orders[order.ref] = {
@@ -229,11 +257,15 @@ class PairArbitrageStrategy(bt.Strategy):
                 order.info.get("error_msg") if order.getstatusname() == "Rejected" else None
             ),
         }
+        self._mark_trade_logger_context_dirty()
         if self.halted or not self.current_pair or self.pending_order is None:
+            self._publish_trade_logger_context()
             return
         if order.ref != self.pending_order.ref or order.alive():
+            self._publish_trade_logger_context()
             return
         if order.ref in self._terminal_refs:
+            self._publish_trade_logger_context()
             return
         self._terminal_refs.add(order.ref)
         self.pending_order = None
@@ -244,6 +276,7 @@ class PairArbitrageStrategy(bt.Strategy):
         if pair["action"] == "open" and pair["index"] == 1 and len(pair["legs"]) > 1:
             pair["legs"][1]["lots"] = leg["filled"]
         self._submit_next_leg()
+        self._publish_trade_logger_context()
 
     def _advance_pair(self, now):
         if self.stage != "reconcile":
@@ -260,6 +293,7 @@ class PairArbitrageStrategy(bt.Strategy):
                         "short": shorts[0],
                         "opened_at": now,
                     }
+                    self._mark_trade_logger_context_dirty()
                     self._finish_pair()
                     return
             if not opened:
@@ -283,7 +317,9 @@ class PairArbitrageStrategy(bt.Strategy):
             elif size > 1e-12:
                 legs.append({"symbol": data._name, "side": "sell", "lots": int(size)})
         self.active_pair = None
+        self._mark_trade_logger_context_dirty()
         if not legs:
+            self._publish_trade_logger_context()
             return
         self._begin_legs(legs, "close")
         self.current_pair["reason"] = reason
@@ -297,6 +333,8 @@ class PairArbitrageStrategy(bt.Strategy):
             }
         )
         self.current_pair, self.stage = None, None
+        self._mark_trade_logger_context_dirty()
+        self._publish_trade_logger_context()
 
     # ---------------- reporting ----------------
 
@@ -305,18 +343,94 @@ class PairArbitrageStrategy(bt.Strategy):
             abs(self.broker.getposition(data).size) > 1e-12 for data in self.datas
         ):
             self.halt("Data exhausted with open exposure; reconcile manually")
-        self._final_report = self._make_report()
+        self._mark_trade_logger_context_dirty()
+        self._publish_trade_logger_context(force=True)
 
-    def _make_report(self):
-        positions = {data._name: float(self.broker.getposition(data).size) for data in self.datas}
+    @staticmethod
+    def _finite_float(value):
+        """Return a finite local-cache value, or ``None`` when unavailable."""
+        try:
+            result = float(value)
+        except (TypeError, ValueError):
+            return None
+        return result if math.isfinite(result) else None
+
+    def _cached_broker_report_state(self):
+        """Read the broker's explicit observer cache without a refresh call."""
+        getter = getattr(self.broker, "get_cached_report_state", None)
+        if not callable(getter):
+            return {}
+        try:
+            state = getter()
+        except Exception:
+            return {}
+        return dict(state) if isinstance(state, Mapping) else {}
+
+    @staticmethod
+    def _cached_position_size(positions, data):
+        """Read one locally cached position without calling ``getposition``."""
+        if not isinstance(positions, Mapping):
+            return None
+        candidates = (
+            data,
+            getattr(data, "_name", None),
+            getattr(data, "_dataname", None),
+        )
+        position = None
+        for key in candidates:
+            if key is None or (isinstance(key, str) and not key):
+                continue
+            try:
+                position = positions.get(key)
+            except (AttributeError, TypeError):
+                position = None
+            if position is not None:
+                break
+        if isinstance(position, Mapping):
+            position = position.get("size")
+        else:
+            position = getattr(position, "size", None)
+        return PairArbitrageStrategy._finite_float(position)
+
+    def _cached_positions(self, state):
+        positions = state.get("positions") if isinstance(state, Mapping) else None
+        return {
+            str(data._name): size
+            for data in self.datas
+            if (size := self._cached_position_size(positions, data)) is not None
+        }
+
+    def _report_execution_state(self):
+        """Return compact state-machine fields needed by a live snapshot."""
+        pair = self.current_pair if isinstance(self.current_pair, Mapping) else {}
+        return {
+            "stage": self.stage,
+            "pending_order_ref": (
+                getattr(self.pending_order, "ref", None) if self.pending_order is not None else None
+            ),
+            "current_action": pair.get("action"),
+            "current_leg_index": pair.get("index"),
+            "current_reason": pair.get("reason"),
+            "active_pair": (
+                dict(self.active_pair) if isinstance(self.active_pair, Mapping) else None
+            ),
+        }
+
+    def _report_context(self):
+        """Return pair-arbitrage state without synchronous broker refreshes."""
+        state = self._cached_broker_report_state()
+        positions = self._cached_positions(state)
+        cached_value = self._finite_float(state.get("value"))
+        initial_value = self._finite_float(self.initial_value)
         return {
             "strategy_class": type(self).__name__,
             "ticks_seen": self.ticks_seen,
-            "initial_value": self.initial_value,
+            "initial_value": initial_value,
+            "portfolio_value": cached_value,
             "net_pnl": (
-                (self.broker.getvalue() - self.initial_value)
-                if self.initial_value is not None
-                else 0.0
+                (cached_value - initial_value)
+                if cached_value is not None and initial_value is not None
+                else None
             ),
             "fees_paid": sum(o["commission"] for o in self.orders.values()),
             "positions": positions,
@@ -326,7 +440,54 @@ class PairArbitrageStrategy(bt.Strategy):
             "open_attempts": self.open_attempts,
             "halted": self.halted,
             "halt_reason": self.halt_reason,
+            "execution_state": self._report_execution_state(),
+            "portfolio_cache_available": bool(state),
         }
 
-    def report(self):
-        return self._final_report or self._make_report()
+    def _mark_trade_logger_context_dirty(self):
+        self._trade_logger_context_dirty = True
+        self._trade_logger_context_revision += 1
+
+    def _publish_trade_logger_context(self, *, force=False):
+        """Publish a bounded live extension; failed attempts remain dirty.
+
+        This calls only ``get_cached_report_state`` through ``_report_context``.
+        It never invokes the live broker's ``getvalue`` or ``getposition``.
+        """
+        tick_interval = max(1, int(self.trade_logger_tick_interval))
+        ticks_seen = int(self.ticks_seen)
+        context_revision = int(getattr(self, "_trade_logger_context_revision", 0))
+        last_attempted_revision = int(getattr(self, "_trade_logger_last_attempted_revision", -1))
+        last_attempted_tick = int(getattr(self, "_trade_logger_last_attempted_tick", 0))
+        if (
+            not force
+            and context_revision == last_attempted_revision
+            and ticks_seen - last_attempted_tick < tick_interval
+        ):
+            return True
+        observer = getattr(getattr(self, "stats", None), "trade_logger", None)
+        update = getattr(observer, "update_report_context", None)
+        if not callable(update):
+            self._trade_logger_last_attempted_tick = ticks_seen
+            self._trade_logger_last_attempted_revision = context_revision
+            self._trade_logger_context_failed_since_success = True
+            self._trade_logger_context_last_error = "observer_unavailable"
+            return False
+        try:
+            accepted = bool(update(self._report_context(), namespace="pair_arbitrage"))
+        except Exception as exc:
+            self._trade_logger_last_attempted_tick = ticks_seen
+            self._trade_logger_last_attempted_revision = context_revision
+            self._trade_logger_context_failed_since_success = True
+            self._trade_logger_context_last_error = type(exc).__name__
+            return False
+        self._trade_logger_last_attempted_tick = ticks_seen
+        self._trade_logger_last_attempted_revision = context_revision
+        if accepted:
+            self._trade_logger_context_dirty = False
+            self._trade_logger_context_failed_since_success = False
+            self._trade_logger_context_last_error = None
+        else:
+            self._trade_logger_context_failed_since_success = True
+            self._trade_logger_context_last_error = "update_rejected"
+        return accepted

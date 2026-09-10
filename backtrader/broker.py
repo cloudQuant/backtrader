@@ -268,6 +268,31 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         """
         raise NotImplementedError
 
+    def get_cached_report_state(self):
+        """Return a local-only state view for runtime observers.
+
+        Implementations must not perform network, disk, or provider queries in
+        this method.  It is deliberately separate from :meth:`getcash`,
+        :meth:`getvalue`, and :meth:`getposition`, because live brokers may
+        refresh those values synchronously.  A caller may receive ``None``
+        when a broker does not expose a local report cache.
+
+        Returns:
+            dict | None: A mapping with optional ``cash``, ``value``, and
+            ``positions`` entries, plus an optional ``position_legs`` mapping
+            for dual-side brokers, or ``None`` if no read-only cache exists.
+        """
+
+    def get_cached_mark_price(self, data):
+        """Return a local-only mark for ``data`` when the broker has one.
+
+        Runtime reports may use this optional hook only when the data object
+        has no current close line, such as channel-only strategies.  An
+        implementation must read an already-held tick/order-book/cache value;
+        it must not make a network, disk, or provider request.  ``None``
+        means that no cached mark is available.
+        """
+
     # Get fund shares
     def get_fundshares(self):
         """Get the current number of shares in fund-like mode.

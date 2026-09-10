@@ -13,17 +13,15 @@ Tests cover:
 - _base_event structure
 """
 
+import collections
 import datetime as dt
 import json
 import logging
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from backtrader.observers.trade_logger import TradeLogger
 from backtrader.utils import AutoOrderedDict
-
 
 # ===========================================================================
 # Helpers
@@ -159,6 +157,7 @@ class TestExtractIndicatorValuesLogging:
 
         class FakeIndicator:
             """Mock indicator with FakeLines."""
+
             lines = FakeLines()
 
         indicators_dict = {}
@@ -262,7 +261,11 @@ class TestDefensiveAccessors:
     def test_get_datetime_failure_logged(self, caplog):
         """Datetime accessor failures should emit a debug log and return a fallback string."""
         tl = _make_bare_logger()
-        tl._owner = SimpleNamespace(datetime=SimpleNamespace(datetime=lambda: (_ for _ in ()).throw(RuntimeError("dt boom"))))
+        tl._owner = SimpleNamespace(
+            datetime=SimpleNamespace(
+                datetime=lambda: (_ for _ in ()).throw(RuntimeError("dt boom"))
+            )
+        )
 
         with caplog.at_level(logging.DEBUG):
             result = TradeLogger._get_datetime_str(tl)
@@ -270,7 +273,9 @@ class TestDefensiveAccessors:
         assert isinstance(result, str)
         parsed = dt.datetime.fromisoformat(result)
         assert parsed.tzinfo is not None
-        assert any("Failed to read strategy datetime" in record.message for record in caplog.records)
+        assert any(
+            "Failed to read strategy datetime" in record.message for record in caplog.records
+        )
 
     def test_get_strategy_name_failure_logged(self, caplog):
         """Strategy name accessor failures should emit a debug log and return Unknown."""
@@ -323,17 +328,20 @@ class TestSafeOrderInfo:
 
     def test_broken_get_returns_default(self):
         """Test that broken get() returns default value."""
+
         class BrokenInfo:
             """Mock info that raises on get()."""
 
             def get(self, key, default=None):
                 """Raise TypeError."""
                 raise TypeError("broken")
+
         order = SimpleNamespace(info=BrokenInfo())
         assert TradeLogger._safe_order_info(order, "key", "safe") == "safe"
 
     def test_broken_attr_access_falls_back_to_get(self):
         """Test that broken attr access falls back to get()."""
+
         class BrokenAttrInfo:
             """Mock info that raises on attr access but get() works."""
 
@@ -569,3 +577,57 @@ class TestMarketEventTimeFields:
         local_time = dt.datetime.fromisoformat(payload["local_time"])
         assert local_time.tzinfo is not None
         assert local_time.timestamp() == pytest.approx(1782329081.1869645, abs=0.002)
+
+
+class TestGenericReportBarIdentity:
+    """Regression coverage for feed callback / LineSeries bar deduplication."""
+
+    def test_data_alias_matches_feed_transport_name(self):
+        """A Cerebro display alias must not double-count a completed BtApiFeed bar."""
+
+        timestamp = dt.datetime(2026, 9, 10, 9, 1, tzinfo=dt.timezone.utc)
+        data = SimpleNamespace(
+            _name="display-alias",
+            _dataname="BTC-USDT-SWAP",
+            datetime=SimpleNamespace(datetime=lambda index=0: timestamp),
+        )
+        identity = (
+            "BTC-USDT-SWAP",
+            TradeLogger._report_timestamp_key(timestamp),
+        )
+        logger = _make_bare_logger()
+        logger._report_dispatched_line_bars = collections.OrderedDict({identity: None})
+        owner = SimpleNamespace(datas=[data])
+
+        assert TradeLogger._report_data_bar_identities(data) == {
+            identity,
+            ("display-alias", identity[1]),
+        }
+        assert TradeLogger._consume_dispatched_line_bar(logger, owner) is True
+        assert logger._report_dispatched_line_bars == {}
+
+    def test_foreign_or_unconsumed_bar_identities_cannot_grow_unbounded(self):
+        """Diagnostic bars cannot leak pending dedup state during a live run."""
+
+        timestamp = dt.datetime(2026, 9, 10, 9, 1, tzinfo=dt.timezone.utc)
+        data = SimpleNamespace(
+            _name="subscribed",
+            datetime=SimpleNamespace(datetime=lambda index=0: timestamp),
+        )
+        logger = _make_bare_logger()
+        logger._owner = SimpleNamespace(datas=[data])
+        logger._report_dispatched_line_bars = collections.OrderedDict()
+
+        for index in range(1034):
+            TradeLogger.notify_bar_event(
+                logger,
+                SimpleNamespace(symbol="foreign", datetime=index, complete=True),
+            )
+        assert logger._report_dispatched_line_bars == {}
+
+        for index in range(1034):
+            TradeLogger.notify_bar_event(
+                logger,
+                SimpleNamespace(symbol="subscribed", datetime=index, complete=True),
+            )
+        assert len(logger._report_dispatched_line_bars) == 1024

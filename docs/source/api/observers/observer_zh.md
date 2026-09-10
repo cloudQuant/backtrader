@@ -396,6 +396,41 @@ cerebro.addobserver(bt.observers.TradeLogger,
 - `mysql_user`（默认：`'root'`）- MySQL 用户
 - `mysql_password`（默认：`''`）- MySQL 密码
 - `mysql_database`（默认：`'backtrader'`）- MySQL 数据库
+- `report_max_records`（默认：`100`）- 通用内存报告保留的订单和成交摘要上限；`0` 仅保留计数
+
+#### 内存报告 API
+
+`TradeLogger` 还负责与 broker 无关的内存报告。`snapshot()` 返回深拷贝的实时状态，不扫描日志
+文件也不写入文件；`final_report()` 在停止前返回 `None`，在 Observer 停止后返回冻结的最终快照；
+`report()` 适合不需要区分生命周期阶段的调用方。
+
+现金、净值和持仓只通过 broker 的本地 `get_cached_report_state()` 契约读取；构建报告时
+`TradeLogger` 不会调用 `getcash()`、`getvalue()` 或 `getposition()`。核心 broker 已实现该契约。
+自定义实时 broker 也可提供同名的无 I/O 方法并返回含 `cash`、`value`、`positions` 的映射；未提供时
+这些字段保持不可用，不会因此发起 provider 请求。对于没有 close line 的仅通道数据，自定义 broker
+还可以提供无 I/O 的 `get_cached_mark_price(data)`；双向持仓 broker 可以用可选的 `position_legs`
+返回本地 long/short 持仓。
+
+上述无 I/O 保证只适用于内存报告 API。旧的文件/MySQL 日志保留原有行为：启用 `log_value`、
+`log_positions`、`log_bars` 或 `log_position_snapshot` 等选项时，可能调用普通 broker getter，进而
+刷新实盘账户。若状态观察器必须避免这类读取，应关闭这些旧日志输出。即使旧日志在停止阶段失败，
+`TradeLogger` 仍会冻结最终内存报告并记录 observer 错误。
+
+快照包含 schema 版本、运行和策略元数据、现金/净值、持仓、通用事件计数、监控状态、受限数量的
+订单/成交摘要和命名扩展。双向持仓会保留标准净仓字段，以及 `position_mode: "dual_side"` 和
+`position_legs.long` / `position_legs.short` 两条腿，因此净仓为零不会掩盖 gross exposure。
+策略可在停止前补充 JSON 安全的业务字段：
+
+```python
+def stop(self):
+    self.stats.trade_logger.update_report_context(
+        {"state": "flat", "risk": {"halted": False}},
+        namespace="my_strategy",
+    )
+```
+
+非 JSON 值、非字符串键、循环引用、非有限浮点数及冻结后的更新都会被原子拒绝。Observer 不解释
+扩展内容，因此同样适用于回测、实时行情、CTP 和其他 store。
 
 - *生成的文件**:
 - `order.log` - 订单状态变化

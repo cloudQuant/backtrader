@@ -2042,6 +2042,29 @@ class BtApiBroker(BrokerBase):
             )
         return position.clone() if clone else position
 
+    def get_cached_report_state(self):
+        """Return the already-synchronized local account state without I/O.
+
+        ``getcash``, ``getvalue``, and ``getposition`` may intentionally
+        refresh their provider-side values.  Runtime observers use this method
+        so a status snapshot cannot introduce an extra account request.
+        """
+        positions = dict(self.positions)
+        position_legs = {}
+        if self._is_dual_side_mode():
+            for key in set(self.long_positions) | set(self.short_positions):
+                positions[key] = self._sync_net_position(key)
+                position_legs[key] = {
+                    "long": self.long_positions.get(key),
+                    "short": self.short_positions.get(key),
+                }
+        return {
+            "cash": self._cash,
+            "value": self._value,
+            "positions": positions,
+            "position_legs": position_legs,
+        }
+
     def submit(self, order):
         """Submit an order through the store."""
         if (
