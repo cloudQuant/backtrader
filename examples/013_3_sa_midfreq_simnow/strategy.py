@@ -80,6 +80,56 @@ def _account_core(value: Any) -> str:
     return text[5:] if text.startswith("acct_") else text
 
 
+def _shadow_startup_account_has_external_state(params: Any) -> bool:
+    """Whether the account-wide startup snapshot forbids a flat-state claim.
+
+    A selected feed can be flat while another CTP contract has a position or
+    an account-owned order is open.  Shadow mode must retain that distinction:
+    it neither owns nor mutates either condition, so a controlled stop is an
+    observation result rather than ``STOPPED_FLAT``.  The snapshot is created
+    from the complete Stage-B query before the strategy starts.  A malformed
+    supplied snapshot is handled conservatively as external/unknown state.
+    """
+    if str(getattr(params, "mode", "")).lower() != "shadow":
+        return False
+    observation = getattr(params, "startup_account_observation", None)
+    if observation is None:
+        # Preserve the generic strategy behavior for callers that do not use
+        # the Iteration 22 network runner.
+        return False
+    if not isinstance(observation, Mapping):
+        return True
+    try:
+        raw_nonzero_positions = observation["nonzero_position_record_count"]
+        raw_active_orders = observation["active_orders_count"]
+    except (KeyError, TypeError, ValueError):
+        return True
+    if isinstance(raw_nonzero_positions, bool) or isinstance(raw_active_orders, bool):
+        return True
+    try:
+        nonzero_positions = int(raw_nonzero_positions)
+        active_orders = int(raw_active_orders)
+    except (TypeError, ValueError):
+        return True
+    if nonzero_positions < 0 or active_orders < 0:
+        return True
+    if nonzero_positions or active_orders:
+        return True
+
+    records = observation.get("positions", ())
+    if not isinstance(records, (list, tuple)):
+        return True
+    for record in records:
+        if not isinstance(record, Mapping):
+            return True
+        try:
+            if int(record.get("position_lots", 0)) != 0:
+                return True
+        except (TypeError, ValueError):
+            return True
+    return False
+
+
 def _session_for_epoch(epoch: float, sessions=DEFAULT_SESSIONS) -> tuple[str, float] | None:
     moment = datetime.fromtimestamp(float(epoch), timezone.utc).astimezone(BEIJING)
     for start_text, end_text in sessions:
@@ -175,6 +225,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
         ("engineering_trigger", None),
         ("session_state_provider", None),
         ("execution_recovery", None),
+        ("startup_account_observation", None),
     )
 
     def __init__(self) -> None:
@@ -254,6 +305,10 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self._recovery_plan: dict[str, Any] | None = None
         self._recovery_allowed_close: dict[str, Any] | None = None
         self._recovery_completion: dict[str, Any] | None = None
+        # A shadow run can attach to an account with pre-existing, external
+        # inventory. It is observable only: no recovery, close, or cancel is
+        # ever attributed to this strategy.
+        self._shadow_external_position_lots = 0
         self._clock = self.p.clock or SystemClock()
         # The generic observer owns the report envelope.  Keep the SA
         # extension live on meaningful transitions and at a bounded quote
@@ -413,6 +468,18 @@ class SAMidFrequencyStrategy(bt.Strategy):
             self._transition("HALTED", "natural_signal_research_not_admitted")
             return
         initial_position = self._gross_position_lots()
+        shadow_account_has_external_state = _shadow_startup_account_has_external_state(self.p)
+        if self.p.mode == "shadow" and (initial_position != 0 or shadow_account_has_external_state):
+            self._shadow_external_position_lots = int(initial_position)
+            self._transition(
+                "OBSERVING",
+                (
+                    "shadow_external_position_observed"
+                    if initial_position != 0
+                    else "shadow_external_account_state_observed"
+                ),
+            )
+            return
         if initial_position != 0:
             if not self._bind_startup_recovery(initial_position):
                 self._transition("MANUAL_INTERVENTION", "startup_position_ownership_unproven")
@@ -1078,6 +1145,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
         self._transition("ENTRY_PENDING", "entry_gfd_submitted", submitted_at)
 
     def _request_exit(self, reason: str, now: float, *, emergency: bool) -> None:
+        if getattr(getattr(self, "p", None), "mode", "") in {"shadow", "replay"}:
+            # An observer may see account inventory that predates this
+            # strategy. A read-only mode must never convert that observation
+            # into a close request, even during stale-market or shutdown flow.
+            self._block("read_only_position_exit_suppressed")
+            return
         if self._active_order is not None:
             return
         broker_mode = str(
@@ -1193,6 +1266,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
             not in {
                 "DRAINING",
                 "STOPPED_FLAT",
+                "OBSERVATION_STOPPED",
                 "MANUAL_INTERVENTION",
             }
         ):
@@ -1266,6 +1340,14 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 else:
                     self._transition("FLAT", "cooldown_complete", now)
         if self.state == "DRAINING":
+            if self.p.mode == "shadow":
+                # A shadow broker deliberately performs no final remote-flat
+                # reconciliation.  Even a flat startup snapshot therefore
+                # cannot justify a terminal account-flat claim after another
+                # client may have changed the account during observation.
+                self._transition("OBSERVATION_STOPPED", "shadow_observation_complete:draining", now)
+                self.env.runstop()
+                return
             if self._active_order is None and self._gross_position_lots() == 0:
                 if self.p.mode == "simnow":
                     self._begin_reconciliation("drain_flat", "drain_reconciliation_required", now)
@@ -1302,12 +1384,22 @@ class SAMidFrequencyStrategy(bt.Strategy):
             if (
                 quote_age > float(self.p.exit_quote_age_seconds)
                 and self._gross_position_lots() != 0
+                and not (
+                    self.p.mode == "shadow"
+                    and int(getattr(self, "_shadow_external_position_lots", 0)) > 0
+                )
             ):
                 self._request_exit("market_data_stale", now, emergency=True)
 
     def request_drain(self, reason: str, now: Optional[float] = None) -> None:
         now = self._clock.monotonic_now() if now is None else float(now)
-        if self.state in {"STOPPED_FLAT", "MANUAL_INTERVENTION"}:
+        if self.state in {"STOPPED_FLAT", "OBSERVATION_STOPPED", "MANUAL_INTERVENTION"}:
+            return
+        if self.p.mode == "shadow":
+            self._transition("OBSERVATION_STOPPED", f"shadow_observation_complete:{reason}", now)
+            runstop = getattr(getattr(self, "env", None), "runstop", None)
+            if callable(runstop):
+                runstop()
             return
         self._drain_started = self._drain_started or now
         self._transition("DRAINING", reason, now)
@@ -1990,7 +2082,15 @@ class SAMidFrequencyStrategy(bt.Strategy):
             and self.state != "MANUAL_INTERVENTION"
         ):
             self._transition("MANUAL_INTERVENTION", "recovery_completion_missing")
-        if self._gross_position_lots() != 0 and self.state != "MANUAL_INTERVENTION":
+        # Shadow owns no execution.  Any residual framework position is
+        # observational and cannot be converted into a manual-execution
+        # verdict without a final account-wide reconciliation.
+        has_external_shadow_position = self.p.mode == "shadow"
+        if (
+            self._gross_position_lots() != 0
+            and self.state != "MANUAL_INTERVENTION"
+            and not has_external_shadow_position
+        ):
             self._transition("MANUAL_INTERVENTION", "engine_stopped_with_position")
         _publish_trade_logger_context_if_ready(self, force=True)
 
@@ -2106,6 +2206,17 @@ class SAMidFrequencyStrategy(bt.Strategy):
             "state_reason": self.state_reason,
             "position_lots": cached_position_lots,
             "position_lots_cache_complete": position_cache_complete,
+            "startup_account_observation": (
+                dict(getattr(self.p, "startup_account_observation", None))
+                if isinstance(getattr(self.p, "startup_account_observation", None), Mapping)
+                else {}
+            ),
+            "shadow_external_position_lots": int(
+                getattr(self, "_shadow_external_position_lots", 0)
+            ),
+            "shadow_account_wide_external_state": _shadow_startup_account_has_external_state(
+                self.p
+            ),
             "active_order": self._active_order.ref if self._active_order is not None else None,
             "unknown_intents": self._unknown_intents,
             "invalid_quotes": self._invalid_quotes,

@@ -1441,6 +1441,39 @@ def test_contract_auto_fails_without_authoritative_calendar():
         runner.select_contract([_instrument()], policy, today=date(2026, 9, 9))
 
 
+def test_contract_auto_fails_when_calendar_ends_before_an_eligible_sa_expiry(tmp_path):
+    config = _manual_config(tmp_path, trading_day="20260910")
+    calendar = runner._load_trading_calendar(config)
+    assert calendar is not None
+    records = runner._apply_trading_calendar(
+        [
+            _instrument("20260917"),
+            {
+                **_instrument("20261015"),
+                "InstrumentID": "SA705",
+                "trading_days_to_expiry": 99,
+                "remaining_trading_days": 99,
+            },
+        ],
+        calendar,
+        "20260910",
+    )
+
+    assert records[0]["trading_calendar_coverage_complete"] is True
+    assert records[1]["trading_calendar_coverage_complete"] is False
+    assert records[1]["trading_calendar_coverage_through"] == "20260917"
+    assert records[1]["trading_calendar_expiry_date"] == "20261015"
+    assert "trading_days_to_expiry" not in records[1]
+    assert "remaining_trading_days" not in records[1]
+
+    with pytest.raises(runner.PreflightError, match="BLOCKED_CTP_TRADING_CALENDAR"):
+        runner.select_contract(
+            records,
+            _config()["contract_selection"],
+            today=date(2026, 9, 10),
+        )
+
+
 def test_calendar_reader_fails_closed_for_hash_matched_invalid_json(tmp_path):
     """A present, hash-matched artifact still needs a valid calendar document."""
 
@@ -1517,10 +1550,14 @@ def test_contract_auto_uses_complete_previous_trading_day_ranking_only():
         runner.select_contract([incomplete], policy, today=date(2026, 9, 9))
 
 
-def test_manual_contract_uses_session_trading_day_at_night(tmp_path):
+def test_manual_contract_allows_covered_selection_when_future_month_is_uncovered(tmp_path):
     config = _manual_config(tmp_path, trading_day="20260910")
+    snapshot = _snapshot(config, trading_day="20260910")
+    snapshot["queries"]["instruments"]["records"].append(
+        {**_instrument("20261015"), "InstrumentID": "SA705"}
+    )
     stage_a = runner.validate_stage_a(
-        _snapshot(config, trading_day="20260910"),
+        snapshot,
         config,
         receipt=None,
         expected_account="acct_0123456789abcdef",
@@ -1530,6 +1567,11 @@ def test_manual_contract_uses_session_trading_day_at_night(tmp_path):
     assert selection["instrument"] == "SA701"
     # From session TradingDay 09-10 the remaining dates are 11,14,15,16,17.
     assert selection["remaining_trading_days"] == 5
+    assert selection["metadata"]["trading_calendar_coverage_complete"] is True
+    assert selection["candidates"] == [
+        {"instrument": "SA701", "reason": "eligible"},
+        {"instrument": "SA705", "reason": "trading_calendar_coverage_incomplete"},
+    ]
     assert selection["validated_metadata"] == {
         "price_tick": 1.0,
         "volume_multiple": 20.0,
@@ -1989,6 +2031,19 @@ def test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_ev
         "session": {"trading_day": "20260910"},
         "account": {"equity": 100000.0},
         "query_identity": {"trading_day": "20260910", "connection_generation": 7},
+        "startup_account_observation": {
+            "schema_version": "iter22.startup-account-observation.v1",
+            "source": "ctp_preflight_stage_b",
+            "scope": "account_wide",
+            "read_only": True,
+            "account_fingerprint": "acct_0123456789abcdef",
+            "trading_day": "20260910",
+            "connection_generation": 7,
+            "nonzero_position_record_count": 1,
+            "gross_position_lots": 1,
+            "active_orders_count": 0,
+            "positions": [],
+        },
         "selection": {"instrument": "SA701"},
         "fee": {"source": "account_query"},
         "metadata": {},
@@ -3204,6 +3259,36 @@ def test_sa_trade_logger_extension_is_visible_in_a_live_cerebro_snapshot(monkeyp
     assert any(item.get("closed_bars", 0) > 0 for item in live_extensions)
 
 
+def test_attach_trade_logger_keeps_authoritative_startup_observation_separate_from_cache(tmp_path):
+    calls = []
+
+    class RecordingCerebro:
+        def addobserver(self, observer, **kwargs):
+            calls.append((observer, kwargs))
+
+    observation = {
+        "schema_version": "iter22.startup-account-observation.v1",
+        "nonzero_position_record_count": 1,
+        "gross_position_lots": 2,
+        "active_orders_count": 3,
+        "positions": [{"instrument": "SA701", "position_lots": 2}],
+    }
+    runner._attach_trade_logger(
+        RecordingCerebro(),
+        tmp_path,
+        startup_snapshot_file="startup_cached_positions.yaml",
+        startup_account_observation=observation,
+    )
+
+    assert len(calls) == 1
+    observer, kwargs = calls[0]
+    assert observer is bt.observers.TradeLogger
+    assert kwargs["startup_snapshot_file"] == "startup_cached_positions.yaml"
+    assert kwargs["startup_account_observation"] == observation
+    assert kwargs["startup_account_observation"] is not observation
+    assert kwargs["log_position_snapshot"] is False
+
+
 def test_sa_trade_logger_update_failure_is_diagnosed_and_fails_closed(monkeypatch, tmp_path):
     def reject_context(_self, _mapping, namespace="strategy"):
         assert namespace == "sa_midfreq"
@@ -3503,6 +3588,103 @@ def test_nonflat_preflight_is_admitted_only_to_execution_recovery(tmp_path):
     assert result["ready_for_simnow"] is False
     assert result["ready_for_recovery"] is True
     assert result["recovery_required"] is True
+
+
+def test_preflight_projects_all_nonzero_positions_into_startup_account_observation(tmp_path):
+    config = _manual_config(tmp_path)
+    stage_a = runner.validate_stage_a(
+        _snapshot(config),
+        config,
+        receipt=None,
+        expected_account="acct_0123456789abcdef",
+        expected_profile="set1_group1",
+    )
+    stage_b = _snapshot(config, stage_b=True)
+    stage_b["queries"]["positions"]["records"] = [
+        {
+            "InstrumentID": "SA701",
+            "ExchangeID": "CZCE",
+            "PosiDirection": "2",
+            "HedgeFlag": "1",
+            "Position": 1,
+            "TodayPosition": 1,
+            "YdPosition": 0,
+            "LongFrozen": 0,
+            "ShortFrozen": 0,
+            "InvestorID": "must-not-be-projected",
+        },
+        {
+            "InstrumentID": "SA702",
+            "ExchangeID": "CZCE",
+            "PosiDirection": "3",
+            "HedgeFlag": "1",
+            "Position": 2,
+            "TodayPosition": 0,
+            "YdPosition": 2,
+            "LongFrozen": 0,
+            "ShortFrozen": 1,
+        },
+        {
+            "InstrumentID": "SA703",
+            "ExchangeID": "CZCE",
+            "PosiDirection": "2",
+            "HedgeFlag": "1",
+            "Position": 0,
+            "TodayPosition": 0,
+            "YdPosition": 0,
+            "LongFrozen": 0,
+            "ShortFrozen": 0,
+        },
+    ]
+    stage_b["queries"]["orders"]["records"] = [{"status": "Submitted"}]
+
+    result = runner.validate_preflight(
+        stage_b,
+        config,
+        mode="shadow",
+        stage_a=stage_a,
+        expected_account="acct_0123456789abcdef",
+        expected_profile="set1_group1",
+    )
+
+    observation = result["startup_account_observation"]
+    assert observation == {
+        "schema_version": "iter22.startup-account-observation.v1",
+        "source": "ctp_preflight_stage_b",
+        "scope": "account_wide",
+        "read_only": True,
+        "account_fingerprint": "0123456789abcdef",
+        "trading_day": "20260910",
+        "connection_generation": 7,
+        "nonzero_position_record_count": 2,
+        "gross_position_lots": 3,
+        "active_orders_count": 1,
+        "positions": [
+            {
+                "instrument": "SA701",
+                "exchange": "CZCE",
+                "direction": "2",
+                "hedge": "1",
+                "position_lots": 1,
+                "today_lots": 1,
+                "yesterday_lots": 0,
+                "long_frozen_lots": 0,
+                "short_frozen_lots": 0,
+            },
+            {
+                "instrument": "SA702",
+                "exchange": "CZCE",
+                "direction": "3",
+                "hedge": "1",
+                "position_lots": 2,
+                "today_lots": 0,
+                "yesterday_lots": 2,
+                "long_frozen_lots": 0,
+                "short_frozen_lots": 1,
+            },
+        ],
+    }
+    assert "InvestorID" not in json.dumps(observation)
 
 
 class _RecoveryOrchestrationStore:
@@ -4104,6 +4286,194 @@ def test_restart_enters_sdk_recovery_without_an_entry_order_object():
     assert holder._active_cycle_id == "sdk-cycle-1"
     assert holder._recovery_allowed_close["offset"] == "close"
     assert holder._active_order is None
+
+
+def test_shadow_external_position_is_observed_and_never_converted_to_a_close():
+    transitions = []
+    blocks = []
+    stopped = []
+    holder = SimpleNamespace(
+        p=SimpleNamespace(
+            mode="shadow",
+            lots=1,
+            session_state_provider=None,
+            startup_account_observation={
+                "nonzero_position_record_count": 1,
+                "active_orders_count": 0,
+                "positions": [
+                    {
+                        "instrument": "SA701",
+                        "position_lots": 1,
+                    }
+                ],
+            },
+        ),
+        state="STARTING",
+        _gross_position_lots=lambda: 1,
+        _bind_startup_recovery=lambda _lots: pytest.fail("shadow must not bind execution recovery"),
+        _active_order=None,
+        _orders=[],
+        _recovery_only=False,
+        _clock=SimpleNamespace(monotonic_now=lambda: 100.0),
+        env=SimpleNamespace(runstop=lambda: stopped.append(True)),
+        _block=lambda reason: blocks.append(reason),
+    )
+
+    def transition(state, reason, now=None):
+        holder.state = state
+        holder.state_reason = reason
+        transitions.append((state, reason, now))
+
+    holder._transition = transition
+
+    strategy_module.SAMidFrequencyStrategy.start(holder)
+
+    assert holder._shadow_external_position_lots == 1
+    assert transitions == [("OBSERVING", "shadow_external_position_observed", None)]
+
+    strategy_module.SAMidFrequencyStrategy._request_exit(
+        holder, "market_data_stale", 101.0, emergency=True
+    )
+    assert blocks == ["read_only_position_exit_suppressed"]
+
+    strategy_module.SAMidFrequencyStrategy.request_drain(holder, "run_duration_elapsed")
+
+    assert holder.state == "OBSERVATION_STOPPED"
+    assert holder.state_reason == "shadow_observation_complete:run_duration_elapsed"
+    assert stopped == [True]
+
+    strategy_module.SAMidFrequencyStrategy.stop(holder)
+    assert holder.state == "OBSERVATION_STOPPED"
+    assert all(state != "MANUAL_INTERVENTION" for state, _reason, _now in transitions)
+
+
+@pytest.mark.parametrize(
+    ("startup_snapshot", "expected_reason"),
+    [
+        (
+            {
+                "nonzero_position_record_count": 0,
+                "active_orders_count": 1,
+                "positions": [],
+            },
+            "shadow_external_account_state_observed",
+        ),
+        (
+            {
+                "nonzero_position_record_count": 1,
+                "active_orders_count": 0,
+                "positions": [
+                    {
+                        "instrument": "OTHER701",
+                        "position_lots": 2,
+                    }
+                ],
+            },
+            "shadow_external_account_state_observed",
+        ),
+    ],
+)
+def test_shadow_account_wide_external_state_never_claims_stopped_flat(
+    startup_snapshot, expected_reason
+):
+    """A selected SA feed can be flat while the account itself is not."""
+    transitions = []
+    stopped = []
+    holder = SimpleNamespace(
+        p=SimpleNamespace(
+            mode="shadow",
+            lots=1,
+            session_state_provider=None,
+            startup_account_observation=startup_snapshot,
+        ),
+        state="STARTING",
+        _gross_position_lots=lambda: 0,
+        _bind_startup_recovery=lambda _lots: pytest.fail("shadow must not bind execution recovery"),
+        _active_order=None,
+        _orders=[],
+        _recovery_only=False,
+        _clock=SimpleNamespace(monotonic_now=lambda: 100.0),
+        env=SimpleNamespace(runstop=lambda: stopped.append(True)),
+        _block=lambda _reason: None,
+    )
+
+    def transition(state, reason, now=None):
+        holder.state = state
+        holder.state_reason = reason
+        transitions.append((state, reason, now))
+
+    holder._transition = transition
+
+    strategy_module.SAMidFrequencyStrategy.start(holder)
+
+    assert holder._shadow_external_position_lots == 0
+    assert transitions == [("OBSERVING", expected_reason, None)]
+
+    strategy_module.SAMidFrequencyStrategy.request_drain(holder, "run_duration_elapsed")
+
+    assert holder.state == "OBSERVATION_STOPPED"
+    assert holder.state_reason == "shadow_observation_complete:run_duration_elapsed"
+    assert stopped == [True]
+    assert all(state != "STOPPED_FLAT" for state, _reason, _now in transitions)
+
+
+def test_shadow_drain_with_flat_startup_snapshot_never_claims_final_account_flat():
+    """Another client can change the account after a flat Stage-B snapshot."""
+    transitions = []
+    stopped = []
+    holder = SimpleNamespace(
+        p=SimpleNamespace(
+            mode="shadow",
+            startup_account_observation={
+                "nonzero_position_record_count": 0,
+                "active_orders_count": 0,
+                "positions": [],
+            },
+        ),
+        state="OBSERVING",
+        _clock=SimpleNamespace(monotonic_now=lambda: 100.0),
+        env=SimpleNamespace(runstop=lambda: stopped.append(True)),
+    )
+
+    def transition(state, reason, now=None):
+        holder.state = state
+        holder.state_reason = reason
+        transitions.append((state, reason, now))
+
+    holder._transition = transition
+
+    strategy_module.SAMidFrequencyStrategy.request_drain(holder, "run_duration_elapsed")
+
+    assert holder.state == "OBSERVATION_STOPPED"
+    assert holder.state_reason == "shadow_observation_complete:run_duration_elapsed"
+    assert stopped == [True]
+    assert all(state != "STOPPED_FLAT" for state, _reason, _now in transitions)
+
+
+def test_shadow_existing_draining_state_never_transitions_to_stopped_flat():
+    """A pre-existing drain path has the same conservative Shadow terminal state."""
+    transitions = []
+    stopped = []
+    holder = SimpleNamespace(
+        p=SimpleNamespace(mode="shadow", runtime_control=None, run_deadline_monotonic=None),
+        state="DRAINING",
+        _active_order=None,
+        env=SimpleNamespace(runstop=lambda: stopped.append(True)),
+    )
+
+    def transition(state, reason, now=None):
+        holder.state = state
+        holder.state_reason = reason
+        transitions.append((state, reason, now))
+
+    holder._transition = transition
+
+    strategy_module.SAMidFrequencyStrategy._advance_time(holder, 100.0)
+
+    assert holder.state == "OBSERVATION_STOPPED"
+    assert holder.state_reason == "shadow_observation_complete:draining"
+    assert stopped == [True]
+    assert all(state != "STOPPED_FLAT" for state, _reason, _now in transitions)
 
 
 class _TerminalRecoveryOrder:

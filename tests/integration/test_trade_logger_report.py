@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import backtrader as bt
 import pandas as pd
@@ -145,6 +146,7 @@ def test_trade_logger_generic_report_is_live_json_safe_and_frozen(tmp_path):
     assert final_report["finalized"] is True
     assert trade_logger.snapshot() == final_report
     assert trade_logger.report() == final_report
+    assert "startup_account_observation" not in final_report
 
     assert final_report["strategy"]["name"] == "ReportingStrategy"
     assert final_report["portfolio"]["cash"] is not None
@@ -253,6 +255,131 @@ def test_trade_logger_snapshot_uses_broker_local_report_cache_only(tmp_path):
     assert report["portfolio"] == {"cash": 10_000.0, "value": 10_000.0}
     assert strategy.stats.trade_logger.stop_live_getter_calls == 0
     assert not list(tmp_path.iterdir())
+
+
+@pytest.mark.integration
+def test_trade_logger_startup_snapshot_uses_only_unmarked_broker_cache(tmp_path):
+    """Startup account state is cached-only and remains available without a bar."""
+    yaml = pytest.importorskip("yaml")
+    authoritative_observation = {
+        "schema_version": "test.authoritative-startup-account.v1",
+        "source": "caller_preflight",
+        "scope": "account_wide",
+        "nonzero_position_record_count": 2,
+        "positions": [
+            {"instrument": "SA610", "position_lots": 3},
+            {"instrument": "OTHER701", "position_lots": 1},
+        ],
+    }
+    expected_authoritative_observation = {
+        "source": "caller_supplied",
+        "scope": "authoritative_startup_account_observation",
+        "read_only": True,
+        "market_data_status": "unmarked",
+        "observation": authoritative_observation,
+    }
+
+    class CachedStartupBroker(bt.brokers.BackBroker):
+        """Expose a live-style cached account state and count live getters."""
+
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.cached_state_calls = 0
+            self.live_getter_calls = 0
+            self.cached_position = SimpleNamespace(size=3.0, price=1234.5)
+
+        def get_cached_report_state(self):
+            self.cached_state_calls += 1
+            return {
+                "cash": 1_000.0,
+                "value": 1_100.0,
+                "positions": {"SA610": self.cached_position},
+                "position_legs": {},
+            }
+
+        def getcash(self):
+            self.live_getter_calls += 1
+            return super().getcash()
+
+        def getvalue(self, datas=None):
+            self.live_getter_calls += 1
+            return super().getvalue(datas=datas)
+
+        def getposition(self, data, side=None):
+            self.live_getter_calls += 1
+            return super().getposition(data, side=side)
+
+    class StartupSnapshotStrategy(bt.Strategy):
+        def start(self):
+            self.trade_logger = self.stats.trade_logger
+            before = self.broker.live_getter_calls
+            self.start_report = self.trade_logger.snapshot()
+            self.start_live_getter_delta = self.broker.live_getter_calls - before
+
+    cerebro = bt.Cerebro(stdstats=False)
+    broker = CachedStartupBroker(cash=10_000.0)
+    cerebro.setbroker(broker)
+    cerebro.adddata(bt.feeds.PandasData(dataname=_dataframe()), name="asset")
+    cerebro.addstrategy(StartupSnapshotStrategy)
+    cerebro.addobserver(
+        bt.observers.TradeLogger,
+        obsname="trade_logger",
+        log_dir=str(tmp_path),
+        log_orders=False,
+        log_trades=False,
+        log_positions=False,
+        log_indicators=False,
+        log_signals=False,
+        log_ticks=False,
+        log_bars=False,
+        log_system=False,
+        log_monitoring=False,
+        log_errors=False,
+        log_value=False,
+        log_position_snapshot=False,
+        startup_snapshot_file="startup_position.yaml",
+        startup_account_observation=authoritative_observation,
+    )
+
+    strategy = cerebro.run()[0]
+    final_report = strategy.stats.trade_logger.final_report()
+    position = strategy.start_report["positions"]["SA610"]
+    assert strategy.start_live_getter_delta == 0
+    assert broker.cached_state_calls >= 2
+    assert strategy.start_report["portfolio"] == {"cash": 1_000.0, "value": 1_100.0}
+    assert (
+        strategy.start_report["startup_account_observation"] == expected_authoritative_observation
+    )
+    assert final_report["startup_account_observation"] == expected_authoritative_observation
+    assert position == {
+        "size": 3.0,
+        "price": 1234.5,
+        "value": None,
+        "current_price": None,
+        "multiplier": None,
+        "position_source": "broker_local_cache",
+        "market_data_status": "unmarked",
+    }
+
+    with open(tmp_path / "startup_position.yaml", encoding="utf-8") as handle:
+        startup_snapshot = yaml.safe_load(handle)
+    assert startup_snapshot["snapshot_phase"] == "startup"
+    assert startup_snapshot["snapshot_scope"] == "broker_local_cached_report_state"
+    assert startup_snapshot["market_data_status"] == "unmarked"
+    assert startup_snapshot["portfolio"] == {"cash": 1_000.0, "value": 1_100.0}
+    assert startup_snapshot["position_entry_count"] == 1
+    assert startup_snapshot["nonzero_position_entry_count"] == 1
+    assert startup_snapshot["positions"] == strategy.start_report["positions"]
+    assert startup_snapshot["startup_account_observation"] == expected_authoritative_observation
+
+    # The account-wide authoritative observation is a separate immutable
+    # startup artifact. Its two positions must not change cache counts.
+    authoritative_observation["positions"][0]["position_lots"] = 999
+    assert (
+        final_report["startup_account_observation"]["observation"]["positions"][0]["position_lots"]
+        == 3
+    )
+    json.dumps(final_report, allow_nan=False)
 
 
 @pytest.mark.integration

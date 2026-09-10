@@ -290,7 +290,13 @@ def _mapping(value: Any) -> dict[str, Any]:
         return {}
 
 
-def _attach_trade_logger(cerebro: bt.Cerebro, output_directory: Path) -> None:
+def _attach_trade_logger(
+    cerebro: bt.Cerebro,
+    output_directory: Path,
+    *,
+    startup_snapshot_file: str | None = None,
+    startup_account_observation: Mapping[str, Any] | None = None,
+) -> None:
     """Attach the framework-level report owner for one controlled SA run.
 
     EvidenceWriter remains the authoritative durable audit lane for high-rate
@@ -309,6 +315,15 @@ def _attach_trade_logger(cerebro: bt.Cerebro, output_directory: Path) -> None:
         log_indicators=False,
         log_value=False,
         log_position_snapshot=False,
+        # This compact startup artifact is intentionally separate from the
+        # legacy end-of-run, price-bearing ``current_position.yaml``.  The
+        # observer writes it solely from the broker's already-hydrated cache.
+        startup_snapshot_file=startup_snapshot_file,
+        # A caller-supplied Stage-B projection remains separate from the
+        # generic broker cache. This lets TradeLogger retain account-wide
+        # startup evidence even when an SDK observation session intentionally
+        # exposes an empty account cache.
+        startup_account_observation=deepcopy(startup_account_observation),
     )
 
 
@@ -1274,19 +1289,30 @@ def _apply_trading_calendar(
         )
     current_index = days.index(current)
     prior_trading_day = days[current_index - 1] if current_index > 0 else None
+    coverage_through = days[-1]
     for item in normalized:
         expiry_text = str(_field(item, "last_trading_day", "expire_date", "ExpireDate", default=""))
         try:
             expiry = datetime.strptime(expiry_text[:8], "%Y%m%d").date()
         except ValueError:
             continue
-        item["trading_days_to_expiry"] = sum(current < day <= expiry for day in days)
         item["trading_calendar_source"] = calendar["source"]
         item["trading_calendar_as_of_utc"] = calendar["as_of_utc"]
         item["trading_calendar_sha256"] = calendar["sha256"]
+        item["trading_calendar_coverage_complete"] = expiry <= coverage_through
+        item["trading_calendar_coverage_through"] = coverage_through.strftime("%Y%m%d")
+        item["trading_calendar_expiry_date"] = expiry.strftime("%Y%m%d")
         item["expected_prior_trading_day"] = (
             prior_trading_day.strftime("%Y%m%d") if prior_trading_day is not None else ""
         )
+        if not item["trading_calendar_coverage_complete"]:
+            # A partial calendar must never be mistaken for a complete count of
+            # remaining trading days.  Remove both accepted aliases in case a
+            # caller supplied a stale derived value alongside the raw CTP row.
+            item.pop("trading_days_to_expiry", None)
+            item.pop("remaining_trading_days", None)
+            continue
+        item["trading_days_to_expiry"] = sum(current < day <= expiry for day in days)
     return normalized
 
 
@@ -1332,22 +1358,28 @@ def select_contract(
         except ValueError:
             expiry = None
             reason = "expiry_missing_or_invalid"
-        remaining_days = _field(
-            item,
-            "trading_days_to_expiry",
-            "remaining_trading_days",
-            default=None,
-        )
-        if remaining_days is None:
-            reason = "trading_days_to_expiry_missing"
+        if (
+            reason == "eligible"
+            and _field(item, "trading_calendar_coverage_complete", default=None) is False
+        ):
+            reason = "trading_calendar_coverage_incomplete"
         else:
-            try:
-                remaining_days = int(remaining_days)
-            except (TypeError, ValueError):
-                reason = "trading_days_to_expiry_invalid"
+            remaining_days = _field(
+                item,
+                "trading_days_to_expiry",
+                "remaining_trading_days",
+                default=None,
+            )
+            if remaining_days is None:
+                reason = "trading_days_to_expiry_missing"
             else:
-                if remaining_days < minimum_days:
-                    reason = "expiry_lt_minimum_trading_days"
+                try:
+                    remaining_days = int(remaining_days)
+                except (TypeError, ValueError):
+                    reason = "trading_days_to_expiry_invalid"
+                else:
+                    if remaining_days < minimum_days:
+                        reason = "expiry_lt_minimum_trading_days"
         if expiry is not None and expiry < today:
             reason = "contract_already_expired"
         decisions.append({"instrument": instrument, "reason": reason})
@@ -1373,6 +1405,15 @@ def select_contract(
             None,
         )
         if match is None:
+            selected_is_calendar_uncovered = any(
+                decision["instrument"].upper() == instrument.upper()
+                and decision["reason"] == "trading_calendar_coverage_incomplete"
+                for decision in decisions
+            )
+            if selected_is_calendar_uncovered:
+                raise PreflightError(
+                    "BLOCKED_CTP_TRADING_CALENDAR: manual contract expiry is outside calendar coverage"
+                )
             raise PreflightError(
                 "manual SA contract is absent or ineligible in the complete snapshot"
             )
@@ -1419,6 +1460,10 @@ def select_contract(
         }
     if mode != "auto":
         raise RunnerConfigurationError("contract_selection.mode must be auto or manual")
+    if any(item["reason"] == "trading_calendar_coverage_incomplete" for item in decisions):
+        raise PreflightError(
+            "BLOCKED_CTP_TRADING_CALENDAR: calendar does not cover every eligible SA expiry"
+        )
     if not eligible:
         if any(item["reason"] == "trading_days_to_expiry_missing" for item in decisions):
             raise PreflightError(
@@ -1894,6 +1939,59 @@ def validate_position_records(records: list[Mapping[str, Any]]) -> list[dict[str
     return normalized
 
 
+def _startup_account_observation(
+    *,
+    positions: list[Mapping[str, Any]],
+    active_orders_count: int,
+    query_identity: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return the durable, credential-free Stage-B account observation.
+
+    This is deliberately an account-wide CTP preflight projection.  A
+    ``BtApiBroker`` cache can be scoped to registered feeds, whereas this
+    artifact must show every nonzero position returned by the authoritative
+    Stage-B query before a strategy starts.  It contains no raw CTP account,
+    investor, order, or credential identifiers.
+    """
+
+    projected_positions = [
+        {
+            "instrument": str(item["instrument"]),
+            "exchange": str(item["exchange"]),
+            "direction": str(item["direction"]),
+            "hedge": str(item["hedge"]),
+            "position_lots": int(item["position_lots"]),
+            "today_lots": int(item["today_lots"]),
+            "yesterday_lots": int(item["yesterday_lots"]),
+            "long_frozen_lots": int(item["long_frozen_lots"]),
+            "short_frozen_lots": int(item["short_frozen_lots"]),
+        }
+        for item in positions
+        if int(item["position_lots"]) != 0
+    ]
+    projected_positions.sort(
+        key=lambda item: (
+            item["instrument"],
+            item["exchange"],
+            item["direction"],
+            item["hedge"],
+        )
+    )
+    return {
+        "schema_version": "iter22.startup-account-observation.v1",
+        "source": "ctp_preflight_stage_b",
+        "scope": "account_wide",
+        "read_only": True,
+        "account_fingerprint": str(query_identity.get("account_fingerprint") or ""),
+        "trading_day": str(query_identity.get("trading_day") or ""),
+        "connection_generation": int(query_identity.get("connection_generation") or 0),
+        "nonzero_position_record_count": len(projected_positions),
+        "gross_position_lots": sum(int(item["position_lots"]) for item in projected_positions),
+        "active_orders_count": int(active_orders_count),
+        "positions": projected_positions,
+    }
+
+
 def _account_core(value: Any) -> str:
     text = str(value or "")
     return text[5:] if text.startswith("acct_") else text
@@ -2251,6 +2349,11 @@ def validate_preflight(
         raise PreflightError("market-data/read-only session is not ready")
     if mode == "simnow" and not (ready_simnow or ready_for_recovery):
         raise PreflightError("SimNow trading readiness is incomplete")
+    startup_account_observation = _startup_account_observation(
+        positions=positions,
+        active_orders_count=len(active_orders),
+        query_identity=stage_b_identity,
+    )
     return {
         "status": "PASS",
         "ready_for_shadow": ready_shadow,
@@ -2267,6 +2370,7 @@ def validate_preflight(
         "account": {"equity": equity, "available": available},
         "positions_count": len(nonzero_positions),
         "active_orders_count": len(active_orders),
+        "startup_account_observation": startup_account_observation,
         "query_evidence": _query_evidence(
             snapshot,
             ("account", "positions", "orders", "trades", "instruments", "fees", "margin"),
@@ -2599,6 +2703,7 @@ def _strategy_params(
     session_calendar_sha256="",
     session_state_provider=None,
     execution_recovery=None,
+    startup_account_observation=None,
 ) -> dict[str, Any]:
     warmup = _mapping(config.get("warmup"))
     signal_config = _mapping(config.get("signal"))
@@ -2665,6 +2770,7 @@ def _strategy_params(
         "session_calendar_sha256": str(session_calendar_sha256 or ""),
         "session_state_provider": session_state_provider,
         "execution_recovery": deepcopy(execution_recovery),
+        "startup_account_observation": deepcopy(startup_account_observation),
     }
 
 
@@ -4997,7 +5103,14 @@ def run_network(
             preflight["environment_identity"] = identity
             preflight_hash_material = dict(preflight)
             preflight["preflight_sha256"] = sha256_json(preflight_hash_material)
+            startup_account_observation = {
+                **_mapping(preflight["startup_account_observation"]),
+                "preflight_sha256": preflight["preflight_sha256"],
+            }
             manifest["preflight_sha256"] = preflight["preflight_sha256"]
+            manifest["startup_account_observation_sha256"] = sha256_json(
+                startup_account_observation
+            )
             manifest["instrument_id"] = instrument
             manifest["trading_day"] = preflight["query_identity"]["trading_day"]
             manifest["fee_source"] = preflight["fee"]["source"]
@@ -5033,6 +5146,7 @@ def run_network(
             preflight["daily_price_limits_source"] = "current_ctp_quote_v2"
             reporter.write_json("preflight.json", preflight)
             reporter.write_json("contract_selection.json", preflight["selection"])
+            reporter.write_json("startup_account_observation.json", startup_account_observation)
 
             if preflight_only:
                 terminal = store.get_ctp_session_state()
@@ -5322,7 +5436,20 @@ def run_network(
                     cash_check_enabled=True,
                     sdk_preflight=False,
                     require_complete_ctp_evidence=True,
-                    flatten_on_stop=execution_recovery is None,
+                    # A shadow session is observation-only.  It may attach to
+                    # an account that already has external positions or
+                    # orders, but must never cancel, flatten, or otherwise
+                    # mutate that account during its controlled shutdown.
+                    market_data_only=not allow_order_writes,
+                    startup_account_state={
+                        key: startup_account_observation.get(key)
+                        for key in (
+                            "nonzero_position_record_count",
+                            "gross_position_lots",
+                            "active_orders_count",
+                        )
+                    },
+                    flatten_on_stop=allow_order_writes and execution_recovery is None,
                     execution_recovery=execution_recovery,
                     shutdown_timeout=float(_mapping(config["risk"])["drain_timeout_seconds"]),
                     approval_expires_at_utc=(receipt or {}).get("expires_at_utc"),
@@ -5338,7 +5465,12 @@ def run_network(
                     **feed_config,
                 )
                 cerebro.adddata(feed, name=instrument)
-                _attach_trade_logger(cerebro, output_directory)
+                _attach_trade_logger(
+                    cerebro,
+                    output_directory,
+                    startup_snapshot_file="startup_cached_positions.yaml",
+                    startup_account_observation=startup_account_observation,
+                )
                 control = RuntimeControl()
                 deadline = time.monotonic() + float(run_seconds) if run_seconds > 0 else None
                 params = _strategy_params(
@@ -5371,6 +5503,7 @@ def run_network(
                     session_calendar_sha256=(receipt or {}).get("session_calendar_sha256", ""),
                     session_state_provider=store.get_ctp_session_state,
                     execution_recovery=execution_recovery,
+                    startup_account_observation=startup_account_observation,
                 )
                 cerebro.addstrategy(SAMidFrequencyStrategy, **params)
                 previous_sigint = signal.getsignal(signal.SIGINT)

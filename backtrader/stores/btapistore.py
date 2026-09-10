@@ -5498,6 +5498,53 @@ class BtApiStore(LiveStoreBase):
             )
         return receipt
 
+    def _is_sdk_market_data_only(self) -> bool:
+        """Return whether the managed SDK session must reject every write."""
+        return bool(self._sdk_mode and self._sdk_execution_config.get("market_data_only") is True)
+
+    def _reject_market_data_only_command(
+        self,
+        operation: str,
+        *,
+        bt_order_ref: Any = None,
+        client_order_id: Any = None,
+    ) -> Dict[str, Any]:
+        """Return a local rejection without creating or dispatching a command.
+
+        Broker-level guards are useful for strategy code, but Store is also a
+        public integration boundary. A caller holding a Store reference must
+        not be able to enqueue a cancel or risk-reducing close while an SDK
+        session is explicitly market-data-only.
+        """
+        receipt_id = uuid.uuid4().hex
+        with self._command_condition:
+            self._command_health["rejected"] += 1
+            self._command_health["rejected_market_data_only"] += 1
+            depth = len(self._command_heap)
+        receipt = {
+            "kind": "command_receipt",
+            "command": operation,
+            "receipt_id": receipt_id,
+            "bt_order_ref": bt_order_ref,
+            "client_order_id": client_order_id,
+            "status": "rejected",
+            "queued": False,
+            "priority": "blocked",
+            "queue_depth": depth,
+            "error_code": "market_data_only",
+            "error_msg": "SDK command is disabled for this market-data-only session",
+        }
+        self.emit_runtime_event(
+            "sdk_command_rejected_local",
+            level="ERROR",
+            order_ref=bt_order_ref,
+            error_code="market_data_only",
+            error_msg="SDK command is disabled for this market-data-only session",
+            status="rejected",
+            details={"operation": operation},
+        )
+        return receipt
+
     async def _execute_sdk_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
         """Execute one typed SDK command and return a main-thread completion."""
         operation = command["operation"]
@@ -6129,6 +6176,12 @@ class BtApiStore(LiveStoreBase):
     def enqueue_order(self, order) -> Dict[str, Any]:
         """Queue a typed SDK order and revoke recovery if dispatch cannot start."""
 
+        if self._is_sdk_market_data_only():
+            return self._reject_market_data_only_command(
+                "submit",
+                bt_order_ref=getattr(order, "ref", None),
+            )
+
         info = getattr(order, "info", {})
         get_info = getattr(info, "get", lambda *_args: None)
         recovery_exit = get_info("execution_role") == "recovery_exit"
@@ -6206,6 +6259,11 @@ class BtApiStore(LiveStoreBase):
 
     def enqueue_cancel(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
         """Queue a typed cancellation while preserving its reserved capacity."""
+        if self._is_sdk_market_data_only():
+            return self._reject_market_data_only_command(
+                "cancel",
+                bt_order_ref=order_ref,
+            )
         self._ensure_api_ready()
         self._require_async_sdk_commands()
         self._start_command_worker()
@@ -6442,6 +6500,11 @@ class BtApiStore(LiveStoreBase):
     def submit_order(self, order):
         """Submit a backtrader order through the unified API."""
         if self._sdk_mode:
+            if self._is_sdk_market_data_only():
+                return self._reject_market_data_only_command(
+                    "submit",
+                    bt_order_ref=getattr(order, "ref", None),
+                )
             self._ensure_api_ready()
             self._require_async_sdk_commands()
             return self.enqueue_order(order)
@@ -6522,6 +6585,11 @@ class BtApiStore(LiveStoreBase):
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         """Cancel a provider order by reference without requiring a local Order."""
         if self._sdk_mode:
+            if self._is_sdk_market_data_only():
+                return self._reject_market_data_only_command(
+                    "cancel",
+                    bt_order_ref=order_ref,
+                )
             self._ensure_api_ready()
             self._require_async_sdk_commands()
             return self.enqueue_cancel(order_ref, dataname=dataname)

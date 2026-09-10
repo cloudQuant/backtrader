@@ -66,6 +66,20 @@ _REPORT_EVENT_KEYS = (
 # LineSeries observer step. Keep a bounded safety window for malformed/custom
 # events whose timestamp never reaches that step.
 _REPORT_PENDING_BAR_LIMIT = 1024
+_STARTUP_ACCOUNT_OBSERVATION_SCOPE = "authoritative_startup_account_observation"
+_STARTUP_ACCOUNT_OBSERVATION_SENSITIVE_KEY_FRAGMENTS = (
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "apikey",
+    "accesskey",
+    "privatekey",
+    "authorization",
+    "cookie",
+    "credential",
+    "passphrase",
+)
 
 # Optional MySQL support
 try:
@@ -105,6 +119,15 @@ class TradeLogger(Observer):
         log_bars (bool): Enable bar logging. Default: True
         log_position_snapshot (bool): Enable YAML position snapshot. Default: True
         snapshot_file (str): Snapshot filename. Default: 'current_position.yaml'
+        startup_snapshot_file (str | None): Optional YAML filename for one
+            startup-only snapshot of the broker's already-cached report state.
+            The snapshot has no market-data mark and never invokes provider
+            getters. Default: None (disabled).
+        startup_account_observation (Mapping | None): Optional credential-free
+            authoritative account observation supplied by the caller before the
+            run. It is normalized once, retained separately from the broker's
+            local cache, and never triggers a provider request or market-price
+            read. Default: None (disabled).
         log_format (str): Log format ('json' or 'text'). Default: 'json'
         log_to_console (bool): Also print to console. Default: False
 
@@ -146,6 +169,13 @@ class TradeLogger(Observer):
         "log_value": True,
         "log_position_snapshot": True,
         "snapshot_file": "current_position.yaml",
+        # An opt-in, separate file avoids changing the established legacy
+        # snapshot output while allowing live users to retain the account
+        # state observed before the first strategy bar.
+        "startup_snapshot_file": None,
+        # Caller-supplied, credential-free startup evidence. It intentionally
+        # remains separate from the broker-local cache and is not refreshed.
+        "startup_account_observation": None,
         "log_format": "json",
         "log_to_console": False,
         "submit_count_warn_threshold": 0,
@@ -215,6 +245,7 @@ class TradeLogger(Observer):
         self._report_extensions = {}
         self._report_portfolio = {"cash": None, "value": None}
         self._report_positions = {}
+        self._report_startup_account_observation = self._capture_startup_account_observation()
         self._report_strategy = {"name": "Unknown", "module": None}
         self._report_provider = ""
         self._report_session_id = ""
@@ -283,6 +314,56 @@ class TradeLogger(Observer):
         except (TypeError, ValueError, RecursionError):
             return None
         return normalized if isinstance(normalized, dict) else None
+
+    @staticmethod
+    def _startup_observation_has_sensitive_key(value):
+        """Return whether a caller observation contains an obvious credential key."""
+        if isinstance(value, Mapping):
+            for key, item in value.items():
+                normalized_key = "".join(
+                    character for character in str(key).lower() if character.isalnum()
+                )
+                if any(
+                    fragment in normalized_key
+                    for fragment in _STARTUP_ACCOUNT_OBSERVATION_SENSITIVE_KEY_FRAGMENTS
+                ):
+                    return True
+                if TradeLogger._startup_observation_has_sensitive_key(item):
+                    return True
+            return False
+        if isinstance(value, (list, tuple)):
+            return any(TradeLogger._startup_observation_has_sensitive_key(item) for item in value)
+        return False
+
+    def _capture_startup_account_observation(self):
+        """Capture opt-in startup evidence without broker or feed reads.
+
+        The caller owns the observation's provenance. TradeLogger only accepts a
+        strict JSON mapping, rejects common credential-bearing keys, and wraps
+        the value under a distinct scope so it cannot be confused with the
+        broker-local cache used for ``portfolio`` and ``positions``.
+        """
+        raw_observation = getattr(getattr(self, "p", None), "startup_account_observation", None)
+        if raw_observation is None:
+            return None
+
+        normalized = self._normalize_report_context(raw_observation)
+        if normalized is None:
+            logger.debug("Ignoring invalid startup account observation")
+            return None
+        if self._startup_observation_has_sensitive_key(normalized):
+            logger.debug("Ignoring startup account observation containing a credential-like key")
+            return None
+        return {
+            "source": "caller_supplied",
+            "scope": _STARTUP_ACCOUNT_OBSERVATION_SCOPE,
+            "read_only": True,
+            # This observer never reads a feed line while retaining startup
+            # evidence, so an observation cannot gain a preloaded future mark
+            # through TradeLogger itself.
+            "market_data_status": "unmarked",
+            "observation": normalized,
+        }
 
     @classmethod
     def _report_json_safe_value(cls, value, active=None):
@@ -518,12 +599,17 @@ class TradeLogger(Observer):
             # A live broker can cache account positions for symbols the
             # strategy has not subscribed to. Preserve the account state in
             # the report without guessing a current mark or commission setup.
+            # This is also the only safe position representation during
+            # ``start``: preloaded LineSeries data can otherwise expose a
+            # future close before the first strategy callback.
             return {
                 "size": self._report_json_safe_value(getattr(position, "size", None)),
                 "price": self._report_json_safe_value(getattr(position, "price", None)),
                 "value": None,
                 "current_price": None,
                 "multiplier": None,
+                "position_source": "broker_local_cache",
+                "market_data_status": "unmarked",
             }
 
         current_price = self._current_position_price(data, position)
@@ -655,32 +741,33 @@ class TradeLogger(Observer):
         }
 
         owner = getattr(self, "_owner", None)
-        if not include_positions or not self._has_active_report_bar(owner):
+        if not include_positions:
             return
 
         positions = {}
         cached_positions = state.get("positions", {})
         cached_position_legs = state.get("position_legs", {})
         known_cache_names = set()
-        for data in self._iter_position_datas():
-            try:
-                data_name = str(
-                    getattr(data, "_name", None) or getattr(data, "_dataname", None) or data
-                )
-                aliases = self._report_data_names(data)
-                known_cache_names.update(aliases)
-                position = self._cached_position_for_data(
-                    cached_positions, data, data_name, aliases
-                )
-                cached_legs = self._cached_position_legs_for_data(
-                    cached_position_legs, data, data_name
-                )
-                summary = self._report_position_entry(data, position, cached_legs, data_name)
-                if summary is None:
-                    continue
-                positions[data_name] = summary
-            except Exception as exc:
-                logger.debug("Failed to collect report position state: %s", exc)
+        if self._has_active_report_bar(owner):
+            for data in self._iter_position_datas():
+                try:
+                    data_name = str(
+                        getattr(data, "_name", None) or getattr(data, "_dataname", None) or data
+                    )
+                    aliases = self._report_data_names(data)
+                    known_cache_names.update(aliases)
+                    position = self._cached_position_for_data(
+                        cached_positions, data, data_name, aliases
+                    )
+                    cached_legs = self._cached_position_legs_for_data(
+                        cached_position_legs, data, data_name
+                    )
+                    summary = self._report_position_entry(data, position, cached_legs, data_name)
+                    if summary is None:
+                        continue
+                    positions[data_name] = summary
+                except Exception as exc:
+                    logger.debug("Failed to collect report position state: %s", exc)
 
         # A broker's report cache represents account state, not only the
         # current strategy subscription. Preserve cached symbols that are not
@@ -724,8 +811,78 @@ class TradeLogger(Observer):
         self._report_started_at = timestamp
         # Do not read a price-bearing feed field during start: preloaded data
         # can otherwise expose the final bar before strategy execution starts.
-        self._refresh_report_state(include_positions=False)
+        # ``_refresh_report_state`` still retains broker-cache positions here,
+        # but it represents all of them as unmarked cache entries.
+        self._refresh_report_state()
         self._report_touch(timestamp)
+
+    @classmethod
+    def _report_position_has_exposure(cls, summary):
+        """Return whether a cached report position contains non-zero exposure."""
+        if not isinstance(summary, Mapping):
+            return False
+        size = cls._float_or_none(summary.get("size"))
+        if size is not None and size != 0.0:
+            return True
+        legs = summary.get("position_legs")
+        if not isinstance(legs, Mapping):
+            return False
+        return any(
+            cls._report_position_has_exposure(leg)
+            for leg in legs.values()
+            if isinstance(leg, Mapping)
+        )
+
+    def _save_startup_position_snapshot(self):
+        """Persist one opt-in, cache-only startup position snapshot.
+
+        This deliberately reads the already-built generic report cache rather
+        than ``owner.getposition()``, ``data.close[0]``, or any provider
+        getter.  It therefore remains safe when a live strategy starts with
+        preloaded history or an account containing positions outside the
+        strategy subscription.
+        """
+        if not YAML_AVAILABLE:
+            return
+        filename = getattr(self.p, "startup_snapshot_file", None)
+        if not isinstance(filename, str) or not filename.strip():
+            return
+
+        positions = copy.deepcopy(getattr(self, "_report_positions", {}))
+        if not isinstance(positions, Mapping):
+            positions = {}
+        position_entries = dict(positions)
+        snapshot = {
+            # Use wall-clock report time rather than the strategy's line time:
+            # the latter may refer to a preloaded future bar at startup.
+            "datetime": getattr(self, "_report_started_at", None) or self._log_time_str(),
+            "strategy": self._get_strategy_name(),
+            "snapshot_phase": "startup",
+            "snapshot_scope": "broker_local_cached_report_state",
+            "market_data_status": "unmarked",
+            "portfolio": copy.deepcopy(
+                getattr(self, "_report_portfolio", {"cash": None, "value": None})
+            ),
+            "position_entry_count": len(position_entries),
+            "nonzero_position_entry_count": sum(
+                self._report_position_has_exposure(summary) for summary in position_entries.values()
+            ),
+            "positions": position_entries,
+        }
+        startup_observation = getattr(self, "_report_startup_account_observation", None)
+        if startup_observation is not None:
+            snapshot["startup_account_observation"] = copy.deepcopy(startup_observation)
+
+        snapshot_path = os.path.join(self.p.log_dir, filename)
+        try:
+            with open(snapshot_path, "w", encoding="utf-8") as handle:
+                yaml.dump(
+                    snapshot, handle, allow_unicode=True, default_flow_style=False, sort_keys=False
+                )
+        except Exception as exc:
+            logger.debug("Failed to save startup position snapshot: %s", exc)
+            if self.p.log_to_console:
+                print(f"[TradeLogger] Failed to save startup position snapshot: {exc}")
 
     def _record_report_event(self, event_name, payload=None, record_kind=None):
         """Record a generic callback count and optionally a bounded summary."""
@@ -800,7 +957,7 @@ class TradeLogger(Observer):
         """Build a report from cached state only; never scan or write logs here."""
         event_counts = getattr(self, "_report_event_counts", {})
         records_dropped = getattr(self, "_report_dropped_records", {})
-        return {
+        report = {
             "schema_version": _REPORT_SCHEMA_VERSION,
             "finalized": bool(getattr(self, "_report_finalized", False)),
             "generated_at": getattr(self, "_report_last_updated_at", None),
@@ -825,6 +982,10 @@ class TradeLogger(Observer):
             },
             "extensions": copy.deepcopy(getattr(self, "_report_extensions", {})),
         }
+        startup_observation = getattr(self, "_report_startup_account_observation", None)
+        if startup_observation is not None:
+            report["startup_account_observation"] = copy.deepcopy(startup_observation)
+        return report
 
     def snapshot(self):
         """Return a deep-copied, real-time report from in-memory cached state.
@@ -872,6 +1033,7 @@ class TradeLogger(Observer):
                         self._owner._lineiterators[self._ltype].append(self)
         self._ensure_loggers_initialized()
         self._start_report()
+        self._save_startup_position_snapshot()
         self._log_event(
             "system",
             "session_started",

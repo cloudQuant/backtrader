@@ -1174,3 +1174,312 @@ def test_broker_stop_cannot_pass_before_sdk_recovery_completion(monkeypatch):
     assert aborts == ["execution_recovery_broker_stop"]
     assert completed_summary["recovery_completion_proven"] is True
     assert completed_summary["status"] == "PASS"
+
+
+class _ObservationOnlyStore:
+    """Managed-SDK double with pre-existing external account state."""
+
+    _sdk_mode = True
+    uses_async_commands = False
+    requires_account_risk = True
+    contract_metadata = {}
+
+    def __init__(self, *, uses_async_commands=False):
+        self.is_connected = False
+        self.uses_async_commands = uses_async_commands
+        self._data_feeds = [SimpleNamespace(_name=SYMBOL)]
+        self._subscribed_datanames = {SYMBOL}
+        self.freeze_reasons = []
+        self.submissions = []
+        self.cancellations = []
+        self.cancel_order_ref_calls = []
+        self.fetch_open_orders_calls = 0
+        self.risk_baseline_calls = 0
+        self.reconcile_calls = 0
+        self.enable_openings_calls = 0
+        self.events = []
+        self.stop_calls = []
+
+    def start(self, broker=None):
+        self.is_connected = True
+
+    def get_balance(self, **_kwargs):
+        return {"cash": 1_000_000.0, "value": 1_000_000.0}
+
+    def get_positions(self, **_kwargs):
+        return [
+            {"data_name": SYMBOL, "volume": 2, "price": 1500.0},
+            {"data_name": "EXTERNAL-ONLY", "volume": 3, "price": 2000.0},
+        ]
+
+    def fetch_open_orders(self, **_kwargs):
+        self.fetch_open_orders_calls += 1
+        return [{"id": "external-open-order", "data_name": "EXTERNAL-ONLY"}]
+
+    def freeze_openings(self, reason):
+        self.freeze_reasons.append(reason)
+
+    def initialize_account_risk_baseline(self):
+        self.risk_baseline_calls += 1
+        pytest.fail("market-data-only startup must not initialize account-risk execution state")
+
+    def get_reconcile_snapshot(self):
+        self.reconcile_calls += 1
+        pytest.fail("market-data-only startup must not require execution reconciliation")
+
+    def enable_openings_after_account_risk(self):
+        self.enable_openings_calls += 1
+        pytest.fail("market-data-only startup must not enable opening orders")
+
+    def submit_order(self, order):
+        self.submissions.append(order)
+        pytest.fail("market-data-only broker must not submit an order")
+
+    def cancel_order(self, order):
+        self.cancellations.append(order)
+        pytest.fail("market-data-only broker must not cancel an order")
+
+    def cancel_order_ref(self, order_ref, dataname=None):
+        self.cancel_order_ref_calls.append({"order_ref": order_ref, "dataname": dataname})
+        pytest.fail("market-data-only broker must not cancel a remote-only order")
+
+    def emit_runtime_event(self, event_type, **kwargs):
+        self.events.append((event_type, kwargs))
+
+    def stop(self, timeout=None):
+        self.stop_calls.append(timeout)
+        self.is_connected = False
+        return {"shutdown_state": "PASS"}
+
+
+class _ObservationOnlyOrder:
+    def __init__(self, ref, *, size=1.0):
+        self.ref = ref
+        self.data = SimpleNamespace(_name=SYMBOL)
+        self.size = float(size)
+        self.price = 1500.0
+        self.created = SimpleNamespace(price=1500.0)
+        self.info = {}
+        self.status = bt.Order.Created
+
+    def addinfo(self, **values):
+        self.info.update(values)
+
+    def alive(self):
+        return self.status != bt.Order.Rejected
+
+    def isbuy(self):
+        return self.size > 0.0
+
+    def reject(self, _broker):
+        self.status = bt.Order.Rejected
+
+    def clone(self):
+        return self
+
+
+class _EmptyCacheObservationOnlyStore(_ObservationOnlyStore):
+    """Observation Store whose broker cache cannot see external account state."""
+
+    def get_positions(self, **_kwargs):
+        return []
+
+    def fetch_open_orders(self, **_kwargs):
+        self.fetch_open_orders_calls += 1
+        return []
+
+
+@pytest.mark.parametrize("uses_async_commands", (False, True))
+def test_market_data_only_hydrates_external_state_and_never_mutates_account(
+    monkeypatch, uses_async_commands
+):
+    store = _ObservationOnlyStore(uses_async_commands=uses_async_commands)
+    broker = BtApiBroker(
+        store=store,
+        market_data_only=True,
+        sdk_preflight=True,
+        validation_enabled=False,
+    )
+
+    broker.start()
+
+    cached = broker.get_cached_report_state()
+    assert broker._startup_ready is True
+    assert broker._trading_enabled is False
+    assert cached["cash"] == pytest.approx(1_000_000.0)
+    assert cached["positions"][SYMBOL].size == pytest.approx(2.0)
+    # The observation cache keeps account positions even when no subscribed
+    # feed owns that symbol, so a generic observer can report the full account.
+    assert cached["positions"]["EXTERNAL-ONLY"].size == pytest.approx(3.0)
+    assert broker._remote_open_orders_snapshot == [
+        {"id": "external-open-order", "data_name": "EXTERNAL-ONLY"}
+    ]
+    assert store.risk_baseline_calls == 0
+    assert store.reconcile_calls == 0
+    assert store.enable_openings_calls == 0
+
+    submitted = _ObservationOnlyOrder(8001)
+    assert broker.submit(submitted) is submitted
+    assert submitted.status == bt.Order.Rejected
+    assert submitted.info["error_code"] == "market_data_only"
+
+    cancellable = _ObservationOnlyOrder(8002)
+    broker.orders[cancellable.ref] = cancellable
+    assert broker.cancel(cancellable) is cancellable
+    assert cancellable.info["cancel_requested_remote"] is False
+    assert cancellable.info["error_code"] == "market_data_only"
+    assert store.submissions == []
+    assert store.cancellations == []
+
+    broker.enable_trading("test")
+    assert broker._trading_enabled is False
+    monkeypatch.setattr(
+        broker,
+        "_submit_known_position_closes",
+        lambda: pytest.fail("market-data-only shutdown must not flatten positions"),
+    )
+
+    summary = broker.stop()
+
+    assert store.freeze_reasons == ["market_data_only", "market_data_only_stop"]
+    assert store.stop_calls
+    assert store.submissions == []
+    assert store.cancellations == []
+    assert summary["status"] == "OBSERVATION_ONLY_NONFLAT"
+    assert summary["market_data_only"] is True
+    assert summary["cancel_requested"] == 0
+    assert summary["close_requested"] == 0
+    assert summary["remote_flat_proven"] is False
+    assert summary["observed_remote_open_order_count"] == 1
+    assert broker.stop() == summary
+    assert len(store.stop_calls) == 1
+
+
+def test_market_data_only_rejects_execution_recovery_before_store_start():
+    store = _ObservationOnlyStore()
+    broker = BtApiBroker(
+        store=store,
+        market_data_only=True,
+        execution_recovery=_broker_recovery_plan(),
+    )
+
+    with pytest.raises(ValueError, match="cannot be combined with execution_recovery"):
+        broker.start()
+
+    assert store.is_connected is False
+    assert store.freeze_reasons == []
+    assert broker._trading_enabled is False
+
+
+def test_market_data_only_batch_cancel_does_not_refresh_or_cancel_remote_only_order():
+    store = _ObservationOnlyStore()
+    broker = BtApiBroker(store=store, market_data_only=True, validation_enabled=False)
+
+    broker.start()
+    assert broker.orders == {}
+    assert broker._remote_open_orders_snapshot == [
+        {"id": "external-open-order", "data_name": "EXTERNAL-ONLY"}
+    ]
+    assert store.fetch_open_orders_calls == 1
+
+    assert broker.batch_cancel() == []
+
+    assert store.fetch_open_orders_calls == 1
+    assert store.cancel_order_ref_calls == []
+    assert store.cancellations == []
+    assert broker._trading_enabled is False
+    assert any(event_type == "batch_cancel_rejected_local" for event_type, _kwargs in store.events)
+
+    broker.stop()
+
+
+@pytest.mark.parametrize(
+    (
+        "startup_account_state",
+        "validation_status",
+        "requires_nonflat",
+        "expected_status",
+        "expected_reason",
+    ),
+    (
+        (
+            {
+                "nonzero_position_record_count": 2,
+                "gross_position_lots": 3,
+                "active_orders_count": 1,
+            },
+            "valid",
+            True,
+            "OBSERVATION_ONLY_NONFLAT",
+            "market_data_only_startup_account_state_nonflat",
+        ),
+        (
+            {
+                "nonzero_position_record_count": 0,
+                "gross_position_lots": None,
+                "active_orders_count": 0,
+            },
+            "unknown",
+            True,
+            "OBSERVATION_ONLY_NONFLAT",
+            "market_data_only_startup_account_state_unproven",
+        ),
+        (
+            {
+                "nonzero_position_record_count": "not-a-count",
+                "gross_position_lots": 0,
+                "active_orders_count": 0,
+            },
+            "malformed",
+            True,
+            "OBSERVATION_ONLY_NONFLAT",
+            "market_data_only_startup_account_state_unproven",
+        ),
+        (
+            {
+                "nonzero_position_record_count": 0,
+                "gross_position_lots": 0,
+                "active_orders_count": 0,
+            },
+            "valid",
+            False,
+            "OBSERVATION_ONLY",
+            "market_data_only_no_order_mutation",
+        ),
+    ),
+)
+def test_market_data_only_shutdown_uses_startup_account_state_without_writes(
+    startup_account_state,
+    validation_status,
+    requires_nonflat,
+    expected_status,
+    expected_reason,
+):
+    store = _EmptyCacheObservationOnlyStore()
+    broker = BtApiBroker(
+        store=store,
+        market_data_only=True,
+        startup_account_state=startup_account_state,
+        validation_enabled=False,
+    )
+
+    broker.start()
+
+    assert broker.get_cached_report_state()["positions"] == {}
+    assert broker._remote_open_orders_snapshot == []
+
+    summary = broker.stop()
+    evidence = summary["startup_account_state"]
+
+    assert summary["status"] == expected_status
+    assert summary["reason"] == expected_reason
+    assert summary["startup_account_state_requires_nonflat"] is requires_nonflat
+    assert summary["remote_flat_proven"] is False
+    assert summary["remote_position_count"] is None
+    assert evidence["provided"] is True
+    assert evidence["validation_status"] == validation_status
+    assert evidence["is_final_state"] is False
+    assert evidence["requires_nonflat"] is requires_nonflat
+    assert store.submissions == []
+    assert store.cancellations == []
+    assert store.cancel_order_ref_calls == []

@@ -12,7 +12,7 @@ bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 不能证明真实行情、成交、收益或 G3/G4。未在本机运行的 SimNow 项均应判为 `NOT_RUN`；
 缺少权威交易日历或上一完整 TradingDay 的全市场排名证据时应判为 `BLOCKED`。
 
-当前第一套的受控外部验证已完成认证/登录、显式结算确认及只读回查、产品范围合约查询和深度行情连接。runner 的只读 preflight 已到达 `BLOCKED_CTP_TRADING_CALENDAR`。另一次独立受控 API 验证将一手非市价限价单撤单至 `CANCELED`，零成交且进程退出码为 0。这些都是 `PASS_CONTROLLED_CTP_MECHANICS` 子证据，不构成 G3 的 60 分钟观察，也不构成 G4 的策略开平闭环、归零对账、收益或经济性证据。
+当前第一套的受控外部验证已完成认证/登录、显式结算确认及只读回查、产品范围合约查询和深度行情连接。使用冻结的本地 CZCE 日历和手工冻结的 SA 合约后，runner 的只读 preflight 已通过；另一次独立受控 API 验证将一手非市价限价单撤单至 `CANCELED`，零成交且进程退出码为 0。这些都是 `PASS_CONTROLLED_CTP_MECHANICS` 子证据，不构成 G3 的 60 分钟观察，也不构成 G4 的策略开平闭环、归零对账、收益或经济性证据。
 
 第二套 7×24 的受限 `shadow --api-diagnostic` 已实际通过 `PASS_API_DIAGNOSTIC`：五类只读查询完整、三类状态变更请求计数增量为零，且受管 Store 停止健康为 `PASS`。该诊断以冻结候选的产品和交易所仅作为参考数据范围，不选择具体月份合约、不订阅行情、不运行策略；其 `strategy_status=NOT_RUN`，G3/G4 均为 `NOT_RUN_API_DIAGNOSTIC`。
 
@@ -224,13 +224,22 @@ Stage B 对冻结月份的成交查询同时限定合约和交易所、验证响
 ## 证据与验收
 
 每次运行目录固定包含 `manifest.json`、`preflight.json`、
-`contract_selection.json`、`reconciliation.json`、`daily_report.json`、
+`startup_account_observation.json`、`contract_selection.json`、`reconciliation.json`、`daily_report.json`、
 `retention.json`，并按实际事件
 产生 `quotes/bars/signals/orders/trades/risk_events.jsonl`。行情、bar、signal 走有界
 异步队列；订单、成交、风控同步 fsync。队列满、磁盘低水位、写失败、轮转超限或
 有界 drain 失败都会锁存 `FAIL_EVIDENCE_INCOMPLETE`，停止开仓且不会被最终状态覆盖。
 manifest 绑定本示例源码、fixture/config、实际导入的 backtrader/bt_api_py 路径、版本和
 文件 hash；网络模式还绑定 bt_api_ctp package/native 文件身份。证据只保留账户指纹。
+
+每一次网络预检都会从 Stage-B 完整 CTP 查询生成
+`startup_account_observation.json`：它是账户范围的只读权威启动快照，包含非零持仓记录数、总手数、
+活动委托数及每条非零持仓的合约/方向/冻结量，不保存原始账户、订单或凭据。完整 `shadow` 运行还会在
+`trade-logger/startup_cached_positions.yaml` 留下一份通用 TradeLogger 缓存快照。后者用于运行时报告，
+带 `broker_local_cached_report_state` 和 `unmarked` 标记；它不触发新的账户查询，且其订阅范围可能小于
+账户范围，因此不能取代前者。为保留完整启动证据，该 YAML 和 TradeLogger 的实时/最终报告还会以
+`startup_account_observation` 的独立、只读 `authoritative_startup_account_observation` 作用域嵌入
+同一份预检投影；缓存的 `positions`、`portfolio` 与 `position_entry_count` 仍只表示 broker 本地缓存。
 
 runner 同时以 `obsname="trade_logger"` 挂载通用 `bt.observers.TradeLogger`。它可在运行中
 通过 `snapshot()` 返回内存中的订单、成交、持仓、资金和事件计数，并在策略 `stop()` 后通过
@@ -240,7 +249,10 @@ runner 同时以 `obsname="trade_logger"` 挂载通用 `bt.observers.TradeLogger
 `get_cached_report_state()` 本地缓存，不会因生成快照刷新账户或持仓。发布被拒绝或抛出异常时，会以
 不含异常正文的受控诊断写入 `risk_events.jsonl`，后续重试仍按最近一次尝试的报价水位节流；若停止时
 最后成功快照之后仍有发布失败，或扩展缺失，runner 失败关闭，而不会导出陈旧或不完整验收结果。
-`EvidenceWriter` 仍是高频审计证据和 fsync 失败关闭的唯一权威来源，TradeLogger 不替代它。
+影子模式若检测到账户既有仓位或挂单，只记录并以 `OBSERVATION_ONLY_NONFLAT` 停止；不会撤单、平仓或
+启动恢复流程。影子会话也不进行最终账户归零核验，因此所有 Shadow 停机均记为
+`OBSERVATION_STOPPED`，不声明 `STOPPED_FLAT`。这样的运行不构成 G3/G4 通过。`EvidenceWriter`
+仍是高频审计证据和 fsync 失败关闭的唯一权威来源，TradeLogger 不替代它。
 
 默认报告根目录按 manifest 中冻结的 TradingDay 管理。每个网络运行只接受一个
 TradingDay，因此该运行内的 `quotes.jsonl` 是单 TradingDay 分片。保留策略保留最新

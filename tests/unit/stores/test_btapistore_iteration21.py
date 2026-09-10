@@ -462,6 +462,39 @@ def test_async_submit_returns_receipt_without_waiting_for_transport():
         store.stop()
 
 
+def test_market_data_only_store_rejects_direct_submit_and_cancel_without_transport():
+    """A caller with a Store reference cannot bypass Broker's MDO guard."""
+    api = AsyncSdk()
+    store = make_store(api)
+    store.start()
+    try:
+        # Simulate the already-started CTP Store's read-only session fence.
+        # ``AsyncSdk`` deliberately implements only the public command API,
+        # not the optional dynamic execution-config reconfiguration endpoint.
+        store._sdk_execution_config["market_data_only"] = True
+        submit = store.submit_order(local_order())
+        cancel = store.cancel_order_ref("external-order", dataname=SYMBOL)
+        direct_submit = store.enqueue_order(local_order(2, offset="close", reduce_only=True))
+        direct_cancel = store.enqueue_cancel("external-order", dataname=SYMBOL)
+
+        for receipt, operation in (
+            (submit, "submit"),
+            (cancel, "cancel"),
+            (direct_submit, "submit"),
+            (direct_cancel, "cancel"),
+        ):
+            assert receipt["command"] == operation
+            assert receipt["queued"] is False
+            assert receipt["status"] == "rejected"
+            assert receipt["error_code"] == "market_data_only"
+
+        assert not [call for call in api.calls if call[0] in {"submit", "cancel"}]
+        assert store.get_command_health()["queue_depth"] == 0
+        assert store.get_command_health()["rejected_market_data_only"] == 4
+    finally:
+        store.stop()
+
+
 def test_unknown_submit_mapping_freezes_and_rejects_queued_opening_before_transport():
     class UnknownFirstSdk(AsyncSdk):
         async def async_make_order(self, venue, request, *, normalized=False):

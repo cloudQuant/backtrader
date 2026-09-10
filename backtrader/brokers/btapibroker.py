@@ -9,6 +9,7 @@ import math
 import re
 import threading
 import time
+from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
@@ -257,6 +258,14 @@ class BtApiBroker(BrokerBase):
         ("sdk_preflight", True),
         ("shutdown_timeout", 2.0),
         ("flatten_on_stop", True),
+        # A read-only observation session may hydrate an account that already
+        # has exposure.  It must never route any order mutation, including a
+        # risk-reducing close or a cancellation during shutdown.
+        ("market_data_only", False),
+        # Optional, provider-neutral summary collected before the broker
+        # starts.  Observation shutdown reports its validation separately
+        # from any final remote reconciliation.
+        ("startup_account_state", None),
         ("approval_expires_at_utc", None),
         ("approval_max_order_count", None),
         ("require_complete_ctp_evidence", False),
@@ -303,7 +312,10 @@ class BtApiBroker(BrokerBase):
         self._position_audit_mismatch = None
         self._position_audit_error = None
         self._position_audit_blocked = False
-        self._trading_enabled = True
+        self._trading_enabled = not bool(self.p.market_data_only)
+        self._startup_account_state_evidence = self._normalise_startup_account_state(
+            self.p.startup_account_state
+        )
         self._strategy_paused = False
         self._approval_lock = threading.Lock()
         self._approval_operation_count = 0
@@ -431,11 +443,17 @@ class BtApiBroker(BrokerBase):
             )
 
         is_sdk = bool(getattr(self.store, "_sdk_mode", False))
+        market_data_only = self._is_market_data_only()
+        self._startup_account_state_evidence = self._normalise_startup_account_state(
+            self.get_param("startup_account_state")
+        )
         recovery_requested = self._execution_recovery is not None
+        if market_data_only and recovery_requested:
+            raise ValueError("market_data_only cannot be combined with execution_recovery")
         if recovery_requested and not is_sdk:
             raise ValueError("Execution recovery requires the managed SDK broker")
         self._startup_ready = False
-        if is_sdk:
+        if is_sdk or market_data_only:
             # A connected Store is insufficient authority for opening orders.
             # Keep the route locked until every account, position, order, and
             # durable-risk startup proof below has completed.
@@ -443,13 +461,17 @@ class BtApiBroker(BrokerBase):
         try:
             self.store.start(broker=self)
             self._live_started = True
-            if is_sdk and not self._uses_async_commands():
+            if market_data_only:
+                freeze_openings = getattr(self.store, "freeze_openings", None)
+                if callable(freeze_openings):
+                    freeze_openings("market_data_only")
+            if is_sdk and not market_data_only and not self._uses_async_commands():
                 raise ValueError(
                     "SDK trading requires async_make_order, async_cancel_order, "
                     "and async_query_order"
                 )
             self._warm_contract_metadata()
-            if bool(self.p.sdk_preflight) and self._uses_async_commands():
+            if not market_data_only and bool(self.p.sdk_preflight) and self._uses_async_commands():
                 self._run_sdk_preflight()
             self._refresh_account(force=True, raise_errors=True)
             self._sync_positions(force=True, raise_errors=True)
@@ -460,9 +482,13 @@ class BtApiBroker(BrokerBase):
                 force=True,
                 raise_errors=is_sdk,
             )
-            if is_sdk and remote_open_orders and not recovery_requested:
+            if is_sdk and remote_open_orders and not recovery_requested and not market_data_only:
                 raise ValueError("SDK startup requires a proven empty remote open-order set")
-            if bool(getattr(self.store, "requires_account_risk", False)) and not recovery_requested:
+            if (
+                not market_data_only
+                and bool(getattr(self.store, "requires_account_risk", False))
+                and not recovery_requested
+            ):
                 initialize_risk = getattr(self.store, "initialize_account_risk_baseline", None)
                 if not callable(initialize_risk):
                     raise ValueError("SDK account-risk baseline capability is unavailable")
@@ -474,7 +500,7 @@ class BtApiBroker(BrokerBase):
                     or not risk_snapshot.get("identity_binding_sha256")
                 ):
                     raise ValueError("SDK account-risk baseline is not proven")
-            if is_sdk:
+            if is_sdk and not market_data_only:
                 if recovery_requested:
                     self._execution_recovery = self._validate_execution_recovery_startup(
                         remote_open_orders
@@ -490,7 +516,12 @@ class BtApiBroker(BrokerBase):
             self.startingcash = self._cash
             self.startingvalue = self._value
             self._freeze_position_mode("start()")
-            if is_sdk:
+            if market_data_only:
+                # Keep the broker locked even after its read-only account
+                # snapshot has hydrated.  The Store gate above is defensive
+                # for callers that retain a reference to it directly.
+                self._trading_enabled = False
+            elif is_sdk:
                 if recovery_requested:
                     freeze_openings = getattr(self.store, "freeze_openings", None)
                     if callable(freeze_openings):
@@ -577,6 +608,9 @@ class BtApiBroker(BrokerBase):
     def complete_execution_recovery(self, *, recovery_token_sha256):
         """Delegate final two-round recovery reconciliation to the SDK."""
 
+        if self._is_market_data_only():
+            raise ValueError("execution recovery is unavailable for a market_data_only broker")
+
         recovery = self._execution_recovery
         if not isinstance(recovery, dict) or (
             recovery.get("recovery_token_sha256") != recovery_token_sha256
@@ -609,6 +643,8 @@ class BtApiBroker(BrokerBase):
 
     def request_execution_recovery_completion(self, callback, *, recovery_token_sha256):
         """Queue SDK-owned recovery completion and notify on the Cerebro thread."""
+        if self._is_market_data_only():
+            return {"queued": False, "error_code": "market_data_only"}
         with self._execution_recovery_completion_lock:
             if not callable(callback):
                 return self._reject_execution_recovery_completion("recovery_callback_not_callable")
@@ -720,7 +756,7 @@ class BtApiBroker(BrokerBase):
         self._sdk_readiness = readiness
 
     def set_param(self, name, value, validate=True):
-        """Override :meth:`BrokerBase.set_param` to guard ``position_mode`` changes.
+        """Override :meth:`BrokerBase.set_param` for runtime safety parameters.
 
         The ``position_mode`` parameter is treated specially: it is
         immutable once :meth:`start` has run (frozen via
@@ -743,18 +779,30 @@ class BtApiBroker(BrokerBase):
             value has been applied.
 
         Raises:
-            ValueError: If ``name == "position_mode"`` and the parameter
-                has already been frozen by :meth:`start`.
+            ValueError: If a startup-frozen safety parameter is changed after
+                :meth:`start`.
         """
         if name == "position_mode":
             self._ensure_position_mode_mutable()
             value = normalize_position_mode(value)
+        if name == "market_data_only":
+            if not isinstance(value, bool):
+                raise ValueError("market_data_only must be a boolean")
+            if getattr(self, "_startup_ready", False):
+                raise ValueError("market_data_only is frozen after broker startup")
+        if name == "startup_account_state" and getattr(self, "_startup_ready", False):
+            raise ValueError("startup_account_state is frozen after broker startup")
         if name == "position_sync_policy":
             if value not in {"periodic", "startup"}:
                 raise ValueError("position_sync_policy must be periodic or startup")
             if getattr(self, "_positions_snapshot_loaded", False):
                 raise ValueError("position_sync_policy is frozen after initial position sync")
-        return super().set_param(name, value, validate=validate)
+        result = super().set_param(name, value, validate=validate)
+        if name == "market_data_only" and value:
+            self._trading_enabled = False
+        if name == "startup_account_state":
+            self._startup_account_state_evidence = self._normalise_startup_account_state(value)
+        return result
 
     def _freeze_position_mode(self, reason):
         self._position_mode_frozen = True
@@ -772,6 +820,117 @@ class BtApiBroker(BrokerBase):
 
     def _uses_async_commands(self):
         return bool(getattr(self.store, "uses_async_commands", False))
+
+    def _is_market_data_only(self):
+        """Return whether this broker instance must remain observation-only."""
+        return bool(self.get_param("market_data_only"))
+
+    @staticmethod
+    def _normalise_startup_account_state(value):
+        """Return a safe, non-final-state observation summary for shutdown.
+
+        This accepts only provider-neutral aggregate counts.  It deliberately
+        does not turn the supplied startup snapshot into a final remote query:
+        absent evidence remains absent, while unknown or malformed supplied
+        evidence is retained as a conservative non-flat shutdown condition.
+        """
+        keys = (
+            "nonzero_position_record_count",
+            "gross_position_lots",
+            "active_orders_count",
+        )
+        evidence = {
+            "provided": value is not None,
+            "validation_status": "not_provided",
+            "is_final_state": False,
+            "proves_nonflat": False,
+            "requires_nonflat": False,
+            "nonzero_position_record_count": None,
+            "gross_position_lots": None,
+            "active_orders_count": None,
+            "validation_errors": [],
+        }
+        if value is None:
+            return evidence
+        if not isinstance(value, Mapping):
+            evidence.update(
+                validation_status="malformed",
+                requires_nonflat=True,
+                validation_errors=["startup_account_state_not_mapping"],
+            )
+            return evidence
+
+        raw_values = {}
+        missing = []
+        unknown = []
+        malformed = []
+        for key in keys:
+            try:
+                raw_value = value[key]
+            except KeyError:
+                missing.append(key)
+                continue
+            except Exception:
+                malformed.append(f"unreadable_{key}")
+                continue
+            if raw_value is None:
+                unknown.append(key)
+                continue
+            raw_values[key] = raw_value
+
+        if missing:
+            malformed.extend(f"missing_{key}" for key in missing)
+        if not missing and not unknown and not malformed:
+            for key in ("nonzero_position_record_count", "active_orders_count"):
+                number = raw_values[key]
+                if isinstance(number, bool) or not isinstance(number, int) or number < 0:
+                    malformed.append(f"invalid_{key}")
+                    continue
+                evidence[key] = number
+
+            gross_lots = raw_values["gross_position_lots"]
+            if (
+                isinstance(gross_lots, bool)
+                or not isinstance(gross_lots, (int, float))
+                or not math.isfinite(float(gross_lots))
+                or float(gross_lots) < 0.0
+            ):
+                malformed.append("invalid_gross_position_lots")
+            else:
+                evidence["gross_position_lots"] = float(gross_lots)
+
+        if malformed:
+            evidence.update(
+                validation_status="malformed",
+                requires_nonflat=True,
+                validation_errors=sorted(set(malformed)),
+                nonzero_position_record_count=None,
+                gross_position_lots=None,
+                active_orders_count=None,
+            )
+            return evidence
+        if unknown:
+            evidence.update(
+                validation_status="unknown",
+                requires_nonflat=True,
+                validation_errors=sorted(f"unknown_{key}" for key in unknown),
+                nonzero_position_record_count=None,
+                gross_position_lots=None,
+                active_orders_count=None,
+            )
+            return evidence
+
+        proves_nonflat = bool(
+            evidence["nonzero_position_record_count"]
+            or evidence["gross_position_lots"]
+            or evidence["active_orders_count"]
+        )
+        evidence.update(
+            validation_status="valid",
+            proves_nonflat=proves_nonflat,
+            requires_nonflat=proves_nonflat,
+        )
+        return evidence
 
     def supports_position_mode(self, mode):
         """Return whether the broker can operate in the requested position mode.
@@ -895,6 +1054,10 @@ class BtApiBroker(BrokerBase):
         if self.store is None:
             self._live_started = False
             return None
+        if self._is_market_data_only():
+            if not self._live_started and not self.store.is_connected:
+                return dict(self._shutdown_summary)
+            return self._stop_market_data_only()
         is_sdk = self._uses_async_commands()
         if not is_sdk or not self._live_started:
             self._live_started = False
@@ -1066,6 +1229,100 @@ class BtApiBroker(BrokerBase):
         self._emit_runtime_event(
             "broker_winddown_finished",
             level="INFO" if summary["status"] == "PASS" else "ERROR",
+            status=summary["status"],
+            details=dict(summary),
+        )
+        return dict(summary)
+
+    def _stop_market_data_only(self):
+        """Disconnect an observation-only broker without mutating account state.
+
+        The cached account, order and position snapshots are deliberately kept
+        for callers such as status observers.  They cannot prove a final flat
+        account because this path neither cancels nor closes external state.
+        """
+        timeout = max(float(self.p.shutdown_timeout or 0.0), 0.0)
+        self._trading_enabled = False
+        freeze = getattr(self.store, "freeze_openings", None)
+        if callable(freeze):
+            freeze("market_data_only_stop")
+
+        local_active_order_count = sum(1 for order in self.orders.values() if order.alive())
+        local_position_count = sum(
+            1
+            for position_store in (
+                (self.long_positions, self.short_positions)
+                if self._is_dual_side_mode()
+                else (self.positions,)
+            )
+            for position in position_store.values()
+            if abs(float(position.size or 0.0)) > 1e-12
+        )
+        observed_remote_open_order_count = len(self._remote_open_orders_snapshot)
+        startup_account_state = deepcopy(self._startup_account_state_evidence)
+        startup_state_requires_nonflat = bool(startup_account_state.get("requires_nonflat"))
+        external_state_observed = bool(
+            local_active_order_count
+            or local_position_count
+            or observed_remote_open_order_count
+            or startup_state_requires_nonflat
+        )
+        startup_validation_status = startup_account_state["validation_status"]
+        if startup_validation_status in {"unknown", "malformed"}:
+            observation_reason = "market_data_only_startup_account_state_unproven"
+        elif startup_account_state["proves_nonflat"]:
+            observation_reason = "market_data_only_startup_account_state_nonflat"
+        elif external_state_observed:
+            observation_reason = "market_data_only_external_state_observed"
+        else:
+            observation_reason = "market_data_only_no_order_mutation"
+        summary = {
+            "status": "OBSERVATION_ONLY_NONFLAT" if external_state_observed else "OBSERVATION_ONLY",
+            "market_data_only": True,
+            "cancel_requested": 0,
+            "close_requested": 0,
+            "unknown_orders": 0,
+            # Do not turn a startup/periodic cache into a claim that the
+            # account was flat at shutdown.  A regular execution session owns
+            # the stricter reconciliation proof.
+            "remote_flat_proven": False,
+            "active_order_count": local_active_order_count,
+            "local_position_count": local_position_count,
+            "remote_position_count": None,
+            "unknown_intent_count": None,
+            "unmatched_trade_count": None,
+            "observed_remote_open_order_count": observed_remote_open_order_count,
+            # This is the normalized, startup-only caller evidence.  It must
+            # never be interpreted as a final remote reconciliation result.
+            "startup_account_state": startup_account_state,
+            "startup_account_state_requires_nonflat": startup_state_requires_nonflat,
+            "reason": observation_reason,
+        }
+        self._emit_runtime_event("broker_observation_shutdown_started", status="running")
+
+        self._live_started = False
+        store_health = None
+        if (
+            self.store.is_connected
+            and getattr(self.store, "_cerebro_managed_lifecycle", True) is not False
+        ):
+            try:
+                store_health = self.store.stop(timeout=timeout)
+            except Exception as exc:
+                self._sanitize_exception(exc)
+                summary.update(status="FAIL", reason="store_shutdown_failed")
+
+        store_state = store_health.get("shutdown_state") if isinstance(store_health, dict) else None
+        summary["store_shutdown_state"] = store_state or "UNPROVEN"
+        if summary["status"] != "FAIL" and store_state == "FAIL":
+            summary.update(status="FAIL", reason="store_shutdown_failed")
+        elif summary["status"] != "FAIL" and store_state != "PASS":
+            summary.update(status="INCOMPLETE", reason="store_shutdown_incomplete")
+
+        self._shutdown_summary = summary
+        self._emit_runtime_event(
+            "broker_observation_shutdown_finished",
+            level="INFO" if summary["status"].startswith("OBSERVATION_ONLY") else "ERROR",
             status=summary["status"],
             details=dict(summary),
         )
@@ -2067,6 +2324,12 @@ class BtApiBroker(BrokerBase):
 
     def submit(self, order):
         """Submit an order through the store."""
+        if self._is_market_data_only():
+            return self._reject_order(
+                order,
+                "market_data_only",
+                "Order routing is disabled for this observation-only broker session",
+            )
         if (
             bool(getattr(self.store, "_sdk_mode", False))
             and not self._startup_ready
@@ -2227,6 +2490,25 @@ class BtApiBroker(BrokerBase):
             return None
 
         if not order.alive():
+            return order
+
+        if self._is_market_data_only():
+            order.addinfo(
+                cancel_requested_remote=False,
+                cancel_rejected_local=True,
+                error_code="market_data_only",
+                error_msg="Order cancellation is disabled for this observation-only broker session",
+            )
+            self.notify(order)
+            self._emit_runtime_event(
+                "order_cancel_rejected_local",
+                level="ERROR",
+                order_ref=getattr(order, "ref", None),
+                error_code="market_data_only",
+                error_msg="Order cancellation is disabled for this observation-only broker session",
+                status="rejected",
+                details={"data_name": self._position_key(order.data)},
+            )
             return order
 
         if (
@@ -3065,6 +3347,14 @@ class BtApiBroker(BrokerBase):
 
     def enable_trading(self, reason="manual"):
         """Re-enable order submissions."""
+        if self._is_market_data_only():
+            self._trading_enabled = False
+            self._emit_runtime_event(
+                "trading_enable_blocked",
+                details={"reason": reason, "market_data_only": True},
+                status="disabled",
+            )
+            return
         self._trading_enabled = True
         self._emit_runtime_event(
             "trading_enabled",
@@ -3114,6 +3404,20 @@ class BtApiBroker(BrokerBase):
 
     def batch_cancel(self, orders=None):
         """Cancel a batch of live orders and return the canceled order objects."""
+        if self._is_market_data_only():
+            # Do not even refresh remote orders here.  Observation sessions
+            # may see account-owned orders, but cannot establish authority to
+            # mutate them through this convenience path.
+            self._trading_enabled = False
+            self._emit_runtime_event(
+                "batch_cancel_rejected_local",
+                level="ERROR",
+                status="rejected",
+                error_code="market_data_only",
+                error_msg="Batch cancellation is disabled for this observation-only broker session",
+                details={"orders_supplied": orders is not None},
+            )
+            return []
         candidates = self._batch_cancel_candidates(orders)
         requested = [
             (
@@ -3355,7 +3659,11 @@ class BtApiBroker(BrokerBase):
             tracked_aliases = self._tracked_position_alias_map()
             for item in position_rows:
                 key = self._position_row_canonical_key(item, tracked_aliases)
-                if tracked_aliases and key is None:
+                # An execution broker tracks feed-bound positions only so it
+                # cannot accidentally act on unrelated account exposure.  An
+                # observation-only broker has no mutation path and therefore
+                # retains every hydrated account position for reporting.
+                if tracked_aliases and key is None and not self._is_market_data_only():
                     continue
                 self._sync_one_position(item, synced, long_synced, short_synced, key=key)
 

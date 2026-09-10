@@ -84,6 +84,97 @@ def _make_bare_logger(**overrides):
     return tl
 
 
+def test_startup_report_uses_cached_positions_without_reading_preloaded_close():
+    """An initial cache snapshot must not expose a preloaded future price."""
+
+    class ExplodingData:
+        _name = "SA610"
+
+        def __init__(self):
+            self.close_reads = 0
+
+        @property
+        def close(self):
+            self.close_reads += 1
+            raise AssertionError("TradeLogger.start must not read data.close")
+
+    class CacheOnlyBroker:
+        def __init__(self):
+            self.cached_state_calls = 0
+
+        def get_cached_report_state(self):
+            self.cached_state_calls += 1
+            return {
+                "cash": 100.0,
+                "value": 120.0,
+                "positions": {"SA610": SimpleNamespace(size=2.0, price=10.0)},
+            }
+
+    class StartupOwner:
+        def __init__(self, data, broker):
+            self.datas = (data,)
+            self.broker = broker
+
+        def __len__(self):
+            return 0
+
+    authoritative_observation = {
+        "source": "test_preflight",
+        "scope": "account_wide",
+        "positions": [{"instrument": "OTHER701", "position_lots": 2}],
+    }
+    tl = _make_bare_logger(startup_account_observation=authoritative_observation)
+    tl._init_report_state()
+    data = ExplodingData()
+    broker = CacheOnlyBroker()
+    tl._owner = StartupOwner(data, broker)
+
+    TradeLogger._start_report(tl)
+    report = TradeLogger.snapshot(tl)
+
+    assert data.close_reads == 0
+    assert broker.cached_state_calls == 2
+    assert report["positions"] == {
+        "SA610": {
+            "size": 2.0,
+            "price": 10.0,
+            "value": None,
+            "current_price": None,
+            "multiplier": None,
+            "position_source": "broker_local_cache",
+            "market_data_status": "unmarked",
+        }
+    }
+    assert report["startup_account_observation"] == {
+        "source": "caller_supplied",
+        "scope": "authoritative_startup_account_observation",
+        "read_only": True,
+        "market_data_status": "unmarked",
+        "observation": authoritative_observation,
+    }
+    assert data.close_reads == 0
+    json.dumps(report, allow_nan=False)
+
+
+@pytest.mark.parametrize(
+    "observation",
+    [
+        {"api_secret": "must-not-be-retained"},
+        {"nested": {"authorization": "must-not-be-retained"}},
+        {"positions": [{"instrument": "SA610", "position_lots": float("nan")}]},
+    ],
+)
+def test_startup_account_observation_requires_credential_free_json_mapping(observation):
+    """Invalid or credential-bearing caller evidence is absent from the report."""
+    tl = _make_bare_logger(startup_account_observation=observation)
+    tl._init_report_state()
+
+    report = TradeLogger.snapshot(tl)
+
+    assert "startup_account_observation" not in report
+    assert "must-not-be-retained" not in json.dumps(report, allow_nan=False)
+
+
 # ===========================================================================
 # _collect_indicators logging tests
 # ===========================================================================
