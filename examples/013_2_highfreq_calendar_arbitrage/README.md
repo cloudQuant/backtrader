@@ -1,5 +1,10 @@
 # 013_2 高频跨期套利（螺纹钢 rb 主力 / 次主力）
 
+> **历史参考示例（legacy-reference）**：本示例无归属需求/验收文档，定位为历史参考，
+> 已知缺陷见迭代23 基线 B03 与迭代26 验收报告 A8/A9/A10；处置决策见
+> [ADR-013-legacy-reference](../../docs/_internal/opts/requirements/迭代26-迭代20-21-22验收/ADR-013-legacy-reference.md)。
+> **勿作新模板**；新开发请以 `013_3`/`014_1`/`014_2`/`015` 的目录独立性与 fail-closed 模式为准。
+
 三件套结构：`strategy.py` + `config.yaml` + `run.py`（与 013_1 同构，参数更激进）。
 信号与接线同样复用框架：`bt.indicators.SpreadZScore` 与
 `examples/007_ctp/ctp_example_support.py`。
@@ -8,7 +13,9 @@
 - 信号：价差 z-score 突破 ±1.5σ 开仓（单次确认、间隔 0.1s），回归 0.3σ/超时 120s 平仓
 - 执行：同 013_1 的逐腿限价 IOC 纪律；rb 为上期所品种，平仓用 `close_today`
 
-> "高频"指事件驱动 + 激进参数；CTP 下单为 TCP 往返，并非微秒级 HFT。
+> 命名口径（与迭代21 FR-HFT-005 名称门一致）：本示例**不具备也不宣称 HFT 能力**。
+> "高频"仅指事件驱动 + 激进参数；CTP 下单为 TCP 往返，无端到端时延、队列位置或
+> 真实成交证据支持任何高频能力宣称。
 
 ```bash
 python examples/013_2_highfreq_calendar_arbitrage/run.py --replay --scenario profitable

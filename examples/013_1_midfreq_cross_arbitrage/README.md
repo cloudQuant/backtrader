@@ -1,5 +1,11 @@
 # 013_1 中低频跨品种套利（豆粕 m / 菜粕 RM）
 
+> **历史参考示例（legacy-reference）**：本示例无归属需求/验收文档，定位为历史参考，
+> 已知缺陷见迭代23 基线 B03（`_limit()` 盘口缺失回退 close、按品种前缀猜平仓 offset、
+> 订单超时依赖数据时钟）与迭代26 验收报告 A8/A10；处置决策见
+> [ADR-013-legacy-reference](../../docs/_internal/opts/requirements/迭代26-迭代20-21-22验收/ADR-013-legacy-reference.md)。
+> **勿作新模板**；新开发请以 `013_3`/`014_1`/`014_2`/`015` 的目录独立性与 fail-closed 模式为准。
+
 三件套结构：`strategy.py`（策略逻辑）+ `config.yaml`（配置）+ `run.py`（接线）。
 策略信号完全复用 Backtrader 框架能力：`bt.indicators.SpreadZScore`
 （本迭代新增于 `backtrader/indicators/spread.py`）在 `next()` 中给出双腿价差
