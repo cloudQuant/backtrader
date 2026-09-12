@@ -1,0 +1,52 @@
+schema_version: ctp-options-candidate.v1
+candidate_id: iter25-options-replay-v1
+
+# This directory is directly runnable on its own.  Its default is therefore
+# the deterministic, zero-network/zero-write formula replay.  Explicit
+# shadow/simnow/production requests still fail closed before a session can be
+# constructed because this example has no external adapter.
+mode: replay
+purpose: formula
+production_enabled: false
+
+contracts:
+  exchange: CZCE
+  future: FG701
+  call: FG701C970
+  put: FG701P970
+
+feed:
+  timeframe: ticks
+  dispatch_ticks: true
+  dispatch_bars: false
+  max_quote_age_ms: 250
+  max_cross_leg_skew_ms: 100
+  max_source_age_upper_ms: 250
+  max_source_skew_upper_ms: 100
+  max_source_clock_error_ms: 5
+  complete_cohort_confirmations: 2
+
+risk:
+  capital_cap_cny: 10000
+  working_cny: 8000
+  recovery_reserve_cny: 2000
+  daily_loss_limit_cny: 300
+  basket_loss_limit_cny: 150
+  lots_per_leg: 1
+  max_cycles: 1
+
+signal:
+  entry_buffer_cny: 20
+  total_reserve_cny: 20
+
+execution:
+  order_type: limit
+  ordinary_requests_per_second: 2
+  max_daily_write_attempts: 100
+  max_daily_ordinary_attempts: 80
+  safety_daily_reserved_attempts: 20
+
+replay:
+  fixture: fixtures/three_leg_tick_cohorts_v1.json
+  scenario: valid_cohort
+  starting_cash: 100000

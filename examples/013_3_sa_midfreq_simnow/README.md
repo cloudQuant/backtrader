@@ -12,7 +12,7 @@ bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 不能证明真实行情、成交、收益或 G3/G4。未在本机运行的 SimNow 项均应判为 `NOT_RUN`；
 缺少权威交易日历或上一完整 TradingDay 的全市场排名证据时应判为 `BLOCKED`。
 
-当前第一套的受控外部验证已完成认证/登录、显式结算确认及只读回查、产品范围合约查询和深度行情连接。使用冻结的本地 CZCE 日历和手工冻结的 SA 合约后，runner 的只读 preflight 已通过；另一次独立受控 API 验证将一手非市价限价单撤单至 `CANCELED`，零成交且进程退出码为 0。这些都是 `PASS_CONTROLLED_CTP_MECHANICS` 子证据，不构成 G3 的 60 分钟观察，也不构成 G4 的策略开平闭环、归零对账、收益或经济性证据。
+当前第一套的受控外部验证已完成认证/登录、显式结算确认及只读回查、产品范围合约查询和深度行情连接。2026-09-10 曾以冻结的本地 CZCE 日历和手工冻结的 SA 合约通过一次只读 preflight，但该次运行未留存结构化收据；2026-09-12（迭代26 T2 整改）已将日历 artifact 接线进 `config.yaml`（SHA-256 与 `state/iter22-sa610-manual-firstset-20260910.yaml` 的证据 hash 一致），`BLOCKED_CTP_TRADING_CALENDAR` 就地解除。G3 仍为 `NOT_RUN`：需在第一套实际交易时段用接线后配置复跑 `shadow --preflight-only` 留存收据，并完成 60 分钟/60 bar/60 秒观察后方可回写。另一次独立受控 API 验证将一手非市价限价单撤单至 `CANCELED`，零成交且进程退出码为 0。这些都是 `PASS_CONTROLLED_CTP_MECHANICS` 子证据，不构成 G3 的 60 分钟观察，也不构成 G4 的策略开平闭环、归零对账、收益或经济性证据。
 
 第二套 7×24 的受限 `shadow --api-diagnostic` 已实际通过 `PASS_API_DIAGNOSTIC`：五类只读查询完整、三类状态变更请求计数增量为零，且受管 Store 停止健康为 `PASS`。该诊断以冻结候选的产品和交易所仅作为参考数据范围，不选择具体月份合约、不订阅行情、不运行策略；其 `strategy_status=NOT_RUN`，G3/G4 均为 `NOT_RUN_API_DIAGNOSTIC`。
 
@@ -146,9 +146,11 @@ macOS arm64 随包 CTP framework 的 shutdown 在 native `Join()` 仍存活时�
 
 CTP `InstrumentField` 提供 `ExpireDate`，但不提供“剩余交易日”或上一完整 TradingDay
 全市场 OI/Volume 排名。runner 不用自然日、工作日或当日累计行情代替这些证据。
-当前第一套 `shadow --preflight-only` 已在会话和受控查询完成后明确返回
-`BLOCKED_CTP_TRADING_CALENDAR`，不会静默降级到手工月份。日历补齐后，如仍缺上一完整
-TradingDay 的全市场排名证据，自动选择将继续以 `BLOCKED_CTP_PRIOR_DAY_RANKING_EVIDENCE` 失败关闭。
+历史上（2026-09-10）第一套 `shadow --preflight-only` 在会话和受控查询完成后明确返回
+`BLOCKED_CTP_TRADING_CALENDAR`，不会静默降级到手工月份。2026-09-12（迭代26 T2）已将
+受控日历 artifact 接线进 `config.yaml`（见上"当前状态"），该门就地解除；日历补齐后，
+如仍缺上一完整 TradingDay 的全市场排名证据，自动选择将继续以
+`BLOCKED_CTP_PRIOR_DAY_RANKING_EVIDENCE` 失败关闭。
 
 要运行 shadow/G3，可准备一个冻结的 CZCE 交易日历。示例 schema：
 
@@ -302,3 +304,20 @@ G3 的 `observation_evidence` 可直接机判：第一套真实时段连续有�
 这些测试覆盖 AC-01/02、AC-05～17、AC-20～24、AC-27、AC-29 的本地可验证部分。
 真实 SimNow 行情、账户费用、结算和成交没有 fixture 替代；只有新生成的网络 evidence
 可以把对应项从 `NOT_RUN/BLOCKED` 改为 `PASS`。
+
+## 拆分蓝图（迭代26 T8 登记，不在该迭代执行）
+
+`run.py` 约 6.0k 行、`strategy.py` 约 2.4k 行，单文件已显著影响可审计性。下一个触碰
+013_3 的迭代应按以下分层拆分（保持行为与报告 schema 逐字节兼容，拆分前后以
+`business_summary_hash` 等价性与专属回归验证）：
+
+1. **装配层**（`run.py` 保留 CLI/argparse/模式解析，目标 <800 行）；
+2. **预检层**（profile/环境/账户/结算/合约/日历门 → `preflight.py`）；
+3. **arming/授权层**（Stage A/B、ExecutionArmProof、receipt → `arming.py`）；
+4. **执行观察层**（60 分钟/60 bar/60 秒观察计数与证据留存 → `observation.py`）；
+5. **报告层**（现有 `reporting.py` 继续承接，冻结 schema 不变）；
+6. `strategy.py` 按信号（features 已独立）与风控（risk 已独立）进一步收薄，
+   领域常量（SA 时段表等）移入配置。
+
+拆分属于结构性改动，必须走迭代22 的候选身份失效纪律（FR-24）：拆分后稳定身份变化，
+既有 receipt/proof 失效需重新预检。

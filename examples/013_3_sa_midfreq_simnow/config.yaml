@@ -34,9 +34,13 @@ contract_selection:
 
 # Required for both automatic expiry gating and a manual frozen month. The
 # artifact must follow iter22.czce-trading-calendar.v1; null fails closed.
+# 2026-09-12 迭代26 T2 接线：artifact 为本地受控生成物（位于 gitignored 的 state/
+# 目录，hash 与 state/iter22-sa610-manual-firstset-20260910.yaml 中的
+# manual_trading_days_evidence_sha256 一致）。缺失时 runner 按设计 fail-closed。
+# 手工冻结月份（SA610）运行请改用 --config state/iter22-sa610-manual-firstset-20260910.yaml。
 trading_calendar:
-  artifact: null
-  sha256: null
+  artifact: state/iter22-czce-2026-calendar-20260910.json
+  sha256: 2b5168ef5b1f92290879dc5d8d3f1c16eefd823d9441d130d284263a34b46dc7
 
 feed:
   timeframe: minutes

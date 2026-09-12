@@ -320,7 +320,16 @@ def test_default_config_and_front_profiles_are_fail_closed():
     config = _config()
     assert config["mode"] == "shadow"
     assert config["contract_selection"]["mode"] == "auto"
-    assert config["trading_calendar"] == {"artifact": None, "sha256": None}
+    # 2026-09-12 迭代26 T2：默认 config 已接线受控 CZCE 日历（gitignored state/ 下的
+    # 本地 artifact）；缺失该文件时 runner 仍按设计 fail-closed（见
+    # test_trading_calendar_* 与 preflight 日历门用例）。此处只断言接线内容与
+    # 手工冻结证据 hash 一致。
+    assert config["trading_calendar"]["artifact"] == (
+        "state/iter22-czce-2026-calendar-20260910.json"
+    )
+    assert config["trading_calendar"]["sha256"] == (
+        "2b5168ef5b1f92290879dc5d8d3f1c16eefd823d9441d130d284263a34b46dc7"
+    )
     assert runner.resolve_fronts(config, {}) == {
         "profile": "simnow_first_group1",
         "profile_basis": "simnow_first_group1",
@@ -729,6 +738,11 @@ def test_api_diagnostic_parser_and_invocation_reject_unsafe_combinations(monkeyp
 
 
 def test_settlement_session_establishment_uses_read_only_verification_before_validation():
+    assert runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS == 30.0
+    assert (
+        runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS
+        <= runner.CTP_SESSION_VERIFY_TIMEOUT_MAX_SECONDS
+    )
     calls = []
     session = {
         "connected": True,
@@ -758,7 +772,7 @@ def test_settlement_session_establishment_uses_read_only_verification_before_val
     )
 
     assert result == {"read_only_safe": True, "evidence_complete": False}
-    assert calls == [("verify", 5.0), ("session", None)]
+    assert calls == [("verify", runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS), ("session", None)]
 
 
 def test_set2_api_diagnostic_is_query_only_and_never_claims_strategy_success(monkeypatch, tmp_path):
@@ -1920,7 +1934,7 @@ def test_run_network_records_calendar_gate_in_failure_evidence(monkeypatch, tmp_
 
     assert calls == [
         "start",
-        ("settlement", 5.0),
+        ("settlement", runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS),
         ("stage_a_snapshot", {"product_id": "SA", "exchange_id": "CZCE"}),
         "validate_stage_a",
         "stop",
@@ -1986,7 +2000,7 @@ def test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_ev
             events.append("store_stop")
 
         def verify_ctp_settlement(self, timeout):
-            assert timeout == 5.0
+            assert timeout == runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS
             return {"evidence_complete": True, "read_only_safe": True}
 
         def subscribe(self, instrument):

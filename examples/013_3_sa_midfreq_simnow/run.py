@@ -189,6 +189,15 @@ OPERATOR_TAKEOVER_FIELDS = frozenset(
 )
 RECOVERY_MONITOR_POLL_SECONDS = 0.25
 RECOVERY_INCOMPLETE_EXIT_CODE = 3
+# A CTP facade can report ``authenticated`` while its login state is still
+# ``logging_in``.  Keep the bounded wait explicit and shared by every initial
+# read-only/settlement verification path; this does not grant any write right.
+CTP_INITIAL_SESSION_VERIFY_TIMEOUT_SECONDS = 30.0
+CTP_SESSION_VERIFY_TIMEOUT_MAX_SECONDS = 30.0
+CTP_SESSION_VERIFY_TIMEOUT_SECONDS = min(
+    CTP_INITIAL_SESSION_VERIFY_TIMEOUT_SECONDS,
+    CTP_SESSION_VERIFY_TIMEOUT_MAX_SECONDS,
+)
 WRITE_REQUEST_COUNT_KEYS = (
     "settlement_confirm",
     "order_insert",
@@ -2060,7 +2069,9 @@ def establish_read_only_ctp_session(
     taking the explicit confirmation branch.
     """
 
-    initial_verification = store.verify_ctp_settlement(timeout=5.0)
+    initial_verification = store.verify_ctp_settlement(
+        timeout=CTP_SESSION_VERIFY_TIMEOUT_SECONDS
+    )
     if initial_verification.get("read_only_safe") is not True:
         raise PreflightError("initial settlement readback did not prove zero write requests")
     session_before = store.get_ctp_session_state()
@@ -2656,6 +2667,21 @@ def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
             tick.recv_monotonic_ns = int(monotonic_value * 1e9)
             tick.ingest_seq = sequence
             tick.connection_generation = int(fixture["connection_generation"])
+            # The replay producer owns an explicit, deterministic CTP V2
+            # evidence contract.  These fields are synthetic fixture facts;
+            # they do not promote the replay into a market or calibration
+            # observation.  The Feed may therefore enforce its production
+            # quality gate without inventing provenance for missing fields.
+            tick.subscription_epoch = 1
+            tick.clock_domain_id = "iter22-replay-monotonic-v1"
+            tick.source_clock_quality = "verified"
+            tick.receive_clock_quality = "verified"
+            tick.source_clock_error_ms = 0.0
+            tick.receive_clock_error_ms = 0.0
+            tick.freshness_verified = True
+            tick.execution_eligible = True
+            tick.stale = False
+            tick.stale_reason = ""
             tick.trading_day = str(fixture["trading_day"])
             tick.action_day = (
                 datetime.fromtimestamp(event_time, timezone.utc)
@@ -2667,7 +2693,7 @@ def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
             tick.delta_volume = 1.0
             tick.volume_semantics = "delta"
             tick.volume_complete = True
-            tick.volume_quality = "continuous"
+            tick.volume_quality = "CONTINUOUS"
             tick.event_time_source = "fixture_utc"
             tick.open_interest = 100000.0
             tick.quality_flags = ()
@@ -4982,8 +5008,12 @@ def run_network(
                 expected_profile=identity["sdk_profile"],
             )
             with AccountLock(state_directory / identity["account_fingerprint"] / "writer.lock"):
-                preparation = store.prepare_ctp_settlement(timeout=5.0)
-                verification = store.verify_ctp_settlement(timeout=5.0)
+                preparation = store.prepare_ctp_settlement(
+                    timeout=CTP_SESSION_VERIFY_TIMEOUT_SECONDS
+                )
+                verification = store.verify_ctp_settlement(
+                    timeout=CTP_SESSION_VERIFY_TIMEOUT_SECONDS
+                )
             reporter.write_json(
                 "settlement_preparation.json",
                 {
@@ -5043,7 +5073,9 @@ def run_network(
         else:
             settlement_verification = None
             if mode == "simnow":
-                settlement_verification = store.verify_ctp_settlement(timeout=5.0)
+                settlement_verification = store.verify_ctp_settlement(
+                    timeout=CTP_SESSION_VERIFY_TIMEOUT_SECONDS
+                )
                 reporter.write_json("settlement_verification.json", settlement_verification)
                 if (
                     settlement_verification.get("evidence_complete") is not True

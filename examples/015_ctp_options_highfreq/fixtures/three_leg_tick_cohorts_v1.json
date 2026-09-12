@@ -1,0 +1,53 @@
+{
+  "schema_version": "iter25.ctp-options-tick-fixture.v1",
+  "description": "Deterministic synthetic C/P/F quote fixture. It proves local channel causality only; it is not market, fill, profitability, or HFT evidence.",
+  "source": "local_synthetic_fixture",
+  "trading_day": "20260910",
+  "start_epoch": 1788998400.0,
+  "bundle": {
+    "discount_factor": "1",
+    "strike": "1000",
+    "future": {
+      "symbol": "FG701",
+      "exchange_id": "CZCE",
+      "kind": "future",
+      "underlying_id": "FG701",
+      "multiplier": "10",
+      "tick_size": "1",
+      "min_lot": 1,
+      "exercise_style": "not_applicable",
+      "premium_style": "not_applicable"
+    },
+    "call": {
+      "symbol": "FG701C970",
+      "exchange_id": "CZCE",
+      "kind": "call",
+      "underlying_id": "FG701",
+      "expiry": "20270115",
+      "strike": "1000",
+      "multiplier": "10",
+      "tick_size": "1",
+      "min_lot": 1,
+      "exercise_style": "european",
+      "premium_style": "premium"
+    },
+    "put": {
+      "symbol": "FG701P970",
+      "exchange_id": "CZCE",
+      "kind": "put",
+      "underlying_id": "FG701",
+      "expiry": "20270115",
+      "strike": "1000",
+      "multiplier": "10",
+      "tick_size": "1",
+      "min_lot": 1,
+      "exercise_style": "european",
+      "premium_style": "premium"
+    }
+  },
+  "base_quotes": {
+    "future": {"bid": "999", "ask": "1001", "last": "1000", "bid_size": 10, "ask_size": 10},
+    "call": {"bid": "16", "ask": "17", "last": "16", "bid_size": 10, "ask_size": 10},
+    "put": {"bid": "9", "ask": "10", "last": "10", "bid_size": 10, "ask_size": 10}
+  }
+}

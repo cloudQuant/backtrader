@@ -1,0 +1,35 @@
+schema_version: 1
+strategy_id: ctp_options_lowfreq
+mode: replay
+candidate:
+  future: CZCE.SA701
+  call: CZCE.SA701C1080
+  put: CZCE.SA701P1080
+  strike: 1000.0
+  multiplier: 1.0
+  discount: 1.0
+budget:
+  capital_limit: 10000.0
+  ordinary_limit: 8000.0
+  recovery_reserve: 2000.0
+strategy_params:
+  window: 40
+  entry_z: 2.5
+  exit_z: 0.5
+  minimum_score: 20.0
+  round_trip_cost: 20.0
+  projected_entry_capital: 6500.0
+  price_tick: 1.0
+  bar_minutes: 15
+  confirmation_bars: 2
+  minimum_holding_minutes: 30
+  max_holding_bars: 8
+timing:
+  first_send_seconds: 1
+  completion_seconds: 60
+  minimum_hold_seconds: 1800
+  maximum_hold_seconds: 7200
+  risk_bar_max_age_seconds: 910
+  session_stop_entry_seconds: 1800
+  session_exit_seconds: 600
+  session_handover_seconds: 180
