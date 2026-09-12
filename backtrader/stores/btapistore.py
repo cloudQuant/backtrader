@@ -26,11 +26,11 @@ import threading
 import time
 import uuid
 import warnings
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from copy import deepcopy
 from dataclasses import asdict, is_dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple, cast
+from typing import Any, Callable, Deque, Dict, Iterable, List, Optional, Tuple, cast
 
 from ..events import OrderBookSnapshot, TickEvent
 from ..utils.log_message import get_logger
@@ -132,6 +132,27 @@ _CTP_EXECUTION_ARM_FIELDS = frozenset(
         "preflight_sha256",
     }
 )
+_CTP_EXECUTION_ARM_BUNDLE_SCOPE_VERSION = "ctp-contract-bundle-v1"
+
+
+def _is_ctp_approval_capability(value: Any) -> bool:
+    """Return whether the opaque object is a redeemed SDK approval capability."""
+
+    if value is None:
+        return False
+    try:
+        from bt_api_py import CtpExecutionApprovalCapability
+    except ImportError:  # pragma: no cover - SDK without approval contracts
+        return False
+    return type(value) is CtpExecutionApprovalCapability
+
+# Query timestamps are produced by the SDK/native boundary while the Store
+# records the local send/receive envelope.  The direct CTP path uses one host
+# clock, so no guessed wall-clock tolerance can turn an out-of-window response
+# into complete evidence.
+_CTP_EXECUTION_ARM_BUNDLE_FIELDS = frozenset(
+    {*_CTP_EXECUTION_ARM_FIELDS, "scope_version", "authorized_instruments"}
+)
 
 _CTP_WRITE_REQUEST_TYPES = (
     "settlement_confirm",
@@ -167,6 +188,9 @@ _CTP_EXECUTION_AUTHORIZATION_FIELDS = frozenset(
         "gate_statuses",
     }
 )
+_CTP_EXECUTION_AUTHORIZATION_BUNDLE_FIELDS = frozenset(
+    {*_CTP_EXECUTION_AUTHORIZATION_FIELDS, "scope_version", "authorized_instruments"}
+)
 
 _CTP_STAGE_A_QUERY_NAMES = ("account", "positions", "orders", "trades", "instruments")
 _CTP_STAGE_B_QUERY_NAMES = _CTP_STAGE_A_QUERY_NAMES + ("margin_rate", "commission_rate")
@@ -194,6 +218,15 @@ _CTP_EXECUTION_RECOVERY_FIELDS = frozenset(
         "journal_sha256",
         "fencing_epoch",
         "recovery_token_sha256",
+    }
+)
+_CTP_EXECUTION_RECOVERY_BUNDLE_FIELDS = frozenset(
+    {
+        *_CTP_EXECUTION_RECOVERY_FIELDS,
+        "scope_version",
+        "authorized_instruments",
+        "remote_positions_by_instrument",
+        "owned_positions_by_instrument",
     }
 )
 _CTP_RECOVERY_POSITION_FIELDS = frozenset(
@@ -499,10 +532,19 @@ _CTP_QUERY_RECORD_FIELDS = tuple(
             "CloseRatioByVolume",
             "CloseTodayRatioByMoney",
             "CloseTodayRatioByVolume",
+            "CombinationType",
             "CurrMargin",
+            "CreateDate",
+            "DeliveryMonth",
+            "DeliveryYear",
             "EndDelivDate",
             "ExchangeID",
+            "ExchangeInstID",
+            "ExchFixedMargin",
+            "ExchMiniMargin",
             "ExpireDate",
+            "FixedMargin",
+            "HedgeFlag",
             "InstrumentID",
             "InstLifePhase",
             "IsTrading",
@@ -513,27 +555,39 @@ _CTP_QUERY_RECORD_FIELDS = tuple(
             "LongMarginRatioByMoney",
             "LongMarginRatioByVolume",
             "LowerLimitPrice",
+            "MaxMarginSideAlgorithm",
             "MaxLimitOrderVolume",
             "MaxMarketOrderVolume",
             "MinLimitOrderVolume",
             "MinMarketOrderVolume",
+            "MiniMargin",
             "OpenDate",
             "OpenInterest",
             "OpenRatioByMoney",
             "OpenRatioByVolume",
+            "OptionsType",
             "PosiDirection",
             "Position",
             "PositionCost",
             "PositionProfit",
+            "PositionDateType",
+            "PositionType",
             "PriceTick",
             "ProductID",
+            "ProductClass",
+            "Royalty",
             "ShortFrozen",
             "ShortMarginRatio",
             "ShortMarginRatioByMoney",
             "ShortMarginRatioByVolume",
             "StartDelivDate",
+            "StrikePrice",
+            "StrikeRatioByMoney",
+            "StrikeRatioByVolume",
             "TodayPosition",
             "TradingDay",
+            "UnderlyingInstrID",
+            "UnderlyingMultiple",
             "UpperLimitPrice",
             "Volume",
             "VolumeMultiple",
@@ -1731,7 +1785,12 @@ def _create_ctp_wrapper_class():
             self.password = kwargs.get("password", "")
             self.app_id = kwargs.get("app_id", "simnow_client_test")
             self.auth_code = kwargs.get("auth_code", "0000000000000000")
-            auto_confirm = kwargs.get("auto_settlement_confirm", True)
+            # Settlement confirmation is a terminal write.  The legacy
+            # direct CTP wrapper is used for observation and typed query
+            # preflights too, so an omitted setting must stay read-only.  A
+            # managed SDK execution session performs the explicit confirmed
+            # transition instead of reviving this former implicit write.
+            auto_confirm = kwargs.get("auto_settlement_confirm", False)
             if isinstance(auto_confirm, str):
                 auto_confirm = auto_confirm.strip().lower() in {"1", "true", "yes", "on"}
             self.auto_settlement_confirm = bool(auto_confirm)
@@ -1755,6 +1814,10 @@ def _create_ctp_wrapper_class():
 
         def connect(self):
             """Connect to CTP servers."""
+            if self.auto_settlement_confirm is not False:
+                raise BtApiStoreError(
+                    "auto_settlement_confirm=True is not permitted by the CTP direct wrapper"
+                )
             if not self.md_front or not self.td_front:
                 raise ValueError("CTP front addresses (md_address, td_address) are required")
 
@@ -3427,6 +3490,7 @@ class BtApiStore(LiveStoreBase):
         self._ctp_query_max_age_seconds = query_max_age
         self._ctp_query_last_started_monotonic: Optional[float] = None
         self._last_ctp_preflight_snapshot: Optional[Dict[str, Any]] = None
+        self._last_ctp_bundle_preflight_snapshot: Optional[Dict[str, Any]] = None
         self._ctp_preflight_history: Deque[Dict[str, Any]] = collections.deque(maxlen=2)
         self._last_ctp_reconciliation_snapshot: Optional[Dict[str, Any]] = None
         self._ctp_execution_authorization: Optional[Dict[str, Any]] = None
@@ -3502,6 +3566,17 @@ class BtApiStore(LiveStoreBase):
     def is_connected(self) -> bool:
         """Return whether the store is connected and ready."""
         return self._connected
+
+    @property
+    def sdk_api(self) -> Any:
+        """Return the managed SDK API object for governed public-method calls.
+
+        The returned object is the single managed client this Store owns; the
+        caller may only use it for the SDK's public contracts (approval
+        contexts, redemptions, budget reservations) and must never construct a
+        second native client.
+        """
+        return self._api
 
     @property
     def uses_async_commands(self) -> bool:
@@ -3824,6 +3899,7 @@ class BtApiStore(LiveStoreBase):
         """Discard evidence and authorization tied to an earlier CTP session."""
         with self._ctp_query_lock:
             self._last_ctp_preflight_snapshot = None
+            self._last_ctp_bundle_preflight_snapshot = None
             self._last_ctp_reconciliation_snapshot = None
             self._ctp_preflight_history.clear()
             self._ctp_query_last_started_monotonic = None
@@ -4575,7 +4651,7 @@ class BtApiStore(LiveStoreBase):
         if not funding_worker_stopped:
             self._shutdown_state = "INCOMPLETE"
 
-        if self._sdk_mode:
+        if self._sdk_mode and self._is_ctp_session_provider():
             self._force_sdk_market_data_only("store_stop", clear_authorization=True)
 
         try:
@@ -4649,7 +4725,8 @@ class BtApiStore(LiveStoreBase):
 
     def _stop_synchronous_sdk(self, timeout: Optional[float] = None):
         """Preserve the pre-worker lifecycle for SDK-compatible fixture/legacy clients."""
-        self._force_sdk_market_data_only("store_stop", clear_authorization=True)
+        if self._is_ctp_session_provider():
+            self._force_sdk_market_data_only("store_stop", clear_authorization=True)
         self._venue_balance_cache = {}
         self._last_venue_balance_refresh = 0.0
         self._sdk_client_refs.clear()
@@ -5686,7 +5763,14 @@ class BtApiStore(LiveStoreBase):
         async_method = getattr(self._api, async_name, None)
         if not inspect.iscoroutinefunction(async_method):
             raise BtApiStoreError(f"SDK session does not expose coroutine {async_name}")
-        result = async_method(*args, normalized=True)
+        # The SDK's managed write path requires the caller's opaque budget
+        # reservation.  Pass it only when present so SDK facades and fakes
+        # without the keyword keep their historical call shape.
+        budget_capability = command.get("budget_capability")
+        call_kwargs = {"normalized": True}
+        if budget_capability is not None:
+            call_kwargs["budget_capability"] = budget_capability
+        result = async_method(*args, **call_kwargs)
         if not inspect.isawaitable(result):
             raise BtApiStoreError(f"SDK {async_name} did not return an awaitable")
         result = await result
@@ -6236,18 +6320,21 @@ class BtApiStore(LiveStoreBase):
                 "approval_risk_reducing",
             )
         }
-        receipt = self._enqueue_sdk_command(
-            {
-                "operation": "submit",
-                "venue": venue,
-                "symbol": payload["symbol"],
-                "request": request,
-                "bt_order_ref": payload.get("bt_order_ref"),
-                "client_order_id": client_id,
-                **approval_fields,
-            },
-            priority_name=priority_name,
+        budget_capability = getattr(order_info, "get", lambda *_args: None)(
+            "budget_capability"
         )
+        command = {
+            "operation": "submit",
+            "venue": venue,
+            "symbol": payload["symbol"],
+            "request": request,
+            "bt_order_ref": payload.get("bt_order_ref"),
+            "client_order_id": client_id,
+            **approval_fields,
+        }
+        if budget_capability is not None:
+            command["budget_capability"] = budget_capability
+        receipt = self._enqueue_sdk_command(command, priority_name=priority_name)
         if not receipt["queued"]:
             binding = self._sdk_client_refs.pop((venue, str(client_id)), None)
             self._sdk_local_refs.pop(str(payload.get("bt_order_ref")), None)
@@ -7054,6 +7141,14 @@ class BtApiStore(LiveStoreBase):
         if not records_schema_valid:
             records = ()
         data["records"] = [cls._ctp_query_record_to_public(row) for row in records]
+        # The native layer seals provenance on ``QueryResult._source``; surface
+        # its session facts so evidence validators can bind account/day/generation
+        # without trusting caller-supplied strings.
+        source = getattr(result, "_source", None)
+        if source is not None:
+            data.setdefault("trading_day", getattr(source, "trading_day", None))
+            data.setdefault("schema_version", "backtrader.ctp.query-source.v1")
+            data.setdefault("broker_id", getattr(source, "broker_id", None))
         data["expected_request_type"] = request_type
         actual_request_type = str(data.get("request_type") or "").strip().lower()
         data["expected_request_type"] = request_type
@@ -7108,6 +7203,577 @@ class BtApiStore(LiveStoreBase):
             "unsupported": code == "query_capability_unavailable",
         }
 
+    @staticmethod
+    def _ctp_bundle_raw_text(value: Any, field_name: str) -> str:
+        """Require one exact CTP wire identifier without normalising it.
+
+        V1 preflight intentionally accepts user-friendly symbols and canonicalises
+        them.  A bundle is different: its evidence is later useful for proving
+        the exact native CTP identities of every leg, including DCE option IDs
+        such as ``m2701-C-3400``.  This helper therefore only validates the raw
+        field and never calls the V1 symbol canonicaliser.
+        """
+        if not isinstance(value, str) or not value or value != value.strip():
+            raise BtApiStoreError(f"CTP bundle {field_name} must be non-empty exact text")
+        return value
+
+    @classmethod
+    def _normalise_ctp_bundle_legs(
+        cls,
+        legs: Any,
+        *,
+        primary_leg: Any,
+        primary_instrument_id: Any,
+    ) -> List[Dict[str, Any]]:
+        """Validate two or three exact raw CTP leg identities before I/O."""
+        if isinstance(legs, (str, bytes, Mapping)):
+            raise BtApiStoreError("CTP bundle legs must be an iterable of raw leg records")
+        try:
+            raw_legs = list(legs)
+        except TypeError as exc:
+            raise BtApiStoreError("CTP bundle legs must be an iterable of raw leg records") from exc
+        if len(raw_legs) not in {2, 3}:
+            raise BtApiStoreError("CTP bundle must contain exactly two or three legs")
+        if primary_leg is not None and primary_instrument_id is not None:
+            raise BtApiStoreError("CTP bundle primary selector is ambiguous")
+
+        def _raw_pair(value: Any, *, allow_primary_flags: bool) -> Tuple[str, str, bool]:
+            primary = False
+            if isinstance(value, Mapping):
+                exchange_values = [
+                    value[name] for name in ("exchange_id", "ExchangeID") if name in value
+                ]
+                instrument_values = [
+                    value[name] for name in ("instrument_id", "InstrumentID") if name in value
+                ]
+                if not exchange_values or not instrument_values:
+                    raise BtApiStoreError("CTP bundle leg requires exchange_id and instrument_id")
+                if any(value != exchange_values[0] for value in exchange_values[1:]) or any(
+                    value != instrument_values[0] for value in instrument_values[1:]
+                ):
+                    raise BtApiStoreError("CTP bundle leg identity aliases are inconsistent")
+                exchange_id, instrument_id = exchange_values[0], instrument_values[0]
+                if allow_primary_flags:
+                    primary_flags = []
+                    for name in ("is_primary", "primary"):
+                        if name not in value:
+                            continue
+                        flag = value[name]
+                        if not isinstance(flag, bool):
+                            raise BtApiStoreError(f"CTP bundle {name} must be boolean")
+                        primary_flags.append(flag)
+                    if len(set(primary_flags)) > 1:
+                        raise BtApiStoreError("CTP bundle primary aliases are inconsistent")
+                    primary = bool(primary_flags and primary_flags[0])
+            elif isinstance(value, (tuple, list)) and len(value) == 2:
+                exchange_id, instrument_id = value
+            else:
+                raise BtApiStoreError("CTP bundle leg must be a raw pair or mapping")
+
+            exchange_id = cls._ctp_bundle_raw_text(exchange_id, "exchange_id")
+            instrument_id = cls._ctp_bundle_raw_text(instrument_id, "instrument_id")
+            if exchange_id not in _CTP_EXCHANGES:
+                raise BtApiStoreError("CTP bundle exchange_id must use an exact CTP exchange code")
+            if "." in instrument_id:
+                raise BtApiStoreError("CTP bundle instrument_id must be a raw unqualified CTP ID")
+            return exchange_id, instrument_id, primary
+
+        parsed: List[Dict[str, Any]] = []
+        seen = set()
+        for value in raw_legs:
+            exchange_id, instrument_id, primary = _raw_pair(value, allow_primary_flags=True)
+            identity = (exchange_id, instrument_id)
+            if identity in seen:
+                raise BtApiStoreError("CTP bundle contains duplicate raw leg identities")
+            seen.add(identity)
+            parsed.append(
+                {
+                    "exchange_id": exchange_id,
+                    "instrument_id": instrument_id,
+                    "is_primary": primary,
+                }
+            )
+
+        exchanges = {item["exchange_id"] for item in parsed}
+        if len(exchanges) != 1:
+            raise BtApiStoreError("CTP bundle legs must use one exact exchange_id")
+
+        selected = {
+            (item["exchange_id"], item["instrument_id"]) for item in parsed if item["is_primary"]
+        }
+        if primary_leg is not None:
+            exchange_id, instrument_id, _unused = _raw_pair(primary_leg, allow_primary_flags=False)
+            selected.add((exchange_id, instrument_id))
+        if primary_instrument_id is not None:
+            instrument_id = cls._ctp_bundle_raw_text(primary_instrument_id, "primary_instrument_id")
+            if "." in instrument_id:
+                raise BtApiStoreError(
+                    "CTP bundle primary_instrument_id must be a raw unqualified CTP ID"
+                )
+            matches = {
+                (item["exchange_id"], item["instrument_id"])
+                for item in parsed
+                if item["instrument_id"] == instrument_id
+            }
+            if len(matches) != 1:
+                raise BtApiStoreError("CTP bundle primary_instrument_id must identify one leg")
+            selected.update(matches)
+        if len(selected) != 1:
+            raise BtApiStoreError("CTP bundle requires exactly one primary leg")
+        primary_identity = next(iter(selected))
+        if primary_identity not in seen:
+            raise BtApiStoreError("CTP bundle primary leg is not present in legs")
+        for item in parsed:
+            item["is_primary"] = (item["exchange_id"], item["instrument_id"]) == primary_identity
+        return parsed
+
+    @classmethod
+    def _ctp_bundle_instrument_metadata(cls, row: Mapping[str, Any]) -> Dict[str, Any]:
+        """Read CTP option/future fields without changing raw identity fields."""
+        value = cls._normalise_ctp_instrument_row(row)
+
+        def _text(*names: str) -> str:
+            for name in names:
+                raw = value.get(name)
+                if raw not in (None, ""):
+                    return str(raw).strip()
+            return ""
+
+        def _semantic_aliases(
+            names: Tuple[str, ...], normalizer: Callable[[Any], Optional[str]]
+        ) -> Tuple[Optional[str], str]:
+            """Resolve same-meaning aliases without masking contradictory fields."""
+            raw_values = [value[name] for name in names if value.get(name) not in (None, "")]
+            if not raw_values:
+                return None, "missing"
+            normalized = [normalizer(raw) for raw in raw_values]
+            if any(item is None for item in normalized):
+                return None, "invalid"
+            if len(set(normalized)) != 1:
+                return None, "mismatch"
+            return normalized[0], ""
+
+        def _raw_identifier(*names: str) -> Tuple[str, str]:
+            """Return a raw native ID without trimming its wire representation."""
+            values = [value[name] for name in names if value.get(name) not in (None, "")]
+            if not values:
+                return "", "missing"
+            first = values[0]
+            if not isinstance(first, str):
+                return "", "invalid"
+            if not all(isinstance(item, str) and item == first for item in values[1:]):
+                return "", "mismatch"
+            return first, ""
+
+        def _asset_type(raw: Any) -> Optional[str]:
+            text = str(raw).strip().lower()
+            return {
+                "1": "future",
+                "future": "future",
+                "futures": "future",
+                "2": "option",
+                "option": "option",
+                "options": "option",
+            }.get(text)
+
+        def _option_type(raw: Any) -> Optional[str]:
+            text = str(raw).strip().lower()
+            return {
+                "1": "call",
+                "call": "call",
+                "c": "call",
+                "2": "put",
+                "put": "put",
+                "p": "put",
+            }.get(text)
+
+        resolved_asset_type, asset_type_alias_error = _semantic_aliases(
+            ("asset_type", "contract_type", "ProductClass", "product_class"), _asset_type
+        )
+        product_class = _text("ProductClass", "product_class")
+        asset_type = resolved_asset_type or "unknown"
+        option_type, option_type_alias_error = _semantic_aliases(
+            ("option_type", "OptionsType", "options_type"), _option_type
+        )
+        raw_trading = value.get("is_trading", value.get("IsTrading"))
+        if raw_trading in (True, 1, "1", b"1", "true", "TRUE"):
+            is_trading: Optional[bool] = True
+        elif raw_trading in (False, 0, "0", b"0", "false", "FALSE"):
+            is_trading = False
+        else:
+            is_trading = None
+        underlying_instrument_id, underlying_alias_error = _raw_identifier(
+            "UnderlyingInstrID", "underlying_instrument", "underlying_instr_id"
+        )
+        strike_price, strike_numeric_error = cls._ctp_bundle_finite_numeric_aliases(
+            value, ("strike_price", "StrikePrice")
+        )
+        return {
+            "asset_type": asset_type,
+            "asset_type_alias_error": asset_type_alias_error,
+            "product_class": product_class,
+            "option_type": option_type,
+            "option_type_alias_error": option_type_alias_error,
+            "underlying_instrument_id": underlying_instrument_id,
+            "underlying_aliases_consistent": underlying_alias_error in {"", "missing"},
+            "underlying_alias_error": underlying_alias_error,
+            "strike_price": strike_price,
+            "strike_numeric_error": strike_numeric_error,
+            "expiry_date": _text("expiry_date", "ExpireDate", "expire_date"),
+            "is_trading": is_trading,
+        }
+
+    @staticmethod
+    def _ctp_bundle_valid_trading_day(value: Any) -> str:
+        text = str(value or "").strip()
+        if re.fullmatch(r"\d{8}", text) is None:
+            return ""
+        try:
+            _dt.datetime.strptime(text, "%Y%m%d")
+        except ValueError:
+            return ""
+        return text
+
+    @staticmethod
+    def _ctp_bundle_reference_match(
+        rows: Iterable[Mapping[str, Any]],
+        *,
+        exchange_id: str,
+        instrument_id: str,
+        label: str,
+        require_exchange: bool,
+    ) -> Tuple[Optional[Dict[str, Any]], List[str]]:
+        """Require one exact result record and reject a broadened response."""
+        matches: List[Dict[str, Any]] = []
+        errors: List[str] = []
+
+        def _identity_alias(
+            candidate: Mapping[str, Any], names: Tuple[str, ...], alias_name: str
+        ) -> Tuple[Any, List[str]]:
+            values = [(name, candidate[name]) for name in names if name in candidate]
+            if not values:
+                return None, [f"{label}_response_{alias_name}_missing"]
+            first = values[0][1]
+            if any(value != first for _name, value in values[1:]):
+                return None, [f"{label}_response_{alias_name}_alias_mismatch"]
+            return first, []
+
+        for row in rows:
+            candidate = dict(row)
+            raw_instrument_values = [
+                candidate[name]
+                for name in ("InstrumentID", "instrument_id")
+                if name in candidate
+            ]
+            # CTP ReqQryInstrument may treat an instrument prefix as a
+            # product query and return unrelated rows.  Those rows are not
+            # identity evidence for this leg and must not poison an otherwise
+            # exact response.  Once a row names the exact raw target, all
+            # alias and exchange checks below remain strict.
+            if raw_instrument_values and instrument_id not in raw_instrument_values:
+                continue
+            raw_instrument, instrument_errors = _identity_alias(
+                candidate, ("InstrumentID", "instrument_id"), "instrument"
+            )
+            raw_exchange, exchange_errors = _identity_alias(
+                candidate, ("ExchangeID", "exchange_id"), "exchange"
+            )
+            # Reference callbacks are permitted to omit an exchange entirely,
+            # but a callback that supplies both aliases must still agree.  Do
+            # not turn an identity conflict into a missing optional field.
+            if not require_exchange and exchange_errors == [f"{label}_response_exchange_missing"]:
+                exchange_errors = []
+            errors.extend(instrument_errors)
+            errors.extend(exchange_errors)
+            if instrument_errors or exchange_errors:
+                continue
+            same_instrument = raw_instrument == instrument_id
+            has_exchange = raw_exchange not in (None, "")
+            same_exchange = raw_exchange == exchange_id
+            if not same_instrument or (require_exchange and not same_exchange):
+                errors.append(f"{label}_response_identity_mismatch")
+                continue
+            if has_exchange and not same_exchange:
+                errors.append(f"{label}_response_exchange_mismatch")
+                continue
+            matches.append(candidate)
+        if not matches:
+            errors.append(f"{label}_record_missing")
+        elif len(matches) != 1:
+            errors.append(f"{label}_record_ambiguous")
+        return (matches[0] if len(matches) == 1 else None), sorted(set(errors))
+
+    @staticmethod
+    def _ctp_bundle_finite_numeric_aliases(
+        row: Mapping[str, Any], names: Tuple[str, ...]
+    ) -> Tuple[Optional[float], Optional[str]]:
+        """Read finite aliases, rejecting absent, malformed, and divergent values."""
+        values = [row[name] for name in names if name in row]
+        if not values:
+            return None, "missing_or_invalid"
+        parsed: List[float] = []
+        for value in values:
+            if value in (None, "") or isinstance(value, bool):
+                return None, "missing_or_invalid"
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                return None, "missing_or_invalid"
+            if not math.isfinite(number):
+                return None, "missing_or_invalid"
+            parsed.append(number)
+        first = parsed[0]
+        if any(candidate != first for candidate in parsed[1:]):
+            return None, "alias_mismatch"
+        return first, None
+
+    @classmethod
+    def _ctp_bundle_explicit_finite_number(
+        cls, row: Mapping[str, Any], names: Tuple[str, ...]
+    ) -> Optional[float]:
+        """Compatibility wrapper for callers that only need a usable number."""
+        number, error = cls._ctp_bundle_finite_numeric_aliases(row, names)
+        return number if error is None else None
+
+    @classmethod
+    def _ctp_bundle_number_error(
+        cls,
+        row: Mapping[str, Any],
+        names: Tuple[str, ...],
+        *,
+        label: str,
+        field_name: str,
+        positive: bool,
+    ) -> Optional[str]:
+        number, numeric_error = cls._ctp_bundle_finite_numeric_aliases(row, names)
+        if numeric_error == "alias_mismatch":
+            return f"{label}_{field_name}_alias_mismatch"
+        if number is None:
+            return f"{label}_{field_name}_missing_or_invalid"
+        invalid_sign = number <= 0 if positive else number < 0
+        if invalid_sign:
+            return f"{label}_{field_name}_missing_or_invalid"
+        return None
+
+    @classmethod
+    def _ctp_bundle_account_evidence_errors(cls, rows: List[Dict[str, Any]]) -> List[str]:
+        """Require one usable account response; an empty account is never safe evidence."""
+        if len(rows) != 1:
+            return ["account_record_not_unique"]
+        errors = []
+        for names, field_name in (
+            (("Balance", "balance"), "balance"),
+            (("Available", "available"), "available"),
+        ):
+            error = cls._ctp_bundle_number_error(
+                rows[0],
+                names,
+                label="account",
+                field_name=field_name,
+                positive=False,
+            )
+            if error:
+                errors.append(error)
+        return errors
+
+    @classmethod
+    def _ctp_bundle_instrument_evidence_errors(
+        cls, row: Mapping[str, Any], *, label: str
+    ) -> List[str]:
+        errors = []
+        for names, field_name in (
+            (("PriceTick", "price_tick", "tick_size"), "price_tick"),
+            (
+                ("VolumeMultiple", "volume_multiple", "multiplier", "contract_size"),
+                "volume_multiple",
+            ),
+            (
+                ("MinLimitOrderVolume", "min_limit_order_volume", "minimum_order_volume"),
+                "minimum_order_volume",
+            ),
+        ):
+            error = cls._ctp_bundle_number_error(
+                row,
+                names,
+                label=label,
+                field_name=field_name,
+                positive=True,
+            )
+            if error:
+                errors.append(error)
+        return errors
+
+    @classmethod
+    def _ctp_bundle_margin_evidence_errors(cls, row: Mapping[str, Any], *, label: str) -> List[str]:
+        errors = []
+        for names, field_name in (
+            (("LongMarginRatioByMoney", "long_margin_ratio_by_money"), "margin_long_by_money"),
+            (
+                ("LongMarginRatioByVolume", "long_margin_ratio_by_volume"),
+                "margin_long_by_volume",
+            ),
+            (("ShortMarginRatioByMoney", "short_margin_ratio_by_money"), "margin_short_by_money"),
+            (
+                ("ShortMarginRatioByVolume", "short_margin_ratio_by_volume"),
+                "margin_short_by_volume",
+            ),
+        ):
+            error = cls._ctp_bundle_number_error(
+                row,
+                names,
+                label=label,
+                field_name=field_name,
+                positive=False,
+            )
+            if error:
+                errors.append(error)
+        return errors
+
+    @classmethod
+    def _ctp_bundle_commission_evidence_errors(
+        cls, row: Mapping[str, Any], *, label: str
+    ) -> List[str]:
+        errors = []
+        for names, field_name in (
+            (
+                ("OpenRatioByMoney", "open_ratio_by_money"),
+                "commission_open_by_money",
+            ),
+            (
+                ("OpenRatioByVolume", "open_ratio_by_volume"),
+                "commission_open_by_volume",
+            ),
+            (
+                ("CloseRatioByMoney", "close_ratio_by_money"),
+                "commission_close_by_money",
+            ),
+            (
+                ("CloseRatioByVolume", "close_ratio_by_volume"),
+                "commission_close_by_volume",
+            ),
+            (
+                ("CloseTodayRatioByMoney", "close_today_ratio_by_money"),
+                "commission_close_today_by_money",
+            ),
+            (
+                ("CloseTodayRatioByVolume", "close_today_ratio_by_volume"),
+                "commission_close_today_by_volume",
+            ),
+        ):
+            error = cls._ctp_bundle_number_error(
+                row,
+                names,
+                label=label,
+                field_name=field_name,
+                positive=False,
+            )
+            if error:
+                errors.append(error)
+        return errors
+
+    @classmethod
+    def _ctp_bundle_option_trade_cost_evidence_errors(
+        cls, row: Mapping[str, Any], *, label: str
+    ) -> List[str]:
+        errors = []
+        for field_name in (
+            "FixedMargin",
+            "MiniMargin",
+            "Royalty",
+            "ExchFixedMargin",
+            "ExchMiniMargin",
+        ):
+            error = cls._ctp_bundle_number_error(
+                row,
+                (field_name,),
+                label=label,
+                field_name=f"option_trade_cost_{field_name.lower()}",
+                positive=False,
+            )
+            if error:
+                errors.append(error)
+        return errors
+
+    @staticmethod
+    def _ctp_bundle_parse_utc_timestamp(value: Any) -> Optional[_dt.datetime]:
+        """Accept only a parseable, timezone-aware UTC query timestamp."""
+        if isinstance(value, _dt.datetime):
+            parsed = value
+        elif isinstance(value, str):
+            text = value.strip()
+            if text.endswith("Z"):
+                text = f"{text[:-1]}+00:00"
+            try:
+                parsed = _dt.datetime.fromisoformat(text)
+            except ValueError:
+                return None
+        else:
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() != _dt.timedelta(0):
+            return None
+        return parsed.astimezone(_UTC)
+
+    @classmethod
+    def _ctp_bundle_row_trading_day_errors(
+        cls,
+        rows: Iterable[Mapping[str, Any]],
+        *,
+        label: str,
+        trading_day: str,
+    ) -> List[str]:
+        errors = []
+        for row in rows:
+            value = row.get("TradingDay", row.get("trading_day"))
+            if value in (None, ""):
+                continue
+            row_day = cls._ctp_bundle_valid_trading_day(value)
+            if not row_day or row_day != trading_day:
+                errors.append(f"{label}_trading_day_mismatch")
+        return sorted(set(errors))
+
+    @staticmethod
+    def _ctp_bundle_hash_safe(value: Any) -> Any:
+        """Make a stable hash input even when a broken venue sends NaN."""
+        if value is None or isinstance(value, (str, int, bool)):
+            return value
+        if isinstance(value, float):
+            return value if math.isfinite(value) else f"nonfinite:{value!r}"
+        if isinstance(value, Decimal):
+            return str(value)
+        if isinstance(value, Mapping):
+            return {
+                str(key): BtApiStore._ctp_bundle_hash_safe(item)
+                for key, item in sorted(value.items(), key=lambda item: str(item[0]))
+            }
+        if isinstance(value, (list, tuple)):
+            return [BtApiStore._ctp_bundle_hash_safe(item) for item in value]
+        if isinstance(value, (set, frozenset)):
+            items = [BtApiStore._ctp_bundle_hash_safe(item) for item in value]
+            return sorted(
+                items,
+                key=lambda item: json.dumps(item, ensure_ascii=False, sort_keys=True, default=str),
+            )
+        return str(value)
+
+    @staticmethod
+    def _ctp_bundle_snapshot_sha256(snapshot: Mapping[str, Any]) -> str:
+        """Hash stable bundle evidence while excluding capture clock fields."""
+        material = {
+            key: value
+            for key, value in snapshot.items()
+            if key not in {"captured_at_utc", "started_monotonic", "completed_monotonic"}
+            and key != "snapshot_sha256"
+        }
+        return hashlib.sha256(
+            json.dumps(
+                BtApiStore._ctp_bundle_hash_safe(material),
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+
     def _reserve_ctp_query_slot(self, deadline: Optional[float]) -> Optional[float]:
         """Reserve one rate-limited query slot and return its remaining deadline."""
         now = time.monotonic()
@@ -7155,6 +7821,43 @@ class BtApiStore(LiveStoreBase):
             except (TypeError, ValueError):
                 return True
         return True
+
+    @staticmethod
+    def _normalise_ctp_unmatched_trade_count(execution_summary: Any) -> Optional[int]:
+        """Normalize the SDK's explicit empty states only.
+
+        Some bt_api clients omit ``unmatched_trade_count`` while execution
+        sessions are disabled or unarmed.  Only an explicit empty
+        ``unknown_ids`` sequence — with the summary itself complete — makes
+        that omission safely equivalent to zero; every other missing or
+        malformed state remains unknown and fails closed.
+        """
+        if not isinstance(execution_summary, Mapping):
+            return None
+        if "unmatched_trade_count" in execution_summary:
+            value = execution_summary["unmatched_trade_count"]
+            return value if isinstance(value, int) and not isinstance(value, bool) else None
+        unknown_ids = execution_summary.get("unknown_ids")
+        empty_unknown = (
+            isinstance(unknown_ids, Sequence)
+            and not isinstance(unknown_ids, (str, bytes, bytearray))
+            and len(unknown_ids) == 0
+        )
+        if not empty_unknown:
+            return None
+        if execution_summary.get("session_enabled") is False:
+            return 0
+        # An unarmed market-data session with complete evidence and zero
+        # unknown intents cannot hold unmatched trades; the omission is the
+        # client's spelling of zero, not an unknown state.
+        if (
+            execution_summary.get("evidence_complete") is True
+            and execution_summary.get("armed") is False
+            and execution_summary.get("market_data_only") is True
+            and int(execution_summary.get("active_orders") or 0) == 0
+        ):
+            return 0
+        return None
 
     @staticmethod
     def _ctp_position_row_is_nonzero(row: Mapping[str, Any]) -> bool:
@@ -7219,8 +7922,8 @@ class BtApiStore(LiveStoreBase):
             # deliberately retained so an implementation that cannot enforce
             # it reports an incomplete snapshot rather than broadening scope.
             instrument_query_kwargs = {
-                "instrument_id": instrument_id or "",
-                "exchange_id": exchange_id,
+            "instrument_id": instrument_id or "",
+            "exchange_id": exchange_id,
             }
             if product_id:
                 instrument_query_kwargs["product_id"] = product_id
@@ -7232,6 +7935,11 @@ class BtApiStore(LiveStoreBase):
                 )
             )
             if instrument_id:
+                # Per-instrument fee/margin queries are Stage B evidence for
+                # one frozen instrument.  A product or exchange scan has no
+                # single instrument, so those queries are deliberately out of
+                # scope there instead of failing placeholders that would
+                # poison the product-scan Stage A evidence contract.
                 query_specs.extend(
                     [
                         (
@@ -7244,13 +7952,6 @@ class BtApiStore(LiveStoreBase):
                             "query_instrument_commission_rate_result",
                             {"instrument_id": instrument_id, "exchange_id": exchange_id},
                         ),
-                    ]
-                )
-            else:
-                query_specs.extend(
-                    [
-                        ("margin_rate", "", {}),
-                        ("commission_rate", "", {}),
                     ]
                 )
 
@@ -7507,13 +8208,7 @@ class BtApiStore(LiveStoreBase):
         unknown_intent_count = (
             len(unknown_ids) if isinstance(unknown_ids, (list, tuple, set)) else None
         )
-        unmatched_trade_count = (
-            execution_summary.get("unmatched_trade_count")
-            if isinstance(execution_summary, Mapping)
-            else None
-        )
-        if not isinstance(unmatched_trade_count, int) or isinstance(unmatched_trade_count, bool):
-            unmatched_trade_count = None
+        unmatched_trade_count = self._normalise_ctp_unmatched_trade_count(execution_summary)
         position_lots = 0.0
         for row in position_rows:
             raw_position = next(
@@ -7556,6 +8251,9 @@ class BtApiStore(LiveStoreBase):
             "write_request_free": write_request_free,
             "instrument_id": instrument_id or "",
             "exchange_id": exchange_id,
+            # Echo the requested product scope so a Stage A product scan can
+            # be distinguished from an exchange-wide scan by its consumers.
+            "product_id": str(product_id or "").strip().upper(),
             "query_results": deepcopy(query_results),
             "account": account_rows,
             "positions": position_rows,
@@ -7668,6 +8366,1465 @@ class BtApiStore(LiveStoreBase):
         self._last_ctp_preflight_snapshot = deepcopy(snapshot)
         self._ctp_preflight_history.append(deepcopy(snapshot))
         return snapshot
+
+    def get_ctp_bundle_preflight_snapshot(
+        self,
+        legs: Any,
+        *,
+        primary_leg: Any = None,
+        primary_instrument_id: Any = None,
+        timeout: float = 15.0,
+        read_only: bool = True,
+    ) -> Dict[str, Any]:
+        """Return one fail-closed, read-only CTP futures/options bundle snapshot.
+
+        ``legs`` contains two or three *raw* ``(exchange_id, instrument_id)``
+        identities.  A mapping may instead carry the same fields and an
+        ``is_primary`` boolean.  The raw values are deliberately never passed
+        through the V1 friendly-symbol canonicaliser: DCE option IDs are native
+        wire identifiers and must remain byte-for-byte distinguishable in the
+        resulting evidence.
+
+        This snapshot is an observation primitive only.  It is not cached as a
+        V1 authorization preflight and it neither confirms settlement nor arms
+        or submits CTP execution.
+        """
+        if read_only is not True:
+            raise BtApiStoreError("CTP bundle preflight is read-only")
+        parsed_legs = self._normalise_ctp_bundle_legs(
+            legs,
+            primary_leg=primary_leg,
+            primary_instrument_id=primary_instrument_id,
+        )
+        if not self._is_ctp_session_provider():
+            raise BtApiStoreError("CTP bundle preflight requires a CTP provider")
+        try:
+            total_timeout = float(timeout)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("CTP bundle query timeout must be finite and nonnegative") from exc
+        if not math.isfinite(total_timeout) or total_timeout < 0:
+            raise ValueError("CTP bundle query timeout must be finite and nonnegative")
+
+        query_started_monotonic = time.monotonic()
+        deadline = query_started_monotonic + total_timeout if total_timeout > 0 else None
+        # Capture the write counters before lazy connection.  Calling
+        # ``_ensure_api_ready`` may invoke a provider's connect/start path, so
+        # a post-connect baseline alone cannot prove this preflight was read
+        # only.
+        session_before_connect = self._read_ctp_session_state()
+        request_counts_before_connect = self._ctp_request_counts(session_before_connect)
+        self._ensure_api_ready()
+        session_before = self._read_ctp_session_state()
+        request_counts_before_query = self._ctp_request_counts(session_before)
+        connect_request_count_delta = self._ctp_request_count_delta(
+            request_counts_before_connect, request_counts_before_query
+        )
+        targets = self._ctp_query_targets()
+        target = targets[0] if targets else None
+        query_results: Dict[str, Dict[str, Any]] = {}
+        query_sent_at_utc: Dict[str, _dt.datetime] = {}
+        leg_query_keys: Dict[int, Dict[str, str]] = {index: {} for index in range(len(parsed_legs))}
+
+        def _run_query(
+            label: str,
+            request_type: str,
+            method_name: str,
+            kwargs: Mapping[str, Any],
+        ) -> None:
+            # These boundaries belong to the Store.  A provider may return
+            # fields with the same names, but it cannot replace the local
+            # observations used to prove that this result belongs to this
+            # request.
+            sent_at_utc = _dt.datetime.now(_UTC)
+            try:
+                sent_monotonic = float(time.monotonic())
+            except (TypeError, ValueError, OverflowError):
+                sent_monotonic = math.nan
+            if target is None:
+                result = self._ctp_query_failure(
+                    request_type, session_before, "query_capability_unavailable"
+                )
+            else:
+                request_timeout = (
+                    self._reserve_ctp_query_slot(deadline) if deadline is not None else 0.0
+                )
+                if request_timeout is None:
+                    result = self._ctp_query_failure(
+                        request_type, session_before, "query_deadline_exceeded"
+                    )
+                else:
+                    # Exclude any rate-limit sleep from the Store's request
+                    # envelope: the lower bound is the instant immediately
+                    # before the provider call.
+                    sent_at_utc = _dt.datetime.now(_UTC)
+                    try:
+                        sent_monotonic = float(time.monotonic())
+                    except (TypeError, ValueError, OverflowError):
+                        sent_monotonic = math.nan
+                    try:
+                        result = self._normalise_ctp_query_result(
+                            self._invoke_ctp_query(
+                                target,
+                                request_type,
+                                method_name,
+                                timeout=request_timeout,
+                                kwargs=kwargs,
+                            ),
+                            request_type,
+                        )
+                    except Exception as exc:
+                        result = self._ctp_query_failure(
+                            request_type, session_before, type(exc).__name__
+                        )
+            received_at_utc = _dt.datetime.now(_UTC)
+            try:
+                received_monotonic = float(time.monotonic())
+            except (TypeError, ValueError, OverflowError):
+                received_monotonic = math.nan
+            query_sent_at_utc[label] = sent_at_utc
+            result["requested_at_utc"] = sent_at_utc.isoformat()
+            result["received_at_utc"] = received_at_utc.isoformat()
+            result["requested_monotonic"] = sent_monotonic
+            result["received_monotonic"] = received_monotonic
+            query_results[label] = result
+
+        # Account-level safety evidence is intentionally unfiltered.  A bundle
+        # must not hide an unrelated open order, position, or trade by applying
+        # an instrument filter to these terminal queries.
+        with self._ctp_query_lock:
+            for request_type, method_name in (
+                ("account", "query_account_result"),
+                ("positions", "query_positions_result"),
+                ("orders", "query_orders_result"),
+                ("trades", "query_trades_result"),
+            ):
+                _run_query(request_type, request_type, method_name, {})
+
+            # First obtain each instrument response so that option-only
+            # reference queries are driven by returned CTP metadata, never a
+            # brittle parser for native instrument names.
+            provisional_metadata: Dict[int, Optional[Dict[str, Any]]] = {}
+            for index, leg in enumerate(parsed_legs):
+                label = f"leg[{index}].instrument"
+                leg_query_keys[index]["instrument"] = label
+                _run_query(
+                    label,
+                    "instruments",
+                    "query_instruments_result",
+                    {
+                        "instrument_id": leg["instrument_id"],
+                        "exchange_id": leg["exchange_id"],
+                    },
+                )
+                instrument_rows = self._stable_ctp_query_rows(query_results[label].get("records"))
+                instrument, _unused_errors = self._ctp_bundle_reference_match(
+                    instrument_rows,
+                    exchange_id=leg["exchange_id"],
+                    instrument_id=leg["instrument_id"],
+                    label=label,
+                    require_exchange=True,
+                )
+                provisional_metadata[index] = (
+                    self._ctp_bundle_instrument_metadata(instrument)
+                    if instrument is not None
+                    else None
+                )
+
+            for index, leg in enumerate(parsed_legs):
+                # Generic margin/commission reference rows are required for
+                # futures only.  Options have a separate native cost model;
+                # an empty generic response is normal and must not be treated
+                # as evidence failure.
+                metadata = provisional_metadata[index]
+                if not metadata or metadata.get("asset_type") != "future":
+                    continue
+                for field, request_type, method_name in (
+                    ("margin_rate", "margin_rate", "query_instrument_margin_rate_result"),
+                    (
+                        "commission_rate",
+                        "commission_rate",
+                        "query_instrument_commission_rate_result",
+                    ),
+                ):
+                    label = f"leg[{index}].{field}"
+                    leg_query_keys[index][field] = label
+                    _run_query(
+                        label,
+                        request_type,
+                        method_name,
+                        {
+                            "instrument_id": leg["instrument_id"],
+                            "exchange_id": leg["exchange_id"],
+                        },
+                    )
+
+            for index, leg in enumerate(parsed_legs):
+                metadata = provisional_metadata[index]
+                if not metadata or metadata.get("asset_type") != "option":
+                    continue
+                for field, request_type, method_name, kwargs in (
+                    (
+                        "option_trade_cost",
+                        "option_trade_cost",
+                        "query_option_instrument_trade_cost_result",
+                        {
+                            "instrument_id": leg["instrument_id"],
+                            "exchange_id": leg["exchange_id"],
+                            "hedge_flag": "1",
+                            # A zero native input is explicitly a reference
+                            # query; it does not imply a current executable
+                            # mark or a portfolio margin estimate.
+                            "input_price": 0.0,
+                            "underlying_price": 0.0,
+                        },
+                    ),
+                    (
+                        "option_commission_rate",
+                        "option_commission_rate",
+                        "query_option_instrument_commission_rate_result",
+                        {
+                            "instrument_id": leg["instrument_id"],
+                            "exchange_id": leg["exchange_id"],
+                        },
+                    ),
+                ):
+                    label = f"leg[{index}].{field}"
+                    leg_query_keys[index][field] = label
+                    _run_query(label, request_type, method_name, kwargs)
+
+        session_after = self._read_ctp_session_state()
+        request_counts_after = self._ctp_request_counts(session_after)
+        query_request_count_delta = self._ctp_request_count_delta(
+            request_counts_before_query, request_counts_after
+        )
+        request_count_delta = self._ctp_request_count_delta(
+            request_counts_before_connect, request_counts_after
+        )
+        session = session_after if session_after else session_before
+        errors: List[str] = []
+        for label, result in query_results.items():
+            if not self._ctp_query_result_complete(result):
+                errors.append(f"{label}_query_incomplete")
+            if result.get("request_type_matches") is not True:
+                errors.append(f"{label}_request_type_mismatch")
+            if result.get("records_schema_valid") is not True:
+                errors.append(f"{label}_records_schema_invalid")
+            errors.extend(
+                self._ctp_bundle_query_time_errors(
+                    result,
+                    label=label,
+                    requested_at_utc=query_sent_at_utc[label],
+                    received_at_utc=result.get("received_at_utc"),
+                )
+            )
+
+        def _session_generation(value: Mapping[str, Any]) -> int:
+            raw = value.get("connection_generation")
+            if isinstance(raw, bool):
+                return 0
+            try:
+                parsed = int(raw or 0)
+            except (TypeError, ValueError):
+                return 0
+            return parsed if parsed > 0 else 0
+
+        generation_before = _session_generation(session_before)
+        generation_after = _session_generation(session_after)
+        fingerprint_before = str(session_before.get("account_fingerprint") or "").strip()
+        fingerprint_after = str(session_after.get("account_fingerprint") or "").strip()
+        trading_day_before = self._ctp_bundle_valid_trading_day(session_before.get("trading_day"))
+        trading_day_after = self._ctp_bundle_valid_trading_day(session_after.get("trading_day"))
+        if generation_before <= 0 or generation_after <= 0:
+            errors.append("session_generation_missing")
+        elif generation_before != generation_after:
+            errors.append("session_generation_changed")
+        if not fingerprint_before or not fingerprint_after:
+            errors.append("session_account_fingerprint_missing")
+        elif fingerprint_before != fingerprint_after:
+            errors.append("session_account_fingerprint_changed")
+        if not trading_day_before or not trading_day_after:
+            errors.append("session_trading_day_missing")
+        elif trading_day_before != trading_day_after:
+            errors.append("session_trading_day_changed")
+        trading_day = trading_day_after or trading_day_before
+
+        complete_results = [
+            result for result in query_results.values() if self._ctp_query_result_complete(result)
+        ]
+        query_generations = {int(result["connection_generation"]) for result in complete_results}
+        query_fingerprints = {str(result["account_fingerprint"]) for result in complete_results}
+        if len(query_generations) != 1:
+            errors.append("query_generation_mismatch")
+        if len(query_fingerprints) != 1:
+            errors.append("query_account_fingerprint_mismatch")
+        if generation_after > 0 and query_generations != {generation_after}:
+            errors.append("query_generation_session_mismatch")
+        if fingerprint_after and query_fingerprints != {fingerprint_after}:
+            errors.append("query_account_fingerprint_session_mismatch")
+
+        all_request_ids: Dict[str, int] = {}
+        for label, result in query_results.items():
+            raw_request_id = result.get("request_id")
+            if isinstance(raw_request_id, bool):
+                request_id = 0
+            else:
+                try:
+                    request_id = int(raw_request_id or 0)
+                except (TypeError, ValueError):
+                    request_id = 0
+            all_request_ids[label] = request_id
+        positive_request_ids = [value for value in all_request_ids.values() if value > 0]
+        if len(set(positive_request_ids)) != len(positive_request_ids):
+            errors.append("query_request_id_not_unique")
+
+        auto_confirm = session.get(
+            "auto_settlement_confirm",
+            getattr(target, "auto_settlement_confirm", None) if target is not None else None,
+        )
+        # Include the lazy connection interval in the read-only guarantee.
+        # Capturing only a post-connect baseline would make a write performed
+        # by a provider's connect/start path invisible to this evidence.
+        connect_write_request_free = bool(
+            connect_request_count_delta is not None
+            and all(connect_request_count_delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES)
+        )
+        query_write_request_free = bool(
+            query_request_count_delta is not None
+            and all(query_request_count_delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES)
+        )
+        total_write_request_free = bool(
+            request_count_delta is not None
+            and all(request_count_delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES)
+        )
+        write_request_free = bool(
+            connect_write_request_free and query_write_request_free and total_write_request_free
+        )
+        if request_counts_before_connect is None:
+            errors.append("preconnect_request_count_evidence_missing")
+        if request_counts_before_query is None:
+            errors.append("postconnect_request_count_evidence_missing")
+        if request_counts_after is None:
+            errors.append("request_count_evidence_missing")
+        if connect_request_count_delta is None:
+            errors.append("connect_request_count_evidence_missing")
+        elif not connect_write_request_free:
+            errors.append("unexpected_write_request_during_connect")
+        if query_request_count_delta is None:
+            errors.append("query_request_count_evidence_missing")
+        elif not query_write_request_free:
+            errors.append("unexpected_write_request_during_query")
+        if request_count_delta is None:
+            errors.append("preflight_request_count_evidence_missing")
+        elif not total_write_request_free:
+            errors.append("unexpected_write_request_during_preflight")
+        if auto_confirm is not False:
+            errors.append("auto_settlement_confirm_not_disabled")
+        session_ready = bool(session.get("read_only_ready") is True or session.get("ready") is True)
+        if not session_ready:
+            errors.append("ctp_session_not_ready")
+
+        account_rows = self._stable_ctp_query_rows(query_results["account"].get("records"))
+        position_rows = self._stable_ctp_query_rows(query_results["positions"].get("records"))
+        order_rows = self._stable_ctp_query_rows(query_results["orders"].get("records"))
+        trade_rows = self._stable_ctp_query_rows(query_results["trades"].get("records"))
+        errors.extend(self._ctp_bundle_account_evidence_errors(account_rows))
+        for label, result in query_results.items():
+            errors.extend(
+                self._ctp_bundle_row_trading_day_errors(
+                    self._stable_ctp_query_rows(result.get("records")),
+                    label=label,
+                    trading_day=trading_day,
+                )
+            )
+
+        leg_evidence: List[Dict[str, Any]] = []
+        for index, leg in enumerate(parsed_legs):
+            local_errors: List[str] = []
+            query_keys = leg_query_keys[index]
+            references: Dict[str, Optional[Dict[str, Any]]] = {}
+            for field, require_exchange in (
+                ("instrument", True),
+                ("margin_rate", False),
+                ("commission_rate", False),
+                ("option_trade_cost", False),
+                ("option_commission_rate", False),
+            ):
+                label = query_keys.get(field)
+                if label is None:
+                    continue
+                record, record_errors = self._ctp_bundle_reference_match(
+                    self._stable_ctp_query_rows(query_results[label].get("records")),
+                    exchange_id=leg["exchange_id"],
+                    instrument_id=leg["instrument_id"],
+                    label=label,
+                    require_exchange=require_exchange,
+                )
+                references[field] = record
+                local_errors.extend(record_errors)
+            instrument = references.get("instrument")
+            metadata = (
+                self._ctp_bundle_instrument_metadata(instrument) if instrument is not None else None
+            )
+            if metadata is None:
+                local_errors.append(f"leg[{index}].instrument_metadata_missing")
+            else:
+                local_errors.extend(
+                    self._ctp_bundle_instrument_evidence_errors(
+                        instrument, label=f"leg[{index}].instrument"
+                    )
+                )
+                margin_rate = references.get("margin_rate")
+                if margin_rate is not None:
+                    local_errors.extend(
+                        self._ctp_bundle_margin_evidence_errors(
+                            margin_rate, label=f"leg[{index}].margin_rate"
+                        )
+                    )
+                commission_rate = references.get("commission_rate")
+                if commission_rate is not None:
+                    local_errors.extend(
+                        self._ctp_bundle_commission_evidence_errors(
+                            commission_rate, label=f"leg[{index}].commission_rate"
+                        )
+                    )
+                if metadata["is_trading"] is not True:
+                    local_errors.append(f"leg[{index}].instrument_not_trading")
+                if not self._ctp_bundle_valid_trading_day(metadata["expiry_date"]):
+                    local_errors.append(f"leg[{index}].expiry_unavailable")
+                asset_type_alias_error = metadata["asset_type_alias_error"]
+                if asset_type_alias_error in {"invalid", "mismatch"}:
+                    local_errors.append(
+                        f"leg[{index}].instrument_asset_type_alias_{asset_type_alias_error}"
+                    )
+                if metadata["asset_type"] == "option":
+                    if not metadata["underlying_instrument_id"]:
+                        local_errors.append(f"leg[{index}].option_underlying_missing")
+                    if not metadata["underlying_aliases_consistent"]:
+                        local_errors.append(f"leg[{index}].option_underlying_alias_mismatch")
+                    option_type_alias_error = metadata["option_type_alias_error"]
+                    if option_type_alias_error in {"invalid", "mismatch"}:
+                        local_errors.append(
+                            f"leg[{index}].option_type_alias_{option_type_alias_error}"
+                        )
+                    if metadata["option_type"] not in {"call", "put"}:
+                        local_errors.append(f"leg[{index}].option_call_put_unavailable")
+                    strike_price = metadata["strike_price"]
+                    if metadata["strike_numeric_error"] == "alias_mismatch":
+                        local_errors.append(f"leg[{index}].option_strike_alias_mismatch")
+                    elif strike_price is None or strike_price <= 0:
+                        local_errors.append(f"leg[{index}].option_strike_unavailable")
+                    for field in ("option_trade_cost", "option_commission_rate"):
+                        if field not in references:
+                            local_errors.append(f"leg[{index}].{field}_query_missing")
+                    option_trade_cost = references.get("option_trade_cost")
+                    if option_trade_cost is not None:
+                        local_errors.extend(
+                            self._ctp_bundle_option_trade_cost_evidence_errors(
+                                option_trade_cost,
+                                label=f"leg[{index}].option_trade_cost",
+                            )
+                        )
+                    option_commission_rate = references.get("option_commission_rate")
+                    if option_commission_rate is not None:
+                        local_errors.extend(
+                            self._ctp_bundle_commission_evidence_errors(
+                                option_commission_rate,
+                                label=f"leg[{index}].option_commission_rate",
+                            )
+                        )
+            query_evidence = {
+                field: deepcopy(query_results[label]) for field, label in query_keys.items()
+            }
+            local_errors = sorted(set(local_errors))
+            errors.extend(local_errors)
+            leg_evidence.append(
+                {
+                    **leg,
+                    "instrument": deepcopy(instrument),
+                    "margin_rate": deepcopy(references.get("margin_rate")),
+                    "commission_rate": deepcopy(references.get("commission_rate")),
+                    "option_trade_cost": deepcopy(references.get("option_trade_cost")),
+                    "option_commission_rate": deepcopy(references.get("option_commission_rate")),
+                    "metadata": deepcopy(metadata),
+                    "query_results": query_evidence,
+                    "evidence_complete": not local_errors,
+                    "evidence_errors": local_errors,
+                }
+            )
+
+        futures = [
+            item
+            for item in leg_evidence
+            if isinstance(item.get("metadata"), Mapping)
+            and item["metadata"].get("asset_type") == "future"
+        ]
+        options = [
+            item
+            for item in leg_evidence
+            if isinstance(item.get("metadata"), Mapping)
+            and item["metadata"].get("asset_type") == "option"
+        ]
+        primary = next(item for item in leg_evidence if item["is_primary"])
+        if len(futures) != 1:
+            errors.append("bundle_requires_exactly_one_future")
+        if primary not in futures:
+            errors.append("bundle_primary_leg_must_be_future")
+        expected_option_count = len(parsed_legs) - 1
+        if len(options) != expected_option_count:
+            errors.append("bundle_option_leg_count_invalid")
+        future = futures[0] if len(futures) == 1 else None
+        if future is not None:
+            future_metadata = future["metadata"]
+            if not self._ctp_bundle_valid_trading_day(future_metadata.get("expiry_date")):
+                errors.append("bundle_future_expiry_unavailable")
+            for option in options:
+                option_metadata = option["metadata"]
+                if option_metadata["underlying_instrument_id"] != future["instrument_id"]:
+                    errors.append("bundle_option_underlying_mismatch")
+        if len(parsed_legs) == 3:
+            option_types = {item["metadata"].get("option_type") for item in options}
+            if option_types != {"call", "put"}:
+                errors.append("bundle_call_put_pair_invalid")
+            if len(options) == 2:
+                first_expiry = options[0]["metadata"].get("expiry_date")
+                second_expiry = options[1]["metadata"].get("expiry_date")
+                if first_expiry != second_expiry:
+                    errors.append("bundle_call_put_expiry_mismatch")
+                first_strike = options[0]["metadata"].get("strike_price")
+                second_strike = options[1]["metadata"].get("strike_price")
+                if (
+                    first_strike is None
+                    or second_strike is None
+                    or not math.isclose(first_strike, second_strike, rel_tol=0.0, abs_tol=1e-12)
+                ):
+                    errors.append("bundle_call_put_strike_mismatch")
+
+        active_orders = [row for row in order_rows if self._ctp_order_row_is_active(row)]
+        nonzero_positions = [row for row in position_rows if self._ctp_position_row_is_nonzero(row)]
+        required_account_labels = ("account", "positions", "orders", "trades")
+        request_ids = {label: all_request_ids[label] for label in required_account_labels}
+        execution_summary = None
+        summary_getter = getattr(self._api, "get_execution_summary", None)
+        if callable(summary_getter):
+            try:
+                candidate_summary = summary_getter()
+            except Exception:
+                candidate_summary = None
+            if isinstance(candidate_summary, Mapping):
+                execution_summary = dict(candidate_summary)
+        unknown_ids = (
+            execution_summary.get("unknown_ids") if isinstance(execution_summary, Mapping) else None
+        )
+        unknown_intent_count = (
+            len(unknown_ids) if isinstance(unknown_ids, (list, tuple, set)) else None
+        )
+        unmatched_trade_count = self._normalise_ctp_unmatched_trade_count(execution_summary)
+        position_lots: Optional[float] = 0.0
+        for row in position_rows:
+            raw_position = next(
+                (
+                    row.get(key)
+                    for key in ("quantity", "size", "volume", "Position")
+                    if row.get(key) not in (None, "")
+                ),
+                0.0,
+            )
+            try:
+                position_lots += abs(float(raw_position))
+            except (TypeError, ValueError):
+                position_lots = None
+                break
+        try:
+            query_completed_monotonic = float(time.monotonic())
+        except (TypeError, ValueError, OverflowError):
+            query_completed_monotonic = math.nan
+        try:
+            query_started_value = float(query_started_monotonic)
+        except (TypeError, ValueError, OverflowError):
+            query_started_value = math.nan
+        if not math.isfinite(query_started_value) or query_started_value < 0:
+            errors.append("bundle_query_started_monotonic_invalid")
+        if not math.isfinite(query_completed_monotonic) or query_completed_monotonic < 0:
+            errors.append("bundle_query_completed_monotonic_invalid")
+        elif math.isfinite(query_started_value) and query_completed_monotonic < query_started_value:
+            errors.append("bundle_query_completed_monotonic_before_started")
+        evidence_errors = sorted(set(errors))
+        all_last_seen = all(result.get("is_last_seen") is True for result in query_results.values())
+        timed_out = any(bool(result.get("timed_out")) for result in query_results.values())
+        first_error = next(
+            (
+                result.get("error_code")
+                for result in query_results.values()
+                if result.get("error_code") not in (None, "", 0, "0")
+            ),
+            evidence_errors[0] if evidence_errors else None,
+        )
+        snapshot = {
+            "schema_version": "backtrader.ctp.bundle-preflight.v2",
+            "captured_at_utc": _dt.datetime.now(_UTC).isoformat(),
+            "read_only": True,
+            "execution_eligible": False,
+            "exchange_id": parsed_legs[0]["exchange_id"],
+            "primary_leg": {
+                "exchange_id": primary["exchange_id"],
+                "instrument_id": primary["instrument_id"],
+            },
+            "legs": leg_evidence,
+            "session": deepcopy(_redact_diagnostic(session)),
+            "session_before_connect": deepcopy(_redact_diagnostic(session_before_connect)),
+            "session_before": deepcopy(_redact_diagnostic(session_before)),
+            "session_after": deepcopy(_redact_diagnostic(session_after)),
+            "auto_settlement_confirm": auto_confirm,
+            "read_only_safe": auto_confirm is False and write_request_free,
+            "request_counts_before_connect": request_counts_before_connect,
+            "request_counts_after_connect": request_counts_before_query,
+            "connect_request_count_delta": connect_request_count_delta,
+            "request_counts_before_query": request_counts_before_query,
+            "request_counts_before": request_counts_before_connect,
+            "request_counts_after": request_counts_after,
+            "query_request_count_delta": query_request_count_delta,
+            "request_count_delta": request_count_delta,
+            "connect_write_request_free": connect_write_request_free,
+            "query_write_request_free": query_write_request_free,
+            "write_request_free": write_request_free,
+            "query_results": deepcopy(query_results),
+            "account": account_rows,
+            "positions": position_rows,
+            "orders": order_rows,
+            "trades": trade_rows,
+            "active_orders": active_orders,
+            "nonzero_positions": nonzero_positions,
+            "connection_generation": next(iter(query_generations), 0),
+            "account_fingerprint": next(iter(query_fingerprints), ""),
+            "trading_day": trading_day,
+            "request_ids": request_ids,
+            "all_request_ids": all_request_ids,
+            "complete": not evidence_errors,
+            "evidence_complete": not evidence_errors,
+            "evidence_errors": evidence_errors,
+            "is_last_seen": all_last_seen,
+            "timed_out": timed_out,
+            "error_code": first_error,
+            "started_monotonic": query_started_monotonic,
+            "completed_monotonic": query_completed_monotonic,
+            "position_lots": position_lots,
+            "active_order_count": len(active_orders),
+            "unknown_intent_count": unknown_intent_count,
+            "unmatched_trade_count": unmatched_trade_count,
+            "execution_summary": deepcopy(_redact_diagnostic(execution_summary)),
+            "flat": not active_orders and not nonzero_positions,
+        }
+        snapshot["snapshot_sha256"] = self._ctp_bundle_snapshot_sha256(snapshot)
+        # Keep the latest bundle evidence separate from the V1 single-leg
+        # history.  Arming must consume this exact scope and must re-fence it
+        # against the current account/day/generation before any SDK write.
+        self._last_ctp_bundle_preflight_snapshot = deepcopy(snapshot)
+        return snapshot
+
+    def get_ctp_bundle_quote_reference_snapshot(
+        self,
+        legs: Any,
+        *,
+        primary_leg: Any = None,
+        primary_instrument_id: Any = None,
+        timeout: float = 15.0,
+    ) -> Dict[str, Any]:
+        """Refresh only depth quotes against one already-frozen bundle preflight.
+
+        This is deliberately not a shortcut to ``get_ctp_bundle_preflight_snapshot``.
+        It cannot establish a new account/position/order/trade observation and
+        consequently remains fail-closed until a complete, read-only bundle
+        preflight already exists on this exact Store instance.
+        """
+        raw_legs = list(legs) if not isinstance(legs, (list, tuple)) else list(legs)
+        parsed_legs = self._normalise_ctp_bundle_legs(
+            raw_legs,
+            primary_leg=primary_leg,
+            primary_instrument_id=primary_instrument_id,
+        )
+        if len(parsed_legs) != 3:
+            return self._finish_ctp_bundle_quote_reference_snapshot(
+                {}, {}, ["bundle_quote_reference_requires_exactly_three_legs"], parsed_legs
+            )
+        try:
+            total_timeout = float(timeout)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("CTP bundle quote timeout must be finite and nonnegative") from exc
+        if not math.isfinite(total_timeout) or total_timeout < 0:
+            raise ValueError("CTP bundle quote timeout must be finite and nonnegative")
+
+        frozen = self._last_ctp_bundle_preflight_snapshot
+        if frozen is None:
+            return self._finish_ctp_bundle_quote_reference_snapshot(
+                {}, {}, ["bundle_quote_preflight_snapshot_missing"], parsed_legs
+            )
+        preflight = deepcopy(frozen)
+        try:
+            scope = self._ctp_bundle_snapshot_scope(preflight)
+        except BtApiStoreError:
+            return self._finish_ctp_bundle_quote_reference_snapshot(
+                preflight, {}, ["bundle_quote_preflight_snapshot_invalid"], parsed_legs
+            )
+
+        errors: List[str] = []
+        requested_scope = sorted(
+            f"{leg['exchange_id']}.{leg['instrument_id']}" for leg in parsed_legs
+        )
+        requested_primary = next(
+            f"{leg['exchange_id']}.{leg['instrument_id']}"
+            for leg in parsed_legs
+            if leg["is_primary"] is True
+        )
+        if requested_scope != list(scope.get("authorized_instruments") or ()):
+            errors.append("bundle_quote_requested_legs_mismatch")
+        if requested_primary != scope.get("instrument"):
+            errors.append("bundle_quote_requested_primary_mismatch")
+
+        expected_account = self._normalized_account_fingerprint(scope.get("account_fingerprint"))
+        expected_day = self._ctp_bundle_valid_trading_day(scope.get("trading_day"))
+        try:
+            expected_generation = int(scope.get("connection_generation") or 0)
+        except (TypeError, ValueError):
+            expected_generation = 0
+        if not expected_account:
+            errors.append("bundle_quote_preflight_account_fingerprint_invalid")
+        if not expected_day:
+            errors.append("bundle_quote_preflight_trading_day_invalid")
+        if expected_generation <= 0:
+            errors.append("bundle_quote_preflight_generation_invalid")
+        if not self._is_ctp_session_provider():
+            errors.append("bundle_quote_ctp_provider_unavailable")
+
+        session_before = self._read_ctp_session_state()
+        before_counts = self._ctp_request_counts(session_before)
+        try:
+            current_generation = int(session_before.get("connection_generation") or 0)
+        except (TypeError, ValueError):
+            current_generation = 0
+        current_account = self._normalized_account_fingerprint(
+            session_before.get("account_fingerprint")
+        )
+        current_day = self._ctp_bundle_valid_trading_day(session_before.get("trading_day"))
+        if current_generation != expected_generation:
+            errors.append("bundle_quote_current_generation_mismatch")
+        if current_account != expected_account:
+            errors.append("bundle_quote_current_account_fingerprint_mismatch")
+        if current_day != expected_day:
+            errors.append("bundle_quote_current_trading_day_mismatch")
+        if session_before.get("read_only_ready") is not True and session_before.get("ready") is not True:
+            errors.append("bundle_quote_current_session_not_ready")
+        if errors:
+            return self._finish_ctp_bundle_quote_reference_snapshot(
+                preflight,
+                {},
+                errors,
+                parsed_legs,
+                scope=scope,
+                current_session=session_before,
+            )
+
+        deadline = time.monotonic() + total_timeout if total_timeout > 0 else None
+        targets = self._ctp_query_targets()
+        target = targets[0] if targets else None
+        results: Dict[str, Dict[str, Any]] = {}
+        request_windows: Dict[str, Tuple[_dt.datetime, _dt.datetime]] = {}
+
+        def run_depth(index: int, leg: Mapping[str, Any]) -> None:
+            label = f"leg[{index}].depth_market_data"
+            sent_at = _dt.datetime.now(_UTC)
+            try:
+                sent_monotonic = float(time.monotonic())
+            except (TypeError, ValueError, OverflowError):
+                sent_monotonic = math.nan
+            if target is None:
+                result = self._ctp_query_failure(
+                    "depth_market_data", session_before, "query_capability_unavailable"
+                )
+            else:
+                request_timeout = (
+                    self._reserve_ctp_query_slot(deadline) if deadline is not None else 0.0
+                )
+                if request_timeout is None:
+                    result = self._ctp_query_failure(
+                        "depth_market_data", session_before, "query_deadline_exceeded"
+                    )
+                else:
+                    sent_at = _dt.datetime.now(_UTC)
+                    try:
+                        sent_monotonic = float(time.monotonic())
+                    except (TypeError, ValueError, OverflowError):
+                        sent_monotonic = math.nan
+                    try:
+                        result = self._normalise_ctp_query_result(
+                            self._invoke_ctp_query(
+                                target,
+                                "depth_market_data",
+                                "query_depth_market_data_result",
+                                timeout=request_timeout,
+                                kwargs={
+                                    "instrument_id": leg["instrument_id"],
+                                    "exchange_id": leg["exchange_id"],
+                                },
+                            ),
+                            "depth_market_data",
+                        )
+                    except Exception as exc:
+                        result = self._ctp_query_failure(
+                            "depth_market_data", session_before, type(exc).__name__
+                        )
+            received_at = _dt.datetime.now(_UTC)
+            try:
+                received_monotonic = float(time.monotonic())
+            except (TypeError, ValueError, OverflowError):
+                received_monotonic = math.nan
+            result["requested_at_utc"] = sent_at.isoformat()
+            result["received_at_utc"] = received_at.isoformat()
+            result["requested_monotonic"] = sent_monotonic
+            result["received_monotonic"] = received_monotonic
+            results[label] = result
+            request_windows[label] = (sent_at, received_at)
+
+        with self._ctp_query_lock:
+            for index, leg in enumerate(parsed_legs):
+                run_depth(index, leg)
+
+        quote_evidence: Dict[int, Dict[str, Any]] = {}
+        for index, leg in enumerate(parsed_legs):
+            label = f"leg[{index}].depth_market_data"
+            result = results[label]
+            if not self._ctp_query_result_complete(result):
+                errors.append(f"{label}_query_incomplete")
+            if result.get("schema_version") in (None, ""):
+                errors.append(f"{label}_schema_version_missing")
+            if self._normalized_account_fingerprint(result.get("account_fingerprint")) != expected_account:
+                errors.append(f"{label}_account_fingerprint_mismatch")
+            try:
+                result_generation = int(result.get("connection_generation") or 0)
+            except (TypeError, ValueError):
+                result_generation = 0
+            if result_generation != expected_generation:
+                errors.append(f"{label}_connection_generation_mismatch")
+            if self._ctp_bundle_valid_trading_day(result.get("trading_day")) != expected_day:
+                errors.append(f"{label}_trading_day_mismatch")
+            errors.extend(
+                self._ctp_bundle_query_time_errors(
+                    result,
+                    label=label,
+                    requested_at_utc=request_windows[label][0],
+                    received_at_utc=request_windows[label][1],
+                )
+            )
+            record, record_errors = self._ctp_execution_reference_record(
+                result.get("records"), leg, label=label
+            )
+            errors.extend(record_errors)
+            quote, quote_errors = self._ctp_execution_reference_quote(record, label=label)
+            errors.extend(quote_errors)
+            quote_evidence[index] = {
+                "instrument_id": leg["instrument_id"],
+                "exchange_id": leg["exchange_id"],
+                "bid_price": quote.get("bid_price") if quote is not None else None,
+                "ask_price": quote.get("ask_price") if quote is not None else None,
+                "bid_volume": quote.get("bid_volume") if quote is not None else None,
+                "ask_volume": quote.get("ask_volume") if quote is not None else None,
+                "entry_buy_price": quote.get("ask_price") if quote is not None else None,
+                "exit_sell_price": quote.get("bid_price") if quote is not None else None,
+                "requested_at_utc": result.get("requested_at_utc"),
+                "received_at_utc": result.get("received_at_utc"),
+                "requested_monotonic": result.get("requested_monotonic"),
+                "received_monotonic": result.get("received_monotonic"),
+                "request_id": result.get("request_id"),
+            }
+
+        request_ids: Dict[str, int] = {}
+        for label, result in results.items():
+            try:
+                request_id = int(result.get("request_id") or 0)
+            except (TypeError, ValueError):
+                request_id = 0
+            request_ids[label] = request_id
+        if any(value <= 0 for value in request_ids.values()):
+            errors.append("bundle_quote_request_id_missing")
+        elif len(set(request_ids.values())) != len(request_ids):
+            errors.append("bundle_quote_request_id_not_unique")
+
+        session_after = self._read_ctp_session_state()
+        after_counts = self._ctp_request_counts(session_after)
+        request_count_delta = self._ctp_request_count_delta(before_counts, after_counts)
+        write_request_free = bool(
+            request_count_delta is not None
+            and all(request_count_delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES)
+        )
+        if not write_request_free:
+            errors.append("bundle_quote_write_request_evidence_invalid")
+        try:
+            after_generation = int(session_after.get("connection_generation") or 0)
+        except (TypeError, ValueError):
+            after_generation = 0
+        if after_generation != expected_generation:
+            errors.append("bundle_quote_session_generation_changed")
+        if self._normalized_account_fingerprint(session_after.get("account_fingerprint")) != expected_account:
+            errors.append("bundle_quote_session_account_fingerprint_changed")
+        if self._ctp_bundle_valid_trading_day(session_after.get("trading_day")) != expected_day:
+            errors.append("bundle_quote_session_trading_day_changed")
+        if session_after.get("read_only_ready") is not True and session_after.get("ready") is not True:
+            errors.append("bundle_quote_session_not_ready")
+        return self._finish_ctp_bundle_quote_reference_snapshot(
+            preflight,
+            results,
+            errors,
+            parsed_legs,
+            quote_evidence=quote_evidence,
+            request_count_delta=request_count_delta,
+            write_request_free=write_request_free,
+            scope=scope,
+            current_session=session_after,
+            request_ids=request_ids,
+        )
+
+    def _finish_ctp_bundle_quote_reference_snapshot(
+        self,
+        preflight: Mapping[str, Any],
+        results: Mapping[str, Any],
+        errors: Iterable[str],
+        parsed_legs: Iterable[Mapping[str, Any]],
+        *,
+        quote_evidence: Optional[Mapping[int, Mapping[str, Any]]] = None,
+        request_count_delta: Optional[Mapping[str, int]] = None,
+        write_request_free: bool = False,
+        scope: Optional[Mapping[str, Any]] = None,
+        current_session: Optional[Mapping[str, Any]] = None,
+        request_ids: Optional[Mapping[str, int]] = None,
+    ) -> Dict[str, Any]:
+        """Return a credential-safe, quote-only result regardless of failure mode."""
+        quote_evidence = quote_evidence or {}
+        canonical_legs = []
+        for index, leg in enumerate(parsed_legs):
+            quote = quote_evidence.get(index, {})
+            canonical_legs.append(
+                {
+                    "instrument_id": leg["instrument_id"],
+                    "exchange_id": leg["exchange_id"],
+                    "bid_price": quote.get("bid_price"),
+                    "ask_price": quote.get("ask_price"),
+                    "bid_volume": quote.get("bid_volume"),
+                    "ask_volume": quote.get("ask_volume"),
+                    "entry_buy_price": quote.get("entry_buy_price"),
+                    "exit_sell_price": quote.get("exit_sell_price"),
+                    "requested_at_utc": quote.get("requested_at_utc"),
+                    "received_at_utc": quote.get("received_at_utc"),
+                    "requested_monotonic": quote.get("requested_monotonic"),
+                    "received_monotonic": quote.get("received_monotonic"),
+                    "request_id": quote.get("request_id"),
+                }
+            )
+        snapshot = {
+            "schema_version": "backtrader.ctp.bundle-quote-reference.v1",
+            "read_only": True,
+            "quote_only": True,
+            "execution_eligible": False,
+            "bundle_preflight": deepcopy(dict(preflight)),
+            "bundle_scope": deepcopy(dict(scope or {})),
+            "current_session": deepcopy(_redact_diagnostic(current_session or {})),
+            "query_results": deepcopy(dict(results)),
+            "legs": canonical_legs,
+            "request_ids": deepcopy(dict(request_ids or {})),
+            "request_count_delta": deepcopy(dict(request_count_delta or {})),
+            "write_request_free": write_request_free,
+            "evidence_errors": sorted(set(str(item) for item in errors)),
+        }
+        snapshot["evidence_complete"] = bool(
+            not snapshot["evidence_errors"] and write_request_free and len(canonical_legs) == 3
+        )
+        snapshot["complete"] = snapshot["evidence_complete"]
+        snapshot["read_only_safe"] = bool(
+            snapshot["evidence_complete"]
+            and preflight.get("read_only_safe") is True
+            and preflight.get("write_request_free") is True
+        )
+        snapshot["snapshot_sha256"] = self._ctp_bundle_snapshot_sha256(snapshot)
+        return snapshot
+
+    def get_ctp_bundle_execution_reference_snapshot(
+        self,
+        legs: Any,
+        *,
+        primary_leg: Any = None,
+        primary_instrument_id: Any = None,
+        timeout: float = 15.0,
+    ) -> Dict[str, Any]:
+        """Return read-only executable quotes and typed option-cost evidence.
+
+        The existing bundle preflight is the mandatory Stage-A gate.  This
+        method only adds depth and reference-cost queries through that same
+        managed client; it never confirms settlement, arms execution, or
+        submits/cancels an order.  A price in this snapshot is evidence, not a
+        fill or an execution authorization.
+        """
+        raw_legs = list(legs) if not isinstance(legs, (list, tuple)) else list(legs)
+        preflight = self.get_ctp_bundle_preflight_snapshot(
+            raw_legs,
+            primary_leg=primary_leg,
+            primary_instrument_id=primary_instrument_id,
+            timeout=timeout,
+            read_only=True,
+        )
+        errors = list(preflight.get("evidence_errors") or [])
+        if preflight.get("evidence_complete") is not True or preflight.get("read_only_safe") is not True:
+            return self._finish_ctp_execution_reference_snapshot(
+                preflight, {}, errors + ["bundle_preflight_not_safe"]
+            )
+        parsed_legs = self._normalise_ctp_bundle_legs(
+            raw_legs, primary_leg=primary_leg, primary_instrument_id=primary_instrument_id
+        )
+        session = preflight.get("session_after") or preflight.get("session") or {}
+        expected_generation = session.get("connection_generation")
+        expected_account = str(session.get("account_fingerprint") or "")
+        expected_day = str(session.get("trading_day") or "")
+        if not expected_account or not expected_day or not expected_generation:
+            return self._finish_ctp_execution_reference_snapshot(
+                preflight, {}, errors + ["execution_reference_session_identity_missing"]
+            )
+        before_session = self._read_ctp_session_state()
+        before_counts = self._ctp_request_counts(before_session)
+        started = time.monotonic()
+        # Rate-limit every reference query against the caller's total budget;
+        # reserving with a None deadline collapses the slot to a zero timeout
+        # and turns flow-control waits into spurious query timeouts.
+        total_timeout = max(float(timeout), 0.0)
+        deadline = started + total_timeout if total_timeout > 0 else None
+        targets = self._ctp_query_targets()
+        target = targets[0] if targets else None
+        results: Dict[str, Dict[str, Any]] = {}
+        request_windows: Dict[str, Tuple[Any, Any]] = {}
+
+        def run(label: str, request_type: str, method_name: str, kwargs: Mapping[str, Any]) -> None:
+            sent_at = _dt.datetime.now(_UTC)
+            sent_mono = time.monotonic()
+            if target is None:
+                result = self._ctp_query_failure(request_type, before_session, "query_capability_unavailable")
+            else:
+                try:
+                    slot = self._reserve_ctp_query_slot(deadline)
+                    result = self._normalise_ctp_query_result(
+                        self._invoke_ctp_query(
+                            target, request_type, method_name, timeout=slot or 0.0, kwargs=kwargs
+                        ),
+                        request_type,
+                    )
+                except Exception as exc:
+                    result = self._ctp_query_failure(request_type, before_session, type(exc).__name__)
+            received_at = _dt.datetime.now(_UTC)
+            result["requested_at_utc"] = sent_at.isoformat()
+            result["received_at_utc"] = received_at.isoformat()
+            result["requested_monotonic"] = sent_mono
+            result["received_monotonic"] = time.monotonic()
+            results[label] = result
+            request_windows[label] = (sent_at, received_at)
+
+        for index, leg in enumerate(parsed_legs):
+            run(
+                f"leg[{index}].depth_market_data",
+                "depth_market_data",
+                "query_depth_market_data_result",
+                {"instrument_id": leg["instrument_id"], "exchange_id": leg["exchange_id"]},
+            )
+        leg_metadata = [item.get("metadata") or {} for item in preflight.get("legs", [])]
+        prices: Dict[int, float] = {}
+        quotes: Dict[int, Dict[str, Any]] = {}
+        for index, leg in enumerate(parsed_legs):
+            result = results.get(f"leg[{index}].depth_market_data", {})
+            record, local_errors = self._ctp_execution_reference_record(
+                result.get("records"), leg, label=f"leg[{index}].depth_market_data"
+            )
+            errors.extend(local_errors)
+            quote, price_errors = self._ctp_execution_reference_quote(
+                record, label=f"leg[{index}].depth_market_data"
+            )
+            errors.extend(price_errors)
+            if quote is not None:
+                quotes[index] = {
+                    **quote,
+                    "instrument_id": leg["instrument_id"],
+                    "exchange_id": leg["exchange_id"],
+                    "entry_buy_price": quote["ask_price"],
+                    "exit_sell_price": quote["bid_price"],
+                    "requested_at_utc": result.get("requested_at_utc"),
+                    "received_at_utc": result.get("received_at_utc"),
+                    "requested_monotonic": result.get("requested_monotonic"),
+                    "received_monotonic": result.get("received_monotonic"),
+                }
+                # Cost input is the executable entry side, never an arbitrary
+                # lattice price: buys bind to ask.
+                prices[index] = quote["ask_price"]
+
+        future_index = next(
+            (index for index, metadata in enumerate(leg_metadata) if metadata.get("asset_type") == "future"),
+            None,
+        )
+        if future_index is None or future_index not in prices:
+            errors.append("future_execution_price_unavailable")
+        for index, metadata in enumerate(leg_metadata):
+            if metadata.get("asset_type") != "option":
+                continue
+            option_price = prices.get(index)
+            future_price = prices.get(future_index) if future_index is not None else None
+            if option_price is None or future_price is None:
+                errors.append(f"leg[{index}].option_trade_cost_input_unavailable")
+                continue
+            leg = parsed_legs[index]
+            run(
+                f"leg[{index}].option_trade_cost",
+                "option_trade_cost",
+                "query_option_instrument_trade_cost_result",
+                {
+                    "instrument_id": leg["instrument_id"],
+                    "exchange_id": leg["exchange_id"],
+                    "hedge_flag": "1",
+                    "input_price": option_price,
+                    "underlying_price": future_price,
+                },
+            )
+            run(
+                f"leg[{index}].option_commission_rate",
+                "option_commission_rate",
+                "query_option_instrument_commission_rate_result",
+                {"instrument_id": leg["instrument_id"], "exchange_id": leg["exchange_id"]},
+            )
+            for field in ("option_trade_cost", "option_commission_rate"):
+                result = results[f"leg[{index}].{field}"]
+                if not self._ctp_query_result_complete(result):
+                    errors.append(f"leg[{index}].{field}_query_incomplete")
+                record, local_errors = self._ctp_execution_reference_record(
+                    result.get("records"), leg, label=f"leg[{index}].{field}",
+                    require_exchange=False,
+                )
+                errors.extend(local_errors)
+                if record is None:
+                    continue
+                if field == "option_trade_cost":
+                    errors.extend(self._ctp_bundle_option_trade_cost_evidence_errors(
+                        record, label=f"leg[{index}].option_trade_cost"
+                    ))
+                else:
+                    errors.extend(self._ctp_bundle_commission_evidence_errors(
+                        record, label=f"leg[{index}].option_commission_rate"
+                    ))
+
+        after_session = self._read_ctp_session_state()
+        after_counts = self._ctp_request_counts(after_session)
+        delta = self._ctp_request_count_delta(before_counts, after_counts)
+        write_free = bool(delta is not None and all(delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES))
+        if not write_free:
+            errors.append("execution_reference_write_request_evidence_invalid")
+        for label, result in results.items():
+            if not self._ctp_query_result_complete(result):
+                errors.append(f"{label}_query_incomplete")
+            if result.get("schema_version") in (None, ""):
+                errors.append(f"{label}_schema_version_missing")
+            if result.get("account_fingerprint") != expected_account:
+                errors.append(f"{label}_account_fingerprint_mismatch")
+            if result.get("connection_generation") != expected_generation:
+                errors.append(f"{label}_connection_generation_mismatch")
+            if result.get("trading_day") != expected_day:
+                errors.append(f"{label}_trading_day_mismatch")
+            errors.extend(self._ctp_bundle_query_time_errors(
+                result, label=label, requested_at_utc=request_windows[label][0],
+                received_at_utc=request_windows[label][1]
+            ))
+        request_ids = [
+            result.get("request_id") for result in results.values()
+            if result.get("request_id") not in (None, "", 0, "0")
+        ]
+        if len(request_ids) != len(set(request_ids)):
+            errors.append("execution_reference_request_id_not_unique")
+        if after_session.get("connection_generation") != expected_generation or after_session.get("trading_day") != expected_day:
+            errors.append("execution_reference_session_changed")
+        broker_contract_metadata, metadata_errors = self._build_ctp_broker_contract_metadata(
+            preflight, results, parsed_legs, prices, quotes
+        )
+        errors.extend(metadata_errors)
+        return self._finish_ctp_execution_reference_snapshot(
+            preflight, results, errors, request_count_delta=delta, write_request_free=write_free,
+            prices=prices, broker_contract_metadata=broker_contract_metadata,
+            quote_evidence=quotes, parsed_legs=parsed_legs,
+        )
+
+    def _build_ctp_broker_contract_metadata(
+        self,
+        preflight: Mapping[str, Any],
+        results: Mapping[str, Any],
+        parsed_legs: Iterable[Mapping[str, str]],
+        prices: Mapping[int, float],
+        quotes: Mapping[int, Mapping[str, Any]],
+    ) -> Tuple[Optional[Dict[str, Any]], List[str]]:
+        """Build broker input metadata solely from complete verified CTP records."""
+        legs = list(parsed_legs)
+        evidence = preflight.get("legs")
+        if not isinstance(evidence, list) or len(evidence) != len(legs):
+            return None, ["broker_contract_metadata_leg_evidence_missing"]
+        errors: List[str] = []
+        output: List[Dict[str, Any]] = []
+
+        def number(row: Mapping[str, Any], names: Tuple[str, ...], label: str, positive: bool = False):
+            value, numeric_error = self._ctp_bundle_finite_numeric_aliases(row, names)
+            if numeric_error is not None or value is None or (positive and value <= 0):
+                errors.append(f"broker_contract_{label}_missing_or_invalid")
+                return None
+            return value
+
+        generic_commission = (
+            (("OpenRatioByMoney", "open_ratio_by_money"), "open_ratio_by_money"),
+            (("OpenRatioByVolume", "open_ratio_by_volume"), "open_ratio_by_volume"),
+            (("CloseRatioByMoney", "close_ratio_by_money"), "close_ratio_by_money"),
+            (("CloseRatioByVolume", "close_ratio_by_volume"), "close_ratio_by_volume"),
+            (("CloseTodayRatioByMoney", "close_today_ratio_by_money"), "close_today_ratio_by_money"),
+            (("CloseTodayRatioByVolume", "close_today_ratio_by_volume"), "close_today_ratio_by_volume"),
+        )
+        generic_margin = (
+            (("LongMarginRatioByMoney", "long_margin_ratio_by_money"), "long_margin_ratio_by_money"),
+            (("LongMarginRatioByVolume", "long_margin_ratio_by_volume"), "long_margin_ratio_by_volume"),
+            (("ShortMarginRatioByMoney", "short_margin_ratio_by_money"), "short_margin_ratio_by_money"),
+            (("ShortMarginRatioByVolume", "short_margin_ratio_by_volume"), "short_margin_ratio_by_volume"),
+        )
+        option_cost_fields = ("FixedMargin", "MiniMargin", "Royalty", "ExchFixedMargin", "ExchMiniMargin")
+        for index, (leg, item) in enumerate(zip(legs, evidence)):
+            instrument = item.get("instrument")
+            metadata = item.get("metadata")
+            if not isinstance(instrument, Mapping) or not isinstance(metadata, Mapping):
+                errors.append(f"broker_contract_leg[{index}]_instrument_evidence_missing")
+                continue
+            if item.get("evidence_complete") is not True:
+                errors.append(f"broker_contract_leg[{index}]_preflight_incomplete")
+            if instrument.get("InstrumentID") != leg["instrument_id"]:
+                errors.append(f"broker_contract_leg[{index}]_instrument_identity_mismatch")
+            if instrument.get("ExchangeID") != leg["exchange_id"]:
+                errors.append(f"broker_contract_leg[{index}]_exchange_identity_mismatch")
+            tick = number(instrument, ("PriceTick", "price_tick", "tick_size"), f"leg[{index}]_price_tick", True)
+            multiplier = number(
+                instrument,
+                ("VolumeMultiple", "volume_multiple", "multiplier", "contract_size"),
+                f"leg[{index}]_multiplier",
+                True,
+            )
+            reference_price = prices.get(index)
+            if reference_price is None or not math.isfinite(float(reference_price)) or reference_price <= 0:
+                errors.append(f"broker_contract_leg[{index}]_reference_price_missing_or_invalid")
+            asset_type = metadata.get("asset_type")
+            quote = quotes.get(index)
+            if not isinstance(quote, Mapping):
+                errors.append(f"broker_contract_leg[{index}]_quote_evidence_missing")
+            commission_row = item.get("commission_rate")
+            if asset_type == "option":
+                commission_result = results.get(f"leg[{index}].option_commission_rate", {})
+                commission_rows = commission_result.get("records") if isinstance(commission_result, Mapping) else None
+                commission_row, commission_errors = self._ctp_execution_reference_record(
+                    commission_rows, leg,
+                    label=f"broker_contract_leg[{index}].option_commission_rate",
+                    require_exchange=False,
+                )
+                errors.extend(commission_errors)
+            commission: Dict[str, float] = {}
+            if not isinstance(commission_row, Mapping):
+                errors.append(f"broker_contract_leg[{index}]_commission_evidence_missing")
+            else:
+                for names, field in generic_commission:
+                    value = number(commission_row, names, f"leg[{index}]_{field}")
+                    if value is not None:
+                        commission[field] = value
+            margin: Dict[str, float] = {}
+            if asset_type == "future":
+                margin_row = item.get("margin_rate")
+                if not isinstance(margin_row, Mapping):
+                    errors.append(f"broker_contract_leg[{index}]_margin_evidence_missing")
+                else:
+                    for names, field in generic_margin:
+                        value = number(margin_row, names, f"leg[{index}]_{field}")
+                        if value is not None:
+                            margin[field] = value
+            elif asset_type != "option":
+                errors.append(f"broker_contract_leg[{index}]_asset_type_invalid")
+            entry = {
+                "instrument_id": leg["instrument_id"],
+                "exchange_id": leg["exchange_id"],
+                "raw_instrument_id": instrument.get("InstrumentID"),
+                "symbol_aliases": [f"{leg['exchange_id']}.{leg['instrument_id']}", leg["instrument_id"]],
+                "product_id": instrument.get("ProductID"),
+                "asset_type": asset_type,
+                "price_tick": tick,
+                "multiplier": multiplier,
+                "reference_price": reference_price,
+                "bid_price": quote.get("bid_price") if isinstance(quote, Mapping) else None,
+                "ask_price": quote.get("ask_price") if isinstance(quote, Mapping) else None,
+                "bid_volume": quote.get("bid_volume") if isinstance(quote, Mapping) else None,
+                "ask_volume": quote.get("ask_volume") if isinstance(quote, Mapping) else None,
+                "entry_buy_price": quote.get("ask_price") if isinstance(quote, Mapping) else None,
+                "exit_sell_price": quote.get("bid_price") if isinstance(quote, Mapping) else None,
+                "quote_timing": {
+                    key: quote.get(key) for key in (
+                        "requested_at_utc", "received_at_utc",
+                        "requested_monotonic", "received_monotonic",
+                    )
+                } if isinstance(quote, Mapping) else None,
+                "commission": commission,
+            }
+            if asset_type == "future":
+                entry["margin"] = margin
+            else:
+                cost_result = results.get(f"leg[{index}].option_trade_cost", {})
+                cost_rows = cost_result.get("records") if isinstance(cost_result, Mapping) else None
+                cost, cost_errors = self._ctp_execution_reference_record(
+                    cost_rows, leg, label=f"broker_contract_leg[{index}].option_trade_cost", require_exchange=False
+                )
+                errors.extend(cost_errors)
+                option_cost: Dict[str, float] = {}
+                if cost is None:
+                    errors.append(f"broker_contract_leg[{index}]_option_cost_evidence_missing")
+                else:
+                    for field in option_cost_fields:
+                        value = number(cost, (field,), f"leg[{index}]_option_{field.lower()}")
+                        if value is not None:
+                            option_cost[field] = value
+                entry["option_premium"] = reference_price
+                entry["option_trade_cost"] = option_cost
+                entry["option_commission"] = commission
+            output.append(entry)
+        if errors:
+            return None, sorted(set(errors))
+        return {
+            "schema_version": "backtrader.ctp.broker-contract-metadata.v1",
+            "verified_from": "backtrader.ctp.bundle-execution-reference.v1",
+            "read_only_evidence": True,
+            "legs": output,
+        }, []
+
+    def _finish_ctp_execution_reference_snapshot(
+        self, preflight: Mapping[str, Any], results: Mapping[str, Any], errors: Iterable[str],
+        *, request_count_delta: Optional[Mapping[str, int]] = None,
+        write_request_free: bool = False, prices: Optional[Mapping[int, float]] = None,
+        broker_contract_metadata: Optional[Mapping[str, Any]] = None,
+        quote_evidence: Optional[Mapping[int, Mapping[str, Any]]] = None,
+        parsed_legs: Optional[Iterable[Mapping[str, str]]] = None,
+    ) -> Dict[str, Any]:
+        snapshot = {
+            "schema_version": "backtrader.ctp.bundle-execution-reference.v1",
+            "read_only": True,
+            "execution_eligible": False,
+            "bundle_preflight": deepcopy(dict(preflight)),
+            "query_results": deepcopy(dict(results)),
+            "prices": {str(key): value for key, value in (prices or {}).items()},
+            "legs": [
+                {
+                    "instrument_id": leg["instrument_id"],
+                    "exchange_id": leg["exchange_id"],
+                    **dict((quote_evidence or {}).get(index, {})),
+                }
+                for index, leg in enumerate(parsed_legs or [])
+            ],
+            "broker_contract_metadata": deepcopy(dict(broker_contract_metadata))
+            if broker_contract_metadata is not None else None,
+            "request_count_delta": deepcopy(dict(request_count_delta or {})),
+            "write_request_free": write_request_free,
+            "evidence_errors": sorted(set(str(item) for item in errors)),
+        }
+        snapshot["evidence_complete"] = not snapshot["evidence_errors"] and write_request_free
+        snapshot["broker_contract_metadata_complete"] = bool(
+            snapshot["evidence_complete"] and snapshot["broker_contract_metadata"] is not None
+        )
+        if not snapshot["broker_contract_metadata_complete"]:
+            snapshot["broker_contract_metadata"] = None
+        snapshot["snapshot_sha256"] = self._ctp_bundle_snapshot_sha256(snapshot)
+        return snapshot
+
+    @staticmethod
+    def _ctp_execution_reference_record(
+        records: Any, leg: Mapping[str, str], *, label: str, require_exchange: bool = True
+    ) -> Tuple[Optional[Dict[str, Any]], List[str]]:
+        # Some CTP fronts (SimNow included) treat the InstrumentID query
+        # filter as a prefix match and return the whole product chain.  The
+        # signed leg identity is still enforced exactly: filter to the one
+        # row whose InstrumentID equals the requested leg before applying
+        # the single-record contract.
+        if isinstance(records, list):
+            exact_rows = [
+                row
+                for row in records
+                if isinstance(row, Mapping)
+                and str(
+                    row.get("InstrumentID", row.get("instrument_id", ""))
+                ).strip()
+                == str(leg["instrument_id"]).strip()
+            ]
+        else:
+            exact_rows = None
+        if not isinstance(exact_rows, list) or len(exact_rows) != 1:
+            return None, [f"{label}_record_not_exactly_one"]
+        record = dict(exact_rows[0])
+        errors: List[str] = []
+        instruments = [record[name] for name in ("InstrumentID", "instrument_id") if name in record]
+        exchanges = [record[name] for name in ("ExchangeID", "exchange_id") if name in record]
+        if not instruments or (require_exchange and not exchanges):
+            errors.append(f"{label}_identity_alias_missing")
+        if not instruments or len(set(instruments)) > 1 or instruments[0] != leg["instrument_id"]:
+            errors.append(f"{label}_instrument_identity_mismatch")
+        # CZCE reference responses (option cost/commission in particular)
+        # legitimately omit ExchangeID; the instrument identity plus the
+        # scoped query request already fix the venue.  Only a contradictory
+        # non-empty exchange value is a mismatch.
+        if exchanges and exchanges[0] and (
+            len(set(exchanges)) > 1 or exchanges[0] != leg["exchange_id"]
+        ):
+            errors.append(f"{label}_exchange_identity_mismatch")
+        return (record if not errors else None), sorted(set(errors))
+
+    @classmethod
+    def _ctp_execution_reference_quote(
+        cls, record: Optional[Mapping[str, Any]], *, label: str
+    ) -> Tuple[Optional[Dict[str, Any]], List[str]]:
+        if record is None:
+            return None, [f"{label}_quote_missing"]
+        bid, bid_error = cls._ctp_bundle_finite_numeric_aliases(
+            record, ("BidPrice1", "bid_price_1", "bid")
+        )
+        ask, ask_error = cls._ctp_bundle_finite_numeric_aliases(
+            record, ("AskPrice1", "ask_price_1", "ask")
+        )
+        errors: List[str] = []
+        if bid_error is not None or bid is None or not 0 < bid < 1e300:
+            errors.append(f"{label}_bid_price_required")
+        if ask_error is not None or ask is None or not 0 < ask < 1e300:
+            errors.append(f"{label}_ask_price_required")
+        if not errors and bid > ask:
+            errors.append(f"{label}_bid_ask_crossed")
+        volumes: Dict[str, Optional[float]] = {"bid_volume": None, "ask_volume": None}
+        for field, names in (
+            ("bid_volume", ("BidVolume1", "bid_volume_1", "bid_volume")),
+            ("ask_volume", ("AskVolume1", "ask_volume_1", "ask_volume")),
+        ):
+            present = any(name in record and record[name] not in (None, "") for name in names)
+            if present:
+                value, value_error = cls._ctp_bundle_finite_numeric_aliases(record, names)
+                volumes[field] = value
+                if value_error is not None or value is None or value <= 0:
+                    errors.append(f"{label}_{field}_positive_required")
+        if (volumes["bid_volume"] is None) != (volumes["ask_volume"] is None):
+            errors.append(f"{label}_quote_volume_pair_required")
+        if errors:
+            return None, sorted(set(errors))
+        return {
+            "bid_price": bid,
+            "ask_price": ask,
+            "bid_volume": volumes["bid_volume"],
+            "ask_volume": volumes["ask_volume"],
+        }, []
+
+    @classmethod
+    def _ctp_execution_reference_price(
+        cls, record: Optional[Mapping[str, Any]], *, label: str
+    ) -> Tuple[Optional[float], List[str]]:
+        """Compatibility helper; execution-reference snapshots require both sides."""
+        quote, errors = cls._ctp_execution_reference_quote(record, label=label)
+        return (quote["ask_price"] if quote is not None else None), errors
 
     def get_ctp_reconciliation_snapshot(self, *, timeout: float = 5.0) -> Dict[str, Any]:
         """Query account/positions/orders/trades with terminal completion evidence."""
@@ -7950,14 +10107,545 @@ class BtApiStore(LiveStoreBase):
         return result
 
     @staticmethod
+    def _ctp_monotonic_clock_errors(
+        snapshot: Mapping[str, Any], *, label: str, now: Optional[float] = None
+    ) -> List[str]:
+        """Validate one Store-local monotonic evidence envelope.
+
+        ``started_monotonic`` and ``completed_monotonic`` are deliberately
+        checked independently for every snapshot.  They are local
+        ``time.monotonic`` values, so a value from another clock domain is
+        treated as untrusted even when it happens to be numerically recent.
+        """
+        errors: List[str] = []
+        try:
+            current = time.monotonic() if now is None else float(now)
+        except (TypeError, ValueError, OverflowError):
+            return [f"{label}_clock_now_invalid"]
+        if not math.isfinite(current) or current < 0:
+            return [f"{label}_clock_now_invalid"]
+
+        values: Dict[str, float] = {}
+        for field in ("started_monotonic", "completed_monotonic"):
+            raw = snapshot.get(field) if isinstance(snapshot, Mapping) else None
+            if isinstance(raw, bool):
+                errors.append(f"{label}_{field}_invalid")
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError, OverflowError):
+                errors.append(f"{label}_{field}_invalid")
+                continue
+            if not math.isfinite(value) or value < 0:
+                errors.append(f"{label}_{field}_invalid")
+                continue
+            values[field] = value
+
+        started = values.get("started_monotonic")
+        completed = values.get("completed_monotonic")
+        max_age_value: Optional[float] = None
+        if "_ctp_query_max_age_seconds" in snapshot:
+            max_age = snapshot.get("_ctp_query_max_age_seconds")
+            try:
+                max_age_value = float(max_age)
+            except (TypeError, ValueError, OverflowError):
+                max_age_value = math.inf
+            if not math.isfinite(max_age_value) or max_age_value < 0:
+                errors.append(f"{label}_max_age_invalid")
+                max_age_value = None
+        if started is not None:
+            started_age = current - started
+            if started_age >= 0 and max_age_value is not None and started_age > max_age_value:
+                errors.append(f"{label}_started_stale")
+        if started is not None and started > current:
+            errors.append(f"{label}_started_monotonic_future")
+        if completed is not None:
+            age = current - completed
+            if age < 0:
+                errors.append(f"{label}_completed_monotonic_future")
+            elif max_age_value is not None and age > max_age_value:
+                errors.append(f"{label}_stale")
+        if started is not None and completed is not None and completed < started:
+            errors.append(f"{label}_completed_before_started")
+        return sorted(set(errors))
+
+    def _validate_ctp_snapshot_clock(self, snapshot: Mapping[str, Any], *, label: str) -> None:
+        """Reject a snapshot whose monotonic age cannot be trusted."""
+        if not isinstance(snapshot, Mapping):
+            raise BtApiStoreError(f"CTP {label} snapshot clock is invalid")
+        checked = dict(snapshot)
+        checked["_ctp_query_max_age_seconds"] = self._ctp_query_max_age_seconds
+        errors = self._ctp_monotonic_clock_errors(checked, label=label)
+        if errors:
+            raise BtApiStoreError(f"CTP {label} snapshot clock is invalid: {','.join(errors)}")
+
+    @classmethod
+    def _ctp_bundle_query_time_errors(
+        cls,
+        result: Mapping[str, Any],
+        *,
+        label: str,
+        requested_at_utc: Any,
+        received_at_utc: Any,
+    ) -> List[str]:
+        """Keep one direct-query result inside its Store-owned request window.
+
+        The CTP SDK and this Store run in one process and sample the same host
+        clock.  ``requested_at_utc``/``received_at_utc`` are therefore hard
+        boundaries, rather than estimates that may be widened by a guessed
+        tolerance.  The monotonic pair is sampled by the Store alongside the
+        wall-clock pair and is checked independently for local clock rollback.
+        """
+        errors: List[str] = []
+        started = cls._ctp_bundle_parse_utc_timestamp(result.get("started_at_utc"))
+        completed = cls._ctp_bundle_parse_utc_timestamp(result.get("completed_at_utc"))
+        requested = cls._ctp_bundle_parse_utc_timestamp(requested_at_utc)
+        received = cls._ctp_bundle_parse_utc_timestamp(received_at_utc)
+        if started is None:
+            errors.append(f"{label}_started_at_utc_invalid")
+        if completed is None:
+            errors.append(f"{label}_completed_at_utc_invalid")
+        if requested is None:
+            errors.append(f"{label}_requested_at_utc_invalid")
+        if received is None:
+            errors.append(f"{label}_received_at_utc_invalid")
+        if started is not None and completed is not None and completed < started:
+            errors.append(f"{label}_completed_before_query_started")
+        if requested is not None and received is not None:
+            if received < requested:
+                errors.append(f"{label}_received_before_request_sent")
+            if started is not None and started < requested:
+                errors.append(f"{label}_started_before_request_window")
+            if completed is not None and completed < requested:
+                errors.append(f"{label}_completed_before_request_sent")
+            if started is not None and started > received:
+                errors.append(f"{label}_started_after_receive_window")
+            if completed is not None and completed > received:
+                errors.append(f"{label}_completed_after_receive_window")
+
+        monotonic_values: Dict[str, float] = {}
+        for field in ("requested_monotonic", "received_monotonic"):
+            raw = result.get(field)
+            if isinstance(raw, bool):
+                errors.append(f"{label}_{field}_invalid")
+                continue
+            try:
+                value = float(raw)
+            except (TypeError, ValueError, OverflowError):
+                errors.append(f"{label}_{field}_invalid")
+                continue
+            if not math.isfinite(value) or value < 0:
+                errors.append(f"{label}_{field}_invalid")
+                continue
+            monotonic_values[field] = value
+        requested_monotonic = monotonic_values.get("requested_monotonic")
+        received_monotonic = monotonic_values.get("received_monotonic")
+        if (
+            requested_monotonic is not None
+            and received_monotonic is not None
+            and received_monotonic < requested_monotonic
+        ):
+            errors.append(f"{label}_received_monotonic_before_request")
+        return sorted(set(errors))
+
+    @staticmethod
     def _normalized_account_fingerprint(value: Any) -> str:
         account = str(value or "").strip().lower()
         return account if account.startswith("acct_") else f"acct_{account}" if account else ""
 
+    @staticmethod
+    def _canonical_ctp_bundle_instrument(value: Any, exchange_id: Any = None) -> str:
+        """Return one exact raw CTP bundle identity without V1 rewriting.
+
+        CTP option identifiers may contain hyphens and lower-case product
+        letters.  The V2 scope therefore keeps the native instrument spelling
+        and only qualifies it with the exact upper-case exchange code.
+        """
+        if not isinstance(value, str) or not value or value != value.strip():
+            return ""
+        supplied_exchange = exchange_id
+        if supplied_exchange not in (None, ""):
+            if not isinstance(supplied_exchange, str) or supplied_exchange not in _CTP_EXCHANGES:
+                return ""
+        parts = value.split(".")
+        if len(parts) == 1:
+            exchange = supplied_exchange
+            instrument = parts[0]
+        elif len(parts) == 2:
+            left, right = parts
+            left_is_exchange = left in _CTP_EXCHANGES
+            right_is_exchange = right in _CTP_EXCHANGES
+            if left_is_exchange == right_is_exchange:
+                return ""
+            exchange = left if left_is_exchange else right
+            instrument = right if left_is_exchange else left
+            if supplied_exchange not in (None, "") and supplied_exchange != exchange:
+                return ""
+        else:
+            return ""
+        if not exchange or len(instrument) > 80:
+            return ""
+        if re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*", instrument) is None or not any(
+            character.isdigit() for character in instrument
+        ):
+            return ""
+        return f"{exchange}.{instrument}"
+
+    @classmethod
+    def _normalise_ctp_execution_proof(
+        cls, proof: Mapping[str, Any], *, operation: str
+    ) -> Tuple[Dict[str, Any], bool]:
+        """Validate the closed V1 or exact V2 proof shape used by SDK calls."""
+        if not isinstance(proof, Mapping):
+            raise BtApiStoreError(f"SDK execution {operation} proof has an invalid shape")
+        fields = set(proof)
+        if fields == _CTP_EXECUTION_ARM_FIELDS:
+            return deepcopy(dict(proof)), False
+        if fields != _CTP_EXECUTION_ARM_BUNDLE_FIELDS:
+            raise BtApiStoreError(f"SDK execution {operation} proof has an invalid shape")
+        normalized = deepcopy(dict(proof))
+        if normalized.get("scope_version") != _CTP_EXECUTION_ARM_BUNDLE_SCOPE_VERSION:
+            raise BtApiStoreError(f"SDK execution {operation} bundle scope_version is invalid")
+        instrument = cls._canonical_ctp_bundle_instrument(normalized.get("instrument"))
+        if not instrument or normalized.get("instrument") != instrument:
+            raise BtApiStoreError(f"SDK execution {operation} bundle instrument is invalid")
+        authorized = normalized.get("authorized_instruments")
+        if not isinstance(authorized, (list, tuple)) or not 2 <= len(authorized) <= 3:
+            raise BtApiStoreError(f"SDK execution {operation} authorized_instruments is invalid")
+        canonical = [cls._canonical_ctp_bundle_instrument(item) for item in authorized]
+        if (
+            any(not item for item in canonical)
+            or list(authorized) != canonical
+            or canonical != sorted(canonical)
+            or len(set(canonical)) != len(canonical)
+            or len({item.partition(".")[0] for item in canonical}) != 1
+            or instrument not in canonical
+        ):
+            raise BtApiStoreError(f"SDK execution {operation} authorized_instruments is invalid")
+        normalized["authorized_instruments"] = canonical
+        return normalized, True
+
+    @classmethod
+    def _ctp_bundle_snapshot_scope(cls, snapshot: Mapping[str, Any]) -> Dict[str, Any]:
+        """Extract and validate the exact scope represented by bundle evidence."""
+        if not isinstance(snapshot, Mapping):
+            raise BtApiStoreError("CTP bundle preflight snapshot is invalid")
+        if snapshot.get("schema_version") != "backtrader.ctp.bundle-preflight.v2":
+            raise BtApiStoreError("CTP bundle preflight schema is invalid")
+        if snapshot.get("read_only") is not True or snapshot.get("read_only_safe") is not True:
+            raise BtApiStoreError("CTP bundle preflight was not read-only")
+        if snapshot.get("write_request_free") is not True:
+            raise BtApiStoreError("CTP bundle preflight write evidence is invalid")
+        if snapshot.get("evidence_complete") is not True or snapshot.get("complete") is not True:
+            raise BtApiStoreError("CTP bundle preflight evidence is incomplete")
+        if snapshot.get("evidence_errors"):
+            raise BtApiStoreError("CTP bundle preflight evidence contains errors")
+        snapshot_hash = snapshot.get("snapshot_sha256")
+        if not cls._is_sha256_hex(
+            snapshot_hash
+        ) or snapshot_hash != cls._ctp_bundle_snapshot_sha256(snapshot):
+            raise BtApiStoreError("CTP bundle preflight snapshot hash is invalid")
+        raw_legs = snapshot.get("legs")
+        if not isinstance(raw_legs, list) or len(raw_legs) not in {2, 3}:
+            raise BtApiStoreError("CTP bundle preflight leg evidence is invalid")
+        authorized = []
+        primary = []
+        for leg in raw_legs:
+            if not isinstance(leg, Mapping):
+                raise BtApiStoreError("CTP bundle preflight leg evidence is invalid")
+            exchange_id = leg.get("exchange_id")
+            instrument_id = leg.get("instrument_id")
+            qualified = cls._canonical_ctp_bundle_instrument(instrument_id, exchange_id)
+            if not qualified or qualified != f"{exchange_id}.{instrument_id}":
+                raise BtApiStoreError("CTP bundle preflight leg identity is invalid")
+            if leg.get("evidence_complete") is not True:
+                raise BtApiStoreError("CTP bundle preflight leg evidence is incomplete")
+            authorized.append(qualified)
+            if leg.get("is_primary") is True:
+                primary.append(qualified)
+            elif leg.get("is_primary") not in (False, None):
+                raise BtApiStoreError("CTP bundle preflight primary marker is invalid")
+        if len(set(authorized)) != len(authorized) or len(primary) != 1:
+            raise BtApiStoreError("CTP bundle preflight leg scope is invalid")
+        if authorized != sorted(authorized):
+            # The snapshot retains query order for diagnostics.  The signed
+            # proof uses the SDK's canonical sorted order below.
+            authorized = sorted(authorized)
+        query_results = snapshot.get("query_results")
+        if not isinstance(query_results, Mapping) or not query_results:
+            raise BtApiStoreError("CTP bundle preflight query evidence is missing")
+        complete_results = [item for item in query_results.values() if isinstance(item, Mapping)]
+        if len(complete_results) != len(query_results) or any(
+            not cls._ctp_query_result_complete(item) for item in complete_results
+        ):
+            raise BtApiStoreError("CTP bundle preflight query evidence is incomplete")
+        generations = {item.get("connection_generation") for item in complete_results}
+        accounts = {
+            cls._normalized_account_fingerprint(item.get("account_fingerprint"))
+            for item in complete_results
+        }
+        if len(generations) != 1 or len(accounts) != 1 or not next(iter(accounts), ""):
+            raise BtApiStoreError("CTP bundle preflight query identity is inconsistent")
+        snapshot_generation = snapshot.get("connection_generation")
+        if generations != {snapshot_generation}:
+            raise BtApiStoreError("CTP bundle preflight generation is inconsistent")
+        snapshot_account = cls._normalized_account_fingerprint(snapshot.get("account_fingerprint"))
+        if accounts != {snapshot_account}:
+            raise BtApiStoreError("CTP bundle preflight account is inconsistent")
+        return {
+            "instrument": primary[0],
+            "authorized_instruments": authorized,
+            "connection_generation": snapshot_generation,
+            "account_fingerprint": snapshot_account,
+            "trading_day": snapshot.get("trading_day"),
+            "exchange_id": primary[0].partition(".")[0],
+        }
+
+    def _get_ctp_bundle_query_health(self) -> Dict[str, Any]:
+        """Return V2 bundle evidence only while it matches the live session."""
+        snapshot = self._last_ctp_bundle_preflight_snapshot
+        if snapshot is None:
+            return {
+                "supported": self.supports_complete_ctp_queries(include_reference_data=True),
+                "evidence_complete": False,
+                "evidence_errors": ["ctp_bundle_query_snapshot_missing"],
+            }
+        health = deepcopy(snapshot)
+        errors = set(health.get("evidence_errors") or ())
+        try:
+            self._validate_ctp_snapshot_clock(health, label="bundle_preflight")
+        except BtApiStoreError:
+            errors.add("ctp_bundle_query_snapshot_clock_invalid")
+        try:
+            scope = self._ctp_bundle_snapshot_scope(health)
+        except BtApiStoreError:
+            scope = {}
+            errors.add("ctp_bundle_snapshot_invalid")
+        current = self._read_ctp_session_state()
+        try:
+            current_generation = int(current.get("connection_generation") or 0)
+        except (TypeError, ValueError):
+            current_generation = 0
+        snapshot_generation = scope.get("connection_generation")
+        if current_generation <= 0:
+            errors.add("current_session_generation_missing")
+        elif current_generation != snapshot_generation:
+            errors.add("ctp_bundle_query_snapshot_generation_stale")
+        current_account = self._normalized_account_fingerprint(current.get("account_fingerprint"))
+        if not current_account:
+            errors.add("current_session_account_fingerprint_missing")
+        elif current_account != scope.get("account_fingerprint"):
+            errors.add("ctp_bundle_query_snapshot_account_stale")
+        current_day = str(current.get("trading_day") or "").strip()
+        if not current_day:
+            errors.add("current_session_trading_day_missing")
+        elif current_day != str(scope.get("trading_day") or "").strip():
+            errors.add("ctp_bundle_query_snapshot_trading_day_stale")
+        if current.get("read_only_ready") is not True and current.get("ready") is not True:
+            errors.add("current_ctp_session_not_ready")
+        completed = health.get("completed_monotonic")
+        try:
+            age = time.monotonic() - float(completed)
+        except (TypeError, ValueError, OverflowError):
+            age = math.inf
+        if not math.isfinite(age) or age < 0:
+            errors.add("ctp_bundle_query_snapshot_clock_invalid")
+        elif age > self._ctp_query_max_age_seconds:
+            errors.add("ctp_bundle_query_snapshot_stale")
+        health["age_seconds"] = age
+        health["current_session"] = deepcopy(_redact_diagnostic(current))
+        health["bundle_scope"] = scope
+        health["supported"] = self.supports_complete_ctp_queries(include_reference_data=True)
+        health["evidence_errors"] = sorted(errors)
+        health["evidence_complete"] = bool(snapshot.get("evidence_complete") is True and not errors)
+        return health
+
+    @classmethod
+    def _validate_bundle_scope_against_snapshot(
+        cls, proof: Mapping[str, Any], snapshot: Mapping[str, Any]
+    ) -> Dict[str, Any]:
+        scope = cls._ctp_bundle_snapshot_scope(snapshot)
+        if proof.get("instrument") != scope["instrument"]:
+            raise BtApiStoreError("CTP bundle proof primary instrument does not match preflight")
+        if list(proof.get("authorized_instruments") or ()) != scope["authorized_instruments"]:
+            raise BtApiStoreError("CTP bundle proof authorized scope does not match preflight")
+        if (
+            cls._normalized_account_fingerprint(proof.get("account_fingerprint"))
+            != scope["account_fingerprint"]
+        ):
+            raise BtApiStoreError("CTP bundle proof account does not match preflight")
+        if proof.get("trading_day") != scope.get("trading_day"):
+            raise BtApiStoreError("CTP bundle proof trading_day does not match preflight")
+        if proof.get("connection_generation") != scope.get("connection_generation"):
+            raise BtApiStoreError("CTP bundle proof generation does not match preflight")
+        session = snapshot.get("session_after") or snapshot.get("session") or {}
+        if not isinstance(session, Mapping) or proof.get("environment_profile") != session.get(
+            "environment_profile"
+        ):
+            raise BtApiStoreError("CTP bundle proof environment does not match preflight")
+        if proof.get("preflight_sha256") != snapshot.get("snapshot_sha256"):
+            raise BtApiStoreError("CTP bundle proof preflight hash does not match evidence")
+        return scope
+
+    @classmethod
+    def _validate_ctp_bundle_arm_projections(
+        cls,
+        *,
+        proof: Mapping[str, Any],
+        grant: Mapping[str, Any],
+        preflight_scope: Mapping[str, Any],
+        current_session: Mapping[str, Any],
+        summary: Mapping[str, Any],
+        proof_sha256: str,
+    ) -> None:
+        """Cross-check every public post-arm identity projection.
+
+        The SDK exposes the same gate through a session-state projection and,
+        in some versions, through execution-summary aliases.  One correct
+        projection must never hide a contradictory value in another.  Missing
+        optional aliases remain compatible, but at least one post-arm public
+        projection must carry the complete scope version and leg list.
+        """
+        expected = {
+            "account_fingerprint": cls._normalized_account_fingerprint(
+                proof.get("account_fingerprint")
+            ),
+            "trading_day": proof.get("trading_day"),
+            "connection_generation": proof.get("connection_generation"),
+            "environment_profile": proof.get("environment_profile"),
+            "instrument": proof.get("instrument"),
+            "scope_version": proof.get("scope_version"),
+            "authorized_instruments": list(proof.get("authorized_instruments") or ()),
+            "proof_sha256": proof_sha256,
+            "armed": True,
+            "managed": True,
+        }
+        aliases = {
+            "account_fingerprint": (
+                "account_fingerprint",
+                "execution_gate_account_fingerprint",
+            ),
+            "trading_day": ("trading_day", "execution_gate_trading_day"),
+            "connection_generation": (
+                "connection_generation",
+                "execution_gate_connection_generation",
+            ),
+            "environment_profile": (
+                "environment_profile",
+                "execution_gate_environment_profile",
+            ),
+            "instrument": (
+                "instrument",
+                "execution_gate_instrument",
+                "primary_instrument",
+                "execution_gate_primary_instrument",
+            ),
+            "scope_version": ("scope_version", "execution_gate_scope_version"),
+            "authorized_instruments": (
+                "authorized_instruments",
+                "execution_gate_authorized_instruments",
+            ),
+            "proof_sha256": (
+                "proof_sha256",
+                "arm_proof_sha256",
+                "execution_gate_proof_sha256",
+            ),
+            "armed": ("armed", "execution_gate_armed"),
+            "managed": ("managed", "execution_gate_managed"),
+        }
+
+        def _value(key: str, raw: Any) -> Any:
+            if raw is None:
+                raise BtApiStoreError(f"CTP bundle post-arm {key} is missing")
+            if key == "account_fingerprint":
+                normalized = cls._normalized_account_fingerprint(raw)
+                if not normalized:
+                    raise BtApiStoreError("CTP bundle post-arm account identity is invalid")
+                return normalized
+            if key == "authorized_instruments":
+                if not isinstance(raw, (list, tuple)):
+                    raise BtApiStoreError(
+                        "CTP bundle post-arm authorized instrument scope is invalid"
+                    )
+                return list(raw)
+            if key == "connection_generation":
+                if isinstance(raw, bool) or not isinstance(raw, int) or raw <= 0:
+                    raise BtApiStoreError("CTP bundle post-arm generation identity is invalid")
+                return raw
+            if key == "proof_sha256":
+                if not cls._is_sha256_hex(raw):
+                    raise BtApiStoreError("CTP bundle post-arm proof identity is invalid")
+                return str(raw)
+            if key in {"armed", "managed"}:
+                if not isinstance(raw, bool):
+                    raise BtApiStoreError(f"CTP bundle post-arm {key} state is invalid")
+                return raw
+            if not isinstance(raw, str) or not raw.strip():
+                raise BtApiStoreError(f"CTP bundle post-arm {key} identity is invalid")
+            return raw
+
+        sources = (
+            ("preflight", preflight_scope),
+            ("proof", proof),
+            ("grant", grant),
+            ("post_session", current_session),
+            ("post_summary", summary),
+        )
+        observed: Dict[str, List[Tuple[str, str, Any]]] = collections.defaultdict(list)
+        for source_name, source in sources:
+            if not isinstance(source, Mapping):
+                continue
+            for key, names in aliases.items():
+                for name in names:
+                    if name in source:
+                        observed[key].append((source_name, name, _value(key, source[name])))
+
+        for key, values in observed.items():
+            expected_value = expected[key]
+            for source_name, alias_name, actual in values:
+                if actual != expected_value:
+                    raise BtApiStoreError(
+                        "CTP bundle post-arm identity mismatch: "
+                        f"{source_name}.{alias_name} ({key})"
+                    )
+
+        post_observed = {
+            key
+            for key, values in observed.items()
+            if any(source_name.startswith("post_") for source_name, _name, _value in values)
+        }
+        required_post_identity = {
+            "account_fingerprint",
+            "trading_day",
+            "connection_generation",
+            "environment_profile",
+            "instrument",
+            "scope_version",
+            "authorized_instruments",
+        }
+        if not required_post_identity.issubset(post_observed):
+            raise BtApiStoreError("CTP bundle post-arm public scope projection is incomplete")
+
     def _validate_authorization_snapshots(self, grant: Mapping[str, Any]) -> None:
+        is_bundle = set(grant) == _CTP_EXECUTION_AUTHORIZATION_BUNDLE_FIELDS
+        bundle_scope = None
+        if is_bundle:
+            # The V2 bundle snapshot is the authoritative scope proof.  Keep
+            # the existing independent Stage A/B evidence requirement as the
+            # account-level safety sweep; it does not replace the per-leg
+            # bundle query and it cannot broaden the signed scope.
+            bundle_scope = self._validate_bundle_scope_against_snapshot(
+                grant, self._last_ctp_bundle_preflight_snapshot or {}
+            )
         if len(self._ctp_preflight_history) != 2:
             raise BtApiStoreError("CTP execution authorization requires fresh Stage A/B evidence")
         stage_a, stage_b = tuple(self._ctp_preflight_history)
+        if is_bundle:
+            self._validate_ctp_snapshot_clock(stage_a, label="stage_a")
+            self._validate_ctp_snapshot_clock(stage_b, label="stage_b")
+            self._validate_ctp_snapshot_clock(
+                self._last_ctp_bundle_preflight_snapshot or {}, label="bundle_preflight"
+            )
         if stage_a.get("instrument_id") not in (None, ""):
             raise BtApiStoreError("CTP execution authorization Stage A scope is invalid")
         if stage_a.get("read_only_safe") is not True or stage_b.get("read_only_safe") is not True:
@@ -7989,13 +10677,31 @@ class BtApiStore(LiveStoreBase):
 
         account_a = self._normalized_account_fingerprint(stage_a.get("account_fingerprint"))
         account_b = self._normalized_account_fingerprint(stage_b.get("account_fingerprint"))
-        scope_b = _canonical_ctp_scope(stage_b.get("instrument_id"), stage_b.get("exchange_id"))
+        scope_b = (
+            self._canonical_ctp_bundle_instrument(
+                stage_b.get("instrument_id"), stage_b.get("exchange_id")
+            )
+            if is_bundle
+            else _canonical_ctp_scope(stage_b.get("instrument_id"), stage_b.get("exchange_id"))
+        )
         expected = {
             "account_fingerprint": account_b,
             "trading_day": stage_b.get("trading_day"),
             "connection_generation": stage_b.get("connection_generation"),
-            "instrument": scope_b,
         }
+        if not is_bundle:
+            expected["instrument"] = scope_b
+        else:
+            expected["instrument"] = bundle_scope["instrument"]
+            # The V1 single-leg preflight canonicalizes symbols to upper case
+            # before querying.  Bundle evidence deliberately preserves the
+            # native raw InstrumentID spelling (DCE option IDs are commonly
+            # lower-case), so the independent Stage-B binding is compared
+            # case-insensitively while the signed V2 scope remains exact.
+            if not scope_b or scope_b.casefold() != bundle_scope["instrument"].casefold():
+                raise BtApiStoreError(
+                    "CTP execution authorization Stage B scope is not the bundle primary"
+                )
         observed = {field: grant.get(field) for field in expected}
         if expected != observed:
             raise BtApiStoreError("CTP execution authorization does not match Stage B identity")
@@ -8033,9 +10739,36 @@ class BtApiStore(LiveStoreBase):
         proof: Mapping[str, Any],
         strategy_id: str,
     ) -> Dict[str, Any]:
-        if not isinstance(report, Mapping) or set(report) != _CTP_EXECUTION_RECOVERY_FIELDS:
+        report_fields = set(report) if isinstance(report, Mapping) else set()
+        is_bundle = report_fields == _CTP_EXECUTION_RECOVERY_BUNDLE_FIELDS
+        if report_fields not in {
+            _CTP_EXECUTION_RECOVERY_FIELDS,
+            _CTP_EXECUTION_RECOVERY_BUNDLE_FIELDS,
+        }:
             raise BtApiStoreError("SDK execution recovery report has an invalid shape")
         result = deepcopy(dict(report))
+        if is_bundle:
+            if set(proof) != _CTP_EXECUTION_ARM_BUNDLE_FIELDS:
+                raise BtApiStoreError("SDK execution recovery bundle proof is invalid")
+            if result.get("scope_version") != _CTP_EXECUTION_ARM_BUNDLE_SCOPE_VERSION:
+                raise BtApiStoreError("SDK execution recovery bundle scope_version is invalid")
+            authorized = result.get("authorized_instruments")
+            canonical_authorized = (
+                [cls._canonical_ctp_bundle_instrument(item) for item in authorized]
+                if isinstance(authorized, (list, tuple))
+                else []
+            )
+            if (
+                not 2 <= len(canonical_authorized) <= 3
+                or canonical_authorized != list(authorized)
+                or canonical_authorized != sorted(canonical_authorized)
+                or len(set(canonical_authorized)) != len(canonical_authorized)
+                or proof.get("scope_version") != result.get("scope_version")
+                or list(proof.get("authorized_instruments") or ()) != canonical_authorized
+                or proof.get("instrument") not in canonical_authorized
+            ):
+                raise BtApiStoreError("SDK execution recovery bundle authorized scope is invalid")
+            result["authorized_instruments"] = canonical_authorized
         if result.get("schema_version") != "bt_api.execution-recovery.v1":
             raise BtApiStoreError("SDK execution recovery schema_version is invalid")
         status = result.get("status")
@@ -8077,6 +10810,54 @@ class BtApiStore(LiveStoreBase):
         owned = cls._recovery_position(result.get("owned_position"), "owned_position")
         if any(owned[name] > remote[name] for name in _CTP_RECOVERY_POSITION_FIELDS):
             raise BtApiStoreError("SDK execution recovery owned position exceeds remote position")
+        remote_by_instrument = None
+        owned_by_instrument = None
+        if is_bundle:
+            remote_by_instrument = result.get("remote_positions_by_instrument")
+            owned_by_instrument = result.get("owned_positions_by_instrument")
+            expected_scope = set(result["authorized_instruments"])
+            if (
+                not isinstance(remote_by_instrument, Mapping)
+                or not isinstance(owned_by_instrument, Mapping)
+                or set(remote_by_instrument) != expected_scope
+                or set(owned_by_instrument) != expected_scope
+            ):
+                raise BtApiStoreError("SDK execution recovery bundle position maps are invalid")
+            for instrument in result["authorized_instruments"]:
+                remote_leg = cls._recovery_position(
+                    remote_by_instrument[instrument],
+                    f"remote_positions_by_instrument[{instrument}]",
+                )
+                owned_leg = cls._recovery_position(
+                    owned_by_instrument[instrument],
+                    f"owned_positions_by_instrument[{instrument}]",
+                )
+                if any(
+                    owned_leg[name] > remote_leg[name] for name in _CTP_RECOVERY_POSITION_FIELDS
+                ):
+                    raise BtApiStoreError(
+                        "SDK execution recovery bundle owned position exceeds remote position"
+                    )
+                if instrument == result.get("instrument") and (
+                    remote_leg != remote or owned_leg != owned
+                ):
+                    raise BtApiStoreError(
+                        "SDK execution recovery primary position does not match bundle map"
+                    )
+            remote_totals = {
+                instrument: cls._recovery_position(
+                    remote_by_instrument[instrument],
+                    f"remote_positions_by_instrument[{instrument}]",
+                )
+                for instrument in result["authorized_instruments"]
+            }
+            owned_totals = {
+                instrument: cls._recovery_position(
+                    owned_by_instrument[instrument],
+                    f"owned_positions_by_instrument[{instrument}]",
+                )
+                for instrument in result["authorized_instruments"]
+            }
         allowed_closes = result.get("allowed_closes")
         allowed_cancels = result.get("allowed_cancels")
         allowed_actions = result.get("allowed_actions")
@@ -8094,6 +10875,7 @@ class BtApiStore(LiveStoreBase):
         ):
             raise BtApiStoreError("SDK execution recovery execution_cycle_id is invalid")
         close_totals = {"long": 0, "short": 0}
+        close_totals_by_instrument = collections.defaultdict(lambda: {"long": 0, "short": 0})
         seen_closes = set()
         for item in allowed_closes:
             if not isinstance(item, Mapping) or set(item) != _CTP_RECOVERY_CLOSE_FIELDS:
@@ -8101,9 +10883,22 @@ class BtApiStore(LiveStoreBase):
             action = dict(item)
             if action.get("execution_cycle_id") != cycle_id:
                 raise BtApiStoreError("SDK execution recovery close cycle mismatch")
-            if _canonical_ctp_scope(action.get("symbol"), action.get("exchange_id")) != result.get(
-                "instrument"
-            ):
+            if is_bundle:
+                symbol = action.get("symbol")
+                exchange_id = action.get("exchange_id")
+                action_scope = cls._canonical_ctp_bundle_instrument(symbol, exchange_id)
+                action_valid = (
+                    isinstance(symbol, str)
+                    and symbol == symbol.strip()
+                    and "." not in symbol
+                    and isinstance(exchange_id, str)
+                    and exchange_id in _CTP_EXCHANGES
+                    and action_scope in result["authorized_instruments"]
+                )
+            else:
+                action_scope = _canonical_ctp_scope(action.get("symbol"), action.get("exchange_id"))
+                action_valid = action_scope == result.get("instrument")
+            if not action_valid:
                 raise BtApiStoreError("SDK execution recovery close instrument mismatch")
             position_side = str(action.get("position_side") or "").lower()
             side = str(action.get("side") or "").lower()
@@ -8130,7 +10925,35 @@ class BtApiStore(LiveStoreBase):
             if action_identity in seen_closes:
                 raise BtApiStoreError("SDK execution recovery close action is duplicated")
             seen_closes.add(action_identity)
-            close_totals[position_side] += int(quantity)
+            quantity_int = int(quantity)
+            close_totals[position_side] += quantity_int
+            if is_bundle:
+                close_totals_by_instrument[action_scope][position_side] += quantity_int
+
+        if is_bundle and close_totals_by_instrument:
+            owned_by_scope = {
+                instrument: {
+                    "long": position["long_today"] + position["long_yesterday"],
+                    "short": position["short_today"] + position["short_yesterday"],
+                }
+                for instrument, position in owned_totals.items()
+            }
+            remote_by_scope = {
+                instrument: {
+                    "long": position["long_today"] + position["long_yesterday"],
+                    "short": position["short_today"] + position["short_yesterday"],
+                }
+                for instrument, position in remote_totals.items()
+            }
+            for instrument, totals in close_totals_by_instrument.items():
+                if any(
+                    totals[side] > owned_by_scope[instrument][side]
+                    or totals[side] > remote_by_scope[instrument][side]
+                    for side in totals
+                ):
+                    raise BtApiStoreError(
+                        "SDK execution recovery bundle close exceeds owned position"
+                    )
 
         seen_cancels = set()
         for item in allowed_cancels:
@@ -8139,9 +10962,22 @@ class BtApiStore(LiveStoreBase):
             action = dict(item)
             if action.get("execution_cycle_id") != cycle_id:
                 raise BtApiStoreError("SDK execution recovery cancel cycle mismatch")
-            if _canonical_ctp_scope(action.get("symbol"), action.get("exchange_id")) != result.get(
-                "instrument"
-            ):
+            if is_bundle:
+                symbol = action.get("symbol")
+                exchange_id = action.get("exchange_id")
+                action_scope = cls._canonical_ctp_bundle_instrument(symbol, exchange_id)
+                action_valid = (
+                    isinstance(symbol, str)
+                    and symbol == symbol.strip()
+                    and "." not in symbol
+                    and isinstance(exchange_id, str)
+                    and exchange_id in _CTP_EXCHANGES
+                    and action_scope in result["authorized_instruments"]
+                )
+            else:
+                action_scope = _canonical_ctp_scope(action.get("symbol"), action.get("exchange_id"))
+                action_valid = action_scope == result.get("instrument")
+            if not action_valid:
                 raise BtApiStoreError("SDK execution recovery cancel instrument mismatch")
             identifiers = tuple(
                 action.get(name) for name in ("client_order_id", "order_id", "order_ref")
@@ -8159,12 +10995,31 @@ class BtApiStore(LiveStoreBase):
                 raise BtApiStoreError("SDK execution recovery cancel action is duplicated")
             seen_cancels.add(action_identity)
 
-        remote_total = sum(remote.values())
-        owned_total = sum(owned.values())
-        owned_sides = {
-            "long": owned["long_today"] + owned["long_yesterday"],
-            "short": owned["short_today"] + owned["short_yesterday"],
-        }
+        if is_bundle:
+            remote_total = sum(sum(position.values()) for position in remote_totals.values())
+            owned_total = sum(sum(position.values()) for position in owned_totals.values())
+            owned_sides = {
+                "long": sum(
+                    position["long_today"] + position["long_yesterday"]
+                    for position in owned_totals.values()
+                ),
+                "short": sum(
+                    position["short_today"] + position["short_yesterday"]
+                    for position in owned_totals.values()
+                ),
+            }
+            positions_equal = all(
+                owned_totals[instrument] == remote_totals[instrument]
+                for instrument in result["authorized_instruments"]
+            )
+        else:
+            remote_total = sum(remote.values())
+            owned_total = sum(owned.values())
+            owned_sides = {
+                "long": owned["long_today"] + owned["long_yesterday"],
+                "short": owned["short_today"] + owned["short_yesterday"],
+            }
+            positions_equal = owned == remote
         token = result.get("recovery_token_sha256")
         journal = result.get("journal_sha256")
         if status == "FLAT":
@@ -8193,7 +11048,7 @@ class BtApiStore(LiveStoreBase):
                 result["recovery_required"] is True
                 and result["can_arm_execution"] is False
                 and result["can_arm_recovery"] is True
-                and owned == remote
+                and positions_equal
                 and (owned_total > 0 or bool(allowed_cancels))
                 and isinstance(cycle_id, str)
                 and bool(cycle_id)
@@ -8210,6 +11065,26 @@ class BtApiStore(LiveStoreBase):
                 )
             if allowed_closes and close_totals != owned_sides:
                 raise BtApiStoreError("SDK execution recovery closes do not cover owned position")
+            if is_bundle and allowed_closes:
+                expected_by_instrument = {
+                    instrument: {
+                        "long": position["long_today"] + position["long_yesterday"],
+                        "short": position["short_today"] + position["short_yesterday"],
+                    }
+                    for instrument, position in owned_totals.items()
+                    if position["long_today"]
+                    + position["long_yesterday"]
+                    + position["short_today"]
+                    + position["short_yesterday"]
+                    > 0
+                }
+                if {
+                    instrument: dict(totals)
+                    for instrument, totals in close_totals_by_instrument.items()
+                } != expected_by_instrument:
+                    raise BtApiStoreError(
+                        "SDK execution recovery bundle closes do not cover each leg"
+                    )
             if allowed_cancels and allowed_closes:
                 raise BtApiStoreError(
                     "SDK execution recovery cannot close before cancel completion"
@@ -8238,23 +11113,28 @@ class BtApiStore(LiveStoreBase):
     def _validate_recovery_proof(self, proof: Mapping[str, Any]) -> Tuple[Dict[str, Any], str]:
         if str(self.provider or "").strip().lower() != "btapi":
             raise BtApiStoreError("SDK execution recovery requires provider='btapi'")
-        if not isinstance(proof, Mapping) or set(proof) != _CTP_EXECUTION_ARM_FIELDS:
-            raise BtApiStoreError("SDK execution recovery proof has an invalid shape")
+        normalized, is_bundle = self._normalise_ctp_execution_proof(proof, operation="recovery")
         try:
-            normalized = deepcopy(dict(proof))
             proof_sha256 = self._sha256_json(normalized)
         except (TypeError, ValueError):
             raise BtApiStoreError("SDK execution recovery proof is not canonical JSON") from None
         grant = self._ctp_execution_authorization
         if not isinstance(grant, Mapping) or not self._ctp_execution_authorization_sha256:
             raise BtApiStoreError("SDK execution recovery authorization is missing")
-        for field in _CTP_EXECUTION_ARM_FIELDS:
+        proof_fields = _CTP_EXECUTION_ARM_BUNDLE_FIELDS if is_bundle else _CTP_EXECUTION_ARM_FIELDS
+        grant_fields = set(grant) if isinstance(grant, Mapping) else set()
+        if grant_fields not in {
+            _CTP_EXECUTION_AUTHORIZATION_FIELDS,
+            _CTP_EXECUTION_AUTHORIZATION_BUNDLE_FIELDS,
+        } or (is_bundle != (grant_fields == _CTP_EXECUTION_AUTHORIZATION_BUNDLE_FIELDS)):
+            raise BtApiStoreError("SDK execution recovery authorization has an invalid shape")
+        for field in proof_fields:
             if normalized.get(field) != grant.get(field):
                 raise BtApiStoreError(
                     f"SDK execution recovery proof differs from authorization: {field}"
                 )
         self._validate_authorization_snapshots(grant)
-        snapshot = self.get_ctp_query_health()
+        snapshot = self._get_ctp_bundle_query_health() if is_bundle else self.get_ctp_query_health()
         if (
             snapshot.get("evidence_complete") is not True
             or snapshot.get("read_only_safe") is not True
@@ -8264,17 +11144,31 @@ class BtApiStore(LiveStoreBase):
         if not isinstance(session, Mapping):
             session = snapshot.get("session")
         session = session if isinstance(session, Mapping) else {}
-        expected = {
-            "account_fingerprint": self._normalized_account_fingerprint(
-                snapshot.get("account_fingerprint")
-            ),
-            "trading_day": snapshot.get("trading_day"),
-            "instrument": _canonical_ctp_scope(
-                snapshot.get("instrument_id"), snapshot.get("exchange_id")
-            ),
-            "connection_generation": snapshot.get("connection_generation"),
-            "environment_profile": session.get("environment_profile"),
-        }
+        if is_bundle:
+            bundle_scope = snapshot.get("bundle_scope")
+            if not isinstance(bundle_scope, Mapping):
+                raise BtApiStoreError("Current CTP bundle preflight scope is unavailable")
+            expected = {
+                "account_fingerprint": bundle_scope.get("account_fingerprint"),
+                "trading_day": bundle_scope.get("trading_day"),
+                "instrument": bundle_scope.get("instrument"),
+                "connection_generation": bundle_scope.get("connection_generation"),
+                "environment_profile": session.get("environment_profile"),
+                "scope_version": _CTP_EXECUTION_ARM_BUNDLE_SCOPE_VERSION,
+                "authorized_instruments": bundle_scope.get("authorized_instruments"),
+            }
+        else:
+            expected = {
+                "account_fingerprint": self._normalized_account_fingerprint(
+                    snapshot.get("account_fingerprint")
+                ),
+                "trading_day": snapshot.get("trading_day"),
+                "instrument": _canonical_ctp_scope(
+                    snapshot.get("instrument_id"), snapshot.get("exchange_id")
+                ),
+                "connection_generation": snapshot.get("connection_generation"),
+                "environment_profile": session.get("environment_profile"),
+            }
         observed = {
             **normalized,
             "account_fingerprint": self._normalized_account_fingerprint(
@@ -8314,7 +11208,12 @@ class BtApiStore(LiveStoreBase):
         self._prepare_sdk_execution_authorization("execution_authorization_reconfigured")
         if str(self.provider or "").strip().lower() != "btapi":
             raise BtApiStoreError("CTP execution authorization requires provider='btapi'")
-        if not isinstance(grant, Mapping) or set(grant) != _CTP_EXECUTION_AUTHORIZATION_FIELDS:
+        grant_fields = set(grant) if isinstance(grant, Mapping) else set()
+        is_bundle = grant_fields == _CTP_EXECUTION_AUTHORIZATION_BUNDLE_FIELDS
+        if grant_fields not in {
+            _CTP_EXECUTION_AUTHORIZATION_FIELDS,
+            _CTP_EXECUTION_AUTHORIZATION_BUNDLE_FIELDS,
+        }:
             raise BtApiStoreError("CTP execution authorization has an invalid shape")
         grant = deepcopy(dict(grant))
         if grant.get("schema_version") != "backtrader.ctp.execution-authorization.v1":
@@ -8384,7 +11283,12 @@ class BtApiStore(LiveStoreBase):
 
         if grant.get("gate_statuses") != {"G1": "PASS", "G2": "PASS", "G3": "PASS"}:
             raise BtApiStoreError("CTP execution authorization gates are not PASS")
-        if re.fullmatch(r"CZCE\.SA\d{3}", str(grant.get("instrument") or "")) is None:
+        if is_bundle:
+            proof_fields = {
+                field: grant[field] for field in _CTP_EXECUTION_ARM_BUNDLE_FIELDS if field in grant
+            }
+            self._normalise_ctp_execution_proof(proof_fields, operation="authorization")
+        elif re.fullmatch(r"CZCE\.SA\d{3}", str(grant.get("instrument") or "")) is None:
             raise BtApiStoreError("CTP execution authorization instrument is invalid")
         generation = grant.get("connection_generation")
         if not isinstance(generation, int) or isinstance(generation, bool) or generation <= 0:
@@ -8828,16 +11732,29 @@ class BtApiStore(LiveStoreBase):
             raise BtApiStoreError("SDK execution recovery completion became stale")
         return deepcopy(result)
 
-    def arm_sdk_execution(self, proof: Mapping[str, Any]) -> Dict[str, Any]:
-        """Consume one signed capability and atomically arm the managed SDK."""
+    def arm_sdk_execution(
+        self, proof: Mapping[str, Any], *, authorization: Any = None
+    ) -> Dict[str, Any]:
+        """Consume one signed capability and atomically arm the managed SDK.
+
+        V2 callers must provide the opaque authorization issued by the SDK's
+        public authority path.  The Store validates the separately supplied
+        proof and scope, then forwards that object unchanged; it never reads
+        private token fields or manufactures an authorization object.  The
+        legacy V1 proof-only call remains for compatibility with existing Store
+        facades and fixtures.
+        """
         if str(self.provider or "").strip().lower() != "btapi":
             raise BtApiStoreError("SDK execution arming requires provider='btapi'")
         with self._command_condition:
             self._command_accept_openings = False
             self._sdk_execution_arming = True
         try:
-            if not isinstance(proof, Mapping) or set(proof) != _CTP_EXECUTION_ARM_FIELDS:
-                raise BtApiStoreError("SDK execution arming proof has an invalid shape")
+            proof, is_bundle = self._normalise_ctp_execution_proof(proof, operation="arming")
+            if is_bundle and authorization is None:
+                raise BtApiStoreError(
+                    "SDK V2 execution arming requires caller-provided public authorization"
+                )
             if (
                 isinstance(self._ctp_execution_recovery, Mapping)
                 and not self._ctp_execution_recovery_completed
@@ -8846,7 +11763,6 @@ class BtApiStore(LiveStoreBase):
                     "SDK execution recovery must complete before ordinary execution arming"
                 )
             try:
-                proof = dict(proof)
                 expected_hash = self._sha256_json(proof)
             except (TypeError, ValueError):
                 raise BtApiStoreError("SDK execution arming proof is not canonical JSON") from None
@@ -8902,6 +11818,13 @@ class BtApiStore(LiveStoreBase):
                 "dependency_hashes_sha256": grant.get("dependency_hashes_sha256"),
                 "preflight_sha256": grant.get("preflight_sha256"),
             }
+            if is_bundle:
+                grant_to_proof.update(
+                    {
+                        "scope_version": grant.get("scope_version"),
+                        "authorized_instruments": grant.get("authorized_instruments"),
+                    }
+                )
             proof_mismatches = sorted(
                 field for field, expected in grant_to_proof.items() if proof.get(field) != expected
             )
@@ -8926,7 +11849,11 @@ class BtApiStore(LiveStoreBase):
                 arm = getattr(api, "arm_execution_from_preflight", None)
                 if not callable(arm):
                     raise BtApiStoreError("Public SDK execution arming capability is unavailable")
-                snapshot = self.get_ctp_query_health()
+                snapshot = (
+                    self._get_ctp_bundle_query_health()
+                    if is_bundle
+                    else self.get_ctp_query_health()
+                )
                 if (
                     snapshot.get("evidence_complete") is not True
                     or snapshot.get("read_only_safe") is not True
@@ -8943,15 +11870,29 @@ class BtApiStore(LiveStoreBase):
                 proof_account = self._normalized_account_fingerprint(
                     proof.get("account_fingerprint")
                 )
-                expected = {
-                    "account_fingerprint": snapshot_account,
-                    "trading_day": snapshot.get("trading_day"),
-                    "instrument": _canonical_ctp_scope(
-                        snapshot.get("instrument_id"), snapshot.get("exchange_id")
-                    ),
-                    "connection_generation": snapshot.get("connection_generation"),
-                    "environment_profile": current_session.get("environment_profile"),
-                }
+                if is_bundle:
+                    bundle_scope = snapshot.get("bundle_scope")
+                    if not isinstance(bundle_scope, Mapping):
+                        raise BtApiStoreError("Current CTP bundle preflight scope is unavailable")
+                    expected = {
+                        "account_fingerprint": bundle_scope.get("account_fingerprint"),
+                        "trading_day": bundle_scope.get("trading_day"),
+                        "instrument": bundle_scope.get("instrument"),
+                        "connection_generation": bundle_scope.get("connection_generation"),
+                        "environment_profile": current_session.get("environment_profile"),
+                        "scope_version": _CTP_EXECUTION_ARM_BUNDLE_SCOPE_VERSION,
+                        "authorized_instruments": bundle_scope.get("authorized_instruments"),
+                    }
+                else:
+                    expected = {
+                        "account_fingerprint": snapshot_account,
+                        "trading_day": snapshot.get("trading_day"),
+                        "instrument": _canonical_ctp_scope(
+                            snapshot.get("instrument_id"), snapshot.get("exchange_id")
+                        ),
+                        "connection_generation": snapshot.get("connection_generation"),
+                        "environment_profile": current_session.get("environment_profile"),
+                    }
                 observed = {
                     "account_fingerprint": proof_account,
                     "trading_day": proof.get("trading_day"),
@@ -8959,6 +11900,13 @@ class BtApiStore(LiveStoreBase):
                     "connection_generation": proof.get("connection_generation"),
                     "environment_profile": proof.get("environment_profile"),
                 }
+                if is_bundle:
+                    observed.update(
+                        {
+                            "scope_version": proof.get("scope_version"),
+                            "authorized_instruments": proof.get("authorized_instruments"),
+                        }
+                    )
                 mismatches = [
                     field for field, value in expected.items() if observed[field] != value
                 ]
@@ -8969,14 +11917,38 @@ class BtApiStore(LiveStoreBase):
                     )
                 try:
                     self._ctp_sdk_arm_attempted = True
-                    result = arm(proof=proof)
+                    # The current SDK public method accepts one opaque
+                    # core-issued authorization object.  A redeemed
+                    # ``CtpExecutionApprovalCapability`` goes through the
+                    # SDK's own entry-approval arm; other opaque objects use
+                    # the preflight arm, and the V1 mapping call remains a
+                    # compatibility path for older Store facades.  V2 never
+                    # falls back to a proof mapping.
+                    approval_arm = getattr(self._api, "arm_execution_from_approval", None)
+                    if _is_ctp_approval_capability(authorization):
+                        if not callable(approval_arm):
+                            raise BtApiStoreError(
+                                "Public SDK entry approval arming is unavailable"
+                            )
+                        result = approval_arm(authorization)
+                    else:
+                        result = (
+                            arm(authorization)
+                            if authorization is not None
+                            else arm(proof=proof)
+                        )
                     if not isinstance(result, Mapping) or not (
                         result.get("armed") is True
                         and result.get("market_data_only") is False
                         and result.get("proof_sha256") == expected_hash
                     ):
                         raise BtApiStoreError("SDK execution arming returned an invalid result")
-                    post_health = self.get_ctp_query_health()
+                    post_health = (
+                        self._get_ctp_bundle_query_health()
+                        if is_bundle
+                        else self.get_ctp_query_health()
+                    )
+                    post_scope = post_health.get("bundle_scope") if is_bundle else None
                     if (
                         post_health.get("evidence_complete") is not True
                         or post_health.get("read_only_safe") is not True
@@ -8987,6 +11959,15 @@ class BtApiStore(LiveStoreBase):
                         or post_health.get("trading_day") != proof.get("trading_day")
                         or post_health.get("connection_generation")
                         != proof.get("connection_generation")
+                        or (
+                            is_bundle
+                            and (
+                                not isinstance(post_scope, Mapping)
+                                or post_scope.get("instrument") != proof.get("instrument")
+                                or post_scope.get("authorized_instruments")
+                                != proof.get("authorized_instruments")
+                            )
+                        )
                     ):
                         raise BtApiStoreError(
                             "SDK execution arming post-commit session check failed"
@@ -9001,6 +11982,18 @@ class BtApiStore(LiveStoreBase):
                     ):
                         raise BtApiStoreError(
                             "SDK execution arming summary did not confirm the lease"
+                        )
+                    if is_bundle:
+                        gate_session = post_health.get("current_session")
+                        if not isinstance(gate_session, Mapping):
+                            gate_session = {}
+                        self._validate_ctp_bundle_arm_projections(
+                            proof=proof,
+                            grant=grant,
+                            preflight_scope=post_scope or {},
+                            current_session=gate_session,
+                            summary=summary,
+                            proof_sha256=expected_hash,
                         )
                 except Exception:
                     self._force_sdk_market_data_only(
@@ -11173,11 +14166,35 @@ class BtApiStore(LiveStoreBase):
                             "recv_monotonic_ns",
                             "connection_generation",
                             "ingest_seq",
+                            "subscription_epoch",
+                            "rules_hash",
                             "quality",
                             "quality_flags",
                             "event_time_source",
+                            "source_clock_quality",
+                            "receive_clock_quality",
+                            "source_clock_error_ms",
+                            "receive_clock_error_ms",
+                            "freshness_verified",
+                            "execution_eligible",
+                            "cohort_now_monotonic_ns",
+                            "cohort_now_epoch",
+                            "cohort_now_clock_domain_id",
+                            "cohort_now_receive_clock_error_ms",
+                            "cohort_now_receive_clock_quality",
+                            "cohort_now_freshness_verified",
                             "instrument_id",
                             "exchange_id",
+                            # CTP contract identity is typed evidence, not
+                            # optional presentation metadata.  In particular,
+                            # the public cohort validator compares
+                            # ``asset_type`` with ``contract_type`` to expose
+                            # conflicting future/option labels.
+                            "product_class",
+                            "contract_type",
+                            "option_type",
+                            "underlying_instrument",
+                            "strike_price",
                             "update_time",
                             "update_millisec",
                             "turnover",

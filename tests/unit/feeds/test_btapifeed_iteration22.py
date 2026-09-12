@@ -62,8 +62,18 @@ def ctp_tick(second, *, price=100.0, delta=1.0, cumulative=101.0, ingest_seq=1):
     event.event_time_utc = base + dt.timedelta(seconds=second)
     event.recv_time_utc = base + dt.timedelta(seconds=second)
     event.recv_monotonic_ns = event.received_monotonic_ns
+    event.clock_domain_id = "ctp-test-parent-domain"
     event.connection_generation = 7
     event.ingest_seq = ingest_seq
+    event.subscription_epoch = 3
+    event.rules_hash = "ctp-test-rules-v1"
+    event.source = "ctp-test-parent-attested"
+    event.source_clock_quality = "verified"
+    event.receive_clock_quality = "verified"
+    event.source_clock_error_ms = 0.0
+    event.receive_clock_error_ms = 0.0
+    event.freshness_verified = True
+    event.execution_eligible = True
     event.quality_flags = ()
     event.event_time_source = "action_day_update_time"
     return event
@@ -84,7 +94,7 @@ def minute_feed(ticks, clock=None):
     return client, store, feed
 
 
-def tick_feed(ticks, clock=None):
+def tick_feed(ticks, clock=None, **feed_kwargs):
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: ticks})
     store = make_store(api=client)
     feed = store.getdata(
@@ -95,6 +105,7 @@ def tick_feed(ticks, clock=None):
         qcheck=0,
         price_tick=1.0,
         clock=clock,
+        **feed_kwargs,
     )
     return client, store, feed
 
@@ -332,6 +343,171 @@ def test_ctp_v2_missing_required_clock_field_is_fail_closed(missing):
     assert any("MISSING" in flag for flag in delivered[0].quality_flags)
 
 
+def test_ctp_v2_cannot_be_promoted_after_parent_marks_it_execution_ineligible():
+    event = ctp_tick(1)
+    event.execution_eligible = False
+    _, _, feed = tick_feed([event])
+    delivered = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            delivered.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    feed._check()
+
+    assert delivered[0].execution_eligible is False
+    assert "UPSTREAM_EXECUTION_INELIGIBLE" in delivered[0].quality_flags
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "expected_flag"),
+    [
+        ("source_clock_quality", "unknown", "SOURCE_CLOCK_UNVERIFIED"),
+        ("receive_clock_quality", "unknown", "RECEIVE_CLOCK_UNVERIFIED"),
+        ("freshness_verified", False, "FRESHNESS_UNVERIFIED"),
+    ],
+)
+def test_ctp_v2_rejects_unverified_parent_time_evidence(field, value, expected_flag):
+    event = ctp_tick(1)
+    setattr(event, field, value)
+    _, _, feed = tick_feed([event])
+    delivered = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            delivered.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    feed._check()
+
+    assert delivered[0].execution_eligible is False
+    assert expected_flag in delivered[0].quality_flags
+
+
+@pytest.mark.parametrize(
+    "raw_flags",
+    (
+        "",
+        {},
+        1,
+        None,
+        ("GAP", {"unhashable": "nested"}),
+        {"GAP", 1},
+    ),
+)
+def test_ctp_v2_malformed_quality_flags_cannot_be_normalized_into_clean_evidence(raw_flags):
+    event = ctp_tick(1)
+    event.quality_flags = raw_flags
+    _, _, feed = tick_feed([event])
+    delivered = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            delivered.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    feed._check()
+
+    assert delivered[0].execution_eligible is False
+    assert "QUOTE_QUALITY_FLAGS_INVALID" in delivered[0].quality_flags
+
+
+@pytest.mark.parametrize(
+    ("stale", "stale_reason"),
+    ((True, "recovery_pending_validation"), (False, "recovery_pending_validation")),
+)
+def test_ctp_v2_stale_or_recovery_pending_tick_is_not_execution_eligible(stale, stale_reason):
+    event = ctp_tick(1)
+    event.stale = stale
+    event.stale_reason = stale_reason
+    _, _, feed = tick_feed([event])
+    delivered = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            delivered.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    feed._check()
+
+    assert delivered[0].execution_eligible is False
+    assert "STREAM_UNREADY" in delivered[0].quality_flags
+
+
+def test_ctp_v2_decision_time_is_replaced_only_by_an_explicit_same_domain_provider():
+    event = ctp_tick(1)
+    event.cohort_decision_now_monotonic_ns = 1
+    event.cohort_decision_now_epoch = 1
+    event.cohort_decision_now_clock_domain_id = "forged-domain"
+    event.cohort_decision_now_receive_clock_error_ms = 0
+    event.cohort_decision_now_receive_clock_quality = "verified"
+    event.cohort_decision_now_freshness_verified = True
+
+    def provider(tick):
+        return bt.feeds.CtpCohortNow(
+            now_monotonic_ns=tick.recv_monotonic_ns + 10,
+            now_epoch=tick.recv_time_utc.timestamp() + 0.00000001,
+            clock_domain_id=tick.clock_domain_id,
+            receive_clock_error_ms=0.0,
+        )
+
+    _, _, feed = tick_feed([event], ctp_decision_now_provider=provider)
+    delivered = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            delivered.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    feed._check()
+
+    result = delivered[0]
+    assert result.cohort_decision_now_monotonic_ns == event.recv_monotonic_ns + 10
+    assert result.cohort_decision_now_clock_domain_id == event.clock_domain_id
+    assert result.cohort_decision_now_epoch == pytest.approx(event.recv_time_utc.timestamp())
+
+
+def test_ctp_v2_raw_decision_time_is_cleared_without_a_provider():
+    event = ctp_tick(1)
+    event.cohort_decision_now_monotonic_ns = event.recv_monotonic_ns
+    event.cohort_decision_now_epoch = event.recv_time_utc.timestamp()
+    event.cohort_decision_now_clock_domain_id = event.clock_domain_id
+    event.cohort_decision_now_receive_clock_error_ms = 0.0
+    event.cohort_decision_now_receive_clock_quality = "verified"
+    event.cohort_decision_now_freshness_verified = True
+    _, _, feed = tick_feed([event])
+    delivered = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            delivered.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    feed._check()
+
+    assert delivered[0].cohort_decision_now_monotonic_ns is None
+    assert delivered[0].cohort_decision_now_epoch is None
+
+
 def test_ctp_v2_conflicting_timestamp_cannot_select_the_bar_bucket():
     event = ctp_tick(1)
     event.timestamp += 60.0
@@ -525,3 +701,70 @@ def test_generation_change_invalidates_the_entire_shared_minute_bucket():
     assert shared_bucket[0].complete is False
     assert "CONNECTION_GENERATION_CHANGED" in shared_bucket[0].quality_flags
     assert all(item["datetime"] != dt.datetime(2026, 9, 9, 1, 0) for item in feed._live)
+
+
+def test_subscription_epoch_change_invalidates_the_entire_shared_minute_bucket():
+    first = ctp_tick(1, price=100.0, ingest_seq=1)
+    changed = ctp_tick(2, price=101.0, ingest_seq=2)
+    changed.subscription_epoch = 4
+    same_bucket = ctp_tick(3, price=102.0, ingest_seq=3)
+    same_bucket.subscription_epoch = 4
+    next_bucket = ctp_tick(61, price=103.0, ingest_seq=4)
+    next_bucket.subscription_epoch = 4
+    watermark = ctp_tick(121, price=104.0, ingest_seq=5)
+    watermark.subscription_epoch = 4
+    _, _, feed = minute_feed([first, changed, same_bucket, next_bucket, watermark])
+    bars = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            if item.channel_type == "bar":
+                bars.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    for _ in range(5):
+        feed._check()
+
+    shared_bucket = [
+        bar for bar in bars if bar.bucket_start.isoformat() == "2026-09-09T01:00:00+00:00"
+    ]
+    assert len(shared_bucket) == 1
+    assert shared_bucket[0].complete is False
+    assert "SUBSCRIPTION_EPOCH_CHANGED" in shared_bucket[0].quality_flags
+    assert all(item["datetime"] != dt.datetime(2026, 9, 9, 1, 0) for item in feed._live)
+
+
+def test_retired_ctp_scope_cannot_reopen_after_a_new_generation():
+    initial = ctp_tick(1, ingest_seq=1)
+    newer_boundary = ctp_tick(2, ingest_seq=2)
+    newer_boundary.connection_generation = 8
+    newer_boundary.subscription_epoch = 1
+    newer_ready = ctp_tick(3, ingest_seq=3)
+    newer_ready.connection_generation = 8
+    newer_ready.subscription_epoch = 1
+    delayed_old = ctp_tick(4, ingest_seq=4)
+    delayed_old.connection_generation = 7
+    delayed_old.subscription_epoch = 99
+    delayed_old_repeat = ctp_tick(5, ingest_seq=5)
+    delayed_old_repeat.connection_generation = 7
+    delayed_old_repeat.subscription_epoch = 99
+    _, _, feed = tick_feed([initial, newer_boundary, newer_ready, delayed_old, delayed_old_repeat])
+    delivered = []
+
+    class Env:
+        _tradingcal = None
+
+        def dispatch_channel_event(self, item):
+            if item.channel_type == "tick":
+                delivered.append(item.data)
+
+    feed.setenvironment(Env())
+    feed._start()
+    feed._check()
+
+    assert [item.execution_eligible for item in delivered] == [True, False, True, False, False]
+    assert "RETIRED_CONNECTION_SCOPE" in delivered[-2].quality_flags
+    assert "RETIRED_CONNECTION_SCOPE" in delivered[-1].quality_flags

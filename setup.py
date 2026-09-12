@@ -12,7 +12,21 @@ README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 setup(
     name="backtrader",  # Project name
     version=ABOUT["__version__"],  # Version number
-    packages=find_packages(exclude=["strategies", "studies", "examples", "examples.*"]),
+    packages=find_packages(
+        exclude=[
+            "strategies",
+            "studies",
+            "studies.*",
+            "examples",
+            "examples.*",
+            "tests",
+            "tests.*",
+            "scripts",
+            "scripts.*",
+            "docs",
+            "docs.*",
+        ]
+    ),
     # package_data={'bt_alpha': ['bt_alpha/utils/*', 'utils/*']},
     author="cloud",  # Author name
     author_email="yunjinqi@qq.com",  # Author email

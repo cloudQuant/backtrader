@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from backtrader.stores.btapistore import BtApiStoreError, _create_ctp_wrapper_class
+from backtrader.stores.btapistore import BtApiStore, BtApiStoreError, _create_ctp_wrapper_class
 from tests.fixtures.fake_btapi import FakeBtApiClient, make_store
 
 
@@ -33,6 +33,8 @@ class CompleteQueryClient(FakeBtApiClient):
         self.request_id_override = {}
         self.request_type_override = {}
         self.records_override = {}
+        self.started_at_override = {}
+        self.completed_at_override = {}
         self.session_generation = 3
         self.session_fingerprint = "acct-sha256"
         self.trading_day = "20260909"
@@ -101,14 +103,17 @@ class CompleteQueryClient(FakeBtApiClient):
         self.request_id += 1
         self.request_counts[name] = self.request_counts.get(name, 0) + 1
         complete = name not in self.incomplete
+        now = dt.datetime.now(dt.timezone.utc)
         return {
             "request_type": self.request_type_override.get(name, name),
             "request_id": self.request_id_override.get(name, self.request_id),
             "connection_generation": self.generation_override.get(name, 3),
             "account_fingerprint": "acct-sha256",
-            "started_at_utc": dt.datetime(2026, 9, 9, tzinfo=dt.timezone.utc).isoformat(),
+            "started_at_utc": self.started_at_override.get(name, now.isoformat()),
             "completed_at_utc": (
-                dt.datetime(2026, 9, 9, 0, 0, 1, tzinfo=dt.timezone.utc).isoformat()
+                self.completed_at_override.get(
+                    name, (now + dt.timedelta(microseconds=1)).isoformat()
+                )
                 if complete
                 else None
             ),
@@ -146,6 +151,12 @@ class CompleteQueryClient(FakeBtApiClient):
 
     def query_instrument_commission_rate_result(self, instrument_id, timeout=5, **_kwargs):
         return self._result("commission_rate")
+
+    def query_option_instrument_trade_cost_result(self, instrument_id, timeout=5, **_kwargs):
+        return self._result("option_trade_cost")
+
+    def query_option_instrument_commission_rate_result(self, instrument_id, timeout=5, **_kwargs):
+        return self._result("option_commission_rate")
 
     def confirm_settlement(self, timeout=5):
         self.request_counts["settlement_confirm"] = (
@@ -199,6 +210,8 @@ class ManagedBtApiClient(CompleteQueryClient):
         self.recovery_prepares = []
         self.recovery_arms = []
         self.recovery_completions = []
+        self.opaque_authorization_proofs = {}
+        self.arm_arguments = []
 
     def configure_execution(self, config):
         self.execution_config = dict(config)
@@ -243,6 +256,8 @@ class ManagedBtApiClient(CompleteQueryClient):
             "instruments": self.query_instruments_result,
             "margin_rate": self.query_instrument_margin_rate_result,
             "commission_rate": self.query_instrument_commission_rate_result,
+            "option_trade_cost": self.query_option_instrument_trade_cost_result,
+            "option_commission_rate": self.query_option_instrument_commission_rate_result,
         }
         return methods[query_type](**kwargs)
 
@@ -254,7 +269,11 @@ class ManagedBtApiClient(CompleteQueryClient):
         assert exchange_name == "CTP___FUTURE"
         return self.verify_settlement_confirmation(timeout=timeout)
 
-    def arm_execution_from_preflight(self, *, proof):
+    def arm_execution_from_preflight(self, authorization=None, *, proof=None):
+        if authorization is not None:
+            proof = self.opaque_authorization_proofs[authorization]
+        assert proof is not None
+        self.arm_arguments.append(authorization if authorization is not None else proof)
         self.armed_proofs.append(dict(proof))
         proof_sha256 = hashlib.sha256(
             json.dumps(
@@ -333,13 +352,297 @@ class ManagedBtApiClient(CompleteQueryClient):
         }
 
     def get_execution_summary(self):
-        return {
+        summary = {
             **super().get_execution_summary(),
             "armed": self.armed,
             "market_data_only": not self.armed,
             "arm_revoked": False,
             "arm_proof_sha256": self.arm_proof_sha256,
         }
+        if self.armed_proofs and "scope_version" in self.armed_proofs[-1]:
+            summary.update(
+                {
+                    "execution_gate_scope_version": self.armed_proofs[-1]["scope_version"],
+                    "execution_gate_authorized_instruments": list(
+                        self.armed_proofs[-1]["authorized_instruments"]
+                    ),
+                    "execution_gate_instrument": self.armed_proofs[-1]["instrument"],
+                }
+            )
+        return summary
+
+
+class BundleQueryClient(ManagedBtApiClient):
+    """Managed-facade fixture for raw C/P/F V2 bundle evidence."""
+
+    def __init__(self):
+        super().__init__()
+        self.reference_requests = []
+        self.rows.update(
+            {
+                "instruments": [
+                    {
+                        "InstrumentID": "m2701",
+                        "ExchangeID": "DCE",
+                        "ProductClass": "1",
+                        "IsTrading": 1,
+                        "ExpireDate": "20261207",
+                        "TradingDay": "20260909",
+                        "PriceTick": 0.5,
+                        "VolumeMultiple": 10,
+                        "MinLimitOrderVolume": 1,
+                    },
+                    {
+                        "InstrumentID": "m2701-C-3400",
+                        "ExchangeID": "DCE",
+                        "ProductClass": "2",
+                        "OptionsType": "1",
+                        "UnderlyingInstrID": "m2701",
+                        "StrikePrice": 3400.0,
+                        "IsTrading": 1,
+                        "ExpireDate": "20261207",
+                        "TradingDay": "20260909",
+                        "PriceTick": 0.5,
+                        "VolumeMultiple": 10,
+                        "MinLimitOrderVolume": 1,
+                    },
+                    {
+                        "InstrumentID": "m2701-P-3400",
+                        "ExchangeID": "DCE",
+                        "ProductClass": "2",
+                        "OptionsType": "2",
+                        "UnderlyingInstrID": "m2701",
+                        "StrikePrice": 3400.0,
+                        "IsTrading": 1,
+                        "ExpireDate": "20261207",
+                        "TradingDay": "20260909",
+                        "PriceTick": 0.5,
+                        "VolumeMultiple": 10,
+                        "MinLimitOrderVolume": 1,
+                    },
+                ],
+                "margin_rate": [
+                    {
+                        "InstrumentID": "m2701",
+                        "LongMarginRatioByMoney": 0.1,
+                        "LongMarginRatioByVolume": 0.0,
+                        "ShortMarginRatioByMoney": 0.1,
+                        "ShortMarginRatioByVolume": 0.0,
+                    },
+                    {
+                        "InstrumentID": "m2701-C-3400",
+                        "LongMarginRatioByMoney": 0.2,
+                        "LongMarginRatioByVolume": 0.0,
+                        "ShortMarginRatioByMoney": 0.2,
+                        "ShortMarginRatioByVolume": 0.0,
+                    },
+                    {
+                        "InstrumentID": "m2701-P-3400",
+                        "LongMarginRatioByMoney": 0.2,
+                        "LongMarginRatioByVolume": 0.0,
+                        "ShortMarginRatioByMoney": 0.2,
+                        "ShortMarginRatioByVolume": 0.0,
+                    },
+                ],
+                "commission_rate": [
+                    {
+                        "InstrumentID": "m2701",
+                        "OpenRatioByMoney": 0.0001,
+                        "OpenRatioByVolume": 0.0,
+                        "CloseRatioByMoney": 0.0001,
+                        "CloseRatioByVolume": 0.0,
+                        "CloseTodayRatioByMoney": 0.0001,
+                        "CloseTodayRatioByVolume": 0.0,
+                    },
+                    {
+                        "InstrumentID": "m2701-C-3400",
+                        "OpenRatioByMoney": 0.0002,
+                        "OpenRatioByVolume": 0.0,
+                        "CloseRatioByMoney": 0.0002,
+                        "CloseRatioByVolume": 0.0,
+                        "CloseTodayRatioByMoney": 0.0002,
+                        "CloseTodayRatioByVolume": 0.0,
+                    },
+                    {
+                        "InstrumentID": "m2701-P-3400",
+                        "OpenRatioByMoney": 0.0002,
+                        "OpenRatioByVolume": 0.0,
+                        "CloseRatioByMoney": 0.0002,
+                        "CloseRatioByVolume": 0.0,
+                        "CloseTodayRatioByMoney": 0.0002,
+                        "CloseTodayRatioByVolume": 0.0,
+                    },
+                ],
+                "option_trade_cost": [
+                    {
+                        "InstrumentID": "m2701-C-3400",
+                        "FixedMargin": 100.0,
+                        "MiniMargin": 20.0,
+                        "Royalty": 1.0,
+                        "ExchFixedMargin": 50.0,
+                        "ExchMiniMargin": 10.0,
+                    },
+                    {
+                        "InstrumentID": "m2701-P-3400",
+                        "FixedMargin": 100.0,
+                        "MiniMargin": 20.0,
+                        "Royalty": 1.0,
+                        "ExchFixedMargin": 50.0,
+                        "ExchMiniMargin": 10.0,
+                    },
+                ],
+                "option_commission_rate": [
+                    {
+                        "InstrumentID": "m2701-C-3400",
+                        "OpenRatioByMoney": 0.0002,
+                        "OpenRatioByVolume": 0.0,
+                        "CloseRatioByMoney": 0.0002,
+                        "CloseRatioByVolume": 0.0,
+                        "CloseTodayRatioByMoney": 0.0002,
+                        "CloseTodayRatioByVolume": 0.0,
+                    },
+                    {
+                        "InstrumentID": "m2701-P-3400",
+                        "OpenRatioByMoney": 0.0002,
+                        "OpenRatioByVolume": 0.0,
+                        "CloseRatioByMoney": 0.0002,
+                        "CloseRatioByVolume": 0.0,
+                        "CloseTodayRatioByMoney": 0.0002,
+                        "CloseTodayRatioByVolume": 0.0,
+                    },
+                ],
+            }
+        )
+
+    def _scoped_reference_result(self, name, instrument_id, exchange_id="", **kwargs):
+        self.reference_requests.append(
+            {
+                "name": name,
+                "instrument_id": instrument_id,
+                "exchange_id": exchange_id,
+                **kwargs,
+            }
+        )
+        result = self._result(name)
+        if result["complete"]:
+            result["records"] = [
+                dict(row)
+                for row in result["records"]
+                if row.get("InstrumentID") == instrument_id
+                and row.get("ExchangeID", exchange_id) == exchange_id
+            ]
+        return result
+
+    def query_instruments_result(self, instrument_id="", exchange_id="", timeout=5, **kwargs):
+        return self._scoped_reference_result(
+            "instruments",
+            instrument_id,
+            exchange_id,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def query_instrument_margin_rate_result(
+        self, instrument_id, exchange_id="", timeout=5, **kwargs
+    ):
+        return self._scoped_reference_result(
+            "margin_rate",
+            instrument_id,
+            exchange_id,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def query_instrument_commission_rate_result(
+        self, instrument_id, exchange_id="", timeout=5, **kwargs
+    ):
+        return self._scoped_reference_result(
+            "commission_rate",
+            instrument_id,
+            exchange_id,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def query_option_instrument_trade_cost_result(
+        self,
+        instrument_id,
+        exchange_id="",
+        hedge_flag="1",
+        input_price=0.0,
+        underlying_price=0.0,
+        timeout=5,
+        **kwargs,
+    ):
+        return self._scoped_reference_result(
+            "option_trade_cost",
+            instrument_id,
+            exchange_id,
+            hedge_flag=hedge_flag,
+            input_price=input_price,
+            underlying_price=underlying_price,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def query_option_instrument_commission_rate_result(
+        self, instrument_id, exchange_id="", timeout=5, **kwargs
+    ):
+        return self._scoped_reference_result(
+            "option_commission_rate",
+            instrument_id,
+            exchange_id,
+            timeout=timeout,
+            **kwargs,
+        )
+
+
+class PrefixInstrumentBundleClient(BundleQueryClient):
+    """Return the full prefix instrument response for every instrument query."""
+
+    def query_instruments_result(self, instrument_id="", exchange_id="", timeout=5, **kwargs):
+        self.reference_requests.append(
+            {
+                "name": "instruments",
+                "instrument_id": instrument_id,
+                "exchange_id": exchange_id,
+                "timeout": timeout,
+                **kwargs,
+            }
+        )
+        return self._result("instruments")
+
+
+class ExecutionReferenceBundleClient(BundleQueryClient):
+    """Offline typed depth/cost surface for the public execution reference."""
+
+    def __init__(self):
+        super().__init__()
+        self.depth_requests = []
+        self.rows["depth_market_data"] = [
+            {"InstrumentID": "m2701", "ExchangeID": "DCE", "BidPrice1": 3400.0, "AskPrice1": 3400.0, "BidVolume1": 10, "AskVolume1": 10},
+            {"InstrumentID": "m2701-C-3400", "ExchangeID": "DCE", "BidPrice1": 100.0, "AskPrice1": 101.0, "BidVolume1": 10, "AskVolume1": 10},
+            {"InstrumentID": "m2701-P-3400", "ExchangeID": "DCE", "BidPrice1": 99.0, "AskPrice1": 99.0, "BidVolume1": 10, "AskVolume1": 10},
+        ]
+
+    def _result(self, name):
+        result = super()._result(name)
+        result["schema_version"] = "ctp.query.v1"
+        result["trading_day"] = self.trading_day
+        return result
+
+    def query_depth_market_data_result(self, instrument_id, exchange_id="", timeout=5, **kwargs):
+        self.depth_requests.append({"instrument_id": instrument_id, "exchange_id": exchange_id})
+        return self._scoped_reference_result(
+            "depth_market_data", instrument_id, exchange_id, timeout=timeout, **kwargs
+        )
+
+
+class OpaqueOnlyBundleClient(BundleQueryClient):
+    """Match the real SDK arm signature: one opaque authorization object."""
+
+    def arm_execution_from_preflight(self, authorization):
+        return super().arm_execution_from_preflight(authorization)
 
 
 def _arming_proof(**changes):
@@ -542,6 +845,1167 @@ def test_ctp_preflight_preserves_all_typed_completion_evidence():
     assert snapshot["request_count_delta"].get("settlement_confirm", 0) == 0
     assert snapshot["instruments"][0]["minimum_order_volume"] == 1
     assert snapshot["instruments"][0]["expire_date"] == "20260915"
+
+
+def test_ctp_preflight_normalizes_missing_unmatched_count_only_for_disabled_empty_session():
+    client = CompleteQueryClient()
+    client.get_execution_summary = lambda: {
+        "session_enabled": False,
+        "unknown_ids": [],
+        "active_orders": None,
+    }
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_preflight_snapshot("CZCE.SA609", timeout=0)
+
+    assert snapshot["unmatched_trade_count"] == 0
+    assert snapshot["evidence_complete"] is True
+
+
+def test_ctp_bundle_preflight_keeps_missing_unmatched_count_unknown_outside_safe_state():
+    client, store = _dce_bundle_store()
+    client.get_execution_summary = lambda: {
+        "session_enabled": False,
+        "unknown_ids": ["unknown-order"],
+        "active_orders": None,
+    }
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["unmatched_trade_count"] is None
+
+
+def _dce_bundle_legs():
+    return [
+        {"exchange_id": "DCE", "instrument_id": "m2701", "is_primary": True},
+        {"exchange_id": "DCE", "instrument_id": "m2701-C-3400"},
+        {"exchange_id": "DCE", "instrument_id": "m2701-P-3400"},
+    ]
+
+
+def _dce_bundle_store():
+    client = BundleQueryClient()
+    return client, make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+    )
+
+
+def test_ctp_bundle_preflight_preserves_exact_dce_option_ids_and_uses_only_public_reads():
+    client, store = _dce_bundle_store()
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["schema_version"] == "backtrader.ctp.bundle-preflight.v2"
+    assert snapshot["evidence_complete"] is True
+    assert snapshot["read_only"] is True
+    assert snapshot["read_only_safe"] is True
+    assert snapshot["execution_eligible"] is False
+    assert snapshot["primary_leg"] == {"exchange_id": "DCE", "instrument_id": "m2701"}
+    assert [leg["instrument_id"] for leg in snapshot["legs"]] == [
+        "m2701",
+        "m2701-C-3400",
+        "m2701-P-3400",
+    ]
+    assert [leg["metadata"]["asset_type"] for leg in snapshot["legs"]] == [
+        "future",
+        "option",
+        "option",
+    ]
+    assert [leg["metadata"]["option_type"] for leg in snapshot["legs"][1:]] == [
+        "call",
+        "put",
+    ]
+    assert snapshot["legs"][1]["metadata"]["underlying_instrument_id"] == "m2701"
+    assert snapshot["legs"][2]["metadata"]["strike_price"] == 3400.0
+    assert snapshot["snapshot_sha256"]
+    assert client.public_queries == [
+        "account",
+        "positions",
+        "orders",
+        "trades",
+        "instruments",
+        "instruments",
+        "instruments",
+        "margin_rate",
+        "commission_rate",
+        "option_trade_cost",
+        "option_commission_rate",
+        "option_trade_cost",
+        "option_commission_rate",
+    ]
+    assert client.public_query_kwargs[:4] == [{"timeout": 0.0}] * 4
+    assert [request["instrument_id"] for request in client.reference_requests] == [
+        "m2701",
+        "m2701-C-3400",
+        "m2701-P-3400",
+        "m2701",
+        "m2701",
+        "m2701-C-3400",
+        "m2701-C-3400",
+        "m2701-P-3400",
+        "m2701-P-3400",
+    ]
+    option_cost_requests = [
+        request for request in client.reference_requests if request["name"] == "option_trade_cost"
+    ]
+    assert all(
+        request["hedge_flag"] == "1"
+        and request["input_price"] == 0.0
+        and request["underlying_price"] == 0.0
+        for request in option_cost_requests
+    )
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
+    assert snapshot["write_request_free"] is True
+
+
+def test_ctp_bundle_execution_reference_uses_real_quote_inputs_and_no_writes():
+    client = ExecutionReferenceBundleClient()
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(
+        _dce_bundle_legs(), timeout=0
+    )
+
+    assert snapshot["schema_version"] == "backtrader.ctp.bundle-execution-reference.v1"
+    assert snapshot["evidence_complete"] is True
+    assert snapshot["write_request_free"] is True
+    assert snapshot["broker_contract_metadata_complete"] is True
+    metadata = snapshot["broker_contract_metadata"]
+    assert metadata["schema_version"] == "backtrader.ctp.broker-contract-metadata.v1"
+    assert metadata["legs"][0]["symbol_aliases"] == ["DCE.m2701", "m2701"]
+    assert metadata["legs"][0]["price_tick"] == 0.5
+    assert metadata["legs"][0]["margin"]["short_margin_ratio_by_money"] == 0.1
+    assert metadata["legs"][1]["option_premium"] == 101.0
+    assert metadata["legs"][1]["option_trade_cost"]["Royalty"] == 1.0
+    assert snapshot["prices"] == {"0": 3400.0, "1": 101.0, "2": 99.0}
+    assert snapshot["legs"][1]["bid_price"] == 100.0
+    assert snapshot["legs"][1]["ask_price"] == 101.0
+    assert snapshot["legs"][1]["bid_volume"] == 10.0
+    assert snapshot["legs"][1]["entry_buy_price"] == 101.0
+    assert snapshot["legs"][1]["exit_sell_price"] == 100.0
+    cost_requests = [
+        request for request in client.reference_requests if request["name"] == "option_trade_cost"
+    ]
+    assert len(cost_requests) == 4
+    extra_cost_requests = cost_requests[-2:]
+    assert {(request["input_price"], request["underlying_price"]) for request in extra_cost_requests} == {
+        (101.0, 3400.0),
+        (99.0, 3400.0),
+    }
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
+
+
+@pytest.mark.parametrize("quote_change", [
+    {"LastPrice": 0.0},
+    {"LastPrice": float("nan")},
+    {"LastPrice": float("inf")},
+    {"LastPrice": 1.7976931348623157e308},
+    {"BidPrice1": None, "AskPrice1": None},
+    {"BidPrice1": 100.0},
+    {"BidPrice1": 100.0, "AskPrice1": 101.0, "BidVolume1": 0, "AskVolume1": 10},
+])
+def test_ctp_bundle_execution_reference_rejects_unsafe_depth_quote(quote_change):
+    client = ExecutionReferenceBundleClient()
+    client.rows["depth_market_data"][1].clear()
+    client.rows["depth_market_data"][1].update(
+        {"InstrumentID": "m2701-C-3400", "ExchangeID": "DCE", **quote_change}
+    )
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert any("price_required" in error or "volume_positive_required" in error for error in snapshot["evidence_errors"])
+    assert snapshot["execution_eligible"] is False
+
+
+def test_ctp_bundle_execution_reference_rejects_foreign_or_duplicate_depth_identity():
+    client = ExecutionReferenceBundleClient()
+    client.rows["depth_market_data"][1]["InstrumentID"] = "m2701-P-3400"
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert any("record_not_exactly_one" in error or "instrument_identity_mismatch" in error for error in snapshot["evidence_errors"])
+
+
+def test_ctp_bundle_execution_reference_rejects_query_identity_generation_shift():
+    client = ExecutionReferenceBundleClient()
+    client.generation_override["depth_market_data"] = 99
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert any("connection_generation_mismatch" in error for error in snapshot["evidence_errors"])
+
+
+def test_ctp_bundle_execution_reference_rejects_zero_option_cost_input_path():
+    client = ExecutionReferenceBundleClient()
+    original = client.query_option_instrument_trade_cost_result
+    seen = []
+
+    def capture(*args, **kwargs):
+        seen.append((kwargs.get("input_price"), kwargs.get("underlying_price")))
+        return original(*args, **kwargs)
+
+    client.query_option_instrument_trade_cost_result = capture
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    assert all(price > 0 and underlying > 0 for price, underlying in seen[-2:])
+
+
+def test_ctp_bundle_execution_reference_rejects_incomplete_broker_contract_metadata():
+    client = ExecutionReferenceBundleClient()
+    del client.rows["margin_rate"][0]["ShortMarginRatioByMoney"]
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert snapshot["broker_contract_metadata_complete"] is False
+    assert snapshot["broker_contract_metadata"] is None
+    assert any("margin_short_by_money" in error for error in snapshot["evidence_errors"])
+
+
+def _frozen_quote_reference_store():
+    client = ExecutionReferenceBundleClient()
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    frozen = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+    assert frozen["evidence_complete"] is True
+    client.reference_requests.clear()
+    client.depth_requests.clear()
+    return client, store, dict(client.request_counts)
+
+
+def test_ctp_bundle_quote_reference_requires_frozen_bundle_without_queries():
+    client = ExecutionReferenceBundleClient()
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    before_counts = dict(client.request_counts)
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["schema_version"] == "backtrader.ctp.bundle-quote-reference.v1"
+    assert snapshot["evidence_complete"] is False
+    assert snapshot["read_only_safe"] is False
+    assert "bundle_quote_preflight_snapshot_missing" in snapshot["evidence_errors"]
+    assert client.depth_requests == []
+    assert client.reference_requests == []
+    assert client.request_counts == before_counts
+
+
+def test_ctp_bundle_quote_reference_uses_only_depth_against_frozen_scope():
+    client, store, before_counts = _frozen_quote_reference_store()
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["schema_version"] == "backtrader.ctp.bundle-quote-reference.v1"
+    assert snapshot["evidence_complete"] is True
+    assert snapshot["read_only_safe"] is True
+    assert snapshot["bundle_preflight"]["schema_version"] == "backtrader.ctp.bundle-preflight.v2"
+    assert [request["name"] for request in client.reference_requests] == [
+        "depth_market_data",
+        "depth_market_data",
+        "depth_market_data",
+    ]
+    assert client.depth_requests == [
+        {"instrument_id": "m2701", "exchange_id": "DCE"},
+        {"instrument_id": "m2701-C-3400", "exchange_id": "DCE"},
+        {"instrument_id": "m2701-P-3400", "exchange_id": "DCE"},
+    ]
+    assert all(
+        client.request_counts[name] == before_counts.get(name, 0)
+        for name in ("account", "positions", "orders", "trades")
+    )
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
+    assert snapshot["legs"][1]["bid_price"] == 100.0
+    assert snapshot["legs"][1]["ask_price"] == 101.0
+    assert snapshot["legs"][1]["bid_volume"] == 10.0
+    assert snapshot["legs"][1]["ask_volume"] == 10.0
+    assert snapshot["legs"][1]["entry_buy_price"] == 101.0
+    assert snapshot["legs"][1]["exit_sell_price"] == 100.0
+    assert all(leg["request_id"] > 0 for leg in snapshot["legs"])
+    assert all(leg["requested_at_utc"] for leg in snapshot["legs"])
+    assert all(leg["received_at_utc"] for leg in snapshot["legs"])
+    assert all(leg["requested_monotonic"] <= leg["received_monotonic"] for leg in snapshot["legs"])
+
+
+def test_ctp_bundle_quote_reference_rejects_current_generation_drift_without_depth_query():
+    client, store, _before_counts = _frozen_quote_reference_store()
+    client.session_generation += 1
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "bundle_quote_current_generation_mismatch" in snapshot["evidence_errors"]
+    assert client.depth_requests == []
+
+
+@pytest.mark.parametrize(
+    "field, value, expected_error",
+    [
+        ("session_fingerprint", "different-account", "bundle_quote_current_account_fingerprint_mismatch"),
+        ("trading_day", "20260910", "bundle_quote_current_trading_day_mismatch"),
+    ],
+)
+def test_ctp_bundle_quote_reference_rejects_current_identity_drift_without_depth_query(
+    field, value, expected_error
+):
+    client, store, _before_counts = _frozen_quote_reference_store()
+    setattr(client, field, value)
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+    assert client.depth_requests == []
+
+
+@pytest.mark.parametrize("field, value", [("evidence_complete", False), ("read_only_safe", False)])
+def test_ctp_bundle_quote_reference_rejects_degraded_frozen_preflight_without_query(field, value):
+    client, store, _before_counts = _frozen_quote_reference_store()
+    store._last_ctp_bundle_preflight_snapshot[field] = value
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "bundle_quote_preflight_snapshot_invalid" in snapshot["evidence_errors"]
+    assert client.depth_requests == []
+
+
+def test_ctp_bundle_quote_reference_rejects_requested_leg_scope_drift_without_query():
+    client, store, _before_counts = _frozen_quote_reference_store()
+    mismatched_legs = [
+        {"exchange_id": "DCE", "instrument_id": "m2701", "is_primary": True},
+        {"exchange_id": "DCE", "instrument_id": "m2701-C-3500"},
+        {"exchange_id": "DCE", "instrument_id": "m2701-P-3400"},
+    ]
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(mismatched_legs, timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "bundle_quote_requested_legs_mismatch" in snapshot["evidence_errors"]
+    assert client.depth_requests == []
+
+
+@pytest.mark.parametrize(
+    "change, expected_error",
+    [
+        ({"InstrumentID": "m2701-P-3400"}, "record_not_exactly_one"),
+        ({"AskPrice1": None}, "ask_price_required"),
+    ],
+)
+def test_ctp_bundle_quote_reference_rejects_foreign_or_incomplete_depth_quote(change, expected_error):
+    client, store, _before_counts = _frozen_quote_reference_store()
+    client.rows["depth_market_data"][1].update(change)
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert any(expected_error in error for error in snapshot["evidence_errors"])
+    assert snapshot["legs"][1]["entry_buy_price"] is None
+    assert snapshot["legs"][1]["exit_sell_price"] is None
+
+
+def test_ctp_bundle_quote_reference_rejects_depth_timeout_without_other_queries():
+    client, store, before_counts = _frozen_quote_reference_store()
+    client.incomplete.add("depth_market_data")
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert any("depth_market_data_query_incomplete" in error for error in snapshot["evidence_errors"])
+    assert [request["name"] for request in client.reference_requests] == [
+        "depth_market_data",
+        "depth_market_data",
+        "depth_market_data",
+    ]
+    assert all(
+        client.request_counts[name] == before_counts.get(name, 0)
+        for name in ("account", "positions", "orders", "trades")
+    )
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
+
+
+def test_ctp_bundle_quote_reference_rejects_duplicate_depth_request_ids():
+    client, store, _before_counts = _frozen_quote_reference_store()
+    client.request_id_override["depth_market_data"] = 700
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "bundle_quote_request_id_not_unique" in snapshot["evidence_errors"]
+    assert len(client.depth_requests) == 3
+
+
+def test_ctp_bundle_quote_reference_rejects_write_counter_change_during_depth_query():
+    client, store, _before_counts = _frozen_quote_reference_store()
+    original = client.query_depth_market_data_result
+
+    def depth_with_unexpected_write(*args, **kwargs):
+        client.request_counts["order_insert"] += 1
+        return original(*args, **kwargs)
+
+    client.query_depth_market_data_result = depth_with_unexpected_write
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert snapshot["write_request_free"] is False
+    assert "bundle_quote_write_request_evidence_invalid" in snapshot["evidence_errors"]
+    assert len(client.depth_requests) == 3
+
+
+def test_ctp_bundle_preflight_ignores_unrelated_prefix_rows_but_requires_exact_target():
+    client = PrefixInstrumentBundleClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+    )
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    assert all(leg["evidence_complete"] for leg in snapshot["legs"])
+    assert not any("identity_mismatch" in error for error in snapshot["evidence_errors"])
+
+
+def test_ctp_bundle_preflight_rejects_duplicate_exact_prefix_match():
+    client = PrefixInstrumentBundleClient()
+    duplicate = dict(_bundle_evidence_row(client, "instruments", "m2701-C-3400"))
+    client.rows["instruments"].append(duplicate)
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+    )
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "leg[1].instrument_record_ambiguous" in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_rejects_missing_exact_prefix_target():
+    client = PrefixInstrumentBundleClient()
+    client.rows["instruments"] = [
+        row
+        for row in client.rows["instruments"]
+        if row["InstrumentID"] != "m2701-C-3400"
+    ]
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+    )
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "leg[1].instrument_record_missing" in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_allows_empty_generic_option_fee_rows():
+    client, store = _dce_bundle_store()
+    client.rows["margin_rate"] = [
+        row for row in client.rows["margin_rate"] if row["InstrumentID"] == "m2701"
+    ]
+    client.rows["commission_rate"] = [
+        row for row in client.rows["commission_rate"] if row["InstrumentID"] == "m2701"
+    ]
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    assert snapshot["legs"][1]["margin_rate"] is None
+    assert snapshot["legs"][1]["commission_rate"] is None
+    assert snapshot["legs"][1]["option_trade_cost"] is not None
+    assert snapshot["legs"][1]["option_commission_rate"] is not None
+
+
+def test_ctp_bundle_preflight_requires_future_generic_fee_rows():
+    client, store = _dce_bundle_store()
+    client.rows["margin_rate"] = []
+    client.rows["commission_rate"] = []
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "leg[0].margin_rate_record_missing" in snapshot["evidence_errors"]
+    assert "leg[0].commission_rate_record_missing" in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_supports_a_two_leg_future_option_scope():
+    client, store = _dce_bundle_store()
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs()[:2], timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    assert len(snapshot["legs"]) == 2
+    assert snapshot["primary_leg"] == {"exchange_id": "DCE", "instrument_id": "m2701"}
+    assert [leg["metadata"]["asset_type"] for leg in snapshot["legs"]] == [
+        "future",
+        "option",
+    ]
+
+
+def test_ctp_bundle_preflight_allows_a_future_delivery_expiry_distinct_from_option_expiry():
+    client, store = _dce_bundle_store()
+    future = _bundle_evidence_row(client, "instruments", "m2701")
+    future["ExpireDate"] = "20270307"
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    assert snapshot["legs"][0]["metadata"]["expiry_date"] == "20270307"
+    assert [leg["metadata"]["expiry_date"] for leg in snapshot["legs"][1:]] == [
+        "20261207",
+        "20261207",
+    ]
+
+
+def test_ctp_bundle_preflight_requires_call_and_put_option_expiries_to_match():
+    client, store = _dce_bundle_store()
+    put = _bundle_evidence_row(client, "instruments", "m2701-P-3400")
+    put["ExpireDate"] = "20261208"
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "bundle_call_put_expiry_mismatch" in snapshot["evidence_errors"]
+
+
+@pytest.mark.parametrize(
+    "legs,match",
+    [
+        (
+            [
+                {"exchange_id": "DCE", "instrument_id": "m2701"},
+                {"exchange_id": "DCE", "instrument_id": "m2701-C-3400"},
+            ],
+            "requires exactly one primary",
+        ),
+        (
+            [
+                {"exchange_id": "DCE", "instrument_id": "m2701", "is_primary": True},
+                {"exchange_id": "DCE", "instrument_id": "m2701"},
+            ],
+            "duplicate raw leg",
+        ),
+        (
+            [
+                {"exchange_id": "DCE", "instrument_id": "m2701", "is_primary": True},
+                {"exchange_id": "CZCE", "instrument_id": "SA701C1080"},
+            ],
+            "one exact exchange_id",
+        ),
+        (
+            [
+                {"exchange_id": " DCE", "instrument_id": "m2701", "is_primary": True},
+                {"exchange_id": " DCE", "instrument_id": "m2701-C-3400"},
+            ],
+            "non-empty exact text",
+        ),
+        (
+            [
+                {"exchange_id": "DCE", "instrument_id": "DCE.m2701", "is_primary": True},
+                {"exchange_id": "DCE", "instrument_id": "m2701-C-3400"},
+            ],
+            "raw unqualified",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_invalid_raw_scope_before_any_query(legs, match):
+    client, store = _dce_bundle_store()
+
+    with pytest.raises(BtApiStoreError, match=match):
+        store.get_ctp_bundle_preflight_snapshot(legs, timeout=0)
+
+    assert client.public_queries == []
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
+
+
+def test_ctp_bundle_preflight_accepts_raw_pairs_when_primary_selector_is_exact():
+    client, store = _dce_bundle_store()
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(
+        [("DCE", "m2701"), ("DCE", "m2701-C-3400")],
+        primary_leg=("DCE", "m2701"),
+        timeout=0,
+    )
+
+    assert snapshot["evidence_complete"] is True
+    assert snapshot["primary_leg"] == {"exchange_id": "DCE", "instrument_id": "m2701"}
+    assert [leg["instrument_id"] for leg in snapshot["legs"]] == ["m2701", "m2701-C-3400"]
+
+
+def test_ctp_bundle_preflight_fails_closed_when_option_metadata_is_missing():
+    client, store = _dce_bundle_store()
+    call = next(row for row in client.rows["instruments"] if row["InstrumentID"] == "m2701-C-3400")
+    del call["UnderlyingInstrID"]
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "leg[1].option_underlying_missing" in snapshot["evidence_errors"]
+    assert "bundle_option_underlying_mismatch" in snapshot["evidence_errors"]
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
+
+
+def test_ctp_bundle_preflight_fails_closed_on_incomplete_option_reference_query():
+    client, store = _dce_bundle_store()
+    client.incomplete.add("option_trade_cost")
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "leg[1].option_trade_cost_query_incomplete" in snapshot["evidence_errors"]
+    assert "leg[2].option_trade_cost_query_incomplete" in snapshot["evidence_errors"]
+    assert snapshot["legs"][1]["option_trade_cost"] is None
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
+
+
+def test_ctp_query_result_retains_swig_like_option_reference_fields():
+    class SwigLikeOptionRecord:
+        InstrumentID = "m2701-C-3400"
+        ExchangeID = "DCE"
+        ProductClass = "2"
+        OptionsType = "1"
+        UnderlyingInstrID = "m2701"
+        StrikePrice = 3400.0
+        FixedMargin = 100.0
+        MiniMargin = 20.0
+        Royalty = 1.0
+        ExchFixedMargin = 50.0
+        ExchMiniMargin = 10.0
+        OpenRatioByMoney = 0.0002
+        CloseRatioByMoney = 0.0002
+        CloseTodayRatioByMoney = 0.0002
+
+    result = BtApiStore._normalise_ctp_query_result(
+        {
+            "request_type": "option_trade_cost",
+            "records": [SwigLikeOptionRecord()],
+        },
+        "option_trade_cost",
+    )
+
+    assert result["records"] == [
+        {
+            "InstrumentID": "m2701-C-3400",
+            "ExchangeID": "DCE",
+            "ProductClass": "2",
+            "OptionsType": "1",
+            "UnderlyingInstrID": "m2701",
+            "StrikePrice": 3400.0,
+            "FixedMargin": 100.0,
+            "MiniMargin": 20.0,
+            "Royalty": 1.0,
+            "ExchFixedMargin": 50.0,
+            "ExchMiniMargin": 10.0,
+            "OpenRatioByMoney": 0.0002,
+            "CloseRatioByMoney": 0.0002,
+            "CloseTodayRatioByMoney": 0.0002,
+        }
+    ]
+
+
+_BUNDLE_DELETE_FIELD = object()
+
+
+def _bundle_evidence_row(client, table, instrument_id=None):
+    rows = client.rows[table]
+    if instrument_id is None:
+        assert len(rows) == 1
+        return rows[0]
+    return next(row for row in rows if row["InstrumentID"] == instrument_id)
+
+
+@pytest.mark.parametrize(
+    "table,instrument_id,field,value,expected_error",
+    [
+        ("account", None, "Balance", float("nan"), "account_balance_missing_or_invalid"),
+        (
+            "instruments",
+            "m2701",
+            "PriceTick",
+            0.0,
+            "leg[0].instrument_price_tick_missing_or_invalid",
+        ),
+        (
+            "instruments",
+            "m2701-C-3400",
+            "VolumeMultiple",
+            True,
+            "leg[1].instrument_volume_multiple_missing_or_invalid",
+        ),
+        (
+            "instruments",
+            "m2701-P-3400",
+            "MinLimitOrderVolume",
+            _BUNDLE_DELETE_FIELD,
+            "leg[2].instrument_minimum_order_volume_missing_or_invalid",
+        ),
+        (
+            "margin_rate",
+            "m2701",
+            "ShortMarginRatioByMoney",
+            float("inf"),
+            "leg[0].margin_rate_margin_short_by_money_missing_or_invalid",
+        ),
+        (
+            "commission_rate",
+            "m2701",
+            "CloseTodayRatioByMoney",
+            None,
+            "leg[0].commission_rate_commission_close_today_by_money_missing_or_invalid",
+        ),
+        (
+            "option_trade_cost",
+            "m2701-C-3400",
+            "Royalty",
+            float("nan"),
+            "leg[1].option_trade_cost_option_trade_cost_royalty_missing_or_invalid",
+        ),
+        (
+            "option_commission_rate",
+            "m2701-C-3400",
+            "CloseRatioByMoney",
+            True,
+            "leg[1].option_commission_rate_commission_close_by_money_missing_or_invalid",
+        ),
+        (
+            "option_trade_cost",
+            "m2701-P-3400",
+            "MiniMargin",
+            _BUNDLE_DELETE_FIELD,
+            "leg[2].option_trade_cost_option_trade_cost_minimargin_missing_or_invalid",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_incomplete_or_invalid_numeric_evidence(
+    table, instrument_id, field, value, expected_error
+):
+    client, store = _dce_bundle_store()
+    row = _bundle_evidence_row(client, table, instrument_id)
+    if value is _BUNDLE_DELETE_FIELD:
+        del row[field]
+    else:
+        row[field] = value
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+@pytest.mark.parametrize(
+    "table,instrument_id,field,value,expected_error",
+    [
+        (
+            "instruments",
+            "m2701",
+            "price_tick",
+            0.25,
+            "leg[0].instrument_price_tick_alias_mismatch",
+        ),
+        (
+            "instruments",
+            "m2701",
+            "volume_multiple",
+            20,
+            "leg[0].instrument_volume_multiple_alias_mismatch",
+        ),
+        (
+            "instruments",
+            "m2701",
+            "minimum_order_volume",
+            2,
+            "leg[0].instrument_minimum_order_volume_alias_mismatch",
+        ),
+        (
+            "instruments",
+            "m2701-C-3400",
+            "strike_price",
+            3500.0,
+            "leg[1].option_strike_alias_mismatch",
+        ),
+        (
+            "margin_rate",
+            "m2701",
+            "long_margin_ratio_by_money",
+            0.2,
+            "leg[0].margin_rate_margin_long_by_money_alias_mismatch",
+        ),
+        (
+            "commission_rate",
+            "m2701",
+            "open_ratio_by_money",
+            0.0002,
+            "leg[0].commission_rate_commission_open_by_money_alias_mismatch",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_conflicting_finite_numeric_aliases(
+    table, instrument_id, field, value, expected_error
+):
+    client, store = _dce_bundle_store()
+    _bundle_evidence_row(client, table, instrument_id)[field] = value
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+@pytest.mark.parametrize("money,volume", [(0.0, 3.0), (0.0001, 3.0)])
+def test_ctp_bundle_preflight_accepts_distinct_money_and_volume_cost_units(money, volume):
+    client, store = _dce_bundle_store()
+    margin = _bundle_evidence_row(client, "margin_rate", "m2701")
+    margin["LongMarginRatioByMoney"] = money
+    margin["LongMarginRatioByVolume"] = volume
+    commission = _bundle_evidence_row(client, "commission_rate", "m2701")
+    commission["OpenRatioByMoney"] = money
+    commission["OpenRatioByVolume"] = volume
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+
+
+@pytest.mark.parametrize(
+    "table,instrument_id,field,expected_error",
+    [
+        (
+            "margin_rate",
+            "m2701",
+            "LongMarginRatioByVolume",
+            "leg[0].margin_rate_margin_long_by_volume_missing_or_invalid",
+        ),
+        (
+            "commission_rate",
+            "m2701",
+            "OpenRatioByVolume",
+            "leg[0].commission_rate_commission_open_by_volume_missing_or_invalid",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_missing_independent_cost_unit(
+    table, instrument_id, field, expected_error
+):
+    client, store = _dce_bundle_store()
+    del _bundle_evidence_row(client, table, instrument_id)[field]
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_accepts_explicit_zero_cost_and_account_values():
+    client, store = _dce_bundle_store()
+    client.rows["account"] = [{"Balance": 0.0, "Available": 0.0}]
+    for row in client.rows["margin_rate"]:
+        row["LongMarginRatioByMoney"] = 0.0
+        row["ShortMarginRatioByMoney"] = 0.0
+    for table in ("commission_rate", "option_commission_rate"):
+        for row in client.rows[table]:
+            row["OpenRatioByMoney"] = 0.0
+            row["CloseRatioByMoney"] = 0.0
+            row["CloseTodayRatioByMoney"] = 0.0
+    for row in client.rows["option_trade_cost"]:
+        for field in ("FixedMargin", "MiniMargin", "Royalty", "ExchFixedMargin", "ExchMiniMargin"):
+            row[field] = 0.0
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+
+
+def test_ctp_bundle_preflight_requires_one_usable_account_record():
+    client, store = _dce_bundle_store()
+    client.rows["account"].append({"Balance": 100000.0, "Available": 90000.0})
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "account_record_not_unique" in snapshot["evidence_errors"]
+
+
+@pytest.mark.parametrize(
+    "field,value,expected_error",
+    [
+        (
+            "instrument_id",
+            "m2701-C-3400-alias-conflict",
+            "leg[1].instrument_response_instrument_alias_mismatch",
+        ),
+        (
+            "exchange_id",
+            "CZCE",
+            "leg[1].instrument_response_exchange_alias_mismatch",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_conflicting_identity_aliases(field, value, expected_error):
+    client, store = _dce_bundle_store()
+    call = _bundle_evidence_row(client, "instruments", "m2701-C-3400")
+    call[field] = value
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_accepts_semantically_equivalent_contract_aliases():
+    client, store = _dce_bundle_store()
+    future = _bundle_evidence_row(client, "instruments", "m2701")
+    future.update(
+        {
+            "asset_type": "futures",
+            "contract_type": "future",
+            "product_class": 1,
+        }
+    )
+    for instrument_id, option_type, short_option_type in (
+        ("m2701-C-3400", "call", "c"),
+        ("m2701-P-3400", "put", "p"),
+    ):
+        option = _bundle_evidence_row(client, "instruments", instrument_id)
+        option.update(
+            {
+                "asset_type": "option",
+                "contract_type": "options",
+                "product_class": 2,
+                "option_type": option_type,
+                "options_type": short_option_type,
+                "underlying_instrument": "m2701",
+                "underlying_instr_id": "m2701",
+            }
+        )
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    assert [leg["metadata"]["asset_type"] for leg in snapshot["legs"]] == [
+        "future",
+        "option",
+        "option",
+    ]
+    assert [leg["metadata"]["option_type"] for leg in snapshot["legs"][1:]] == [
+        "call",
+        "put",
+    ]
+    assert all(leg["metadata"]["asset_type_alias_error"] == "" for leg in snapshot["legs"])
+    assert all(
+        leg["metadata"]["option_type_alias_error"] == ""
+        and leg["metadata"]["underlying_alias_error"] == ""
+        for leg in snapshot["legs"][1:]
+    )
+
+
+@pytest.mark.parametrize(
+    "instrument_id,field,value,expected_error",
+    [
+        (
+            "m2701",
+            "asset_type",
+            "option",
+            "leg[0].instrument_asset_type_alias_mismatch",
+        ),
+        (
+            "m2701",
+            "contract_type",
+            "option",
+            "leg[0].instrument_asset_type_alias_mismatch",
+        ),
+        (
+            "m2701-C-3400",
+            "product_class",
+            "1",
+            "leg[1].instrument_asset_type_alias_mismatch",
+        ),
+        (
+            "m2701-C-3400",
+            "asset_type",
+            "unknown-contract-kind",
+            "leg[1].instrument_asset_type_alias_invalid",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_conflicting_or_invalid_asset_type_aliases(
+    instrument_id, field, value, expected_error
+):
+    client, store = _dce_bundle_store()
+    _bundle_evidence_row(client, "instruments", instrument_id)[field] = value
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+@pytest.mark.parametrize(
+    "field,value,expected_error",
+    [
+        ("option_type", "put", "leg[1].option_type_alias_mismatch"),
+        ("options_type", "put", "leg[1].option_type_alias_mismatch"),
+        ("option_type", "invalid-option-kind", "leg[1].option_type_alias_invalid"),
+        (
+            "underlying_instrument",
+            "m2701-other",
+            "leg[1].option_underlying_alias_mismatch",
+        ),
+        (
+            "underlying_instr_id",
+            "m2701-other",
+            "leg[1].option_underlying_alias_mismatch",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_conflicting_or_invalid_option_identity_aliases(
+    field, value, expected_error
+):
+    client, store = _dce_bundle_store()
+    _bundle_evidence_row(client, "instruments", "m2701-C-3400")[field] = value
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_compares_underlying_as_the_raw_wire_identifier():
+    client, store = _dce_bundle_store()
+    call = _bundle_evidence_row(client, "instruments", "m2701-C-3400")
+    call["UnderlyingInstrID"] = "m2701 "
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["legs"][1]["metadata"]["underlying_instrument_id"] == "m2701 "
+    assert snapshot["evidence_complete"] is False
+    assert "bundle_option_underlying_mismatch" in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_rejects_a_write_performed_during_lazy_connect():
+    class ConnectWritesBundleQueryClient(BundleQueryClient):
+        def connect(self):
+            super().connect()
+            self.request_counts["order_insert"] += 1
+
+    client = ConnectWritesBundleQueryClient()
+    store = make_store(api=client, provider="btapi", exchange_kwargs=client.exchange_kwargs)
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert snapshot["write_request_free"] is False
+    assert snapshot["connect_request_count_delta"]["order_insert"] == 1
+    assert "unexpected_write_request_during_connect" in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_rejects_when_the_preconnect_counter_baseline_is_unavailable():
+    class MissingPreconnectCounterBundleQueryClient(BundleQueryClient):
+        def __init__(self):
+            super().__init__()
+            self._ctp_state_reads = 0
+
+        def get_ctp_session_state(self, exchange_name="CTP___FUTURE"):
+            state = super().get_ctp_session_state(exchange_name=exchange_name)
+            self._ctp_state_reads += 1
+            if self._ctp_state_reads == 1:
+                state.pop("request_counts")
+            return state
+
+    client = MissingPreconnectCounterBundleQueryClient()
+    store = make_store(api=client, provider="btapi", exchange_kwargs=client.exchange_kwargs)
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert snapshot["write_request_free"] is False
+    assert "preconnect_request_count_evidence_missing" in snapshot["evidence_errors"]
+    assert "connect_request_count_evidence_missing" in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_requires_completion_not_earlier_than_the_request():
+    client, store = _dce_bundle_store()
+    client.completed_at_override["margin_rate"] = (
+        dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=1)
+    ).isoformat()
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "leg[0].margin_rate_completed_before_request_sent" in snapshot["evidence_errors"]
+
+
+@pytest.mark.parametrize(
+    "configure,expected_error",
+    [
+        (
+            lambda client: client.generation_override.update({"margin_rate": 4}),
+            "query_generation_mismatch",
+        ),
+        (
+            lambda client: client.session_fingerprint_sequence.extend(
+                [
+                    "0123456789abcdef",
+                    "0123456789abcdef",
+                    "other-account-fingerprint",
+                ]
+            ),
+            "session_account_fingerprint_changed",
+        ),
+        (
+            lambda client: client.session_trading_day_sequence.extend(
+                ["20260909", "20260909", "20260910"]
+            ),
+            "session_trading_day_changed",
+        ),
+    ],
+)
+def test_ctp_bundle_preflight_fails_closed_on_session_or_query_identity_change(
+    configure, expected_error
+):
+    client, store = _dce_bundle_store()
+    configure(client)
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+    assert all(
+        client.request_counts[name] == 0
+        for name in ("settlement_confirm", "order_insert", "order_action")
+    )
 
 
 def test_store_arms_public_sdk_from_same_cached_preflight_and_keeps_openings_frozen():
@@ -1598,6 +3062,33 @@ def test_provider_btapi_uses_managed_public_ctp_facade_and_preserves_metadata():
     assert snapshot["unmatched_trade_count"] == 0
 
 
+def test_preflight_product_scan_is_complete_evidence_without_fee_placeholders():
+    """A product-scoped Stage A must stay complete evidence.
+
+    The Iter23/24/25 three-leg launcher consumes the product-scoped Stage A
+    snapshot through its strict gate, which requires ``evidence_complete``.
+    Per-instrument margin/commission queries are Stage B evidence: a product
+    scan has no single instrument, so those queries are out of scope rather
+    than failed placeholders poisoning the product-scan evidence.
+    """
+    client = ManagedBtApiClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+    )
+
+    snapshot = store.get_ctp_preflight_snapshot(product_id="SA", exchange_id="CZCE", timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    assert snapshot["evidence_errors"] == []
+    assert "margin_rate" not in snapshot["query_results"]
+    assert "commission_rate" not in snapshot["query_results"]
+    assert snapshot["instruments"]
+    assert "margin_rate" not in client.public_queries
+    assert "commission_rate" not in client.public_queries
+
+
 def test_preflight_product_filter_is_forwarded_to_the_managed_ctp_facade():
     client = ManagedBtApiClient()
     store = make_store(
@@ -1736,6 +3227,117 @@ def test_provider_btapi_uses_only_managed_ctp_query_facade():
         "orders": 3,
         "trades": 4,
     }
+
+
+def test_ctp_quote_v2_sdk_tick_keeps_parent_attestation_evidence_on_native_tick():
+    """The Store must not strip evidence consumed by the public cohort gate."""
+
+    symbol = "SA701C1080"
+    venue = "CTP___FUTURE"
+
+    class QuoteSdk:
+        exchange_kwargs = {venue: {}}
+
+        def __init__(self):
+            self.events = [
+                {
+                    "kind": "tick",
+                    "timestamp": 1_789_000_000.0,
+                    "local_time": 1_789_000_000.001,
+                    "received_wall_time": 1_789_000_000.001,
+                    "received_monotonic_ns": 123_456_789,
+                    "clock_domain_id": "parent-md-domain",
+                    "symbol": symbol,
+                    "exchange": "CZCE",
+                    "asset_type": "option",
+                    "source": "ctp.parent-attested",
+                    "price": 42.0,
+                    "volume": 1.0,
+                    "delta_volume": 1.0,
+                    "direction": "buy",
+                    "bid_price": 41.0,
+                    "ask_price": 42.0,
+                    "bid_volume": 2.0,
+                    "ask_volume": 3.0,
+                    "schema_version": "ctp.quote.v2",
+                    "volume_semantics": "delta",
+                    "cum_volume": 101.0,
+                    "cumulative_volume": 101.0,
+                    "volume_complete": True,
+                    "volume_quality": "CONTINUOUS",
+                    "continuity_status": "continuous",
+                    "trading_day": "20260910",
+                    "action_day": "20260909",
+                    "event_time_utc": "2026-09-10T01:00:00+00:00",
+                    "recv_time_utc": "2026-09-10T01:00:00.001+00:00",
+                    "recv_monotonic_ns": 123_456_789,
+                    "connection_generation": 4,
+                    "ingest_seq": 9,
+                    "subscription_epoch": 7,
+                    "rules_hash": "rules-v2",
+                    "event_time_source": "action_day",
+                    "source_clock_quality": "verified",
+                    "receive_clock_quality": "verified",
+                    "source_clock_error_ms": 1.0,
+                    "receive_clock_error_ms": 1.0,
+                    "freshness_verified": True,
+                    "execution_eligible": False,
+                    "cohort_now_monotonic_ns": 123_456_999,
+                    "cohort_now_epoch": 12,
+                    "cohort_now_clock_domain_id": "parent-md-domain",
+                    "cohort_now_receive_clock_error_ms": 0.25,
+                    "cohort_now_receive_clock_quality": "verified",
+                    "cohort_now_freshness_verified": True,
+                    # These originate at feed dispatch and must never be
+                    # copied from an SDK market event by the Store.
+                    "cohort_decision_now_monotonic_ns": 1,
+                    "cohort_decision_now_epoch": 1,
+                    "cohort_decision_now_clock_domain_id": "forged-domain",
+                    "lower_limit_price": 1.0,
+                    "upper_limit_price": 100.0,
+                }
+            ]
+
+        def poll_event(self, _venue):
+            return None
+
+        def poll_events(self, _venue, *, max_raw_items, coalesce_market_snapshots):
+            del max_raw_items, coalesce_market_snapshots
+            events, self.events = self.events, []
+            return events
+
+    sdk = QuoteSdk()
+    store = make_store(
+        api=sdk,
+        provider="btapi",
+        exchange_kwargs=sdk.exchange_kwargs,
+        symbol_routes={symbol: venue},
+    )
+    store._connected = True
+    store._subscribed_datanames.add(symbol)
+
+    tick = store.poll_tick(symbol)
+
+    assert tick is not None
+    assert tick.asset_type == "option"
+    assert tick.source == "ctp.parent-attested"
+    assert tick.subscription_epoch == 7
+    assert tick.rules_hash == "rules-v2"
+    assert tick.source_clock_quality == "verified"
+    assert tick.receive_clock_quality == "verified"
+    assert tick.source_clock_error_ms == 1.0
+    assert tick.receive_clock_error_ms == 1.0
+    assert tick.freshness_verified is True
+    assert tick.execution_eligible is False
+    assert tick.cohort_now_monotonic_ns == 123_456_999
+    assert tick.cohort_now_epoch == 12
+    assert tick.cohort_now_clock_domain_id == "parent-md-domain"
+    assert tick.cohort_now_receive_clock_error_ms == 0.25
+    assert tick.cohort_now_receive_clock_quality == "verified"
+    assert tick.cohort_now_freshness_verified is True
+    assert not hasattr(tick, "cohort_decision_now_monotonic_ns")
+    assert not hasattr(tick, "cohort_decision_now_epoch")
+    assert not hasattr(tick, "cohort_decision_now_clock_domain_id")
 
 
 def test_explicit_settlement_preparation_returns_counter_evidence():
@@ -1934,3 +3536,522 @@ def test_native_ctp_wrapper_rejects_market_before_req_order_insert():
                 "offset": "close",
             }
         )
+
+
+def test_native_ctp_wrapper_defaults_to_read_only_and_rejects_implicit_settlement_write():
+    """A direct wrapper cannot connect with the legacy auto-write switch enabled."""
+
+    pytest.importorskip("bt_api_ctp.ctp.client")
+    wrapper_cls = _create_ctp_wrapper_class()
+
+    default_client = wrapper_cls()
+    assert default_client.auto_settlement_confirm is False
+
+    unsafe_client = wrapper_cls(auto_settlement_confirm=True)
+    with pytest.raises(BtApiStoreError, match="not permitted"):
+        unsafe_client.connect()
+
+
+def _bundle_authorized_store(client=None):
+    """Build a signed V2 grant from one fresh Stage A/B and bundle snapshot."""
+    client = client or BundleQueryClient()
+    store = make_store(
+        api=client,
+        provider="btapi",
+        exchange_kwargs=client.exchange_kwargs,
+        execution_config={
+            "market_data_only": True,
+            "strategy_id": "iter23-ctp-bundle:engineering_smoke",
+            "strategy_identity_sha256": "8" * 64,
+        },
+        execution_authorization_key_id=_AUTHORIZATION_KEY_ID,
+        execution_authorization_secret=_AUTHORIZATION_SECRET,
+    )
+    stage_a = store.get_ctp_preflight_snapshot(timeout=0)
+    stage_b = store.get_ctp_preflight_snapshot("DCE.m2701", timeout=0)
+    bundle = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+    authorized = sorted(f"{leg['exchange_id']}.{leg['instrument_id']}" for leg in bundle["legs"])
+    proof = _arming_proof(
+        account_fingerprint="acct_0123456789abcdef",
+        trading_day=bundle["trading_day"],
+        instrument="DCE.m2701",
+        connection_generation=bundle["connection_generation"],
+        environment_profile="simnow_demo",
+        preflight_sha256=bundle["snapshot_sha256"],
+        scope_version="ctp-contract-bundle-v1",
+        authorized_instruments=authorized,
+    )
+    now = dt.datetime.now(dt.timezone.utc)
+    grant = {
+        "schema_version": "backtrader.ctp.execution-authorization.v1",
+        "authorization_kind": "hmac_sha256",
+        "authorization_key_id": _AUTHORIZATION_KEY_ID,
+        "issued_at_utc": (now - dt.timedelta(seconds=1)).isoformat(),
+        "expires_at_utc": (now + dt.timedelta(minutes=5)).isoformat(),
+        **proof,
+        "stage_a_snapshot_sha256": stage_a["snapshot_sha256"],
+        "stage_a_query_request_ids": _query_ids(
+            stage_a, ("account", "positions", "orders", "trades", "instruments")
+        ),
+        "stage_b_snapshot_sha256": stage_b["snapshot_sha256"],
+        "stage_b_query_request_ids": _query_ids(
+            stage_b,
+            (
+                "account",
+                "positions",
+                "orders",
+                "trades",
+                "instruments",
+                "margin_rate",
+                "commission_rate",
+            ),
+        ),
+        "runtime_executable_sha256": hashlib.sha256(open(sys.executable, "rb").read()).hexdigest(),
+        "evidence_hashes_sha256": "7" * 64,
+        "gate_statuses": {"G1": "PASS", "G2": "PASS", "G3": "PASS"},
+    }
+    canonical = json.dumps(
+        grant,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")
+    grant["signature_hmac_sha256"] = hmac.new(
+        _AUTHORIZATION_SECRET.encode("utf-8"), canonical, hashlib.sha256
+    ).hexdigest()
+    configured = store.configure_ctp_execution_authorization(grant)
+    authorization = object()
+    client.opaque_authorization_proofs[authorization] = proof
+    return client, store, proof, grant, configured, bundle, authorization
+
+
+def _bundle_recovery_report(proof, *, status="RECOVERABLE", unknown_leg=None):
+    """Fixture report retaining separate remote/owned maps for every leg."""
+    zero = {
+        "long_today": "0",
+        "long_yesterday": "0",
+        "short_today": "0",
+        "short_yesterday": "0",
+    }
+    remote = {instrument: dict(zero) for instrument in proof["authorized_instruments"]}
+    owned = {instrument: dict(zero) for instrument in proof["authorized_instruments"]}
+    remote[proof["instrument"]]["long_today"] = "1"
+    owned[proof["instrument"]]["long_today"] = "1"
+    if status == "FLAT":
+        remote = {instrument: dict(zero) for instrument in remote}
+        owned = {instrument: dict(zero) for instrument in owned}
+    elif status == "MANUAL_INTERVENTION":
+        owned = {instrument: dict(zero) for instrument in remote}
+    elif unknown_leg is not None:
+        remote[unknown_leg] = dict(zero)
+        owned[unknown_leg] = dict(zero)
+
+    cycle_id = None if status != "RECOVERABLE" else "sdk-bundle-cycle-0001"
+    allowed_closes = []
+    if status == "RECOVERABLE":
+        exchange_id, instrument_id = proof["instrument"].split(".", 1)
+        allowed_closes = [
+            {
+                "execution_cycle_id": cycle_id,
+                "symbol": instrument_id,
+                "exchange_id": exchange_id,
+                "position_side": "long",
+                "side": "sell",
+                "offset": "close",
+                "quantity": "1",
+                "quantity_unit": "contracts",
+            }
+        ]
+    if status == "FLAT":
+        allowed_actions = ["complete"]
+        token = "9" * 64
+        recovery_required = False
+        can_arm_execution = True
+        can_arm_recovery = False
+    elif status == "MANUAL_INTERVENTION":
+        allowed_actions = []
+        token = None
+        recovery_required = True
+        can_arm_execution = False
+        can_arm_recovery = False
+    else:
+        allowed_actions = ["close"]
+        token = "9" * 64
+        recovery_required = True
+        can_arm_execution = False
+        can_arm_recovery = True
+    return {
+        "schema_version": "bt_api.execution-recovery.v1",
+        "status": status,
+        "recovery_required": recovery_required,
+        "can_arm_execution": can_arm_execution,
+        "can_arm_recovery": can_arm_recovery,
+        "account_fingerprint": proof["account_fingerprint"],
+        "trading_day": proof["trading_day"],
+        "instrument": proof["instrument"],
+        "connection_generation": proof["connection_generation"],
+        "strategy_id": "iter23-ctp-bundle:engineering_smoke",
+        "execution_cycle_id": cycle_id,
+        "remote_position": dict(remote[proof["instrument"]]),
+        "owned_position": dict(owned[proof["instrument"]]),
+        "allowed_closes": allowed_closes,
+        "allowed_cancels": [],
+        "allowed_actions": allowed_actions,
+        "unknown_ids": [unknown_leg] if unknown_leg is not None else [],
+        "evidence_errors": ["unknown_leg"] if unknown_leg is not None else [],
+        "journal_sha256": "8" * 64,
+        "fencing_epoch": 4,
+        "recovery_token_sha256": token,
+        "scope_version": proof["scope_version"],
+        "authorized_instruments": list(proof["authorized_instruments"]),
+        "remote_positions_by_instrument": remote,
+        "owned_positions_by_instrument": owned,
+    }
+
+
+def test_ctp_bundle_arm_delegates_exact_scope_to_public_sdk_before_any_opening():
+    client, store, proof, _grant, configured, bundle, authorization = _bundle_authorized_store()
+    store._command_accept_openings = True
+
+    result = store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert configured["configured"] is True
+    assert result["armed"] is True
+    assert client.armed_proofs == [proof]
+    assert client.arm_arguments == [authorization]
+    assert store._sdk_execution_config["market_data_only"] is False
+    assert bundle["evidence_complete"] is True
+
+
+def test_ctp_bundle_arm_matches_opaque_only_sdk_signature():
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store(
+        OpaqueOnlyBundleClient()
+    )
+
+    result = store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert result["armed"] is True
+    assert client.arm_arguments == [authorization]
+
+
+def test_ctp_bundle_arm_accepts_public_session_scope_when_summary_omits_gate_aliases():
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    original_state = client.get_session_state
+
+    def state_with_public_gate_scope():
+        state = original_state()
+        state.update(
+            {
+                "execution_gate_scope_version": proof["scope_version"],
+                "execution_gate_authorized_instruments": list(proof["authorized_instruments"]),
+                "execution_gate_instrument": proof["instrument"],
+            }
+        )
+        return state
+
+    client.get_session_state = state_with_public_gate_scope
+    client.get_execution_summary = lambda: {
+        "unknown_ids": [],
+        "active_orders": 0,
+        "unmatched_trade_count": 0,
+        "armed": True,
+        "market_data_only": False,
+        "arm_revoked": False,
+        "arm_proof_sha256": client.arm_proof_sha256,
+    }
+
+    result = store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert result["armed"] is True
+    assert client.arm_arguments == [authorization]
+
+
+def test_ctp_bundle_arm_rejects_conflicting_post_session_scope_even_with_correct_summary():
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    original_state = client.get_session_state
+
+    def state_with_extra_unauthorized_leg():
+        state = original_state()
+        if client.armed:
+            state.update(
+                {
+                    "execution_gate_scope_version": proof["scope_version"],
+                    "execution_gate_authorized_instruments": [
+                        proof["instrument"],
+                        "DCE.m2701-C-3500",
+                    ],
+                }
+            )
+        return state
+
+    client.get_session_state = state_with_extra_unauthorized_leg
+
+    with pytest.raises(BtApiStoreError, match="identity mismatch|scope"):
+        store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert client.armed is False
+    assert client.disarm_reasons == ["execution_arm_post_commit_failure"]
+    assert store._sdk_execution_config["market_data_only"] is True
+    assert store._command_accept_openings is False
+
+
+def test_ctp_bundle_arm_rejects_post_arm_environment_drift_and_disarms():
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    original_state = client.get_session_state
+
+    def state_with_changed_environment():
+        state = original_state()
+        if client.armed:
+            state["environment_profile"] = "production"
+        return state
+
+    client.get_session_state = state_with_changed_environment
+
+    with pytest.raises(BtApiStoreError, match="identity mismatch|environment"):
+        store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert client.armed is False
+    assert client.disarm_reasons == ["execution_arm_post_commit_failure"]
+    assert store._sdk_execution_config["market_data_only"] is True
+
+
+@pytest.mark.parametrize("stale_target", ["stage_a", "stage_b", "bundle"])
+def test_ctp_bundle_arm_rejects_each_independently_stale_preflight_snapshot(stale_target):
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    stale = time.monotonic() - store._ctp_query_max_age_seconds - 1.0
+    if stale_target == "stage_a":
+        store._ctp_preflight_history[0]["completed_monotonic"] = stale
+    elif stale_target == "stage_b":
+        store._ctp_preflight_history[1]["completed_monotonic"] = stale
+    else:
+        store._last_ctp_bundle_preflight_snapshot["completed_monotonic"] = stale
+
+    with pytest.raises(BtApiStoreError, match="clock|stale|fresh"):
+        store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert client.armed_proofs == []
+    assert client.disarm_reasons == []
+    assert store._sdk_execution_config["market_data_only"] is True
+
+
+@pytest.mark.parametrize(
+    "stale_target,field,value",
+    [
+        ("stage_a", "completed_monotonic", float("nan")),
+        ("stage_b", "completed_monotonic", float("inf")),
+        ("bundle", "completed_monotonic", None),
+        ("bundle", "started_monotonic", float("nan")),
+        # Keep parametrization deterministic across xdist workers.  A fixed,
+        # impossible local-monotonic future timestamp exercises the same
+        # rejection path without baking import-time process state into node IDs.
+        ("stage_a", "completed_monotonic", 1_000_000_000_000.0),
+    ],
+)
+def test_ctp_bundle_arm_rejects_untrusted_preflight_clock_values(stale_target, field, value):
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    if stale_target == "stage_a":
+        store._ctp_preflight_history[0][field] = value
+    elif stale_target == "stage_b":
+        store._ctp_preflight_history[1][field] = value
+    else:
+        store._last_ctp_bundle_preflight_snapshot[field] = value
+
+    with pytest.raises(BtApiStoreError, match="clock|stale|fresh"):
+        store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert client.armed_proofs == []
+
+
+@pytest.mark.parametrize(
+    "result_name,expected_error",
+    [
+        ("account", "account_completed_after_receive_window"),
+        ("instruments", "leg[0].instrument_completed_after_receive_window"),
+        ("option_trade_cost", "leg[1].option_trade_cost_completed_after_receive_window"),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_query_completion_outside_request_window(
+    result_name, expected_error
+):
+    client, store = _dce_bundle_store()
+    future = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)
+    client.completed_at_override[result_name] = future.isoformat()
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+@pytest.mark.parametrize(
+    "field,value,expected_error",
+    [
+        ("started_at_utc", float("nan"), "account_started_at_utc_invalid"),
+        ("completed_at_utc", float("inf"), "account_completed_at_utc_invalid"),
+        ("started_at_utc", None, "account_started_at_utc_invalid"),
+        ("completed_at_utc", None, "account_completed_at_utc_invalid"),
+    ],
+)
+def test_ctp_bundle_preflight_rejects_untrusted_query_clock_values(field, value, expected_error):
+    client, store = _dce_bundle_store()
+    overrides = {
+        "started_at_utc": client.started_at_override,
+        "completed_at_utc": client.completed_at_override,
+    }
+    overrides[field]["account"] = value
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert expected_error in snapshot["evidence_errors"]
+
+
+def test_ctp_bundle_preflight_accepts_query_timestamps_from_same_request_window():
+    client, store = _dce_bundle_store()
+
+    snapshot = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is True
+    account_query = snapshot["query_results"]["account"]
+    assert (
+        account_query["requested_at_utc"]
+        <= account_query["started_at_utc"]
+        <= account_query["completed_at_utc"]
+        <= account_query["received_at_utc"]
+    )
+    assert account_query["requested_monotonic"] <= account_query["received_monotonic"]
+
+
+def test_ctp_bundle_query_time_rejects_monotonic_receive_rollback():
+    base = dt.datetime(2026, 9, 11, tzinfo=dt.timezone.utc)
+
+    errors = BtApiStore._ctp_bundle_query_time_errors(
+        {
+            "started_at_utc": base,
+            "completed_at_utc": base + dt.timedelta(microseconds=1),
+            "requested_monotonic": 20.0,
+            "received_monotonic": 19.0,
+        },
+        label="account",
+        requested_at_utc=base,
+        received_at_utc=base + dt.timedelta(seconds=1),
+    )
+
+    assert "account_received_monotonic_before_request" in errors
+
+
+def test_ctp_bundle_arm_requires_opaque_public_sdk_authorization():
+    client, store, proof, _grant, _configured, _bundle, _authorization = _bundle_authorized_store()
+
+    with pytest.raises(BtApiStoreError, match="caller-provided public authorization"):
+        store.arm_sdk_execution(proof)
+
+    assert client.armed_proofs == []
+
+
+def test_ctp_bundle_arm_rejects_extra_member_before_sdk_write():
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    forged = dict(proof)
+    forged["authorized_instruments"] = list(proof["authorized_instruments"]) + ["DCE.m2701-C-3500"]
+
+    with pytest.raises(BtApiStoreError):
+        store.arm_sdk_execution(forged, authorization=authorization)
+
+    assert client.armed_proofs == []
+
+
+def test_ctp_bundle_arm_rejects_generation_change_before_sdk_write():
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    client.session_generation = proof["connection_generation"] + 1
+
+    with pytest.raises(BtApiStoreError, match="generation|preflight"):
+        store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert client.armed_proofs == []
+
+
+def test_ctp_bundle_arm_rejects_incomplete_preflight_before_sdk_write():
+    client, store, proof, _grant, _configured, _bundle, authorization = _bundle_authorized_store()
+    store._last_ctp_bundle_preflight_snapshot["evidence_complete"] = False
+    store._last_ctp_bundle_preflight_snapshot["evidence_errors"] = ["late_callback"]
+
+    with pytest.raises(BtApiStoreError, match="incomplete|stale"):
+        store.arm_sdk_execution(proof, authorization=authorization)
+
+    assert client.armed_proofs == []
+
+
+def test_ctp_bundle_recovery_preserves_per_leg_position_maps_and_arms_only_recovery():
+    client, store, proof, _grant, _configured, _bundle, _authorization = _bundle_authorized_store()
+    client.recovery_report = _bundle_recovery_report(proof)
+
+    plan = store.prepare_execution_recovery(proof)
+    arm = store.arm_execution_recovery(
+        proof,
+        recovery_token_sha256=plan["recovery_token_sha256"],
+    )
+
+    assert plan["scope_version"] == "ctp-contract-bundle-v1"
+    assert set(plan["remote_positions_by_instrument"]) == set(proof["authorized_instruments"])
+    assert plan["remote_positions_by_instrument"][proof["instrument"]]["long_today"] == "1"
+    assert arm["recovery_only"] is True
+    assert store._command_accept_openings is False
+
+
+def test_ctp_bundle_recovery_rejects_unknown_leg_before_sdk_recovery_arm():
+    client, store, proof, _grant, _configured, _bundle, _authorization = _bundle_authorized_store()
+    client.recovery_report = _bundle_recovery_report(
+        proof,
+        status="MANUAL_INTERVENTION",
+        unknown_leg="DCE.m2701-C-3500",
+    )
+
+    plan = store.prepare_execution_recovery(proof)
+
+    assert client.recovery_prepares == [proof]
+    assert client.recovery_arms == []
+    assert plan["status"] == "MANUAL_INTERVENTION"
+    assert plan["can_arm_recovery"] is False
+
+
+def test_ctp_bundle_recovery_rejects_same_total_when_close_quantity_is_on_wrong_leg():
+    client, store, proof, _grant, _configured, _bundle, _authorization = _bundle_authorized_store()
+    report = _bundle_recovery_report(proof)
+    option = proof["authorized_instruments"][1]
+    report["remote_positions_by_instrument"][option]["long_today"] = "1"
+    report["owned_positions_by_instrument"][option]["long_today"] = "1"
+    report["allowed_closes"][0]["quantity"] = "2"
+    client.recovery_report = report
+
+    with pytest.raises(BtApiStoreError, match="close exceeds|each leg"):
+        store.prepare_execution_recovery(proof)
+
+    assert client.recovery_arms == []
+
+
+def test_ctp_bundle_recovery_rejects_per_leg_close_overage_from_distinct_actions():
+    client, store, proof, _grant, _configured, _bundle, _authorization = _bundle_authorized_store()
+    report = _bundle_recovery_report(proof)
+    option = proof["authorized_instruments"][1]
+    report["remote_positions_by_instrument"][option]["long_today"] = "1"
+    report["owned_positions_by_instrument"][option]["long_today"] = "1"
+    option_symbol = option.split(".", 1)[1]
+    report["allowed_closes"].append(
+        {
+            "execution_cycle_id": report["execution_cycle_id"],
+            "symbol": option_symbol,
+            "exchange_id": "DCE",
+            "position_side": "long",
+            "side": "sell",
+            "offset": "close",
+            "quantity": "2",
+            "quantity_unit": "contracts",
+        }
+    )
+    client.recovery_report = report
+
+    with pytest.raises(BtApiStoreError, match="close exceeds|each leg"):
+        store.prepare_execution_recovery(proof)
+
+    assert client.recovery_arms == []

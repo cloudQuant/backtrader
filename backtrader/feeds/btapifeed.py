@@ -15,6 +15,7 @@ from ..feed import DataBase
 from ..stores.btapistore import _normalize_bar, _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger
+from .ctpcohort import CtpCohortNow
 from .livefeed import LiveFeedBase
 
 logger = get_logger(__name__)
@@ -203,6 +204,11 @@ class BtApiFeed(DataBase, LiveFeedBase):
         ("receive_time_max_age", 2.0),
         ("price_tick", None),
         ("clock", None),
+        # A caller-owned, calibrated provider invoked at the synchronous
+        # strategy-dispatch boundary for strict ctp.quote.v2 ticks.  It must
+        # return CtpCohortNow in the event's exact monotonic clock domain.
+        # There is deliberately no process-clock fallback here.
+        ("ctp_decision_now_provider", None),
     )
 
     def __init__(self, *args, **kwargs):
@@ -243,6 +249,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self._last_ingest_monotonic_ns = None
         self._last_closed_bucket_end = None
         self._last_connection_generation = None
+        self._last_ctp_scope = None
+        self._highest_ctp_scope = None
         self._bar_sequence = 0
         self._tick_consumer_claimed = False
         self._history_backfilled = bool(self._history)
@@ -323,6 +331,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
             self._last_ingest_monotonic_ns = None
             self._last_closed_bucket_end = None
             self._last_connection_generation = None
+            self._last_ctp_scope = None
+            self._highest_ctp_scope = None
             self._tick_consumer_claimed = False
             self._session_active = False
 
@@ -855,7 +865,30 @@ class BtApiFeed(DataBase, LiveFeedBase):
             semantics = str(_tick_value(tick, "volume_semantics", default="") or "").strip().lower()
             legacy = False
 
-        flags = set(_tick_value(tick, "quality_flags", default=()) or ())
+        strict_ctp_v2 = schema == "ctp.quote.v2"
+        raw_quality_flags = _tick_value(tick, "quality_flags", default=None)
+        valid_quality_container = isinstance(raw_quality_flags, (list, tuple, set, frozenset))
+        try:
+            quality_items = tuple(raw_quality_flags or ()) if valid_quality_container else ()
+        except TypeError:
+            # A custom collection is allowed by the broad runtime protocol,
+            # but a broken iterator must never turn into an uncaught dispatch
+            # failure or a clean quote.
+            quality_items = ()
+            valid_quality_container = False
+        valid_quality_items = all(
+            isinstance(flag, str) and bool(flag) and flag.strip() == flag for flag in quality_items
+        )
+        if strict_ctp_v2 and (not valid_quality_container or not valid_quality_items):
+            # A V2 producer must make both the evidence container and every
+            # flag explicit. Do not coerce malformed input into apparently
+            # clean evidence or let an unhashable/non-string item crash the
+            # strategy dispatch path.
+            flags = {"QUOTE_QUALITY_FLAGS_INVALID"}
+        elif not valid_quality_items:
+            flags = {"QUOTE_QUALITY_FLAGS_INVALID"}
+        else:
+            flags = set(quality_items)
         if legacy:
             flags.add("LEGACY_SCHEMA")
 
@@ -925,7 +958,28 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 if value is not None and value > 0 and not self._on_price_grid(value, price_tick):
                     flags.add(f"{name}_PRICE_OFF_GRID")
 
-        strict_ctp_v2 = schema == "ctp.quote.v2"
+        upstream_execution_eligible = _tick_value(
+            tick,
+            "execution_eligible",
+            default=None,
+        )
+        if strict_ctp_v2:
+            # ``BtApiFeed`` is a consumer-side quality boundary, not an
+            # authority that may promote a hand-built or incomplete V2 quote.
+            # The SDK/Store must explicitly attest the upstream decision; this
+            # Feed only keeps it false when any local gate also fails.
+            if upstream_execution_eligible is not True:
+                flags.add("UPSTREAM_EXECUTION_INELIGIBLE")
+            if _tick_value(tick, "source_clock_quality", default="") != "verified":
+                flags.add("SOURCE_CLOCK_UNVERIFIED")
+            if _tick_value(tick, "receive_clock_quality", default="") != "verified":
+                flags.add("RECEIVE_CLOCK_UNVERIFIED")
+            if _tick_value(tick, "freshness_verified", default=False) is not True:
+                flags.add("FRESHNESS_UNVERIFIED")
+            if _tick_value(tick, "stale", default=None) is not False:
+                flags.add("STREAM_UNREADY")
+            if _tick_value(tick, "stale_reason", default=None) != "":
+                flags.add("STREAM_UNREADY")
         raw_event_time = _tick_value(tick, "event_time_utc", default=None)
         if strict_ctp_v2 and raw_event_time in (None, ""):
             flags.add("EVENT_TIME_MISSING")
@@ -1010,7 +1064,64 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 self._add_bar_quality_override(current_start, "ORDERING_VOLUME_GAP")
 
         generation = _tick_value(tick, "connection_generation", "stream_generation", default=None)
-        if generation not in (None, ""):
+        subscription_epoch = _tick_value(tick, "subscription_epoch", default=None)
+        retired_ctp_scope = False
+        if strict_ctp_v2:
+            scope_is_valid = (
+                type(generation) is int
+                and generation > 0
+                and type(subscription_epoch) is int
+                and subscription_epoch > 0
+            )
+            if not scope_is_valid:
+                flags.add("CTP_SCOPE_INVALID")
+            else:
+                scope = (generation, subscription_epoch)
+                if self._highest_ctp_scope is not None and scope < self._highest_ctp_scope:
+                    # A delayed callback from an old connection/subscribe
+                    # scope must not reopen a retired stream after a newer
+                    # scope has been observed. In particular, `(8, 1)` is
+                    # newer than `(7, 99)` because generation dominates.
+                    flags.add("RETIRED_CONNECTION_SCOPE")
+                    retired_ctp_scope = True
+                elif self._highest_ctp_scope is not None and scope != self._highest_ctp_scope:
+                    for builder in self._bar_builders.values():
+                        builder["quality_flags"].add(
+                            (
+                                "CONNECTION_GENERATION_CHANGED"
+                                if generation != self._highest_ctp_scope[0]
+                                else "SUBSCRIPTION_EPOCH_CHANGED"
+                            )
+                        )
+                    self._flush_ready_bars(
+                        reason=(
+                            "generation"
+                            if generation != self._highest_ctp_scope[0]
+                            else "subscription_epoch"
+                        ),
+                        force_invalid=True,
+                    )
+                    self._max_event_timestamp = None
+                    flags.add(
+                        (
+                            "CONNECTION_GENERATION_CHANGED"
+                            if generation != self._highest_ctp_scope[0]
+                            else "SUBSCRIPTION_EPOCH_CHANGED"
+                        )
+                    )
+                    self._add_bar_quality_override(
+                        bucket_start,
+                        (
+                            "CONNECTION_GENERATION_CHANGED"
+                            if generation != self._highest_ctp_scope[0]
+                            else "SUBSCRIPTION_EPOCH_CHANGED"
+                        ),
+                    )
+                if not retired_ctp_scope:
+                    self._highest_ctp_scope = scope
+                    self._last_ctp_scope = scope
+                    self._last_connection_generation = generation
+        elif generation not in (None, ""):
             if (
                 self._last_connection_generation is not None
                 and generation != self._last_connection_generation
@@ -1031,7 +1142,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         ):
             flags.add("BUCKET_ALREADY_CLOSED")
 
-        if tick_ts is not None and "EVENT_TIME_CONFLICT" not in flags:
+        if tick_ts is not None and "EVENT_TIME_CONFLICT" not in flags and not retired_ctp_scope:
             if self._max_event_timestamp is None or tick_ts >= self._max_event_timestamp:
                 self._max_event_timestamp = tick_ts
             self._last_ingest_monotonic_ns = self._now_monotonic_ns()
@@ -1062,8 +1173,10 @@ class BtApiFeed(DataBase, LiveFeedBase):
             )
             if not already_closed:
                 self._add_bar_quality_override(bucket_start, *blocking)
-        execution_eligible = not blocking and all(
-            value is not None and value > 0 for value in (bid, ask, bid_size, ask_size)
+        execution_eligible = (
+            (not strict_ctp_v2 or upstream_execution_eligible is True)
+            and not blocking
+            and all(value is not None and value > 0 for value in (bid, ask, bid_size, ask_size))
         )
         bar_eligible = not blocking and price is not None and price > 0 and delta > 0
         _set_tick_value(tick, "quality_flags", tuple(sorted(flags)))
@@ -1152,6 +1265,9 @@ class BtApiFeed(DataBase, LiveFeedBase):
             self._mark_event_dropped(event_data, "strategy_dispatch_unavailable")
             return False
 
+        if channel_type == "tick":
+            self._attach_ctp_decision_now(event_data)
+
         event = Event(
             timestamp=_tick_timestamp(event_data),
             priority=priority,
@@ -1170,6 +1286,52 @@ class BtApiFeed(DataBase, LiveFeedBase):
         if self.store is not None and hasattr(self.store, "mark_strategy_delivered"):
             self.store.mark_strategy_delivered(event_data)
         return True
+
+    def _attach_ctp_decision_now(self, tick):
+        """Attach caller-owned decision-boundary time to a strict CTP V2 tick.
+
+        Parent receipt time is useful evidence but cannot measure time spent
+        in the Store/Feed path.  A live caller must explicitly provide a
+        calibrated same-domain provider; raw tick fields never supply this
+        boundary.  Replay code can provide its own deterministic evidence
+        without involving this Feed.
+        """
+
+        if _tick_value(tick, "schema_version", default=None) != "ctp.quote.v2":
+            return
+        decision_fields = (
+            "cohort_decision_now_monotonic_ns",
+            "cohort_decision_now_epoch",
+            "cohort_decision_now_clock_domain_id",
+            "cohort_decision_now_receive_clock_error_ms",
+            "cohort_decision_now_receive_clock_quality",
+            "cohort_decision_now_freshness_verified",
+        )
+        # These fields belong to this dispatch boundary.  A raw transport
+        # payload must never pre-populate them and masquerade as a later local
+        # decision timestamp.
+        for name in decision_fields:
+            _set_tick_value(tick, name, None)
+        provider = self.p.ctp_decision_now_provider
+        if not callable(provider):
+            return
+        try:
+            now = provider(tick)
+        except Exception:
+            return
+        if not isinstance(now, CtpCohortNow):
+            return
+        if now.clock_domain_id != _tick_value(tick, "clock_domain_id", default=None):
+            return
+        for name, value in (
+            ("cohort_decision_now_monotonic_ns", now.now_monotonic_ns),
+            ("cohort_decision_now_epoch", now.now_epoch),
+            ("cohort_decision_now_clock_domain_id", now.clock_domain_id),
+            ("cohort_decision_now_receive_clock_error_ms", now.receive_clock_error_ms),
+            ("cohort_decision_now_receive_clock_quality", now.receive_clock_quality),
+            ("cohort_decision_now_freshness_verified", now.freshness_verified),
+        ):
+            _set_tick_value(tick, name, value)
 
     def _mark_event_dropped(self, event_data, reason):
         """Close Store conservation accounting for an undispatched feed event."""

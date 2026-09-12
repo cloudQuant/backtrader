@@ -20,6 +20,7 @@ from ..comminfo import (
     ComminfoFuturesMixed,
     ComminfoFuturesPercent,
 )
+from ..commissions.ctpoption import CtpOptionPremium, OptionAccountingError
 from ..order import BuyOrder, OrderBase, SellOrder
 from ..position import Position
 from ..position_modes import (
@@ -1830,7 +1831,7 @@ class BtApiBroker(BrokerBase):
             and (order_sys_id not in (None, "") or not order_sys_required)
             and valid_session
             and exchange_id in {"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"}
-            and re.fullmatch(r"[A-Z]+\d{3,4}", instrument_id)
+            and re.fullmatch(r"[A-Z][A-Z0-9]{2,30}", instrument_id)
             and re.fullmatch(r"\d{8}", trading_day)
         )
 
@@ -1841,20 +1842,143 @@ class BtApiBroker(BrokerBase):
         required = (
             cls._extract_update_value(row, "trade_id", "TradeID"),
             cls._extract_update_value(row, "order_sys_id", "OrderSysID"),
+            cls._extract_update_value(row, "order_ref", "OrderRef"),
             cls._extract_update_value(row, "exchange_id", "ExchangeID"),
             cls._extract_update_value(row, "instrument_id", "InstrumentID"),
             cls._extract_update_value(row, "trading_day", "TradingDay", "TradeDate"),
+            cls._extract_update_value(row, "connection_generation", "ConnectionGeneration"),
         )
         if any(value in (None, "") for value in required):
             return False
-        exchange = str(required[2]).strip().upper()
-        instrument = str(required[3]).strip().upper()
-        trading_day = str(required[4]).strip()
+        exchange = str(required[3]).strip().upper()
+        instrument = str(required[4]).strip().upper()
+        trading_day = str(required[5]).strip()
+        try:
+            generation = int(required[6])
+        except (TypeError, ValueError):
+            generation = 0
         return bool(
-            exchange in {"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"}
-            and re.fullmatch(r"[A-Z]+\d{3,4}", instrument)
+            generation > 0
+            and exchange in {"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"}
+            and re.fullmatch(r"[A-Z][A-Z0-9]{2,30}", instrument)
             and re.fullmatch(r"\d{8}", trading_day)
         )
+
+    @staticmethod
+    def _ctp_empty_sequence(value):
+        return isinstance(value, (list, tuple)) and not value
+
+    def _ctp_normalized_unmatched_trade_count(self, snapshot):
+        """Return the execution count, allowing zero only for proven pre-start state."""
+        summary = snapshot.get("execution_summary")
+        if not isinstance(summary, Mapping):
+            return None
+        if "unmatched_trade_count" in summary:
+            value = summary.get("unmatched_trade_count")
+            return value if type(value) is int and value >= 0 else None
+
+        query_results = snapshot.get("query_results")
+        trade_query = query_results.get("trades") if isinstance(query_results, Mapping) else None
+        trades = snapshot.get("trades")
+        submit_calls = summary.get("submit_calls")
+        safe_start = (
+            summary.get("market_data_only") is True
+            and summary.get("armed") is False
+            and type(submit_calls) is int
+            and submit_calls == 0
+            and self._ctp_empty_sequence(summary.get("unknown_ids"))
+            and not self._pending_trade_updates
+            and isinstance(trades, list)
+            and not trades
+            and isinstance(trade_query, Mapping)
+            and trade_query.get("complete") is True
+            and trade_query.get("is_last_seen") is True
+            and isinstance(trade_query.get("records"), list)
+            and not trade_query.get("records")
+        )
+        return 0 if safe_start else None
+
+    def _ctp_local_trade_binding(self, row, generation):
+        """Resolve one CTP trade row to exactly one locally known order."""
+        order_sys_id = str(self._extract_update_value(row, "order_sys_id", "OrderSysID") or "")
+        order_ref = str(self._extract_update_value(row, "order_ref", "OrderRef") or "")
+        instrument_id = str(
+            self._extract_update_value(row, "instrument_id", "InstrumentID") or ""
+        ).strip().upper()
+        try:
+            row_generation = int(
+                self._extract_update_value(row, "connection_generation", "ConnectionGeneration")
+            )
+        except (TypeError, ValueError):
+            return None, "trade_row_generation_invalid"
+        if row_generation != generation:
+            return None, "trade_row_generation_mismatch"
+
+        matches = []
+        for order in self.orders.values():
+            local_sys_id = str(self._order_info_get(order, "external_order_id") or "")
+            local_refs = {
+                str(value)
+                for value in (
+                    self._order_info_get(order, "ctp_order_ref"),
+                    self._order_info_get(order, "client_order_id"),
+                    getattr(order, "ref", None),
+                )
+                if value not in (None, "")
+            }
+            local_instruments = {
+                str(value).strip().upper()
+                for value in (
+                    self._order_info_get(order, "instrument_id"),
+                    self._order_info_get(order, "ctp_instrument_id"),
+                    self._position_key(order.data),
+                )
+                if value not in (None, "")
+            }
+            if (
+                local_sys_id == order_sys_id
+                and order_ref in local_refs
+                and instrument_id in local_instruments
+            ):
+                local_generation = self._order_info_get(order, "connection_generation")
+                try:
+                    local_generation = int(local_generation)
+                except (TypeError, ValueError):
+                    return None, "trade_order_generation_missing"
+                if local_generation != generation:
+                    return None, "trade_order_generation_mismatch"
+                matches.append(order)
+        if not matches:
+            return None, "foreign_trade_row"
+        if len(matches) != 1:
+            return None, "ambiguous_trade_row"
+        return matches[0], None
+
+    def _ctp_validate_trade_reconciliation(self, snapshot, generation):
+        """Validate remote CTP trades against the current local execution ledger."""
+        trades = snapshot.get("trades")
+        if not isinstance(trades, list):
+            return "trade_query_invalid"
+        if self._pending_trade_updates:
+            return "pending_trade_updates"
+        seen_trade_ids = set()
+        matched_orders = set()
+        for row in trades:
+            if not self._ctp_trade_query_identity_complete(row):
+                return "trade_row_identity_incomplete"
+            trade_id = str(self._extract_update_value(row, "trade_id", "TradeID"))
+            if trade_id in seen_trade_ids:
+                return "duplicate_trade_row"
+            seen_trade_ids.add(trade_id)
+            order, reason = self._ctp_local_trade_binding(row, generation)
+            if reason is not None:
+                return reason
+            matched_orders.add(id(order))
+
+        for order in self.orders.values():
+            if bool(self._order_info_get(order, "execution_pending_trades", False)):
+                return "missing_local_expected_trade"
+        return None
 
     def _ctp_terminal_query_row(self, order, rows):
         identifiers = {
@@ -1912,14 +2036,42 @@ class BtApiBroker(BrokerBase):
             return self.get_ctp_reconciliation_state()
         unknown_intent_count = snapshot.get("unknown_intent_count")
         unmatched_trade_count = snapshot.get("unmatched_trade_count")
+        summary = snapshot.get("execution_summary")
+        unmatched_field_missing = isinstance(summary, Mapping) and (
+            "unmatched_trade_count" not in summary
+        )
+        if (
+            "unmatched_trade_count" not in snapshot
+            and not unmatched_field_missing
+            and isinstance(summary, Mapping)
+        ):
+            unmatched_trade_count = summary.get("unmatched_trade_count")
+        if unmatched_trade_count is None and unmatched_field_missing:
+            unmatched_trade_count = self._ctp_normalized_unmatched_trade_count(snapshot)
+        strict_trade_path = False
+        if unmatched_trade_count is None and unmatched_field_missing:
+            # The actual-trade path is resolved only after all query and row
+            # identity checks below.  Do not turn an empty/non-binding query
+            # into zero merely because the SDK omitted this field.
+            strict_trade_path = True
         counts_complete = all(
             isinstance(value, int) and not isinstance(value, bool)
             for value in (unknown_intent_count, unmatched_trade_count)
         )
-        if not counts_complete:
+        if not counts_complete and not (
+            strict_trade_path
+            and unmatched_trade_count is None
+            and isinstance(snapshot.get("trades"), list)
+            and snapshot.get("trades")
+        ):
             self._reset_ctp_reconciliation_rounds("execution_summary_incomplete")
             return self.get_ctp_reconciliation_state()
-        if unknown_intent_count != 0 or unmatched_trade_count != 0:
+        unmatched_trade_pending_binding = (
+            strict_trade_path and unmatched_trade_count is None and bool(snapshot.get("trades"))
+        )
+        if unknown_intent_count != 0 or (
+            unmatched_trade_count != 0 and not unmatched_trade_pending_binding
+        ):
             self._reset_ctp_reconciliation_rounds("execution_summary_not_clear")
             self._ctp_reconciliation_unknown_intent_count = unknown_intent_count
             self._ctp_reconciliation_unmatched_trade_count = unmatched_trade_count
@@ -1967,6 +2119,16 @@ class BtApiBroker(BrokerBase):
         ):
             self._reset_ctp_reconciliation_rounds("trade_query_identity_incomplete")
             return self.get_ctp_reconciliation_state()
+        trade_error = self._ctp_validate_trade_reconciliation(snapshot, generation)
+        if trade_error is not None:
+            self._reset_ctp_reconciliation_rounds(trade_error)
+            return self.get_ctp_reconciliation_state()
+        if unmatched_trade_count is None:
+            if strict_trade_path and trades:
+                unmatched_trade_count = 0
+            else:
+                self._reset_ctp_reconciliation_rounds("execution_summary_incomplete")
+                return self.get_ctp_reconciliation_state()
         alive = [order for order in self.orders.values() if order.alive()]
         terminal_unknowns = {}
         for order in alive:
@@ -1999,7 +2161,11 @@ class BtApiBroker(BrokerBase):
         self._ctp_reconciliation_unknown_intent_count = unknown_intent_count
         self._ctp_reconciliation_unmatched_trade_count = unmatched_trade_count
         self._ctp_reconciliation_round_event_epoch = self._ctp_reconciliation_event_epoch
-        self._ctp_reconciliation_reason = "awaiting_second_complete_snapshot"
+        self._ctp_reconciliation_reason = (
+            "strict_bound_trade_reconciliation_awaiting_second_snapshot"
+            if strict_trade_path
+            else "awaiting_second_complete_snapshot"
+        )
         if self._ctp_reconciliation_rounds < 2:
             return self.get_ctp_reconciliation_state()
 
@@ -2016,7 +2182,11 @@ class BtApiBroker(BrokerBase):
             self._reset_ctp_reconciliation_rounds("local_state_did_not_converge")
             return self.get_ctp_reconciliation_state()
         self._ctp_reconciliation_required = False
-        self._ctp_reconciliation_reason = "two_complete_snapshots_agree"
+        self._ctp_reconciliation_reason = (
+            "two_complete_snapshots_agree_strict_bound_trades"
+            if strict_trade_path
+            else "two_complete_snapshots_agree"
+        )
         return self.get_ctp_reconciliation_state()
 
     def reconcile_ctp_execution(self, *, timeout=5.0):
@@ -2340,8 +2510,24 @@ class BtApiBroker(BrokerBase):
                 "startup_preflight_incomplete",
                 "SDK opening orders remain locked until startup evidence is complete",
             )
-        self._freeze_position_mode("first order submission")
         try:
+            # Option input and capability gates run before all optional local
+            # validation and placement helpers.  This preserves raw CTP
+            # evidence and prevents validation_enabled/cash settings from
+            # turning an unsupported seller or malformed option into a write.
+            option_input_error = self._validate_option_order_inputs(order)
+            if option_input_error is not None:
+                code, message = option_input_error
+                return self._reject_order(order, code, message)
+            seller_capability_error = self._validate_option_seller_capability(order)
+            if seller_capability_error is not None:
+                code, message = seller_capability_error
+                return self._reject_order(order, code, message)
+            option_fee_error = self._validate_option_order_fee(order)
+            if option_fee_error is not None:
+                code, message = option_fee_error
+                return self._reject_order(order, code, message)
+            self._freeze_position_mode("first order submission")
             safety_error = self._placement_safety_error(order)
             if safety_error is not None:
                 code, message = safety_error
@@ -3274,6 +3460,12 @@ class BtApiBroker(BrokerBase):
             transmit=transmit,
             histnotify=histnotify,
         )
+        # OrderBase keeps a signed/normalized size and may substitute a data
+        # close for a missing price.  Retain the caller's raw option inputs so
+        # the option gate can reject booleans and non-finite values before any
+        # float/abs conversion.
+        order._btapi_raw_order_size = size
+        order._btapi_raw_order_price = price
         self._attach_position_meta(
             order, position_side=position_side, offset=offset, **order_kwargs
         )
@@ -3317,6 +3509,8 @@ class BtApiBroker(BrokerBase):
             transmit=transmit,
             histnotify=histnotify,
         )
+        order._btapi_raw_order_size = size
+        order._btapi_raw_order_price = price
         self._attach_position_meta(
             order, position_side=position_side, offset=offset, **order_kwargs
         )
@@ -3978,13 +4172,23 @@ class BtApiBroker(BrokerBase):
     @staticmethod
     def _first_number(*values, default=None):
         for value in values:
-            if value in (None, ""):
+            if value is None or value == "":
+                continue
+            if isinstance(value, bool):
                 continue
             try:
-                return float(value)
+                number = float(value)
             except (TypeError, ValueError):
                 continue
-        return default
+            if math.isfinite(number):
+                return number
+        if default is None or isinstance(default, bool) or default == "":
+            return None
+        try:
+            number = float(default)
+        except (TypeError, ValueError):
+            return None
+        return number if math.isfinite(number) else None
 
     @classmethod
     def _normalise_rate(cls, value, default=0.0):
@@ -4271,10 +4475,348 @@ class BtApiBroker(BrokerBase):
         )
 
     @classmethod
+    def _metadata_is_option(cls, metadata):
+        """Return whether metadata explicitly identifies an option contract."""
+        type_keys = (
+            "asset_type",
+            "asset_class",
+            "product_class",
+            "productClass",
+            "ProductClass",
+            "contract_type",
+            "contractType",
+            "instrument_type",
+            "instrumentType",
+            "security_type",
+            "securityType",
+            "kind",
+        )
+        type_values = [
+            (key, metadata.get(key)) for key in type_keys if metadata.get(key) not in (None, "")
+        ]
+        type_kinds = {cls._metadata_asset_kind(value) for _, value in type_values}
+        known_type_kinds = {kind for kind in type_kinds if kind in {"option", "non_option"}}
+        if len(known_type_kinds) > 1:
+            raise OptionAccountingError(
+                "option_metadata_asset_type_conflict",
+                "option_metadata_asset_type_conflict: contradictory asset/product classes",
+            )
+
+        option_type = cls._metadata_option_type_text(metadata)
+        premium_style = cls._metadata_consistent_text(
+            metadata,
+            (
+                "premium_style",
+                "premiumStyle",
+                "settlement_style",
+                "option_settlement_style",
+                "option_style",
+            ),
+            "option_metadata_premium_style_conflict",
+        )
+        option_marked = bool(option_type or premium_style) or any(
+            key in metadata for key in ("seller_margin_evidence", "seller_total_margin")
+        )
+        if known_type_kinds == {"non_option"} and option_marked:
+            raise OptionAccountingError(
+                "option_metadata_asset_type_conflict",
+                "option_metadata_asset_type_conflict: option fields disagree with asset class",
+            )
+        return known_type_kinds == {"option"} or option_marked
+
+    @classmethod
+    def _metadata_consistent_text(cls, metadata, keys, code):
+        """Return one normalized text value while rejecting conflicting aliases."""
+        values = [
+            cls._normalise_code_text(metadata.get(key))
+            for key in keys
+            if metadata.get(key) not in (None, "")
+        ]
+        if not values:
+            return ""
+        if len(set(values)) != 1:
+            raise OptionAccountingError(code, f"{code}: contradictory aliases")
+        return values[0]
+
+    @classmethod
+    def _metadata_option_type_text(cls, metadata):
+        """Normalize CTP call/put codes while rejecting contradictory aliases."""
+        keys = ("option_type", "optionType", "OptionsType", "options_type")
+        values = []
+        option_type_aliases = {
+            "1": "call",
+            "call": "call",
+            "c": "call",
+            "2": "put",
+            "put": "put",
+            "p": "put",
+        }
+        for key in keys:
+            value = metadata.get(key)
+            if value in (None, ""):
+                continue
+            text = cls._normalise_code_text(value)
+            values.append(option_type_aliases.get(text, text))
+        if not values:
+            return ""
+        if len(set(values)) != 1:
+            raise OptionAccountingError(
+                "option_metadata_option_type_conflict",
+                "option_metadata_option_type_conflict: contradictory option type aliases",
+            )
+        return values[0]
+
+    @classmethod
+    def _metadata_asset_kind(cls, value):
+        """Classify raw CTP and normalized asset labels for conflict checks."""
+        text = cls._normalise_code_text(value)
+        if text in {"2", "6", "option", "options", "spot_option", "spotoption"}:
+            return "option"
+        if "option" in text:
+            return "option"
+        if text in {
+            "1",
+            "future",
+            "futures",
+            "swap",
+            "perpetual",
+            "linear",
+            "inverse",
+            "spot",
+            "stock",
+            "crypto",
+        } or any(token in text for token in ("future", "swap", "perpetual")):
+            return "non_option"
+        return f"unknown:{text}"
+
+    @classmethod
+    def _metadata_option_scope(cls, metadata):
+        """Extract only explicit identity fields used to fence seller evidence."""
+        scope = metadata.get("seller_margin_scope")
+        if scope is not None and not isinstance(scope, Mapping):
+            raise OptionAccountingError(
+                "option_metadata_scope_invalid",
+                "option_metadata_scope_invalid: seller margin scope must be a mapping",
+            )
+        aliases = {
+            "account_fingerprint": ("account_fingerprint", "account_id", "account"),
+            "trading_day": ("trading_day", "trade_date", "TradingDay", "date"),
+            "connection_generation": (
+                "connection_generation",
+                "generation",
+                "connectionGeneration",
+            ),
+            "instrument_id": ("instrument_id", "InstrumentID", "instrument", "symbol"),
+            "exchange_id": ("exchange_id", "ExchangeID", "exchange"),
+            "hedge_flag": ("hedge_flag", "HedgeFlag", "hedge", "hedge_mode"),
+            "currency": ("currency", "margin_currency", "settle_currency"),
+            "price_basis": ("price_basis", "pricebasis", "price_basis_evidence"),
+            "expiry": ("expiry", "option_expiry", "expiry_date", "ExpireDate"),
+            "source_hash": ("source_hash", "source_hash_sha256", "sourcehash"),
+        }
+        result = {}
+        for canonical, keys in aliases.items():
+            values = []
+            for source in (metadata, scope or {}):
+                values.extend(
+                    (key, source[key]) for key in keys if source.get(key) not in (None, "")
+                )
+            value = values[0][1] if values else None
+            if values and any(item[1] != value for item in values[1:]):
+                raise OptionAccountingError(
+                    "option_metadata_scope_alias_conflict",
+                    "option_metadata_scope_alias_conflict: contradictory scope aliases",
+                )
+            if value not in (None, ""):
+                result[canonical] = value
+        return result
+
+    @classmethod
+    def _metadata_option_fee_rate(cls, metadata, *keys):
+        """Read only the option's explicit ByMoney fee dimension."""
+        return cls._metadata_option_fee_dimension(metadata, keys)
+
+    @classmethod
+    def _metadata_option_fee_amount(cls, metadata, *keys):
+        """Read only the option's explicit ByVolume fee dimension."""
+        return cls._metadata_option_fee_dimension(metadata, keys)
+
+    @classmethod
+    def _metadata_option_fee_dimension(cls, metadata, keys):
+        """Read a CTP option fee dimension without changing its wire units."""
+        key_text = " ".join(str(key).lower() for key in keys)
+        if "close_today" in key_text or "closetoday" in key_text:
+            code = "option_fee_close_today_invalid"
+        elif "close_yesterday" in key_text or "closeyesterday" in key_text:
+            code = "option_fee_close_yesterday_invalid"
+        elif "close" in key_text:
+            code = "option_fee_close_invalid"
+        else:
+            code = "option_fee_open_invalid"
+        values = [(key, metadata.get(key)) for key in keys if metadata.get(key) not in (None, "")]
+        if not values:
+            return None
+        numbers = []
+        for key, value in values:
+            if isinstance(value, bool):
+                raise OptionAccountingError(
+                    code,
+                    f"{code}: {key} must be a finite non-negative number",
+                )
+            try:
+                number = float(value)
+            except (TypeError, ValueError) as exc:
+                raise OptionAccountingError(
+                    code,
+                    f"{code}: {key} must be a finite non-negative number",
+                ) from exc
+            if not math.isfinite(number) or number < 0.0:
+                raise OptionAccountingError(
+                    code,
+                    f"{code}: {key} must be a finite non-negative number",
+                )
+            numbers.append((key, number))
+        first = numbers[0][1]
+        if any(number != first for _, number in numbers[1:]):
+            raise OptionAccountingError(
+                code,
+                f"{code}: contradictory fee aliases",
+            )
+        return first
+
+    @classmethod
+    def _metadata_option_multiplier(cls, metadata):
+        """Resolve one finite positive option multiplier without coercing bools."""
+        keys = (
+            "multiplier",
+            "mult",
+            "contract_multiplier",
+            "contract_size",
+            "VolumeMultiple",
+        )
+        values = [(key, metadata.get(key)) for key in keys if metadata.get(key) not in (None, "")]
+        if not values:
+            raise OptionAccountingError(
+                "option_multiplier_missing",
+                "option_multiplier_missing: explicit option multiplier is required",
+            )
+        numbers = []
+        for key, value in values:
+            if isinstance(value, bool):
+                raise OptionAccountingError(
+                    "option_multiplier_invalid",
+                    f"option_multiplier_invalid: {key} must be positive and finite",
+                )
+            try:
+                number = float(value)
+            except (TypeError, ValueError) as exc:
+                raise OptionAccountingError(
+                    "option_multiplier_invalid",
+                    f"option_multiplier_invalid: {key} must be positive and finite",
+                ) from exc
+            if not math.isfinite(number) or number <= 0.0:
+                raise OptionAccountingError(
+                    "option_multiplier_invalid",
+                    f"option_multiplier_invalid: {key} must be positive and finite",
+                )
+            numbers.append((key, number))
+        first = numbers[0][1]
+        if any(number != first for _, number in numbers[1:]):
+            raise OptionAccountingError(
+                "option_multiplier_conflict",
+                "option_multiplier_conflict: contradictory multiplier aliases",
+            )
+        return first
+
+    @classmethod
     def _metadata_to_comminfo(cls, metadata):
         """Build a Backtrader comminfo object from normalized contract metadata."""
         if not metadata:
             return None
+        if cls._metadata_is_option(metadata):
+            style = cls._metadata_text(
+                metadata,
+                "premium_style",
+                "premiumStyle",
+                "settlement_style",
+                "option_settlement_style",
+                "option_style",
+            )
+            multiplier = cls._metadata_option_multiplier(metadata)
+            seller_evidence = metadata.get("seller_margin_evidence")
+            if seller_evidence is None:
+                seller_evidence = metadata.get("seller_total_margin_evidence")
+            return CtpOptionPremium(
+                mult=multiplier,
+                premium_style=style or None,
+                option_type=cls._metadata_option_type_text(metadata) or None,
+                open_commission_by_money=cls._metadata_option_fee_rate(
+                    metadata,
+                    "open_commission_by_money",
+                    "open_fee_rate",
+                    "open_commission_rate",
+                    "OpenRatioByMoney",
+                    "COMMISSION_OPEN_RATIO",
+                ),
+                open_commission_by_volume=cls._metadata_option_fee_amount(
+                    metadata,
+                    "open_commission_by_volume",
+                    "open_fee_amount",
+                    "open_commission_amount",
+                    "OpenRatioByVolume",
+                    "COMMISSION_OPEN_AMOUNT",
+                ),
+                close_commission_by_money=cls._metadata_option_fee_rate(
+                    metadata,
+                    "close_commission_by_money",
+                    "close_fee_rate",
+                    "close_commission_rate",
+                    "CloseRatioByMoney",
+                    "COMMISSION_CLOSE_RATIO",
+                ),
+                close_commission_by_volume=cls._metadata_option_fee_amount(
+                    metadata,
+                    "close_commission_by_volume",
+                    "close_fee_amount",
+                    "close_commission_amount",
+                    "CloseRatioByVolume",
+                    "COMMISSION_CLOSE_AMOUNT",
+                ),
+                close_today_commission_by_money=cls._metadata_option_fee_rate(
+                    metadata,
+                    "close_today_commission_by_money",
+                    "close_today_fee_rate",
+                    "close_today_commission_rate",
+                    "CloseTodayRatioByMoney",
+                    "COMMISSION_CLOSE_TODAY_RATIO",
+                ),
+                close_today_commission_by_volume=cls._metadata_option_fee_amount(
+                    metadata,
+                    "close_today_commission_by_volume",
+                    "close_today_fee_amount",
+                    "close_today_commission_amount",
+                    "CloseTodayRatioByVolume",
+                    "COMMISSION_CLOSE_TODAY_AMOUNT",
+                ),
+                close_yesterday_commission_by_money=cls._metadata_option_fee_rate(
+                    metadata,
+                    "close_yesterday_commission_by_money",
+                    "close_yesterday_fee_rate",
+                    "close_yesterday_commission_rate",
+                    "CloseYesterdayRatioByMoney",
+                    "COMMISSION_CLOSE_YESTERDAY_RATIO",
+                ),
+                close_yesterday_commission_by_volume=cls._metadata_option_fee_amount(
+                    metadata,
+                    "close_yesterday_commission_by_volume",
+                    "close_yesterday_fee_amount",
+                    "close_yesterday_commission_amount",
+                    "CloseYesterdayRatioByVolume",
+                    "COMMISSION_CLOSE_YESTERDAY_AMOUNT",
+                ),
+                seller_margin_evidence=seller_evidence,
+                evidence_scope=cls._metadata_option_scope(metadata),
+            )
         inverse_contract = cls._metadata_is_inverse_contract(metadata)
         multiplier_values = (
             (
@@ -4485,8 +5027,143 @@ class BtApiBroker(BrokerBase):
             return comminfo
         return super().getcommissioninfo(data)
 
+    @staticmethod
+    def _strict_option_input_number(value, code, *, integer=False, positive=True):
+        """Validate one raw CTP option order/fill number before normalization."""
+        if isinstance(value, bool):
+            raise OptionAccountingError(code, f"{code}: boolean is not a numeric value")
+        try:
+            number = float(value)
+        except (TypeError, ValueError) as exc:
+            raise OptionAccountingError(code, f"{code}: expected a finite numeric value") from exc
+        if not math.isfinite(number) or (positive and number <= 0.0):
+            raise OptionAccountingError(code, f"{code}: expected a positive finite number")
+        if integer and not number.is_integer():
+            raise OptionAccountingError(
+                code, f"{code}: CTP option quantity must be whole contracts"
+            )
+        return number
+
+    def _option_comminfo_for_order(self, order):
+        """Resolve an option comminfo while keeping validation errors explicit."""
+        try:
+            comminfo = order.comminfo or self.getcommissioninfo(order.data)
+        except OptionAccountingError as exc:
+            return None, (exc.code, str(exc))
+        return comminfo, None
+
+    @staticmethod
+    def _raw_order_input(order, name):
+        missing = object()
+        value = getattr(order, f"_btapi_raw_order_{name}", missing)
+        if value is not missing:
+            return value
+        return getattr(order, name, None)
+
+    def _validate_option_order_inputs(self, order):
+        """Reject malformed option order inputs before OrderBase conversions."""
+        comminfo, error = self._option_comminfo_for_order(order)
+        if error is not None:
+            return error
+        if not isinstance(comminfo, CtpOptionPremium):
+            return None
+
+        try:
+            size = self._strict_option_input_number(
+                self._raw_order_input(order, "size"),
+                "option_order_size_invalid",
+                integer=True,
+                positive=False,
+            )
+            if size == 0.0:
+                raise OptionAccountingError(
+                    "option_order_size_invalid",
+                    "option_order_size_invalid: order quantity must be non-zero",
+                )
+            raw_price = self._raw_order_input(order, "price")
+            if raw_price not in (None, ""):
+                self._strict_option_input_number(raw_price, "option_order_price_invalid")
+        except OptionAccountingError as exc:
+            return exc.code, str(exc)
+        return None
+
+    def _validate_option_seller_capability(self, order):
+        """Enforce the trusted SDK seller-margin capability for opening shorts."""
+        comminfo, error = self._option_comminfo_for_order(order)
+        if error is not None:
+            return error
+        if not isinstance(comminfo, CtpOptionPremium) or order.isbuy():
+            return None
+        try:
+            opening_size = self._opening_size_for_order(order)
+        except (TypeError, ValueError) as exc:
+            return "option_order_size_invalid", f"option_order_size_invalid: {exc}"
+        if opening_size <= 0.0:
+            return None
+        return (
+            "option_seller_margin_blocked",
+            "Seller option orders require a trusted SDK total-margin issuer; "
+            f"current evidence status is {comminfo.seller_margin_status()}",
+        )
+
+    def _validate_option_order_fee(self, order):
+        """Require the complete fee pair for the order's actual CTP offset."""
+        comminfo, error = self._option_comminfo_for_order(order)
+        if error is not None:
+            return error
+        if not isinstance(comminfo, CtpOptionPremium):
+            return None
+        offset = self._order_info_get(order, "offset")
+        role, offset_error = self._option_fee_role(offset)
+        if offset_error is not None:
+            return offset_error
+        try:
+            comminfo._fee_pair(role)
+        except OptionAccountingError as exc:
+            return exc.code, str(exc)
+        return None
+
+    @staticmethod
+    def _option_fee_role(offset):
+        """Resolve the exact option fee role without treating unknown offsets as close."""
+        if offset is None:
+            return "open", None
+        try:
+            offset_text = str(offset).strip().lower().replace("-", "_")
+        except Exception:
+            return None, (
+                "option_offset_unknown",
+                "option_offset_unknown: CTP option offset is not a recognized value",
+            )
+        if not offset_text:
+            return "open", None
+        role_aliases = {
+            "open": "open",
+            "close": "close",
+            "close_today": "close_today",
+            "closetoday": "close_today",
+            "close_yesterday": "close_yesterday",
+            "closeyesterday": "close_yesterday",
+        }
+        role = role_aliases.get(offset_text)
+        if role is None:
+            return None, (
+                "option_offset_unknown",
+                f"option_offset_unknown: unsupported CTP option offset {offset!r}",
+            )
+        return role, None
+
     def _validate_order(self, order):
         """Run lightweight local validation before the order reaches the store."""
+        option_input_error = self._validate_option_order_inputs(order)
+        if option_input_error is not None:
+            return option_input_error
+        seller_capability_error = self._validate_option_seller_capability(order)
+        if seller_capability_error is not None:
+            return seller_capability_error
+        option_fee_error = self._validate_option_order_fee(order)
+        if option_fee_error is not None:
+            return option_fee_error
         if self._requires_explicit_offset(order.data) and self._order_type_name(order) != "limit":
             return (
                 "unsupported_order_type",
@@ -4739,13 +5416,68 @@ class BtApiBroker(BrokerBase):
                 return price
         return None
 
+    def _option_safety_factor(self, rules):
+        """Return a conservative option cash factor and reject bad config."""
+        values = []
+        for key in ("cash_check_safety_factor", "margin_safety_factor"):
+            value = rules.get(key) if isinstance(rules, Mapping) else None
+            if value not in (None, ""):
+                values.append((key, value))
+        if not values:
+            values.append(("cash_check_safety_factor", self.p.cash_check_safety_factor))
+
+        numbers = []
+        for key, value in values:
+            if isinstance(value, bool):
+                return None, (
+                    "option_safety_factor_invalid",
+                    f"option_safety_factor_invalid: {key} must be finite and numeric",
+                )
+            try:
+                number = float(value)
+            except (TypeError, ValueError):
+                return None, (
+                    "option_safety_factor_invalid",
+                    f"option_safety_factor_invalid: {key} must be finite and numeric",
+                )
+            if not math.isfinite(number):
+                return None, (
+                    "option_safety_factor_invalid",
+                    f"option_safety_factor_invalid: {key} must be finite and numeric",
+                )
+            numbers.append((key, number))
+        first = numbers[0][1]
+        if any(number != first for _, number in numbers[1:]):
+            return None, (
+                "option_safety_factor_conflict",
+                "option_safety_factor_conflict: contradictory safety factor aliases",
+            )
+        # A factor below one can only erase a known obligation.  Clamp it to
+        # the conservative floor while preserving the legacy non-option path.
+        return max(first, 1.0), None
+
     def _validate_order_cash(self, order, rules):
         """Reject opening orders whose required cash or margin is unavailable."""
-        if not bool(rules.get("cash_check_enabled", self.p.cash_check_enabled)):
-            return None
-
         opening_size = self._opening_size_for_order(order)
         if opening_size <= 0.0:
+            return None
+
+        try:
+            comminfo = self.getcommissioninfo(order.data)
+        except OptionAccountingError as exc:
+            return exc.code, str(exc)
+
+        # No current public SDK contract proves account-bound seller total
+        # margin.  This capability gate must run before the optional cash
+        # check so configuration cannot turn a seller opening into a write.
+        if isinstance(comminfo, CtpOptionPremium) and not order.isbuy():
+            return (
+                "option_seller_margin_blocked",
+                "Seller option orders require a trusted SDK total-margin issuer; "
+                f"current evidence status is {comminfo.seller_margin_status()}",
+            )
+
+        if not bool(rules.get("cash_check_enabled", self.p.cash_check_enabled)):
             return None
 
         force_refresh = bool(self.p.force_refresh_queries)
@@ -4769,10 +5501,22 @@ class BtApiBroker(BrokerBase):
                     self._position_key(order.data),
                     force=force_refresh,
                 )
-            available_cash = self._first_number(venue_balance.get("cash"), default=0.0)
+            available_cash = self._first_number(
+                venue_balance.get("cash") if isinstance(venue_balance, Mapping) else None,
+                default=None if isinstance(comminfo, CtpOptionPremium) else 0.0,
+            )
         else:
             self._refresh_account(force=force_refresh, raise_errors=True)
-            available_cash = float(self._cash or 0.0)
+            available_cash = self._first_number(
+                self._cash,
+                default=None if isinstance(comminfo, CtpOptionPremium) else 0.0,
+            )
+
+        if isinstance(comminfo, CtpOptionPremium) and available_cash is None:
+            return (
+                "option_cash_invalid",
+                "Option order requires a finite authoritative account cash snapshot",
+            )
 
         price = self._order_price_for_risk(order, rules)
         if price is None:
@@ -4781,19 +5525,51 @@ class BtApiBroker(BrokerBase):
                 "Opening order requires a current price for cash/margin validation",
             )
 
-        comminfo = self.getcommissioninfo(order.data)
-        if comminfo is None:
-            return None
+        try:
+            if comminfo is None:
+                return None
 
-        required = float(comminfo.getoperationcost(opening_size, price) or 0.0)
-        required += float(comminfo.getcommission(opening_size, price, role="open") or 0.0)
-        safety_factor = self._first_number(
-            rules.get("cash_check_safety_factor"),
-            rules.get("margin_safety_factor"),
-            self.p.cash_check_safety_factor,
-            default=1.0,
-        )
-        required *= max(safety_factor or 1.0, 0.0)
+            if isinstance(comminfo, CtpOptionPremium):
+                is_buy = bool(order.isbuy())
+                required = float(
+                    comminfo.getoperationcost(opening_size, price, is_buy=is_buy) or 0.0
+                )
+                required += float(comminfo.getcommission(opening_size, price, role="open") or 0.0)
+            else:
+                required = float(comminfo.getoperationcost(opening_size, price) or 0.0)
+                required += float(comminfo.getcommission(opening_size, price, role="open") or 0.0)
+        except OptionAccountingError as exc:
+            return exc.code, str(exc)
+        if not math.isfinite(required):
+            return (
+                (
+                    "option_required_invalid"
+                    if isinstance(comminfo, CtpOptionPremium)
+                    else "required_invalid"
+                ),
+                "Order cash/margin requirement is not finite",
+            )
+        if isinstance(comminfo, CtpOptionPremium):
+            safety_factor, safety_error = self._option_safety_factor(rules)
+            if safety_error is not None:
+                return safety_error
+        else:
+            safety_factor = self._first_number(
+                rules.get("cash_check_safety_factor"),
+                rules.get("margin_safety_factor"),
+                self.p.cash_check_safety_factor,
+                default=1.0,
+            )
+        required *= safety_factor
+        if not math.isfinite(required):
+            return (
+                (
+                    "option_required_invalid"
+                    if isinstance(comminfo, CtpOptionPremium)
+                    else "required_invalid"
+                ),
+                "Order cash/margin requirement is not finite",
+            )
         cash_buffer = self._first_number(
             rules.get("cash_buffer"),
             rules.get("min_cash_buffer"),
@@ -4801,6 +5577,11 @@ class BtApiBroker(BrokerBase):
             default=0.0,
         )
         available = max(float(available_cash or 0.0) - max(cash_buffer or 0.0, 0.0), 0.0)
+        if not math.isfinite(available):
+            return (
+                "option_cash_invalid" if isinstance(comminfo, CtpOptionPremium) else "cash_invalid",
+                "Available account cash is not finite",
+            )
         if required > available + 1e-12:
             return (
                 "insufficient_cash",
@@ -5286,8 +6067,12 @@ class BtApiBroker(BrokerBase):
             self._ctp_reconciliation_callbacks.clear()
             response = update.get("response")
             if update.get("success") is True and isinstance(response, dict):
-                state = self.record_ctp_reconciliation(response)
-                notification = self._ctp_reconciliation_callback_snapshot(response, state)
+                # Build the callback view first: it reflects the already-applied
+                # main-thread trade ledger.  The gate must consume that view,
+                # rather than advancing before local evidence is attached.
+                callback_snapshot = self._ctp_reconciliation_callback_snapshot(response, None)
+                state = self.record_ctp_reconciliation(callback_snapshot)
+                notification = self._ctp_reconciliation_callback_snapshot(callback_snapshot, state)
             else:
                 self._reset_ctp_reconciliation_rounds("query_failed")
                 state = self.get_ctp_reconciliation_state()
@@ -5959,6 +6744,25 @@ class BtApiBroker(BrokerBase):
     def _apply_trade_terminal_status(self, order, update, status):
         """Wait for actual deals up to the terminal report's cumulative volume."""
         raw = self._extract_update_value(update, *_CUMULATIVE_FILL_QTY_KEYS)
+        comminfo, option_error = self._option_comminfo_for_order(order)
+        if option_error is not None:
+            code, message = option_error
+            return self._quarantine_option_fill(order, update, code, message)
+        if isinstance(comminfo, CtpOptionPremium) and raw not in (None, ""):
+            try:
+                expected_quantity = self._strict_option_input_number(
+                    raw,
+                    "option_fill_size_invalid",
+                    integer=True,
+                    positive=False,
+                )
+                if expected_quantity < 0.0:
+                    raise OptionAccountingError(
+                        "option_fill_size_invalid",
+                        "option_fill_size_invalid: cumulative quantity cannot be negative",
+                    )
+            except OptionAccountingError as exc:
+                return self._quarantine_option_fill(order, update, exc.code, str(exc))
         try:
             expected = float(raw)
         except (TypeError, ValueError):
@@ -6036,6 +6840,32 @@ class BtApiBroker(BrokerBase):
         """
         if bool(self._order_info_get(order, "ledger_mismatch", False)):
             return "quarantined"
+        comminfo, option_error = self._option_comminfo_for_order(order)
+        if option_error is not None:
+            code, message = option_error
+            return self._quarantine_option_fill(order, update, code, message)
+        if isinstance(comminfo, CtpOptionPremium):
+            cumulative_value = self._extract_update_value(update, *_CUMULATIVE_FILL_QTY_KEYS)
+            if cumulative_value not in (None, ""):
+                try:
+                    cumulative_quantity = self._strict_option_input_number(
+                        cumulative_value,
+                        "option_fill_size_invalid",
+                        integer=True,
+                        positive=False,
+                    )
+                    if cumulative_quantity < 0.0:
+                        raise OptionAccountingError(
+                            "option_fill_size_invalid",
+                            "option_fill_size_invalid: cumulative quantity cannot be negative",
+                        )
+                    if cumulative_quantity > 0.0:
+                        self._strict_option_input_number(
+                            self._extract_update_value(update, *_FILL_PRICE_KEYS),
+                            "option_fill_price_invalid",
+                        )
+                except OptionAccountingError as exc:
+                    return self._quarantine_option_fill(order, update, exc.code, str(exc))
         if self._order_info_get(order, "execution_source") == "trades":
             # CTP order reports provide volume and limit price; only its deal
             # events supply the actual prices and incremental fill identities.
@@ -6083,14 +6913,51 @@ class BtApiBroker(BrokerBase):
         trade_update["size"] = incremental_fill
         trade_update["price"] = price
         if update.get("cumulative_commission") not in (None, ""):
-            trade_update["commission"] = float(update["cumulative_commission"]) - float(
-                order.executed.comm or 0.0
-            )
-            trade_update["commission_normalized"] = True
+            raw_commission = update["cumulative_commission"]
+            if isinstance(self._option_comminfo_for_order(order)[0], CtpOptionPremium):
+                if isinstance(raw_commission, bool):
+                    trade_update["_option_commission_error"] = "option_commission_boolean"
+                else:
+                    try:
+                        cumulative_commission = float(raw_commission)
+                    except (TypeError, ValueError):
+                        cumulative_commission = None
+                    if cumulative_commission is None or not math.isfinite(cumulative_commission):
+                        trade_update["_option_commission_error"] = "option_commission_nonfinite"
+                    else:
+                        trade_update["commission"] = cumulative_commission - float(
+                            order.executed.comm or 0.0
+                        )
+                        trade_update["commission_normalized"] = True
+            else:
+                trade_update["commission"] = float(raw_commission) - float(
+                    order.executed.comm or 0.0
+                )
+                trade_update["commission_normalized"] = True
         trade_update.setdefault("side", "buy" if order.isbuy() else "sell")
         return self._apply_trade_update(
             trade_update, defer_unmatched=False, from_cumulative_status=True
         )
+
+    def _validate_option_fill_inputs(self, order, update):
+        """Validate raw option fill quantity and price before any normalization."""
+        comminfo, error = self._option_comminfo_for_order(order)
+        if error is not None:
+            return error
+        if not isinstance(comminfo, CtpOptionPremium):
+            return None
+        quantity = self._extract_update_value(update, *_FILL_QTY_KEYS)
+        price = self._extract_update_value(update, *_FILL_PRICE_KEYS)
+        try:
+            self._strict_option_input_number(
+                quantity,
+                "option_fill_size_invalid",
+                integer=True,
+            )
+            self._strict_option_input_number(price, "option_fill_price_invalid")
+        except OptionAccountingError as exc:
+            return exc.code, str(exc)
+        return None
 
     def _apply_trade_update(self, update, *, defer_unmatched=True, from_cumulative_status=False):
         """Apply a normalized remote trade fill to the local order/position state."""
@@ -6130,6 +6997,11 @@ class BtApiBroker(BrokerBase):
         identity_error = self._trade_position_identity_error(order, update)
         if identity_error is not None:
             return self._block_trade_identity_mismatch(order, update, *identity_error)
+
+        option_input_error = self._validate_option_fill_inputs(order, update)
+        if option_input_error is not None:
+            code, message = option_input_error
+            return self._quarantine_option_fill(order, update, code, message)
 
         fill_qty_value = self._extract_update_value(update, *_FILL_QTY_KEYS)
         try:
@@ -6227,10 +7099,12 @@ class BtApiBroker(BrokerBase):
             fill_qty = remaining_qty
 
         if self._is_dual_side_mode():
-            self._apply_dual_side_trade_update(order, update, fill_qty, fill_price)
+            result = self._apply_dual_side_trade_update(order, update, fill_qty, fill_price)
+            if result != "applied":
+                return result
             if trade_key:
                 self._seen_trade_ids.add(trade_key)
-            return "applied"
+            return result
 
         signed_fill = fill_qty if self._trade_update_is_buy(update, order) else -fill_qty
 
@@ -6238,33 +7112,70 @@ class BtApiBroker(BrokerBase):
         position = self.positions[key]
         old_size = position.size
         old_price = position.price
-        psize, pprice, opened, closed = position.update(
-            signed_fill,
-            fill_price,
-            dt=self._execution_datetime(update),
-        )
+        comminfo = None
+        is_option = False
+        try:
+            comminfo = order.comminfo or self.getcommissioninfo(order.data)
+            is_option = isinstance(comminfo, CtpOptionPremium)
+            preview = position.clone() if is_option else position
+            psize, pprice, opened, closed = preview.update(
+                signed_fill,
+                fill_price,
+                dt=self._execution_datetime(update),
+            )
 
-        closed_qty = abs(closed)
-        opened_qty = abs(opened)
-        comminfo = order.comminfo or self.getcommissioninfo(order.data)
-        closed_commission, opened_commission = self._execution_commissions(
-            comminfo,
-            fill_price,
-            opened_qty,
-            closed_qty,
-            self._order_info_get(order, "offset") or update.get("offset"),
-            actual_commission=self._remote_commission(update),
-            fill_role=self._fill_commission_role(update),
-        )
-        closed_value = self._execution_value(comminfo, closed, old_price or fill_price)
-        opened_value = self._execution_value(comminfo, opened, fill_price)
-        pnl = 0.0
-        if closed_qty:
-            pnl = (
-                comminfo.profitandloss(-closed, old_price, fill_price)
-                if comminfo is not None
-                else closed_qty
-                * (fill_price - old_price if old_size > 0 else old_price - fill_price)
+            closed_qty = abs(closed)
+            opened_qty = abs(opened)
+            if is_option:
+                actual_commission, commission_error = self._remote_option_commission(update)
+            else:
+                actual_commission = self._remote_commission(update)
+                commission_error = None
+            closed_commission, opened_commission = self._execution_commissions(
+                comminfo,
+                fill_price,
+                opened_qty,
+                closed_qty,
+                self._order_info_get(order, "offset") or update.get("offset"),
+                actual_commission=actual_commission,
+                fill_role=self._fill_commission_role(update),
+            )
+            closed_value = self._execution_value(
+                comminfo,
+                closed,
+                old_price or fill_price,
+                role="close",
+            )
+            opened_value = self._execution_value(
+                comminfo,
+                opened,
+                fill_price,
+                is_buy=order.isbuy(),
+                role="open",
+            )
+            pnl = 0.0
+            if closed_qty:
+                pnl = (
+                    comminfo.profitandloss(-closed, old_price, fill_price)
+                    if comminfo is not None
+                    else closed_qty
+                    * (fill_price - old_price if old_size > 0 else old_price - fill_price)
+                )
+        except Exception as exc:
+            if is_option:
+                error_code = getattr(exc, "code", "option_fill_accounting_failed")
+                return self._quarantine_option_fill(order, update, error_code, str(exc))
+            raise
+
+        if is_option:
+            position.__dict__.update(preview.__dict__)
+            self._annotate_option_commission(
+                order,
+                comminfo,
+                actual_commission,
+                fill_qty=fill_qty,
+                commission_error=commission_error,
+                raw_update=update,
             )
 
         order.execute(
@@ -6290,6 +7201,49 @@ class BtApiBroker(BrokerBase):
         if trade_key:
             self._seen_trade_ids.add(trade_key)
         return "applied"
+
+    def _quarantine_option_fill(self, order, update, error_code, error_msg):
+        """Quarantine an invalid option fill without mutating position facts."""
+        try:
+            raw_evidence = deepcopy(update)
+        except Exception:
+            raw_evidence = dict(update) if isinstance(update, Mapping) else update
+        order.addinfo(
+            execution_unknown=True,
+            ledger_mismatch=True,
+            commission_source="estimated",
+            actual_commission_known=False,
+            pnl_status="PNL_INCOMPLETE",
+            error_code=error_code,
+            error_msg=error_msg,
+            invalid_fill_evidence=raw_evidence,
+        )
+        self._position_audit_blocked = True
+        self._position_audit_error = error_code
+        trade_key = self._trade_dedupe_key(update, order=order)
+        if trade_key:
+            self._quarantined_trade_ids.add(trade_key)
+            self._seen_trade_ids.add(trade_key)
+        latch_evidence_loss = getattr(self.store, "latch_execution_evidence_loss", None)
+        if callable(latch_evidence_loss):
+            latch_evidence_loss(error_code)
+        else:
+            freeze_openings = getattr(self.store, "freeze_openings", None)
+            if callable(freeze_openings):
+                freeze_openings(error_code)
+        self._request_order_reconcile(order)
+        self.request_reconcile()
+        self._emit_runtime_event(
+            "option_fill_quarantined",
+            level="ERROR",
+            order_ref=getattr(order, "ref", None),
+            error_code=error_code,
+            error_msg=error_msg,
+            status=order.getstatusname(),
+            details=self._trade_update_details(update, order),
+        )
+        self.notify(order)
+        return "quarantined"
 
     def _block_trade_identity_mismatch(self, order, update, error_code, error_msg):
         """Reject a fill whose explicit remote identity conflicts with its local intent."""
@@ -6483,22 +7437,56 @@ class BtApiBroker(BrokerBase):
 
         closed_qty = abs(closed)
         opened_qty = abs(opened)
-        comminfo = order.comminfo or self.getcommissioninfo(order.data)
-        closed_commission, opened_commission = self._execution_commissions(
-            comminfo,
-            fill_price,
-            opened_qty,
-            closed_qty,
-            offset,
-            actual_commission=self._remote_commission(update),
-            fill_role=self._fill_commission_role(update),
-        )
-        closed_value = self._execution_value(comminfo, closed, pprice_orig or fill_price)
-        opened_value = self._execution_value(comminfo, opened, fill_price)
-        pnl = comminfo.profitandloss(-closed, pprice_orig, fill_price) if closed else 0.0
+        comminfo = None
+        is_option = False
+        try:
+            comminfo = order.comminfo or self.getcommissioninfo(order.data)
+            is_option = isinstance(comminfo, CtpOptionPremium)
+            if is_option:
+                actual_commission, commission_error = self._remote_option_commission(update)
+            else:
+                actual_commission = self._remote_commission(update)
+                commission_error = None
+            closed_commission, opened_commission = self._execution_commissions(
+                comminfo,
+                fill_price,
+                opened_qty,
+                closed_qty,
+                offset,
+                actual_commission=actual_commission,
+                fill_role=self._fill_commission_role(update),
+            )
+            closed_value = self._execution_value(
+                comminfo,
+                closed,
+                pprice_orig or fill_price,
+                role="close",
+            )
+            opened_value = self._execution_value(
+                comminfo,
+                opened,
+                fill_price,
+                is_buy=order.isbuy(),
+                role="open",
+            )
+            pnl = comminfo.profitandloss(-closed, pprice_orig, fill_price) if closed else 0.0
+        except Exception as exc:
+            if is_option:
+                error_code = getattr(exc, "code", "option_fill_accounting_failed")
+                return self._quarantine_option_fill(order, update, error_code, str(exc))
+            raise
 
         self._apply_signed_position(position_side, leg_position, signed_position)
         self._sync_net_position(order.data)
+        if is_option:
+            self._annotate_option_commission(
+                order,
+                comminfo,
+                actual_commission,
+                fill_qty=fill_qty,
+                commission_error=commission_error,
+                raw_update=update,
+            )
 
         order.execute(
             dt=self._order_execution_dt(order),
@@ -6664,6 +7652,31 @@ class BtApiBroker(BrokerBase):
             if value not in (None, ""):
                 order.addinfo(**{key: value})
 
+        # Evidence fields are cached only when the native update supplied the
+        # complete tuple.  Never derive them from a Backtrader ref or session
+        # state: missing native values must remain missing.
+        native_sys_id = self._extract_update_value(update, "order_sys_id", "OrderSysID")
+        native_order_ref = self._extract_update_value(update, "order_ref", "OrderRef")
+        native_trade_id = self._extract_update_value(update, "trade_id", "TradeID")
+        native_generation = self._extract_update_value(
+            update, "connection_generation", "ConnectionGeneration"
+        )
+        try:
+            native_generation = int(native_generation)
+        except (TypeError, ValueError):
+            native_generation = 0
+        if (
+            native_sys_id not in (None, "")
+            and native_order_ref not in (None, "")
+            and native_generation > 0
+        ):
+            order.addinfo(
+                order_sys_id=native_sys_id,
+                connection_generation=native_generation,
+            )
+            if native_trade_id not in (None, ""):
+                order.addinfo(trade_id=native_trade_id)
+
     @staticmethod
     def _order_info_get(order, key, default=None):
         """Read order.info without triggering AutoOrderedDict auto-vivification."""
@@ -6787,6 +7800,50 @@ class BtApiBroker(BrokerBase):
         return None
 
     @classmethod
+    def _remote_option_commission(cls, update):
+        """Parse option commission evidence without bool/coercion fallthrough."""
+        forced_error = update.get("_option_commission_error")
+        if forced_error not in (None, ""):
+            return None, str(forced_error)
+        keys = (
+            "commission",
+            "comm",
+            "fee",
+            "fees",
+            "exec_fee",
+            "execFee",
+            "execFeeV2",
+            "fill_fee",
+            "fillFee",
+            "trade_fee",
+            "trade_commission",
+            "commission_amount",
+            "n",
+        )
+        details = update.get("details") or {}
+        values = []
+        for key in keys:
+            for source_name, source in (("update", update), ("details", details)):
+                if key not in source or source[key] in (None, ""):
+                    continue
+                value = source[key]
+                if isinstance(value, bool):
+                    return None, "option_commission_boolean"
+                try:
+                    number = float(value)
+                except (TypeError, ValueError):
+                    return None, "option_commission_invalid"
+                if not math.isfinite(number):
+                    return None, "option_commission_nonfinite"
+                values.append((f"{source_name}.{key}", number))
+        if not values:
+            return None, "option_commission_missing"
+        first = values[0][1]
+        if any(number != first for _, number in values[1:]):
+            return None, "option_commission_conflict"
+        return first, None
+
+    @classmethod
     def _execution_commissions(
         cls,
         comminfo,
@@ -6815,10 +7872,17 @@ class BtApiBroker(BrokerBase):
             return 0.0, 0.0
         fill_role = cls._normalise_fill_commission_role(fill_role)
         close_role = cls._close_commission_role(offset)
-        closed_role = close_role
-        if close_role not in {"close_today", "close_yesterday"}:
-            closed_role = fill_role or close_role
-        opened_role = fill_role or "open"
+        if isinstance(comminfo, CtpOptionPremium):
+            # CTP option fee dimensions are tied to open/close/close-today.
+            # A generic maker/taker liquidity label must never replace that
+            # accounting role.  Futures/crypto keep their existing fallback.
+            closed_role = close_role
+            opened_role = "open"
+        else:
+            closed_role = close_role
+            if close_role not in {"close_today", "close_yesterday"}:
+                closed_role = fill_role or close_role
+            opened_role = fill_role or "open"
         closed_commission = (
             cls._commission_for_role(
                 comminfo,
@@ -6904,18 +7968,98 @@ class BtApiBroker(BrokerBase):
             return float(comminfo.getcommission(size, price) or 0.0)
 
     @staticmethod
-    def _execution_value(comminfo, size, price):
+    def _execution_value(comminfo, size, price, is_buy=None, role="open"):
         """Return an execution value using the commission scheme's contract rules."""
-        size = float(size or 0.0)
-        price = float(price or 0.0)
+        if isinstance(comminfo, CtpOptionPremium):
+            # Keep option raw inputs intact until the option validator sees
+            # them.  In particular, bool is an int subclass and must not turn
+            # into one contract or one unit of premium.
+            if isinstance(size, bool) or isinstance(price, bool):
+                raise OptionAccountingError(
+                    "option_execution_value_invalid",
+                    "option_execution_value_invalid: boolean is not a numeric execution input",
+                )
+            if size is None or size == 0:
+                return 0.0
+            try:
+                return abs(float(comminfo.getpremiumvalue(size, price) or 0.0))
+            except OptionAccountingError:
+                raise
+            except Exception as exc:
+                raise OptionAccountingError(
+                    "option_execution_value_invalid",
+                    "option_execution_value_invalid: option transaction value is unavailable",
+                ) from exc
+        try:
+            size = float(size or 0.0)
+            price = float(price or 0.0)
+        except Exception as exc:
+            if isinstance(comminfo, CtpOptionPremium):
+                raise OptionAccountingError(
+                    "option_execution_value_invalid",
+                    "option_execution_value_invalid: option transaction value is unavailable",
+                ) from exc
+            raise
         if not size:
             return 0.0
         if comminfo is None:
             return abs(size) * abs(price)
         try:
             return abs(float(comminfo.getoperationcost(size, price) or 0.0))
-        except Exception:
+        except OptionAccountingError:
+            raise
+        except Exception as exc:
+            if isinstance(comminfo, CtpOptionPremium):
+                raise OptionAccountingError(
+                    "option_execution_value_invalid",
+                    "option_execution_value_invalid: option transaction value is unavailable",
+                ) from exc
             return abs(size) * abs(price)
+
+    @staticmethod
+    def _annotate_option_commission(
+        order,
+        comminfo,
+        actual_commission,
+        *,
+        fill_qty=0.0,
+        commission_error=None,
+        raw_update=None,
+    ):
+        """Keep cumulative actual-versus-estimated option fee provenance."""
+        if not isinstance(comminfo, CtpOptionPremium):
+            return
+        info = getattr(order, "info", None)
+        known_qty = float(info.get("option_fee_known_quantity", 0.0) or 0.0)
+        unknown_qty = float(info.get("option_fee_unknown_quantity", 0.0) or 0.0)
+        quantity = abs(float(fill_qty or 0.0))
+        if actual_commission is None:
+            unknown_qty += quantity
+        else:
+            known_qty += quantity
+        order.addinfo(
+            option_fee_known_quantity=known_qty,
+            option_fee_unknown_quantity=unknown_qty,
+        )
+        if actual_commission is None or unknown_qty > 1e-12:
+            if raw_update is not None:
+                prior = info.get("option_commission_evidence")
+                evidence = list(prior) if isinstance(prior, list) else []
+                evidence.append(deepcopy(raw_update))
+                order.addinfo(option_commission_evidence=evidence)
+            if commission_error:
+                order.addinfo(option_commission_error=commission_error)
+            order.addinfo(
+                commission_source="estimated",
+                actual_commission_known=False,
+                pnl_status="PNL_INCOMPLETE",
+            )
+            return
+        order.addinfo(
+            commission_source="actual",
+            actual_commission_known=True,
+            pnl_status="COMPLETE",
+        )
 
     @staticmethod
     def _execution_datetime(update):
