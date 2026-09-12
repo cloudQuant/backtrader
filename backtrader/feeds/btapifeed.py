@@ -19,7 +19,7 @@ from .ctpcohort import CtpCohortNow
 from .livefeed import LiveFeedBase
 
 logger = get_logger(__name__)
-_LOGGING_HEALTH = collections.Counter()
+_LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
 
 
 def _safe_log(level, message, *args):

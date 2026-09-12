@@ -21,7 +21,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple
 
 from .ctpcohort import CtpQuoteEvidence
 
@@ -1023,7 +1023,7 @@ class MultiLegBarBarrier:
         # must move beyond the old bucket.
         self._retired_bucket_end: Optional[datetime] = None
         self._last_input: Optional[MinuteDecisionInput] = None
-        self._last_results = deque(maxlen=self._MAX_RESULT_HISTORY)
+        self._last_results: "Deque[Any]" = deque(maxlen=self._MAX_RESULT_HISTORY)
         self._last_now_mono: Optional[float] = None
         self._clock_fault: Optional[str] = None
         # Bind the first valid input to one immutable identity scope.  A

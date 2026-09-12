@@ -24,10 +24,10 @@ Example:
         assert tick.event_type == 'tick'
 """
 
-from abc import ABC, abstractmethod
 import os
 import time
 import uuid
+from abc import ABC, abstractmethod
 from dataclasses import asdict, dataclass, field
 from typing import List, Optional, Tuple
 

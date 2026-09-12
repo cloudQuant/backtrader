@@ -38,7 +38,7 @@ from .livestore import LiveStoreBase
 
 logger = get_logger(__name__)
 
-_LOGGING_HEALTH = collections.Counter()
+_LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
 
 _SENSITIVE_TEXT_RE = re.compile(
     r"(?i)\b(api[_-]?key|api[_-]?secret|auth[_-]?code|credential(?:s)?|"
@@ -145,6 +145,7 @@ def _is_ctp_approval_capability(value: Any) -> bool:
     except ImportError:  # pragma: no cover - SDK without approval contracts
         return False
     return type(value) is CtpExecutionApprovalCapability
+
 
 # Query timestamps are produced by the SDK/native boundary while the Store
 # records the local send/receive envelope.  The direct CTP path uses one host
@@ -3365,17 +3366,21 @@ class BtApiStore(LiveStoreBase):
         self._funding_accept_results = False
         self._funding_stop_requested = False
         self._funding_restart_blocked_by_worker = False
-        self._funding_health = collections.Counter()
-        self._sdk_client_refs = {}
-        self._sdk_venue_refs = {}
-        self._sdk_local_refs = {}
+        self._funding_health: "collections.Counter[str]" = collections.Counter()
+        self._sdk_client_refs: Dict[Tuple[str, str], Any] = {}
+        self._sdk_venue_refs: Dict[Tuple[str, str], Any] = {}
+        self._sdk_local_refs: Dict[str, Any] = {}
         queue_size = max(int(sdk_options.get("book_queue_size", 256)), 1)
-        self._sdk_books = collections.defaultdict(lambda: collections.deque(maxlen=queue_size))
-        self._sdk_ticks = collections.defaultdict(lambda: collections.deque(maxlen=queue_size))
+        self._sdk_books: Dict[str, Any] = collections.defaultdict(
+            lambda: collections.deque(maxlen=queue_size)
+        )
+        self._sdk_ticks: Dict[str, Any] = collections.defaultdict(
+            lambda: collections.deque(maxlen=queue_size)
+        )
         update_queue_size = max(int(sdk_options.get("broker_update_queue_size", 2048)), 1)
-        self._sdk_updates = collections.deque(maxlen=update_queue_size)
+        self._sdk_updates: Deque[Any] = collections.deque(maxlen=update_queue_size)
         self._sdk_update_lock = threading.Lock()
-        self._sdk_update_drop_records = collections.deque(
+        self._sdk_update_drop_records: Deque[Any] = collections.deque(
             maxlen=max(int(sdk_options.get("broker_update_drop_record_limit", 256)), 1)
         )
         # Newest-wins queues silently evict older books; count them per symbol
@@ -3445,11 +3450,11 @@ class BtApiStore(LiveStoreBase):
         self._command_publications_pending = 0
         self._command_inflight_receipt_id: Optional[str] = None
         self._command_inflight_operation: Optional[str] = None
-        self._command_health = collections.Counter()
+        self._command_health: "collections.Counter[str]" = collections.Counter()
         self._risk_state_lock = threading.Lock()
         self._risk_incident_epoch = 0
         self._last_risk_incident_reason = ""
-        self._command_drop_records = collections.deque(
+        self._command_drop_records: Deque[Any] = collections.deque(
             maxlen=max(int(sdk_options.get("command_drop_record_limit", 256)), 1)
         )
         self._command_last_error = ""
@@ -3458,7 +3463,7 @@ class BtApiStore(LiveStoreBase):
         self._cash = _coerce_float(cash)
         self._value = _coerce_float(value, self._cash)
         self._account_cache_ttl = max(_coerce_float(account_cache_ttl), 0.0)
-        self._venue_balance_cache = {}
+        self._venue_balance_cache: Dict[str, Any] = {}
         self._last_venue_balance_refresh = 0.0
         self._positions_cache_ttl = max(_coerce_float(positions_cache_ttl), 0.0)
         self._open_orders_cache_ttl = max(_coerce_float(open_orders_cache_ttl), 0.0)
@@ -5078,7 +5083,7 @@ class BtApiStore(LiveStoreBase):
 
         try:
             if self._sdk_mode:
-                orders = []
+                orders: List[Any] = []
                 for venue in self._sdk_exchanges:
                     venue_orders = self._require_sdk_list_result(
                         api.get_open_orders(venue, None, normalized=True),
@@ -6142,8 +6147,8 @@ class BtApiStore(LiveStoreBase):
 
     def _sdk_reconcile_snapshot(self) -> Dict[str, Any]:
         positions = []
-        open_orders = []
-        reconciled_venues = []
+        open_orders: List[Any] = []
+        reconciled_venues: List[str] = []
         for venue in self._sdk_exchanges:
             venue_positions = self._require_sdk_list_result(
                 self._api.get_position(venue, None, normalized=True),
@@ -6320,9 +6325,7 @@ class BtApiStore(LiveStoreBase):
                 "approval_risk_reducing",
             )
         }
-        budget_capability = getattr(order_info, "get", lambda *_args: None)(
-            "budget_capability"
-        )
+        budget_capability = getattr(order_info, "get", lambda *_args: None)("budget_capability")
         command = {
             "operation": "submit",
             "venue": venue,
@@ -7461,9 +7464,7 @@ class BtApiStore(LiveStoreBase):
         for row in rows:
             candidate = dict(row)
             raw_instrument_values = [
-                candidate[name]
-                for name in ("InstrumentID", "instrument_id")
-                if name in candidate
+                candidate[name] for name in ("InstrumentID", "instrument_id") if name in candidate
             ]
             # CTP ReqQryInstrument may treat an instrument prefix as a
             # product query and return unrelated rows.  Those rows are not
@@ -7922,8 +7923,8 @@ class BtApiStore(LiveStoreBase):
             # deliberately retained so an implementation that cannot enforce
             # it reports an incomplete snapshot rather than broadening scope.
             instrument_query_kwargs = {
-            "instrument_id": instrument_id or "",
-            "exchange_id": exchange_id,
+                "instrument_id": instrument_id or "",
+                "exchange_id": exchange_id,
             }
             if product_id:
                 instrument_query_kwargs["product_id"] = product_id
@@ -9111,7 +9112,10 @@ class BtApiStore(LiveStoreBase):
             errors.append("bundle_quote_current_account_fingerprint_mismatch")
         if current_day != expected_day:
             errors.append("bundle_quote_current_trading_day_mismatch")
-        if session_before.get("read_only_ready") is not True and session_before.get("ready") is not True:
+        if (
+            session_before.get("read_only_ready") is not True
+            and session_before.get("ready") is not True
+        ):
             errors.append("bundle_quote_current_session_not_ready")
         if errors:
             return self._finish_ctp_bundle_quote_reference_snapshot(
@@ -9196,7 +9200,10 @@ class BtApiStore(LiveStoreBase):
                 errors.append(f"{label}_query_incomplete")
             if result.get("schema_version") in (None, ""):
                 errors.append(f"{label}_schema_version_missing")
-            if self._normalized_account_fingerprint(result.get("account_fingerprint")) != expected_account:
+            if (
+                self._normalized_account_fingerprint(result.get("account_fingerprint"))
+                != expected_account
+            ):
                 errors.append(f"{label}_account_fingerprint_mismatch")
             try:
                 result_generation = int(result.get("connection_generation") or 0)
@@ -9263,11 +9270,17 @@ class BtApiStore(LiveStoreBase):
             after_generation = 0
         if after_generation != expected_generation:
             errors.append("bundle_quote_session_generation_changed")
-        if self._normalized_account_fingerprint(session_after.get("account_fingerprint")) != expected_account:
+        if (
+            self._normalized_account_fingerprint(session_after.get("account_fingerprint"))
+            != expected_account
+        ):
             errors.append("bundle_quote_session_account_fingerprint_changed")
         if self._ctp_bundle_valid_trading_day(session_after.get("trading_day")) != expected_day:
             errors.append("bundle_quote_session_trading_day_changed")
-        if session_after.get("read_only_ready") is not True and session_after.get("ready") is not True:
+        if (
+            session_after.get("read_only_ready") is not True
+            and session_after.get("ready") is not True
+        ):
             errors.append("bundle_quote_session_not_ready")
         return self._finish_ctp_bundle_quote_reference_snapshot(
             preflight,
@@ -9331,7 +9344,7 @@ class BtApiStore(LiveStoreBase):
             "request_ids": deepcopy(dict(request_ids or {})),
             "request_count_delta": deepcopy(dict(request_count_delta or {})),
             "write_request_free": write_request_free,
-            "evidence_errors": sorted(set(str(item) for item in errors)),
+            "evidence_errors": sorted({str(item) for item in errors}),
         }
         snapshot["evidence_complete"] = bool(
             not snapshot["evidence_errors"] and write_request_free and len(canonical_legs) == 3
@@ -9370,7 +9383,10 @@ class BtApiStore(LiveStoreBase):
             read_only=True,
         )
         errors = list(preflight.get("evidence_errors") or [])
-        if preflight.get("evidence_complete") is not True or preflight.get("read_only_safe") is not True:
+        if (
+            preflight.get("evidence_complete") is not True
+            or preflight.get("read_only_safe") is not True
+        ):
             return self._finish_ctp_execution_reference_snapshot(
                 preflight, {}, errors + ["bundle_preflight_not_safe"]
             )
@@ -9402,7 +9418,9 @@ class BtApiStore(LiveStoreBase):
             sent_at = _dt.datetime.now(_UTC)
             sent_mono = time.monotonic()
             if target is None:
-                result = self._ctp_query_failure(request_type, before_session, "query_capability_unavailable")
+                result = self._ctp_query_failure(
+                    request_type, before_session, "query_capability_unavailable"
+                )
             else:
                 try:
                     slot = self._reserve_ctp_query_slot(deadline)
@@ -9413,7 +9431,9 @@ class BtApiStore(LiveStoreBase):
                         request_type,
                     )
                 except Exception as exc:
-                    result = self._ctp_query_failure(request_type, before_session, type(exc).__name__)
+                    result = self._ctp_query_failure(
+                        request_type, before_session, type(exc).__name__
+                    )
             received_at = _dt.datetime.now(_UTC)
             result["requested_at_utc"] = sent_at.isoformat()
             result["received_at_utc"] = received_at.isoformat()
@@ -9459,7 +9479,11 @@ class BtApiStore(LiveStoreBase):
                 prices[index] = quote["ask_price"]
 
         future_index = next(
-            (index for index, metadata in enumerate(leg_metadata) if metadata.get("asset_type") == "future"),
+            (
+                index
+                for index, metadata in enumerate(leg_metadata)
+                if metadata.get("asset_type") == "future"
+            ),
             None,
         )
         if future_index is None or future_index not in prices:
@@ -9496,25 +9520,33 @@ class BtApiStore(LiveStoreBase):
                 if not self._ctp_query_result_complete(result):
                     errors.append(f"leg[{index}].{field}_query_incomplete")
                 record, local_errors = self._ctp_execution_reference_record(
-                    result.get("records"), leg, label=f"leg[{index}].{field}",
+                    result.get("records"),
+                    leg,
+                    label=f"leg[{index}].{field}",
                     require_exchange=False,
                 )
                 errors.extend(local_errors)
                 if record is None:
                     continue
                 if field == "option_trade_cost":
-                    errors.extend(self._ctp_bundle_option_trade_cost_evidence_errors(
-                        record, label=f"leg[{index}].option_trade_cost"
-                    ))
+                    errors.extend(
+                        self._ctp_bundle_option_trade_cost_evidence_errors(
+                            record, label=f"leg[{index}].option_trade_cost"
+                        )
+                    )
                 else:
-                    errors.extend(self._ctp_bundle_commission_evidence_errors(
-                        record, label=f"leg[{index}].option_commission_rate"
-                    ))
+                    errors.extend(
+                        self._ctp_bundle_commission_evidence_errors(
+                            record, label=f"leg[{index}].option_commission_rate"
+                        )
+                    )
 
         after_session = self._read_ctp_session_state()
         after_counts = self._ctp_request_counts(after_session)
         delta = self._ctp_request_count_delta(before_counts, after_counts)
-        write_free = bool(delta is not None and all(delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES))
+        write_free = bool(
+            delta is not None and all(delta[name] == 0 for name in _CTP_WRITE_REQUEST_TYPES)
+        )
         if not write_free:
             errors.append("execution_reference_write_request_evidence_invalid")
         for label, result in results.items():
@@ -9528,26 +9560,40 @@ class BtApiStore(LiveStoreBase):
                 errors.append(f"{label}_connection_generation_mismatch")
             if result.get("trading_day") != expected_day:
                 errors.append(f"{label}_trading_day_mismatch")
-            errors.extend(self._ctp_bundle_query_time_errors(
-                result, label=label, requested_at_utc=request_windows[label][0],
-                received_at_utc=request_windows[label][1]
-            ))
+            errors.extend(
+                self._ctp_bundle_query_time_errors(
+                    result,
+                    label=label,
+                    requested_at_utc=request_windows[label][0],
+                    received_at_utc=request_windows[label][1],
+                )
+            )
         request_ids = [
-            result.get("request_id") for result in results.values()
+            result.get("request_id")
+            for result in results.values()
             if result.get("request_id") not in (None, "", 0, "0")
         ]
         if len(request_ids) != len(set(request_ids)):
             errors.append("execution_reference_request_id_not_unique")
-        if after_session.get("connection_generation") != expected_generation or after_session.get("trading_day") != expected_day:
+        if (
+            after_session.get("connection_generation") != expected_generation
+            or after_session.get("trading_day") != expected_day
+        ):
             errors.append("execution_reference_session_changed")
         broker_contract_metadata, metadata_errors = self._build_ctp_broker_contract_metadata(
             preflight, results, parsed_legs, prices, quotes
         )
         errors.extend(metadata_errors)
         return self._finish_ctp_execution_reference_snapshot(
-            preflight, results, errors, request_count_delta=delta, write_request_free=write_free,
-            prices=prices, broker_contract_metadata=broker_contract_metadata,
-            quote_evidence=quotes, parsed_legs=parsed_legs,
+            preflight,
+            results,
+            errors,
+            request_count_delta=delta,
+            write_request_free=write_free,
+            prices=prices,
+            broker_contract_metadata=broker_contract_metadata,
+            quote_evidence=quotes,
+            parsed_legs=parsed_legs,
         )
 
     def _build_ctp_broker_contract_metadata(
@@ -9566,7 +9612,9 @@ class BtApiStore(LiveStoreBase):
         errors: List[str] = []
         output: List[Dict[str, Any]] = []
 
-        def number(row: Mapping[str, Any], names: Tuple[str, ...], label: str, positive: bool = False):
+        def number(
+            row: Mapping[str, Any], names: Tuple[str, ...], label: str, positive: bool = False
+        ):
             value, numeric_error = self._ctp_bundle_finite_numeric_aliases(row, names)
             if numeric_error is not None or value is None or (positive and value <= 0):
                 errors.append(f"broker_contract_{label}_missing_or_invalid")
@@ -9578,16 +9626,40 @@ class BtApiStore(LiveStoreBase):
             (("OpenRatioByVolume", "open_ratio_by_volume"), "open_ratio_by_volume"),
             (("CloseRatioByMoney", "close_ratio_by_money"), "close_ratio_by_money"),
             (("CloseRatioByVolume", "close_ratio_by_volume"), "close_ratio_by_volume"),
-            (("CloseTodayRatioByMoney", "close_today_ratio_by_money"), "close_today_ratio_by_money"),
-            (("CloseTodayRatioByVolume", "close_today_ratio_by_volume"), "close_today_ratio_by_volume"),
+            (
+                ("CloseTodayRatioByMoney", "close_today_ratio_by_money"),
+                "close_today_ratio_by_money",
+            ),
+            (
+                ("CloseTodayRatioByVolume", "close_today_ratio_by_volume"),
+                "close_today_ratio_by_volume",
+            ),
         )
         generic_margin = (
-            (("LongMarginRatioByMoney", "long_margin_ratio_by_money"), "long_margin_ratio_by_money"),
-            (("LongMarginRatioByVolume", "long_margin_ratio_by_volume"), "long_margin_ratio_by_volume"),
-            (("ShortMarginRatioByMoney", "short_margin_ratio_by_money"), "short_margin_ratio_by_money"),
-            (("ShortMarginRatioByVolume", "short_margin_ratio_by_volume"), "short_margin_ratio_by_volume"),
+            (
+                ("LongMarginRatioByMoney", "long_margin_ratio_by_money"),
+                "long_margin_ratio_by_money",
+            ),
+            (
+                ("LongMarginRatioByVolume", "long_margin_ratio_by_volume"),
+                "long_margin_ratio_by_volume",
+            ),
+            (
+                ("ShortMarginRatioByMoney", "short_margin_ratio_by_money"),
+                "short_margin_ratio_by_money",
+            ),
+            (
+                ("ShortMarginRatioByVolume", "short_margin_ratio_by_volume"),
+                "short_margin_ratio_by_volume",
+            ),
         )
-        option_cost_fields = ("FixedMargin", "MiniMargin", "Royalty", "ExchFixedMargin", "ExchMiniMargin")
+        option_cost_fields = (
+            "FixedMargin",
+            "MiniMargin",
+            "Royalty",
+            "ExchFixedMargin",
+            "ExchMiniMargin",
+        )
         for index, (leg, item) in enumerate(zip(legs, evidence)):
             instrument = item.get("instrument")
             metadata = item.get("metadata")
@@ -9600,7 +9672,12 @@ class BtApiStore(LiveStoreBase):
                 errors.append(f"broker_contract_leg[{index}]_instrument_identity_mismatch")
             if instrument.get("ExchangeID") != leg["exchange_id"]:
                 errors.append(f"broker_contract_leg[{index}]_exchange_identity_mismatch")
-            tick = number(instrument, ("PriceTick", "price_tick", "tick_size"), f"leg[{index}]_price_tick", True)
+            tick = number(
+                instrument,
+                ("PriceTick", "price_tick", "tick_size"),
+                f"leg[{index}]_price_tick",
+                True,
+            )
             multiplier = number(
                 instrument,
                 ("VolumeMultiple", "volume_multiple", "multiplier", "contract_size"),
@@ -9608,7 +9685,11 @@ class BtApiStore(LiveStoreBase):
                 True,
             )
             reference_price = prices.get(index)
-            if reference_price is None or not math.isfinite(float(reference_price)) or reference_price <= 0:
+            if (
+                reference_price is None
+                or not math.isfinite(float(reference_price))
+                or reference_price <= 0
+            ):
                 errors.append(f"broker_contract_leg[{index}]_reference_price_missing_or_invalid")
             asset_type = metadata.get("asset_type")
             quote = quotes.get(index)
@@ -9617,9 +9698,14 @@ class BtApiStore(LiveStoreBase):
             commission_row = item.get("commission_rate")
             if asset_type == "option":
                 commission_result = results.get(f"leg[{index}].option_commission_rate", {})
-                commission_rows = commission_result.get("records") if isinstance(commission_result, Mapping) else None
+                commission_rows = (
+                    commission_result.get("records")
+                    if isinstance(commission_result, Mapping)
+                    else None
+                )
                 commission_row, commission_errors = self._ctp_execution_reference_record(
-                    commission_rows, leg,
+                    commission_rows,
+                    leg,
                     label=f"broker_contract_leg[{index}].option_commission_rate",
                     require_exchange=False,
                 )
@@ -9648,7 +9734,10 @@ class BtApiStore(LiveStoreBase):
                 "instrument_id": leg["instrument_id"],
                 "exchange_id": leg["exchange_id"],
                 "raw_instrument_id": instrument.get("InstrumentID"),
-                "symbol_aliases": [f"{leg['exchange_id']}.{leg['instrument_id']}", leg["instrument_id"]],
+                "symbol_aliases": [
+                    f"{leg['exchange_id']}.{leg['instrument_id']}",
+                    leg["instrument_id"],
+                ],
                 "product_id": instrument.get("ProductID"),
                 "asset_type": asset_type,
                 "price_tick": tick,
@@ -9660,12 +9749,19 @@ class BtApiStore(LiveStoreBase):
                 "ask_volume": quote.get("ask_volume") if isinstance(quote, Mapping) else None,
                 "entry_buy_price": quote.get("ask_price") if isinstance(quote, Mapping) else None,
                 "exit_sell_price": quote.get("bid_price") if isinstance(quote, Mapping) else None,
-                "quote_timing": {
-                    key: quote.get(key) for key in (
-                        "requested_at_utc", "received_at_utc",
-                        "requested_monotonic", "received_monotonic",
-                    )
-                } if isinstance(quote, Mapping) else None,
+                "quote_timing": (
+                    {
+                        key: quote.get(key)
+                        for key in (
+                            "requested_at_utc",
+                            "received_at_utc",
+                            "requested_monotonic",
+                            "received_monotonic",
+                        )
+                    }
+                    if isinstance(quote, Mapping)
+                    else None
+                ),
                 "commission": commission,
             }
             if asset_type == "future":
@@ -9674,7 +9770,10 @@ class BtApiStore(LiveStoreBase):
                 cost_result = results.get(f"leg[{index}].option_trade_cost", {})
                 cost_rows = cost_result.get("records") if isinstance(cost_result, Mapping) else None
                 cost, cost_errors = self._ctp_execution_reference_record(
-                    cost_rows, leg, label=f"broker_contract_leg[{index}].option_trade_cost", require_exchange=False
+                    cost_rows,
+                    leg,
+                    label=f"broker_contract_leg[{index}].option_trade_cost",
+                    require_exchange=False,
                 )
                 errors.extend(cost_errors)
                 option_cost: Dict[str, float] = {}
@@ -9699,9 +9798,14 @@ class BtApiStore(LiveStoreBase):
         }, []
 
     def _finish_ctp_execution_reference_snapshot(
-        self, preflight: Mapping[str, Any], results: Mapping[str, Any], errors: Iterable[str],
-        *, request_count_delta: Optional[Mapping[str, int]] = None,
-        write_request_free: bool = False, prices: Optional[Mapping[int, float]] = None,
+        self,
+        preflight: Mapping[str, Any],
+        results: Mapping[str, Any],
+        errors: Iterable[str],
+        *,
+        request_count_delta: Optional[Mapping[str, int]] = None,
+        write_request_free: bool = False,
+        prices: Optional[Mapping[int, float]] = None,
         broker_contract_metadata: Optional[Mapping[str, Any]] = None,
         quote_evidence: Optional[Mapping[int, Mapping[str, Any]]] = None,
         parsed_legs: Optional[Iterable[Mapping[str, str]]] = None,
@@ -9721,11 +9825,14 @@ class BtApiStore(LiveStoreBase):
                 }
                 for index, leg in enumerate(parsed_legs or [])
             ],
-            "broker_contract_metadata": deepcopy(dict(broker_contract_metadata))
-            if broker_contract_metadata is not None else None,
+            "broker_contract_metadata": (
+                deepcopy(dict(broker_contract_metadata))
+                if broker_contract_metadata is not None
+                else None
+            ),
             "request_count_delta": deepcopy(dict(request_count_delta or {})),
             "write_request_free": write_request_free,
-            "evidence_errors": sorted(set(str(item) for item in errors)),
+            "evidence_errors": sorted({str(item) for item in errors}),
         }
         snapshot["evidence_complete"] = not snapshot["evidence_errors"] and write_request_free
         snapshot["broker_contract_metadata_complete"] = bool(
@@ -9750,9 +9857,7 @@ class BtApiStore(LiveStoreBase):
                 row
                 for row in records
                 if isinstance(row, Mapping)
-                and str(
-                    row.get("InstrumentID", row.get("instrument_id", ""))
-                ).strip()
+                and str(row.get("InstrumentID", row.get("instrument_id", ""))).strip()
                 == str(leg["instrument_id"]).strip()
             ]
         else:
@@ -9771,8 +9876,10 @@ class BtApiStore(LiveStoreBase):
         # legitimately omit ExchangeID; the instrument identity plus the
         # scoped query request already fix the venue.  Only a contradictory
         # non-empty exchange value is a mismatch.
-        if exchanges and exchanges[0] and (
-            len(set(exchanges)) > 1 or exchanges[0] != leg["exchange_id"]
+        if (
+            exchanges
+            and exchanges[0]
+            and (len(set(exchanges)) > 1 or exchanges[0] != leg["exchange_id"])
         ):
             errors.append(f"{label}_exchange_identity_mismatch")
         return (record if not errors else None), sorted(set(errors))
@@ -10875,7 +10982,9 @@ class BtApiStore(LiveStoreBase):
         ):
             raise BtApiStoreError("SDK execution recovery execution_cycle_id is invalid")
         close_totals = {"long": 0, "short": 0}
-        close_totals_by_instrument = collections.defaultdict(lambda: {"long": 0, "short": 0})
+        close_totals_by_instrument: Dict[str, Any] = collections.defaultdict(
+            lambda: {"long": 0, "short": 0}
+        )
         seen_closes = set()
         for item in allowed_closes:
             if not isinstance(item, Mapping) or set(item) != _CTP_RECOVERY_CLOSE_FIELDS:
@@ -11927,15 +12036,11 @@ class BtApiStore(LiveStoreBase):
                     approval_arm = getattr(self._api, "arm_execution_from_approval", None)
                     if _is_ctp_approval_capability(authorization):
                         if not callable(approval_arm):
-                            raise BtApiStoreError(
-                                "Public SDK entry approval arming is unavailable"
-                            )
+                            raise BtApiStoreError("Public SDK entry approval arming is unavailable")
                         result = approval_arm(authorization)
                     else:
                         result = (
-                            arm(authorization)
-                            if authorization is not None
-                            else arm(proof=proof)
+                            arm(authorization) if authorization is not None else arm(proof=proof)
                         )
                     if not isinstance(result, Mapping) or not (
                         result.get("armed") is True
@@ -13331,7 +13436,7 @@ class BtApiStore(LiveStoreBase):
         elif loss_breached_at is not None:
             errors.append("unexpected_loss_breached_at")
 
-        loss_values = {}
+        loss_values: Dict[str, Any] = {}
         for key in (
             "loss_amount",
             "loss_limit_amount",
@@ -13389,8 +13494,8 @@ class BtApiStore(LiveStoreBase):
             except (InvalidOperation, TypeError, ValueError):
                 errors.append("invalid_realized_net")
         for key in ("generation", "fencing_epoch", "as_of_monotonic_ns", "owner_pid"):
-            value = snapshot.get(key)
-            if type(value) is not int or value <= 0:
+            fence_value = snapshot.get(key)
+            if type(fence_value) is not int or fence_value <= 0:
                 errors.append(f"invalid_{key}")
         if snapshot.get("generation") != snapshot.get("fencing_epoch"):
             errors.append("account_risk_generation_fence_mismatch")

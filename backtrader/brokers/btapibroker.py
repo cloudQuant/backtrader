@@ -11,7 +11,7 @@ import threading
 import time
 from collections.abc import Mapping
 from copy import deepcopy
-from typing import Any
+from typing import Any, DefaultDict, Dict, List, Optional
 
 from ..broker import BrokerBase
 from ..comminfo import (
@@ -36,7 +36,7 @@ from ..stores.btapistore import _redact_diagnostic
 from ..utils.log_message import get_logger
 
 logger = get_logger(__name__)
-_LOGGING_HEALTH = collections.Counter()
+_LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
 
 
 def _safe_log(level, message, *args):
@@ -349,7 +349,7 @@ class BtApiBroker(BrokerBase):
         self._position_mode_frozen = False
         self._position_mode_frozen_reason = None
         self._sdk_readiness = {}
-        self._last_reconcile_result = None
+        self._last_reconcile_result: Optional[Dict[str, Any]] = None
         self._periodic_reconcile_pending = False
         self._ctp_reconciliation_required = False
         self._ctp_reconciliation_rounds = 0
@@ -1158,12 +1158,12 @@ class BtApiBroker(BrokerBase):
             remote_flat_proven=bool(flat_proven),
             active_order_count=(
                 max(local_active_order_count, len(remote_open_orders))
-                if type(remote_open_orders) is list
+                if isinstance(remote_open_orders, list)
                 else None
             ),
             local_position_count=local_position_count,
             remote_position_count=(
-                len(remote_positions) if type(remote_positions) is list else None
+                len(remote_positions) if isinstance(remote_positions, list) else None
             ),
             unknown_intent_count=(
                 len(execution_summary.get("unknown_ids"))
@@ -1564,7 +1564,7 @@ class BtApiBroker(BrokerBase):
                 missing_data.append((key, position_side))
                 return
             method = self.buy if is_buy else self.sell
-            kwargs = {}
+            kwargs: "Dict[str, Any]" = {}
             if self._requires_explicit_offset(data):
                 price = self._ctp_shutdown_limit_price(data, is_buy)
                 if price is None:
@@ -1902,9 +1902,11 @@ class BtApiBroker(BrokerBase):
         """Resolve one CTP trade row to exactly one locally known order."""
         order_sys_id = str(self._extract_update_value(row, "order_sys_id", "OrderSysID") or "")
         order_ref = str(self._extract_update_value(row, "order_ref", "OrderRef") or "")
-        instrument_id = str(
-            self._extract_update_value(row, "instrument_id", "InstrumentID") or ""
-        ).strip().upper()
+        instrument_id = (
+            str(self._extract_update_value(row, "instrument_id", "InstrumentID") or "")
+            .strip()
+            .upper()
+        )
         try:
             row_generation = int(
                 self._extract_update_value(row, "connection_generation", "ConnectionGeneration")
@@ -4616,7 +4618,7 @@ class BtApiBroker(BrokerBase):
         }
         result = {}
         for canonical, keys in aliases.items():
-            values = []
+            values: "List[Any]" = []
             for source in (metadata, scope or {}):
                 values.extend(
                     (key, source[key]) for key in keys if source.get(key) not in (None, "")
@@ -6260,9 +6262,9 @@ class BtApiBroker(BrokerBase):
                     self._position_audit_blocked = bool(mismatches)
             return
 
-        synced = collections.defaultdict(Position)
-        long_synced = collections.defaultdict(Position)
-        short_synced = collections.defaultdict(Position)
+        synced: "DefaultDict[Any, Position]" = collections.defaultdict(Position)
+        long_synced: "DefaultDict[Any, Position]" = collections.defaultdict(Position)
+        short_synced: "DefaultDict[Any, Position]" = collections.defaultdict(Position)
         tracked = self._tracked_position_alias_map()
         for row in rows:
             key = self._position_row_canonical_key(row, tracked)
