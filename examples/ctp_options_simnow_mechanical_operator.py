@@ -465,9 +465,19 @@ def _confirm_settlement_with_approval(
 ) -> bool:
     """Confirm settlement once through a redeemed operator approval."""
 
-    verified = store.verify_ctp_settlement(timeout=float(config.query_timeout))
-    if verified.get("evidence_complete") is True:
-        return True
+    # Short-circuit on the native settlement verdict without triggering a
+    # readback: when settlement is NOT yet confirmed for the session
+    # trading day, verify_ctp_settlement's readback finds no matching
+    # confirmation record, records a settlement identity last_error on the
+    # session, and the SDK's confirm path then rejects with
+    # ctp_session_not_read_only_ready (diagnosed 2026-09-12 on the second
+    # set whose trading day stays at the last real session day).  Confirm
+    # first through the approval, then verify read-only to prove it.
+    session_state = store.get_ctp_session_state()
+    if str(session_state.get("settlement_state") or "") == "confirmed":
+        verified = store.verify_ctp_settlement(timeout=float(config.query_timeout))
+        if verified.get("evidence_complete") is True:
+            return True
     seed = _approval_seed(config, "settlement", bundle)
     context = api.build_ctp_execution_approval_context(
         seed,
@@ -534,6 +544,27 @@ def run_mechanical_cycle(
     if api is None:
         api = store._ensure_api_ready()
 
+    # The CTP trade-session semantics bridge (auth/generation/trading-day
+    # surfaced through get_ctp_session_state) only materialises after the
+    # first trader-side query group completes.  A preflight snapshot reads
+    # session_before before its queries, so the very first snapshot after
+    # connect always fails the evidence gate with session_*_missing errors
+    # even though its queries succeed.  The smoke flow primes the bridge
+    # with verify_ctp_settlement, but on the second set that readback can
+    # leave a settlement-identity last_error which then blocks the
+    # approval-gated settlement confirmation.  Prime instead with a narrow
+    # discarded instrument-scoped snapshot (read-only, no settlement
+    # interaction, no write): the first snapshot's own queries complete the
+    # login so the real evidence scan below sees a logged-in before-state.
+    # Diagnosed 2026-09-12; also the likely cause behind the 2026-09-11
+    # night "connected=false" block attributed to SimNow maintenance.
+    store.get_ctp_preflight_snapshot(
+        f"{config.exchange_id.upper()}.{config.future_instrument_id}",
+        exchange_id=config.exchange_id.upper(),
+        timeout=float(config.query_timeout),
+        read_only=True,
+    )
+
     evidence = collect_three_leg_evidence(store, _as_operator_config(config))
     bundle = evidence["bundle"]
     symbols = tuple(
@@ -592,6 +623,40 @@ def run_mechanical_cycle(
         "reconciliation_2": evidence["reconciliation_rounds"][1].get("snapshot_sha256"),
     }
     now = datetime.now(timezone.utc)
+    # Refresh Stage A/B and the bundle preflight right before building the
+    # authorization: the evidence chain so far (scan -> stages -> bundle ->
+    # reference -> settlement -> approval prerequisites) runs far longer
+    # than the default 30s snapshot freshness budget, and configure()
+    # rejects stale stage and bundle-preflight evidence.  Refreshing keeps
+    # the freshness gate at its default instead of widening it; identity
+    # fields are session-bound and unchanged by the refresh, and the grant
+    # hash binds to the refreshed bundle snapshot (diagnosed 2026-09-12).
+    evidence["stage_a"] = store.get_ctp_preflight_snapshot(
+        product_id=config.product_id.upper(),
+        exchange_id=config.exchange_id.upper(),
+        timeout=float(config.query_timeout),
+        read_only=True,
+    )
+    evidence["stage_b"] = store.get_ctp_preflight_snapshot(
+        f"{bundle.exchange_id}.{bundle.future.instrument_id}",
+        exchange_id=bundle.exchange_id,
+        timeout=float(config.query_timeout),
+        read_only=True,
+    )
+    _refresh_legs = [
+        {
+            "exchange_id": leg.exchange_id,
+            "instrument_id": leg.instrument_id,
+            "is_primary": index == 0,
+        }
+        for index, leg in enumerate((bundle.future, bundle.call, bundle.put))
+    ]
+    evidence["bundle_preflight"] = store.get_ctp_bundle_preflight_snapshot(
+        _refresh_legs,
+        primary_leg=_refresh_legs[0],
+        timeout=float(config.query_timeout),
+        read_only=True,
+    )
     derived_bundle = derive_bundle_preflight(evidence, bundle)
     artifacts = build_bundle_authorization(
         stage_a=evidence["stage_a"],
@@ -837,7 +902,16 @@ def derive_bundle_preflight(
     rounds = evidence["reconciliation_rounds"]
     base = reference
     for candidate in (evidence.get("bundle_preflight"), reference):
-        if isinstance(candidate, Mapping) and candidate.get("session_scope"):
+        # Preflight snapshots carry the session identity on their top level
+        # (account_fingerprint/connection_generation/trading_day); only the
+        # reference snapshot nests it under session_scope.  Select the first
+        # candidate that actually carries an identity either way — selecting
+        # by the session_scope key alone never matches a preflight snapshot
+        # and made every mechanical run fail BUNDLE_IDENTITY_INCOMPLETE
+        # (diagnosed 2026-09-12).
+        if isinstance(candidate, Mapping) and (
+            candidate.get("account_fingerprint") or candidate.get("session_scope")
+        ):
             base = candidate
             break
     session_scope = base.get("session_scope") if isinstance(base, Mapping) else None
@@ -872,8 +946,27 @@ def derive_bundle_preflight(
         "unmatched_trade_count": 0,
         "legs": legs,
         "reconciled": True,
-        "snapshot_sha256": reference.get("snapshot_sha256") or _sha256_json(reference),
+        # Bind the derived bundle proof to the bundle-preflight snapshot it
+        # was derived from (base): after the pre-authorization refresh that
+        # snapshot IS the Store's latest _last_ctp_bundle_preflight_snapshot,
+        # which is the authoritative comparison target for
+        # proof.preflight_sha256 (diagnosed 2026-09-12).
+        "snapshot_sha256": base.get("snapshot_sha256")
+        or (
+            reference.get("bundle_preflight", {}).get("snapshot_sha256")
+            if isinstance(reference.get("bundle_preflight"), Mapping)
+            else None
+        )
+        or _sha256_json(reference),
         "session_scope": dict(session_scope),
+        # The authorization builder reads the live session evidence
+        # (environment_profile etc.) through session_after/session; preflight
+        # snapshots carry it on session_after, so pass it through instead of
+        # dropping it (missing key failed every authorization build with
+        # "bundle session evidence is missing", diagnosed 2026-09-12).
+        "session_after": dict(
+            base.get("session_after") or base.get("session") or session_scope or {}
+        ),
         "query_results": dict(base.get("query_results") or {}),
     }
 
