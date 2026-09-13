@@ -711,6 +711,103 @@ def test_sealed_candidate_conversion_reaches_read_only_broker_without_transport_
     assert broker.get_param("market_data_only") is True
 
 
+def test_late_sealed_candidate_cohort_cannot_create_an_entry_or_transport_write():
+    """A late C/P/F leg remains below the candidate-entry boundary."""
+
+    strategy_module = importlib.import_module(
+        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+    )
+
+    class CandidateEntryProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy):
+        def __init__(self):
+            sealed_bar_clock.strategy = self
+            self.entry_attempts = []
+            self.submission_attempts = []
+            super().__init__()
+
+        def _start_entry(self, direction, limits, score, timestamp):
+            self.entry_attempts.append(
+                {
+                    "direction": direction,
+                    "legs": self._entry_legs_for(direction, limits),
+                    "timestamp": timestamp,
+                }
+            )
+            return super()._start_entry(direction, limits, score, timestamp)
+
+        def _submit_next_leg(self):
+            if self._state == "ENTERING" and self._leg_index < len(self._planned_legs):
+                self.submission_attempts.append(dict(self._planned_legs[self._leg_index]))
+            return super()._submit_next_leg()
+
+    class SealedBarClock:
+        def __init__(self):
+            self.strategy = None
+
+        def __call__(self):
+            current = getattr(self.strategy, "_current_clock_now_ns", None)
+            return {
+                "now_monotonic_ns": 0 if current is None else current,
+                "clock_domain_id": CLOCK_DOMAIN,
+                "generation": 7,
+                "trusted": True,
+                "source": "iter23-local-native-free-partial-cohort-clock",
+                "boot_id": "iter23-local-native-free-fixture-boot",
+            }
+
+    sealed_bar_clock = SealedBarClock()
+    config, candidate, live_ticks, final_watermark = _eligible_candidate_ticks()
+    candidate_leg_time = dt.datetime(2026, 9, 10, 19, 15, 0, 500_000, tzinfo=dt.timezone.utc)
+    candidate_bucket_end = candidate_leg_time.replace(microsecond=0)
+    late_index = next(
+        index
+        for index, tick in enumerate(live_ticks[PUT])
+        if tick.event_time_utc == candidate_leg_time
+    )
+    late_tick = live_ticks[PUT][late_index]
+    # Deliver the candidate's PUT leg a full bucket late.  It remains a real
+    # Feed event, but cannot form the matching F/C/P sealed cohort.
+    live_ticks[PUT][late_index] = _tick_at(
+        PUT,
+        float(late_tick.price),
+        late_tick.ingest_seq,
+        candidate_leg_time + dt.timedelta(minutes=15),
+    )
+
+    def candidate_evidence(bar):
+        return replace(
+            _closed_bar_evidence(bar),
+            candidate_id=f"{config['strategy_id']}-replay-v1",
+            trade_count=bar.trade_count,
+        )
+
+    client, broker, _, strategy = _run_chain(
+        CandidateEntryProbeStrategy,
+        evidence_provider=candidate_evidence,
+        live_ticks=live_ticks,
+        final_watermark=final_watermark,
+        interleave_symbols=(FUTURE, CALL, PUT),
+        strategy_kwargs=_candidate_strategy_kwargs(config, candidate, sealed_bar_clock),
+    )
+
+    assert strategy.entry_attempts == []
+    assert strategy.submission_attempts == []
+    late_cohorts = [
+        item
+        for item in strategy._bar_cohort_evidence
+        if item["bucket_end"] == candidate_bucket_end.isoformat()
+    ]
+    assert any(
+        item["reason"] == "SKIP_BARRIER_TIMEOUT"
+        and item["ready"] is False
+        and item["barrier_evidence"] is None
+        for item in late_cohorts
+    )
+    assert client.submitted_orders == []
+    assert client.cancelled_orders == []
+    assert broker.get_param("market_data_only") is True
+
+
 def test_closed_bar_provider_cannot_mutate_feed_owned_event_before_validation():
     """The provider sees a detached snapshot, not the event later dispatched."""
 

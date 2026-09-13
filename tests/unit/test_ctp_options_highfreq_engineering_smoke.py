@@ -196,6 +196,63 @@ def test_generation_change_blocks_and_unknown_is_not_recovered_by_one_snapshot(t
     assert adapter.state.reason == "RECONCILIATION_REQUIRES_SECOND_FRESH_OBSERVATION"
 
 
+def test_reconnect_invalidates_prior_generation_gates_before_rearming(tmp_path):
+    adapter = _adapter(tmp_path)
+
+    def preflight(_legs, **_kwargs):
+        return {
+            "snapshot_sha256": "bundle-hash",
+            "evidence_complete": True,
+            "read_only_safe": True,
+            "flat": True,
+            "account_fingerprint": "acct-hash",
+            "trading_day": "20260911",
+            "connection_generation": adapter.session.generation,
+        }
+
+    adapter.store.configure_ctp_execution_authorization = lambda _grant: {"configured": True}
+    adapter.store.verify_ctp_settlement = lambda **_kwargs: {
+        "success": True,
+        "evidence_complete": True,
+    }
+    adapter.store.get_ctp_bundle_preflight_snapshot = preflight
+    legs = ({"exchange_id": "CZCE", "instrument_id": leg} for leg in ("F", "C", "P"))
+    adapter.configure_execution_authorization({"mock": True})
+    adapter.verify_settlement()
+    adapter.get_bundle_preflight(legs)
+    adapter.reconcile(_safe_reconciliation(1_000))
+    adapter.reconcile(_safe_reconciliation(2_000))
+    adapter.arm_one_cycle(cycle_id="cycle-7", intent_id="intent-7")
+
+    adapter.on_reconnect(session=MODULE.SessionIdentity("acct-hash", "20260911", 8, 1, "clk-1"))
+
+    assert adapter._authorization_verified is False
+    assert adapter._settlement_verified is False
+    assert adapter._bundle_preflight_verified is False
+    assert adapter.state.reconciliation_rounds == 0
+    assert adapter.state.cycle_id == ""
+
+    generation_eight = _safe_reconciliation(3_000)
+    generation_eight["connection_generation"] = 8
+    adapter.reconcile(generation_eight)
+    generation_eight_second = _safe_reconciliation(4_000)
+    generation_eight_second["connection_generation"] = 8
+    adapter.reconcile(generation_eight_second)
+
+    assert adapter.state.status == "FLAT_VERIFIED"
+    with pytest.raises(MODULE.EngineeringSmokeError, match="TRUST_ROOT"):
+        adapter.arm_one_cycle(cycle_id="cycle-8", intent_id="intent-8")
+
+    adapter.configure_execution_authorization({"mock": True})
+    adapter.verify_settlement()
+    adapter.get_bundle_preflight(
+        ({"exchange_id": "CZCE", "instrument_id": leg} for leg in ("F", "C", "P"))
+    )
+    adapter.arm_one_cycle(cycle_id="cycle-8", intent_id="intent-8")
+
+    assert adapter.state.status == "READY"
+
+
 def test_stale_tick_and_unknown_order_never_change_hft_status(tmp_path):
     adapter = _adapter(tmp_path)
     adapter.on_tick(_tick(generation=6))

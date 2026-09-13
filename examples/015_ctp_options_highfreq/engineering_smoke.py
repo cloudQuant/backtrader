@@ -420,11 +420,26 @@ class EngineeringSmokeAdapter:
             self._block("STALE_CONNECTION_GENERATION")
             return
         self.session = session
+        # Authorization, settlement and bundle evidence are all scoped to one
+        # CTP connection generation.  A successful new-generation
+        # reconciliation only proves a flat account snapshot; it must never
+        # revive a gate established by the previous transport session.
+        self._authorization_verified = False
+        self._bundle_preflight_verified = False
+        self._settlement_verified = False
+        self._reconciliation_fingerprint = None
+        self._reconciliation_request_ids = None
+        self.state.reconciliation_rounds = 0
+        self.state.cycle_id = ""
         self.state.status = "RECOVERING"
         self.state.ordinary_entry_blocked = True
         self.state.reason = "RECONNECT_REQUIRES_TWO_ROUND_RECONCILIATION"
         self.state.classifications.append("reconnect_generation_change")
-        self.journal.append("reconnect", generation=session.generation)
+        self.journal.append(
+            "reconnect",
+            generation=session.generation,
+            generation_bound_gates_invalidated=True,
+        )
 
     def reconcile(self, snapshot: Mapping[str, Any]) -> bool:
         snapshot = _normalize_reconciliation_snapshot(snapshot)

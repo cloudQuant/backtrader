@@ -10,6 +10,7 @@ creates synthetic fills.
 from __future__ import annotations
 
 import json
+import math
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -17,8 +18,6 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, MutableMapping, Optional
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import BtApiStore
 
 
@@ -102,7 +101,11 @@ class DurableExecutionJournal:
     def append(self, kind: str, record: Mapping[str, Any]) -> None:
         if not kind or not isinstance(record, Mapping):
             raise ValueError("journal records require a kind and mapping")
-        entry = {"kind": kind, "recorded_at": datetime.now(timezone.utc).isoformat(), **dict(record)}
+        entry = {
+            **dict(record),
+            "kind": kind,
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
+        }
         with self.path.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(entry, sort_keys=True, default=str) + "\n")
             stream.flush()
@@ -140,60 +143,234 @@ class ThreeLegExecutionCoordinator:
             raise ValueError("exactly three distinct symbols are required")
         self.symbols = symbols
         self.journal = journal
-        self.confirmed: MutableMapping[str, float] = {symbol: 0.0 for symbol in symbols}
+        self.confirmed: MutableMapping[str, float] = dict.fromkeys(symbols, 0.0)
         self.status = "IDLE"
         self.recovery_required = False
         self._next_leg = 0
+        self._active_basket_id: Optional[str] = None
+        self._active_identity: Optional[tuple[str, str, str]] = None
+        self._intent_symbol: Optional[str] = None
+        self._intent_quantity: Optional[float] = None
+        self._intent_client_order_id: Optional[str] = None
+        self._ack_order_id: Optional[str] = None
+        self._ack_client_order_id: Optional[str] = None
+        self._evidence_failure = False
+        self._seen_trade_keys: set[tuple[str, str, str, str, str]] = set()
 
-    def record_intent(self, basket_id: str, symbol: str, quantity: float, identity: Mapping[str, Any]) -> None:
+    def record_intent(
+        self,
+        basket_id: str,
+        symbol: str,
+        quantity: float,
+        identity: Mapping[str, Any],
+        *,
+        client_order_id: str,
+    ) -> None:
+        self._require_writable_evidence()
         if self.status not in {"IDLE", "NEXT_LEG_CONFIRMED"} or symbol != self.symbols[self._next_leg]:
             raise EngineeringSmokeBlocked("INTENT_ORDER", "intent is out of sequence")
-        if float(quantity) <= 0 or not basket_id:
-            raise EngineeringSmokeBlocked("INTENT_ORDER", "basket and positive quantity are required")
-        self._base_identity(identity)
+        quantity_value = self._positive_finite_quantity(quantity, "INTENT_ORDER")
+        if not basket_id or not client_order_id:
+            raise EngineeringSmokeBlocked(
+                "INTENT_ORDER", "basket, client order ID, and positive quantity are required"
+            )
+        identity_key = self._identity_key(identity)
+        if self._active_basket_id is not None and basket_id != self._active_basket_id:
+            raise EngineeringSmokeBlocked("INTENT_BASKET", "intent basket does not match active basket")
+        if self._active_identity is not None and identity_key != self._active_identity:
+            raise EngineeringSmokeBlocked("INTENT_IDENTITY", "intent identity does not match active basket")
+        self._append_evidence(
+            "intent",
+            self._journal_payload(
+                identity,
+                basket_id=basket_id,
+                symbol=symbol,
+                quantity=quantity_value,
+                client_order_id=client_order_id,
+            ),
+        )
+        self._active_basket_id = basket_id
+        self._active_identity = identity_key
+        self._intent_symbol = symbol
+        self._intent_quantity = quantity_value
+        self._intent_client_order_id = str(client_order_id)
+        self._ack_order_id = None
+        self._ack_client_order_id = None
         self.status = "INTENT"
-        self.journal.append("intent", {"basket_id": basket_id, "symbol": symbol, "quantity": quantity, **dict(identity)})
 
     def record_ack(self, basket_id: str, symbol: str, order_id: str, client_order_id: str, identity: Mapping[str, Any]) -> None:
-        self._base_identity(identity)
+        self._require_writable_evidence()
+        identity_key = self._identity_key(identity)
+        if self.status != "INTENT" or self._intent_symbol != symbol:
+            raise EngineeringSmokeBlocked("ACK_ORDER", "ACK requires the pending intent leg")
+        if basket_id != self._active_basket_id:
+            raise EngineeringSmokeBlocked("ACK_BASKET", "ACK basket does not match active basket")
+        if identity_key != self._active_identity:
+            raise EngineeringSmokeBlocked("ACK_IDENTITY", "ACK identity does not match active basket")
         if symbol != self.symbols[self._next_leg] or not order_id or not client_order_id:
             raise EngineeringSmokeBlocked("ACK_IDENTITY", "ACK requires order and client identities")
+        if str(client_order_id) != self._intent_client_order_id:
+            raise EngineeringSmokeBlocked("ACK_IDENTITY", "ACK client order ID does not match the intent")
+        self._append_evidence(
+            "ack",
+            self._journal_payload(
+                identity,
+                basket_id=basket_id,
+                symbol=symbol,
+                order_id=order_id,
+                client_order_id=client_order_id,
+            ),
+        )
+        self._ack_order_id = str(order_id)
+        self._ack_client_order_id = str(client_order_id)
         self.status = "ACKED"
-        self.journal.append("ack", {"basket_id": basket_id, "symbol": symbol, "order_id": order_id, "client_order_id": client_order_id, **dict(identity)})
 
     def record_fill(self, basket_id: str, symbol: str, quantity: float, identity: Mapping[str, Any]) -> None:
-        self._terminal_identity(identity)
-        if symbol not in self.confirmed or float(quantity) <= 0:
-            raise EngineeringSmokeBlocked("FILL_IDENTITY", "fill requires a known leg and positive quantity")
-        self.confirmed[symbol] += float(quantity)
-        self.journal.append("fill", {"basket_id": basket_id, "symbol": symbol, "quantity": quantity, **dict(identity)})
-        if self.confirmed[symbol] < 1.0:
-            self.status = "PARTIAL"
-            self.recovery_required = True
-        elif all(value >= 1.0 for value in self.confirmed.values()):
-            self.status = "COMPLETE"
+        self._require_writable_evidence()
+        identity_key, trade_key = self._fill_identity(identity, symbol)
+        if self.status not in {"ACKED", "PARTIAL", "RECOVERY"} or self._intent_symbol != symbol:
+            raise EngineeringSmokeBlocked("FILL_ORDER", "fill requires the acknowledged pending leg")
+        if basket_id != self._active_basket_id:
+            raise EngineeringSmokeBlocked("FILL_BASKET", "fill basket does not match active basket")
+        if identity_key != self._active_identity:
+            raise EngineeringSmokeBlocked("FILL_IDENTITY", "fill identity does not match active basket")
+        if (
+            str(identity["order_id"]) != self._ack_order_id
+            or str(identity["client_order_id"]) != self._ack_client_order_id
+        ):
+            raise EngineeringSmokeBlocked("FILL_IDENTITY", "fill identities do not match the acknowledged order")
+        if trade_key in self._seen_trade_keys:
+            raise EngineeringSmokeBlocked("FILL_DUPLICATE", "fill trade ID was already recorded")
+        quantity_value = self._positive_finite_quantity(quantity, "FILL_QUANTITY")
+        if symbol not in self.confirmed or self._intent_quantity is None:
+            raise EngineeringSmokeBlocked("FILL_IDENTITY", "fill requires a known leg and pending quantity")
+        confirmed_quantity = self.confirmed[symbol] + quantity_value
+        if not math.isfinite(confirmed_quantity) or confirmed_quantity > self._intent_quantity:
+            raise EngineeringSmokeBlocked("FILL_QUANTITY", "fill quantity exceeds the pending intent")
+        next_status = "NEXT_LEG_CONFIRMED"
+        next_leg = self._next_leg
+        recovery_required = self.recovery_required
+        if confirmed_quantity < self._intent_quantity:
+            next_status = "PARTIAL"
+            recovery_required = True
+        elif self.status in {"PARTIAL", "RECOVERY"} or recovery_required:
+            # A partial or recovery state must be reconciled explicitly.  A
+            # later fill may update the durable exposure evidence, but cannot
+            # silently authorize the next leg.
+            next_status = "RECOVERY"
+            recovery_required = True
         else:
-            self._next_leg = self.symbols.index(symbol) + 1
-            self.status = "NEXT_LEG_CONFIRMED"
+            next_leg = self.symbols.index(symbol) + 1
+            if next_leg == len(self.symbols):
+                next_status = "COMPLETE"
+        self._append_evidence(
+            "fill",
+            self._journal_payload(
+                identity,
+                basket_id=basket_id,
+                symbol=symbol,
+                quantity=quantity_value,
+                exchange_id=trade_key[2],
+                trade_id=trade_key[4],
+            ),
+        )
+        self._seen_trade_keys.add(trade_key)
+        self.confirmed[symbol] = confirmed_quantity
+        self.recovery_required = recovery_required
+        self._next_leg = next_leg
+        self.status = next_status
 
     def mark_compensation(self, basket_id: str, reason: str, identity: Mapping[str, Any]) -> None:
-        self._terminal_identity(identity)
+        self._require_writable_evidence()
+        identity_key = self._terminal_identity(identity)
+        if self.status not in {"ACKED", "PARTIAL"} or self._intent_symbol is None:
+            raise EngineeringSmokeBlocked(
+                "RECOVERY_ORDER", "recovery requires an acknowledged or partially filled pending leg"
+            )
+        if basket_id != self._active_basket_id:
+            raise EngineeringSmokeBlocked(
+                "RECOVERY_BASKET", "recovery basket does not match active basket"
+            )
+        if identity_key != self._active_identity:
+            raise EngineeringSmokeBlocked(
+                "RECOVERY_IDENTITY", "recovery identity does not match active basket"
+            )
+        if (
+            str(identity["order_id"]) != self._ack_order_id
+            or str(identity["client_order_id"]) != self._ack_client_order_id
+        ):
+            raise EngineeringSmokeBlocked(
+                "RECOVERY_IDENTITY", "recovery identities do not match the acknowledged order"
+            )
+        self._append_evidence(
+            "compensation_or_recovery",
+            self._journal_payload(identity, basket_id=basket_id, reason=reason),
+        )
         self.recovery_required = True
         self.status = "RECOVERY"
-        self.journal.append("compensation_or_recovery", {"basket_id": basket_id, "reason": reason, **dict(identity)})
 
     @staticmethod
-    def _base_identity(identity: Mapping[str, Any]) -> None:
+    def _identity_key(identity: Mapping[str, Any]) -> tuple[str, str, str]:
         for key in ("account_fingerprint", "trading_day", "generation"):
             if key not in identity or identity[key] in (None, ""):
                 raise EngineeringSmokeBlocked("BASE_IDENTITY", f"missing base identity {key}")
+        return tuple(str(identity[key]) for key in ("account_fingerprint", "trading_day", "generation"))
+
+    @staticmethod
+    def _positive_finite_quantity(quantity: float, code: str) -> float:
+        try:
+            quantity_value = float(quantity)
+        except (TypeError, ValueError, OverflowError) as error:
+            raise EngineeringSmokeBlocked(code, "quantity must be a finite positive number") from error
+        if not math.isfinite(quantity_value) or quantity_value <= 0:
+            raise EngineeringSmokeBlocked(code, "quantity must be a finite positive number")
+        return quantity_value
+
+    @staticmethod
+    def _journal_payload(identity: Mapping[str, Any], **canonical_fields: Any) -> dict[str, Any]:
+        """Keep journal identity metadata without allowing it to forge event facts."""
+
+        return {**dict(identity), **canonical_fields}
+
+    def _append_evidence(self, kind: str, record: Mapping[str, Any]) -> None:
+        try:
+            self.journal.append(kind, record)
+        except Exception:
+            self._evidence_failure = True
+            self.recovery_required = True
+            self.status = "EVIDENCE_FAILURE"
+            raise
+
+    def _require_writable_evidence(self) -> None:
+        if self._evidence_failure:
+            raise EngineeringSmokeBlocked(
+                "EVIDENCE_FAILURE", "journal evidence previously failed; recovery is externally required"
+            )
 
     @classmethod
-    def _terminal_identity(cls, identity: Mapping[str, Any]) -> None:
-        cls._base_identity(identity)
+    def _terminal_identity(cls, identity: Mapping[str, Any]) -> tuple[str, str, str]:
+        identity_key = cls._identity_key(identity)
         for key in ("order_id", "client_order_id"):
             if key not in identity or identity[key] in (None, ""):
                 raise EngineeringSmokeBlocked("TERMINAL_IDENTITY", f"missing terminal identity {key}")
+        return identity_key
+
+    @classmethod
+    def _fill_identity(
+        cls, identity: Mapping[str, Any], symbol: str
+    ) -> tuple[tuple[str, str, str], tuple[str, str, str, str, str]]:
+        identity_key = cls._terminal_identity(identity)
+        for key in ("exchange_id", "trade_id"):
+            if key not in identity or identity[key] in (None, ""):
+                raise EngineeringSmokeBlocked("FILL_IDENTITY", f"missing fill identity {key}")
+        trade_key = (
+            identity_key[0],
+            identity_key[1],
+            str(identity["exchange_id"]),
+            str(symbol),
+            str(identity["trade_id"]),
+        )
+        return identity_key, trade_key
 
 
 _RECONCILIATION_SCHEMA = "backtrader.ctp.reconciliation.v1"
