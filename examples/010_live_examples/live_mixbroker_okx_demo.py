@@ -342,6 +342,7 @@ def main():
         connected = False
     finally:
         cerebro.runstop()
+        cerebro.close_channel()
 
     stats = strategy.get_stats()
     print("\n" + "=" * 80)
