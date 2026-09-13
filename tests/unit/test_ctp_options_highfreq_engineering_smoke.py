@@ -123,10 +123,14 @@ def test_store_public_preflight_and_reconciliation_interfaces_are_the_only_query
         calls.append(("reconciliation", kwargs))
         return {
             "schema_version": "backtrader.ctp.reconciliation.v1",
-            "account": {},
+            "account": [],
             "positions": [],
             "orders": [],
             "trades": [],
+            "complete": True,
+            "is_last_seen": True,
+            "timed_out": False,
+            "error_code": None,
             "evidence_complete": True,
             "read_only_safe": True,
             "write_request_free": True,
@@ -137,6 +141,8 @@ def test_store_public_preflight_and_reconciliation_interfaces_are_the_only_query
             "account_fingerprint": "acct-hash",
             "connection_generation": 7,
             "trading_day": "20260911",
+            "request_ids": {"account": 1, "positions": 2, "orders": 3, "trades": 4},
+            "all_request_ids": {"account": 1, "positions": 2, "orders": 3, "trades": 4},
         }
 
     monkeypatch.setattr(adapter.store, "get_ctp_bundle_preflight_snapshot", preflight)
@@ -183,29 +189,11 @@ def test_generation_change_blocks_and_unknown_is_not_recovered_by_one_snapshot(t
     adapter.on_reconnect(session=MODULE.SessionIdentity("acct-hash", "20260911", 8, 1, "clk-1"))
     assert adapter.state.status == "RECOVERING"
     assert adapter.state.ordinary_entry_blocked is True
-    assert (
-        adapter.reconcile(
-            {
-                "schema_version": "backtrader.ctp.reconciliation.v1",
-                "account": {},
-                "positions": [],
-                "orders": [],
-                "trades": [],
-                "evidence_complete": True,
-                "read_only_safe": True,
-                "write_request_free": True,
-                "flat": True,
-                "active_order_count": 0,
-                "unknown_intent_count": 0,
-                "unmatched_trade_count": 0,
-                "account_fingerprint": "acct-hash",
-                "connection_generation": 8,
-                "trading_day": "20260911",
-            }
-        )
-        is False
-    )
-    assert adapter.state.status == "RECOVERING"
+    snapshot = _safe_reconciliation(1_000)
+    snapshot["connection_generation"] = 8
+    assert adapter.reconcile(snapshot) is False
+    assert adapter.state.status == "RECONCILING"
+    assert adapter.state.reason == "RECONCILIATION_REQUIRES_SECOND_FRESH_OBSERVATION"
 
 
 def test_stale_tick_and_unknown_order_never_change_hft_status(tmp_path):
@@ -220,6 +208,13 @@ def test_stale_tick_and_unknown_order_never_change_hft_status(tmp_path):
 
 
 def _safe_reconciliation(captured_at):
+    request_id_base = int(captured_at) * 10
+    request_ids = {
+        "account": request_id_base,
+        "positions": request_id_base + 1,
+        "orders": request_id_base + 2,
+        "trades": request_id_base + 3,
+    }
     return {
         "schema_version": "backtrader.ctp.reconciliation.v1",
         "account_fingerprint": "acct-hash",
@@ -232,12 +227,61 @@ def _safe_reconciliation(captured_at):
         "active_order_count": 0,
         "unknown_intent_count": 0,
         "unmatched_trade_count": 0,
-        "account": {"available": 10_000},
+        "account": [{"available": 10_000}],
         "positions": [],
         "orders": [],
         "trades": [],
+        "complete": True,
+        "is_last_seen": True,
+        "timed_out": False,
+        "error_code": None,
         "captured_at": captured_at,
+        "request_ids": request_ids,
+        "all_request_ids": dict(request_ids),
     }
+
+
+def test_reconciliation_rejects_replayed_request_id_scope(tmp_path):
+    adapter = _adapter(tmp_path)
+    first = _safe_reconciliation(1_000)
+
+    assert adapter.reconcile(first) is False
+    assert adapter.state.reconciliation_rounds == 1
+    assert adapter.reconcile(dict(first)) is False
+    assert adapter.state.reconciliation_rounds == 0
+    assert adapter.state.status == "UNKNOWN"
+    assert adapter.state.reason == "RECONCILIATION_REQUEST_ID_REPLAY"
+
+
+def test_reconciliation_requires_complete_store_scope_and_strict_request_ids(tmp_path):
+    adapter = _adapter(tmp_path)
+    malformed_scope = _safe_reconciliation(1_000)
+    malformed_scope.pop("trades")
+
+    assert adapter.reconcile(malformed_scope) is False
+    assert adapter.state.reason == "RECONCILIATION_NOT_SAFE"
+
+    malformed_ids = _safe_reconciliation(2_000)
+    malformed_ids["all_request_ids"]["account"] = True
+    assert adapter.reconcile(malformed_ids) is False
+    assert adapter.state.reason == "RECONCILIATION_REQUEST_IDS_INVALID"
+
+
+def test_new_reconciliation_sequence_revokes_ready_state_until_fresh_pair(tmp_path):
+    adapter = _adapter(tmp_path, authorized=True)
+    adapter._bundle_preflight_verified = True
+    adapter._settlement_verified = True
+    adapter.reconcile(_safe_reconciliation(1_000))
+    adapter.reconcile(_safe_reconciliation(2_000))
+    adapter.arm_one_cycle(cycle_id="cycle-1", intent_id="intent-1")
+
+    changed = _safe_reconciliation(3_000)
+    changed["account"] = [{"available": 9_999}]
+    assert adapter.reconcile(changed) is False
+    assert adapter.state.status == "RECONCILING"
+    assert adapter.state.ordinary_entry_blocked is True
+    with pytest.raises(MODULE.EngineeringSmokeError, match="CYCLE_NOT_READY"):
+        adapter.authorize_one_lot_write()
 
 
 @pytest.mark.parametrize(

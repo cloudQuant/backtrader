@@ -137,6 +137,7 @@ class EngineeringSmokeAdapter:
         self._rate_window: deque[int] = deque()
         self._last_tick: Optional[tuple[int, str]] = None
         self._reconciliation_fingerprint: Optional[str] = None
+        self._reconciliation_request_ids: Optional[frozenset[int]] = None
         self._authorization_verified = False
         self._bundle_preflight_verified = False
         self._settlement_verified = False
@@ -357,7 +358,9 @@ class EngineeringSmokeAdapter:
 
     def record_send(self, association: NativeAssociation) -> None:
         if (
-            association.generation != self.session.generation
+            self.state.status not in {"READY", "ENTERING"}
+            or not self.state.cycle_id
+            or association.generation != self.session.generation
             or association.requested_volume != 1
             or association.cycle_id != self.state.cycle_id
             or any(
@@ -428,13 +431,33 @@ class EngineeringSmokeAdapter:
         if not _valid_reconciliation_snapshot(snapshot, self.session):
             self.state.reconciliation_rounds = 0
             self._reconciliation_fingerprint = None
+            self._reconciliation_request_ids = None
             self._unknown("RECONCILIATION_NOT_SAFE")
+            return False
+        request_ids = _reconciliation_request_id_scope(snapshot)
+        if request_ids is None:
+            self.state.reconciliation_rounds = 0
+            self._reconciliation_fingerprint = None
+            self._reconciliation_request_ids = None
+            self._unknown("RECONCILIATION_REQUEST_IDS_INVALID")
             return False
         fingerprint = _stable_reconciliation_fingerprint(snapshot)
         if self._reconciliation_fingerprint != fingerprint:
             self._reconciliation_fingerprint = fingerprint
+            self._reconciliation_request_ids = request_ids
             self.state.reconciliation_rounds = 1
+            self.state.status = "RECONCILING"
+            self.state.ordinary_entry_blocked = True
+            self.state.reason = "RECONCILIATION_REQUIRES_SECOND_FRESH_OBSERVATION"
+            self.state.cycle_id = ""
+        elif self._reconciliation_request_ids is None or self._reconciliation_request_ids & request_ids:
+            self.state.reconciliation_rounds = 0
+            self._reconciliation_fingerprint = None
+            self._reconciliation_request_ids = None
+            self._unknown("RECONCILIATION_REQUEST_ID_REPLAY")
+            return False
         else:
+            self._reconciliation_request_ids = request_ids
             self.state.reconciliation_rounds += 1
         self.journal.append(
             "reconciliation",
@@ -553,6 +576,28 @@ def _stable_reconciliation_fingerprint(snapshot: Mapping[str, Any]) -> str:
     )
 
 
+def _reconciliation_request_id_scope(snapshot: Mapping[str, Any]) -> Optional[frozenset[int]]:
+    """Return a fresh complete account-query scope without trusting timestamps."""
+    request_ids = snapshot.get("request_ids")
+    all_request_ids = snapshot.get("all_request_ids")
+    if not isinstance(request_ids, Mapping) or not isinstance(all_request_ids, Mapping):
+        return None
+    values = []
+    for name in ("account", "positions", "orders", "trades"):
+        request_id = request_ids.get(name)
+        all_request_id = all_request_ids.get(name)
+        if (
+            type(request_id) is not int
+            or request_id <= 0
+            or type(all_request_id) is not int
+            or all_request_id <= 0
+            or all_request_id != request_id
+        ):
+            return None
+        values.append(request_id)
+    return frozenset(values) if len(set(values)) == len(values) else None
+
+
 def _valid_identity(snapshot: Mapping[str, Any], session: SessionIdentity) -> bool:
     return (
         snapshot.get("account_fingerprint") == session.account_fingerprint
@@ -573,6 +618,10 @@ def _valid_preflight_snapshot(snapshot: Mapping[str, Any], session: SessionIdent
 def _valid_reconciliation_snapshot(snapshot: Mapping[str, Any], session: SessionIdentity) -> bool:
     return (
         snapshot.get("schema_version") == "backtrader.ctp.reconciliation.v1"
+        and snapshot.get("complete") is True
+        and snapshot.get("is_last_seen") is True
+        and snapshot.get("timed_out") is False
+        and snapshot.get("error_code") in (None, "", 0, "0")
         and snapshot.get("evidence_complete") is True
         and snapshot.get("read_only_safe") is True
         and snapshot.get("write_request_free") is True
@@ -580,6 +629,7 @@ def _valid_reconciliation_snapshot(snapshot: Mapping[str, Any], session: Session
         and snapshot.get("active_order_count") == 0
         and snapshot.get("unknown_intent_count") == 0
         and snapshot.get("unmatched_trade_count") == 0
+        and all(isinstance(snapshot.get(key), (list, tuple)) for key in ("account", "positions", "orders", "trades"))
         and _valid_identity(snapshot, session)
     )
 

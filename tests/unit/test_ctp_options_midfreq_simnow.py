@@ -18,6 +18,38 @@ class NoOpApi:
     """Injected SDK-shaped object; no method can connect or submit."""
 
 
+def _flat_reconciliation(request_id_base: int) -> dict:
+    request_ids = {
+        "account": request_id_base,
+        "positions": request_id_base + 1,
+        "orders": request_id_base + 2,
+        "trades": request_id_base + 3,
+    }
+    return {
+        "schema_version": "backtrader.ctp.reconciliation.v1",
+        "account_fingerprint": "acct",
+        "trading_day": "20260911",
+        "connection_generation": 7,
+        "account": [],
+        "positions": [],
+        "orders": [],
+        "trades": [],
+        "complete": True,
+        "is_last_seen": True,
+        "timed_out": False,
+        "error_code": None,
+        "evidence_complete": True,
+        "read_only_safe": True,
+        "write_request_free": True,
+        "active_order_count": 0,
+        "unknown_intent_count": 0,
+        "unmatched_trade_count": 0,
+        "flat": True,
+        "request_ids": request_ids,
+        "all_request_ids": dict(request_ids),
+    }
+
+
 def test_cli_engineering_smoke_is_fail_closed_without_injected_api():
     config = run_module.load_config(EXAMPLE / "config.yaml")
     with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
@@ -88,29 +120,52 @@ def test_fee_margin_and_real_schema_two_round_reconciliation_fail_closed():
         {"account_fingerprint": "acct", "trading_day": "20260911", "generation": "7"},
     )
     inputs.validate(("F", "C", "P"))
-    rounds = [{
-        "schema_version": "backtrader.ctp.reconciliation.v1",
-        "account_fingerprint": "acct", "trading_day": "20260911", "connection_generation": 7,
-        "positions": [], "orders": [], "evidence_complete": True, "read_only_safe": True,
-        "write_request_free": True, "active_order_count": 0, "unknown_intent_count": 0,
-        "unmatched_trade_count": 0, "flat": True,
-    }] * 2
+    rounds = (_flat_reconciliation(100), _flat_reconciliation(200))
     assert len(adapter.require_two_account_reconciliations(rounds)) == 2
     with pytest.raises(adapter.EngineeringSmokeBlocked):
         adapter.require_two_account_reconciliations(rounds[:1])
+    with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
+        adapter.require_two_account_reconciliations((rounds[0], dict(rounds[0])))
+    assert error.value.code == "RECONCILIATION_REQUEST_ID_REPLAY"
 
 
 def test_non_flat_real_reconciliation_is_rejected():
-    round_data = {
-        "schema_version": "backtrader.ctp.reconciliation.v1",
-        "account_fingerprint": "acct", "trading_day": "20260911", "connection_generation": 7,
-        "positions": [{"instrument": "C"}], "orders": [], "evidence_complete": True,
-        "read_only_safe": True, "write_request_free": True, "active_order_count": 0,
-        "unknown_intent_count": 0, "unmatched_trade_count": 0, "flat": False,
-    }
+    round_data = _flat_reconciliation(100)
+    round_data.update({"positions": [{"instrument": "C"}], "flat": False})
     with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
         adapter.require_two_account_reconciliations((round_data, round_data))
     assert error.value.code == "RECONCILIATION_NOT_FLAT"
+
+
+def test_reconciliation_requires_stable_complete_store_evidence():
+    first = _flat_reconciliation(100)
+    changed = _flat_reconciliation(200)
+    changed["account"] = [{"available": 9_999}]
+    with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
+        adapter.require_two_account_reconciliations((first, changed))
+    assert error.value.code == "RECONCILIATION_SEMANTIC_MISMATCH"
+
+    empty_identity = _flat_reconciliation(300)
+    empty_identity.update(
+        {"account_fingerprint": "", "trading_day": "", "connection_generation": 0}
+    )
+    with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
+        adapter.require_two_account_reconciliations((empty_identity, _flat_reconciliation(400)))
+    assert error.value.code == "RECONCILIATION_IDENTITY"
+
+    missing_terminal = _flat_reconciliation(500)
+    missing_terminal["is_last_seen"] = False
+    with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
+        adapter.require_two_account_reconciliations((missing_terminal, _flat_reconciliation(600)))
+    assert error.value.code == "RECONCILIATION_INCOMPLETE"
+
+
+def test_reconciliation_request_ids_require_strict_integer_mirrors():
+    malformed = _flat_reconciliation(100)
+    malformed["all_request_ids"]["account"] = True
+    with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
+        adapter.require_two_account_reconciliations((malformed, _flat_reconciliation(200)))
+    assert error.value.code == "RECONCILIATION_REQUEST_IDS_INVALID"
 
 
 def test_startup_requires_real_bundle_preflight_evidence():

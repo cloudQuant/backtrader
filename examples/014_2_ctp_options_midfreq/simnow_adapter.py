@@ -198,22 +198,98 @@ class ThreeLegExecutionCoordinator:
 
 _RECONCILIATION_SCHEMA = "backtrader.ctp.reconciliation.v1"
 _BUNDLE_PREFLIGHT_SCHEMA = "backtrader.ctp.bundle-preflight.v2"
+_RECONCILIATION_QUERY_NAMES = ("account", "positions", "orders", "trades")
 
 
-def _require_flat_reconciliation(item: Mapping[str, Any]) -> None:
+def _reconciliation_request_id_scope(item: Mapping[str, Any]) -> frozenset[int]:
+    """Return one complete account-query scope or stop before arming anything."""
+    request_ids = item.get("request_ids")
+    all_request_ids = item.get("all_request_ids")
+    if not isinstance(request_ids, Mapping) or not isinstance(all_request_ids, Mapping):
+        raise EngineeringSmokeBlocked(
+            "RECONCILIATION_REQUEST_IDS_INCOMPLETE",
+            "CTP reconciliation must include complete request-ID evidence",
+        )
+    values = []
+    for name in _RECONCILIATION_QUERY_NAMES:
+        request_id = request_ids.get(name)
+        all_request_id = all_request_ids.get(name)
+        if (
+            type(request_id) is not int
+            or request_id <= 0
+            or type(all_request_id) is not int
+            or all_request_id <= 0
+            or all_request_id != request_id
+        ):
+            raise EngineeringSmokeBlocked(
+                "RECONCILIATION_REQUEST_IDS_INVALID",
+                "CTP reconciliation request-ID evidence is invalid",
+            )
+        values.append(request_id)
+    if len(set(values)) != len(values):
+        raise EngineeringSmokeBlocked(
+            "RECONCILIATION_REQUEST_IDS_INVALID",
+            "CTP reconciliation request IDs must be unique within one observation",
+        )
+    return frozenset(values)
+
+
+def _stable_reconciliation_fingerprint(item: Mapping[str, Any]) -> str:
+    """Fingerprint the complete account scope, excluding observation-local IDs."""
+    fields = (
+        "account_fingerprint",
+        "trading_day",
+        "connection_generation",
+        "account",
+        "positions",
+        "orders",
+        "trades",
+        "active_order_count",
+        "unknown_intent_count",
+        "unmatched_trade_count",
+        "flat",
+    )
+    return json.dumps(
+        {field: item[field] for field in fields},
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+
+
+def _require_flat_reconciliation(item: Mapping[str, Any]) -> frozenset[int]:
     required = (
         "schema_version", "account_fingerprint", "trading_day", "connection_generation",
-        "positions", "orders", "evidence_complete", "read_only_safe", "write_request_free",
+        "account", "positions", "orders", "trades", "complete", "is_last_seen", "timed_out",
+        "error_code", "evidence_complete", "read_only_safe", "write_request_free",
         "active_order_count", "unknown_intent_count", "unmatched_trade_count", "flat",
     )
     if any(key not in item for key in required):
         raise EngineeringSmokeBlocked("RECONCILIATION_INCOMPLETE", "real CTP reconciliation fields are incomplete")
     if item["schema_version"] != _RECONCILIATION_SCHEMA:
         raise EngineeringSmokeBlocked("RECONCILIATION_SCHEMA", "unsupported CTP reconciliation schema")
+    if (
+        not isinstance(item["account_fingerprint"], str)
+        or not item["account_fingerprint"].strip()
+        or not isinstance(item["trading_day"], str)
+        or not item["trading_day"].strip()
+        or type(item["connection_generation"]) is not int
+        or item["connection_generation"] <= 0
+    ):
+        raise EngineeringSmokeBlocked("RECONCILIATION_IDENTITY", "CTP reconciliation identity is invalid")
+    if (
+        item["complete"] is not True
+        or item["is_last_seen"] is not True
+        or item["timed_out"] is not False
+        or item["error_code"] not in (None, "", 0, "0")
+        or any(not isinstance(item[key], (list, tuple)) for key in ("account", "positions", "orders", "trades"))
+    ):
+        raise EngineeringSmokeBlocked("RECONCILIATION_INCOMPLETE", "CTP reconciliation scope is incomplete")
     if any(item[key] is not True for key in ("evidence_complete", "read_only_safe", "write_request_free", "flat")):
         raise EngineeringSmokeBlocked("RECONCILIATION_NOT_FLAT", "CTP reconciliation is not complete, read-only, or flat")
     if any(item[key] != 0 for key in ("active_order_count", "unknown_intent_count", "unmatched_trade_count")):
         raise EngineeringSmokeBlocked("RECONCILIATION_NOT_FLAT", "CTP reconciliation contains active or unknown execution state")
+    return _reconciliation_request_id_scope(item)
 
 
 def require_two_account_reconciliations(rounds: Iterable[Mapping[str, Any]]) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
@@ -222,11 +298,20 @@ def require_two_account_reconciliations(rounds: Iterable[Mapping[str, Any]]) -> 
     materialized = tuple(rounds)
     if len(materialized) != 2:
         raise EngineeringSmokeBlocked("RECONCILIATION_ROUNDS", "exactly two reconciliation rounds are required")
-    for item in materialized:
-        _require_flat_reconciliation(item)
+    request_id_scopes = tuple(_require_flat_reconciliation(item) for item in materialized)
     identity = tuple(materialized[0][key] for key in ("account_fingerprint", "trading_day", "connection_generation"))
     if any(tuple(item[key] for key in ("account_fingerprint", "trading_day", "connection_generation")) != identity for item in materialized[1:]):
         raise EngineeringSmokeBlocked("RECONCILIATION_IDENTITY", "reconciliation identity changed")
+    if _stable_reconciliation_fingerprint(materialized[0]) != _stable_reconciliation_fingerprint(materialized[1]):
+        raise EngineeringSmokeBlocked(
+            "RECONCILIATION_SEMANTIC_MISMATCH",
+            "two reconciliation observations must have stable account scope",
+        )
+    if request_id_scopes[0] & request_id_scopes[1]:
+        raise EngineeringSmokeBlocked(
+            "RECONCILIATION_REQUEST_ID_REPLAY",
+            "two reconciliation observations must have disjoint request-ID scopes",
+        )
     return materialized  # type: ignore[return-value]
 
 
