@@ -3,11 +3,12 @@
 This is the governed trading entry the read-only ``engineering_smoke``
 operator deliberately stops short of.  It connects one managed CTP client,
 confirms settlement once, collects the same read-only three-leg evidence
-chain, binds the V2 bundle authorization, redeems one operator-signed
-``ctp-execution-entry-approval-v1`` artifact, arms SDK execution through the
-public approval path, reserves the complete-path CTP budget from live
-evidence, and drives exactly one three-leg open/close cycle to a proven flat
-reconciliation.
+chain, verifies an independently signed G1/G2/G3 gate receipt plus external
+phase-specific settlement and entry ``ctp-execution-entry-approval-v1``
+artifacts, then binds the V2 bundle authorization.  It never loads a signing
+key or creates an approval.  Only after those receipts bind the current
+evidence may it arm SDK execution, reserve the complete-path CTP budget, and
+drive exactly one three-leg open/close cycle to a proven flat reconciliation.
 
 Every failure is fail-closed with a stable reason code.  The operator never
 prints or logs a secret.  ``MECHANICAL_PASS`` is execution-path evidence only;
@@ -18,9 +19,11 @@ activity.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import math
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -30,12 +33,6 @@ from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.stores.btapistore import BtApiStore
 
 try:
-    from .ctp_options_simnow_approval_issuer import (
-        build_entry_payload,
-        sign_payload,
-        _load_key,
-        _private_signing_key,
-    )
     from .ctp_options_simnow_authorization import build_bundle_authorization
     from .ctp_options_simnow_common import ThreeLegBundle
     from .ctp_options_simnow_live_drive import drive_simnow_mechanical_session
@@ -47,7 +44,6 @@ try:
         OperatorConfiguration,
         _contract_metadata,
         _request_counts,
-        _verify_or_confirm_settlement,
         build_live_store,
         collect_three_leg_evidence,
         load_operator_env,
@@ -55,12 +51,6 @@ try:
         resolve_fronts,
     )
 except ImportError:  # Direct execution through the examples directory.
-    from ctp_options_simnow_approval_issuer import (  # type: ignore[no-redef]
-        build_entry_payload,
-        sign_payload,
-        _load_key,
-        _private_signing_key,
-    )
     from ctp_options_simnow_authorization import build_bundle_authorization  # type: ignore[no-redef]
     from ctp_options_simnow_common import ThreeLegBundle  # type: ignore[no-redef]
     from ctp_options_simnow_live_drive import (  # type: ignore[no-redef]
@@ -74,7 +64,6 @@ except ImportError:  # Direct execution through the examples directory.
         OperatorConfiguration,
         _contract_metadata,
         _request_counts,
-        _verify_or_confirm_settlement,
         build_live_store,
         collect_three_leg_evidence,
         load_operator_env,
@@ -83,10 +72,50 @@ except ImportError:  # Direct execution through the examples directory.
     )
 
 DEFAULT_ENV_PATH = HERE / ".env"
-DEFAULT_KEY_FILE = HERE / ".simnow-approval-operator-key.json"
 DEFAULT_TRUST_ROOT = HERE / ".simnow-approval-trust-root.json"
 BUDGET_ORDINARY_CAP_CNY = 8000.0
 BUDGET_RECOVERY_HEADROOM_CNY = 2000.0
+MECHANICAL_GATE_RECEIPT_SCHEMA = "iter23-25.mechanical-gate-receipt.v1"
+MECHANICAL_GATE_RECEIPT_ARTIFACT_SCHEMA = "iter23-25.mechanical-gate-receipt-artifact.v1"
+MECHANICAL_GATE_APPROVER_ROLE = "independent_gate_approver"
+MECHANICAL_GATE_PURPOSE = "simnow_mechanical_gate"
+MECHANICAL_GATE_REQUIRED_STATUSES = {"G1": "PASS", "G2": "PASS", "G3": "PASS"}
+# These are deliberately unset until a separately governed release pins the
+# public roots.  A CLI path is transport only: it must never establish who is
+# authorized to approve a mechanical cycle.  Keeping the defaults unset is
+# safer than treating an ignored local JSON file as an independent authority.
+PINNED_MECHANICAL_GATE_TRUST_ROOT_SHA256: str | None = None
+PINNED_EXECUTION_APPROVAL_TRUST_ROOT_SHA256: str | None = None
+# A pinned root is necessary but not sufficient.  Before this can be enabled,
+# the post-settlement re-freeze/final approval and durable one-use receipt
+# consumption must be implemented and independently reviewed.  Do not change
+# this flag in an operational invocation; it is a source-reviewed release
+# decision.
+MECHANICAL_EXECUTION_ENABLED = False
+_ENTRY_APPROVAL_SCHEMA = "ctp-execution-entry-approval-v1"
+_ENTRY_APPROVAL_PURPOSE = "ctp_execution_approval"
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_B64URL_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+_MECHANICAL_GATE_BINDING_FIELDS = (
+    "strategy_id",
+    "environment",
+    "product_id",
+    "exchange_id",
+    "authorized_instruments",
+    "account_fingerprint",
+    "trading_day",
+    "connection_generation",
+    "environment_profile",
+    "configuration_sha256",
+    "calendar_sha256",
+    "source_hashes_sha256",
+    "dependency_hashes_sha256",
+    "native_sha256",
+    "runtime_executable_sha256",
+    "evidence_hashes_sha256",
+    "budget_ordinary_cap_cny",
+    "maximum_cycle_count",
+)
 
 
 class MechanicalBlocked(RuntimeError):
@@ -95,6 +124,13 @@ class MechanicalBlocked(RuntimeError):
     def __init__(self, reason: str):
         super().__init__(reason)
         self.reason = reason
+
+
+def _require_mechanical_execution_enabled() -> None:
+    if not MECHANICAL_EXECUTION_ENABLED:
+        raise MechanicalBlocked(
+            "MECHANICAL_EXECUTION_DISABLED_PENDING_POST_SETTLEMENT_REFREEZE_AND_DURABLE_RECEIPT_CONSUMPTION"
+        )
 
 
 @dataclass(frozen=True)
@@ -126,6 +162,284 @@ class MechanicalConfiguration:
             raise MechanicalBlocked("EXACT_BUNDLE_IDS_MUST_BE_COMPLETE")
 
 
+def _read_json_mapping(path: Path, missing_reason: str, invalid_reason: str) -> dict[str, Any]:
+    if not path.is_file():
+        raise MechanicalBlocked(f"{missing_reason}:{path}")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise MechanicalBlocked(invalid_reason) from exc
+    if not isinstance(value, Mapping):
+        raise MechanicalBlocked(invalid_reason)
+    return dict(value)
+
+
+def _canonical_json_bytes(value: Mapping[str, Any], reason: str) -> bytes:
+    try:
+        return json.dumps(
+            dict(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise MechanicalBlocked(reason) from exc
+
+
+def _parse_utc_timestamp(value: Any, field: str) -> datetime:
+    if not isinstance(value, str):
+        raise MechanicalBlocked(f"MECHANICAL_GATE_TIMESTAMP_INVALID:{field}")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise MechanicalBlocked(f"MECHANICAL_GATE_TIMESTAMP_INVALID:{field}") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise MechanicalBlocked(f"MECHANICAL_GATE_TIMESTAMP_INVALID:{field}")
+    return parsed.astimezone(timezone.utc)
+
+
+def _require_external_receipt_path(path: Path | None, reason: str) -> Path:
+    if path is None:
+        raise MechanicalBlocked(reason)
+    resolved = Path(path)
+    if not resolved.is_file():
+        raise MechanicalBlocked(f"{reason}:{resolved}")
+    return resolved
+
+
+def _require_pinned_trust_root(path: Path, expected_sha256: str | None, authority: str) -> str:
+    """Accept a supplied public root only when a reviewed build pins its hash."""
+
+    if expected_sha256 is None:
+        raise MechanicalBlocked(f"{authority}_TRUST_ROOT_NOT_PINNED")
+    if _SHA256_RE.fullmatch(expected_sha256) is None:
+        raise MechanicalBlocked(f"{authority}_TRUST_ROOT_PIN_INVALID")
+    try:
+        actual_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise MechanicalBlocked(f"{authority}_TRUST_ROOT_INVALID") from exc
+    if actual_sha256 != expected_sha256:
+        raise MechanicalBlocked(f"{authority}_TRUST_ROOT_PIN_MISMATCH")
+    return actual_sha256
+
+
+def _validate_gate_payload_shape(payload: Mapping[str, Any]) -> None:
+    required_fields = {
+        "schema_version",
+        "approval_id",
+        "nonce",
+        "issuer_key_id",
+        "issuer_role",
+        "purpose",
+        *_MECHANICAL_GATE_BINDING_FIELDS,
+        "gate_statuses",
+        "issued_at",
+        "not_before",
+        "expires_at",
+        "revocation_snapshot_version",
+    }
+    if set(payload) != required_fields:
+        raise MechanicalBlocked("MECHANICAL_GATE_RECEIPT_FIELDS_INVALID")
+    if payload.get("schema_version") != MECHANICAL_GATE_RECEIPT_SCHEMA:
+        raise MechanicalBlocked("MECHANICAL_GATE_RECEIPT_SCHEMA_INVALID")
+    if payload.get("issuer_role") != MECHANICAL_GATE_APPROVER_ROLE:
+        raise MechanicalBlocked("MECHANICAL_GATE_ISSUER_ROLE_INVALID")
+    if payload.get("purpose") != "simnow_mechanical_cycle":
+        raise MechanicalBlocked("MECHANICAL_GATE_PURPOSE_INVALID")
+    if not all(
+        str(payload.get(field) or "").strip() for field in ("approval_id", "nonce", "issuer_key_id")
+    ):
+        raise MechanicalBlocked("MECHANICAL_GATE_ISSUER_IDENTITY_INVALID")
+    if payload.get("gate_statuses") != MECHANICAL_GATE_REQUIRED_STATUSES:
+        raise MechanicalBlocked("MECHANICAL_GATE_STATUS_NOT_PASS")
+    if payload.get("maximum_cycle_count") != 1:
+        raise MechanicalBlocked("MECHANICAL_GATE_CYCLE_LIMIT_INVALID")
+    if payload.get("budget_ordinary_cap_cny") != str(int(BUDGET_ORDINARY_CAP_CNY)):
+        raise MechanicalBlocked("MECHANICAL_GATE_BUDGET_LIMIT_INVALID")
+    for field in (
+        "configuration_sha256",
+        "calendar_sha256",
+        "source_hashes_sha256",
+        "dependency_hashes_sha256",
+        "native_sha256",
+        "runtime_executable_sha256",
+        "evidence_hashes_sha256",
+    ):
+        if _SHA256_RE.fullmatch(str(payload.get(field) or "")) is None:
+            raise MechanicalBlocked(f"MECHANICAL_GATE_HASH_INVALID:{field}")
+    instruments = payload.get("authorized_instruments")
+    if not isinstance(instruments, list) or len(instruments) != 3:
+        raise MechanicalBlocked("MECHANICAL_GATE_SCOPE_INVALID")
+    expected_roles = ("future", "call", "put")
+    for role, instrument in zip(expected_roles, instruments):
+        if (
+            not isinstance(instrument, Mapping)
+            or set(instrument) != {"role", "exchange_id", "instrument_id"}
+            or instrument.get("role") != role
+            or not str(instrument.get("exchange_id") or "").strip()
+            or not str(instrument.get("instrument_id") or "").strip()
+        ):
+            raise MechanicalBlocked("MECHANICAL_GATE_SCOPE_INVALID")
+
+
+def _contains_private_key_material(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        return "private_key" in value or any(
+            _contains_private_key_material(item) for item in value.values()
+        )
+    if isinstance(value, list):
+        return any(_contains_private_key_material(item) for item in value)
+    return False
+
+
+def _verify_gate_trust_root(
+    trust_root: Mapping[str, Any], payload: Mapping[str, Any], *, now: datetime
+) -> Mapping[str, Any]:
+    if trust_root.get("schema_version") != "ctp-execution-trust-root-v1":
+        raise MechanicalBlocked("MECHANICAL_GATE_TRUST_ROOT_SCHEMA_INVALID")
+    if _contains_private_key_material(trust_root):
+        raise MechanicalBlocked("MECHANICAL_GATE_TRUST_ROOT_PRIVATE_KEY_FORBIDDEN")
+    keys = trust_root.get("keys")
+    issuer_key_id = str(payload["issuer_key_id"])
+    if not isinstance(keys, Mapping) or not isinstance(keys.get(issuer_key_id), Mapping):
+        raise MechanicalBlocked("MECHANICAL_GATE_ISSUER_UNTRUSTED")
+    key = keys[issuer_key_id]
+    if key.get("role") != MECHANICAL_GATE_APPROVER_ROLE:
+        raise MechanicalBlocked("MECHANICAL_GATE_ISSUER_ROLE_UNTRUSTED")
+    purposes = key.get("purposes")
+    if not isinstance(purposes, list) or MECHANICAL_GATE_PURPOSE not in purposes:
+        raise MechanicalBlocked("MECHANICAL_GATE_ISSUER_PURPOSE_UNTRUSTED")
+    for field in ("not_before", "expires_at"):
+        _parse_utc_timestamp(key.get(field), f"trust_root.key.{field}")
+    if not (
+        _parse_utc_timestamp(key["not_before"], "trust_root.key.not_before")
+        <= now
+        < _parse_utc_timestamp(key["expires_at"], "trust_root.key.expires_at")
+    ):
+        raise MechanicalBlocked("MECHANICAL_GATE_TRUST_ROOT_KEY_INACTIVE")
+    revocation = trust_root.get("revocation_snapshot")
+    if not isinstance(revocation, Mapping):
+        raise MechanicalBlocked("MECHANICAL_GATE_REVOCATION_MISSING")
+    if revocation.get("version") != payload.get("revocation_snapshot_version"):
+        raise MechanicalBlocked("MECHANICAL_GATE_REVOCATION_VERSION_MISMATCH")
+    if not (
+        _parse_utc_timestamp(revocation.get("issued_at"), "revocation.issued_at")
+        <= now
+        < _parse_utc_timestamp(revocation.get("expires_at"), "revocation.expires_at")
+    ):
+        raise MechanicalBlocked("MECHANICAL_GATE_REVOCATION_STALE")
+    revoked_approval_ids = revocation.get("revoked_approval_ids")
+    revoked_nonces = revocation.get("revoked_nonces")
+    if not isinstance(revoked_approval_ids, list) or not isinstance(revoked_nonces, list):
+        raise MechanicalBlocked("MECHANICAL_GATE_REVOCATION_INVALID")
+    if payload["approval_id"] in revoked_approval_ids or payload["nonce"] in revoked_nonces:
+        raise MechanicalBlocked("MECHANICAL_GATE_RECEIPT_REVOKED")
+    return key
+
+
+def _verify_gate_signature(
+    artifact: Mapping[str, Any], key: Mapping[str, Any], payload: Mapping[str, Any]
+) -> None:
+    if artifact.get("algorithm") != "Ed25519":
+        raise MechanicalBlocked("MECHANICAL_GATE_ALGORITHM_INVALID")
+    public_key = str(key.get("public_key") or "")
+    signature = str(artifact.get("signature") or "")
+    if _B64URL_RE.fullmatch(public_key) is None or _B64URL_RE.fullmatch(signature) is None:
+        raise MechanicalBlocked("MECHANICAL_GATE_SIGNATURE_ENCODING_INVALID")
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+        public_bytes = base64.urlsafe_b64decode(public_key + "=" * (-len(public_key) % 4))
+        signature_bytes = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
+        verifier = Ed25519PublicKey.from_public_bytes(public_bytes)
+        verifier.verify(
+            signature_bytes, _canonical_json_bytes(payload, "MECHANICAL_GATE_PAYLOAD_INVALID")
+        )
+    except ImportError as exc:
+        raise MechanicalBlocked("MECHANICAL_GATE_VERIFIER_UNAVAILABLE") from exc
+    except Exception as exc:
+        raise MechanicalBlocked("MECHANICAL_GATE_SIGNATURE_INVALID") from exc
+
+
+def verify_external_mechanical_gate_receipt(
+    receipt_file: Path,
+    trust_root_file: Path,
+    expected_binding: Mapping[str, Any],
+    *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Verify a pre-signed, independent G1/G2/G3 mechanical gate receipt.
+
+    This function intentionally has no access to a signing key.  Its return
+    value contains only the verified public payload and its canonical digest,
+    which becomes the receipt binding for the SDK entry approvals.
+    """
+
+    _require_pinned_trust_root(
+        trust_root_file, PINNED_MECHANICAL_GATE_TRUST_ROOT_SHA256, "MECHANICAL_GATE"
+    )
+    receipt = _read_json_mapping(
+        receipt_file, "MECHANICAL_GATE_RECEIPT_REQUIRED", "MECHANICAL_GATE_RECEIPT_INVALID"
+    )
+    trust_root = _read_json_mapping(
+        trust_root_file,
+        "MECHANICAL_GATE_TRUST_ROOT_REQUIRED",
+        "MECHANICAL_GATE_TRUST_ROOT_INVALID",
+    )
+    if set(receipt) != {"schema_version", "algorithm", "payload", "signature"}:
+        raise MechanicalBlocked("MECHANICAL_GATE_ARTIFACT_FIELDS_INVALID")
+    if receipt.get("schema_version") != MECHANICAL_GATE_RECEIPT_ARTIFACT_SCHEMA:
+        raise MechanicalBlocked("MECHANICAL_GATE_ARTIFACT_SCHEMA_INVALID")
+    payload = receipt.get("payload")
+    if not isinstance(payload, Mapping):
+        raise MechanicalBlocked("MECHANICAL_GATE_PAYLOAD_INVALID")
+    payload = dict(payload)
+    _validate_gate_payload_shape(payload)
+    current_time = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    issued_at = _parse_utc_timestamp(payload["issued_at"], "issued_at")
+    not_before = _parse_utc_timestamp(payload["not_before"], "not_before")
+    expires_at = _parse_utc_timestamp(payload["expires_at"], "expires_at")
+    if not (issued_at <= not_before <= current_time < expires_at):
+        raise MechanicalBlocked("MECHANICAL_GATE_RECEIPT_TIME_INVALID")
+    if set(expected_binding) != set(_MECHANICAL_GATE_BINDING_FIELDS):
+        raise MechanicalBlocked("MECHANICAL_GATE_EXPECTED_BINDING_INVALID")
+    for field in _MECHANICAL_GATE_BINDING_FIELDS:
+        if payload.get(field) != expected_binding[field]:
+            raise MechanicalBlocked(f"MECHANICAL_GATE_BINDING_MISMATCH:{field}")
+    key = _verify_gate_trust_root(trust_root, payload, now=current_time)
+    _verify_gate_signature(receipt, key, payload)
+    return {
+        "payload": payload,
+        "receipt_sha256": hashlib.sha256(
+            _canonical_json_bytes(payload, "MECHANICAL_GATE_PAYLOAD_INVALID")
+        ).hexdigest(),
+        "gate_statuses": dict(payload["gate_statuses"]),
+    }
+
+
+def _load_external_entry_approval(
+    approval_file: Path,
+    *,
+    expected_cycle_id: str,
+    gate_receipt_sha256: str | None = None,
+) -> dict[str, Any]:
+    artifact = _read_json_mapping(
+        approval_file, "EXTERNAL_ENTRY_APPROVAL_REQUIRED", "EXTERNAL_ENTRY_APPROVAL_INVALID"
+    )
+    if artifact.get("schema_version") != _ENTRY_APPROVAL_SCHEMA:
+        raise MechanicalBlocked("EXTERNAL_ENTRY_APPROVAL_SCHEMA_INVALID")
+    payload = artifact.get("payload")
+    if not isinstance(payload, Mapping):
+        raise MechanicalBlocked("EXTERNAL_ENTRY_APPROVAL_PAYLOAD_INVALID")
+    if (
+        payload.get("schema_version") != _ENTRY_APPROVAL_SCHEMA
+        or payload.get("purpose") != _ENTRY_APPROVAL_PURPOSE
+        or payload.get("execution_cycle_id") != expected_cycle_id
+        or not str(payload.get("issuer_key_id") or "").strip()
+    ):
+        raise MechanicalBlocked("EXTERNAL_ENTRY_APPROVAL_BINDING_INVALID")
+    if gate_receipt_sha256 is not None and payload.get("receipt_sha256") != gate_receipt_sha256:
+        raise MechanicalBlocked("EXTERNAL_ENTRY_APPROVAL_GATE_RECEIPT_MISMATCH")
+    return artifact
+
+
 def _sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -134,6 +448,39 @@ def _sha256_json(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
+
+
+def _mechanical_configuration_sha256(config: MechanicalConfiguration) -> str:
+    return _sha256_json(
+        {
+            "environment": config.environment,
+            "product_id": config.product_id.upper(),
+            "exchange_id": config.exchange_id.upper(),
+            "future_instrument_id": config.future_instrument_id,
+            "call_instrument_id": config.call_instrument_id,
+            "put_instrument_id": config.put_instrument_id,
+            "capital": config.capital,
+            "strategy_id": config.strategy_id,
+            "purpose": config.purpose,
+            "confirm_settlement": config.confirm_settlement,
+            "query_timeout": config.query_timeout,
+            "leg_timeout": config.leg_timeout,
+        }
+    )
+
+
+def _calendar_receipt_sha256(path: Path, config: MechanicalConfiguration) -> str:
+    receipt = _read_json_mapping(
+        path, "MECHANICAL_CALENDAR_RECEIPT_REQUIRED", "MECHANICAL_CALENDAR_RECEIPT_INVALID"
+    )
+    if receipt.get("schema_version") != "iter22.czce-trading-calendar.v1":
+        raise MechanicalBlocked("MECHANICAL_CALENDAR_RECEIPT_SCHEMA_INVALID")
+    if str(receipt.get("exchange") or "").upper() not in {
+        config.exchange_id.upper(),
+        "ZCE" if config.exchange_id.upper() == "CZCE" else config.exchange_id.upper(),
+    }:
+        raise MechanicalBlocked("MECHANICAL_CALENDAR_RECEIPT_EXCHANGE_MISMATCH")
+    return _sha256_file(path)
 
 
 def _strategy_identity(module_path: Path) -> str:
@@ -198,9 +545,7 @@ def _leg_records(stage_b: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
         for record in query.get("records") or ():
             if isinstance(record, Mapping):
                 instrument = str(
-                    record.get("InstrumentID")
-                    or record.get("instrument_id")
-                    or ""
+                    record.get("InstrumentID") or record.get("instrument_id") or ""
                 ).strip()
                 if instrument:
                     rows.setdefault(instrument, {})
@@ -308,12 +653,10 @@ def build_budget_evidence(
     call_price = quote(call.instrument_id, "ask_price")
     put_price = quote(put.instrument_id, "ask_price")
 
-    future_margin = future_price * float(future.multiplier) * margin(
-        future.instrument_id, short=False
+    future_margin = (
+        future_price * float(future.multiplier) * margin(future.instrument_id, short=False)
     )
-    short_call_margin = call_price * float(call.multiplier) * margin(
-        call.instrument_id, short=True
-    )
+    short_call_margin = call_price * float(call.multiplier) * margin(call.instrument_id, short=True)
     paid_premium = put_price * float(put.multiplier)
     legs_fees = (
         fees_per_lot(future.instrument_id, future_price, float(future.multiplier))
@@ -408,8 +751,7 @@ def _entry_prices(bundle: ThreeLegBundle, reference: Mapping[str, Any]) -> dict[
             (
                 item
                 for item in reference.get("legs") or ()
-                if isinstance(item, Mapping)
-                and item.get("instrument_id") == leg.instrument_id
+                if isinstance(item, Mapping) and item.get("instrument_id") == leg.instrument_id
             ),
             None,
         )
@@ -454,16 +796,60 @@ def _approval_seed(
     }
 
 
+def _mechanical_gate_binding(
+    config: MechanicalConfiguration,
+    bundle: ThreeLegBundle,
+    derived_bundle: Mapping[str, Any],
+    *,
+    environment_profile: str,
+    runtime: Mapping[str, str],
+    configuration_sha256: str,
+    calendar_sha256: str,
+    source_hashes_sha256: str,
+    dependency_hashes_sha256: str,
+    evidence_hashes_sha256: str,
+) -> dict[str, Any]:
+    return {
+        "strategy_id": config.strategy_id,
+        "environment": config.environment,
+        "product_id": config.product_id.upper(),
+        "exchange_id": config.exchange_id.upper(),
+        "authorized_instruments": [
+            {
+                "role": role,
+                "exchange_id": leg.exchange_id,
+                "instrument_id": leg.instrument_id,
+            }
+            for role, leg in zip(
+                ("future", "call", "put"), (bundle.future, bundle.call, bundle.put)
+            )
+        ],
+        "account_fingerprint": derived_bundle["account_fingerprint"],
+        "trading_day": derived_bundle["trading_day"],
+        "connection_generation": derived_bundle["connection_generation"],
+        "environment_profile": environment_profile,
+        "configuration_sha256": configuration_sha256,
+        "calendar_sha256": calendar_sha256,
+        "source_hashes_sha256": source_hashes_sha256,
+        "dependency_hashes_sha256": dependency_hashes_sha256,
+        "native_sha256": runtime["bt_api_ctp"],
+        "runtime_executable_sha256": runtime["runtime_executable"],
+        "evidence_hashes_sha256": evidence_hashes_sha256,
+        "budget_ordinary_cap_cny": str(int(BUDGET_ORDINARY_CAP_CNY)),
+        "maximum_cycle_count": 1,
+    }
+
+
 def _confirm_settlement_with_approval(
     store: BtApiStore,
     api: Any,
     config: MechanicalConfiguration,
     *,
     bundle: ThreeLegBundle,
-    key_material: Mapping[str, str],
+    settlement_approval: Mapping[str, Any],
     trust_root: Mapping[str, Any],
 ) -> bool:
-    """Confirm settlement once through a redeemed operator approval."""
+    """Confirm settlement once through a pre-signed external approval."""
 
     # Short-circuit on the native settlement verdict without triggering a
     # readback: when settlement is NOT yet confirmed for the session
@@ -487,17 +873,8 @@ def _confirm_settlement_with_approval(
         preflight={"phase": "settlement"},
         evidence={"phase": "settlement"},
     )
-    payload = build_entry_payload(
-        context.as_dict(),
-        key_id=key_material["key_id"],
-        issuer_role="independent_operator",
-        receipt_sha256=_sha256_json({"settlement": config.strategy_id}),
-        source_hashes_sha256=_sha256_file(Path(__file__).resolve()),
-        ctp_package_sha256=_runtime_hashes()["bt_api_ctp"],
-    )
-    artifact = sign_payload(payload, _private_signing_key(key_material))
     capability = api.redeem_ctp_execution_approval(
-        json.dumps(artifact, ensure_ascii=False, sort_keys=True),
+        json.dumps(settlement_approval, ensure_ascii=False, sort_keys=True),
         trust_root=trust_root,
         context=context,
     )
@@ -515,19 +892,60 @@ def run_mechanical_cycle(
     env: Mapping[str, str],
     *,
     state_directory: Path,
-    key_file: Path = DEFAULT_KEY_FILE,
     trust_root_file: Path = DEFAULT_TRUST_ROOT,
+    gate_receipt_file: Path | None = None,
+    gate_trust_root_file: Path | None = None,
+    calendar_receipt_file: Path | None = None,
+    settlement_approval_file: Path | None = None,
+    entry_approval_file: Path | None = None,
     store: BtApiStore | None = None,
     broker_cls: Any = BtApiBroker,
 ) -> dict[str, Any]:
-    """Run one governed three-leg open/close cycle on SimNow."""
+    """Run one externally approved three-leg open/close cycle on SimNow."""
 
+    _require_mechanical_execution_enabled()
+    gate_receipt_file = _require_external_receipt_path(
+        gate_receipt_file, "MECHANICAL_GATE_RECEIPT_REQUIRED"
+    )
+    gate_trust_root_file = _require_external_receipt_path(
+        gate_trust_root_file, "MECHANICAL_GATE_TRUST_ROOT_REQUIRED"
+    )
+    calendar_receipt_file = _require_external_receipt_path(
+        calendar_receipt_file, "MECHANICAL_CALENDAR_RECEIPT_REQUIRED"
+    )
+    settlement_approval_file = _require_external_receipt_path(
+        settlement_approval_file, "EXTERNAL_SETTLEMENT_APPROVAL_REQUIRED"
+    )
+    entry_approval_file = _require_external_receipt_path(
+        entry_approval_file, "EXTERNAL_ENTRY_APPROVAL_REQUIRED"
+    )
+    trust_root_file = _require_external_receipt_path(trust_root_file, "TRUST_ROOT_MISSING")
+    # Pin both approval roots before reading credentials or connecting.  Until
+    # an independently governed release supplies these pins, this keeps the
+    # entire write-capable path unreachable rather than accepting caller-made
+    # keys and receipts.
+    _require_pinned_trust_root(
+        gate_trust_root_file, PINNED_MECHANICAL_GATE_TRUST_ROOT_SHA256, "MECHANICAL_GATE"
+    )
+    _require_pinned_trust_root(
+        trust_root_file,
+        PINNED_EXECUTION_APPROVAL_TRUST_ROOT_SHA256,
+        "EXECUTION_APPROVAL",
+    )
+    settlement_approval = _load_external_entry_approval(
+        settlement_approval_file,
+        expected_cycle_id=f"{config.strategy_id}:settlement",
+    )
+    entry_approval = _load_external_entry_approval(
+        entry_approval_file,
+        expected_cycle_id=f"{config.strategy_id}:cycle",
+    )
+    calendar_sha256 = _calendar_receipt_sha256(calendar_receipt_file, config)
+    trust_root = _read_json_mapping(trust_root_file, "TRUST_ROOT_MISSING", "TRUST_ROOT_INVALID")
+    if _contains_private_key_material(trust_root):
+        raise MechanicalBlocked("EXTERNAL_ENTRY_TRUST_ROOT_PRIVATE_KEY_FORBIDDEN")
     credentials = resolve_credentials(env)
     fronts = resolve_fronts(env, config.environment)
-    key_material = _load_key(key_file)
-    if not trust_root_file.is_file():
-        raise MechanicalBlocked(f"TRUST_ROOT_MISSING:{trust_root_file}")
-    trust_root = json.loads(trust_root_file.read_text(encoding="utf-8"))
 
     owned_store = store is None
     if store is None:
@@ -536,7 +954,7 @@ def run_mechanical_cycle(
             fronts,
             _as_operator_config(config),
             state_directory=state_directory,
-            execution_authorization_key_id=key_material["key_id"],
+            execution_authorization_key_id=str(entry_approval["payload"]["issuer_key_id"]),
             execution_authorization_secret=load_authorization_secret(env),
             strategy_identity_sha256=_strategy_identity(Path(__file__).resolve()),
         )
@@ -568,25 +986,10 @@ def run_mechanical_cycle(
     evidence = collect_three_leg_evidence(store, _as_operator_config(config))
     bundle = evidence["bundle"]
     symbols = tuple(
-        f"{leg.exchange_id}.{leg.instrument_id}"
-        for leg in (bundle.future, bundle.call, bundle.put)
+        f"{leg.exchange_id}.{leg.instrument_id}" for leg in (bundle.future, bundle.call, bundle.put)
     )
     metadata = _contract_metadata(bundle)
     reference = evidence["execution_reference"]
-
-    # Settlement confirmation is the one terminal write a market-data-only
-    # session may perform; the SDK requires a separately redeemed approval
-    # bound to the live identity and the frozen three-leg scope.
-    settlement_confirmed = _confirm_settlement_with_approval(
-        store,
-        api,
-        config,
-        bundle=bundle,
-        key_material=key_material,
-        trust_root=trust_root,
-    )
-    if settlement_confirmed is not True:
-        raise MechanicalBlocked("SETTLEMENT_NOT_CONFIRMED")
 
     runtime = _runtime_hashes()
     source_hashes = {
@@ -602,30 +1005,10 @@ def run_mechanical_cycle(
             "ctp_options_simnow_live_runner.py",
         )
     }
-    cycle_receipt = {
-        "schema_version": "iter23-25.mechanical-receipt.v1",
-        "purpose": config.purpose,
-        "strategy_id": config.strategy_id,
-        "environment": config.environment,
-        "product_id": config.product_id.upper(),
-        "exchange_id": config.exchange_id.upper(),
-        "instruments": list(symbols),
-        "issued_at_utc": datetime.now(timezone.utc).isoformat(),
-    }
-    receipt_sha256 = _sha256_json(cycle_receipt)
     source_hashes_sha256 = _sha256_json(source_hashes)
-    evidence_hashes = {
-        "stage_a": evidence["stage_a"].get("snapshot_sha256"),
-        "stage_b": evidence["stage_b"].get("snapshot_sha256"),
-        "bundle_preflight": evidence["bundle_preflight"].get("snapshot_sha256"),
-        "execution_reference": reference.get("snapshot_sha256"),
-        "reconciliation_1": evidence["reconciliation_rounds"][0].get("snapshot_sha256"),
-        "reconciliation_2": evidence["reconciliation_rounds"][1].get("snapshot_sha256"),
-    }
-    now = datetime.now(timezone.utc)
     # Refresh Stage A/B and the bundle preflight right before building the
     # authorization: the evidence chain so far (scan -> stages -> bundle ->
-    # reference -> settlement -> approval prerequisites) runs far longer
+    # reference -> independent gate receipt) runs far longer
     # than the default 30s snapshot freshness budget, and configure()
     # rejects stale stage and bundle-preflight evidence.  Refreshing keeps
     # the freshness gate at its default instead of widening it; identity
@@ -658,6 +1041,66 @@ def run_mechanical_cycle(
         read_only=True,
     )
     derived_bundle = derive_bundle_preflight(evidence, bundle)
+    evidence_hashes = {
+        "stage_a": evidence["stage_a"].get("snapshot_sha256"),
+        "stage_b": evidence["stage_b"].get("snapshot_sha256"),
+        "bundle_preflight": evidence["bundle_preflight"].get("snapshot_sha256"),
+        "execution_reference": reference.get("snapshot_sha256"),
+        "reconciliation_1": evidence["reconciliation_rounds"][0].get("snapshot_sha256"),
+        "reconciliation_2": evidence["reconciliation_rounds"][1].get("snapshot_sha256"),
+    }
+    for name, snapshot_sha256 in evidence_hashes.items():
+        if _SHA256_RE.fullmatch(str(snapshot_sha256 or "")) is None:
+            raise MechanicalBlocked(f"MECHANICAL_EVIDENCE_HASH_INVALID:{name}")
+    dependency_hashes_sha256 = _sha256_json(
+        {
+            "backtrader_sha256": runtime["backtrader"],
+            "bt_api_py_sha256": runtime["bt_api_py"],
+        }
+    )
+    gate_receipt = verify_external_mechanical_gate_receipt(
+        gate_receipt_file,
+        gate_trust_root_file,
+        _mechanical_gate_binding(
+            config,
+            bundle,
+            derived_bundle,
+            environment_profile=runtime_environment_profile(store),
+            runtime=runtime,
+            configuration_sha256=_mechanical_configuration_sha256(config),
+            calendar_sha256=calendar_sha256,
+            source_hashes_sha256=source_hashes_sha256,
+            dependency_hashes_sha256=dependency_hashes_sha256,
+            evidence_hashes_sha256=_sha256_json(evidence_hashes),
+        ),
+    )
+    receipt_sha256 = gate_receipt["receipt_sha256"]
+    settlement_approval = _load_external_entry_approval(
+        settlement_approval_file,
+        expected_cycle_id=f"{config.strategy_id}:settlement",
+        gate_receipt_sha256=receipt_sha256,
+    )
+
+    # Settlement is a terminal write.  It is reachable only after the
+    # independently signed gate receipt and its phase-specific approval both
+    # bind the current read-only evidence.
+    settlement_confirmed = _confirm_settlement_with_approval(
+        store,
+        api,
+        config,
+        bundle=bundle,
+        settlement_approval=settlement_approval,
+        trust_root=trust_root,
+    )
+    if settlement_confirmed is not True:
+        raise MechanicalBlocked("SETTLEMENT_NOT_CONFIRMED")
+
+    now = datetime.now(timezone.utc)
+    entry_approval = _load_external_entry_approval(
+        entry_approval_file,
+        expected_cycle_id=f"{config.strategy_id}:cycle",
+        gate_receipt_sha256=receipt_sha256,
+    )
     artifacts = build_bundle_authorization(
         stage_a=evidence["stage_a"],
         stage_b=evidence["stage_b"],
@@ -670,7 +1113,7 @@ def run_mechanical_cycle(
         },
         strategy_id=config.strategy_id,
         strategy_identity_sha256=_strategy_identity(Path(__file__).resolve()),
-        authorization_key_id=key_material["key_id"],
+        authorization_key_id=str(entry_approval["payload"]["issuer_key_id"]),
         authorization_secret=load_authorization_secret(env),
         issued_at_utc=now.isoformat(),
         expires_at_utc=(now + timedelta(minutes=30)).isoformat(),
@@ -678,15 +1121,10 @@ def run_mechanical_cycle(
         native_sha256=runtime["bt_api_ctp"],
         ctp_package_sha256=runtime["bt_api_ctp"],
         source_hashes_sha256=source_hashes_sha256,
-        dependency_hashes_sha256=_sha256_json(
-            {
-                "backtrader_sha256": runtime["backtrader"],
-                "bt_api_py_sha256": runtime["bt_api_py"],
-            }
-        ),
+        dependency_hashes_sha256=dependency_hashes_sha256,
         evidence_hashes_sha256=_sha256_json(evidence_hashes),
         runtime_executable_sha256=runtime["runtime_executable"],
-        gate_statuses={"G1": "PASS", "G2": "PASS", "G3": "PASS"},
+        gate_statuses=gate_receipt["gate_statuses"],
     )
     store.configure_ctp_execution_authorization(artifacts.grant)
 
@@ -696,22 +1134,13 @@ def run_mechanical_cycle(
     context = api.build_ctp_execution_approval_context(
         seed,
         exchange_name=CTP_EXCHANGE,
-        configuration={"purpose": config.purpose, "cycle_receipt": cycle_receipt},
+        configuration={"purpose": config.purpose, "gate_receipt_sha256": receipt_sha256},
         strategy_source=Path(__file__).resolve(),
         preflight={"stage_a_sha256": evidence_hashes["stage_a"], "complete": True},
         evidence=evidence_hashes,
     )
-    payload = build_entry_payload(
-        context.as_dict(),
-        key_id=key_material["key_id"],
-        issuer_role="independent_operator",
-        receipt_sha256=receipt_sha256,
-        source_hashes_sha256=source_hashes_sha256,
-        ctp_package_sha256=runtime["bt_api_ctp"],
-    )
-    artifact = sign_payload(payload, _private_signing_key(key_material))
     capability = api.redeem_ctp_execution_approval(
-        json.dumps(artifact, ensure_ascii=False, sort_keys=True),
+        json.dumps(entry_approval, ensure_ascii=False, sort_keys=True),
         trust_root=trust_root,
         context=context,
     )
@@ -721,8 +1150,10 @@ def run_mechanical_cycle(
 
     available = _account_available(store, float(config.query_timeout))
     expires_at = (
-        datetime.now(timezone.utc) + timedelta(minutes=20)
-    ).isoformat(timespec="microseconds").replace("+00:00", "Z")
+        (datetime.now(timezone.utc) + timedelta(minutes=20))
+        .isoformat(timespec="microseconds")
+        .replace("+00:00", "Z")
+    )
     budget_evidence = build_budget_evidence(
         bundle=bundle,
         stage_b=evidence["stage_b"],
@@ -763,9 +1194,7 @@ def run_mechanical_cycle(
         "stage_a": evidence["stage_a"],
         "stage_b": evidence["stage_b"],
         "bundle_execution_reference": reference,
-        "public_capabilities": {
-            "get_ctp_bundle_execution_reference_snapshot": True
-        },
+        "public_capabilities": {"get_ctp_bundle_execution_reference_snapshot": True},
         "raw_reconciliation_rounds": evidence["reconciliation_rounds"],
     }
     owner = _MechanicalOwner()
@@ -833,8 +1262,7 @@ def run_mechanical_cycle(
                 (
                     item
                     for item in fresh.get("legs") or ()
-                    if isinstance(item, Mapping)
-                    and item.get("instrument_id") == leg.instrument_id
+                    if isinstance(item, Mapping) and item.get("instrument_id") == leg.instrument_id
                 ),
                 None,
             )
@@ -893,13 +1321,10 @@ def runtime_environment_profile(store: BtApiStore) -> str:
     return profile
 
 
-def derive_bundle_preflight(
-    evidence: Mapping[str, Any], bundle: ThreeLegBundle
-) -> dict[str, Any]:
+def derive_bundle_preflight(evidence: Mapping[str, Any], bundle: ThreeLegBundle) -> dict[str, Any]:
     """Derive the strict V2 bundle snapshot the authorization builder needs."""
 
     reference = evidence["execution_reference"]
-    rounds = evidence["reconciliation_rounds"]
     base = reference
     for candidate in (evidence.get("bundle_preflight"), reference):
         # Preflight snapshots carry the session identity on their top level
@@ -1009,8 +1434,37 @@ def main(argv: list[str] | None = None) -> int:
         help="Per-query timeout; SimNow reference queries may need 60s+ after "
         "large scans due to exchange flow control.",
     )
-    parser.add_argument("--key-file", type=Path, default=DEFAULT_KEY_FILE)
     parser.add_argument("--trust-root", type=Path, default=DEFAULT_TRUST_ROOT)
+    parser.add_argument(
+        "--gate-receipt",
+        type=Path,
+        required=True,
+        help="Externally signed G1/G2/G3 mechanical gate receipt.",
+    )
+    parser.add_argument(
+        "--gate-trust-root",
+        type=Path,
+        required=True,
+        help="Public-only trust root for the independent gate approver.",
+    )
+    parser.add_argument(
+        "--calendar-receipt",
+        type=Path,
+        required=True,
+        help="Hash-frozen CZCE trading-calendar receipt bound into the gate approval.",
+    )
+    parser.add_argument(
+        "--settlement-approval",
+        type=Path,
+        required=True,
+        help="Externally signed, phase-specific settlement approval artifact.",
+    )
+    parser.add_argument(
+        "--entry-approval",
+        type=Path,
+        required=True,
+        help="Externally signed entry approval artifact bound to the gate receipt.",
+    )
     parser.add_argument("--state-directory", type=Path, default=HERE / "state")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
@@ -1035,13 +1489,18 @@ def main(argv: list[str] | None = None) -> int:
             leg_timeout=args.leg_timeout,
             query_timeout=float(args.query_timeout),
         )
+        _require_mechanical_execution_enabled()
         env = load_operator_env(args.env)
         report = run_mechanical_cycle(
             config,
             env,
             state_directory=args.state_directory,
-            key_file=args.key_file,
             trust_root_file=args.trust_root,
+            gate_receipt_file=args.gate_receipt,
+            gate_trust_root_file=args.gate_trust_root,
+            calendar_receipt_file=args.calendar_receipt,
+            settlement_approval_file=args.settlement_approval,
+            entry_approval_file=args.entry_approval,
         )
     except (MechanicalBlocked, OperatorBlocked) as exc:
         report = {
