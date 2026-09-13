@@ -35,17 +35,37 @@ PUT = "CZCE.SA701P1080"
 class FiniteCtpFixtureClient(FakeBtApiClient):
     """A finite, zero-network CTP-v2-shaped source with loud write tracking."""
 
-    def __init__(self, *args, final_watermark=None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        final_watermark=None,
+        interleave_symbols=(),
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self._final_watermark = final_watermark or (
             BASE + dt.timedelta(minutes=15, milliseconds=500)
         )
+        self._interleave_symbols = tuple(interleave_symbols)
+        self._next_interleave_symbol = 0
 
     def is_source_exhausted(self, symbol):
         return not self.live_ticks.get(symbol)
 
     def get_source_event_time_watermark(self, _symbol):
         return self._final_watermark
+
+    def poll_tick(self, dataname):
+        if self._interleave_symbols:
+            expected = self._interleave_symbols[self._next_interleave_symbol]
+            if dataname != expected:
+                return None
+        tick = super().poll_tick(dataname)
+        if tick is not None and self._interleave_symbols:
+            self._next_interleave_symbol = (self._next_interleave_symbol + 1) % len(
+                self._interleave_symbols
+            )
+        return tick
 
     def submit_order(self, _payload):
         raise AssertionError("market-data-only native-chain fixture must never submit an order")
@@ -126,6 +146,88 @@ def _tick_at(symbol, price, ingest_seq, timestamp):
     return event
 
 
+def _eligible_candidate_ticks():
+    """Turn the synthetic local 014_1 eligible fixture into sealed Feed input."""
+
+    runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
+    config = runner.load_config()
+    candidate = config["candidate"]
+    assert (candidate["future"], candidate["call"], candidate["put"]) == (FUTURE, CALL, PUT)
+    bars_by_symbol = runner.replay_bars(candidate, "eligible")
+    live_ticks = {}
+    for symbol_index, (symbol, bars) in enumerate(bars_by_symbol.items(), start=1):
+        live_ticks[symbol] = [
+            _tick_at(
+                symbol,
+                float(bar["close"]),
+                (bar_index * 10) + symbol_index,
+                bar["datetime"].replace(tzinfo=dt.timezone.utc) + dt.timedelta(milliseconds=500),
+            )
+            for bar_index, bar in enumerate(bars, start=1)
+        ]
+    final_bar_start = bars_by_symbol[FUTURE][-1]["datetime"].replace(tzinfo=dt.timezone.utc)
+    return (
+        config,
+        candidate,
+        live_ticks,
+        final_bar_start + dt.timedelta(minutes=15, milliseconds=500),
+    )
+
+
+def _candidate_strategy_kwargs(config, candidate, sealed_bar_clock):
+    """Bind this native-consumer probe to every candidate configuration input."""
+
+    params = dict(config["strategy_params"])
+    symbols = (candidate["future"], candidate["call"], candidate["put"])
+    params.update(
+        candidate_id=f"{config['strategy_id']}-replay-v1",
+        future_symbol=candidate["future"],
+        call_symbol=candidate["call"],
+        put_symbol=candidate["put"],
+        strike=candidate["strike"],
+        multiplier=candidate["multiplier"],
+        discount=candidate["discount"],
+        capital_limit=config["budget"]["capital_limit"],
+        ordinary_limit=config["budget"]["ordinary_limit"],
+        recovery_reserve=config["budget"]["recovery_reserve"],
+        first_send_seconds=config["timing"]["first_send_seconds"],
+        completion_seconds=config["timing"]["completion_seconds"],
+        minimum_hold_seconds=config["timing"]["minimum_hold_seconds"],
+        maximum_hold_seconds=config["timing"]["maximum_hold_seconds"],
+        risk_bar_max_age_seconds=config["timing"]["risk_bar_max_age_seconds"],
+        session_stop_entry_seconds=config["timing"]["session_stop_entry_seconds"],
+        session_exit_seconds=config["timing"]["session_exit_seconds"],
+        session_handover_seconds=config["timing"]["session_handover_seconds"],
+        price_ticks=dict.fromkeys(symbols, params["price_tick"]),
+        exchange_limits={
+            symbol: {
+                "lower": 0.01,
+                "upper": 10_000_000.0,
+                "source": "synthetic-replay-price-limit-fixture",
+            }
+            for symbol in symbols
+        },
+        fee_schedule=dict.fromkeys(
+            (
+                "open_buy",
+                "open_sell",
+                "close_buy",
+                "close_sell",
+                "close_today_buy",
+                "close_today_sell",
+            ),
+            float(params["round_trip_cost"]) / 6.0,
+        ),
+        exit_reserve=0.0,
+        financing_reserve=0.0,
+        model_reserve=0.0,
+        clock_provider=sealed_bar_clock,
+        require_feed_bar_evidence=True,
+        bar_evidence_clock_domain=CLOCK_DOMAIN,
+    )
+    return params
+
+
 def _closed_bar_evidence(bar):
     """Freeze Feed-owned closed-bar metadata into the public evidence type."""
 
@@ -192,6 +294,8 @@ def _run_chain(
     before_run=None,
     live_ticks=None,
     final_watermark=None,
+    interleave_symbols=(),
+    strategy_kwargs=None,
 ):
     """Run one finite Store/Feed/Broker/Cerebro chain without any transport write."""
 
@@ -206,6 +310,7 @@ def _run_chain(
             else live_ticks
         ),
         final_watermark=final_watermark,
+        interleave_symbols=interleave_symbols,
     )
     store = BtApiStore(provider="btapi", api=client, market_data_only=True)
     broker = BtApiBroker(
@@ -235,17 +340,18 @@ def _run_chain(
         )
         feeds.append(feed)
         cerebro.adddata(feed, name=symbol)
-    cerebro.addstrategy(
-        strategy_cls,
-        candidate_id="iter23-local-native-free-v1",
-        future_symbol=FUTURE,
-        call_symbol=CALL,
-        put_symbol=PUT,
-        exchange=EXCHANGE,
-        rules_hash=RULES_HASH,
-        require_feed_bar_evidence=True,
-        bar_evidence_clock_domain=CLOCK_DOMAIN,
-    )
+    strategy_args = {
+        "candidate_id": "iter23-local-native-free-v1",
+        "future_symbol": FUTURE,
+        "call_symbol": CALL,
+        "put_symbol": PUT,
+        "exchange": EXCHANGE,
+        "rules_hash": RULES_HASH,
+        "require_feed_bar_evidence": True,
+        "bar_evidence_clock_domain": CLOCK_DOMAIN,
+    }
+    strategy_args.update(strategy_kwargs or {})
+    cerebro.addstrategy(strategy_cls, **strategy_args)
     if before_run is not None:
         before_run(cerebro)
 
@@ -507,6 +613,99 @@ def test_native_path_buy_is_rejected_before_the_fixture_client_write_boundary():
     assert strategy.write_probe_order is not None
     assert strategy.write_probe_order.status == strategy.write_probe_order.Rejected
     assert strategy.write_probe_order.info.error_code == "market_data_only"
+    assert client.submitted_orders == []
+    assert client.cancelled_orders == []
+    assert broker.get_param("market_data_only") is True
+
+
+def test_sealed_candidate_conversion_reaches_read_only_broker_without_transport_write():
+    """LOCAL_SUBSET: a synthetic local eligible C/P/F signal reaches only the broker gate."""
+
+    strategy_module = importlib.import_module(
+        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+    )
+
+    class SealedBarClock:
+        """A local monotonic projection of the exact sealed-bar clock scope."""
+
+        def __init__(self):
+            self.strategy = None
+
+        def __call__(self):
+            current = getattr(self.strategy, "_current_clock_now_ns", None)
+            current = 0 if current is None else current
+            return {
+                "now_monotonic_ns": current,
+                "clock_domain_id": CLOCK_DOMAIN,
+                "generation": 7,
+                "trusted": True,
+                "source": "iter23-local-native-free-sealed-bar-clock",
+                "boot_id": "iter23-local-native-free-fixture-boot",
+            }
+
+    sealed_bar_clock = SealedBarClock()
+
+    class CandidateEntryProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy):
+        def __init__(self):
+            sealed_bar_clock.strategy = self
+            self.entry_attempts = []
+            self.submission_attempts = []
+            super().__init__()
+
+        def _start_entry(self, direction, limits, score, timestamp):
+            self.entry_attempts.append(
+                {
+                    "direction": direction,
+                    "legs": self._entry_legs_for(direction, limits),
+                    "timestamp": timestamp,
+                }
+            )
+            return super()._start_entry(direction, limits, score, timestamp)
+
+        def _submit_next_leg(self):
+            if self._state == "ENTERING" and self._leg_index < len(self._planned_legs):
+                self.submission_attempts.append(dict(self._planned_legs[self._leg_index]))
+            return super()._submit_next_leg()
+
+    config, candidate, live_ticks, final_watermark = _eligible_candidate_ticks()
+
+    def candidate_evidence(bar):
+        return replace(
+            _closed_bar_evidence(bar),
+            candidate_id=f"{config['strategy_id']}-replay-v1",
+        )
+
+    client, broker, _, strategy = _run_chain(
+        CandidateEntryProbeStrategy,
+        evidence_provider=candidate_evidence,
+        live_ticks=live_ticks,
+        final_watermark=final_watermark,
+        interleave_symbols=(FUTURE, CALL, PUT),
+        strategy_kwargs=_candidate_strategy_kwargs(config, candidate, sealed_bar_clock),
+    )
+
+    assert strategy.p.strike == candidate["strike"]
+    assert strategy.p.multiplier == candidate["multiplier"]
+    assert strategy.p.discount == candidate["discount"]
+    assert strategy.p.window == config["strategy_params"]["window"]
+    assert strategy.p.capital_limit == config["budget"]["capital_limit"]
+    assert strategy.p.first_send_seconds == config["timing"]["first_send_seconds"]
+    assert [attempt["direction"] for attempt in strategy.entry_attempts] == ["conversion"], {
+        "rejections": strategy._rejections,
+        "events": strategy._cycle_events,
+        "barrier_results": strategy._barrier_results,
+    }
+    assert strategy.entry_attempts[0]["legs"] == [
+        {"symbol": PUT, "side": "buy", "price": 42.0, "size": 1},
+        {"symbol": FUTURE, "side": "buy", "price": 1002.0, "size": 1},
+        {"symbol": CALL, "side": "sell", "price": 138.0, "size": 1},
+    ]
+    assert strategy.submission_attempts == [strategy.entry_attempts[0]["legs"][0]]
+    assert strategy._state == "HALTED"
+    assert "ORDER_TERMINAL_WITHOUT_FULL_FILL" in strategy._rejections
+    assert [
+        (order["symbol"], order["side"], order["status"]) for order in strategy._order_projection
+    ] == [(PUT, "buy", "rejected")]
     assert client.submitted_orders == []
     assert client.cancelled_orders == []
     assert broker.get_param("market_data_only") is True
