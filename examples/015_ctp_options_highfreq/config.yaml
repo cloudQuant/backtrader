@@ -26,6 +26,18 @@ feed:
   max_source_clock_error_ms: 5
   complete_cohort_confirmations: 2
 
+# HF-T1 timing is a local, read-only projection contract. This replay has no
+# current SDK/Broker execution-fact provider, so it cannot claim a live risk
+# projection or grant. Synthetic fixtures exercise the immutable model only.
+timing:
+  provider_contract: explicit_immutable_same_scope_read_model_v1
+  runtime_provider: unavailable
+  synthetic_fixtures_only: true
+  leg_timeout_ms: 1000
+  unhedged_timeout_ms: 3000
+  maximum_holding_timeout_ms: 60000
+  idle_interval_ms: 50
+
 risk:
   capital_cap_cny: 10000
   working_cny: 8000

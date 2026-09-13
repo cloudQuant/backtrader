@@ -1,0 +1,125 @@
+{
+  "id": "HF-T1",
+  "status": "READY_FOR_LUNA_IMPLEMENTATION_NOT_RUN",
+  "owner": "one Luna Max, 015 example only; not alone in workspace, preserve other owners changes",
+  "purpose": "Iteration25 causal execution timing and read-only risk projection; public actual next/tick/idle consumers, no execution authorization or external dispatch",
+  "owned_existing": [
+    "examples/015_ctp_options_highfreq/ctp_options_highfreq_strategy.py",
+    "examples/015_ctp_options_highfreq/run.py",
+    "examples/015_ctp_options_highfreq/config.yaml",
+    "examples/015_ctp_options_highfreq/README.md",
+    "tests/unit/test_ctp_options_highfreq_example.py"
+  ],
+  "owned_optional_new": [
+    "examples/015_ctp_options_highfreq/execution_timing.py",
+    "examples/015_ctp_options_highfreq/timing_fixtures.py",
+    "tests/unit/test_ctp_options_highfreq_timing.py"
+  ],
+  "forbidden_product_owners": [
+    "014_1 FQ3",
+    "014_2 MF-T1/FQ2",
+    "backtrader core, barrier/cohort/Feed/Store/Broker",
+    "SDK U1b/O2/ctp_close_plan",
+    "CTP/native",
+    "candidate manifest/research policy/calendar or economic thresholds"
+  ],
+  "source_contracts": [
+    "FR25-07/09/10/11/14/22",
+    "D25-03/05/06/08/09/10/13",
+    "AC25-08/11/12/13/14/17/29",
+    "public C08 domain cycle and accepted DR-20260910-OPT-LEGS"
+  ],
+  "baseline_and_sources": {
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代25-CTP期权期货高频套利策略/需求文档.md": "6046a396ca6970fa08be16a97856751c043b2d1060dfa7e4360bdd65880a22f0",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代25-CTP期权期货高频套利策略/设计文档.md": "36d5fd7719439c2b30c27021f860e8990abda0a8cec24f314f582fda2d7c4bb6",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代25-CTP期权期货高频套利策略/验收文档.md": "0436f1be830b84a1da9fbfe441af02f31bb6f4967f58ed0f0c844eb688107604",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代23-CTP期权期货低频套利策略/公共架构与基线.md": "21a3828f04d1081a4cbb6169f85ffe9e73d76c568a6e64c0e754e6503e499c90",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/examples/015_ctp_options_highfreq/ctp_options_highfreq_strategy.py": "46cbd941582421ca40b642958f4b08db972feb412dfeae84266aa178edaffad7",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/examples/015_ctp_options_highfreq/run.py": "d85c823f73e27a357b2a6fd98544ca82743630bc5f855cb2fb89bedafa28a6d1",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/examples/015_ctp_options_highfreq/config.yaml": "7a0e640bcf9059d8b348062b10b1449bdcfe345cc3927ccc71d6fb0823e157e9",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/logs/iteration23-25/20260910-q_rhtzc4/logs/root-hf-t1-timing-oracles-20260911.json": "0c23b264581fc4d0d12b19db44d75d7d39ff49a899a3fb2cdf9bb58e4376a858",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/logs/iteration23-25/20260910-q_rhtzc4/logs/root-hf-t1-source-observations-20260911-v2.json": "c46ce3ec1e97ded945b5f0bcca62732dd89c9c6a8a54c99d0f1b47372a0edfe9"
+  },
+  "decisions": [
+    {
+      "id": "HT01_CALLBACKS",
+      "contract": "Only eligible causal notify_tick may produce ordinary entry or opportunity-exit intents; next/notify_bar/idle never recycle cached opportunities. Idle projects safety only. Preserve accepted FQ1 every-confirmation economics, reset/dedup/strict-source semantics."
+    },
+    {
+      "id": "HT02_CLOCK",
+      "contract": "Explicit immutable provider envelope: source/provenance and synthetic flag; environment/account/TradingDay/generation/subscription epoch/rule bundle/candidate scope; trusted same-host boot/domain; finite strict integer mono_ns; calibrated wall UTC anchor+mono_ns+domain with known nonnegative error bound, validity and session/calendar source. Missing trust/domain/generation/mapping cannot default True/0; no wall-now-minus-mono self-certification. Normalized scope is exact; scope and domain do not silently replace one another."
+    },
+    {
+      "id": "HT03_LEG",
+      "contract": "D25-08 leg ack/terminal budget 1s. Use genuine same-intent SDK native-send association lower bound when proved and causally consistent; otherwise earlier durable intent lower bound. SDK acceptance, callback receipt or cohort recv is not native send. Freeze origin before waiting; later ACK/query/duplicate/later proof cannot extend an already-established deadline. For the ROOT02 input first proof available at construction gives 101.2s; missing proof gives101s."
+    },
+    {
+      "id": "HT04_COMPARATOR",
+      "contract": "Explicit Astra fail-closed interpretation: with same-domain uncertainty use now_upper >= origin_lower + timeout as expired. All1s/3s/60s test deadline-1ns/equal/+1ns; equal must no longer grant normal action. A later event timestamp cannot move time backwards or fabricate last-moment permission. This equality rule is a frozen interpretation, not quoted verbatim existing formula."
+    },
+    {
+      "id": "HT05_BASKET_HOLD",
+      "contract": "Explicit conservative interpretation of D25-08 and D25-06/13: 3s basket-unhedged and60s maximum holding originate from earliest possible exposure lower bound among admitted same-cycle durable intent/send/fill facts, not last leg/complete fill/ACK or current tick recv. They are distinct deadlines. For ROOT03 100s+3=103s, forROOT04 100s+60=160s, not162s. Once earlier possible exposure is known, later processing/ACK/partial/query never extends. No LF30min or MF60s minimum hold inferred; ordinary opportunity exit still needs legal tick/executable quote."
+    },
+    {
+      "id": "HT06_FACTS",
+      "contract": "Single local read-only projection of authoritative public SDK/Broker facts; no second order/position/finance ledger. Freeze each admitted fact including source/provenance, complete source scope, decision/basket/cycle, intent/leg, actual submission order aliases (BT ref/SDK id/FrontID/SessionID/OrderRef/ExchangeID/OrderSysID), TradeID, direction/offset, strict quantity/cumulative and monotonic lower/upper. Supplied aliases must agree; unknown required identity or future/inverted/foreign time is quarantine. Per-leg, aggregate, hold origins and protection permission MUST consume the same admitted fact set; foreign facts retain audit/possible risk but cannot grant confirmation. Match real observed order association, not self-certified arbitrary ID."
+    },
+    {
+      "id": "HT07_CONFIRMATION",
+      "contract": "Fixed protected path and known confirmed volume only. First lot cannot progress on ACK/accepted/submitted. Zero/one, excess, partial thenterminal, trade-before-ack, callbackbefore-return all preserved. Production configured1lot; explicit2lot synthetic algorithm tests only. Complete/cancel ACK cannot invent fills, release UNKNOWN, erase possible late fill or grant FLAT. Dedup real trades with account/exchange/TradingDay/TradeID plus consistency checks; samekey changedpayload quarantine. Do not copy illegal foreign event quantity into aggregate."
+    },
+    {
+      "id": "HT08_IDLE",
+      "contract": "Use real no-argument Cerebro notify_idle with explicit provider. Same-domain observations cannot regress; missing/foreign/newboot unknown mapping latches ordinary permissions closed while retaining audit and pending possible-fill. Do not compare mono across domains or reactivate old cycle after scope reset. A legitimate new scope may warm up only after explicit matching authoritative reset/reconciliation facts; no arbitrary string ordering. Functional idle50ms exact/±1ns; long read-only query must not block consumer risk projection; any risk helper thread only enqueues facts. No promise of real50ms SLA or p99 from synthetic schedule."
+    },
+    {
+      "id": "HT09_MARKET_SESSION",
+      "contract": "Preserve all existing cohort gates: both receive/source age<=250ms and skew<=100ms, sourcefuture/uncertainty rejection. Recheck current admissible cohort each next leg; a new quote may validate price but never extend execution deadlines. Exact scope/limits/session calendar required. D25-13 30min stop entry,10min risk exit,3min pending handover; unavailable legal executable price retains unresolved risk, no invented fill. Keep accepted two-leg/American research decision and candidate policy; timing work does not exclude or admit products."
+    },
+    {
+      "id": "HT10_ACTION_BOUNDARY",
+      "contract": "Output immutable read-only action proposal/reason/status with native_write_eligible=False; consume only existing public evidence if actually available. Missing actual SDK/O2/current live provider yields OFFLINE_SIGNAL_ONLY or BLOCKED_SOURCE with risk_projection_available=False, not fake production risk-grant. Explicit synthetic timing fixtures may produce hypothetical intents/fills and local risk projections in a physically separate zero-external-write path. No private issuer, actual arm, send/cancel, account/settlement operation. Existing current signal-only recv-based1/3/60 diagnostics must remain labeled signal-only and cannot be relabeled proved runtime origins."
+    },
+    {
+      "id": "HT11_STOP_HISTORY",
+      "contract": "Stop/restart retains original pending intent/reference and quarantine/audit history; report STOP_INCOMPLETE/UNRESOLVED_EXPOSURE until authoritative complete queries/two-round flat evidence exists. Bounded hot history may archive immutable audit references/watermarks; eviction must not make duplicate/old-scope facts grant actions again. Cannot claim clean stop from local zero/cancel ACK, nor clear unknown quantities."
+    },
+    {
+      "id": "HT12_MISSING_DEFAULTS",
+      "contract": "D25 read text has no independent cancel-terminal TTL or controlled-recovery-window default. Do not copy MF5s cancel or60s recovery; HF60s is maximum holding. Record pending cancel/recovery under existing1s/3s/60s and explicit stop/session obligations. If a future configured cancel/recovery deadline is required, surface it as missing reviewed policy rather than inventing one; this does not block implementing the stated read-only projection slice."
+    }
+  ],
+  "oracle_registration": {
+    "path": "/Users/yunjinqi/Documents/new_projects/backtrader/logs/iteration23-25/20260910-q_rhtzc4/logs/root-hf-t1-timing-oracles-20260911.json",
+    "sha256": "0c23b264581fc4d0d12b19db44d75d7d39ff49a899a3fb2cdf9bb58e4376a858",
+    "groups": 12,
+    "expected_unchanged": true,
+    "ROOT03_ROOT04_origins_approved_as_explicit_conservative_interpretation": true,
+    "execution_status": "PREPARED_NOT_RUN"
+  },
+  "acceptance": [
+    "All12 original oracle groups and deadline1/3/60 boundary-1ns/equal/+1ns, initial legit proof vs absent proof and lateproof no extension.",
+    "Real Cerebro causal tick plus active engine no-tick/no-bar idle (not just post-run direct callback); valid same-domain projection positive, missing provider negative; a2s synthetic read query must not block functional safety observations.",
+    "Foreign order/decision/basket/source/generation/day/domain and duplicate conflict paired with legal actual order association. Confirmed/per-leg/aggregate/hold/protection agree; rejected event risk facts remain available.",
+    "Actual notify_tick normal position exit consumes legal full facts/quotes; actual next/notify_bar/notify_idle cannot create ordinary opportunities. Pure helper passing is insufficient.",
+    "Preserve original FQ1/example and public cohort compatibility suites; only request adjacent owner edits on a proven shared defect. Fresh final samehash, independent golden cases, source/install/harness hashes, sealed x outputs, guarded no native account APIs/external net; loopback separately counted.",
+    "Explicit synthetic projection and local hypothetical counts separate from real SDK/native account/order/queue/tail latency/flat evidence. No G1/G2/95AC or HFT/real profitability inference."
+  ],
+  "maximum_acceptance": "LOCAL_HIGHFREQ_TIMING_PROJECTION_SUBSET_PASS",
+  "not_implemented_or_admitted": [
+    "O2 atomic budget",
+    "SDK actual execution grant/dispatch",
+    "native send/fill live evidence",
+    "real recovery/flat",
+    "full queue/backpressure/latency/HFT",
+    "economic/R gates",
+    "all95AC/G1/G2"
+  ],
+  "working_rules": [
+    "All Python Anaconda base; consumers-I; exclusive evidence outputs;180s timeout for owned child processes",
+    "No network/account/nativeAPI creation/Init/RegisterFront/login/order/cancel",
+    "No Superpowers/commit/push or rollback of others work",
+    "Plan remains independent synthetic preparation; original root12 groups are not runtime PASS"
+  ]
+}

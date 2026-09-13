@@ -41,6 +41,12 @@ FROZEN_FEED_UPPER_BOUNDS_MS = {
     "max_source_skew_upper_ms": 100.0,
     "max_source_clock_error_ms": 5.0,
 }
+FROZEN_TIMING_MS = {
+    "leg_timeout_ms": 1_000,
+    "unhedged_timeout_ms": 3_000,
+    "maximum_holding_timeout_ms": 60_000,
+    "idle_interval_ms": 50,
+}
 MODES = frozenset({"replay", "shadow", "simnow", "production"})
 REPLAY_PURPOSES = frozenset({"formula"})
 _CREDENTIAL_TOKENS = ("password", "secret", "token", "auth_code", "api_key", "credential")
@@ -154,6 +160,7 @@ def validate_config(config: Mapping[str, Any]) -> None:
             "production_enabled",
             "contracts",
             "feed",
+            "timing",
             "risk",
             "signal",
             "execution",
@@ -220,6 +227,29 @@ def validate_config(config: Mapping[str, Any]) -> None:
         != 2
     ):
         raise RunnerConfigurationError("the candidate requires exactly two complete cohorts")
+
+    timing = _require_exact_keys(
+        root["timing"],
+        name="timing",
+        keys={
+            "provider_contract",
+            "runtime_provider",
+            "synthetic_fixtures_only",
+            "leg_timeout_ms",
+            "unhedged_timeout_ms",
+            "maximum_holding_timeout_ms",
+            "idle_interval_ms",
+        },
+    )
+    if timing["provider_contract"] != "explicit_immutable_same_scope_read_model_v1":
+        raise RunnerConfigurationError("timing provider contract is frozen")
+    if timing["runtime_provider"] != "unavailable":
+        raise RunnerConfigurationError("the replay must not configure a runtime timing provider")
+    if timing["synthetic_fixtures_only"] is not True:
+        raise RunnerConfigurationError("only local synthetic timing fixtures are permitted")
+    for key, expected in FROZEN_TIMING_MS.items():
+        if _positive_int(timing[key], f"timing.{key}") != expected:
+            raise RunnerConfigurationError(f"timing.{key} is frozen at {expected}ms")
 
     risk = _require_exact_keys(
         root["risk"],

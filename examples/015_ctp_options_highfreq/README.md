@@ -10,6 +10,16 @@ cohort 才能创建 intent；无边际、方向切换、重复载荷/序号、�
 清除确认。默认配置为可直接运行的 `replay/formula`，它只读取本目录的冻结 fixture。
 本例没有网络适配器，因此显式请求 shadow、SimNow 或 production 都会在建立会话前失败关闭。
 
+`timing` 配置固定 HF-T1 的本地时序投影边界：每腿 1 秒、未对冲 3 秒、最大持仓 60 秒和
+idle 50ms。默认 `runtime_provider: unavailable`，所以普通 replay 仍明确为
+`OFFLINE_SIGNAL_ONLY`；它不会把 cohort 接收时间重命名为 native send 或真实风险期限。
+单元测试可注入带完整 environment/account/TradingDay/generation/subscription/rules/domain scope
+的合成只读 snapshot。每个可信 tick（包括随后被 cohort 校验拒绝的报价）都会先推进保护
+投影；只有完整合格 cohort 才能记录普通候选或零写 normal-exit proposal。它只能生成 immutable 的 `OBSERVE`、`PROTECT` 或
+`NORMAL_EXIT_PROPOSAL` 记录，所有 proposal 的 `native_write_eligible` 都是 `false`。
+该路径不创建 SDK/CTP client、不调用下单/撤单，也不能成为执行批准、真实成交、平仓、HFT 或
+收益证据。
+
 运行前需要安装包含公开 cohort API 的当前 `backtrader` 包：
 `backtrader.feeds.CtpQuoteCohortValidator` 和 `CtpCohortNow`。在源码检出中可执行：
 

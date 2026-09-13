@@ -1,0 +1,61 @@
+{
+  "scope": "READ_ONLY_CURRENT_HF_SIGNAL_ONLY_SOURCE_OBSERVATIONS",
+  "status": "PLANNING_INPUT_NOT_PRODUCT_FAILURE_OR_RUNTIME_ACCEPTANCE",
+  "files_sha256_at_observation": {
+    "/Users/yunjinqi/Documents/new_projects/backtrader/examples/015_ctp_options_highfreq/ctp_options_highfreq_strategy.py": "46cbd941582421ca40b642958f4b08db972feb412dfeae84266aa178edaffad7",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/examples/015_ctp_options_highfreq/run.py": "d85c823f73e27a357b2a6fd98544ca82743630bc5f855cb2fb89bedafa28a6d1",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/examples/015_ctp_options_highfreq/config.yaml": "7a0e640bcf9059d8b348062b10b1449bdcfe345cc3927ccc71d6fb0823e157e9"
+  },
+  "observations": [
+    {
+      "id": "HF-SOURCE-01",
+      "file": "ctp_options_highfreq_strategy.py",
+      "line": 232,
+      "fact": "_offline_deadline_projection explicitly reports OFFLINE_SIGNAL_ONLY, risk_projection_available=False, no_sdk_read_only_risk_projection and empty risk_actions.",
+      "implication": "New read-only execution timing slice must preserve existing signal-only label where authoritative risk facts are missing."
+    },
+    {
+      "id": "HF-SOURCE-02",
+      "file": "ctp_options_highfreq_strategy.py",
+      "line": 470,
+      "fact": "After one intent is consumed, _deadline_projection anchors 1s/3s/60s to max cohort receive_monotonic_ns; intent execution_status is NOT_SUBMITTED_REPLAY.",
+      "implication": "This is intentionally a signal diagnostic, not actual SDK intent/native-send/first-exposure timing. Future runtime timing needs distinct proved origins and cannot relabel this anchor."
+    },
+    {
+      "id": "HF-SOURCE-03",
+      "file": "ctp_options_highfreq_strategy.py",
+      "line": 268,
+      "fact": "notify_idle(now=None) rejects missing trusted now; accepted explicit now only revalidates existing cohort and does not project actual order/holding risk.",
+      "implication": "A future actual no-argument Cerebro idle consumer needs an explicit bound provider with source/scope/domain; never reuse last tick receive time as current now."
+    },
+    {
+      "id": "HF-SOURCE-04",
+      "file": "run.py",
+      "line": 616,
+      "fact": "run_replay builds channel Cerebro+TickBroker and optional invoke_idle_probe invokes strategy.notify_idle after cerebro.run.",
+      "implication": "Direct optional post-run probe does not establish no-tick active-engine 50ms cadence. New functional fixture must exercise actual engine dispatch and label performance proof separately."
+    },
+    {
+      "id": "HF-SOURCE-05",
+      "file": "config.yaml",
+      "line": 42,
+      "fact": "execution currently configures limit order type and request/day attempt caps, without explicit scoped runtime clock/execution-fact-provider contract.",
+      "implication": "Timing configuration/source schema requires a bounded reviewed addition; no actual SDK risk-grant source is established by config fields."
+    },
+    {
+      "id": "HF-SOURCE-06",
+      "file": "ctp_options_highfreq_strategy.py",
+      "line": 241,
+      "fact": "notify_tick is the only normal intent producer; next/notify_bar increment compatibility counts, and idle does not create ordinary intents.",
+      "implication": "Preserve accepted FQ1/cohort behavior while adding risk and ordinary-position-exit consumers; do not introduce bar-driven high-frequency entries."
+    }
+  ],
+  "next_Astra_contract_required": true,
+  "source_changes": false,
+  "network_or_market_or_account_io": false,
+  "supersedes_annotation_only": {
+    "path": "/Users/yunjinqi/Documents/new_projects/backtrader/logs/iteration23-25/20260910-q_rhtzc4/logs/root-hf-t1-source-observations-20260911.json",
+    "sha256": "7a359e35e4d7a66f069601c600344d6b969c5b59d380cb913383b31afd9f6b18",
+    "reason": "Verified config execution key is line42; replaced inaccurate line45 annotation and removed unrelated SDK search note. Source findings and expected behavior unchanged."
+  }
+}

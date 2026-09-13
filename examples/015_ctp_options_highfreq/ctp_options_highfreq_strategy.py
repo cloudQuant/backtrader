@@ -18,9 +18,19 @@ from typing import Any, Mapping
 import backtrader as bt
 
 try:
-    from .execution_timing import TimingFact, project_timing, projection_to_dict
+    from .execution_timing import (
+        SyntheticTimingProvider,
+        TimingFact,
+        project_timing,
+        projection_to_dict,
+    )
 except ImportError:  # Direct execution through this directory's run.py.
-    from execution_timing import TimingFact, project_timing, projection_to_dict
+    from execution_timing import (
+        SyntheticTimingProvider,
+        TimingFact,
+        project_timing,
+        projection_to_dict,
+    )
 
 
 def _decimal(value: Any) -> Decimal:
@@ -177,6 +187,10 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         ("complete_cohort_confirmations", 2),
         ("entry_buffer_cny", 20),
         ("total_reserve_cny", 20),
+        # Only a local SyntheticTimingProvider is accepted.  The default
+        # remains unavailable because this standalone replay has no SDK
+        # execution-fact read model or live clock provider.
+        ("timing_provider", None),
     )
 
     def __init__(self) -> None:
@@ -244,6 +258,14 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         self._timing_facts: tuple[TimingFact, ...] = ()
         self._last_idle_lower_ns: int | None = None
         self._timing_projection = self._project_timing(now_upper_ns=None)
+        provider = self.p.timing_provider
+        self._timing_provider = provider if isinstance(provider, SyntheticTimingProvider) else None
+        self._timing_provider_status = (
+            "SYNTHETIC_LOCAL_ONLY" if self._timing_provider is not None else "OFFLINE_SIGNAL_ONLY"
+        )
+        if provider is not None and self._timing_provider is None:
+            self._timing_provider_status = "BLOCKED_SOURCE_UNSUPPORTED_PROVIDER"
+        self._ordinary_position_exit_proposals: list[dict[str, Any]] = []
         self.callback_counts = {"tick": 0, "bar": 0, "idle": 0, "next": 0}
 
     def _project_timing(self, *, now_upper_ns: int | None) -> Any:
@@ -259,6 +281,39 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
             intent_id=str(self.p.candidate_id),
             leg_ids=self._symbols,
             last_idle_lower_ns=self._last_idle_lower_ns,
+        )
+
+    def _advance_synthetic_timing(self, callback: str) -> Any | None:
+        """Consume an explicitly synthetic local snapshot, never an SDK handle."""
+
+        if self._timing_provider is None:
+            return None
+        projection = self._timing_provider.project(callback)
+        if projection is None:
+            self._timing_provider_status = "BLOCKED_SOURCE_PROVIDER_EXHAUSTED"
+            self._timing_projection = self._project_timing(now_upper_ns=None)
+            return None
+        self._timing_projection = projection
+        self._timing_provider_status = "SYNTHETIC_LOCAL_ONLY"
+        return projection
+
+    def _record_synthetic_tick_exit_proposal(self, projection: Any | None) -> None:
+        """Record a zero-write normal-exit proposal only after a legal cohort."""
+
+        if projection is None or not projection.normal_exit_allowed:
+            return
+        proposal = projection.proposals[0]
+        # This is a record-only local proposal.  It intentionally does not
+        # call buy/sell/close/cancel, alter the FQ1 intent count, or imply a
+        # broker/SDK/native execution grant.
+        self._ordinary_position_exit_proposals.append(
+            {
+                "status": "SYNTHETIC_TICK_ONLY_PROPOSAL",
+                "reason": proposal.reason,
+                "origin_lower_ns": proposal.origin_lower_ns,
+                "now_upper_ns": proposal.now_upper_ns,
+                "native_write_eligible": False,
+            }
         )
 
     def notify_tick(self, tick: Any) -> None:
@@ -277,16 +332,22 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
             self._last_rejection = self._clock_rejection_reason
             return
 
+        # Risk projection consumes every trusted tick before cohort admission.
+        # A rejected quote may not create a normal intent or normal-exit
+        # proposal, but it must not freeze 1s/3s/60s protection deadlines.
+        timing_projection = self._advance_synthetic_timing("tick")
         result = self._cohort_validator.ingest(tick, now=now)
         if result.cohort is None:
             self._record_cohort_rejection(result.reason)
             return
+        self._record_synthetic_tick_exit_proposal(timing_projection)
         self._consider_cohort(result.cohort, now=now)
 
     def notify_bar(self, _bar: Any) -> None:
         """Record compatibility bar callbacks without creating ordinary intent."""
 
         self.callback_counts["bar"] += 1
+        self._advance_synthetic_timing("bar")
 
     def notify_idle(self, now: Any = None) -> None:
         """Recheck cached evidence with trusted time without creating intent.
@@ -298,6 +359,12 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         """
 
         self.callback_counts["idle"] += 1
+        if now is None and self._timing_provider is not None:
+            # Cerebro invokes this real hook with no arguments.  The synthetic
+            # provider carries an explicit bounded clock instead of deriving
+            # ``now`` from the last tick or the process wall clock.
+            self._advance_synthetic_timing("idle")
+            return
         try:
             trusted_now = self._cohort_now_from_value(now)
         except (TypeError, ValueError):
@@ -327,6 +394,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         """Channel-line compatibility hook; it must never create an intent."""
 
         self.callback_counts["next"] += 1
+        self._advance_synthetic_timing("next")
 
     @staticmethod
     def _now_from_tick(tick: Any) -> bt.feeds.CtpCohortNow:
@@ -556,6 +624,8 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
             "cohort_screen_history": list(self._cohort_screen_history),
             "offline_deadline_projection": dict(self._offline_deadline_projection),
             "timing_projection": projection_to_dict(self._timing_projection),
+            "timing_provider_status": self._timing_provider_status,
+            "ordinary_position_exit_proposals": list(self._ordinary_position_exit_proposals),
             "clock_rejection_latched": self._clock_rejection_latched,
             "clock_rejection_reason": self._clock_rejection_reason or None,
             "normal_order_submissions": 0,
