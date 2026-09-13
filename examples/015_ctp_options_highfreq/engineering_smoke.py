@@ -18,8 +18,6 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Optional
 
 import backtrader as bt
-from backtrader.brokers.btapibroker import BtApiBroker
-from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.feeds.ctpcohort import CtpCohortNow
 from backtrader.stores.btapistore import BtApiStore
 
@@ -147,7 +145,10 @@ class EngineeringSmokeAdapter:
 
         # This is the only construction path for the engineering-smoke graph.
         self.cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
-        self.broker = self.store.getbroker()
+        # This adapter is an engineering evidence harness, not an execution
+        # runner.  A configured grant may prove the public configuration path,
+        # but it must never turn this graph into a write-capable Broker.
+        self.broker = self.store.getbroker(market_data_only=True)
         self.cerebro.setbroker(self.broker)
         self.feed = tuple(
             self.store.getdata(
@@ -209,9 +210,16 @@ class EngineeringSmokeAdapter:
             self._block("TRUSTED_COHORT_NOW_REQUIRED")
             return
         self._last_tick = (int(getattr(tick, "ingest_seq", 0)), str(getattr(tick, "symbol", "")))
-        self.journal.append("tick_observed", generation=generation, symbol=self._last_tick[1], ingest_seq=self._last_tick[0])
+        self.journal.append(
+            "tick_observed",
+            generation=generation,
+            symbol=self._last_tick[1],
+            ingest_seq=self._last_tick[0],
+        )
 
-    def get_bundle_preflight(self, legs: Iterable[Mapping[str, Any]], *, timeout: float = 15.0) -> dict[str, Any]:
+    def get_bundle_preflight(
+        self, legs: Iterable[Mapping[str, Any]], *, timeout: float = 15.0
+    ) -> dict[str, Any]:
         """Use the Store-owned read-only bundle preflight; never inspect its client."""
         try:
             snapshot = self.store.get_ctp_bundle_preflight_snapshot(
@@ -259,7 +267,9 @@ class EngineeringSmokeAdapter:
         )
         self.journal.append(
             "settlement_verified",
-            evidence_complete=bool(result.get("evidence_complete")) if isinstance(result, Mapping) else False,
+            evidence_complete=(
+                bool(result.get("evidence_complete")) if isinstance(result, Mapping) else False
+            ),
         )
         return dict(result)
 
@@ -277,7 +287,9 @@ class EngineeringSmokeAdapter:
         )
         self.journal.append(
             "settlement_prepared",
-            evidence_complete=bool(result.get("evidence_complete")) if isinstance(result, Mapping) else False,
+            evidence_complete=(
+                bool(result.get("evidence_complete")) if isinstance(result, Mapping) else False
+            ),
         )
         return dict(result)
 
@@ -308,7 +320,12 @@ class EngineeringSmokeAdapter:
             raise EngineeringSmokeError("CTP_TWO_ROUND_RECONCILIATION_REQUIRED")
         self.state.status = "READY"
         self.state.cycle_id = cycle_id
-        self.journal.append("cycle_armed", cycle_id=cycle_id, intent_id=intent_id, generation=self.session.generation)
+        self.journal.append(
+            "cycle_armed",
+            cycle_id=cycle_id,
+            intent_id=intent_id,
+            generation=self.session.generation,
+        )
 
     def authorize_one_lot_write(self, *, safety: bool = False) -> None:
         """Reserve one write budget unit; callers still need native Broker calls."""
@@ -334,14 +351,18 @@ class EngineeringSmokeAdapter:
             self.state.safety_attempts += 1
         else:
             self.state.ordinary_attempts += 1
-        self.journal.append("write_reserved", safety=safety, write_attempts=self.state.write_attempts)
+        self.journal.append(
+            "write_reserved", safety=safety, write_attempts=self.state.write_attempts
+        )
 
     def record_send(self, association: NativeAssociation) -> None:
         if (
             association.generation != self.session.generation
             or association.requested_volume != 1
             or association.cycle_id != self.state.cycle_id
-            or any(item.bt_order_ref == association.bt_order_ref for item in self.state.associations)
+            or any(
+                item.bt_order_ref == association.bt_order_ref for item in self.state.associations
+            )
         ):
             self._block("NATIVE_ASSOCIATION_INVALID")
             raise EngineeringSmokeError("NATIVE_ASSOCIATION_INVALID")
@@ -415,10 +436,18 @@ class EngineeringSmokeAdapter:
             self.state.reconciliation_rounds = 1
         else:
             self.state.reconciliation_rounds += 1
-        self.journal.append("reconciliation", round=self.state.reconciliation_rounds, generation=self.session.generation)
+        self.journal.append(
+            "reconciliation",
+            round=self.state.reconciliation_rounds,
+            generation=self.session.generation,
+        )
         if self.state.reconciliation_rounds < 2:
             return False
-        self.state.status = "FLAT_VERIFIED" if not snapshot["positions"] and not snapshot["orders"] else "RECONCILING"
+        self.state.status = (
+            "FLAT_VERIFIED"
+            if not snapshot["positions"] and not snapshot["orders"]
+            else "RECONCILING"
+        )
         return self.state.status == "FLAT_VERIFIED"
 
     def report(self) -> dict[str, Any]:
@@ -426,8 +455,9 @@ class EngineeringSmokeAdapter:
             "status": self.state.status,
             "hft_status": "NOT_ADMITTED",
             "ordinary_entry_blocked": self.state.ordinary_entry_blocked,
-            "market_data_only": not self._authorization_verified,
-            "execution_authorized": self._authorization_verified,
+            "market_data_only": True,
+            "execution_authorized": False,
+            "execution_authorization_configured": self._authorization_verified,
             "reason": self.state.reason,
             "runtime_chain": self.runtime_chain,
             "actual_fills": self.state.actual_fills,
@@ -518,7 +548,9 @@ def _stable_reconciliation_fingerprint(snapshot: Mapping[str, Any]) -> str:
         "trades",
     )
     material = {field: _stable_evidence_value(snapshot.get(field)) for field in fields}
-    return json.dumps(material, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
+    return json.dumps(
+        material, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+    )
 
 
 def _valid_identity(snapshot: Mapping[str, Any], session: SessionIdentity) -> bool:

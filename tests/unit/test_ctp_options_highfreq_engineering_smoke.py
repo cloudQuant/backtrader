@@ -10,7 +10,6 @@ from types import SimpleNamespace
 import backtrader as bt
 import pytest
 
-
 REPO = Path(__file__).resolve().parents[2]
 MODULE_PATH = REPO / "examples/015_ctp_options_highfreq/engineering_smoke.py"
 SPEC = importlib.util.spec_from_file_location("iter25_engineering_smoke", MODULE_PATH)
@@ -92,6 +91,16 @@ def test_authorization_success_without_configured_true_does_not_unlock(tmp_path)
     assert adapter.report()["market_data_only"] is True
 
 
+def test_configured_authorization_never_turns_engineering_smoke_into_execution(tmp_path):
+    adapter = _adapter(tmp_path, authorized=True)
+
+    assert adapter.broker.get_param("market_data_only") is True
+    report = adapter.report()
+    assert report["market_data_only"] is True
+    assert report["execution_authorized"] is False
+    assert report["execution_authorization_configured"] is True
+
+
 def test_store_public_preflight_and_reconciliation_interfaces_are_the_only_query_boundary(
     tmp_path, monkeypatch
 ):
@@ -132,7 +141,9 @@ def test_store_public_preflight_and_reconciliation_interfaces_are_the_only_query
 
     monkeypatch.setattr(adapter.store, "get_ctp_bundle_preflight_snapshot", preflight)
     monkeypatch.setattr(adapter.store, "get_ctp_reconciliation_snapshot", reconciliation)
-    adapter.get_bundle_preflight(({"exchange_id": "CZCE", "instrument_id": leg} for leg in ("F", "C", "P")))
+    adapter.get_bundle_preflight(
+        ({"exchange_id": "CZCE", "instrument_id": leg} for leg in ("F", "C", "P"))
+    )
     assert adapter.reconcile_from_store() is False
     assert [call[0] for call in calls] == ["preflight", "reconciliation"]
 
@@ -169,30 +180,31 @@ def test_one_lot_association_cancel_before_trade_and_two_round_reconciliation(tm
 def test_generation_change_blocks_and_unknown_is_not_recovered_by_one_snapshot(tmp_path):
     adapter = _adapter(tmp_path)
     adapter.on_tick(_tick())
-    adapter.on_reconnect(
-        session=MODULE.SessionIdentity("acct-hash", "20260911", 8, 1, "clk-1")
-    )
+    adapter.on_reconnect(session=MODULE.SessionIdentity("acct-hash", "20260911", 8, 1, "clk-1"))
     assert adapter.state.status == "RECOVERING"
     assert adapter.state.ordinary_entry_blocked is True
-    assert adapter.reconcile(
-        {
-            "schema_version": "backtrader.ctp.reconciliation.v1",
-            "account": {},
-            "positions": [],
-            "orders": [],
-            "trades": [],
-            "evidence_complete": True,
-            "read_only_safe": True,
-            "write_request_free": True,
-            "flat": True,
-            "active_order_count": 0,
-            "unknown_intent_count": 0,
-            "unmatched_trade_count": 0,
-            "account_fingerprint": "acct-hash",
-            "connection_generation": 8,
-            "trading_day": "20260911",
-        }
-    ) is False
+    assert (
+        adapter.reconcile(
+            {
+                "schema_version": "backtrader.ctp.reconciliation.v1",
+                "account": {},
+                "positions": [],
+                "orders": [],
+                "trades": [],
+                "evidence_complete": True,
+                "read_only_safe": True,
+                "write_request_free": True,
+                "flat": True,
+                "active_order_count": 0,
+                "unknown_intent_count": 0,
+                "unmatched_trade_count": 0,
+                "account_fingerprint": "acct-hash",
+                "connection_generation": 8,
+                "trading_day": "20260911",
+            }
+        )
+        is False
+    )
     assert adapter.state.status == "RECOVERING"
 
 
