@@ -16,6 +16,8 @@ bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 
 第二套 7×24 的受限 `shadow --api-diagnostic` 已实际通过 `PASS_API_DIAGNOSTIC`：五类只读查询完整、三类状态变更请求计数增量为零，且受管 Store 停止健康为 `PASS`。该诊断以冻结候选的产品和交易所仅作为参考数据范围，不选择具体月份合约、不订阅行情、不运行策略；其 `strategy_status=NOT_RUN`，G3/G4 均为 `NOT_RUN_API_DIAGNOSTIC`。
 
+新增的 `--engineering-strategy-observation` 是第二套唯一的策略级例外，供受限工程诊断使用，不是上述已完成 API 诊断的追溯性结果。它只能在第二套 `simnow_second_7x24` 以 `shadow --purpose observation` 显式启动，时长必须为正且不超过 3600 秒；不接受 `--preflight-only`、`--prepare-settlement` 或 admission receipt。该路径仍做运行所需的只读 Stage A/B 查询、合约选择和行情订阅，但 `allow_order_writes=false` 始终固定，结算确认、报单和撤单请求的终态计数都必须为零。即使它观察到策略和分钟线，也只产生工程结果：成功终态为 `PASS_ENGINEERING_STRATEGY_OBSERVATION`，G3 固定为 `NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION`、G4 为 `NOT_RUN`；它永远不替代第一套实际时段的 G3/G4。
+
 ## 模式和写入边界
 
 | 模式/动作 | CTP 会话 | 订单写入 | 成交/PnL | 结算确认 |
@@ -24,19 +26,22 @@ bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 | `shadow --preflight-only` | 只读 | 禁止 | 不生成 | 只读核验 |
 | `shadow` | 第一套实际交易时段的只读观察 | 禁止 | 不生成 | 不确认 |
 | `shadow --api-diagnostic` | 第二套 7x24 的托管只读 API 查询 | 禁止 | 不生成 | 不确认 |
+| `shadow --engineering-strategy-observation` | 第二套 7x24 的受限策略工程观察，正时长且最多 3600 秒 | 禁止（固定 `allow_order_writes=false`） | 不生成 | 不确认 |
 | `simnow --preflight-only` | 只读 | 禁止 | 不生成 | 只读核验 |
 | `simnow --prepare-settlement` | `market_data_only` | 禁止 | 不生成 | 唯一显式确认动作，随后只读回查 |
 | admitted `simnow` | 托管交易会话 | receipt 限定 | 实际回报才记录 | 启动时只读核验 |
 
-第二套 `simnow_second_7x24` 仅允许 `shadow --api-diagnostic`；普通 `shadow` 或 `simnow`
-策略网络运行会在创建 Store、初始化 native 会话或连接前拒绝，不能被用作一小时策略观察或替代
-第一套 G3。CLI 与 direct API 为确定冻结 profile 仍可能先水合本地忽略的 `.env`，但不会把这些
-值写入报告或用于建立会话。
+第二套 `simnow_second_7x24` 默认仅允许 `shadow --api-diagnostic`；普通 `shadow` 或 `simnow`
+策略网络运行仍会在创建 Store、初始化 native 会话或连接前拒绝。唯一例外是上表的
+`--engineering-strategy-observation`：它是受限的一小时以内 shadow 策略观察，不接受 receipt、
+`--preflight-only` 或 `--prepare-settlement`，更不能被用作第一套 G3 或任何 G4 的替代。CLI 与
+direct API 为确定冻结 profile 仍可能先水合本地忽略的 `.env`，但不会把这些值写入报告或用于建立会话。
 
-`shadow` 和所有 preflight 路径显式设置 `auto_settlement_confirm=false`。只有同时满足
+`shadow` 和所有 preflight 路径显式设置 `auto_settlement_confirm=false`。工程策略观察也固定该值，
+并在受控停机时要求 `settlement_confirm`、`order_insert`、`order_action` 计数均为零。只有同时满足
 SimNow 模式、非 preflight、非 prepare、且 receipt 已通过校验时，runner 才把
 `allow_order_writes` 打开。生产地址、自定义地址、MD/TD 混配、7x24 第二套交易
-（只允许形成 API 工程证据）、
+（只允许 API 或上述无写策略工程证据）、
 缺失费用/保证金/账户身份、成功但空或多行账户查询都会失败关闭。
 
 ## 快速运行
@@ -82,6 +87,29 @@ orders、trades 完整查询；instruments 查询以冻结候选的产品和交�
 `PASS_API_DIAGNOSTIC`，同时固定 `strategy_status=NOT_RUN`、G3/G4 为
 `NOT_RUN_API_DIAGNOSTIC`：它证明的是 API/session/query 路径，不是行情、信号、下单、成交或
 策略成功。
+
+第二套受限策略工程观察（仅检查策略/Feed/Cerebro 在 live Set-2 行情下的逻辑与受控停止；不产生
+G3/G4、成交或 PnL 证据）：
+
+```bash
+ITER22_SIMNOW_PROFILE=simnow_second_7x24 \
+  /Users/yunjinqi/opt/anaconda3/bin/conda run -n base python \
+  examples/013_3_sa_midfreq_simnow/run.py \
+  --config /absolute/path/current-session-manual-SA610.yaml \
+  --mode shadow --purpose observation --engineering-strategy-observation \
+  --run-seconds 3600 --output-dir /tmp/iter22-sa-set2-engineering-observation
+```
+
+该 config 必须是本次 session 新鲜、哈希绑定的手工冻结合约配置；命令不能附加
+`--preflight-only`、`--prepare-settlement` 或 `--admission-receipt`。运行仍以同一 Store/Feed/
+Cerebro 路径执行只读查询、选择、订阅和策略回调，但不会 arm SDK，也不能提交订单、撤单或结算确认。
+受控停机只有同时满足 `OBSERVATION_ONLY`、`market_data_only=true`、Store 停止健康通过、无本地
+订单/持仓/撤单/平仓请求且三类 SDK 写请求计数为零时，才给出
+`PASS_ENGINEERING_STRATEGY_OBSERVATION`；否则是
+`INCOMPLETE_ENGINEERING_STRATEGY_OBSERVATION`（CLI 退出码 4）。证据封存若将 manifest
+降级为 `FAIL_EVIDENCE_INCOMPLETE`，CLI 同样返回退出码 4，绝不沿用封存前的成功状态。两种结果都保留
+`g3_gate_status=NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION`、`g4_gate_status=NOT_RUN`，不声称
+远端账户归零、真实市场时段观察或交易准入。
 
 只读预检：
 
@@ -156,6 +184,16 @@ CTP `InstrumentField` 提供 `ExpireDate`，但不提供“剩余交易日”或
 受控日历 artifact 接线进 `config.yaml`（见上"当前状态"），该门就地解除；日历补齐后，
 如仍缺上一完整 TradingDay 的全市场排名证据，自动选择将继续以
 `BLOCKED_CTP_PRIOR_DAY_RANKING_EVIDENCE` 失败关闭。
+
+当前受控 artifact `state/iter22-czce-2026-calendar-20260910.json` 的 SHA-256 为
+`2b5168ef5b1f92290879dc5d8d3f1c16eefd823d9441d130d284263a34b46dc7`，覆盖
+20260105～20261231。当前第二套只读合约查询的 eligible SA 集合已经延伸到 2027；自动选择要求
+日历覆盖**每一个** eligible SA 的到期日，因此在现有 artifact 下必须以
+`BLOCKED_CTP_TRADING_CALENDAR: calendar does not cover every eligible SA expiry` 失败关闭。这不是把
+日历门放宽的理由。相反，已覆盖的手工目标（例如到期日为 20261021 的 SA610）可以使用同一 hash 的
+日历，但必须按当前 CTP `TradingDay` 重新计算并冻结 `manual_trading_days_to_expiry`、来源和审阅时间；
+旧手工配置中的数值不能因合约相同而直接复用。该手工例外只解决已选目标的覆盖，不使自动选择接受
+2027 合约，也不改变第一套 G3/G4 的门禁。
 
 要运行 shadow/G3，可准备一个冻结的 CZCE 交易日历。示例 schema：
 
@@ -298,6 +336,10 @@ TradingDay，因此该运行内的 `quotes.jsonl` 是单 TradingDay 分片。保
 G3 的 `observation_evidence` 可直接机判：第一套真实时段连续有效观察至少 3600 秒、
 合格完成 bar 至少 60、合格盘口窗口至少 60 秒、TradingDay/generation/profile 一致、
 以及 settlement/order/cancel/account-change 写计数全为 0。休市、断代和坏数据不计时。
+
+第二套工程策略观察会保留同类行情、选择、预检和终态写计数事实，但其 profile 为
+`market_alignment=engineering_only`。因此无论运行多久、获得多少合格 bar 或 quote window，
+都只能写 `g3_evaluation=NOT_APPLICABLE_ENGINEERING_ONLY`，不能把这些字段套入上段第一套 G3 判据。
 
 专属回归：
 

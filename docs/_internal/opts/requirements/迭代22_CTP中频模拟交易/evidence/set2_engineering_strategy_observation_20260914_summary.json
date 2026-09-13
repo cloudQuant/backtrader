@@ -1,0 +1,72 @@
+{
+  "schema_version": "iter22.set2-engineering-strategy-observation-summary.v1",
+  "recorded_at_utc": "2026-09-13T20:31:06.678287+00:00",
+  "source_receipt_policy": "Only a sanitized, hash-bound projection is committed. Raw local receipt files retain account-scoped evidence and are not copied into the repository.",
+  "source_receipt_hashes": {
+    "manifest.json": "170335771375936dbe5facdbc250bd740ffde9b0b0acad05cf8f87aa08d27886",
+    "preflight.json": "03fc3905eb4a40cd6d7e05e4d17aeafd850b08b4861d8efbc3d571e3e2b658a8",
+    "daily_report.json": "7273bee958cbb644e882972895b878ba2a17c7e7a05dac93960576293f592b00",
+    "reconciliation.json": "01ad6f89ee9551c9b79799421334b4e84ba90f4bc63654423c2c716b1a3bd25b",
+    "contract_selection.json": "c7ea15d4cbc53725dde1fd91d645f8f9dfa5448cfebd933c9e66b769de9c93cf"
+  },
+  "run": {
+    "run_id": "iter22-engineering-strategy-observation-20260913T193050Z-c8891054",
+    "iteration": 22,
+    "candidate_id": "iter22-sa-v0",
+    "mode": "shadow",
+    "purpose": "observation",
+    "engineering_strategy_observation": true,
+    "environment": "simnow_second_7x24",
+    "environment_profile": "set2_7x24_4000x",
+    "market_alignment": "engineering_only",
+    "instrument_id": "SA610",
+    "trading_day": "20260911",
+    "started_at_utc": "2026-09-13T19:30:51.326841+00:00",
+    "ended_at_utc": "2026-09-13T20:31:06.678287+00:00",
+    "elapsed_seconds": 3615.351446,
+    "code_hash": "205c96738e2a8523a936db9da441e9413729f5736fd2a8b67f86ac679f07e5bc",
+    "config_hash": "2e190c54ec40aeabd73d5e76678cdb583ddcea39da06c76efa5ec224ea72e9c9",
+    "data_hash": "33f80845edfb5071e01c8bd88471bf2ddb5d40a3440cb2ea51b520ac7c613fe3"
+  },
+  "selection_and_preflight": {
+    "selection_status": "MANUAL_VALIDATED",
+    "remaining_trading_days": 22,
+    "preflight_status": "PASS",
+    "ready_for_shadow": true,
+    "ready_for_simnow": false,
+    "recovery_required": false,
+    "active_orders_count": 0,
+    "positions_count": 0,
+    "subscription_requested": true
+  },
+  "terminal_zero_write_proof": {
+    "settlement_confirm": 0,
+    "order_insert": 0,
+    "order_action": 0,
+    "controlled_drain_status": "OBSERVATION_ONLY",
+    "market_data_only": true,
+    "store_shutdown_state": "PASS",
+    "cancel_requested": 0,
+    "close_requested": 0,
+    "unknown_orders": 0,
+    "active_order_count": 0,
+    "local_position_count": 0,
+    "observed_remote_open_order_count": 0
+  },
+  "market_data_coverage": {
+    "qualified_quotes": 0,
+    "qualified_completed_bars": 0,
+    "qualified_quote_window_seconds": 0.0,
+    "valid_session_seconds": 0.0,
+    "status": "NOT_RUN_NO_QUALIFIED_MARKET_DATA"
+  },
+  "acceptance_boundary": {
+    "exit_status": "PASS_ENGINEERING_STRATEGY_OBSERVATION",
+    "g3_gate_status": "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION",
+    "g3_evaluation": "NOT_APPLICABLE_ENGINEERING_ONLY",
+    "g4_gate_status": "NOT_RUN",
+    "t4_mechanical_cycle": "NOT_RUN",
+    "strategy_signal_logic": "NOT_RUN_NO_QUALIFIED_MARKET_DATA",
+    "economic_or_trading_claim": "NOT_PROVEN"
+  }
+}

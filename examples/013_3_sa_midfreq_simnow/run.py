@@ -189,6 +189,7 @@ OPERATOR_TAKEOVER_FIELDS = frozenset(
 )
 RECOVERY_MONITOR_POLL_SECONDS = 0.25
 RECOVERY_INCOMPLETE_EXIT_CODE = 3
+ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE = 4
 # A CTP facade can report ``authenticated`` while its login state is still
 # ``logging_in``.  Keep the bounded wait explicit and shared by every initial
 # read-only/settlement verification path; this does not grant any write right.
@@ -205,6 +206,8 @@ WRITE_REQUEST_COUNT_KEYS = (
 )
 PROFILE_SELECTION_ENV = "ITER22_SIMNOW_PROFILE"
 API_DIAGNOSTIC_PROFILE = "simnow_second_7x24"
+ENGINEERING_STRATEGY_OBSERVATION_MAX_SECONDS = 3600.0
+ENGINEERING_STRATEGY_OBSERVATION_G3_STATUS = "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION"
 API_DIAGNOSTIC_QUERY_NAMES = (
     "account",
     "positions",
@@ -3477,6 +3480,18 @@ def _observation_evidence(
     }
 
 
+def _mark_engineering_observation_evidence_non_gating(
+    observation: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Preserve diagnostic facts without presenting a Set-2 run as G3 evidence."""
+
+    return {
+        **observation,
+        "g3_gate_status": ENGINEERING_STRATEGY_OBSERVATION_G3_STATUS,
+        "g3_evaluation": "NOT_APPLICABLE_ENGINEERING_ONLY",
+    }
+
+
 SHUTDOWN_ZERO_COUNT_KEYS = (
     "active_order_count",
     "local_position_count",
@@ -3496,6 +3511,49 @@ def _shutdown_summary_complete(value: Any) -> bool:
             type(summary.get(name)) is int and summary.get(name) == 0
             for name in SHUTDOWN_ZERO_COUNT_KEYS
         )
+    )
+
+
+def _engineering_observation_shutdown_complete(value: Any) -> bool:
+    """Recognize a clean Set-2 market-data-only shutdown without claiming flatness.
+
+    The broker deliberately cannot prove remote flatness in a shadow session,
+    so this is intentionally narrower and semantically different from
+    ``_shutdown_summary_complete``.  It verifies only the no-write/local-state
+    invariants required for an engineering observation and never supports G3
+    or G4 acceptance.
+    """
+
+    summary = _mapping(value)
+    zero_count_keys = (
+        "cancel_requested",
+        "close_requested",
+        "unknown_orders",
+        "active_order_count",
+        "local_position_count",
+        "observed_remote_open_order_count",
+    )
+    return bool(
+        summary.get("status") == "OBSERVATION_ONLY"
+        and summary.get("market_data_only") is True
+        and summary.get("store_shutdown_state") == "PASS"
+        and summary.get("remote_flat_proven") is False
+        and summary.get("remote_position_count") is None
+        and summary.get("unknown_intent_count") is None
+        and summary.get("unmatched_trade_count") is None
+        and summary.get("startup_account_state_requires_nonflat") is False
+        and all(
+            type(summary.get(name)) is int and summary.get(name) == 0 for name in zero_count_keys
+        )
+    )
+
+
+def _engineering_observation_terminal_writes_zero(observation: Mapping[str, Any]) -> bool:
+    """Require a complete, zero-valued terminal write counter set for Set-2."""
+
+    counts = _mapping(observation.get("forbidden_write_request_counts"))
+    return all(
+        type(counts.get(name)) is int and counts.get(name) == 0 for name in WRITE_REQUEST_COUNT_KEYS
     )
 
 
@@ -4309,14 +4367,75 @@ def _finalize_recovery_runtime_result(
     return finalized, recovery_report
 
 
+def _sync_result_exit_status_from_sealed_manifest(
+    result: dict[str, Any] | None,
+    manifest: Mapping[str, Any],
+) -> None:
+    """Make a returned report no more successful than its sealed evidence."""
+
+    if result is None:
+        return
+    sealed_status = str(manifest.get("exit_status") or "")
+    result["exit_status"] = (
+        sealed_status
+        if sealed_status and sealed_status != "RUNNING"
+        else "FAIL_EVIDENCE_INCOMPLETE"
+    )
+
+
 def _reject_engineering_only_strategy_profile(config: Mapping[str, Any]) -> None:
-    """Keep an engineering-only profile out of every strategy network path."""
+    """Keep an engineering-only profile out of every ordinary strategy network path."""
 
     profile = str(config.get("environment") or "")
     profile_config = _mapping(_mapping(config.get("profiles")).get(profile))
     if profile_config.get("market_alignment") == "engineering_only":
         raise RunnerConfigurationError(
             "engineering-only profiles permit only --api-diagnostic; strategy network runs are forbidden"
+        )
+
+
+def _validate_engineering_strategy_observation_contract(
+    config: Mapping[str, Any],
+    *,
+    mode: str,
+    purpose: str,
+    preflight_only: bool,
+    prepare_settlement: bool,
+    receipt: AdmissionReceipt | None,
+    run_seconds: float,
+) -> None:
+    """Allow one opt-in, bounded, no-write Set-2 strategy observation only.
+
+    This is a diagnostic path for the user-requested direct engineering session.
+    It remains deliberately separate from actual-market G3 observation and from
+    every SimNow execution path: no receipt, settlement action, or SDK order
+    write can enter this contract.
+    """
+
+    profile = str(config.get("environment") or "")
+    profile_config = _mapping(_mapping(config.get("profiles")).get(profile))
+    if (
+        profile != API_DIAGNOSTIC_PROFILE
+        or profile_config.get("market_alignment") != "engineering_only"
+    ):
+        raise RunnerConfigurationError(
+            "engineering strategy observation requires the simnow_second_7x24 profile"
+        )
+    if mode != "shadow" or purpose != "observation":
+        raise RunnerConfigurationError(
+            "engineering strategy observation requires shadow observation mode"
+        )
+    if preflight_only or prepare_settlement or receipt is not None:
+        raise RunnerConfigurationError(
+            "engineering strategy observation forbids preflight, settlement, and admission receipts"
+        )
+    if not math.isfinite(float(run_seconds)) or float(run_seconds) <= 0:
+        raise RunnerConfigurationError(
+            "engineering strategy observation requires a positive bounded duration"
+        )
+    if float(run_seconds) > ENGINEERING_STRATEGY_OBSERVATION_MAX_SECONDS:
+        raise RunnerConfigurationError(
+            "engineering strategy observation duration must be at most 3600 seconds"
         )
 
 
@@ -4330,21 +4449,37 @@ def _validate_network_invocation(
     receipt: AdmissionReceipt | None,
     run_seconds: float,
     maximum_smoke_entry_attempts: int | None,
+    engineering_strategy_observation: bool = False,
 ) -> int:
     """Enforce the write boundary for API callers as well as the CLI."""
 
     validate_config(config)
-    # Set 2 is intentionally a bounded API diagnostic, not an alternate
-    # strategy-observation environment. Keep this at the common network entry
-    # point so direct API callers cannot bypass the CLI diagnostic branch.
-    _reject_engineering_only_strategy_profile(config)
+    # Set 2 normally remains a bounded API diagnostic. The single explicit
+    # exception below is an opt-in, one-hour-or-less shadow observation; it is
+    # checked here as well as at the direct API boundary so it cannot evolve
+    # into a receipt or write-bearing path.
+    if engineering_strategy_observation:
+        _validate_engineering_strategy_observation_contract(
+            config,
+            mode=mode,
+            purpose=purpose,
+            preflight_only=preflight_only,
+            prepare_settlement=prepare_settlement,
+            receipt=receipt,
+            run_seconds=run_seconds,
+        )
+    else:
+        _reject_engineering_only_strategy_profile(config)
     if mode not in {"shadow", "simnow"}:
         raise RunnerConfigurationError("network runner accepts shadow or simnow only")
     if preflight_only and prepare_settlement:
         raise RunnerConfigurationError("preflight and settlement preparation are exclusive")
     if not math.isfinite(float(run_seconds)) or float(run_seconds) < 0:
         raise RunnerConfigurationError("run_seconds must be finite and nonnegative")
-    if mode == "shadow":
+    if engineering_strategy_observation:
+        # The contract above has already fixed this to read-only shadow mode.
+        pass
+    elif mode == "shadow":
         if prepare_settlement or purpose != "observation" or receipt is not None:
             raise RunnerConfigurationError("shadow network runs are read-only observation only")
     elif preflight_only or prepare_settlement:
@@ -4546,6 +4681,10 @@ def _network_failure_gate_status(
 
     default_g3 = str(manifest.get("g3_gate_status") or "NOT_RUN")
     default_g4 = str(manifest.get("g4_gate_status") or "NOT_RUN")
+    if manifest.get("engineering_strategy_observation") is True:
+        # Calendar coverage can block this diagnostic, but Set-2 engineering
+        # evidence is never a G3/G4 gate and must not be reported as one.
+        return {"g3_gate_status": default_g3, "g4_gate_status": default_g4}
     if isinstance(failure, PreflightError) and str(failure).startswith(
         "BLOCKED_CTP_TRADING_CALENDAR:"
     ):
@@ -4862,6 +5001,7 @@ def run_network(
     output_directory: Path,
     run_seconds: float,
     maximum_smoke_entry_attempts: int | None = None,
+    engineering_strategy_observation: bool = False,
     run_id: str | None = None,
     retention_root: Path | None = None,
 ) -> dict[str, Any]:
@@ -4872,9 +5012,20 @@ def run_network(
     config = effective_profile_config(config, os.environ)
     # Match the CLI boundary: an engineering-only profile must not cause a
     # receipt/trust-root revalidation merely because a direct API caller
-    # bypassed ``main``.  Profile hydration above is required to select the
-    # frozen profile, but it never creates a Store or native session.
-    _reject_engineering_only_strategy_profile(config)
+    # bypassed ``main``. The one explicit Set-2 observation exception is
+    # validated before that receipt branch and remains shadow-only.
+    if engineering_strategy_observation:
+        _validate_engineering_strategy_observation_contract(
+            config,
+            mode=mode,
+            purpose=purpose,
+            preflight_only=preflight_only,
+            prepare_settlement=prepare_settlement,
+            receipt=receipt,
+            run_seconds=run_seconds,
+        )
+    else:
+        _reject_engineering_only_strategy_profile(config)
     if receipt is not None and mode == "simnow" and not preflight_only and not prepare_settlement:
         receipt = _revalidate_admission_receipt(
             receipt,
@@ -4891,6 +5042,7 @@ def run_network(
         receipt=receipt,
         run_seconds=run_seconds,
         maximum_smoke_entry_attempts=maximum_smoke_entry_attempts,
+        engineering_strategy_observation=engineering_strategy_observation,
     )
     output_directory = _claim_output_directory(output_directory)
     state_directory = (HERE / str(_mapping(config["evidence"])["state_directory"])).resolve()
@@ -4899,6 +5051,7 @@ def run_network(
         and _validated_receipt(receipt)
         and not preflight_only
         and not prepare_settlement
+        and not engineering_strategy_observation
     )
     store, identity, secrets = _build_live_store(
         config,
@@ -4946,7 +5099,12 @@ def run_network(
             sha256_file(receipt["_path"]) if receipt and receipt.get("_path") else None
         ),
         source_components=runtime_component_identities(),
-        g3_gate_status="NOT_RUN",
+        engineering_strategy_observation=engineering_strategy_observation,
+        g3_gate_status=(
+            ENGINEERING_STRATEGY_OBSERVATION_G3_STATUS
+            if engineering_strategy_observation
+            else "NOT_RUN"
+        ),
         g4_gate_status="NOT_RUN",
         execution_basis=("simnow_native" if allow_order_writes else "none"),
         research_status=str(_mapping(config.get("research")).get("status") or ""),
@@ -5580,6 +5738,8 @@ def run_network(
                 if not terminal:
                     terminal = _mapping(store.get_ctp_session_state())
                 observation = _observation_evidence(result, terminal, identity)
+                if engineering_strategy_observation:
+                    observation = _mark_engineering_observation_evidence_non_gating(observation)
                 result.update(
                     run_id=run_id,
                     account_fingerprint=identity["account_fingerprint"],
@@ -5593,25 +5753,41 @@ def run_network(
                     result["g4_gate_status"] = "NOT_RUN"
                     if result.get("orders") or result.get("pnl_fields_emitted") is not False:
                         raise RuntimeError("shadow invariant failed: order or PnL output observed")
+                    if engineering_strategy_observation:
+                        result["engineering_strategy_observation"] = True
+                        result["g3_gate_status"] = ENGINEERING_STRATEGY_OBSERVATION_G3_STATUS
+                        manifest["g3_gate_status"] = ENGINEERING_STRATEGY_OBSERVATION_G3_STATUS
                     reporter.write_json(
                         "daily_report.json",
                         {
                             "mode": "shadow",
+                            "engineering_strategy_observation": engineering_strategy_observation,
                             "account_fingerprint": identity["account_fingerprint"],
                             "instrument": instrument,
                             "trading_day": trading_day,
                             "zero_trade_day": True,
                             "fills_forbidden": True,
                             "pnl_fields_emitted": False,
+                            "g3_gate_status": result.get(
+                                "g3_gate_status", observation["g3_gate_status"]
+                            ),
                             "observation_evidence": observation,
                         },
                     )
-                    exit_status = (
-                        "PASS_SHADOW_G3"
-                        if observation["g3_gate_status"] == "PASS"
-                        and _shutdown_summary_complete(shutdown_summary)
-                        else "INCOMPLETE_SHADOW_OBSERVATION"
-                    )
+                    if engineering_strategy_observation:
+                        exit_status = (
+                            "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+                            if _engineering_observation_shutdown_complete(shutdown_summary)
+                            and _engineering_observation_terminal_writes_zero(observation)
+                            else "INCOMPLETE_ENGINEERING_STRATEGY_OBSERVATION"
+                        )
+                    else:
+                        exit_status = (
+                            "PASS_SHADOW_G3"
+                            if observation["g3_gate_status"] == "PASS"
+                            and _shutdown_summary_complete(shutdown_summary)
+                            else "INCOMPLETE_SHADOW_OBSERVATION"
+                        )
                 elif execution_recovery is not None:
                     result, recovery_report = _finalize_recovery_runtime_result(
                         result,
@@ -5673,6 +5849,7 @@ def run_network(
                         if _report_stopped_flat(result, shutdown_summary)
                         else "MANUAL_INTERVENTION"
                     )
+                result["exit_status"] = exit_status
                 reporter.write_json(
                     "reconciliation.json",
                     {
@@ -5762,6 +5939,8 @@ def run_network(
         except BaseException as exc:
             if failure is None:
                 failure = exc
+        else:
+            _sync_result_exit_status_from_sealed_manifest(result, manifest)
         # A recovery-only terminal result may already be pending as a return
         # value.  Raising from the end of ``finally`` prevents Store shutdown,
         # account-lock release, or evidence sealing failures from being hidden
@@ -5796,6 +5975,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Set-2 read-only CTP API/session query diagnostic; never runs the strategy",
     )
+    actions.add_argument(
+        "--engineering-strategy-observation",
+        action="store_true",
+        help=(
+            "Set-2 only: one bounded shadow strategy observation with no order, cancel, "
+            "or settlement write; never a G3 or trading acceptance"
+        ),
+    )
     parser.add_argument(
         "--admission-receipt",
         type=Path,
@@ -5818,6 +6005,12 @@ def build_parser() -> argparse.ArgumentParser:
 def _cli_report_exit_code(report: Mapping[str, Any]) -> int:
     """Return nonzero unless an SDK recovery-only run proved stopped-flat."""
 
+    if report.get("engineering_strategy_observation") is True:
+        return (
+            0
+            if report.get("exit_status") == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+            else ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
+        )
     recovery = _mapping(report.get("execution_recovery"))
     state = str(report.get("state") or "")
     monitor_exit = str(recovery.get("monitor_exit") or "")
@@ -5843,7 +6036,17 @@ def main(argv=None) -> int:
     _load_env_file(HERE / ".env")
     config, _path = load_config(args.config, env_values=os.environ)
     mode = args.mode or str(config.get("mode", "shadow"))
-    if mode in {"shadow", "simnow"} and not args.api_diagnostic:
+    if args.engineering_strategy_observation:
+        _validate_engineering_strategy_observation_contract(
+            config,
+            mode=mode,
+            purpose=args.purpose,
+            preflight_only=args.preflight_only,
+            prepare_settlement=args.prepare_settlement,
+            receipt=None,
+            run_seconds=args.run_seconds,
+        )
+    elif mode in {"shadow", "simnow"} and not args.api_diagnostic:
         # Reject before a CLI receipt is parsed or revalidated. The ignored
         # local .env may already have been hydrated solely to resolve the
         # frozen profile; no Store or native session exists at this point.
@@ -5920,7 +6123,11 @@ def main(argv=None) -> int:
             mode=mode,
             purpose=args.purpose,
         )
-    run_id = _run_id("api-diagnostic" if args.api_diagnostic else mode)
+    run_id = _run_id(
+        "api-diagnostic"
+        if args.api_diagnostic
+        else "engineering-strategy-observation" if args.engineering_strategy_observation else mode
+    )
     output_directory = _evidence_directory(config, run_id, args.output_dir)
     retention_root = (
         (HERE / str(_mapping(config["evidence"])["directory"])).resolve()
@@ -5957,6 +6164,7 @@ def main(argv=None) -> int:
             output_directory=output_directory,
             run_seconds=args.run_seconds,
             maximum_smoke_entry_attempts=args.max_smoke_entry_attempts,
+            engineering_strategy_observation=args.engineering_strategy_observation,
             run_id=run_id,
             retention_root=retention_root,
         )

@@ -768,6 +768,289 @@ def test_engineering_only_profile_rejects_strategy_run_before_store_construction
     assert not output.exists()
 
 
+def test_set2_engineering_strategy_observation_is_explicit_bounded_and_read_only(
+    monkeypatch, tmp_path
+):
+    """An opt-in Set-2 shadow observation may reach only a zero-write Store."""
+
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    config["evidence"].update(
+        minimum_free_bytes=1,
+        state_directory=str(tmp_path / "state"),
+    )
+    constructed = []
+
+    class FailingStore:
+        def start(self):
+            raise RuntimeError("stop-after-set2-observation-entry")
+
+        def stop(self):
+            return {
+                "shutdown_state": "PASS",
+                "last_error_code": "",
+                "worker_alive": False,
+                "close_thread_alive": False,
+            }
+
+    identity = {
+        "profile": "simnow_second_7x24",
+        "profile_basis": "simnow_second_7x24",
+        "sdk_profile": "set2_7x24",
+        "market_alignment": "engineering_only",
+        "account_fingerprint": "acct_0123456789abcdef",
+    }
+
+    def build_store(*_args, **kwargs):
+        constructed.append(dict(kwargs))
+        return FailingStore(), identity, []
+
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(runner, "_build_live_store", build_store)
+    monkeypatch.setattr(runner, "runtime_component_identities", dict)
+    monkeypatch.setattr(
+        runner,
+        "native_probe",
+        lambda: {
+            "accepted": True,
+            "ctp_package_sha256": "b" * 64,
+            "loaded_module_sha256": "c" * 64,
+            "native_files": [],
+            "native_loaded": True,
+        },
+    )
+
+    output = tmp_path / "set2-engineering-observation"
+    with pytest.raises(RuntimeError, match="stop-after-set2-observation-entry"):
+        runner.run_network(
+            config,
+            mode="shadow",
+            purpose="observation",
+            preflight_only=False,
+            prepare_settlement=False,
+            receipt=None,
+            output_directory=output,
+            run_seconds=3600.0,
+            engineering_strategy_observation=True,
+        )
+
+    assert constructed == [
+        {
+            "mode": "shadow",
+            "purpose": "observation",
+            "state_directory": (tmp_path / "state").resolve(),
+            "allow_order_writes": False,
+        }
+    ]
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    assert manifest["engineering_strategy_observation"] is True
+    assert manifest["g3_gate_status"] == "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION"
+
+
+def test_engineering_observation_shutdown_accepts_only_clean_market_data_stop():
+    """Set-2 success is a clean zero-write stop, never a remote-flat claim."""
+
+    clean = {
+        "status": "OBSERVATION_ONLY",
+        "market_data_only": True,
+        "store_shutdown_state": "PASS",
+        "cancel_requested": 0,
+        "close_requested": 0,
+        "unknown_orders": 0,
+        "active_order_count": 0,
+        "local_position_count": 0,
+        "observed_remote_open_order_count": 0,
+        "remote_flat_proven": False,
+        "remote_position_count": None,
+        "unknown_intent_count": None,
+        "unmatched_trade_count": None,
+        "startup_account_state_requires_nonflat": False,
+    }
+    assert runner._engineering_observation_shutdown_complete(clean) is True
+
+    for override in (
+        {"status": "OBSERVATION_ONLY_NONFLAT"},
+        {"market_data_only": False},
+        {"store_shutdown_state": "INCOMPLETE"},
+        {"cancel_requested": 1},
+        {"active_order_count": 1},
+        {"observed_remote_open_order_count": 1},
+    ):
+        assert runner._engineering_observation_shutdown_complete({**clean, **override}) is False
+
+
+def test_engineering_observation_requires_complete_zero_terminal_write_counts():
+    observation = {
+        "forbidden_write_request_counts": {
+            "settlement_confirm": 0,
+            "order_insert": 0,
+            "order_action": 0,
+        }
+    }
+    assert runner._engineering_observation_terminal_writes_zero(observation) is True
+    assert (
+        runner._engineering_observation_terminal_writes_zero(
+            {
+                "forbidden_write_request_counts": {
+                    "settlement_confirm": 0,
+                    "order_insert": 1,
+                    "order_action": 0,
+                }
+            }
+        )
+        is False
+    )
+    assert runner._engineering_observation_terminal_writes_zero({}) is False
+
+
+def test_engineering_observation_marks_g3_evidence_non_gating():
+    observation = {
+        "g3_gate_status": "INCOMPLETE",
+        "g3_checks": {"actual_market_alignment": False},
+    }
+
+    normalized = runner._mark_engineering_observation_evidence_non_gating(observation)
+
+    assert normalized["g3_gate_status"] == "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION"
+    assert normalized["g3_evaluation"] == "NOT_APPLICABLE_ENGINEERING_ONLY"
+    assert normalized["g3_checks"] == observation["g3_checks"]
+
+
+def test_engineering_observation_calendar_failure_preserves_non_gating_gate_status():
+    manifest = {
+        "engineering_strategy_observation": True,
+        "g3_gate_status": "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION",
+        "g4_gate_status": "NOT_RUN",
+    }
+
+    gates = runner._network_failure_gate_status(
+        runner.PreflightError("BLOCKED_CTP_TRADING_CALENDAR: fixture"), manifest
+    )
+
+    assert gates == {
+        "g3_gate_status": "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION",
+        "g4_gate_status": "NOT_RUN",
+    }
+
+
+@pytest.mark.parametrize(
+    ("environment", "mode", "purpose", "run_seconds", "message"),
+    [
+        ("simnow_first_group1", "shadow", "observation", 60.0, "simnow_second_7x24"),
+        ("simnow_second_7x24", "simnow", "engineering_smoke", 60.0, "shadow observation"),
+        ("simnow_second_7x24", "shadow", "observation", 0.0, "positive bounded duration"),
+        ("simnow_second_7x24", "shadow", "observation", 3600.1, "at most 3600"),
+    ],
+)
+def test_engineering_strategy_observation_rejects_every_noncontract_shape(
+    monkeypatch, tmp_path, environment, mode, purpose, run_seconds, message
+):
+    config = _config()
+    config["environment"] = environment
+    constructed = []
+    monkeypatch.setattr(
+        runner,
+        "_build_live_store",
+        lambda *_args, **_kwargs: constructed.append("store"),
+    )
+
+    with pytest.raises(runner.RunnerConfigurationError, match=message):
+        runner.run_network(
+            config,
+            mode=mode,
+            purpose=purpose,
+            preflight_only=False,
+            prepare_settlement=False,
+            receipt=None,
+            output_directory=tmp_path / "rejected-set2-engineering-observation",
+            run_seconds=run_seconds,
+            engineering_strategy_observation=True,
+        )
+
+    assert constructed == []
+
+
+def test_cli_routes_set2_engineering_observation_without_admission_receipt(monkeypatch, tmp_path):
+    parser = runner.build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--engineering-strategy-observation", "--api-diagnostic"])
+
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    dispatched = {}
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(
+        runner, "load_config", lambda *_args, **_kwargs: (config, Path("config.yaml"))
+    )
+
+    def fake_run_network(config_arg, **kwargs):
+        dispatched["config"] = config_arg
+        dispatched.update(kwargs)
+        return {"state": "STOPPED", "orders": [], "pnl_fields_emitted": False}
+
+    monkeypatch.setattr(runner, "run_network", fake_run_network)
+    assert (
+        runner.main(
+            [
+                "--mode",
+                "shadow",
+                "--purpose",
+                "observation",
+                "--engineering-strategy-observation",
+                "--run-seconds",
+                "60",
+                "--output-dir",
+                str(tmp_path / "set2-cli-observation"),
+            ]
+        )
+        == 0
+    )
+    assert dispatched["engineering_strategy_observation"] is True
+    assert dispatched["mode"] == "shadow"
+    assert dispatched["purpose"] == "observation"
+    assert dispatched["receipt"] is None
+    assert dispatched["run_seconds"] == 60.0
+
+
+def test_cli_returns_nonzero_for_incomplete_engineering_observation():
+    assert (
+        runner._cli_report_exit_code(
+            {
+                "engineering_strategy_observation": True,
+                "exit_status": "PASS_ENGINEERING_STRATEGY_OBSERVATION",
+            }
+        )
+        == 0
+    )
+    assert (
+        runner._cli_report_exit_code(
+            {
+                "engineering_strategy_observation": True,
+                "exit_status": "INCOMPLETE_ENGINEERING_STRATEGY_OBSERVATION",
+            }
+        )
+        != 0
+    )
+
+
+def test_sealed_manifest_downgrade_controls_engineering_observation_cli_exit():
+    """Evidence sealing is authoritative over a provisional strategy result."""
+
+    result = {
+        "engineering_strategy_observation": True,
+        "exit_status": "PASS_ENGINEERING_STRATEGY_OBSERVATION",
+    }
+    runner._sync_result_exit_status_from_sealed_manifest(
+        result,
+        {"exit_status": "FAIL_EVIDENCE_INCOMPLETE"},
+    )
+
+    assert result["exit_status"] == "FAIL_EVIDENCE_INCOMPLETE"
+    assert (
+        runner._cli_report_exit_code(result) == runner.ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
+    )
+
+
 def test_direct_api_rejects_engineering_only_strategy_before_receipt_revalidation(
     monkeypatch, tmp_path
 ):
