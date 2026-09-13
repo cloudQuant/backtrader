@@ -1,0 +1,37 @@
+{
+  "schema_version": "iteration27.clean-head-t1-verification.v1",
+  "recorded_on": "2026-09-14",
+  "scope": "post-run verification of the retained current-HEAD clean-worktree T1 log",
+  "worktree": {
+    "path": "/tmp/backtrader-current-head-clean-t1-23fd203b0691104aa966d2b15c985bec8b2440de",
+    "git_head": "23fd203b0691104aa966d2b15c985bec8b2440de",
+    "detached": true,
+    "status_porcelain_v1_after_run": "",
+    "clean_after_run": true
+  },
+  "command": [
+    "/Users/yunjinqi/opt/anaconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "base",
+    "make",
+    "test-all"
+  ],
+  "exit_status": 0,
+  "result_summary": {
+    "functional": "5256 passed, 1 skipped in 300.45s",
+    "performance": "19 passed, 5258 deselected in 26.59s",
+    "isolated_ctp_benchmark": "1 passed in 0.45s"
+  },
+  "retained_log": {
+    "path": "/tmp/backtrader-current-head-clean-t1-23fd203b0691104aa966d2b15c985bec8b2440de.make-test-all.log",
+    "sha256": "3079b290d52617824fd23a8e0482091b0bd9b73af2b3cc1b71b11663a3830a10",
+    "size_bytes": 7151,
+    "retention_boundary": "The log is deliberately outside the repository in volatile /tmp; this tracked verifier records its post-run path and digest, not a durable copy of the log."
+  },
+  "limits": [
+    "This is local regression evidence only; it is not release, network, CTP/SimNow, order, fill, PnL, or profitability evidence.",
+    "The manifest was verified after execution from the retained worktree and log. It does not replace an atomic external attestation of the test invocation."
+  ]
+}

@@ -2796,6 +2796,36 @@ def test_get_notification_returns_queued_order_clone_and_drains_queue(started_st
     assert broker.get_notification() is None
 
 
+def test_queued_notification_snapshots_info_without_copying_user_values(started_stack):
+    """Queued UNKNOWN metadata must not be rewritten by a later order update."""
+    _client, _store, data, broker = started_stack
+
+    order = broker.buy(
+        owner=None,
+        data=data,
+        size=1,
+        price=101.0,
+        exectype=bt.Order.Limit,
+    )
+    while broker.get_notification() is not None:
+        pass
+
+    user_oco_link = object()
+    order.addinfo(execution_unknown=True, oco=user_oco_link)
+    broker.notify(order)
+    # Simulate a later terminal update before Cerebro drains this notification.
+    order.addinfo(execution_unknown=False)
+
+    notification = broker.get_notification()
+
+    assert notification is not None
+    assert notification.info["execution_unknown"] is True
+    # Notification metadata must preserve opaque user object identity rather
+    # than deep-copying an OCO/user-owned value.
+    assert notification.info["oco"] is user_oco_link
+    assert broker.get_notification() is None
+
+
 def test_broker_stop_is_idempotent_and_does_not_duplicate_store_disconnect_events():
     """Test that broker stop is idempotent and does not duplicate store disconnect events."""
     client = FakeBtApiClient(

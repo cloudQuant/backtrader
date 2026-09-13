@@ -10,7 +10,7 @@ import re
 import threading
 import time
 from collections.abc import Mapping
-from copy import deepcopy
+from copy import copy, deepcopy
 from typing import Any, DefaultDict, Dict, List, Optional
 
 from ..broker import BrokerBase
@@ -3522,7 +3522,15 @@ class BtApiBroker(BrokerBase):
 
     def notify(self, order):
         """Queue an order notification."""
-        self.notifs.append(order.clone())
+        # ``Order.clone`` deliberately clones execution state but retains the
+        # original ``info`` mapping.  A later broker update can otherwise
+        # rewrite a queued Accepted/UNKNOWN notification before Cerebro
+        # dispatches it (for example UNKNOWN -> Completed in one drain pass).
+        # Keep the top-level metadata snapshot independent while preserving
+        # user-provided object identities stored as values such as OCO links.
+        snapshot = order.clone()
+        snapshot.info = copy(order.info)
+        self.notifs.append(snapshot)
 
     def data_started(self, data):
         """Hook called when a feed starts."""

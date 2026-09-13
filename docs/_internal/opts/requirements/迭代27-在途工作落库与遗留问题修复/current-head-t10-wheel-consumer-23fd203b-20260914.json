@@ -1,0 +1,86 @@
+{
+  "schema_version": "iteration27.clean-head-t10-verification.v1",
+  "recorded_on": "2026-09-14",
+  "scope": "post-run verification projection for a clean-source five-wheel isolated consumer replay",
+  "status": "PASS_LOCAL_ARTIFACT_AND_REPLAY_ONLY",
+  "sources": {
+    "backtrader": "23fd203b0691104aa966d2b15c985bec8b2440de",
+    "bt_api_py": "b22a678521278de23cf6a86fe8dd755e7052fa74",
+    "bt_api_py_gitlinks": {
+      "bt_api_base": "74be52d8432c348c93304e9f3b5774bb4dbc766c",
+      "bt_api_binance": "12f2a667be0e8988559cb836c3fd439f6c131ec6",
+      "bt_api_ctp": "b371098d5f7f91c8843da1ff6ded6da568ac8f4e"
+    },
+    "postbuild_source_status": {
+      "backtrader": "",
+      "bt_api_base": "",
+      "bt_api_binance": "",
+      "bt_api_ctp": "",
+      "bt_api_py": ""
+    }
+  },
+  "evidence": {
+    "result_path": "/tmp/t10-current-head-wheel-consumer-final.jQyPV1/results/result.json",
+    "result_sha256": "89669d1c15542ba042770a66c2d86e59ccc76f6d32a85b69e93b36d8870ea0f0",
+    "integrity_recheck_path": "/tmp/t10-current-head-wheel-consumer-final.jQyPV1/results/integrity-recheck.json",
+    "integrity_recheck_sha256": "8115345ebf1aedcd3d63be1887793982771c117a39e5cb2833a93f68a2f59a2a",
+    "command_count": 38,
+    "all_command_exit_codes_zero": true,
+    "retention_boundary": "The source result and integrity files remain under volatile /tmp. This tracked projection records their paths and digests, not durable copies of the full command logs."
+  },
+  "wheels": {
+    "backtrader": {
+      "filename": "backtrader-1.3.0-py3-none-any.whl",
+      "sha256": "9a8d11ed454696d04255732f2ddf78f93036d5c6c9de26e4bd93d3e8926f6b56",
+      "source_python_file_count": 450
+    },
+    "bt_api_base": {
+      "filename": "bt_api_base-0.15.3-py3-none-any.whl",
+      "sha256": "652c793ff91886d1987503c22e3d7b796d19cf33814db190e8dcacaed9cd4677",
+      "source_python_file_count": 104
+    },
+    "bt_api_binance": {
+      "filename": "bt_api_binance-2.0.1-py3-none-any.whl",
+      "sha256": "e83be25493a2efa393e70458519b2c3e1dac1537975f67072a6176d81f706ace",
+      "source_python_file_count": 65
+    },
+    "bt_api_ctp": {
+      "filename": "bt_api_ctp-2.0.0-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "6104d52604df23397c9c5e9089a5eabfd382f265e78e73982cdb27d08471e17d",
+      "source_python_file_count": 39,
+      "native_extension_loaded": true
+    },
+    "bt_api_py": {
+      "filename": "bt_api_py-0.15.3-py3-none-any.whl",
+      "sha256": "a0c694abf47aabd944d7465b448cce08615e4db3baa2e29abab081d08fc6ce04",
+      "source_python_file_count": 127
+    }
+  },
+  "parity": {
+    "all_source_to_wheel_missing": [],
+    "all_source_to_wheel_mismatched": [],
+    "all_source_to_installed_missing": [],
+    "all_source_to_installed_mismatched": [],
+    "all_native_wheel_to_installed_mismatched": [],
+    "consumer_import_origins_under_consumer_site_packages": true,
+    "consumer_source_paths_on_sys_path": []
+  },
+  "offline_consumer_replays": {
+    "013_3_sa_midfreq_simnow": {
+      "cli_returncode": 0,
+      "manifest_exit_status": "PASS_REPLAY_PATH",
+      "sdk_write_requests": 0,
+      "pnl_fields_emitted": false
+    },
+    "014_1_ctp_options_lowfreq": "LOCAL_REPLAY_PASS",
+    "014_2_ctp_options_midfreq": "LOCAL_REPLAY_PASS",
+    "015_ctp_options_highfreq": "LOCAL_REPLAY_PASS"
+  },
+  "safety_boundary": {
+    "copied_dotenv_paths": [],
+    "runtime_dotenv_open_events": [],
+    "network_guard_events": [],
+    "live_session_invoked": false,
+    "scope_limit": "Local clean-source artifact, import, native-load and replay evidence only. It does not prove a CTP/SimNow account or session, orders, fills, PnL, profitability, HFT admission, release, or production readiness."
+  }
+}

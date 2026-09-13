@@ -214,9 +214,15 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         self._cycle_events: list[dict[str, object]] = []
         # ``Strategy._orders`` is an internal order-notification queue.
         self._order_projection: list[dict[str, object]] = []
+        # A remote order status can repeat an already-observed cumulative
+        # partial checkpoint.  Keep the recovery projection append-only for
+        # genuinely new cumulative states rather than multiplying the same
+        # known exposure when reconciliation replays it.
+        self._partial_projection_by_order_ref: dict[int, tuple[float, float]] = {}
         self._ordinary_decisions = 0
         self._rejections: list[str] = []
         self._terminal_order_refs: set[int] = set()
+        self._unknown_order_refs: set[int] = set()
         self._barrier = MultiLegBarBarrier(
             expected_legs=tuple(BarLeg(symbol, self.p.exchange) for symbol in expected),
             candidate_id=self.p.candidate_id,
@@ -655,7 +661,7 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         self._state = "HALTED"
         self._rejections.append(gate.status)
         self._record("halted", reason=gate.status, deadline_ns=gate.deadline_ns)
-        if self._possible_exposure:
+        if self.__dict__.get("_possible_exposure", False):
             self._basket_status = "RECOVERY_REQUIRED"
         return False
 
@@ -1089,10 +1095,79 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
     def _halt_for_order(self, order, reason: str) -> None:
         symbol = getattr(getattr(order, "data", None), "_name", "")
         self._state = "HALTED"
+        # A submitted leg creates possible exposure. Preserve the recovery
+        # posture even if a later terminal callback coalesces an earlier
+        # UNKNOWN callback before the strategy consumes it.
+        if self.__dict__.get("_possible_exposure", False):
+            self._basket_status = "RECOVERY_REQUIRED"
         self._rejections.append(reason)
         self._record("halted", reason=reason, order_ref=order.ref, symbol=symbol)
 
+    def _record_partial_order_projection(self, order, symbol: str) -> None:
+        """Retain each distinct cumulative partial fill for later recovery."""
+
+        size = abs(float(order.executed.size))
+        price = float(order.executed.price or 0.0)
+        checkpoint = (size, price)
+        # Narrow callback harnesses intentionally construct only the state
+        # needed for one callback. Keep this local recovery bookkeeping lazy
+        # without changing the normal fully-initialized strategy path.
+        projections = self.__dict__.setdefault("_partial_projection_by_order_ref", {})
+        if projections.get(order.ref) == checkpoint:
+            return
+        projections[order.ref] = checkpoint
+        self._order_projection.append(
+            {
+                "symbol": symbol,
+                "side": "buy" if order.isbuy() else "sell",
+                "status": "partial",
+                "size": size,
+                "price": price,
+                "source": "backbroker_replay_hypothetical",
+                "fill_timing": "FILL_TIMING_UNKNOWN",
+            }
+        )
+
     def notify_order(self, order) -> None:
+        # ``BtApiBroker`` intentionally keeps an ambiguous remote submission
+        # alive under its original client identity and reports it as an
+        # Accepted order with ``execution_unknown=True``.  Do not let the
+        # normal Accepted fast-path hide that possible exposure: it must lock
+        # the candidate before another protection leg can be considered.
+        if bool(getattr(order, "info", {}).get("execution_unknown", False)) and order.alive():
+            matches_current_leg = self._order_matches_current_leg(order)
+            if (
+                matches_current_leg
+                and self._submission_in_flight
+                and self._pending_order_ref is None
+            ):
+                current_leg = self._planned_legs[self._leg_index]
+                self._submitted_order_ids_by_leg.setdefault(str(current_leg["symbol"]), set()).add(
+                    str(order.ref)
+                )
+            if matches_current_leg:
+                # Keep the original reference live for a later authoritative
+                # reconciliation; an UNKNOWN update is not a terminal fill.
+                self._pending_order = order
+                self._pending_order_ref = order.ref
+            self._basket_status = "RECOVERY_REQUIRED"
+            if matches_current_leg and order.status == order.Partial:
+                # A still-unknown order can nevertheless receive a known
+                # partial trade.  Preserve that measured exposure and remain
+                # halted; only a terminal reconciliation may clear the ref.
+                symbol = getattr(getattr(order, "data", None), "_name", "")
+                self._record_partial_order_projection(order, symbol)
+            # Repeated reconciliation notifications for the same still-live
+            # order must remain a single latch, not grow the local rejection
+            # trace or regain any submission path.  Partial checkpoints above
+            # are separately deduplicated by cumulative execution state.
+            unknown_refs = self.__dict__.setdefault("_unknown_order_refs", set())
+            if order.ref not in unknown_refs:
+                unknown_refs.add(order.ref)
+                self._halt_for_order(order, "EXECUTION_UNKNOWN_RECOVERY_REQUIRED")
+            else:
+                self._state = "HALTED"
+            return
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.ref in self._terminal_order_refs:
@@ -1119,23 +1194,17 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             # accumulated fact even though HALTED forbids new submissions.
             self._pending_order = order
             self._pending_order_ref = order.ref
-            self._order_projection.append(
-                {
-                    "symbol": symbol,
-                    "side": "buy" if order.isbuy() else "sell",
-                    "status": "partial",
-                    "size": abs(float(order.executed.size)),
-                    "price": float(order.executed.price or 0.0),
-                    "source": "backbroker_replay_hypothetical",
-                    "fill_timing": "FILL_TIMING_UNKNOWN",
-                }
-            )
+            self._record_partial_order_projection(order, symbol)
             # Partial is an observation, not a terminal state.  Keep the
             # reference so a later Completed/Canceled callback is correlated;
             # HALTED blocks new legs while still ingesting those facts.
-            self._halt_for_order(order, "PARTIAL_FILL_RECOVERY_REQUIRED")
+            if "PARTIAL_FILL_RECOVERY_REQUIRED" not in self._rejections:
+                self._halt_for_order(order, "PARTIAL_FILL_RECOVERY_REQUIRED")
+            else:
+                self._state = "HALTED"
             return
         self._terminal_order_refs.add(order.ref)
+        self.__dict__.get("_partial_projection_by_order_ref", {}).pop(order.ref, None)
         self._pending_order = None
         self._pending_order_ref = None
         if order.status == order.Completed:

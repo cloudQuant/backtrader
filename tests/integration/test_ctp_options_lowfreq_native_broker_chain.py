@@ -285,11 +285,174 @@ class CompleteEntryPublicCtpTransport(FinitePublicCtpTransport):
         }
 
 
+class UncertainEntryPublicCtpTransport(CompleteEntryPublicCtpTransport):
+    """Deliver one real-Broker-shaped UNKNOWN ingress after the local ACK.
+
+    The first response only identifies the local order.  The later in-memory
+    broker update is the important part of this fixture: it exercises the
+    public ``BtApiBroker`` UNKNOWN ingress rather than a test strategy's
+    synthetic execution fact.
+    """
+
+    def __init__(
+        self,
+        live_ticks: Mapping[str, list[TickEvent]],
+        *,
+        final_watermark: dt.datetime,
+        interleave_symbols: tuple[str, str, str],
+        deliver_late_trade: bool = False,
+        partial_before_late_trade: bool = False,
+        unknown_via_submit_response: bool = False,
+        duplicate_unknown_ingress: bool = False,
+        terminal_status: str | None = None,
+        queued_unknown_then_completed: bool = False,
+    ) -> None:
+        super().__init__(
+            live_ticks,
+            final_watermark=final_watermark,
+            interleave_symbols=interleave_symbols,
+        )
+        self._deliver_late_trade = deliver_late_trade
+        self._partial_before_late_trade = partial_before_late_trade
+        self._unknown_via_submit_response = unknown_via_submit_response
+        self._duplicate_unknown_ingress = duplicate_unknown_ingress
+        self._terminal_status = terminal_status
+        self._queued_unknown_then_completed = queued_unknown_then_completed
+        self._deferred_terminal_update: dict[str, Any] | None = None
+        self.unknown_ingress_updates = 0
+
+    def poll_tick(self, dataname: str) -> TickEvent | None:
+        tick = super().poll_tick(dataname)
+        if self._deferred_terminal_update is not None:
+            # Release the terminal update in a distinct feed-poll epoch from
+            # the submission response and the original UNKNOWN ingress.
+            self.push_broker_update(self._deferred_terminal_update)
+            self._deferred_terminal_update = None
+        return tick
+
+    def submit_order(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        payload = dict(payload)
+        self.submitted_orders.append(payload)
+        bt_order_ref = int(payload["bt_order_ref"])
+        symbol = str(payload["symbol"])
+        side = str(payload["side"])
+        client_order_id = str(payload["client_order_id"])
+        assert client_order_id == COMPLETE_ENTRY_CLIENT_IDS[PUT]
+        assert symbol == PUT
+        assert side == "buy"
+
+        external_order_id = f"iter23-local-unknown-order-{bt_order_ref}"
+        self.external_order_ids[bt_order_ref] = external_order_id
+        unknown_update = {
+            "kind": "order",
+            "status": "accepted",
+            "execution_unknown": True,
+            "external_order_id": external_order_id,
+            "order_ref": client_order_id,
+            "data_name": PUT,
+            "side": "buy",
+            "exchange_id": EXCHANGE,
+            "error_code": "iter23_local_execution_unknown",
+        }
+        if not self._unknown_via_submit_response:
+            self.push_broker_update(unknown_update)
+            self.unknown_ingress_updates += 1
+            if self._duplicate_unknown_ingress:
+                self.push_broker_update(dict(unknown_update))
+                self.unknown_ingress_updates += 1
+        if self._queued_unknown_then_completed:
+            # Keep both updates in the same broker-drain pass. Before the
+            # notification snapshot fix, the later terminal update rewrote
+            # the queued UNKNOWN clone's shared ``info`` mapping before
+            # Cerebro could dispatch it to the strategy.
+            assert not self._deliver_late_trade
+            assert not self._partial_before_late_trade
+            assert self._terminal_status is None
+            self.push_broker_update(
+                {
+                    "kind": "order",
+                    "status": "completed",
+                    "external_order_id": external_order_id,
+                    "order_ref": client_order_id,
+                    "data_name": PUT,
+                    "side": "buy",
+                    "filled": int(payload["size"]),
+                    "price": float(payload["price"]),
+                    "exchange_id": EXCHANGE,
+                }
+            )
+        if self._partial_before_late_trade:
+            # CTP option lots are integral. The partial scenario therefore
+            # submits two contracts, observes one authoritative trade while
+            # the UNKNOWN flag remains attached, then settles the final lot.
+            assert int(payload["size"]) == 2
+            partial_trade = {
+                "kind": "trade",
+                "bt_order_ref": bt_order_ref,
+                "external_order_id": external_order_id,
+                "order_ref": client_order_id,
+                "data_name": PUT,
+                "symbol": PUT,
+                "side": "buy",
+                "offset": "open",
+                "size": 1,
+                "price": float(payload["price"]),
+                "trade_id": "iter23-local-unknown-partial-trade-1",
+                "exchange_id": EXCHANGE,
+            }
+            self.push_broker_update(partial_trade)
+            self.push_broker_update(partial_trade)
+        if self._deliver_late_trade:
+            late_trade = {
+                "kind": "trade",
+                "bt_order_ref": bt_order_ref,
+                "external_order_id": external_order_id,
+                "order_ref": client_order_id,
+                "data_name": PUT,
+                "symbol": PUT,
+                "side": "buy",
+                "offset": "open",
+                "size": 1 if self._partial_before_late_trade else int(payload["size"]),
+                "price": float(payload["price"]),
+                "trade_id": "iter23-local-unknown-late-trade-1",
+                "exchange_id": EXCHANGE,
+            }
+            # The late TradeID is authoritative only once.  Its duplicate must
+            # be rejected by the real Broker before it can mutate the strategy
+            # projection a second time.
+            self.push_broker_update(late_trade)
+            self.push_broker_update(late_trade)
+        if self._terminal_status is not None:
+            assert self._terminal_status in {"canceled", "rejected", "expired"}
+            self._deferred_terminal_update = {
+                "kind": "order",
+                "status": self._terminal_status,
+                "external_order_id": external_order_id,
+                "order_ref": client_order_id,
+                "data_name": PUT,
+                "side": "buy",
+                "filled": 0,
+                "exchange_id": EXCHANGE,
+                "terminal_confirmed": True,
+            }
+        response = {
+            "id": external_order_id,
+            "order_ref": client_order_id,
+            "status": "accepted",
+            "exchange_id": EXCHANGE,
+        }
+        if self._unknown_via_submit_response:
+            response["execution_unknown"] = True
+            self.unknown_ingress_updates = 1
+        return response
+
+
 class MappingAuditBtApiBroker(BtApiBroker):
     """Test-only observer of the real Broker's mapping state at Accepted."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.accepted_mapping_snapshots: list[dict[str, Any]] = []
+        self.unknown_mapping_snapshots: list[dict[str, Any]] = []
         super().__init__(*args, **kwargs)
 
     def notify(self, order: Any) -> None:
@@ -305,6 +468,17 @@ class MappingAuditBtApiBroker(BtApiBroker):
                     "external_mapping": self._orders_by_external_id.get(external_order_id) is order,
                 }
             )
+            if bool(order.info.get("execution_unknown", False)) and order.alive():
+                self.unknown_mapping_snapshots.append(
+                    {
+                        "ref": order.ref,
+                        "client_order_id": client_order_id,
+                        "external_order_id": external_order_id,
+                        "client_mapping": self._orders_by_client_ref.get(client_order_id) is order,
+                        "external_mapping": self._orders_by_external_id.get(external_order_id)
+                        is order,
+                    }
+                )
         super().notify(order)
 
 
@@ -668,13 +842,18 @@ class CompleteEntryBrokerProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy
             }
         ]
 
+    def _should_attest_completion(self, _order: Any) -> bool:
+        """Return whether this test probe should inject its local completion fact."""
+
+        return self._state == "ENTERING"
+
     def notify_order(self, order: Any) -> None:
         symbol = str(getattr(getattr(order, "data", None), "_name", ""))
         status = order.getstatusname()
         self.order_callback_statuses.append((symbol, status))
         if (
             order.status == order.Completed
-            and self._state == "ENTERING"
+            and self._should_attest_completion(order)
             and order.ref not in self._attested_order_refs
         ):
             # The legacy public callback carries the completion mapping but not
@@ -706,6 +885,23 @@ class CompleteEntryBrokerProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy
             # instead of inventing later bar decisions or a fake exit path.
             self._entry_chain_stopped = True
             self.env.runstop()
+
+
+class TwoLotUnknownEntryBrokerProbeStrategy(CompleteEntryBrokerProbeStrategy):
+    """Use an integral two-lot PUT so CTP-shaped partial fills are representable."""
+
+    def _entry_legs_for(self, direction: str, limits: Mapping[str, Mapping[str, float]]):
+        return [{**leg, "size": 2} for leg in super()._entry_legs_for(direction, limits)]
+
+
+class QueuedUnknownCompletedBrokerProbeStrategy(CompleteEntryBrokerProbeStrategy):
+    """Inject a valid local fact after UNKNOWN to prove the latch remains final."""
+
+    def _should_attest_completion(self, _order: Any) -> bool:
+        # The fact is intentionally valid and scoped to the original order.
+        # It cannot rehabilitate a prior UNKNOWN notification into permission
+        # to submit the remaining F/C protection legs.
+        return self._state in {"ENTERING", "HALTED"}
 
 
 class RejectedCompletionBrokerProbeStrategy(CompleteEntryBrokerProbeStrategy):
@@ -884,12 +1080,12 @@ def test_native_broker_chain_routes_one_conversion_put_then_dedupes_cancel_race_
     assert transport.cancelled_orders == [{"order_ref": EXTERNAL_ORDER_ID, "dataname": PUT}]
 
     # The strategy never treats a late local fill as authority to send a
-    # second leg.  It remains stopped with possible exposure and its own
-    # independent hold projection raises the recovery posture at deadline.
+    # second leg. It remains stopped with possible exposure and immediately
+    # preserves the recovery posture.
     assert strategy._state == "HALTED"
     assert strategy._possible_exposure is True
     assert "ORDER_TERMINAL_WITHOUT_FULL_FILL" in strategy._rejections
-    assert strategy._basket_status == "ORDINARY_ENTRY_PROJECTED"
+    assert strategy._basket_status == "RECOVERY_REQUIRED"
     assert strategy._current_clock_now_ns is not None
     sealed_bar_clock.advance_to_risk_deadline(
         strategy._current_clock_now_ns + (int(strategy.p.maximum_hold_seconds) + 1) * 1_000_000_000
@@ -1136,6 +1332,293 @@ def test_native_broker_chain_completes_conversion_entry_one_leg_at_a_time(
     assert broker._startup_ready is False
     assert broker.get_param("market_data_only") is False
     assert broker.get_param("cancel_wait_remote") is True
+
+
+@pytest.mark.parametrize(
+    (
+        "deliver_late_trade",
+        "partial_before_late_trade",
+        "unknown_via_submit_response",
+        "duplicate_unknown_ingress",
+        "terminal_status",
+        "queued_unknown_then_completed",
+    ),
+    (
+        (False, False, False, False, None, False),
+        (True, False, False, False, None, False),
+        (True, True, False, False, None, False),
+        (False, False, True, False, None, False),
+        (False, False, False, True, None, False),
+        (False, False, False, False, "canceled", False),
+        (False, False, False, False, "rejected", False),
+        (False, False, False, False, "expired", False),
+        (False, False, False, False, None, True),
+    ),
+    ids=(
+        "unknown_latches",
+        "unknown_late_trade_is_ingested_once",
+        "unknown_partial_then_late_trade_is_ingested_once",
+        "unknown_submit_response_binds_while_submission_is_in_flight",
+        "duplicate_unknown_ingress_remains_one_latch",
+        "unknown_then_canceled_clears_pending_identity",
+        "unknown_then_rejected_clears_pending_identity",
+        "unknown_then_expired_clears_pending_identity",
+        "queued_unknown_then_completed_cannot_submit_with_valid_scoped_fact",
+    ),
+)
+def test_native_broker_chain_latches_unknown_ingress_before_any_next_protection_leg(
+    forbid_network: list[str],
+    deliver_late_trade: bool,
+    partial_before_late_trade: bool,
+    unknown_via_submit_response: bool,
+    duplicate_unknown_ingress: bool,
+    terminal_status: str | None,
+    queued_unknown_then_completed: bool,
+) -> None:
+    """An ambiguous first PUT remains possible exposure and blocks F/C legs.
+
+    This finite old-public-client fixture is deliberately limited to the
+    Store/Feed/Broker/Cerebro callback handoff.  It is not CTP SDK, SimNow, or
+    actual-fill evidence.
+    """
+
+    config, candidate, live_ticks, final_watermark = _candidate_ticks()
+    symbols = (candidate["future"], candidate["call"], candidate["put"])
+    sealed_bar_clock = SealedBarClock(freeze_entry_callbacks=True)
+    transport = UncertainEntryPublicCtpTransport(
+        live_ticks,
+        final_watermark=final_watermark,
+        interleave_symbols=symbols,
+        deliver_late_trade=deliver_late_trade,
+        partial_before_late_trade=partial_before_late_trade,
+        unknown_via_submit_response=unknown_via_submit_response,
+        duplicate_unknown_ingress=duplicate_unknown_ingress,
+        terminal_status=terminal_status,
+        queued_unknown_then_completed=queued_unknown_then_completed,
+    )
+    metadata = {
+        symbol: {
+            "tick_size": 1.0,
+            "contract_multiplier": candidate["multiplier"],
+            "min_size": 1,
+            "lot_size": 1,
+            "quantity_step": 1,
+            "currency": "CNY",
+        }
+        for symbol in symbols
+    }
+    store = BtApiStore(
+        provider="btapi",
+        api=transport,
+        cash=float(config["budget"]["capital_limit"]),
+        contract_metadata=metadata,
+        autostart=False,
+    )
+    broker = MappingAuditBtApiBroker(
+        store=store,
+        provider="btapi",
+        cash=float(config["budget"]["capital_limit"]),
+        value=float(config["budget"]["capital_limit"]),
+        contract_metadata=metadata,
+        cancel_wait_remote=True,
+        market_data_only=False,
+        sdk_preflight=False,
+        flatten_on_stop=False,
+        force_refresh_queries=False,
+        account_refresh_interval=3_600.0,
+        positions_refresh_interval=3_600.0,
+        open_orders_refresh_interval=3_600.0,
+    )
+    assert store._sdk_mode is False
+    assert broker.get_param("market_data_only") is False
+
+    cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
+    cerebro.setbroker(broker)
+    feeds = []
+    for symbol in symbols:
+        feed = store.getdata(
+            dataname=symbol,
+            timeframe=bt.TimeFrame.Minutes,
+            compression=15,
+            backfill_start=False,
+            dispatch_ticks=False,
+            dispatch_bars=True,
+            qcheck=0,
+            price_tick=1.0,
+            clock=FixedClock(),
+            closed_bar_evidence_provider=lambda bar: replace(
+                _closed_bar_evidence(bar),
+                candidate_id=f"{config['strategy_id']}-replay-v1",
+            ),
+        )
+        feeds.append(feed)
+        cerebro.adddata(feed, name=symbol)
+    params = _candidate_strategy_kwargs(config, candidate, sealed_bar_clock)
+    params["minimum_holding_minutes"] = 120
+    params["minimum_hold_seconds"] = 7_200
+    params["maximum_hold_seconds"] = 7_200
+    strategy_type = (
+        QueuedUnknownCompletedBrokerProbeStrategy
+        if queued_unknown_then_completed
+        else (
+            TwoLotUnknownEntryBrokerProbeStrategy
+            if partial_before_late_trade
+            else CompleteEntryBrokerProbeStrategy
+        )
+    )
+    cerebro.addstrategy(strategy_type, **params)
+
+    [strategy] = cerebro.run(preload=False, runonce=False)
+
+    expected_put_leg = {
+        "symbol": PUT,
+        "side": "buy",
+        "price": 42.0,
+        "size": 2 if partial_before_late_trade else 1,
+    }
+    assert [entry["direction"] for entry in strategy.entry_attempts] == ["conversion"]
+    assert strategy.submission_attempts == [expected_put_leg]
+    assert [(payload["symbol"], payload["side"]) for payload in transport.submitted_orders] == [
+        (PUT, "buy")
+    ]
+    assert transport.cancelled_orders == []
+
+    [payload] = transport.submitted_orders
+    order = broker.orders[payload["bt_order_ref"]]
+    external_order_id = transport.external_order_ids[payload["bt_order_ref"]]
+    assert transport.unknown_ingress_updates == (2 if duplicate_unknown_ingress else 1)
+    assert order.info.get("execution_unknown") is (
+        terminal_status is None and not queued_unknown_then_completed
+    )
+    assert broker.unknown_mapping_snapshots == [
+        {
+            "ref": order.ref,
+            "client_order_id": COMPLETE_ENTRY_CLIENT_IDS[PUT],
+            "external_order_id": external_order_id,
+            "client_mapping": True,
+            "external_mapping": True,
+        }
+    ]
+
+    # An UNKNOWN ingress is possible exposure, not an Accepted shortcut: it
+    # preserves the original reference for reconciliation and cannot submit F
+    # or the naked CALL sell leg.
+    assert strategy._state == "HALTED"
+    assert strategy._basket_status == "RECOVERY_REQUIRED"
+    assert strategy._possible_exposure is True
+    # Notification metadata is snapshotted, so even a terminal update drained
+    # in the same broker pass cannot erase the earlier UNKNOWN latch.
+    assert strategy._rejections.count("EXECUTION_UNKNOWN_RECOVERY_REQUIRED") == 1
+    assert strategy._unknown_order_refs == {order.ref}
+    if queued_unknown_then_completed:
+        # The callback adapter deliberately supplies a complete fact with the
+        # exact active decision, basket, clock domain/generation, and PUT
+        # order identity. It proves that even a valid fact cannot rehabilitate
+        # the earlier UNKNOWN into permission to send F/C.
+        assert len(strategy.callback_facts) == 1
+        assert len(strategy._execution_facts) == 1
+        assert strategy._quarantined_execution_facts == []
+        assert strategy._confirmed_fill_by_leg == {PUT: 1.0}
+        assert strategy._confirmed_fill_quantity == pytest.approx(1.0)
+    else:
+        assert strategy._confirmed_fill_by_leg == {}
+        assert strategy._confirmed_fill_quantity == 0
+    expected_accepted_callback_count = 1 if unknown_via_submit_response else 2
+    if not deliver_late_trade and terminal_status is None and not queued_unknown_then_completed:
+        assert order.status == bt.Order.Accepted
+        assert broker._orders_by_external_id[external_order_id] is order
+        assert broker._orders_by_client_ref[COMPLETE_ENTRY_CLIENT_IDS[PUT]] is order
+        assert strategy._pending_order is not None
+        assert strategy._pending_order.ref == order.ref
+        assert strategy._pending_order_ref == order.ref
+        assert strategy._terminal_order_refs == set()
+        assert [(symbol, status) for symbol, status in strategy.order_callback_statuses] == [
+            (PUT, "Accepted")
+        ] * expected_accepted_callback_count
+        assert broker.positions[PUT].size == pytest.approx(0.0)
+    elif terminal_status is not None:
+        # A later non-fill terminal update is authoritative about the local
+        # order lifecycle even though it cannot erase the earlier possible
+        # exposure. The original ref must settle cleanly without being treated
+        # as an unrelated callback or creating another entry leg.
+        assert order.getstatusname().lower() == terminal_status
+        assert strategy._pending_order is None
+        assert strategy._pending_order_ref is None
+        assert strategy._terminal_order_refs == {order.ref}
+        assert strategy._order_projection[-1]["status"] == terminal_status
+        assert "ORDER_TERMINAL_WITHOUT_FULL_FILL" in strategy._rejections
+        assert "UNEXPECTED_ORDER_CALLBACK" not in strategy._rejections
+        assert [status for _symbol, status in strategy.order_callback_statuses].count(
+            "Accepted"
+        ) == expected_accepted_callback_count
+        assert [status for _symbol, status in strategy.order_callback_statuses].count(
+            order.getstatusname()
+        ) == 1
+        assert order.executed.size == pytest.approx(0.0)
+        assert broker.positions[PUT].size == pytest.approx(0.0)
+        assert external_order_id not in broker._orders_by_external_id
+        assert COMPLETE_ENTRY_CLIENT_IDS[PUT] not in broker._orders_by_client_ref
+    else:
+        # ``execution_unknown`` intentionally remains attached to the order
+        # information after late authoritative trade fills. The queued-order
+        # completion test instead clears it on the live order, but the earlier
+        # notification snapshot has already latched UNKNOWN. Both paths must
+        # clear local pending state and project the known completion while the
+        # UNKNOWN halt prevents F/C submission.
+        assert order.status == bt.Order.Completed
+        assert strategy._pending_order is None
+        assert strategy._pending_order_ref is None
+        assert strategy._terminal_order_refs == {order.ref}
+        expected_size = 2.0 if partial_before_late_trade else 1.0
+        if partial_before_late_trade:
+            assert strategy._order_projection[-2] == {
+                "symbol": PUT,
+                "side": "buy",
+                "status": "partial",
+                "size": 1.0,
+                "price": 42.0,
+                "source": "backbroker_replay_hypothetical",
+                "fill_timing": "FILL_TIMING_UNKNOWN",
+            }
+        assert strategy._order_projection[-1] == {
+            "symbol": PUT,
+            "side": "buy",
+            "status": "completed",
+            "size": expected_size,
+            "price": 42.0,
+            "source": "backbroker_replay_hypothetical",
+            "fill_timing": "FILL_TIMING_UNKNOWN",
+        }
+        assert [status for _symbol, status in strategy.order_callback_statuses].count(
+            "Accepted"
+        ) == expected_accepted_callback_count
+        assert [status for _symbol, status in strategy.order_callback_statuses].count(
+            "Partial"
+        ) == (1 if partial_before_late_trade else 0)
+        assert [status for _symbol, status in strategy.order_callback_statuses].count(
+            "Completed"
+        ) == 1
+        assert order.executed.size == pytest.approx(expected_size)
+        assert len(order.executed.exbits) == (2 if partial_before_late_trade else 1)
+        assert broker.positions[PUT].size == pytest.approx(expected_size)
+        assert external_order_id not in broker._orders_by_external_id
+        assert COMPLETE_ENTRY_CLIENT_IDS[PUT] not in broker._orders_by_client_ref
+    assert broker.positions[FUTURE].size == pytest.approx(0.0)
+    assert broker.positions[CALL].size == pytest.approx(0.0)
+
+    assert forbid_network == []
+    assert transport.broker_updates == collections.deque()
+    assert len(feeds) == 3
+    assert transport.connect_calls == 1
+    assert transport.disconnect_calls == 1
+    assert transport.lifecycle == ["connect", "disconnect"]
+    assert transport.connected is False
+    assert store.is_connected is False
+    assert store._started is False
+    assert store._sdk_mode is False
+    assert broker._live_started is False
+    assert broker._startup_ready is False
+    assert broker.get_param("market_data_only") is False
 
 
 @pytest.mark.parametrize(
