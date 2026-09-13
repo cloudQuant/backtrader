@@ -632,32 +632,26 @@ class CompleteEntryBrokerProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy
     def sell(self, *args: Any, **kwargs: Any) -> Any:
         return self._with_entry_identity("sell", *args, **kwargs)
 
-    def notify_order(self, order: Any) -> None:
-        symbol = str(getattr(getattr(order, "data", None), "_name", ""))
-        status = order.getstatusname()
-        self.order_callback_statuses.append((symbol, status))
-        if (
-            order.status == order.Completed
-            and self._state == "ENTERING"
-            and order.ref not in self._attested_order_refs
-        ):
-            # The legacy public callback carries the completion mapping but not
-            # the strategy's scoped execution-fact protocol.  Bind a test-only
-            # same-order/same-scope fact before the real state machine decides
-            # whether the next protection leg is permitted.
-            assert self._execution_window is not None
-            assert self._active_decision_id is not None
-            assert self._active_basket_id is not None
-            self._attested_order_refs.add(order.ref)
-            self._submitted_order_ids_by_leg.setdefault(symbol, set()).add(str(order.ref))
-            fill_ns = self._execution_window.decision_mono_ns + (
-                (self._leg_index + 1) * 100_000_000
-            )
-            sealed_bar_clock = self.p.clock_provider
-            assert isinstance(sealed_bar_clock, SealedBarClock)
-            sealed_bar_clock.advance_to_entry_callback(fill_ns)
-            self.entry_callback_event_log.append(("completed", symbol, fill_ns))
-            fact = {
+    def _completion_callback_ns(self) -> int:
+        """Choose the local arrival time for one test-only completion callback."""
+
+        assert self._execution_window is not None
+        return self._execution_window.decision_mono_ns + ((self._leg_index + 1) * 100_000_000)
+
+    def _completion_facts(self, *, order: Any, symbol: str, fill_ns: int) -> list[dict[str, Any]]:
+        """Return the synthetic facts consumed before the real callback handler.
+
+        The legacy public callback does not carry the strategy's scoped
+        execution-fact protocol.  This hook is deliberately test-only: the
+        normal complete-entry probe returns one same-order/same-scope fact,
+        while rejection probes can supply malformed observations without
+        changing production strategy behavior or claiming an SDK/CTP fill.
+        """
+
+        assert self._active_decision_id is not None
+        assert self._active_basket_id is not None
+        return [
+            {
                 "leg": symbol,
                 "quantity": 1,
                 "status": "completed",
@@ -672,8 +666,31 @@ class CompleteEntryBrokerProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy
                 "fact_id": f"iter23-local-fake-callback-{order.ref}",
                 "source_identity": "iter23-local-fake-broker-callback-v1",
             }
-            self.callback_facts.append(fact)
-            self.record_execution_fact(fact)
+        ]
+
+    def notify_order(self, order: Any) -> None:
+        symbol = str(getattr(getattr(order, "data", None), "_name", ""))
+        status = order.getstatusname()
+        self.order_callback_statuses.append((symbol, status))
+        if (
+            order.status == order.Completed
+            and self._state == "ENTERING"
+            and order.ref not in self._attested_order_refs
+        ):
+            # The legacy public callback carries the completion mapping but not
+            # the strategy's scoped execution-fact protocol.  Bind a test-only
+            # same-order/same-scope fact before the real state machine decides
+            # whether the next protection leg is permitted.
+            self._attested_order_refs.add(order.ref)
+            self._submitted_order_ids_by_leg.setdefault(symbol, set()).add(str(order.ref))
+            fill_ns = self._completion_callback_ns()
+            sealed_bar_clock = self.p.clock_provider
+            assert isinstance(sealed_bar_clock, SealedBarClock)
+            sealed_bar_clock.advance_to_entry_callback(fill_ns)
+            self.entry_callback_event_log.append(("completed", symbol, fill_ns))
+            for fact in self._completion_facts(order=order, symbol=symbol, fill_ns=fill_ns):
+                self.callback_facts.append(fact)
+                self.record_execution_fact(fact)
         super().notify_order(order)
         if order.status == order.Accepted:
             self.accepted_bindings.append(
@@ -689,6 +706,51 @@ class CompleteEntryBrokerProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy
             # instead of inventing later bar decisions or a fake exit path.
             self._entry_chain_stopped = True
             self.env.runstop()
+
+
+class RejectedCompletionBrokerProbeStrategy(CompleteEntryBrokerProbeStrategy):
+    """Inject malformed local completion facts before the real state machine.
+
+    This is a finite legacy-fake regression adapter only.  It deliberately
+    does not assert a native SDK, CTP, SimNow, external order, or fill path.
+    """
+
+    params = (("completion_fact_case", ""),)
+
+    def _completion_callback_ns(self) -> int:
+        if self.p.completion_fact_case == "expired":
+            assert self._execution_window is not None
+            return self._execution_window.completion_deadline_ns + 1
+        return super()._completion_callback_ns()
+
+    def _completion_facts(self, *, order: Any, symbol: str, fill_ns: int) -> list[dict[str, Any]]:
+        [fact] = super()._completion_facts(order=order, symbol=symbol, fill_ns=fill_ns)
+        case = self.p.completion_fact_case
+        if case == "duplicate":
+            # A source may first publish a foreign observation and then replay
+            # a "corrected" version under the same immutable fact ID.  The
+            # first must remain quarantined; the duplicate must not rehabilitate
+            # it or authorize the next protection leg.
+            fact_id = f"iter23-local-duplicate-fact-{order.ref}"
+            return [
+                {
+                    **fact,
+                    "decision_id": "iter23-local-foreign-decision",
+                    "fact_id": fact_id,
+                },
+                {**fact, "fact_id": fact_id},
+            ]
+        mutations: Mapping[str, Mapping[str, Any]] = {
+            "foreign_order": {"order_id": f"iter23-local-foreign-order-{order.ref}"},
+            "foreign_decision": {"decision_id": "iter23-local-foreign-decision"},
+            "foreign_basket": {"basket_id": "iter23-local-foreign-basket"},
+            "foreign_clock_domain": {"clock_domain": "iter23-local-foreign-clock"},
+            "foreign_generation": {"generation": 8},
+            "expired": {},
+        }
+        if case not in mutations:
+            raise AssertionError(f"unknown local completion-fact rejection case: {case}")
+        return [{**fact, **mutations[case]}]
 
 
 def test_native_broker_chain_routes_one_conversion_put_then_dedupes_cancel_race_trade(
@@ -1074,3 +1136,172 @@ def test_native_broker_chain_completes_conversion_entry_one_leg_at_a_time(
     assert broker._startup_ready is False
     assert broker.get_param("market_data_only") is False
     assert broker.get_param("cancel_wait_remote") is True
+
+
+@pytest.mark.parametrize(
+    ("completion_fact_case", "expected_reason", "expected_raw_fact_count"),
+    (
+        ("duplicate", "FILL_DECISION_MISMATCH", 2),
+        ("foreign_order", "FILL_ORDER_MISMATCH", 1),
+        ("foreign_decision", "FILL_DECISION_MISMATCH", 1),
+        ("foreign_basket", "FILL_BASKET_MISMATCH", 1),
+        ("foreign_clock_domain", "FILL_CLOCK_DOMAIN_MISMATCH", 1),
+        ("foreign_generation", "FILL_CLOCK_GENERATION_MISMATCH", 1),
+        ("expired", "FILL_AFTER_COMPLETION_DEADLINE", 1),
+    ),
+)
+def test_native_broker_chain_rejects_untrusted_completion_facts_before_next_protection_leg(
+    forbid_network: list[str],
+    completion_fact_case: str,
+    expected_reason: str,
+    expected_raw_fact_count: int,
+) -> None:
+    """A malformed local completion cannot advance P-buy to F-buy or C-sell.
+
+    The facts below are injected only by a test subclass around an old public
+    fake-client callback.  The assertion is solely about the real strategy's
+    scoped-fact fail-closed handoff through Store/Feed/Broker/Cerebro; it is
+    not a CTP SDK, SimNow, external fill, or execution-admission claim.
+    """
+
+    config, candidate, live_ticks, final_watermark = _candidate_ticks()
+    symbols = (candidate["future"], candidate["call"], candidate["put"])
+    sealed_bar_clock = SealedBarClock(freeze_entry_callbacks=True)
+    transport = CompleteEntryPublicCtpTransport(
+        live_ticks,
+        final_watermark=final_watermark,
+        interleave_symbols=symbols,
+    )
+    metadata = {
+        symbol: {
+            "tick_size": 1.0,
+            "contract_multiplier": candidate["multiplier"],
+            "min_size": 1,
+            "lot_size": 1,
+            "quantity_step": 1,
+            "currency": "CNY",
+        }
+        for symbol in symbols
+    }
+    store = BtApiStore(
+        provider="btapi",
+        api=transport,
+        cash=float(config["budget"]["capital_limit"]),
+        contract_metadata=metadata,
+        autostart=False,
+    )
+    broker = MappingAuditBtApiBroker(
+        store=store,
+        provider="btapi",
+        cash=float(config["budget"]["capital_limit"]),
+        value=float(config["budget"]["capital_limit"]),
+        contract_metadata=metadata,
+        cancel_wait_remote=True,
+        market_data_only=False,
+        sdk_preflight=False,
+        flatten_on_stop=False,
+        force_refresh_queries=False,
+        account_refresh_interval=3_600.0,
+        positions_refresh_interval=3_600.0,
+        open_orders_refresh_interval=3_600.0,
+    )
+    assert store._sdk_mode is False
+    assert broker.get_param("market_data_only") is False
+
+    cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
+    cerebro.setbroker(broker)
+    feeds = []
+    for symbol in symbols:
+        feed = store.getdata(
+            dataname=symbol,
+            timeframe=bt.TimeFrame.Minutes,
+            compression=15,
+            backfill_start=False,
+            dispatch_ticks=False,
+            dispatch_bars=True,
+            qcheck=0,
+            price_tick=1.0,
+            clock=FixedClock(),
+            closed_bar_evidence_provider=lambda bar: replace(
+                _closed_bar_evidence(bar),
+                candidate_id=f"{config['strategy_id']}-replay-v1",
+            ),
+        )
+        feeds.append(feed)
+        cerebro.adddata(feed, name=symbol)
+    params = _candidate_strategy_kwargs(config, candidate, sealed_bar_clock)
+    params["minimum_holding_minutes"] = 120
+    params["minimum_hold_seconds"] = 7_200
+    params["maximum_hold_seconds"] = 7_200
+    cerebro.addstrategy(
+        RejectedCompletionBrokerProbeStrategy,
+        completion_fact_case=completion_fact_case,
+        **params,
+    )
+
+    [strategy] = cerebro.run(preload=False, runonce=False)
+
+    expected_put_leg = {"symbol": PUT, "side": "buy", "price": 42.0, "size": 1}
+    assert [entry["direction"] for entry in strategy.entry_attempts] == ["conversion"]
+    assert strategy.submission_attempts == [expected_put_leg]
+    assert [(payload["symbol"], payload["side"]) for payload in transport.submitted_orders] == [
+        (PUT, "buy")
+    ]
+    assert [payload["client_order_id"] for payload in transport.submitted_orders] == [
+        COMPLETE_ENTRY_CLIENT_IDS[PUT]
+    ]
+    assert transport.cancelled_orders == []
+    assert [event[:2] for event in strategy.entry_callback_event_log] == [
+        ("submit", PUT),
+        ("completed", PUT),
+    ]
+    assert [
+        (symbol, status)
+        for symbol, status in strategy.order_callback_statuses
+        if status in {"Accepted", "Completed"}
+    ] == [(PUT, "Accepted"), (PUT, "Completed")]
+
+    # The raw callback remains possible-exposure evidence, but no malformed
+    # or replayed fact may enter the confirmation set used to unlock F/C.
+    assert strategy._state == "HALTED"
+    assert strategy._basket_status == "RECOVERY_REQUIRED"
+    assert strategy._possible_exposure is True
+    assert "PROTECTION_FILL_CONFIRMATION_REQUIRED" in strategy._rejections
+    assert strategy._execution_facts == []
+    assert strategy._confirmed_fill_by_leg == {}
+    assert strategy._confirmed_fill_quantity == 0
+    assert strategy._fill_timing["status"] == "FILL_TIMING_UNKNOWN"
+    assert strategy._fill_timing["possible_exposure"] is True
+    assert len(strategy.callback_facts) == expected_raw_fact_count
+    assert len(strategy._execution_fact_history) == expected_raw_fact_count
+    assert len(strategy._execution_fact_keys) == 1
+    assert strategy._quarantined_execution_facts == [
+        {
+            "fact_id": strategy.callback_facts[0]["fact_id"],
+            "leg": PUT,
+            "reason": expected_reason,
+        }
+    ]
+    if completion_fact_case == "duplicate":
+        assert strategy.callback_facts[0]["fact_id"] == strategy.callback_facts[1]["fact_id"]
+        assert (
+            strategy.callback_facts[0]["decision_id"] != strategy.callback_facts[1]["decision_id"]
+        )
+    else:
+        assert len(strategy.callback_facts) == 1
+
+    assert broker.positions[PUT].size == pytest.approx(1.0)
+    assert broker.positions[FUTURE].size == pytest.approx(0.0)
+    assert broker.positions[CALL].size == pytest.approx(0.0)
+    assert forbid_network == []
+    assert transport.broker_updates == collections.deque()
+    assert len(feeds) == 3
+    assert transport.connect_calls == 1
+    assert transport.disconnect_calls == 1
+    assert transport.lifecycle == ["connect", "disconnect"]
+    assert transport.connected is False
+    assert store.is_connected is False
+    assert store._started is False
+    assert store._sdk_mode is False
+    assert broker._live_started is False
+    assert broker._startup_ready is False
