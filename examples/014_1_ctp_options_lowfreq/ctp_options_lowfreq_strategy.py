@@ -8,6 +8,7 @@ not evidence of a CTP write, a fill, or economic profitability.
 from __future__ import annotations
 
 import math
+from collections import deque
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -112,6 +113,13 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         ("price_ticks", None),
         ("exchange_limits", None),
         ("clock_provider", None),
+        # Historical replay keeps its established raw-line fixture boundary.
+        # Native Feed callers must opt in explicitly and then provide a
+        # closed, immutable BarEvidence object through ``notify_bar``.
+        ("require_feed_bar_evidence", False),
+        ("bar_evidence_clock_domain", "iter23-replay-clock"),
+        ("bar_evidence_clock_mode", "replay"),
+        ("max_pending_feed_decisions", 1),
     )
 
     def __init__(self):
@@ -162,7 +170,21 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             raise TimingContractError("seconds maximum hold cannot weaken bars setting")
         if risk_bar_max_age_seconds > 910:
             raise TimingContractError("risk_bar_max_age_seconds must be at most 910")
+        max_pending_feed_decisions = positive_int(
+            self.p.max_pending_feed_decisions, "max_pending_feed_decisions"
+        )
         expected = (self.p.future_symbol, self.p.call_symbol, self.p.put_symbol)
+        if not isinstance(self.p.require_feed_bar_evidence, bool):
+            raise TimingContractError("require_feed_bar_evidence must be a bool")
+        if self.p.bar_evidence_clock_mode not in {"replay", "live"}:
+            raise TimingContractError("bar_evidence_clock_mode must be replay or live")
+        if (
+            not isinstance(self.p.bar_evidence_clock_domain, str)
+            or not self.p.bar_evidence_clock_domain.strip()
+        ):
+            raise TimingContractError("bar_evidence_clock_domain must be a non-empty string")
+        if not self.p.require_feed_bar_evidence and self.p.bar_evidence_clock_mode != "replay":
+            raise TimingContractError("raw-line replay cannot declare a live bar evidence clock")
         self._data_by_symbol = {data._name: data for data in self.datas}
         missing = [symbol for symbol in expected if symbol not in self._data_by_symbol]
         if missing:
@@ -202,8 +224,8 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             policy=BarBarrierPolicy(
                 timeframe_seconds=float(self.p.bar_minutes) * 60.0, timeout_seconds=10.0
             ),
-            clock_mode="replay",
-            expected_clock_domain="iter23-replay-clock",
+            clock_mode=self.p.bar_evidence_clock_mode,
+            expected_clock_domain=self.p.bar_evidence_clock_domain,
         )
         self._last_decision_input = None
         self._barrier_results: list[dict[str, object]] = []
@@ -213,6 +235,8 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         self._bar_cohort_evidence: list[dict[str, object]] = []
         self._indicative_score_evidence: list[dict[str, object]] = []
         self._replay_clock_mapping: ClockMapping | None = None
+        self._max_pending_feed_decisions = max_pending_feed_decisions
+        self._pending_feed_decision_inputs = deque()
         self._last_price_envelopes: dict[str, BarPriceEnvelope] = {}
         if self.p.clock_provider is not None and not callable(self.p.clock_provider):
             raise TimingContractError("clock_provider must be callable")
@@ -308,7 +332,7 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                 mapping_id=f"{self.p.candidate_id}:synthetic-replay-clock",
                 wall_utc_at_anchor=end,
                 mono_ns_at_anchor=0,
-                clock_domain_id="iter23-replay-clock",
+                clock_domain_id=self.p.bar_evidence_clock_domain,
                 connection_generation=1,
                 source="iter23-local-replay-recorded-anchor",
                 error_bound_ns=0,
@@ -347,8 +371,8 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             low=values["low"],
             close=values["close"],
             volume=values["volume"],
-            clock_domain="iter23-replay-clock",
-            clock_mode="replay",
+            clock_domain=self.p.bar_evidence_clock_domain,
+            clock_mode=self.p.bar_evidence_clock_mode,
             candidate_id=self.p.candidate_id,
             timeframe_seconds=float(self.p.bar_minutes) * 60.0,
             trade_count=1,
@@ -356,33 +380,35 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             clock_mapping=mapping,
         )
 
-    def _consume_barrier(self, timestamp: datetime, snapshot: Mapping[str, Mapping[str, float]]):
-        result = None
-        for index, symbol in enumerate(
-            (self.p.future_symbol, self.p.call_symbol, self.p.put_symbol)
-        ):
-            result = self._barrier.ingest(
-                self._bar_evidence(symbol, timestamp, snapshot[symbol], index)
-            )
-        assert result is not None
+    def _consume_barrier_result(self, result: Any, fallback_timestamp: datetime):
+        """Project one public barrier result into strategy-local evidence."""
+
         self._barrier_results.append(
             {"reason": result.reason, "ready": result.ready, "reset_warmup": result.reset_warmup}
         )
+        decision_input = result.decision_input
         self._bar_cohort_evidence.append(
             {
                 "candidate_id": self.p.candidate_id,
+                # This callback is deliberately before the matching line
+                # advance. Keep its line index as diagnostic-only and use
+                # sealed IDs/bucket end as the causal join keys.
                 "bar_index": len(self),
+                "callback_line_index": len(self),
+                "source_bar_ids": (
+                    tuple(decision_input.bar_ids) if decision_input is not None else ()
+                ),
                 "bucket_end": (
-                    result.decision_input.bucket_end.isoformat()
-                    if result.ready and result.decision_input is not None
-                    else timestamp.isoformat()
+                    decision_input.bucket_end.isoformat()
+                    if result.ready and decision_input is not None
+                    else fallback_timestamp.isoformat()
                 ),
                 "ready": bool(result.ready),
                 "reason": result.reason,
                 "reset_warmup": bool(result.reset_warmup),
-                "clock_mode": "replay",
-                "clock_domain": "iter23-replay-clock",
-                "barrier_evidence": (result.decision_input.to_dict() if result.ready else None),
+                "clock_mode": self.p.bar_evidence_clock_mode,
+                "clock_domain": self.p.bar_evidence_clock_domain,
+                "barrier_evidence": (decision_input.to_dict() if result.ready else None),
             }
         )
         if not result.ready:
@@ -390,8 +416,8 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                 self._history.clear()
                 self._reset_entry_confirmation("BARARRIER_SCOPE_RESET")
             return None
-        self._last_decision_input = result.decision_input
-        decision_input = result.decision_input
+        self._last_decision_input = decision_input
+        assert decision_input is not None
         current_scope = (
             decision_input.trading_day,
             decision_input.generation,
@@ -410,7 +436,18 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             self._rejections.append("INVALID_DECISION_CLOCK")
             return None
         self._current_clock_now_ns = int(round(ready_mono * 1_000_000_000))
-        return result.decision_input
+        return decision_input
+
+    def _consume_barrier(self, timestamp: datetime, snapshot: Mapping[str, Mapping[str, float]]):
+        result = None
+        for index, symbol in enumerate(
+            (self.p.future_symbol, self.p.call_symbol, self.p.put_symbol)
+        ):
+            result = self._barrier.ingest(
+                self._bar_evidence(symbol, timestamp, snapshot[symbol], index)
+            )
+        assert result is not None
+        return self._consume_barrier_result(result, timestamp)
 
     def _residual(self, snapshot: Mapping[str, Mapping[str, float]]) -> float:
         future = snapshot[self.p.future_symbol]["close"]
@@ -1182,7 +1219,7 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         if self._execution_window is not None:
             first_leg = self._leg_index == 0
             self._execution_gate(first_leg=first_leg)
-        if self._state == "OPEN" and self._hold_projection.risk_exit_allowed(
+        if self._possible_exposure and self._hold_projection.risk_exit_allowed(
             observation.monotonic_ns
         ):
             # No SDK read-only risk projection is available to this example;
@@ -1195,20 +1232,87 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                 monotonic_ns=observation.monotonic_ns,
             )
 
-    def notify_bar(self, _bar: Any) -> None:
-        """Compatibility callback; closed bars remain the sole decision input."""
+    def _feed_bar_has_expected_provenance(self, bar: Any, evidence: BarEvidence) -> bool:
+        """Require the opaque token owned by this strategy's exact Feed instance."""
+
+        data = self._data_by_symbol.get(evidence.symbol)
+        expected = getattr(data, "_closed_bar_evidence_dispatch_token", None)
+        actual = getattr(bar, "_closed_bar_evidence_dispatch_token", None)
+        is_sealed = getattr(data, "_has_sealed_closed_bar_evidence", None)
+        return (
+            expected is not None
+            and actual is expected
+            and callable(is_sealed)
+            and bool(is_sealed(bar, evidence))
+        )
+
+    def _queue_feed_decision(self, decision: Any) -> bool:
+        """Bound Feed-ahead-of-next backlog and fail closed on overflow."""
+
+        if self._state == "HALTED":
+            self._last_decision_input = None
+            return False
+        if len(self._pending_feed_decision_inputs) >= self._max_pending_feed_decisions:
+            self._pending_feed_decision_inputs.clear()
+            # A rejected queued decision must not remain reachable to a
+            # subclass after ``super().next()`` returns.  Only a decision
+            # popped from this bounded queue may drive the strategy path.
+            self._last_decision_input = None
+            self._state = "HALTED"
+            # Keep the risk posture visible even though HALTED blocks further
+            # submissions.  A pending or completed leg may already have
+            # exposure; subsequent notify_idle calls still advance the
+            # recovery projection for that fact.
+            if self._possible_exposure:
+                self._basket_status = "RECOVERY_REQUIRED"
+            self._rejections.append("FEED_BAR_DECISION_QUEUE_OVERFLOW")
+            self._record("halted", reason="FEED_BAR_DECISION_QUEUE_OVERFLOW")
+            return False
+        self._pending_feed_decision_inputs.append(decision)
+        return True
+
+    def notify_bar(self, bar: Any) -> None:
+        """Accept a Feed-sealed evidence object for the opt-in native path.
+
+        The callback occurs before the matching data-line advance.  Therefore
+        a native caller can only make a decision that the Feed already sealed;
+        it cannot substitute current line values when evidence is absent.
+        Historical replay deliberately leaves this callback inactive and keeps
+        its separately documented Pandas fixture path.
+        """
+
+        if not self.p.require_feed_bar_evidence:
+            return
+        evidence = getattr(bar, "closed_bar_evidence", None)
+        if not isinstance(evidence, BarEvidence):
+            self._rejections.append("FEED_CLOSED_BAR_EVIDENCE_REQUIRED")
+            self._record("rejected", reason="FEED_CLOSED_BAR_EVIDENCE_REQUIRED")
+            return
+        if not self._feed_bar_has_expected_provenance(bar, evidence):
+            self._rejections.append("FEED_CLOSED_BAR_PROVENANCE_REQUIRED")
+            self._record("rejected", reason="FEED_CLOSED_BAR_PROVENANCE_REQUIRED")
+            return
+        decision = self._consume_barrier_result(self._barrier.ingest(evidence), evidence.bucket_end)
+        if decision is not None:
+            self._queue_feed_decision(decision)
 
     def next(self) -> None:
-        try:
-            timestamp, snapshot = self._snapshot()
-        except (IndexError, KeyError, ValueError) as exc:
-            self._reset_entry_confirmation(str(exc))
-            self._history.clear()
-            self._rejections.append(str(exc))
-            self._record("rejected", reason=str(exc))
-            return
-
-        decision_input = self._consume_barrier(timestamp, snapshot)
+        if self.p.require_feed_bar_evidence:
+            decision_input = (
+                self._pending_feed_decision_inputs.popleft()
+                if self._pending_feed_decision_inputs
+                else None
+            )
+        else:
+            try:
+                timestamp, snapshot = self._snapshot()
+            except (IndexError, KeyError, ValueError) as exc:
+                self._reset_entry_confirmation(str(exc))
+                self._history.clear()
+                self._rejections.append(str(exc))
+                self._record("rejected", reason=str(exc))
+                return
+            decision_input = self._consume_barrier(timestamp, snapshot)
         if decision_input is None:
             self._reset_entry_confirmation("BARARRIER_NOT_READY")
             self._rejections.append("BARARRIER_NOT_READY")
@@ -1346,14 +1450,24 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             "bar_cohorts.jsonl": list(self._bar_cohort_evidence),
             "indicative_scores.jsonl": list(self._indicative_score_evidence),
             "bar_only_access_audit.json": {
-                "mode": "replay",
-                "input_boundary": "closed_15m_ohlcv_and_quality_metadata",
+                "mode": self.p.bar_evidence_clock_mode,
+                "input_boundary": (
+                    "feed_sealed_closed_bar_evidence"
+                    if self.p.require_feed_bar_evidence
+                    else "closed_15m_ohlcv_and_quality_metadata"
+                ),
                 "allowed_market_fields": ["open", "high", "low", "close", "volume"],
                 "forbidden_market_inputs": ["tick", "bid", "ask", "order_book", "last_trade"],
                 "execution_fill_status": "FILL_TIMING_UNKNOWN",
-                "network_requests": 0,
-                "order_writes": 0,
-                "external_write_status": "ZERO_EXTERNAL_WRITE",
+                "network_requests": (
+                    "NOT_OBSERVED_BY_STRATEGY" if self.p.require_feed_bar_evidence else 0
+                ),
+                "order_writes": "BROKER_OWNED" if self.p.require_feed_bar_evidence else 0,
+                "external_write_status": (
+                    "BROKER_GATE_REQUIRED"
+                    if self.p.require_feed_bar_evidence
+                    else "ZERO_EXTERNAL_WRITE"
+                ),
             },
             "capital_path_states.jsonl": [
                 {
@@ -1394,8 +1508,8 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
                     if self._last_decision_input is not None
                     else None
                 ),
-                "clock_mode": "replay",
-                "clock_domain": "iter23-replay-clock",
+                "clock_mode": self.p.bar_evidence_clock_mode,
+                "clock_domain": self.p.bar_evidence_clock_domain,
                 "late_bar_policy": "retired_bucket_no_backfill",
                 "results": list(self._barrier_results),
             },

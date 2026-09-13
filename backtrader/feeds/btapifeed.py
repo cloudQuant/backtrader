@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import collections
+import copy
 import datetime as _dt
 import math
 import time as _time
+from types import SimpleNamespace
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
@@ -15,6 +17,7 @@ from ..feed import DataBase
 from ..stores.btapistore import _normalize_bar, _redact_diagnostic
 from ..utils import date2num
 from ..utils.log_message import get_logger
+from .barrier import BarEvidence
 from .ctpcohort import CtpCohortNow
 from .livefeed import LiveFeedBase
 
@@ -209,6 +212,11 @@ class BtApiFeed(DataBase, LiveFeedBase):
         # return CtpCohortNow in the event's exact monotonic clock domain.
         # There is deliberately no process-clock fallback here.
         ("ctp_decision_now_provider", None),
+        # A caller-owned adapter from a Feed-owned, immutable closed BarEvent
+        # to the public BarEvidence hand-off.  The Feed only attaches a
+        # successfully validated object; it never invents a clock mapping or
+        # candidate scope from process-local state.
+        ("closed_bar_evidence_provider", None),
     )
 
     def __init__(self, *args, **kwargs):
@@ -235,6 +243,10 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 keys are forwarded to the base class unchanged.
         """
         super().__init__(*args, **kwargs)
+        if self.p.closed_bar_evidence_provider is not None and not callable(
+            self.p.closed_bar_evidence_provider
+        ):
+            raise ValueError("closed_bar_evidence_provider must be callable")
         self.store = self.p.store
         self.provider = self.p.provider
         self._history = collections.deque(
@@ -252,6 +264,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self._last_ctp_scope = None
         self._highest_ctp_scope = None
         self._bar_sequence = 0
+        # Per-feed opaque marker proves that a strategy callback received the
+        # sealed event from this exact Feed instance, rather than a caller
+        # constructing a look-alike object around a BarEvidence value.
+        self._closed_bar_evidence_dispatch_token = object()
+        # This short-lived identity binding is populated immediately before
+        # synchronous strategy dispatch and cleared immediately afterward.
+        # It prevents a callback hook from retaining the event marker while
+        # replacing the immutable evidence object with a different one.
+        self._sealed_closed_bar_evidence_by_event_id = {}
         self._tick_consumer_claimed = False
         self._history_backfilled = bool(self._history)
         self._continuity_degraded = False
@@ -718,6 +739,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
             current["last_ingest_seq"] = _tick_value(
                 tick, "ingest_seq", "sequence", default=current["last_ingest_seq"]
             )
+            current["trade_count"] += 1
+            for field, aliases, mismatch_flag in (
+                ("rules_hash", ("rules_hash",), "RULES_HASH_CHANGED"),
+                ("session_segment", ("session_segment",), "SESSION_SEGMENT_CHANGED"),
+                ("trading_day", ("trading_day", "TradingDay"), "TRADING_DAY_CHANGED"),
+            ):
+                value = _tick_value(tick, *aliases, default=current[field])
+                if value != current[field]:
+                    current["quality_flags"].add(mismatch_flag)
             current["quality_flags"].update(_tick_value(tick, "quality_flags", default=()) or ())
             return
 
@@ -739,14 +769,73 @@ class BtApiFeed(DataBase, LiveFeedBase):
             "asset_type": _tick_value(tick, "asset_type", "assetType", default="futures"),
             "trading_day": _tick_value(tick, "trading_day", "TradingDay", default=""),
             "action_day": _tick_value(tick, "action_day", "ActionDay", default=""),
+            "rules_hash": _tick_value(tick, "rules_hash", default=None),
+            "session_segment": _tick_value(tick, "session_segment", default=None),
             "connection_generation": _tick_value(
                 tick, "connection_generation", "stream_generation", default=None
             ),
             "first_ingest_seq": ingest_seq,
             "last_ingest_seq": ingest_seq,
+            "trade_count": 1,
             "volume_complete": bool(_tick_value(tick, "volume_complete", default=True)),
             "quality_flags": set(_tick_value(tick, "quality_flags", default=()) or ()),
         }
+
+    def _attach_closed_bar_evidence(self, bar_event):
+        """Attach only a scope-consistent caller-produced BarEvidence object.
+
+        The adapter receives a detached snapshot after the Feed has frozen
+        its closed-bar metadata but before the channel callback.  Validation
+        remains against the Feed-owned event, so a provider cannot mutate its
+        input and make a forged result appear scope-consistent.  The hand-off
+        stays narrow: unlike a strategy it cannot reconstruct evidence from
+        mutable line buffers, and unlike the Feed it cannot invent a clock
+        mapping or candidate identity.
+        """
+
+        provider = self.p.closed_bar_evidence_provider
+        if provider is None:
+            return
+        provider_input = SimpleNamespace(**copy.deepcopy(vars(bar_event)))
+        evidence = provider(provider_input)
+        if not isinstance(evidence, BarEvidence):
+            raise ValueError("closed_bar_evidence_provider must return BarEvidence")
+        if evidence.symbol != bar_event.symbol or evidence.exchange != bar_event.exchange:
+            raise ValueError("closed BarEvidence identity does not match BarEvent")
+        for name in (
+            "bucket_start",
+            "bucket_end",
+            "available_at",
+            "trading_day",
+            "connection_generation",
+            "rules_hash",
+            "session_segment",
+            "first_ingest_seq",
+            "last_ingest_seq",
+            "quote_cutoff_seq",
+            "bar_id",
+            "bar_sequence",
+            "complete",
+        ):
+            event_name = "generation" if name == "connection_generation" else name
+            if getattr(evidence, event_name) != getattr(bar_event, name):
+                raise ValueError(f"closed BarEvidence {event_name} does not match BarEvent")
+        for name in ("quality", "volume_complete", "closure_reason", "trade_count", "watermark"):
+            if getattr(evidence, name) != getattr(bar_event, name):
+                raise ValueError(f"closed BarEvidence {name} does not match BarEvent")
+        if evidence.max_event_time != getattr(bar_event, "max_event_time"):
+            raise ValueError("closed BarEvidence max_event_time does not match BarEvent")
+        for name in ("open", "high", "low", "close", "volume", "openinterest"):
+            if getattr(evidence, name) != float(getattr(bar_event, name)):
+                raise ValueError(f"closed BarEvidence {name} does not match BarEvent")
+        if evidence.clock_domain != getattr(bar_event, "clock_domain_id", None):
+            raise ValueError("closed BarEvidence clock domain does not match BarEvent")
+        setattr(bar_event, "closed_bar_evidence", evidence)
+
+    def _has_sealed_closed_bar_evidence(self, bar_event, evidence):
+        """Return whether this exact event/evidence pair is still in dispatch."""
+
+        return self._sealed_closed_bar_evidence_by_event_id.get(id(bar_event)) is evidence
 
     def _enqueue_bar_event(self, bar_event, bar_datetime, *, deliver_lines=True):
         """Queue a completed bar for both notify_bar and line delivery."""
@@ -1240,16 +1329,29 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 "volume_complete": bool(current["volume_complete"]),
                 "first_ingest_seq": first_seq,
                 "last_ingest_seq": last_seq,
+                "quote_cutoff_seq": last_seq,
                 "trading_day": current["trading_day"],
                 "action_day": current["action_day"],
+                "rules_hash": current["rules_hash"],
+                "session_segment": current["session_segment"],
                 "connection_generation": generation,
                 "bar_id": bar_id,
                 "decision_version": bar_id,
                 "closure_reason": reason,
                 "bar_sequence": self._bar_sequence,
+                "trade_count": current["trade_count"],
+                "watermark": _dt.datetime.fromtimestamp(watermark or available_ts, _UTC),
+                "max_event_time": _dt.datetime.fromtimestamp(current["last_timestamp"], _UTC),
             }
             for name, value in extensions.items():
                 setattr(completed, name, value)
+            self._attach_closed_bar_evidence(completed)
+            if getattr(completed, "closed_bar_evidence", None) is not None:
+                setattr(
+                    completed,
+                    "_closed_bar_evidence_dispatch_token",
+                    self._closed_bar_evidence_dispatch_token,
+                )
             self._enqueue_bar_event(completed, bucket_start, deliver_lines=complete)
             del self._bar_builders[bucket_start]
             self._last_closed_bucket_end = bucket_end
@@ -1278,11 +1380,20 @@ class BtApiFeed(DataBase, LiveFeedBase):
         # Only feed-origin events carry this private reference. Channel queues
         # already drive the matching broker in their own event loop.
         event._source_feed = self
+        sealed_evidence = (
+            getattr(event_data, "closed_bar_evidence", None) if channel_type == "bar" else None
+        )
+        if sealed_evidence is not None:
+            self._sealed_closed_bar_evidence_by_event_id[id(event_data)] = sealed_evidence
         try:
             env.dispatch_channel_event(event)
         except Exception:
             self._mark_event_dropped(event_data, "strategy_dispatch_failed")
             raise
+        finally:
+            # Native callbacks are synchronous.  Do not retain evidence
+            # identity after their dispatch window has closed.
+            self._sealed_closed_bar_evidence_by_event_id.pop(id(event_data), None)
         if self.store is not None and hasattr(self.store, "mark_strategy_delivered"):
             self.store.mark_strategy_delivered(event_data)
         return True
