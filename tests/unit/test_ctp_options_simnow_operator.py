@@ -6,8 +6,10 @@ creates a native client, or connects to SimNow.
 
 from __future__ import annotations
 
-import copy
 import json
+import os
+import subprocess
+import sys
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -34,6 +36,70 @@ FUTURE = "SA701"
 CALL = "SA701C1080"
 PUT = "SA701P1080"
 SYMBOLS = (f"CZCE.{FUTURE}", f"CZCE.{CALL}", f"CZCE.{PUT}")
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+OPERATOR_SCRIPT = REPOSITORY_ROOT / "examples" / "ctp_options_simnow_operator.py"
+
+
+def test_operator_script_entrypoint_preserves_package_imports(tmp_path):
+    """``python examples/...py --help`` works outside the repository without a CTP session."""
+
+    completed = subprocess.run(
+        [sys.executable, str(OPERATOR_SCRIPT), "--help"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "usage: ctp_options_simnow_operator.py" in completed.stdout
+
+
+def test_operator_script_entrypoint_prioritizes_its_repository_root(tmp_path):
+    """Direct execution must ignore an earlier inherited package shadow."""
+
+    poison_root = tmp_path / "poison"
+    poison_package = poison_root / "backtrader"
+    poison_package.mkdir(parents=True)
+    (poison_package / "__init__.py").write_text(
+        "raise RuntimeError('poisoned backtrader package imported')\n",
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    inherited_pythonpath = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = os.pathsep.join(
+        item for item in (str(poison_root), str(REPOSITORY_ROOT), inherited_pythonpath) if item
+    )
+
+    completed = subprocess.run(
+        [sys.executable, str(OPERATOR_SCRIPT), "--help"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "usage: ctp_options_simnow_operator.py" in completed.stdout
+
+
+def test_operator_module_entrypoint_preserves_package_imports():
+    """``python -m examples... --help`` remains a no-session entrypoint."""
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "examples.ctp_options_simnow_operator", "--help"],
+        cwd=REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "usage: ctp_options_simnow_operator.py" in completed.stdout
 
 
 def _env(**overrides):
@@ -179,9 +245,9 @@ class FakeStore:
             "schema_version": "backtrader.ctp.settlement-verification.v1",
             "evidence_complete": bool(self.settlement_confirmed),
             "read_only_safe": True,
-            "error_code": None
-            if self.settlement_confirmed
-            else "settlement_verification_evidence_incomplete",
+            "error_code": (
+                None if self.settlement_confirmed else "settlement_verification_evidence_incomplete"
+            ),
         }
 
     def prepare_ctp_settlement(self, *, timeout=30.0):
@@ -224,10 +290,17 @@ class FakeStore:
         return snapshot
 
     def get_ctp_bundle_preflight_snapshot(
-        self, legs, *, primary_leg=None, primary_instrument_id=None,
-        timeout=15.0, read_only=True,
+        self,
+        legs,
+        *,
+        primary_leg=None,
+        primary_instrument_id=None,
+        timeout=15.0,
+        read_only=True,
     ):
-        self.calls.append(("bundle_preflight", tuple(map(tuple, (tuple(leg.items()) for leg in legs)))))
+        self.calls.append(
+            ("bundle_preflight", tuple(map(tuple, (tuple(leg.items()) for leg in legs))))
+        )
         assert read_only is True
         return _bundle_preflight()
 
@@ -365,9 +438,7 @@ def test_resolve_fronts_probes_sdk_when_no_overrides():
             profile="Set1_Group1", td_front="tcp://a:10201", md_front="tcp://a:10211"
         )
 
-    fronts = resolve_fronts(
-        _env(CTP_TD_FRONT="", CTP_MD_FRONT=""), "first", selector=selector
-    )
+    fronts = resolve_fronts(_env(CTP_TD_FRONT="", CTP_MD_FRONT=""), "first", selector=selector)
     assert fronts["sdk_profile"] == "set1_group1"
     assert fronts["td_front"] == "tcp://a:10201"
 
@@ -417,9 +488,7 @@ def test_collect_three_leg_evidence_queries_in_contract_order():
 
     preflight_calls = [call for call in store.calls if call[0] == "preflight"]
     # 1) exchange-wide scan, 2) product Stage A, 3) exact-future Stage B.
-    assert [
-        (call[2], call[3], call[1] or "") for call in preflight_calls
-    ] == [
+    assert [(call[2], call[3], call[1] or "") for call in preflight_calls] == [
         ("CZCE", "", ""),
         ("CZCE", "SA", ""),
         ("CZCE", "", "CZCE.SA701"),
@@ -556,9 +625,7 @@ def test_main_emits_json_report(tmp_path, capsys, monkeypatch):
         assert env["CTP_USER_ID"] == "simnow-user"
         return {"status": "ENGINEERING_SMOKE_PASS", "purpose": config.purpose}
 
-    monkeypatch.setattr(
-        "examples.ctp_options_simnow_operator.run_engineering_smoke", fake_smoke
-    )
+    monkeypatch.setattr("examples.ctp_options_simnow_operator.run_engineering_smoke", fake_smoke)
     exit_code = main(
         [
             "--env",

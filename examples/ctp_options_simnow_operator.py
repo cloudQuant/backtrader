@@ -23,27 +23,30 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
+import sys
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
+
+if not __package__:  # Direct script execution needs the repository root first.
+    _REPOSITORY_ROOT = str(Path(__file__).resolve().parents[1])
+    while _REPOSITORY_ROOT in sys.path:
+        sys.path.remove(_REPOSITORY_ROOT)
+    sys.path.insert(0, _REPOSITORY_ROOT)
 
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.stores.btapistore import BtApiStore
 
-try:
-    from examples.ctp_options_simnow_common import (
+if __package__:
+    from .ctp_options_simnow_common import (
         BundleSelectionError,
         select_three_leg_bundle,
     )
+    from .ctp_options_simnow_live_runner import SimNowLiveRunner
+else:
+    from examples.ctp_options_simnow_common import BundleSelectionError, select_three_leg_bundle
     from examples.ctp_options_simnow_live_runner import SimNowLiveRunner
-except ImportError:  # Direct execution through the examples directory.
-    from ctp_options_simnow_common import (  # type: ignore[no-redef]
-        BundleSelectionError,
-        select_three_leg_bundle,
-    )
-    from ctp_options_simnow_live_runner import SimNowLiveRunner  # type: ignore[no-redef]
 
 
 CTP_EXCHANGE = "CTP___FUTURE"
@@ -107,10 +110,7 @@ class OperatorConfiguration:
             raise OperatorBlocked("EXACT_BUNDLE_IDS_MUST_BE_COMPLETE")
         if not isinstance(self.capital, (int, float)) or self.capital <= 0:
             raise OperatorBlocked("CAPITAL_MUST_BE_POSITIVE")
-        if (
-            not isinstance(self.query_timeout, (int, float))
-            or self.query_timeout <= 0
-        ):
+        if not isinstance(self.query_timeout, (int, float)) or self.query_timeout <= 0:
             raise OperatorBlocked("QUERY_TIMEOUT_MUST_BE_POSITIVE")
 
 
@@ -207,9 +207,7 @@ def strategy_identity_sha256(config: OperatorConfiguration) -> str:
         "purpose": config.purpose,
         "product_id": config.product_id.upper(),
         "exchange_id": config.exchange_id.upper(),
-        "operator_sha256": hashlib.sha256(
-            Path(__file__).read_bytes()
-        ).hexdigest(),
+        "operator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
     return hashlib.sha256(
         json.dumps(material, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -261,8 +259,7 @@ def build_live_store(
         "account_currency": "CNY",
         "required_environments": {CTP_EXCHANGE: "demo"},
         "strategy_id": config.strategy_id,
-        "strategy_identity_sha256": strategy_identity_sha256
-        or strategy_identity_sha256_of(config),
+        "strategy_identity_sha256": strategy_identity_sha256 or strategy_identity_sha256_of(config),
     }
     store_options: dict[str, Any] = {
         "provider": "btapi",
@@ -276,12 +273,8 @@ def build_live_store(
         },
     }
     if execution_authorization_key_id and execution_authorization_secret:
-        store_options["config"]["execution_authorization_key_id"] = (
-            execution_authorization_key_id
-        )
-        store_options["config"]["execution_authorization_secret"] = (
-            execution_authorization_secret
-        )
+        store_options["config"]["execution_authorization_key_id"] = execution_authorization_key_id
+        store_options["config"]["execution_authorization_secret"] = execution_authorization_secret
     if api_cls is not None:
         store_options["api_cls"] = api_cls
     return store_cls(**store_options)
@@ -336,8 +329,7 @@ def _verify_or_confirm_settlement(store: BtApiStore, config: OperatorConfigurati
     )
     if preparation.get("evidence_complete") is not True:
         raise OperatorBlocked(
-            "SETTLEMENT_CONFIRMATION_INCOMPLETE:"
-            + str(preparation.get("error_code") or "unknown")
+            "SETTLEMENT_CONFIRMATION_INCOMPLETE:" + str(preparation.get("error_code") or "unknown")
         )
     confirmed = verify().get("evidence_complete") is True
     if not confirmed:
@@ -362,9 +354,7 @@ def collect_three_leg_evidence(
     product_id = config.product_id.upper()
 
     scan = _require_mapping(
-        store.get_ctp_preflight_snapshot(
-            exchange_id=exchange_id, timeout=timeout, read_only=True
-        ),
+        store.get_ctp_preflight_snapshot(exchange_id=exchange_id, timeout=timeout, read_only=True),
         "INSTRUMENT_SCAN",
     )
     _require_complete_read_only(scan, "INSTRUMENT_SCAN")
@@ -498,16 +488,13 @@ def run_engineering_smoke(
     fronts = resolve_fronts(env, config.environment)
     owned_store = store is None
     if store is None:
-        store = build_live_store(
-            credentials, fronts, config, state_directory=state_directory
-        )
+        store = build_live_store(credentials, fronts, config, state_directory=state_directory)
     settlement_confirmed = _verify_or_confirm_settlement(store, config)
 
     evidence = collect_three_leg_evidence(store, config)
     bundle = evidence["bundle"]
     symbols = tuple(
-        f"{leg.exchange_id}.{leg.instrument_id}"
-        for leg in (bundle.future, bundle.call, bundle.put)
+        f"{leg.exchange_id}.{leg.instrument_id}" for leg in (bundle.future, bundle.call, bundle.put)
     )
     metadata = _contract_metadata(bundle)
     broker = broker_cls(
@@ -540,9 +527,7 @@ def run_engineering_smoke(
         "stage_a": evidence["stage_a"],
         "stage_b": evidence["stage_b"],
         "bundle_execution_reference": evidence["execution_reference"],
-        "public_capabilities": {
-            "get_ctp_bundle_execution_reference_snapshot": True
-        },
+        "public_capabilities": {"get_ctp_bundle_execution_reference_snapshot": True},
         "raw_reconciliation_rounds": evidence["reconciliation_rounds"],
     }
     runner = SimNowLiveRunner(
@@ -616,9 +601,7 @@ def _request_counts(evidence: Mapping[str, Any]) -> dict[str, int]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", type=Path, default=DEFAULT_ENV_PATH)
-    parser.add_argument(
-        "--environment", choices=sorted(ENVIRONMENTS), default="second_7x24"
-    )
+    parser.add_argument("--environment", choices=sorted(ENVIRONMENTS), default="second_7x24")
     parser.add_argument("--product", default="SA")
     parser.add_argument("--exchange", default="CZCE")
     parser.add_argument("--future")
@@ -665,9 +648,7 @@ def main(argv: list[str] | None = None) -> int:
             query_timeout=float(args.query_timeout),
         )
         env = load_operator_env(args.env)
-        report = run_engineering_smoke(
-            config, env, state_directory=args.state_directory
-        )
+        report = run_engineering_smoke(config, env, state_directory=args.state_directory)
     except OperatorBlocked as exc:
         report = {
             "status": "BLOCKED",
