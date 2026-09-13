@@ -58,6 +58,7 @@ SCENARIOS = ("profitable", "loss", "no_edge", "partial", "unknown", "gap")
 MODES = ("replay", "shadow", "paper-live", "demo")
 OKX_API_REGIONS = frozenset({"global", "eea", "us", "tr"})
 CONSERVATIVE_TAKER_FEE = Decimal("0.0006")
+BOUNDED_ONE_SHOT_PROBE_CAPABILITY = "run_bounded_read_only_metadata_probe"
 PAPER_RISK_LEDGER_PATH = (
     Path.home() / ".bt_api_py" / "paper-ledgers" / "okx-binance-perpetual-usdt.account-risk.json"
 )
@@ -69,6 +70,14 @@ class RunnerConfigurationError(ValueError):
 
 class DemoApprovalError(RunnerConfigurationError):
     pass
+
+
+class RunnerSourceBindingError(RunnerConfigurationError):
+    """The executed runner cannot be trusted to match its candidate binding."""
+
+
+class ShadowOneShotProbeCapabilityError(RunnerConfigurationError):
+    """The SDK cannot prove a bounded, lifecycle-owned metadata probe."""
 
 
 def mode_policy(mode):
@@ -189,7 +198,7 @@ def load_candidate(manifest_path: Path = MANIFEST_PATH):
     if strategy_path.parent != resolved or config_path.parent != resolved:
         raise RunnerConfigurationError("manifest content paths escape the example directory")
     if _file_sha256(entrypoint, "runner source") != candidate.get("runner_sha256"):
-        raise RunnerConfigurationError("runner source fingerprint mismatch")
+        raise RunnerSourceBindingError("runner source fingerprint mismatch")
     if _file_sha256(strategy_path, "strategy source") != candidate.get("strategy_sha256"):
         raise RunnerConfigurationError("strategy source fingerprint mismatch")
     if _file_sha256(config_path, "candidate config") != candidate.get("config_sha256"):
@@ -380,12 +389,17 @@ def required_observation_duration(config, risk: EventDrivenRisk) -> Decimal:
         "shutdown_buffer_seconds",
         "require_funding_settlement",
     }
-    if set(observation) != allowed:
+    if not isinstance(observation, Mapping) or set(observation) != allowed:
         raise RunnerConfigurationError("observation configuration fields are incomplete or unknown")
-    statistical = decimal_value(observation["minimum_statistical_seconds"])
-    shutdown = decimal_value(observation["shutdown_buffer_seconds"])
+    try:
+        statistical = decimal_value(observation["minimum_statistical_seconds"])
+        shutdown = decimal_value(observation["shutdown_buffer_seconds"])
+    except (TypeError, ValueError, ArithmeticError) as exc:
+        raise RunnerConfigurationError("observation durations are invalid") from exc
     if statistical <= 0 or shutdown < 0:
         raise RunnerConfigurationError("observation durations are invalid")
+    if type(observation["require_funding_settlement"]) is not bool:
+        raise RunnerConfigurationError("require_funding_settlement must be a boolean")
     return statistical + risk.maximum_holding_seconds + shutdown
 
 
@@ -403,7 +417,7 @@ def validate_duration(
         raise RunnerConfigurationError(
             f"duration {value}s is below required observation duration {required}s"
         )
-    funding_required = bool(config["observation"]["require_funding_settlement"])
+    funding_required = config["observation"]["require_funding_settlement"]
     future = [decimal_value(item) for item in next_funding_times if item is not None]
     now = decimal_value(time.time())
     active_horizon = (
@@ -745,6 +759,105 @@ def _rules_from_store(store, mode):
         except ValueError as exc:
             raise RunnerConfigurationError(f"{label} contains an unsafe value") from exc
     return rules, fee_sources
+
+
+def _require_bounded_one_shot_probe(store):
+    """Require the SDK-owned operation that bounds its full read-only lifecycle.
+
+    ``BtApiStore`` currently exposes individual synchronous metadata reads but
+    no timeout/cancellation contract for them.  A runner-side thread timeout
+    could leave an active Store behind, so a zero-duration probe is admitted
+    only through this atomic, SDK-owned capability.
+    """
+
+    probe = getattr(store, BOUNDED_ONE_SHOT_PROBE_CAPABILITY, None)
+    if not callable(probe):
+        raise ShadowOneShotProbeCapabilityError(
+            "shadow one-shot requires an SDK bounded read-only metadata probe"
+        )
+    return probe
+
+
+def _finite_shutdown_timeout_seconds(shutdown_seconds):
+    """Convert a validated Decimal shutdown buffer to a finite Store timeout."""
+
+    try:
+        timeout_seconds = float(shutdown_seconds)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise RunnerConfigurationError(
+            "shutdown buffer is not a finite representable timeout"
+        ) from exc
+    if not math.isfinite(timeout_seconds) or timeout_seconds < 0:
+        raise RunnerConfigurationError("shutdown buffer is not a finite representable timeout")
+    return timeout_seconds
+
+
+def _bounded_one_shot_metadata_probe(probe, timeout_seconds):
+    """Collect a bounded, post-shutdown public metadata snapshot from the SDK."""
+
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise RunnerConfigurationError("shutdown buffer is not a finite representable timeout")
+    result = probe(
+        datanames=tuple(VENUE_SYMBOLS.values()),
+        timeout_seconds=timeout_seconds,
+    )
+    required = {"instrument_specs", "funding_snapshots", "store_health"}
+    if not isinstance(result, Mapping) or not required.issubset(result):
+        raise RunnerConfigurationError("bounded one-shot metadata probe result is incomplete")
+    if not isinstance(result["instrument_specs"], Mapping):
+        raise RunnerConfigurationError("bounded one-shot instrument snapshot is invalid")
+    if not isinstance(result["funding_snapshots"], Mapping):
+        raise RunnerConfigurationError("bounded one-shot funding snapshot is invalid")
+    if not isinstance(result["store_health"], Mapping):
+        raise RunnerConfigurationError("bounded one-shot shutdown evidence is invalid")
+    if not _store_shutdown_proven(result["store_health"]):
+        raise RunnerConfigurationError("bounded one-shot shutdown evidence is not proven")
+    return result
+
+
+def _rules_from_one_shot_metadata_probe(metadata):
+    """Build read-only conservative rules from the bounded SDK snapshot."""
+
+    instrument_specs = metadata["instrument_specs"]
+    rules = {}
+    fee_sources = {}
+    for venue, symbol in VENUE_SYMBOLS.items():
+        label = f"{venue} InstrumentSpec"
+        instrument = _require_typed_contract(instrument_specs.get(symbol), InstrumentSpec, label)
+        try:
+            rules[venue] = InstrumentRule.from_sdk_contracts(instrument, CONSERVATIVE_TAKER_FEE)
+        except ValueError as exc:
+            raise RunnerConfigurationError(f"{label} contains an unsafe value") from exc
+        fee_sources[venue] = "conservative_bound"
+    return rules, fee_sources
+
+
+def _funding_from_one_shot_metadata_probe(metadata):
+    """Validate funding snapshots returned by the bounded SDK probe."""
+
+    snapshots = metadata["funding_snapshots"]
+    result = {}
+    for venue, symbol in VENUE_SYMBOLS.items():
+        label = f"{venue} public FundingSnapshot"
+        snapshot = _require_typed_contract(snapshots.get(symbol), FundingSnapshot, label)
+        try:
+            snapshot = coerce_funding_snapshot(
+                snapshot,
+                now_epoch=decimal_value(time.time(), "funding_now"),
+                expected_exchange_name=EXCHANGES[venue],
+                expected_symbol=symbol,
+            )
+        except ValueError as exc:
+            raise RunnerConfigurationError(f"{label} is invalid: {exc}") from exc
+        assert snapshot.rate is not None
+        assert snapshot.settlement_interval_seconds is not None
+        result[venue] = (
+            snapshot.rate,
+            snapshot.next_funding_epoch,
+            Decimal(snapshot.settlement_interval_seconds),
+            snapshot.source,
+        )
+    return result
 
 
 def _funding_from_store(store):
@@ -1342,6 +1455,193 @@ def _preflight_failure_report(candidate, config, admission, stage, exc):
     }
 
 
+def _safe_shadow_failure_code(exc):
+    """Classify a shadow failure without evaluating an untrusted error message."""
+
+    if isinstance(exc, RunnerSourceBindingError):
+        return "RUNNER_SOURCE_BINDING_REJECTED"
+    if isinstance(exc, ShadowOneShotProbeCapabilityError):
+        return "SHADOW_ONE_SHOT_BOUNDED_PROBE_UNAVAILABLE"
+    if isinstance(exc, RunnerConfigurationError):
+        return "SHADOW_RUNNER_CONFIGURATION_ERROR"
+    return "SHADOW_OPERATION_FAILED"
+
+
+def _shadow_observed_execution_fields(observed_execution, *, execution_started=False):
+    """Return report-safe local counters when a shadow invariant trips late."""
+
+    if observed_execution is None:
+        if execution_started:
+            return {
+                "orders_submitted": None,
+                "fills": None,
+                "execution_status": "UNEXPECTED_EXECUTION_EVIDENCE_INCOMPLETE",
+                "shadow_execution_anomaly": {
+                    "observed": True,
+                    "execution_started": True,
+                    "evidence_complete": False,
+                },
+            }
+        return {
+            "orders_submitted": 0,
+            "fills": 0,
+            "execution_status": "NOT_RUN",
+        }
+    if not isinstance(observed_execution, Mapping):
+        return {
+            "orders_submitted": None,
+            "fills": None,
+            "execution_status": "UNEXPECTED_EXECUTION_EVIDENCE_INCOMPLETE",
+            "shadow_execution_anomaly": {
+                "observed": True,
+                "evidence_complete": False,
+            },
+        }
+    submitted = observed_execution.get("orders_submitted")
+    fills = observed_execution.get("fills")
+    broker_value_change = observed_execution.get("broker_value_change")
+    if type(submitted) is not int or submitted < 0 or type(fills) is not int or fills < 0:
+        return {
+            "orders_submitted": None,
+            "fills": None,
+            "execution_status": "UNEXPECTED_EXECUTION_EVIDENCE_INCOMPLETE",
+            "shadow_execution_anomaly": {
+                "observed": True,
+                "evidence_complete": False,
+            },
+        }
+    try:
+        normalized_value_change = str(
+            decimal_value(broker_value_change, "shadow_broker_value_change")
+        )
+    except (TypeError, ValueError, ArithmeticError):
+        return {
+            "orders_submitted": submitted,
+            "fills": fills,
+            "execution_status": "UNEXPECTED_EXECUTION_EVIDENCE_INCOMPLETE",
+            "shadow_execution_anomaly": {
+                "observed": True,
+                "evidence_complete": False,
+            },
+        }
+    if submitted == 0 and fills == 0 and decimal_value(normalized_value_change) == 0:
+        return {
+            "orders_submitted": 0,
+            "fills": 0,
+            "execution_status": "NOT_RUN",
+        }
+    return {
+        "orders_submitted": submitted,
+        "fills": fills,
+        "execution_status": "UNEXPECTED_EXECUTION_OBSERVED",
+        "broker_value_change": normalized_value_change,
+        "shadow_execution_anomaly": {
+            "observed": True,
+            "orders_submitted": submitted,
+            "fills": fills,
+            "broker_value_change": normalized_value_change,
+        },
+    }
+
+
+def _shadow_failure_report(
+    candidate,
+    config,
+    admission,
+    stage,
+    exc,
+    observed_execution=None,
+    execution_started=False,
+):
+    """Return a minimal terminal shadow report with no vendor payloads."""
+
+    report = {
+        "status": "SHADOW_FAILED_PENDING_SHUTDOWN",
+        "mode": "shadow",
+        "evidence_level": "R2_SHADOW_FAILURE",
+        "candidate_sha256": candidate["candidate_sha256"],
+        "config_sha256": candidate["config_sha256"],
+        "normalized_config_sha256": _canonical_hash(config),
+        "strategy_sha256": candidate["strategy_sha256"],
+        "admission": admission,
+        "shadow_failure": {
+            "failure_code": _safe_shadow_failure_code(exc),
+            "stage": stage,
+            "exception_type": _safe_exception_type(exc),
+            "exchange_error_code": _safe_exchange_error_code(exc),
+            "detail": "REDACTED",
+        },
+        "profitability_claim": "NONE_SHADOW_FAILURE",
+    }
+    report.update(
+        _shadow_observed_execution_fields(
+            observed_execution,
+            execution_started=execution_started,
+        )
+    )
+    if isinstance(exc, ShadowOneShotProbeCapabilityError):
+        report["one_shot_probe"] = {
+            "status": "UNAVAILABLE",
+            "capability": BOUNDED_ONE_SHOT_PROBE_CAPABILITY,
+            "lifecycle": "SDK_OWNED",
+        }
+    return report
+
+
+def _shadow_cli_failure_report(config, exc):
+    """Return a redacted terminal report when setup fails before a candidate is available."""
+
+    if isinstance(exc, RunnerSourceBindingError):
+        return {
+            "status": "SHADOW_FAILED",
+            "mode": "shadow",
+            "evidence_level": "R0_PROVENANCE_REJECTION",
+            "orders_submitted": 0,
+            "fills": 0,
+            "execution_status": "NOT_RUN",
+            "provenance_status": "RUNNER_SOURCE_BINDING_REJECTED",
+            "candidate_status": "UNTRUSTED",
+            "admission_status": "NOT_EVALUATED",
+            "configuration_status": (
+                "LOADED_UNBOUND" if isinstance(config, Mapping) else "NOT_LOADED"
+            ),
+            "store_health": _preflight_store_health_summary(None),
+            "store_stop_proven": False,
+            "shadow_failure": {
+                "failure_code": "RUNNER_SOURCE_BINDING_REJECTED",
+                "stage": "runner_setup",
+                "exception_type": "RunnerSourceBindingError",
+                "exchange_error_code": None,
+                "detail": "REDACTED",
+            },
+            "profitability_claim": "NONE_SHADOW_FAILURE",
+        }
+    report = {
+        "status": "SHADOW_FAILED",
+        "mode": "shadow",
+        "evidence_level": "R2_SHADOW_FAILURE",
+        "orders_submitted": 0,
+        "fills": 0,
+        "execution_status": "NOT_RUN",
+        "normalized_config_sha256": (
+            _canonical_hash(config) if isinstance(config, Mapping) else None
+        ),
+        "configuration_status": "LOADED" if isinstance(config, Mapping) else "NOT_LOADED",
+        "store_health": _preflight_store_health_summary(None),
+        "store_stop_proven": False,
+        "shadow_failure": {
+            "failure_code": _safe_shadow_failure_code(exc),
+            "stage": "runner_setup",
+            "exception_type": _safe_exception_type(exc),
+            "exchange_error_code": _safe_exchange_error_code(exc),
+            "detail": "REDACTED",
+        },
+        "profitability_claim": "NONE_SHADOW_FAILURE",
+    }
+    _attach_business_summary(report)
+    return report
+
+
 def _preflight_store_health_summary(health):
     """Expose shutdown proof fields while dropping diagnostic/account payloads."""
 
@@ -1401,13 +1701,23 @@ def run_network(
     risk = risk_from_config(config)
     funding_settings = funding_settings_from_config(config)
     mode_policy(mode)
+    required_observation_duration(config, risk)
     admission_models = event_path_models_from_candidate(candidate, risk)
-    requested_duration = _bounded_requested_duration(duration, config)
+    requested_duration = decimal_value(duration, "duration")
+    one_shot = requested_duration == 0
+    if one_shot:
+        if mode != "shadow":
+            raise RunnerConfigurationError("duration 0 is only valid for shadow mode")
+    else:
+        requested_duration = _bounded_requested_duration(requested_duration, config)
     shutdown_seconds = decimal_value(
         config["observation"]["shutdown_buffer_seconds"], "shutdown_buffer_seconds"
     )
-    active_seconds = requested_duration - shutdown_seconds
-    if active_seconds <= 0:
+    if one_shot and shutdown_seconds <= 0:
+        raise RunnerConfigurationError("duration 0 requires a positive shutdown buffer")
+    shutdown_timeout_seconds = _finite_shutdown_timeout_seconds(shutdown_seconds)
+    active_seconds = Decimal(0) if one_shot else requested_duration - shutdown_seconds
+    if not one_shot and active_seconds <= 0:
         raise RunnerConfigurationError("duration does not leave a positive active window")
     approval_lease = None
     if mode == "demo" and not preflight:
@@ -1422,38 +1732,62 @@ def run_network(
         raise RunnerConfigurationError(
             "execution requires immutable direction/first-venue/fee/depth/latency path models"
         )
-    store = build_store(
-        mode,
-        env_file,
-        risk,
-        funding_settings,
-        okx_api_region=config["okx_api_region"],
-    )
+    store = None
     report = None
     store_health = None
-    preflight_stage = "store_start"
+    preflight_stage = "store_build"
+    one_shot_sdk_shutdown_proven = False
+    shadow_execution_started = False
+    shadow_observed_execution = None
     try:
-        store.start()
-        preflight_stage = "instrument_and_fee_metadata"
-        rules, fee_sources = _rules_from_store(store, mode)
-        preflight_stage = "funding_metadata"
-        funding_contracts = _funding_from_store(store)
+        store = build_store(
+            mode,
+            env_file,
+            risk,
+            funding_settings,
+            okx_api_region=config["okx_api_region"],
+        )
+        if one_shot:
+            preflight_stage = "bounded_read_only_metadata_probe"
+            probe = _require_bounded_one_shot_probe(store)
+            # A failed or malformed SDK probe may have acquired Store resources,
+            # so keep runner shutdown ownership until its complete result proves
+            # that the SDK already stopped them.
+            one_shot_metadata = _bounded_one_shot_metadata_probe(probe, shutdown_timeout_seconds)
+            store_health = one_shot_metadata["store_health"]
+            one_shot_sdk_shutdown_proven = True
+            rules, fee_sources = _rules_from_one_shot_metadata_probe(one_shot_metadata)
+            funding_contracts = _funding_from_one_shot_metadata_probe(one_shot_metadata)
+        else:
+            preflight_stage = "store_start"
+            store.start()
+            preflight_stage = "instrument_and_fee_metadata"
+            rules, fee_sources = _rules_from_store(store, mode)
+            preflight_stage = "funding_metadata"
+            funding_contracts = _funding_from_store(store)
         rules = {
             venue: replace(rule, funding_interval_seconds=funding_contracts[venue][2])
             for venue, rule in rules.items()
         }
         funding_sources = {venue: values[3] for venue, values in funding_contracts.items()}
-        duration_gate = validate_duration(
-            requested_duration,
-            config,
-            risk,
-            next_funding_times=[value[1] for value in funding_contracts.values()],
-            active_observation_seconds=active_seconds,
-        )
-        duration_gate.update(
-            active_observation_seconds=str(active_seconds),
-            shutdown_buffer_seconds=str(shutdown_seconds),
-        )
+        if one_shot:
+            duration_gate = {
+                "requested_seconds": "0",
+                "status": "NOT_RUN_ONE_SHOT",
+                "reason": "NO_WAIT_READ_ONLY_METADATA_PROBE",
+            }
+        else:
+            duration_gate = validate_duration(
+                requested_duration,
+                config,
+                risk,
+                next_funding_times=[value[1] for value in funding_contracts.values()],
+                active_observation_seconds=active_seconds,
+            )
+            duration_gate.update(
+                active_observation_seconds=str(active_seconds),
+                shutdown_buffer_seconds=str(shutdown_seconds),
+            )
         preflight_stage = "readiness"
         preflight_report = _readiness(store, rules, risk) if mode == "demo" else None
         preflight_stage = "complete"
@@ -1476,6 +1810,37 @@ def run_network(
                 "fee_rate_per_fill": {venue: str(rule.taker_fee) for venue, rule in rules.items()},
                 "readiness": _preflight_readiness_summary(preflight_report),
                 "profitability_claim": "NONE_PREFLIGHT_ONLY",
+            }
+        elif one_shot:
+            report = {
+                "status": "SHADOW_ONE_SHOT_PENDING_SHUTDOWN_PROOF",
+                "mode": "shadow",
+                "evidence_level": "R0_BOUNDED_READ_ONLY_METADATA_PROBE",
+                "research_status": candidate["research_status"],
+                "candidate_sha256": candidate["candidate_sha256"],
+                "config_sha256": candidate["config_sha256"],
+                "normalized_config_sha256": _canonical_hash(config),
+                "strategy_sha256": candidate["strategy_sha256"],
+                "admission": admission,
+                "event_path_model_count": len(admission_models),
+                "duration_gate": duration_gate,
+                "one_shot_probe": {
+                    "status": "SDK_BOUNDED_PROBE_COMPLETED",
+                    "capability": BOUNDED_ONE_SHOT_PROBE_CAPABILITY,
+                    "lifecycle": "SDK_OWNED",
+                    "timeout_seconds": str(shutdown_seconds),
+                },
+                "qualification_artifact_verification": {
+                    "status": "NOT_RUN",
+                    "reason": "METADATA_PROBE_ONLY",
+                },
+                "orders_submitted": 0,
+                "fills": 0,
+                "execution_status": "NOT_RUN",
+                "fee_source": fee_sources,
+                "funding_source": funding_sources,
+                "fee_rate_per_fill": {venue: str(rule.taker_fee) for venue, rule in rules.items()},
+                "profitability_claim": "NONE_ONE_SHOT_READ_ONLY",
             }
         else:
             if mode == "demo":
@@ -1554,6 +1919,8 @@ def run_network(
             timer.daemon = True
             timer.start()
             try:
+                if mode == "shadow":
+                    shadow_execution_started = True
                 strategy = cerebro.run()[0]
             finally:
                 timer.cancel()
@@ -1563,6 +1930,12 @@ def run_network(
             broker_value_change = final_value - initial_value
             submitted = int(strategy_report.get("submitted_order_count", 0) or 0)
             fills = int(strategy_report.get("confirmed_fill_events", 0) or 0)
+            if mode == "shadow":
+                shadow_observed_execution = {
+                    "orders_submitted": submitted,
+                    "fills": fills,
+                    "broker_value_change": str(broker_value_change),
+                }
             if mode == "shadow" and (submitted or fills or broker_value_change != 0):
                 raise RunnerConfigurationError("shadow mode produced an order, fill, or PnL")
 
@@ -1644,21 +2017,40 @@ def run_network(
             }
             report.update(metrics)
     except Exception as exc:
-        if not preflight:
+        if preflight:
+            report = _preflight_failure_report(candidate, config, admission, preflight_stage, exc)
+        elif mode == "shadow":
+            report = _shadow_failure_report(
+                candidate,
+                config,
+                admission,
+                preflight_stage,
+                exc,
+                observed_execution=shadow_observed_execution,
+                execution_started=shadow_execution_started,
+            )
+        else:
             raise
-        report = _preflight_failure_report(candidate, config, admission, preflight_stage, exc)
     finally:
-        try:
-            store_health = store.stop(timeout=float(shutdown_seconds))
-        except Exception as exc:
-            store_health = {
-                "shutdown_state": "FAIL",
-                "error_type": type(exc).__name__,
-            }
+        if one_shot_sdk_shutdown_proven:
+            if store_health is None:
+                store_health = {"shutdown_state": "UNKNOWN"}
+        elif store is None:
+            store_health = {"shutdown_state": "NOT_STARTED"}
+        else:
+            try:
+                store_health = store.stop(timeout=shutdown_timeout_seconds)
+            except Exception as exc:
+                store_health = {
+                    "shutdown_state": "FAIL",
+                    "error_type": type(exc).__name__,
+                }
 
     store_stop_proven = _store_shutdown_proven(store_health)
     report["store_health"] = (
-        _preflight_store_health_summary(store_health) if preflight else store_health
+        _preflight_store_health_summary(store_health)
+        if preflight or mode == "shadow"
+        else store_health
     )
     report["store_stop_proven"] = store_stop_proven
     if preflight:
@@ -1675,7 +2067,12 @@ def run_network(
         _attach_business_summary(report)
         return report
     if mode == "shadow":
-        report["status"] = "SHADOW_PASS" if store_stop_proven else "INCOMPLETE"
+        if report.get("shadow_failure"):
+            report["status"] = "SHADOW_FAILED"
+        elif one_shot:
+            report["status"] = "SHADOW_ONE_SHOT_COMPLETE" if store_stop_proven else "INCOMPLETE"
+        else:
+            report["status"] = "SHADOW_PASS" if store_stop_proven else "INCOMPLETE"
     elif mode == "paper-live":
         risk_snapshot = report.get("account_risk_snapshot") or {}
         paper_safe = bool(
@@ -1731,7 +2128,11 @@ def build_parser():
     parser.add_argument("--scenario", choices=SCENARIOS, default="profitable")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
-    parser.add_argument("--duration", type=float)
+    parser.add_argument(
+        "--duration",
+        type=float,
+        help="seconds to observe; 0 runs a read-only shadow metadata one-shot",
+    )
     parser.add_argument("--env-file", type=Path, default=HERE / ".env")
     parser.add_argument("--preflight", action="store_true")
     parser.add_argument("--output", type=Path)
@@ -1740,24 +2141,34 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    config = load_config(args.config)
-    duration = args.duration or float(config.get("run_timeout_seconds", 0))
-    if not math.isfinite(duration) or duration <= 0:
-        raise RunnerConfigurationError("duration must be finite and positive")
-    if args.preflight and args.mode != "demo":
-        raise RunnerConfigurationError("--preflight is only valid with --mode demo")
-    report = (
-        run_replay(args.scenario, args.config, args.manifest)
-        if args.mode == "replay"
-        else run_network(
-            args.mode,
-            duration,
-            args.config,
-            args.env_file,
-            args.preflight,
-            args.manifest,
+    config = None
+    try:
+        config = load_config(args.config)
+        duration = (
+            args.duration
+            if args.duration is not None
+            else float(config.get("run_timeout_seconds", 0))
         )
-    )
+        if not math.isfinite(duration) or duration < 0:
+            raise RunnerConfigurationError("duration must be finite and non-negative")
+        if args.preflight and args.mode != "demo":
+            raise RunnerConfigurationError("--preflight is only valid with --mode demo")
+        report = (
+            run_replay(args.scenario, args.config, args.manifest)
+            if args.mode == "replay"
+            else run_network(
+                args.mode,
+                duration,
+                args.config,
+                args.env_file,
+                args.preflight,
+                args.manifest,
+            )
+        )
+    except Exception as exc:
+        if args.mode != "shadow":
+            raise
+        report = _shadow_cli_failure_report(config, exc)
     output = args.output or HERE / "reports" / f"{args.mode}-{args.scenario}.json"
     write_private_json_report(output, report)
     print(json.dumps(report, indent=2, ensure_ascii=False))
