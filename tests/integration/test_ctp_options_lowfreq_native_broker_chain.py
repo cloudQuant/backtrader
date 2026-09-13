@@ -41,6 +41,11 @@ PUT = "CZCE.SA701P1080"
 CLIENT_ORDER_ID = "iter23-native-chain-put-1"
 EXTERNAL_ORDER_ID = "iter23-local-ctp-order-1"
 LATE_TRADE_ID = "iter23-local-late-trade-1"
+COMPLETE_ENTRY_CLIENT_IDS = {
+    PUT: "iter23-local-complete-put-1",
+    FUTURE: "iter23-local-complete-future-1",
+    CALL: "iter23-local-complete-call-1",
+}
 
 
 @pytest.fixture
@@ -74,16 +79,39 @@ class FixedClock:
 class SealedBarClock:
     """Same-domain decision clock that can advance only after the local run."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, freeze_entry_callbacks: bool = False) -> None:
         self.strategy: Any = None
         self._risk_advance_ns: int | None = None
+        self._freeze_entry_callbacks = freeze_entry_callbacks
+        self._entry_callback_ns: int | None = None
 
     def advance_to_risk_deadline(self, now_monotonic_ns: int) -> None:
         self._risk_advance_ns = int(now_monotonic_ns)
 
+    def advance_to_entry_callback(self, now_monotonic_ns: int) -> None:
+        """Expose a local callback at a deterministic, monotonic clock time."""
+
+        callback_ns = int(now_monotonic_ns)
+        if self._entry_callback_ns is not None:
+            assert callback_ns >= self._entry_callback_ns
+        self._entry_callback_ns = callback_ns
+
     def __call__(self) -> dict[str, Any]:
         current = getattr(self.strategy, "_current_clock_now_ns", None)
         current = 0 if current is None else int(current)
+        execution_window = getattr(self.strategy, "_execution_window", None)
+        if (
+            self._freeze_entry_callbacks
+            and getattr(self.strategy, "_state", None) == "ENTERING"
+            and execution_window is not None
+        ):
+            # A finite local callback test must choose an explicit arrival time.
+            # Keep completion facts inside the real strategy's fixed 60-second
+            # window rather than silently treating later feed progress as a
+            # command-response timestamp.
+            current = int(execution_window.decision_mono_ns) + 100_000_000
+            if self._entry_callback_ns is not None:
+                current = max(current, self._entry_callback_ns)
         if self._risk_advance_ns is not None:
             current = max(current, self._risk_advance_ns)
         return {
@@ -207,6 +235,77 @@ class FinitePublicCtpTransport(FakeBtApiClient):
         self.push_broker_update(late_trade)
         self.push_broker_update(late_trade)
         return {"status": "accepted", "terminal_confirmed": False}
+
+
+class CompleteEntryPublicCtpTransport(FinitePublicCtpTransport):
+    """Finite compatibility transport that completes each planned entry leg.
+
+    This remains a test-only, old public-client fixture.  Its identifiers and
+    cumulative fill reports exercise the Backtrader mapping surface only; they
+    do not stand in for SDK, CTP, or SimNow execution evidence.
+    """
+
+    def __init__(
+        self,
+        live_ticks: Mapping[str, list[TickEvent]],
+        *,
+        final_watermark: dt.datetime,
+        interleave_symbols: tuple[str, str, str],
+    ) -> None:
+        super().__init__(
+            live_ticks,
+            final_watermark=final_watermark,
+            interleave_symbols=interleave_symbols,
+        )
+        self.external_order_ids: dict[int, str] = {}
+
+    def submit_order(self, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        payload = dict(payload)
+        self.submitted_orders.append(payload)
+        bt_order_ref = int(payload["bt_order_ref"])
+        symbol = str(payload["symbol"])
+        side = str(payload["side"])
+        client_order_id = str(payload["client_order_id"])
+        assert client_order_id == COMPLETE_ENTRY_CLIENT_IDS[symbol]
+        assert side in {"buy", "sell"}
+
+        external_order_id = f"iter23-local-complete-order-{bt_order_ref}"
+        self.external_order_ids[bt_order_ref] = external_order_id
+        # Return the finite fixture's complete cumulative checkpoint directly
+        # through the public Store command response.  The real Broker still
+        # emits Accepted, maps the identifiers, and then applies Completed
+        # before the strategy chooses whether to submit the next leg.
+        return {
+            "id": external_order_id,
+            "order_ref": client_order_id,
+            "status": "completed",
+            "filled": 1,
+            "price": float(payload["price"]),
+            "exchange_id": EXCHANGE,
+        }
+
+
+class MappingAuditBtApiBroker(BtApiBroker):
+    """Test-only observer of the real Broker's mapping state at Accepted."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self.accepted_mapping_snapshots: list[dict[str, Any]] = []
+        super().__init__(*args, **kwargs)
+
+    def notify(self, order: Any) -> None:
+        if order.status == order.Accepted:
+            client_order_id = order.info.get("ctp_order_ref")
+            external_order_id = order.info.get("external_order_id")
+            self.accepted_mapping_snapshots.append(
+                {
+                    "ref": order.ref,
+                    "client_order_id": client_order_id,
+                    "external_order_id": external_order_id,
+                    "client_mapping": self._orders_by_client_ref.get(client_order_id) is order,
+                    "external_mapping": self._orders_by_external_id.get(external_order_id) is order,
+                }
+            )
+        super().notify(order)
 
 
 def _tick_at(symbol: str, price: float, ingest_seq: int, timestamp: dt.datetime) -> TickEvent:
@@ -473,6 +572,125 @@ class NativeBrokerProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy):
         self.trade_callback_sizes.append(float(trade.size))
 
 
+class CompleteEntryBrokerProbeStrategy(strategy_module.CtpOptionsLowfreqStrategy):
+    """Test-only observer for a complete local conversion entry callback chain."""
+
+    def __init__(self) -> None:
+        sealed_bar_clock = self.p.clock_provider
+        assert isinstance(sealed_bar_clock, SealedBarClock)
+        sealed_bar_clock.strategy = self
+        self.entry_attempts: list[dict[str, Any]] = []
+        self.submission_attempts: list[dict[str, Any]] = []
+        self.entry_callback_event_log: list[tuple[str, str, int]] = []
+        self.order_callback_statuses: list[tuple[str, str]] = []
+        self.accepted_bindings: list[dict[str, Any]] = []
+        self.callback_facts: list[dict[str, Any]] = []
+        self._attested_order_refs: set[int] = set()
+        self._entry_chain_stopped = False
+        super().__init__()
+
+    def _start_entry(
+        self,
+        direction: str,
+        limits: Mapping[str, Mapping[str, float]],
+        score: float,
+        timestamp: dt.datetime,
+    ) -> None:
+        self.entry_attempts.append(
+            {
+                "direction": direction,
+                "legs": self._entry_legs_for(direction, limits),
+                "timestamp": timestamp,
+            }
+        )
+        super()._start_entry(direction, limits, score, timestamp)
+
+    def _submit_next_leg(self) -> None:
+        if self._state == "ENTERING" and self._leg_index < len(self._planned_legs):
+            leg = dict(self._planned_legs[self._leg_index])
+            self.submission_attempts.append(leg)
+            sealed_bar_clock = self.p.clock_provider
+            assert isinstance(sealed_bar_clock, SealedBarClock)
+            self.entry_callback_event_log.append(
+                ("submit", str(leg["symbol"]), int(sealed_bar_clock()["now_monotonic_ns"]))
+            )
+        super()._submit_next_leg()
+
+    def _with_entry_identity(self, side: str, *args: Any, **kwargs: Any) -> Any:
+        data = kwargs.get("data")
+        symbol = getattr(data, "_name", None)
+        if self._state == "ENTERING" and symbol in COMPLETE_ENTRY_CLIENT_IDS:
+            kwargs.setdefault("client_order_id", COMPLETE_ENTRY_CLIENT_IDS[symbol])
+            kwargs.setdefault("exchange_id", EXCHANGE)
+            kwargs.setdefault("offset", "open")
+        submit = super().buy if side == "buy" else super().sell
+        return submit(*args, **kwargs)
+
+    def buy(self, *args: Any, **kwargs: Any) -> Any:
+        return self._with_entry_identity("buy", *args, **kwargs)
+
+    def sell(self, *args: Any, **kwargs: Any) -> Any:
+        return self._with_entry_identity("sell", *args, **kwargs)
+
+    def notify_order(self, order: Any) -> None:
+        symbol = str(getattr(getattr(order, "data", None), "_name", ""))
+        status = order.getstatusname()
+        self.order_callback_statuses.append((symbol, status))
+        if (
+            order.status == order.Completed
+            and self._state == "ENTERING"
+            and order.ref not in self._attested_order_refs
+        ):
+            # The legacy public callback carries the completion mapping but not
+            # the strategy's scoped execution-fact protocol.  Bind a test-only
+            # same-order/same-scope fact before the real state machine decides
+            # whether the next protection leg is permitted.
+            assert self._execution_window is not None
+            assert self._active_decision_id is not None
+            assert self._active_basket_id is not None
+            self._attested_order_refs.add(order.ref)
+            self._submitted_order_ids_by_leg.setdefault(symbol, set()).add(str(order.ref))
+            fill_ns = self._execution_window.decision_mono_ns + (
+                (self._leg_index + 1) * 100_000_000
+            )
+            sealed_bar_clock = self.p.clock_provider
+            assert isinstance(sealed_bar_clock, SealedBarClock)
+            sealed_bar_clock.advance_to_entry_callback(fill_ns)
+            self.entry_callback_event_log.append(("completed", symbol, fill_ns))
+            fact = {
+                "leg": symbol,
+                "quantity": 1,
+                "status": "completed",
+                "fill_lower_ns": fill_ns,
+                "fill_upper_ns": fill_ns,
+                "source": "synthetic_local_broker_callback",
+                "clock_domain": CLOCK_DOMAIN,
+                "generation": 7,
+                "decision_id": self._active_decision_id,
+                "basket_id": self._active_basket_id,
+                "order_id": str(order.ref),
+                "fact_id": f"iter23-local-fake-callback-{order.ref}",
+                "source_identity": "iter23-local-fake-broker-callback-v1",
+            }
+            self.callback_facts.append(fact)
+            self.record_execution_fact(fact)
+        super().notify_order(order)
+        if order.status == order.Accepted:
+            self.accepted_bindings.append(
+                {
+                    "symbol": symbol,
+                    "side": "buy" if order.isbuy() else "sell",
+                    "client_order_id": order.info.get("ctp_order_ref"),
+                    "external_order_id": order.info.get("external_order_id"),
+                }
+            )
+        if self._state == "OPEN" and not self._entry_chain_stopped:
+            # The finite fixture ends at a completed entry.  Stop Cerebro
+            # instead of inventing later bar decisions or a fake exit path.
+            self._entry_chain_stopped = True
+            self.env.runstop()
+
+
 def test_native_broker_chain_routes_one_conversion_put_then_dedupes_cancel_race_trade(
     forbid_network: list[str],
 ) -> None:
@@ -620,6 +838,227 @@ def test_native_broker_chain_routes_one_conversion_put_then_dedupes_cancel_race_
     assert any(event["kind"] == "risk_deadline_reached" for event in strategy._cycle_events)
     assert len(transport.submitted_orders) == 1
     assert len(transport.cancelled_orders) == 1
+
+    assert forbid_network == []
+    assert transport.broker_updates == collections.deque()
+    assert len(feeds) == 3
+    assert transport.connect_calls == 1
+    assert transport.disconnect_calls == 1
+    assert transport.lifecycle == ["connect", "disconnect"]
+    assert transport.connected is False
+    assert store.is_connected is False
+    assert store._started is False
+    assert store._sdk_mode is False
+    assert broker._live_started is False
+    assert broker._startup_ready is False
+    assert broker.get_param("market_data_only") is False
+    assert broker.get_param("cancel_wait_remote") is True
+
+
+def test_native_broker_chain_completes_conversion_entry_one_leg_at_a_time(
+    forbid_network: list[str],
+) -> None:
+    """A local callback fixture may advance only P-buy -> F-buy -> C-sell.
+
+    This is deliberately narrower than an execution admission test: the
+    transport is a finite old public-client fake and the strategy receives
+    test-only, scoped completion facts.  It proves the Store/Feed/Broker/
+    Cerebro callback handoff and the strategy's protection-leg ordering, not
+    a CTP SDK, SimNow, or actual-fill result.
+    """
+
+    config, candidate, live_ticks, final_watermark = _candidate_ticks()
+    symbols = (candidate["future"], candidate["call"], candidate["put"])
+    sealed_bar_clock = SealedBarClock(freeze_entry_callbacks=True)
+    transport = CompleteEntryPublicCtpTransport(
+        live_ticks,
+        final_watermark=final_watermark,
+        interleave_symbols=symbols,
+    )
+    metadata = {
+        symbol: {
+            "tick_size": 1.0,
+            "contract_multiplier": candidate["multiplier"],
+            "min_size": 1,
+            "lot_size": 1,
+            "quantity_step": 1,
+            "currency": "CNY",
+        }
+        for symbol in symbols
+    }
+    store = BtApiStore(
+        provider="btapi",
+        api=transport,
+        cash=float(config["budget"]["capital_limit"]),
+        contract_metadata=metadata,
+        autostart=False,
+    )
+    broker = MappingAuditBtApiBroker(
+        store=store,
+        provider="btapi",
+        cash=float(config["budget"]["capital_limit"]),
+        value=float(config["budget"]["capital_limit"]),
+        contract_metadata=metadata,
+        cancel_wait_remote=True,
+        market_data_only=False,
+        sdk_preflight=False,
+        flatten_on_stop=False,
+        force_refresh_queries=False,
+        account_refresh_interval=3_600.0,
+        positions_refresh_interval=3_600.0,
+        open_orders_refresh_interval=3_600.0,
+    )
+    assert store._sdk_mode is False
+    assert broker.get_param("market_data_only") is False
+
+    cerebro = bt.Cerebro(stdstats=False, quicknotify=True)
+    cerebro.setbroker(broker)
+    feeds = []
+    for symbol in symbols:
+        feed = store.getdata(
+            dataname=symbol,
+            timeframe=bt.TimeFrame.Minutes,
+            compression=15,
+            backfill_start=False,
+            dispatch_ticks=False,
+            dispatch_bars=True,
+            qcheck=0,
+            price_tick=1.0,
+            clock=FixedClock(),
+            closed_bar_evidence_provider=lambda bar: replace(
+                _closed_bar_evidence(bar),
+                candidate_id=f"{config['strategy_id']}-replay-v1",
+            ),
+        )
+        feeds.append(feed)
+        cerebro.adddata(feed, name=symbol)
+    params = _candidate_strategy_kwargs(config, candidate, sealed_bar_clock)
+    # This scenario isolates the normal entry sequence.  It does not invent an
+    # exit signal or make a claim about a real holding/exit lifecycle.
+    params["minimum_holding_minutes"] = 120
+    params["minimum_hold_seconds"] = 7_200
+    params["maximum_hold_seconds"] = 7_200
+    cerebro.addstrategy(CompleteEntryBrokerProbeStrategy, **params)
+
+    [strategy] = cerebro.run(preload=False, runonce=False)
+
+    assert not strategy._quarantined_execution_facts, strategy._quarantined_execution_facts
+    assert strategy._state == "OPEN", (strategy._rejections, strategy._fill_timing)
+
+    expected_legs = [
+        {"symbol": PUT, "side": "buy", "price": 42.0, "size": 1},
+        {"symbol": FUTURE, "side": "buy", "price": 1002.0, "size": 1},
+        {"symbol": CALL, "side": "sell", "price": 138.0, "size": 1},
+    ]
+    assert [entry["direction"] for entry in strategy.entry_attempts] == ["conversion"]
+    assert strategy.entry_attempts[0]["legs"] == expected_legs
+    assert strategy.submission_attempts == expected_legs, {
+        "state": strategy._state,
+        "rejections": strategy._rejections,
+        "fill_timing": strategy._fill_timing,
+        "quarantined": strategy._quarantined_execution_facts,
+        "callback_facts": strategy.callback_facts,
+    }
+    assert [event[:2] for event in strategy.entry_callback_event_log] == [
+        ("submit", PUT),
+        ("completed", PUT),
+        ("submit", FUTURE),
+        ("completed", FUTURE),
+        ("submit", CALL),
+        ("completed", CALL),
+    ]
+    entry_event_time = {
+        (kind, symbol): timestamp for kind, symbol, timestamp in strategy.entry_callback_event_log
+    }
+    assert entry_event_time[("submit", FUTURE)] >= entry_event_time[("completed", PUT)]
+    assert entry_event_time[("submit", CALL)] >= entry_event_time[("completed", FUTURE)]
+
+    submitted = transport.submitted_orders
+    assert [
+        (payload["symbol"], payload["side"], payload["size"], payload["price"])
+        for payload in submitted
+    ] == [
+        (PUT, "buy", 1, 42.0),
+        (FUTURE, "buy", 1, 1002.0),
+        (CALL, "sell", 1, 138.0),
+    ]
+    assert [payload["offset"] for payload in submitted] == ["open", "open", "open"]
+    assert [payload["client_order_id"] for payload in submitted] == [
+        COMPLETE_ENTRY_CLIENT_IDS[PUT],
+        COMPLETE_ENTRY_CLIENT_IDS[FUTURE],
+        COMPLETE_ENTRY_CLIENT_IDS[CALL],
+    ]
+    assert len({payload["bt_order_ref"] for payload in submitted}) == 3
+    assert transport.cancelled_orders == []
+
+    accepted = [
+        (symbol, status)
+        for symbol, status in strategy.order_callback_statuses
+        if status == "Accepted"
+    ]
+    completed = [
+        (symbol, status)
+        for symbol, status in strategy.order_callback_statuses
+        if status == "Completed"
+    ]
+    assert accepted == [(PUT, "Accepted"), (FUTURE, "Accepted"), (CALL, "Accepted")]
+    assert completed == [(PUT, "Completed"), (FUTURE, "Completed"), (CALL, "Completed")]
+    assert not any(
+        status in {"Canceled", "Partial", "Rejected", "Expired"}
+        for _symbol, status in strategy.order_callback_statuses
+    )
+    assert [binding["symbol"] for binding in strategy.accepted_bindings] == [
+        PUT,
+        FUTURE,
+        CALL,
+    ]
+    assert [binding["side"] for binding in strategy.accepted_bindings] == ["buy", "buy", "sell"]
+    assert [binding["client_order_id"] for binding in strategy.accepted_bindings] == [
+        COMPLETE_ENTRY_CLIENT_IDS[PUT],
+        COMPLETE_ENTRY_CLIENT_IDS[FUTURE],
+        COMPLETE_ENTRY_CLIENT_IDS[CALL],
+    ]
+    expected_external_order_ids = [
+        transport.external_order_ids[payload["bt_order_ref"]] for payload in submitted
+    ]
+    assert [binding["external_order_id"] for binding in strategy.accepted_bindings] == (
+        expected_external_order_ids
+    )
+    assert len(set(expected_external_order_ids)) == 3
+    assert [snapshot["client_order_id"] for snapshot in broker.accepted_mapping_snapshots] == [
+        COMPLETE_ENTRY_CLIENT_IDS[PUT],
+        COMPLETE_ENTRY_CLIENT_IDS[FUTURE],
+        COMPLETE_ENTRY_CLIENT_IDS[CALL],
+    ]
+    assert [snapshot["ref"] for snapshot in broker.accepted_mapping_snapshots] == [
+        payload["bt_order_ref"] for payload in submitted
+    ]
+    assert [snapshot["external_order_id"] for snapshot in broker.accepted_mapping_snapshots] == (
+        expected_external_order_ids
+    )
+    assert all(
+        snapshot["client_mapping"] and snapshot["external_mapping"]
+        for snapshot in broker.accepted_mapping_snapshots
+    )
+
+    assert strategy._state == "OPEN"
+    assert strategy._basket_status == "OPEN_UNVERIFIED"
+    assert strategy._rejections == []
+    assert strategy._confirmed_fill_by_leg == {PUT: 1.0, FUTURE: 1.0, CALL: 1.0}
+    assert len(strategy.callback_facts) == 3
+    assert len(strategy._quarantined_execution_facts) == 0
+    assert {fact["order_id"] for fact in strategy.callback_facts} == {
+        str(payload["bt_order_ref"]) for payload in submitted
+    }
+    assert {fact["clock_domain"] for fact in strategy.callback_facts} == {CLOCK_DOMAIN}
+    assert {fact["generation"] for fact in strategy.callback_facts} == {7}
+    assert [fact["fill_lower_ns"] for fact in strategy.callback_facts] == sorted(
+        fact["fill_lower_ns"] for fact in strategy.callback_facts
+    )
+    assert sealed_bar_clock._entry_callback_ns == strategy.callback_facts[-1]["fill_upper_ns"]
+    assert broker.positions[PUT].size == pytest.approx(1.0)
+    assert broker.positions[FUTURE].size == pytest.approx(1.0)
+    assert broker.positions[CALL].size == pytest.approx(-1.0)
 
     assert forbid_network == []
     assert transport.broker_updates == collections.deque()
