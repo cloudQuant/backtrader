@@ -282,6 +282,7 @@ def test_complete_profile_requires_all_rss_windows() -> None:
     assert passed["failed_gates"] == []
 
 
+@pytest.mark.performance
 def test_short_stress_profile_waits_for_deadline_and_is_incomplete(tmp_path: Path) -> None:
     output = tmp_path / "stress"
     args = Namespace(

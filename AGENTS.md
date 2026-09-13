@@ -74,12 +74,13 @@ tiers by **measured per-file duration**, applied dynamically at collection time
 (no test files are edited):
 
 ```bash
-make test-fast        # ~3.5 min: all non-strategy tests + fastest ~35% of
-                      #   strategy tests. Daily "did I break anything" loop.
-                      #   == pytest tests -m "not slow" -n 8 -q
+make test-fast        # parallel non-performance tests + serial wall-clock
+                      #   microbenchmarks; excludes slowest ~65% of strategy tests.
+                      #   Daily "did I break anything" loop.
 make test-slow        # the slowest ~65% strategy tests test-fast skips
 make test-strategies  # all 1,271 strategy regression tests (~9 min)
-make test-all         # entire suite in parallel (~10 min)
+make test-all         # parallel functional suite + serial wall-clock microbenchmarks
+make test-performance # wall-clock microbenchmarks without xdist
 make test-coverage    # coverage report
 
 # Single test, verbose:
@@ -98,6 +99,15 @@ How the split works:
   `=50` (broader).
 - Refresh timings after adding/removing strategy tests:
   `python scripts/refresh_strategy_durations.py`.
+
+Wall-clock microbenchmarks and time-bounded latency contracts have a separate
+serial lane: those tests are explicitly skipped under xdist or coverage tracing
+and `make test-performance` runs them without either. Its short RSS stress
+profile uses a separate fresh pytest process so suite-import RSS cannot be
+mistaken for the profile's process-tree budget. `make test-fast` and
+`make test-all` include that serial lane after their parallel functional tests,
+preserving each performance contract without treating worker scheduling noise
+as an application regression.
 
 ### Choosing which `backtrader` to test against
 

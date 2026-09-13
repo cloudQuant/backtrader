@@ -440,6 +440,7 @@ def local_order(ref=1, *, offset="open", reduce_only=False):
     )
 
 
+@pytest.mark.performance
 def test_async_submit_returns_receipt_without_waiting_for_transport():
     api = AsyncSdk(block_first=True)
     store = make_store(api)
@@ -2555,6 +2556,7 @@ def test_account_risk_snapshot_binds_sdk_loss_limit_and_recomputes_loss_contract
     assert "account_maximum_loss_limit_mismatch" in mismatch["evidence_errors"]
 
 
+@pytest.mark.performance
 def test_live_broker_account_risk_read_uses_cache_and_refreshes_off_callback_thread():
     class SlowRiskSdk(AsyncSdk):
         def __init__(self):

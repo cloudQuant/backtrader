@@ -363,7 +363,7 @@ python -m pytest tests/ \
 
 **刷新 durations**: 增删策略测试或耗时漂移后，运行 `python scripts/refresh_strategy_durations.py`（重测一次并重写 json），或 `--from-log <pytest --durations 日志>` 从已有日志解析。
 
-**已知噪声**: `tests/unit/brokers/test_broker_refacto.py`、`test_comminfo_refactor.py` 中的几个 `*_performance` 用例在 `-n 8` 高并发下偶发超时失败（与本治理无关，单独跑均通过）。后续应给这类性能基准用例改用更宽松的阈值或迁出并行集。
+**已处理的并行噪声**: `tests/unit/brokers/test_broker_refacto.py`、`test_comminfo_refactor.py`、参数系统、最终集成和 Iter22 短压测中的 wall-clock 测试已标记为 `performance`。xdist 会明确跳过这些 CPU-contended 计时断言；`make test-performance` 在无 xdist 的串行 lane 执行它们，其中 RSS 短压测另以新 pytest 进程运行，避免完整 suite 的导入 RSS 污染其进程树预算。`make test-fast` 与 `make test-all` 均会调用该 lane。性能阈值没有放宽。
 
 ---
 

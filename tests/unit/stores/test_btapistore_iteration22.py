@@ -3483,6 +3483,7 @@ def test_ctp_query_group_obeys_minimum_start_interval():
     assert all(right - left >= 0.008 for left, right in zip(starts, starts[1:]))
 
 
+@pytest.mark.performance
 def test_ctp_query_timeout_is_one_total_deadline_for_the_group():
     client = CompleteQueryClient()
     client.ctp_query_min_interval_seconds = 0.03

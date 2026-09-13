@@ -441,6 +441,7 @@ class TestBrokerCompatibilityLogic:
         assert broker.p.slip_out == True
 
 
+@pytest.mark.performance
 class TestBrokerPerformance:
     """Tests for broker performance characteristics.
 
@@ -638,6 +639,7 @@ class TestBrokerUsageExamples:
         assert broker.get_fundshares() > 0  # Should have some shares
 
 
+@pytest.mark.performance
 def test_comprehensive_broker_compatibility():
     """Runs comprehensive broker compatibility test suite.
 
