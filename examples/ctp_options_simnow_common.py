@@ -86,13 +86,37 @@ def discover_three_leg_bundles(
     day = _date(trading_day, "trading_day")
     if selector_policy not in {"per_leg", "one_to_one"}:
         raise BundleSelectionError("UNSUPPORTED_SELECTOR_POLICY")
-    rows = [_normalize(row, day) for row in _materialize_records(records)]
-    scoped = [row for row in rows if row["exchange_id"] == exchange]
-    _reject_duplicate_identities(scoped)
-    futures = [
-        row for row in scoped if row["asset_type"] == "future" and row["product_id"] == product
+    normalized = [
+        _normalize(row, day, require_current=False) for row in _materialize_records(records)
     ]
-    options = [row for row in scoped if row["asset_type"] == "option"]
+    scoped = [row for row in normalized if row["exchange_id"] == exchange]
+    _reject_duplicate_identities(scoped)
+    ineligible = [
+        (row, reason) for row in scoped if (reason := _currentness_rejection(row, day)) is not None
+    ]
+    target_future_rejections = [
+        reason
+        for row, reason in ineligible
+        if row["asset_type"] == "future" and row["product_id"] == product
+    ]
+    rows = [row for row in scoped if _currentness_rejection(row, day) is None]
+    futures = [
+        row for row in rows if row["asset_type"] == "future" and row["product_id"] == product
+    ]
+    options = [row for row in rows if row["asset_type"] == "option"]
+    candidate_rejections = [
+        reason
+        for row, reason in ineligible
+        if (
+            row["asset_type"] == "option"
+            and any(future["instrument_id"] == row["underlying"] for future in futures)
+        )
+        or (
+            row["asset_type"] == "future"
+            and row["product_id"] == product
+            and any(option["underlying"] == row["instrument_id"] for option in options)
+        )
+    ]
     bundles: list[ThreeLegBundle] = []
     for future in futures:
         matching = [row for row in options if row["underlying"] == future["instrument_id"]]
@@ -116,6 +140,16 @@ def discover_three_leg_bundles(
             item.put.instrument_id,
         )
     )
+    if not bundles:
+        # A stale exchange-wide scan may include expired contracts next to a
+        # valid F/C/P candidate. Ignore stale rows only after discovering a
+        # complete current bundle. If no current bundle exists, preserve the
+        # specific reason rather than silently treating an unsafe candidate as
+        # absent.
+        if candidate_rejections:
+            raise BundleSelectionError(candidate_rejections[0])
+        if target_future_rejections:
+            raise BundleSelectionError(target_future_rejections[0])
     return tuple(bundles)
 
 
@@ -187,7 +221,9 @@ def _leg(row) -> LegIdentity:
     )
 
 
-def _normalize(record: Mapping[str, Any], requested_day: str) -> dict[str, Any]:
+def _normalize(
+    record: Mapping[str, Any], requested_day: str, *, require_current: bool = True
+) -> dict[str, Any]:
     if not isinstance(record, Mapping):
         raise BundleSelectionError("INSTRUMENT_RECORD_NOT_MAPPING")
     row = {
@@ -204,10 +240,10 @@ def _normalize(record: Mapping[str, Any], requested_day: str) -> dict[str, Any]:
         "option_type": _option_type(record),
         "strike": _optional_decimal(record, "strike"),
     }
-    if not row["active"]:
-        raise BundleSelectionError("INACTIVE_INSTRUMENT")
-    if row["expiry"] <= requested_day:
-        raise BundleSelectionError("EXPIRED_INSTRUMENT")
+    if require_current:
+        rejection = _currentness_rejection(row, requested_day)
+        if rejection is not None:
+            raise BundleSelectionError(rejection)
     if row["asset_type"] == "future":
         # CTP commonly returns NUL/DBL_MAX/product-underlying sentinels on futures.
         row["underlying"] = None
@@ -223,6 +259,16 @@ def _normalize(record: Mapping[str, Any], requested_day: str) -> dict[str, Any]:
     else:
         raise BundleSelectionError("UNSUPPORTED_ASSET_TYPE")
     return row
+
+
+def _currentness_rejection(row: Mapping[str, Any], requested_day: str) -> str | None:
+    """Return the strict eligibility failure for one normalized scan row."""
+
+    if not row["active"]:
+        return "INACTIVE_INSTRUMENT"
+    if row["expiry"] <= requested_day:
+        return "EXPIRED_INSTRUMENT"
+    return None
 
 
 def _reject_duplicate_identities(rows: Iterable[Mapping[str, Any]]) -> None:
@@ -370,9 +416,7 @@ def _resolved_active(record: Mapping[str, Any]) -> bool:
     """
 
     values = [
-        record[key]
-        for key in _ALIASES["active"]
-        if key in record and record[key] not in (None, "")
+        record[key] for key in _ALIASES["active"] if key in record and record[key] not in (None, "")
     ]
     if not values:
         raise BundleSelectionError("MISSING_ACTIVE")

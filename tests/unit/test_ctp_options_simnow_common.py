@@ -100,6 +100,64 @@ def test_expired_or_wrong_day_records_fail_closed(field):
     assert exc.value.reason in {"EXPIRED_INSTRUMENT", "TRADING_DAY_MISMATCH"}
 
 
+def test_unrelated_expired_future_does_not_block_a_valid_three_leg_bundle():
+    """A full exchange scan may retain expired contracts beside live ones."""
+
+    records = _records()
+    expired_future = deepcopy(records[0])
+    expired_future["InstrumentID"] = "m2601"
+    expired_future["ExpireDate"] = "20260910"
+    records.append(expired_future)
+
+    bundle = _select(records)
+
+    assert bundle.future.instrument_id == "m2701"
+    assert bundle.call.instrument_id == "m2701-C-3400"
+    assert bundle.put.instrument_id == "m2701-P-3400"
+
+
+def test_unrelated_expired_option_does_not_block_a_valid_three_leg_bundle():
+    """Stale options for another future are not candidates for this bundle."""
+
+    records = _records()
+    expired_call = deepcopy(records[1])
+    expired_call["InstrumentID"] = "m2601-C-3400"
+    expired_call["UnderlyingInstrID"] = "m2601"
+    expired_call["ExpireDate"] = "20260910"
+    records.append(expired_call)
+
+    assert _select(records).future.instrument_id == "m2701"
+
+
+def test_expired_option_series_does_not_block_a_current_bundle_for_the_same_future():
+    """A future can retain an expired option series beside its current one."""
+
+    records = _records()
+    expired_put = deepcopy(records[2])
+    expired_put["InstrumentID"] = "m2701-P-3300"
+    expired_put["StrikePrice"] = 3300
+    expired_put["ExpireDate"] = "20260910"
+    records.append(expired_put)
+
+    assert _select(records).put.instrument_id == "m2701-P-3400"
+
+
+def test_exact_ids_for_an_expired_bundle_remain_fail_closed():
+    records = _records()
+    records[0]["ExpireDate"] = "20260910"
+
+    with pytest.raises(MODULE.BundleSelectionError, match="EXPIRED_INSTRUMENT"):
+        MODULE.select_three_leg_bundle(
+            records,
+            product_id="m",
+            exchange_id="DCE",
+            trading_day="20260911",
+            future_instrument_id="m2701",
+            call_instrument_id="m2701-C-3400",
+            put_instrument_id="m2701-P-3400",
+        )
+
+
 def test_multiple_matching_calls_are_ambiguous():
     records = _records()
     duplicate = deepcopy(records[1])
