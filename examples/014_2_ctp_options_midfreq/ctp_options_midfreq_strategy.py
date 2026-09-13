@@ -18,10 +18,12 @@ from typing import TYPE_CHECKING, Any, Deque, Dict, Mapping, Optional, Sequence,
 import backtrader as bt
 from backtrader.feeds import (
     BarBarrierPolicy,
+    BarEvidence,
     BarLeg,
     MultiLegBarBarrier,
     validate_quote_against_bar,
 )
+from backtrader.feeds.btapifeed import BtApiFeed
 
 
 def _load_feature_module() -> Any:
@@ -583,12 +585,37 @@ class _TokenLedger:
 class CTPOptionsMidFrequencyStrategy(bt.Strategy):
     """A read-only local C/P/F strategy driven by frozen FQ2 features."""
 
-    params = (("config", None), ("quote_producer", None), ("timing_provider", None))
+    params = (
+        ("config", None),
+        ("quote_producer", None),
+        ("timing_provider", None),
+        # The established replay route remains the default.  A native caller
+        # has to opt in explicitly, after which the strategy consumes only
+        # the immutable closed-bar evidence synchronously sealed by BtApiFeed.
+        ("require_feed_bar_evidence", False),
+        ("max_pending_feed_decisions", 1),
+    )
 
     def __init__(self) -> None:
         if self.p.config is None:
             raise ConfigurationError("CONFIG_REQUIRED", "strategy configuration is required")
-        if self.p.quote_producer is None and self.p.timing_provider is None:
+        if not isinstance(self.p.require_feed_bar_evidence, bool):
+            raise ConfigurationError(
+                "FEED_EVIDENCE_MODE", "require_feed_bar_evidence must be a bool"
+            )
+        max_pending_feed_decisions = _positive_int(
+            self.p.max_pending_feed_decisions, "max_pending_feed_decisions"
+        )
+        if self.p.require_feed_bar_evidence and self.p.quote_producer is not None:
+            raise ConfigurationError(
+                "FEED_EVIDENCE_EXCLUSIVE",
+                "Feed-sealed mode cannot also accept a replay quote producer",
+            )
+        if (
+            self.p.quote_producer is None
+            and self.p.timing_provider is None
+            and not self.p.require_feed_bar_evidence
+        ):
             raise ConfigurationError(
                 "EVIDENCE_PRODUCER_REQUIRED",
                 "an explicit replay evidence or timing provider is required",
@@ -598,9 +625,36 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         contracts = candidate["contracts"]
         self._producer = self.p.quote_producer
         self._timing_provider = self.p.timing_provider
+        self._feed_evidence_mode = self.p.require_feed_bar_evidence
+        self._feed_data_by_symbol: Dict[str, Any] = {}
+        if self._feed_evidence_mode:
+            expected_symbols = tuple(contracts[field] for field in ("future", "call", "put"))
+            if len(self.datas) != len(expected_symbols):
+                raise ConfigurationError(
+                    "FEED_EVIDENCE_FEEDS", "Feed-sealed mode requires exactly three C/P/F feeds"
+                )
+            self._feed_data_by_symbol = {
+                symbol: self.datas[index] for index, symbol in enumerate(expected_symbols)
+            }
+            if tuple(getattr(data, "_name", None) for data in self.datas) != expected_symbols:
+                raise ConfigurationError(
+                    "FEED_EVIDENCE_FEEDS",
+                    "Feed-sealed mode feeds must match configured C/P/F symbols",
+                )
+            for data in self.datas:
+                if not isinstance(data, BtApiFeed):
+                    raise ConfigurationError(
+                        "FEED_EVIDENCE_FEEDS",
+                        "Feed-sealed mode requires BtApiFeed instances",
+                    )
+                if data.p.dispatch_bars is not True or data.p.dispatch_ticks is not False:
+                    raise ConfigurationError(
+                        "FEED_EVIDENCE_DISPATCH",
+                        "Feed-sealed mode requires bar dispatch and disables raw tick dispatch",
+                    )
         self._timing_projector = None
         self._timing_results: Deque[Dict[str, Any]] = deque(maxlen=128)
-        self._timing_only = self._producer is None
+        self._timing_only = self._producer is None and not self._feed_evidence_mode
         self._timing_idle_count = 0
         if self._timing_only:
             self._init_timing_only()
@@ -640,6 +694,10 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         self._accepted_tick_features: Deque[Dict[str, Any]] = deque(maxlen=128)
         self._rejections: Deque[str] = deque(maxlen=128)
         self._barrier_results: Deque[Dict[str, Any]] = deque(maxlen=128)
+        self._last_barrier_ingest: Optional[Dict[str, Any]] = None
+        self._max_pending_feed_decisions = max_pending_feed_decisions
+        self._pending_feed_decision_inputs: Deque[Any] = deque()
+        self._feed_evidence_fault: Optional[str] = None
         self._rejected_tick_count = 0
         self._tick_callback_count = 0
         self._orders_submitted = 0
@@ -688,6 +746,10 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         self._accepted_tick_features = deque(maxlen=1)
         self._rejections = deque(maxlen=128)
         self._barrier_results = deque(maxlen=1)
+        self._last_barrier_ingest = None
+        self._max_pending_feed_decisions = 1
+        self._pending_feed_decision_inputs = deque()
+        self._feed_evidence_fault = None
         self._rejected_tick_count = 0
         self._tick_callback_count = 0
         self._orders_submitted = 0
@@ -760,59 +822,133 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
     def _bar_evidence(self, symbol: str, minute: datetime, data: Any, leg_index: int) -> Any:
         return self._producer.bar_for(self._minute_index(minute), symbol, data, leg_index)
 
-    def _consume_barrier(self, minute: datetime) -> Any:
-        contracts = self._config["candidate"]["contracts"]
-        data_by_symbol = {
-            contracts["future"]: self.datas[0],
-            contracts["call"]: self.datas[1],
-            contracts["put"]: self.datas[2],
-        }
-        result = None
+    def _ingest_bar_evidence(self, bar: BarEvidence, *, record_result: bool = True) -> Any:
+        """Consume one immutable closed bar through the shared barrier."""
+
+        result = self._barrier.ingest(bar)
         scope_reset = False
-        for index, symbol in enumerate((contracts["future"], contracts["call"], contracts["put"])):
-            bar = self._bar_evidence(symbol, minute, data_by_symbol[symbol], index)
-            result = self._barrier.ingest(bar)
-            if (
-                result.reason
-                in {
-                    "SESSION_MISMATCH",
-                    "GENERATION_MISMATCH",
-                }
-                and result.reset_warmup
-            ):
-                try:
-                    self._barrier.reset_scope(
-                        trading_day=bar.trading_day,
-                        generation=bar.generation,
-                        session_segment=bar.session_segment,
-                        rules_hash=bar.rules_hash,
-                        clock_domain=bar.clock_domain,
-                        clock_mode=bar.clock_mode,
-                        clock_mapping=bar.clock_mapping,
-                        candidate_id=bar.candidate_id,
-                    )
-                except (TypeError, ValueError):
-                    scope_reset = True
-                    break
+        if (
+            result.reason
+            in {
+                "SESSION_MISMATCH",
+                "GENERATION_MISMATCH",
+            }
+            and result.reset_warmup
+        ):
+            try:
+                self._barrier.reset_scope(
+                    trading_day=bar.trading_day,
+                    generation=bar.generation,
+                    session_segment=bar.session_segment,
+                    rules_hash=bar.rules_hash,
+                    clock_domain=bar.clock_domain,
+                    clock_mode=bar.clock_mode,
+                    clock_mapping=bar.clock_mapping,
+                    candidate_id=bar.candidate_id,
+                )
+            except (TypeError, ValueError):
+                scope_reset = True
+            else:
                 scope_reset = True
                 result = self._barrier.ingest(bar)
-        assert result is not None
-        self._barrier_results.append(
-            {
-                "reason": result.reason,
-                "ready": result.ready,
-                "reset_warmup": result.reset_warmup,
-                "scope_reset": scope_reset,
-            }
-        )
+        result_record = {
+            "reason": result.reason,
+            "ready": result.ready,
+            "reset_warmup": result.reset_warmup,
+            "scope_reset": scope_reset,
+        }
+        self._last_barrier_ingest = result_record
+        if record_result:
+            self._barrier_results.append(result_record)
         if scope_reset:
             self._history.clear()
+        if self._feed_evidence_mode and (scope_reset or result.reset_warmup):
+            # Feed callbacks run before the corresponding data-line ``next``.
+            # A scope reset must therefore revoke every queued predecessor
+            # decision before a later callback can permit a new scope.
+            self._pending_feed_decision_inputs.clear()
+            self._last_decision_input = None
         if not result.ready:
             if result.reset_warmup:
                 self._history.clear()
             return None
         self._last_decision_input = result.decision_input
         return result.decision_input
+
+    def _consume_barrier(self, minute: datetime) -> Any:
+        """Build replay evidence only on the established default replay route."""
+
+        contracts = self._config["candidate"]["contracts"]
+        data_by_symbol = {
+            contracts["future"]: self.datas[0],
+            contracts["call"]: self.datas[1],
+            contracts["put"]: self.datas[2],
+        }
+        decision_input = None
+        for index, symbol in enumerate((contracts["future"], contracts["call"], contracts["put"])):
+            bar = self._bar_evidence(symbol, minute, data_by_symbol[symbol], index)
+            accepted = self._ingest_bar_evidence(bar, record_result=False)
+            if accepted is not None:
+                decision_input = accepted
+        if self._last_barrier_ingest is not None:
+            # Retain the historical replay report shape: one result for the
+            # synchronous three-leg cohort, rather than one callback record
+            # per producer leg.  Feed mode intentionally records each sealed
+            # callback because their arrival order is itself evidence.
+            self._barrier_results.append(self._last_barrier_ingest)
+        return decision_input
+
+    def _feed_bar_has_expected_provenance(self, bar: Any, evidence: BarEvidence) -> bool:
+        """Require the exact BtApiFeed dispatch window and immutable object identity."""
+
+        data = self._feed_data_by_symbol.get(evidence.symbol)
+        expected = getattr(data, "_closed_bar_evidence_dispatch_token", None)
+        actual = getattr(bar, "_closed_bar_evidence_dispatch_token", None)
+        is_sealed = getattr(data, "_has_sealed_closed_bar_evidence", None)
+        return (
+            expected is not None
+            and actual is expected
+            and callable(is_sealed)
+            and bool(is_sealed(bar, evidence))
+        )
+
+    def _queue_feed_decision(self, decision_input: Any) -> bool:
+        """Keep Feed-ahead-of-next evidence bounded and latch a fail-closed fault."""
+
+        if self._feed_evidence_fault is not None:
+            return False
+        if len(self._pending_feed_decision_inputs) >= self._max_pending_feed_decisions:
+            self._pending_feed_decision_inputs.clear()
+            self._last_decision_input = None
+            self._history.clear()
+            self._feed_evidence_fault = "FEED_BAR_DECISION_QUEUE_OVERFLOW"
+            self._rejections.append(self._feed_evidence_fault)
+            self._minute_events.append({"kind": self._feed_evidence_fault, "origin": "notify_bar"})
+            return False
+        self._pending_feed_decision_inputs.append(decision_input)
+        return True
+
+    def notify_bar(self, bar: Any) -> None:
+        """Accept only Feed-sealed closed-bar evidence for the opt-in native path."""
+
+        if not self._feed_evidence_mode:
+            return
+        evidence = getattr(bar, "closed_bar_evidence", None)
+        if not isinstance(evidence, BarEvidence):
+            self._rejections.append("FEED_CLOSED_BAR_EVIDENCE_REQUIRED")
+            self._minute_events.append(
+                {"kind": "FEED_CLOSED_BAR_EVIDENCE_REQUIRED", "origin": "notify_bar"}
+            )
+            return
+        if not self._feed_bar_has_expected_provenance(bar, evidence):
+            self._rejections.append("FEED_CLOSED_BAR_PROVENANCE_REQUIRED")
+            self._minute_events.append(
+                {"kind": "FEED_CLOSED_BAR_PROVENANCE_REQUIRED", "origin": "notify_bar"}
+            )
+            return
+        decision_input = self._ingest_bar_evidence(evidence)
+        if decision_input is not None:
+            self._queue_feed_decision(decision_input)
 
     def _budget_allows(self) -> bool:
         budget = self._config["budget"]
@@ -916,11 +1052,34 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             self._timing_next()
             return
         self._next_id += 1
-        minute = self._current_synchronous_minute()
-        if minute is None:
-            self._history.clear()
-            self._minute_events.append({"kind": "SKIP_UNSYNCHRONIZED_BAR", "origin": "next"})
-            return
+        if self._feed_evidence_mode:
+            if self._feed_evidence_fault is not None:
+                self._minute_events.append(
+                    {
+                        "kind": "SKIP_FEED_EVIDENCE_FAULT",
+                        "origin": "next",
+                        "reason": self._feed_evidence_fault,
+                    }
+                )
+                return
+            decision_input = (
+                self._pending_feed_decision_inputs.popleft()
+                if self._pending_feed_decision_inputs
+                else None
+            )
+            if decision_input is None:
+                self._minute_events.append(
+                    {"kind": "SKIP_FEED_CLOSED_BAR_EVIDENCE", "origin": "next"}
+                )
+                return
+            minute = decision_input.bucket_end
+        else:
+            minute = self._current_synchronous_minute()
+            if minute is None:
+                self._history.clear()
+                self._minute_events.append({"kind": "SKIP_UNSYNCHRONIZED_BAR", "origin": "next"})
+                return
+            decision_input = None
         minute_key = _iso(minute)
         if not self._remember_minute(minute_key):
             return
@@ -929,7 +1088,8 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             self._minute_events.append(
                 {"kind": "RESET_HISTORY_GAP", "origin": "next", "minute": minute_key}
             )
-        decision_input = self._consume_barrier(minute)
+        if not self._feed_evidence_mode:
+            decision_input = self._consume_barrier(minute)
         self._last_minute = minute
         self._last_closed_minute = minute
         if decision_input is None:
@@ -989,6 +1149,13 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         """Validate a producer-supplied post-seal quote as a diagnostic only."""
 
         self._tick_callback_count += 1
+        if self._feed_evidence_mode:
+            # Native Feed-sealed mode has exactly one market-data boundary:
+            # immutable BarEvidence.  A later raw tick cannot amend a sealed
+            # cohort or become a side channel for a decision.
+            self._rejected_tick_count += 1
+            self._rejections.append("FEED_SEALED_PATH_TICK_REJECTED")
+            return
         if not isinstance(tick, Mapping) or self._last_closed_minute is None:
             self._rejected_tick_count += 1
             return
@@ -1132,6 +1299,17 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                 "current_residual_added_after_calculation": True,
             },
             "ordinary_decision_path": "closed minute bar next() only",
+            "input_boundary": (
+                "feed_sealed_closed_bar_evidence"
+                if self._feed_evidence_mode
+                else "replay_quote_producer"
+            ),
+            "feed_evidence": {
+                "required": self._feed_evidence_mode,
+                "pending_decision_count": len(self._pending_feed_decision_inputs),
+                "max_pending_decisions": self._max_pending_feed_decisions,
+                "fault": self._feed_evidence_fault,
+            },
             "history_window_bars": self._config["signal"]["history_bars"],
             "ordinary_decision_count": len(self._ordinary_decisions),
             "ordinary_decisions": list(self._ordinary_decisions),

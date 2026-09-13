@@ -35,6 +35,36 @@ def candidate_hash(candidate):
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
+def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
+    """Inject immutable candidate data only for a zero-network formula fixture.
+
+    The real manifest intentionally rejects the current runner's changed source
+    fingerprint.  A separate contract below covers that fail-closed path.  This
+    helper never mutates the manifest or enables a network/approval path; it
+    only lets the formula fixture keep testing its deterministic report shape.
+    """
+
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    candidate = next(
+        row for row in manifest["candidates"] if row["strategy_id"] == runner.STRATEGY_ID
+    )
+    canonical_path = Path(runner.MANIFEST_PATH).resolve()
+
+    def load_test_only_candidate(path=runner.MANIFEST_PATH):
+        assert Path(path).resolve() == canonical_path
+        return manifest, candidate, canonical_path
+
+    def unexpected_store(*_args, **_kwargs):
+        pytest.fail("formula fixture must never construct a Store")
+
+    def unexpected_approval(*_args, **_kwargs):
+        pytest.fail("formula fixture must never read or use an approval")
+
+    monkeypatch.setattr(runner, "load_candidate", load_test_only_candidate)
+    monkeypatch.setattr(runner, "build_store", unexpected_store)
+    monkeypatch.setattr(runner, "require_demo_approval", unexpected_approval)
+
+
 def imports(path):
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     result = []
@@ -85,7 +115,7 @@ def test_event_strategy_neither_imports_nor_inherits_mid_strategy():
     assert "RobustBasisWindow" not in classes
 
 
-def test_manifest_uniquely_resolves_two_runnable_candidates():
+def test_frozen_manifest_is_internally_coherent_but_current_runners_are_untrusted():
     data = json.loads(MANIFEST.read_text(encoding="utf-8"))
     candidates = data["candidates"]
     assert len(candidates) == 2
@@ -100,10 +130,10 @@ def test_manifest_uniquely_resolves_two_runnable_candidates():
             candidate["strategy_sha256"]
             == hashlib.sha256((directory / candidate["strategy_module"]).read_bytes()).hexdigest()
         )
-        assert (
-            candidate["runner_sha256"]
-            == hashlib.sha256((directory / candidate["entrypoint"]).read_bytes()).hexdigest()
-        )
+        current_runner_sha256 = hashlib.sha256(
+            (directory / candidate["entrypoint"]).read_bytes()
+        ).hexdigest()
+        assert candidate["runner_sha256"] != current_runner_sha256
         assert (
             candidate["config_sha256"]
             == hashlib.sha256((directory / "config.yaml").read_bytes()).hexdigest()
@@ -124,6 +154,35 @@ def test_manifest_uniquely_resolves_two_runnable_candidates():
     assert event_candidate["hft_gate"]["status"] == "FAIL"
     assert event_candidate["selection_adr"]["lead_lag"].startswith("NOT_ADMITTED")
     assert event_candidate["selection_adr"]["maker_taker"].startswith("DEFERRED")
+
+
+@pytest.mark.parametrize("strategy_id", tuple(MODULES))
+@pytest.mark.parametrize("mode", ("shadow", "demo"))
+def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves_manifest(
+    strategy_id, mode, monkeypatch
+):
+    runner = MODULES[strategy_id]
+    manifest_before = MANIFEST.read_bytes()
+    interactions = []
+
+    def unexpected_store(*_args, **_kwargs):
+        interactions.append("store")
+        pytest.fail("untrusted runner source must fail before Store construction")
+
+    def unexpected_approval(*_args, **_kwargs):
+        interactions.append("approval")
+        pytest.fail("untrusted runner source must fail before approval lookup")
+
+    monkeypatch.setattr(runner, "build_store", unexpected_store)
+    monkeypatch.setattr(runner, "require_demo_approval", unexpected_approval)
+
+    with pytest.raises(runner.RunnerSourceBindingError, match="runner source fingerprint mismatch"):
+        runner.run_replay("no_edge")
+    with pytest.raises(runner.RunnerSourceBindingError, match="runner source fingerprint mismatch"):
+        runner.run_network(mode, 1)
+
+    assert interactions == []
+    assert MANIFEST.read_bytes() == manifest_before
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
@@ -157,8 +216,10 @@ def test_runner_binds_account_maximum_loss_threshold_into_sdk_config(strategy_id
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 @pytest.mark.parametrize("scenario", ("profitable", "loss", "no_edge", "partial", "unknown", "gap"))
-def test_replay_mechanics_fixtures_have_stable_report_contract(strategy_id, scenario):
-    report = MODULES[strategy_id].run_replay(scenario)
+def test_replay_mechanics_fixtures_have_stable_report_contract(strategy_id, scenario, monkeypatch):
+    runner = MODULES[strategy_id]
+    _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner)
+    report = runner.run_replay(scenario)
 
     assert report["status"] == "FORMULA_CHECK_PASS"
     assert report["evidence_level"] == "R0_FORMULA_FIXTURE"
@@ -192,8 +253,11 @@ def test_replay_mechanics_fixtures_have_stable_report_contract(strategy_id, scen
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
-def test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetry(strategy_id):
+def test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetry(
+    strategy_id, monkeypatch
+):
     runner = MODULES[strategy_id]
+    _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner)
     first = runner.run_replay("no_edge")
     second = runner.run_replay("no_edge")
 
