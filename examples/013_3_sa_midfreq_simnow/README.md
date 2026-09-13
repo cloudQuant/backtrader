@@ -22,11 +22,16 @@ bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 | --- | --- | --- | --- | --- |
 | `replay` | 不联网，本地 fixture | 禁止 | 不生成 | 不运行 |
 | `shadow --preflight-only` | 只读 | 禁止 | 不生成 | 只读核验 |
-| `shadow` | 只读观察 | 禁止 | 不生成 | 不确认 |
+| `shadow` | 第一套实际交易时段的只读观察 | 禁止 | 不生成 | 不确认 |
 | `shadow --api-diagnostic` | 第二套 7x24 的托管只读 API 查询 | 禁止 | 不生成 | 不确认 |
 | `simnow --preflight-only` | 只读 | 禁止 | 不生成 | 只读核验 |
 | `simnow --prepare-settlement` | `market_data_only` | 禁止 | 不生成 | 唯一显式确认动作，随后只读回查 |
 | admitted `simnow` | 托管交易会话 | receipt 限定 | 实际回报才记录 | 启动时只读核验 |
+
+第二套 `simnow_second_7x24` 仅允许 `shadow --api-diagnostic`；普通 `shadow` 或 `simnow`
+策略网络运行会在创建 Store、初始化 native 会话或连接前拒绝，不能被用作一小时策略观察或替代
+第一套 G3。CLI 与 direct API 为确定冻结 profile 仍可能先水合本地忽略的 `.env`，但不会把这些
+值写入报告或用于建立会话。
 
 `shadow` 和所有 preflight 路径显式设置 `auto_settlement_confirm=false`。只有同时满足
 SimNow 模式、非 preflight、非 prepare、且 receipt 已通过校验时，runner 才把

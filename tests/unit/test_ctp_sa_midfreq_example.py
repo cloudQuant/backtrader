@@ -737,11 +737,108 @@ def test_api_diagnostic_parser_and_invocation_reject_unsafe_combinations(monkeyp
         runner.main(["--api-diagnostic"])
 
 
+def test_engineering_only_profile_rejects_strategy_run_before_store_construction(
+    monkeypatch, tmp_path
+):
+    """Set 2 cannot be turned into a one-hour shadow strategy run."""
+
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    constructed = []
+    monkeypatch.setattr(
+        runner,
+        "_build_live_store",
+        lambda *_args, **_kwargs: constructed.append("store"),
+    )
+    output = tmp_path / "forbidden-set2-strategy-run"
+
+    with pytest.raises(runner.RunnerConfigurationError, match="engineering-only profiles"):
+        runner.run_network(
+            config,
+            mode="shadow",
+            purpose="observation",
+            preflight_only=False,
+            prepare_settlement=False,
+            receipt=None,
+            output_directory=output,
+            run_seconds=3600.0,
+        )
+
+    assert constructed == []
+    assert not output.exists()
+
+
+def test_direct_api_rejects_engineering_only_strategy_before_receipt_revalidation(
+    monkeypatch, tmp_path
+):
+    """A Set-2 direct call cannot spend work on receipt validation first."""
+
+    config = _config()
+    config["environment"] = "simnow_second_7x24"
+    revalidations = []
+    constructed = []
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(
+        runner,
+        "_revalidate_admission_receipt",
+        lambda *args, **kwargs: revalidations.append((args, kwargs)),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_build_live_store",
+        lambda *_args, **_kwargs: constructed.append("store"),
+    )
+    output = tmp_path / "forbidden-set2-direct-simnow"
+
+    with pytest.raises(runner.RunnerConfigurationError, match="engineering-only profiles"):
+        runner.run_network(
+            config,
+            mode="simnow",
+            purpose="engineering_smoke",
+            preflight_only=False,
+            prepare_settlement=False,
+            receipt={"must_not": "be_revalidated"},
+            output_directory=output,
+            run_seconds=1.0,
+        )
+
+    assert revalidations == []
+    assert constructed == []
+    assert not output.exists()
+
+
+def test_cli_rejects_engineering_only_strategy_before_receipt_validation(monkeypatch, tmp_path):
+    """CLI routing cannot parse a Set-2 order receipt before the profile guard."""
+
+    receipt_reads = []
+    monkeypatch.setattr(runner, "_load_env_file", lambda _path: None)
+    monkeypatch.setenv("ITER22_SIMNOW_PROFILE", "simnow_second_7x24")
+    monkeypatch.setattr(
+        runner,
+        "validate_receipt",
+        lambda *args, **kwargs: receipt_reads.append((args, kwargs)),
+    )
+
+    with pytest.raises(runner.RunnerConfigurationError, match="engineering-only profiles"):
+        runner.main(
+            [
+                "--mode",
+                "simnow",
+                "--purpose",
+                "engineering_smoke",
+                "--admission-receipt",
+                str(tmp_path / "must-not-be-read.json"),
+            ]
+        )
+
+    assert receipt_reads == []
+
+
 def test_settlement_session_establishment_uses_read_only_verification_before_validation():
     assert runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS == 30.0
     assert (
-        runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS
-        <= runner.CTP_SESSION_VERIFY_TIMEOUT_MAX_SECONDS
+        runner.CTP_SESSION_VERIFY_TIMEOUT_SECONDS <= runner.CTP_SESSION_VERIFY_TIMEOUT_MAX_SECONDS
     )
     calls = []
     session = {

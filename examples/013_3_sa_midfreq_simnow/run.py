@@ -2069,9 +2069,7 @@ def establish_read_only_ctp_session(
     taking the explicit confirmation branch.
     """
 
-    initial_verification = store.verify_ctp_settlement(
-        timeout=CTP_SESSION_VERIFY_TIMEOUT_SECONDS
-    )
+    initial_verification = store.verify_ctp_settlement(timeout=CTP_SESSION_VERIFY_TIMEOUT_SECONDS)
     if initial_verification.get("read_only_safe") is not True:
         raise PreflightError("initial settlement readback did not prove zero write requests")
     session_before = store.get_ctp_session_state()
@@ -4311,6 +4309,17 @@ def _finalize_recovery_runtime_result(
     return finalized, recovery_report
 
 
+def _reject_engineering_only_strategy_profile(config: Mapping[str, Any]) -> None:
+    """Keep an engineering-only profile out of every strategy network path."""
+
+    profile = str(config.get("environment") or "")
+    profile_config = _mapping(_mapping(config.get("profiles")).get(profile))
+    if profile_config.get("market_alignment") == "engineering_only":
+        raise RunnerConfigurationError(
+            "engineering-only profiles permit only --api-diagnostic; strategy network runs are forbidden"
+        )
+
+
 def _validate_network_invocation(
     config: Mapping[str, Any],
     *,
@@ -4325,6 +4334,10 @@ def _validate_network_invocation(
     """Enforce the write boundary for API callers as well as the CLI."""
 
     validate_config(config)
+    # Set 2 is intentionally a bounded API diagnostic, not an alternate
+    # strategy-observation environment. Keep this at the common network entry
+    # point so direct API callers cannot bypass the CLI diagnostic branch.
+    _reject_engineering_only_strategy_profile(config)
     if mode not in {"shadow", "simnow"}:
         raise RunnerConfigurationError("network runner accepts shadow or simnow only")
     if preflight_only and prepare_settlement:
@@ -4857,6 +4870,11 @@ def run_network(
     # output directory or constructing a Store.
     _load_env_file(HERE / ".env")
     config = effective_profile_config(config, os.environ)
+    # Match the CLI boundary: an engineering-only profile must not cause a
+    # receipt/trust-root revalidation merely because a direct API caller
+    # bypassed ``main``.  Profile hydration above is required to select the
+    # frozen profile, but it never creates a Store or native session.
+    _reject_engineering_only_strategy_profile(config)
     if receipt is not None and mode == "simnow" and not preflight_only and not prepare_settlement:
         receipt = _revalidate_admission_receipt(
             receipt,
@@ -5825,6 +5843,11 @@ def main(argv=None) -> int:
     _load_env_file(HERE / ".env")
     config, _path = load_config(args.config, env_values=os.environ)
     mode = args.mode or str(config.get("mode", "shadow"))
+    if mode in {"shadow", "simnow"} and not args.api_diagnostic:
+        # Reject before a CLI receipt is parsed or revalidated. The ignored
+        # local .env may already have been hydrated solely to resolve the
+        # frozen profile; no Store or native session exists at this point.
+        _reject_engineering_only_strategy_profile(config)
     if args.scenario is not None and mode != "replay":
         raise RunnerConfigurationError("--scenario is valid only in replay mode")
     if mode == "replay" and args.purpose != "observation":
