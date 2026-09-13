@@ -15,6 +15,7 @@ import backtrader as bt
 
 try:
     from .execution_timing import (
+        CalendarEvidence,
         ClockMapping,
         ClockObservation,
         ExecutionFacts,
@@ -23,6 +24,7 @@ try:
     )
 except ImportError:  # Direct execution through this directory's run.py.
     from execution_timing import (
+        CalendarEvidence,
         ClockMapping,
         ClockObservation,
         ExecutionFacts,
@@ -64,6 +66,7 @@ class TimingFixtureProvider:
         facts: ExecutionFacts,
         next_clock_ns: int | Sequence[int],
         idle_clock_ns: Sequence[int],
+        calendar: Optional[CalendarEvidence] = None,
     ) -> None:
         if not scope.synthetic or not mapping.synthetic or facts.source_kind != "synthetic":
             raise ValueError("TimingFixtureProvider only accepts explicitly synthetic evidence")
@@ -72,8 +75,13 @@ class TimingFixtureProvider:
         self._minutes = (minute,) if isinstance(minute, MinuteInput) else tuple(minute)
         if not self._minutes or any(item.scope != scope for item in self._minutes):
             raise ValueError("fixture must expose at least one minute in the same scope")
+        if calendar is not None and (
+            calendar.segment_id != scope.session_segment or calendar.rules_hash != scope.rules_hash
+        ):
+            raise ValueError("fixture calendar must bind the same segment and rules")
         self.minute = self._minutes[0]
         self._facts = facts
+        self._calendar = calendar
         self._next_clock_ns = (
             (next_clock_ns,) if isinstance(next_clock_ns, int) else tuple(next_clock_ns)
         )
@@ -99,6 +107,16 @@ class TimingFixtureProvider:
 
     def execution_facts(self) -> ExecutionFacts:
         return self._facts
+
+    @property
+    def calendar(self) -> Optional[CalendarEvidence]:
+        return self._calendar
+
+    def calendar_for_next(self) -> Optional[CalendarEvidence]:
+        return self._calendar
+
+    def calendar_for_idle(self) -> Optional[CalendarEvidence]:
+        return self._calendar
 
     def clock_for_next(self) -> ClockObservation:
         if self._next_index == 0:
@@ -187,7 +205,7 @@ def build_timing_fixture() -> TimingFixtureProvider:
         clock_domain=scope.clock_domain,
         generation=scope.generation,
         source="mf-t1-explicit-synthetic-anchor",
-        error_bound_ns=1_000,
+        error_bound_ns=0,
         valid_until_ns=2_000_000_000_000,
         rules_hash=scope.rules_hash,
         synthetic=True,
@@ -198,10 +216,10 @@ def build_timing_fixture() -> TimingFixtureProvider:
         bucket_end_ns=60_000_000_000,
         scope=scope,
         bar_ids=("MFT1-F-0931", "MFT1-C-0931", "MFT1-P-0931"),
-        quote_cutoffs=(("F_LOCAL_1000", 101), ("C_LOCAL_1000", 102), ("P_LOCAL_1000", 103)),
+        quote_cutoffs=(("F", 101), ("C", 102), ("P", 103)),
         direction="conversion",
         max_quantity=1,
-        invocation_id="next-1",
+        invocation_id="A60000000000",
         next_boundary_ns=60_000_000_000,
         decision_deadline_ns=30_000_000_000,
         entry_candidate=False,
@@ -225,6 +243,16 @@ def build_timing_fixture() -> TimingFixtureProvider:
         confirmed_qty=3,
         event_ids=(),
         collection_version="mf-t1-fixture-v1",
+        expiry_ns=2_000_000_000_000,
+    )
+    calendar = CalendarEvidence(
+        segment_id=scope.session_segment,
+        rules_hash=scope.rules_hash,
+        source="mf-t1-explicit-synthetic-calendar",
+        seconds_to_close=3_600,
+        trading_days_to_maturity=5,
+        as_of_ns=0,
+        valid_until_ns=2_000_000_000_000,
     )
     return TimingFixtureProvider(
         scope=scope,
@@ -233,6 +261,7 @@ def build_timing_fixture() -> TimingFixtureProvider:
         facts=facts,
         next_clock_ns=60_000_000_000,
         idle_clock_ns=(75_000_000_000, 901_000_000_000),
+        calendar=calendar,
     )
 
 
@@ -246,7 +275,7 @@ def build_normal_exit_fixture() -> TimingFixtureProvider:
         bucket_start_ns=60_000_000_000,
         bucket_end_ns=120_000_000_000,
         bar_ids=("MFT1-F-0932", "MFT1-C-0932", "MFT1-P-0932"),
-        invocation_id="next-2",
+        invocation_id="A120000000000",
         next_boundary_ns=120_000_000_000,
         decision_deadline_ns=90_000_000_000,
     )
@@ -259,6 +288,7 @@ def build_normal_exit_fixture() -> TimingFixtureProvider:
         # The second minute is observed at 120s; idle must remain in the
         # same monotonic domain and advance within the 250ms cadence budget.
         idle_clock_ns=(120_200_000_000,),
+        calendar=base.calendar,
     )
 
 

@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from dataclasses import replace
+import importlib.util
 import json
 import subprocess
 from pathlib import Path
 
 import pytest
+import backtrader as bt
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
@@ -44,7 +46,7 @@ def _scope(*, session: str = "day", generation: int = 7, domain: str = "d1"):
     )
 
 
-def _mapping(scope):
+def _mapping(scope, *, error_bound_ns=1_000):
     return ClockMapping(
         mapping_id=scope.mapping_id,
         anchor_wall_utc=datetime(2026, 9, 11, 9, tzinfo=UTC),
@@ -52,7 +54,7 @@ def _mapping(scope):
         clock_domain=scope.clock_domain,
         generation=scope.generation,
         source="synthetic-mf-t1-anchor",
-        error_bound_ns=1_000,
+        error_bound_ns=error_bound_ns,
         valid_until_ns=10**15,
         rules_hash=scope.rules_hash,
         synthetic=True,
@@ -74,14 +76,22 @@ def _clock(scope, mapping, mono, *, lower=None, upper=None, trusted=True):
     )
 
 
-def _facts(scope, *, phase="FLAT_VERIFIED", basket=False, exposure=0, fill=None):
+def _facts(
+    scope,
+    *,
+    phase="FLAT_VERIFIED",
+    basket=False,
+    exposure=0,
+    fill=None,
+    leg_intent=None,
+):
     return ExecutionFacts(
         scope=scope,
         source="synthetic-mf-t1-facts",
         source_kind="synthetic",
         trusted=True,
         reported_phase=phase,
-        first_leg_intent_ns=0,
+        first_leg_intent_ns=leg_intent,
         first_basket_intent_ns=0 if basket else None,
         cancel_intent_ns=None,
         earliest_exposure_lower_ns=exposure if exposure else None,
@@ -92,6 +102,7 @@ def _facts(scope, *, phase="FLAT_VERIFIED", basket=False, exposure=0, fill=None)
         confirmed_qty=0,
         event_ids=(),
         collection_version="fixture-v1",
+        expiry_ns=10**15,
     )
 
 
@@ -106,8 +117,8 @@ def _minute(scope, *, minute_id="m1", now=0, signal=False, z=0.0):
         direction="conversion",
         max_quantity=1,
         invocation_id=f"next-{minute_id}",
-        next_boundary_ns=now + 60_000_000_000,
-        decision_deadline_ns=now + 30_000_000_000,
+        next_boundary_ns=now + 120_000_000_000,
+        decision_deadline_ns=now + 90_000_000_000,
         entry_candidate=signal,
         z_score=z,
         legal_barrier=True,
@@ -123,11 +134,22 @@ def test_deadline_boundaries_are_exact_and_do_not_use_one_second_default():
     assert policy.recovery_timeout_ns == 60_000_000_000
 
 
+def test_clock_observation_upper_bound_must_remain_inside_mapping_validity():
+    scope = _scope()
+    mapping = replace(_mapping(scope, error_bound_ns=1_000), valid_until_ns=10_000)
+
+    observation = _clock(scope, mapping, 9_000, upper=10_000)
+    assert observation.upper_ns == 10_000
+
+    with pytest.raises(TimingContractError, match="upper bound is outside mapping validity"):
+        _clock(scope, mapping, 9_000, upper=10_001)
+
+
 def test_execution_projection_preserves_origins_and_unknown_risk():
     scope = _scope()
     mapping = _mapping(scope)
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
-    facts = _facts(scope, phase="UNKNOWN", exposure=0)
+    facts = _facts(scope, phase="UNKNOWN", exposure=0, leg_intent=0)
     result = projector.project(facts, _clock(scope, mapping, 65_000_000_000))
     assert result.deadlines["leg"].deadline_ns == 5_000_000_000
     assert result.deadlines["basket"].deadline_ns is None
@@ -143,7 +165,7 @@ def test_min_hold_uses_fill_upper_and_max_hold_uses_exposure_lower():
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     facts = _facts(scope, basket=True, exposure=1_000_000_000, fill=4_000_000_000)
     before = projector.project(facts, _clock(scope, mapping, 63_999_999_999))
-    after = projector.project(facts, _clock(scope, mapping, 64_000_000_000))
+    after = projector.project(facts, _clock(scope, mapping, 64_000_001_000))
     assert before.minimum_hold_deadline_ns == 64_000_000_000
     assert before.normal_exit_allowed is False
     assert after.normal_exit_allowed is True
@@ -179,10 +201,10 @@ def test_minute_is_one_shot_and_token_is_bound_to_same_next():
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     facts = _facts(scope)
     first = projector.consume_minute(
-        _minute(scope, signal=True), facts, _clock(scope, mapping, 1_000_000_000)
+        _minute(scope, signal=True), facts, _clock(scope, mapping, 60_000_001_000)
     )
     second = projector.consume_minute(
-        _minute(scope, signal=True), facts, _clock(scope, mapping, 2_000_000_000)
+        _minute(scope, signal=True), facts, _clock(scope, mapping, 61_000_000_000)
     )
     assert first.minute_consumed is True
     assert first.token is not None
@@ -247,6 +269,168 @@ def test_missing_scope_or_authentication_evidence_fails_closed():
 
 
 @pytest.mark.parametrize(
+    "target",
+    ("scope", "mapping", "clock", "facts", "event", "calendar"),
+)
+def test_provenance_schema_rejects_misleading_synthetic_labels(target):
+    """A label containing ``synthetic`` is not itself trusted provenance."""
+
+    scope = _scope()
+    if target == "scope":
+        scope = replace(scope, source="untrusted-synthetic")
+    mapping = _mapping(scope)
+    if target == "mapping":
+        mapping = replace(mapping, source="untrusted-synthetic")
+    now = _clock(scope, mapping, 1_000)
+    if target == "clock":
+        now = replace(now, source="untrusted-synthetic")
+    facts = _facts(scope)
+    if target == "facts":
+        facts = replace(facts, source="untrusted-synthetic")
+    if target == "event":
+        event = ExecutionEvent(
+            event_id="bad-source",
+            kind="fill",
+            leg="F",
+            quantity=0,
+            occurred_lower_ns=10,
+            occurred_upper_ns=10,
+            received_ns=20,
+            terminal=False,
+            source="untrusted-synthetic",
+        )
+        facts = replace(facts, event_ids=(event.event_id,), events=(event,))
+    CalendarEvidence = execution_timing.CalendarEvidence
+    calendar = CalendarEvidence(
+        scope.session_segment,
+        scope.rules_hash,
+        "untrusted-synthetic" if target == "calendar" else "synthetic-calendar",
+        3_600,
+        5,
+        as_of_ns=0,
+        valid_until_ns=1_000_000_000_000,
+    )
+
+    result = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30)).project(
+        facts, now, calendar=calendar
+    )
+
+    assert result.reason == "EVIDENCE_PROVENANCE_INVALID"
+    assert result.token is None
+    assert result.normal_exit_allowed is False
+
+
+def test_provenance_schema_rejects_reversed_public_sdk_label():
+    """``not-public-sdk`` must not satisfy the public SDK source schema."""
+
+    original_scope = _scope()
+    scope = replace(original_scope, source="sdk-public-scope", synthetic=False)
+    mapping = replace(_mapping(original_scope), source="sdk-public-mapping", synthetic=False)
+    now = ClockObservation(
+        monotonic_ns=1_000,
+        wall_utc=mapping.anchor_wall_utc + timedelta(microseconds=1),
+        clock_domain=scope.clock_domain,
+        mapping=mapping,
+        scope=scope,
+        source="sdk-public-clock",
+        trusted=True,
+        synthetic=False,
+    )
+    facts = replace(
+        _facts(original_scope),
+        scope=scope,
+        source="sdk-public-execution",
+        source_kind="sdk-public",
+    )
+
+    accepted = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30)).project(
+        facts, now
+    )
+    assert accepted.reason == "READY"
+
+    result = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30)).project(
+        replace(facts, source="not-public-sdk"), now
+    )
+
+    assert result.reason == "EVIDENCE_PROVENANCE_INVALID"
+    assert result.token is None
+    assert result.normal_exit_allowed is False
+
+
+def test_mf_t1_unaccepted_receipt_exit_code_is_nonzero():
+    """The independent receipt is green only after clean-commit acceptance."""
+
+    runner_path = ROOT / "scripts" / "run_iter27_mf_t1_independent_acceptance.py"
+    spec = importlib.util.spec_from_file_location("iter27_mf_t1_runner", runner_path)
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    assert runner.receipt_exit_code(accepted=False) == 1
+    assert runner.receipt_exit_code(accepted=True) == 0
+
+
+def test_mf_t1_auto_attestation_downgrades_a_dirty_binding_to_worktree():
+    """``auto`` must never label a non-clean source binding as clean-commit."""
+
+    runner_path = ROOT / "scripts" / "run_iter27_mf_t1_independent_acceptance.py"
+    spec = importlib.util.spec_from_file_location("iter27_mf_t1_runner_auto", runner_path)
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    assert runner.effective_attestation_mode("auto", {"clean_commit_ready": False}) == "worktree"
+    assert runner.effective_attestation_mode("auto", {"clean_commit_ready": True}) == "clean-commit"
+
+
+def test_mf_t1_frozen_source_kind_follows_fixture_tracking():
+    """Untracked frozen inputs are worktree-pinned, despite matching a hash."""
+
+    runner_path = ROOT / "scripts" / "run_iter27_mf_t1_independent_acceptance.py"
+    spec = importlib.util.spec_from_file_location("iter27_mf_t1_runner_source_kind", runner_path)
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    _, worktree_material = runner.frozen_material(
+        {"frozen_material_tracking": {"clean_commit_ready": False}}
+    )
+    _, clean_material = runner.frozen_material(
+        {"frozen_material_tracking": {"clean_commit_ready": True}}
+    )
+
+    assert worktree_material["source_kind"] == "worktree-pinned-fixture"
+    assert clean_material["source_kind"] == "clean-commit-pinned-fixture"
+
+
+def test_mf_t1_strict_tracking_rejects_dirty_execution_timing_source():
+    """A dirty product timing module prevents clean-commit acceptance."""
+
+    runner_path = ROOT / "scripts" / "run_iter27_mf_t1_independent_acceptance.py"
+    spec = importlib.util.spec_from_file_location("iter27_mf_t1_runner_tracking", runner_path)
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+
+    baseline = {
+        "head_contains_all": True,
+        "index_dirty_paths": (),
+        "index_matches_head": True,
+        "index_tracked": True,
+        "paths_not_ignored": True,
+        "untracked_paths": (),
+        "worktree_dirty_paths": (),
+        "worktree_matches_index": True,
+    }
+    assert runner.clean_commit_eligible(baseline) is True
+
+    dirty = dict(baseline)
+    dirty["worktree_dirty_paths"] = ("examples/014_2_ctp_options_midfreq/execution_timing.py",)
+    dirty["worktree_matches_index"] = False
+    assert runner.clean_commit_eligible(dirty) is False
+
+
+@pytest.mark.parametrize(
     ("kind", "origin", "timeout", "now", "expected"),
     [
         ("leg", 100_000_000_000, 5, 105_000_000_000, True),
@@ -278,7 +462,7 @@ def test_basket_and_leg_recovery_origins_are_not_recreated_from_callback_time():
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     projector.project(_facts(scope), _clock(scope, mapping, 16_000_000_000))
     projector.reset_scope(scope2, mapping2)
-    leg_facts = _facts(scope2, phase="UNKNOWN", basket=False)
+    leg_facts = _facts(scope2, phase="UNKNOWN", basket=False, leg_intent=0)
     leg = projector.project(leg_facts, _clock(scope2, mapping2, 6_000_000_000))
     assert leg.deadlines["recovery"].deadline_ns == 65_000_000_000
 
@@ -337,18 +521,18 @@ def test_token_expiry_uses_explicit_minute_boundary_and_decision_deadline():
     facts = replace(_facts(scope), first_leg_intent_ns=None)
     early = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     token = early.consume_minute(
-        _minute(scope, signal=True), facts, _clock(scope, mapping, 29_999_999_999)
+        _minute(scope, signal=True), facts, _clock(scope, mapping, 89_999_999_999)
     )
     assert token.token is not None
     exact = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     expired = exact.consume_minute(
-        _minute(scope, signal=True), facts, _clock(scope, mapping, 30_000_000_000)
+        _minute(scope, signal=True), facts, _clock(scope, mapping, 90_000_000_000)
     )
     assert expired.token is None
     assert expired.reason == "DECISION_TOKEN_EXPIRED"
     missing = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     no_boundary = replace(_minute(scope, signal=True), next_boundary_ns=None)
-    blocked = missing.consume_minute(no_boundary, facts, _clock(scope, mapping, 1))
+    blocked = missing.consume_minute(no_boundary, facts, _clock(scope, mapping, 60_000_001_000))
     assert blocked.reason == "MINUTE_BOUNDARY_MISSING"
 
 
@@ -364,17 +548,17 @@ def test_normal_exit_requires_a_later_legal_bar_and_z_or_continuation_failure():
     later = replace(_minute(scope, z=0.5), bucket_end_ns=65_000_000_000)
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     assert projector.project(
-        facts, _clock(scope, mapping, 64_000_000_000), minute=later
+        facts, _clock(scope, mapping, 65_000_001_000), minute=later
     ).normal_exit_allowed
     adverse = replace(later, z_score=0.500001, continuation_cost_failed=False)
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     assert not projector.project(
-        facts, _clock(scope, mapping, 64_000_000_000), minute=adverse
+        facts, _clock(scope, mapping, 65_000_001_000), minute=adverse
     ).normal_exit_allowed
     continuation = replace(adverse, continuation_cost_failed=True)
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     assert projector.project(
-        facts, _clock(scope, mapping, 64_000_000_000), minute=continuation
+        facts, _clock(scope, mapping, 65_000_001_000), minute=continuation
     ).normal_exit_allowed
 
 
@@ -382,7 +566,7 @@ def test_idle_gap_is_recorded_without_moving_original_deadlines():
     scope = _scope()
     mapping = _mapping(scope)
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
-    facts = _facts(scope, phase="UNKNOWN", basket=False)
+    facts = _facts(scope, phase="UNKNOWN", basket=False, leg_intent=0)
     first = projector.notify_idle(facts, _clock(scope, mapping, 0))
     on_time = projector.notify_idle(facts, _clock(scope, mapping, 249_999_999))
     late = projector.notify_idle(facts, _clock(scope, mapping, 500_000_000))
@@ -424,6 +608,7 @@ def test_duplicate_event_delivery_is_detached_and_conflicting_revisions_reject()
         event_ids=("fill-1", "fill-1"),
         collection_version="v1",
         events=(event, event),
+        expiry_ns=10**15,
     )
     assert facts.event_ids == ("fill-1",)
     assert facts.possible_exposure_unknown is True
@@ -494,7 +679,7 @@ def test_rejected_minute_admission_never_issues_a_token():
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     rejected = replace(_minute(scope, signal=True), legal_barrier=False)
     result = projector.consume_minute(
-        rejected, _facts(scope), _clock(scope, mapping, 1_000_000_000)
+        rejected, _facts(scope), _clock(scope, mapping, 60_000_001_000)
     )
     assert result.minute_consumed is True
     assert result.token is None
@@ -504,11 +689,11 @@ def test_rejected_minute_admission_never_issues_a_token():
         _minute(scope, minute_id="m2", signal=True),
         bucket_start_ns=60_000_000_000,
         bucket_end_ns=120_000_000_000,
-        next_boundary_ns=120_000_000_000,
-        decision_deadline_ns=90_000_000_000,
+        next_boundary_ns=180_000_000_000,
+        decision_deadline_ns=150_000_000_000,
     )
     token_result = projector.consume_minute(
-        admitted, _facts(scope), _clock(scope, mapping, 1_000_000_000)
+        admitted, _facts(scope), _clock(scope, mapping, 120_000_001_000)
     )
     assert token_result.token is not None
     assert token_result.token.minute_id == admitted.minute_id
@@ -519,27 +704,42 @@ def test_rejected_minute_admission_never_issues_a_token():
         admitted, minute_id="m3", bucket_start_ns=120_000_000_000, bucket_end_ns=180_000_000_000
     )
     blocked = projector.consume_minute(
-        rejected_facts, untrusted, _clock(scope, mapping, 1_000_000_000)
+        rejected_facts, untrusted, _clock(scope, mapping, 180_000_000_000)
     )
     assert blocked.reason == "EXECUTION_FACTS_UNTRUSTED"
     assert blocked.token is None
 
 
-def test_unresolved_facts_block_scope_reset_but_terminal_basket_does_not():
+def test_unresolved_facts_survive_scope_reset_as_handover_only():
     scope = _scope()
     mapping = _mapping(scope)
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     unknown = _facts(scope, phase="UNKNOWN", exposure=1)
     projector.project(unknown, _clock(scope, mapping, 10))
-    with pytest.raises(TimingContractError, match="UNRESOLVED_EXECUTION_OBLIGATION"):
-        projector.reset_scope(_scope(session="next"), _mapping(_scope(session="next")))
+    next_scope = _scope(session="next")
+    next_mapping = _mapping(next_scope)
+    projector.reset_scope(next_scope, next_mapping)
+    carried = projector.consume_minute(
+        _minute(next_scope, minute_id="new-scope", signal=True),
+        _facts(next_scope),
+        _clock(next_scope, next_mapping, 60_000_000_000),
+    )
+    assert carried.reason == "UNRESOLVED_PREDECESSOR_SCOPE"
+    assert carried.risk_action == "HANDOVER"
+    assert carried.token is None
 
     projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
     terminal = _facts(scope, phase="EXPOSED", basket=True, exposure=1, fill=4)
     projector.project(terminal, _clock(scope, mapping, 64_000_000_000))
-    next_scope = _scope(session="next")
+    next_scope = _scope(session="completed-next", generation=8)
     projector.reset_scope(next_scope, _mapping(next_scope))
     assert projector.scope == next_scope
+    assert (
+        projector.project(
+            _facts(next_scope), _clock(next_scope, _mapping(next_scope), 60_000_000_000)
+        ).risk_action
+        == "HANDOVER"
+    )
 
 
 def test_clock_bounds_are_conservative_and_untrusted_observations_fail_closed():
@@ -574,7 +774,7 @@ def test_idle_is_risk_only_while_a_later_legal_minute_can_exit_normally():
     idle = projector.notify_idle(facts, _clock(scope, mapping, 64_000_000_000))
     assert idle.normal_exit_allowed is False
     later = replace(_minute(scope, minute_id="later", z=0.0), bucket_end_ns=65_000_000_000)
-    normal = projector.project(facts, _clock(scope, mapping, 64_000_000_000), minute=later)
+    normal = projector.project(facts, _clock(scope, mapping, 65_000_001_000), minute=later)
     assert normal.normal_exit_allowed is True
 
 
@@ -605,6 +805,85 @@ def test_calendar_is_revalidated_at_now_and_earlier_delivery_cutoff_wins():
     assert missing_time.reason == "CALENDAR_TIME_FACTS_MISSING"
 
 
+def test_stop_entry_window_allows_safe_complete_basket_exit_but_keeps_risk_cutoffs():
+    CalendarEvidence = execution_timing.CalendarEvidence
+    scope = _scope()
+    mapping = _mapping(scope)
+    minute = replace(
+        _minute(scope, minute_id="calendar-complete", signal=True),
+        bucket_start_ns=60_000_000_000,
+        bucket_end_ns=120_000_000_000,
+        next_boundary_ns=180_000_000_000,
+        decision_deadline_ns=150_000_000_000,
+    )
+    now = _clock(scope, mapping, 120_000_001_000)
+    complete = _facts(
+        scope,
+        phase="EXPOSED",
+        basket=True,
+        exposure=1_000_000_000,
+        fill=4_000_000_000,
+    )
+
+    def calendar(seconds_to_close):
+        return CalendarEvidence(
+            scope.session_segment,
+            scope.rules_hash,
+            "synthetic-mf-t1-calendar",
+            seconds_to_close,
+            5,
+            as_of_ns=0,
+            valid_until_ns=1_000_000_000_000,
+        )
+
+    stop_entry = calendar(1_800)
+    entry = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30)).consume_minute(
+        minute,
+        _facts(scope),
+        now,
+        calendar=stop_entry,
+        require_calendar=True,
+    )
+    assert entry.reason == "CALENDAR_ENTRY_REJECTED"
+    assert entry.token is None
+
+    ordinary_exit = TimingProjector(
+        scope=scope, mapping=mapping, policy=TimingPolicy(30)
+    ).consume_minute(
+        minute,
+        complete,
+        now,
+        calendar=stop_entry,
+        require_calendar=True,
+    )
+    assert ordinary_exit.reason == "NORMAL_EXIT_PROPOSAL"
+    assert ordinary_exit.normal_exit_allowed is True
+
+    risk_exit = TimingProjector(
+        scope=scope, mapping=mapping, policy=TimingPolicy(30)
+    ).consume_minute(
+        minute,
+        complete,
+        now,
+        calendar=calendar(600),
+        require_calendar=True,
+    )
+    assert risk_exit.risk_action == "RISK_REDUCING"
+    assert risk_exit.normal_exit_allowed is False
+
+    handover = TimingProjector(
+        scope=scope, mapping=mapping, policy=TimingPolicy(30)
+    ).consume_minute(
+        minute,
+        complete,
+        now,
+        calendar=calendar(180),
+        require_calendar=True,
+    )
+    assert handover.risk_action == "HANDOVER"
+    assert handover.normal_exit_allowed is False
+
+
 def test_projection_contains_execution_basis_and_complete_time_trace():
     scope = _scope()
     mapping = _mapping(scope)
@@ -614,8 +893,191 @@ def test_projection_contains_execution_basis_and_complete_time_trace():
     payload = result.to_dict()
     assert payload["execution_basis"]["scope_key"] == list(scope.key)
     assert payload["execution_basis"]["execution_permission"] == "NOT_PROVEN"
-    assert payload["time_facts"]["now_lower_ns"] == 1_000_000_000
-    assert payload["time_facts"]["now_upper_ns"] == 1_000_000_000
+    assert payload["time_facts"]["now_lower_ns"] == 999_999_000
+    assert payload["time_facts"]["now_upper_ns"] == 1_000_001_000
+
+
+def test_admission_rejection_is_retired_and_bound_to_the_callback_invocation():
+    scope = _scope()
+    mapping = _mapping(scope)
+    projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
+    minute = _minute(scope, signal=True)
+    now = _clock(scope, mapping, 60_000_001_000)
+
+    rejected = projector.consume_minute(
+        minute,
+        _facts(scope),
+        now,
+        callback_invocation_id="another-strategy-callback",
+    )
+    assert rejected.reason == "CALLBACK_INVOCATION_MISMATCH"
+    assert rejected.minute_consumed is True
+    assert rejected.token is None
+
+    retry = projector.consume_minute(
+        minute,
+        _facts(scope),
+        _clock(scope, mapping, 61_000_000_000),
+        callback_invocation_id=minute.invocation_id,
+    )
+    assert retry.reason == "MINUTE_ALREADY_CONSUMED"
+    assert retry.token is None
+
+
+def test_foreign_raw_leg_identity_is_quarantined_before_admission():
+    scope = _scope()
+    mapping = _mapping(scope)
+    now = _clock(scope, mapping, 60_000_001_000)
+    foreign_cutoff = replace(
+        _minute(scope, signal=True),
+        quote_cutoffs=(("F-foreign-order", 1), ("C", 2), ("P", 3)),
+    )
+    cutoff_result = TimingProjector(
+        scope=scope, mapping=mapping, policy=TimingPolicy(30)
+    ).consume_minute(
+        foreign_cutoff,
+        _facts(scope),
+        now,
+    )
+    assert cutoff_result.reason == "MINUTE_FOREIGN_SYMBOLS"
+    assert cutoff_result.minute_consumed is True
+    assert cutoff_result.token is None
+    assert cutoff_result.normal_exit_allowed is False
+
+    foreign_event = ExecutionEvent(
+        event_id="foreign-leg",
+        kind="fill",
+        leg="F-foreign-order",
+        quantity=0,
+        occurred_lower_ns=10,
+        occurred_upper_ns=10,
+        received_ns=20,
+        terminal=False,
+        source="synthetic-mf-t1-event",
+    )
+    event_result = TimingProjector(
+        scope=scope, mapping=mapping, policy=TimingPolicy(30)
+    ).consume_minute(
+        _minute(scope, signal=True),
+        replace(_facts(scope), event_ids=(foreign_event.event_id,), events=(foreign_event,)),
+        now,
+    )
+    assert event_result.reason == "EXECUTION_EVENT_FOREIGN_LEG"
+    assert event_result.token is None
+    assert event_result.normal_exit_allowed is False
+
+
+def test_conflicting_fact_version_blocks_admission_and_trace_keeps_event_times():
+    scope = _scope()
+    mapping = _mapping(scope)
+    first = _facts(scope)
+    projector = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
+    projector.project(first, _clock(scope, mapping, 1_000_000_000))
+    conflicting = replace(first, reported_phase="INCONSISTENT")
+    blocked = projector.project(conflicting, _clock(scope, mapping, 2_000_000_000))
+    assert blocked.reason == "EXECUTION_FACTS_VERSION_CONFLICT"
+    assert blocked.normal_exit_allowed is False
+
+    event = ExecutionEvent(
+        event_id="ack-1",
+        kind="cancel_ack",
+        leg="F",
+        quantity=0,
+        occurred_lower_ns=10,
+        occurred_upper_ns=10,
+        received_ns=20,
+        terminal=False,
+        source="synthetic-mf-t1-event",
+    )
+    traced = (
+        TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30))
+        .project(
+            replace(_facts(scope), event_ids=(event.event_id,), events=(event,)),
+            _clock(scope, mapping, 1_000),
+        )
+        .to_dict()
+    )
+    assert traced["time_facts"]["collection_version"] == "fixture-v1"
+    assert traced["time_facts"]["processing_monotonic_ns"] == 1_000
+    assert traced["time_facts"]["events"] == [
+        {
+            "event_id": "ack-1",
+            "kind": "cancel_ack",
+            "leg": "F",
+            "quantity": 0,
+            "occurred_lower_ns": 10,
+            "occurred_upper_ns": 10,
+            "received_ns": 20,
+            "terminal": False,
+            "source": "synthetic-mf-t1-event",
+        }
+    ]
+
+
+def test_actual_next_requires_calendar_evidence_before_entry_admission():
+    scope = _scope()
+    mapping = _mapping(scope)
+    result = TimingProjector(scope=scope, mapping=mapping, policy=TimingPolicy(30)).consume_minute(
+        _minute(scope, signal=True),
+        _facts(scope),
+        _clock(scope, mapping, 60_000_001_000),
+        require_calendar=True,
+    )
+    assert result.reason == "CALENDAR_ENTRY_REJECTED"
+    assert result.minute_consumed is True
+    assert result.token is None
+
+    complete_minute = replace(
+        _minute(scope, minute_id="complete-without-calendar", signal=True),
+        bucket_start_ns=60_000_000_000,
+        bucket_end_ns=120_000_000_000,
+        next_boundary_ns=180_000_000_000,
+        decision_deadline_ns=150_000_000_000,
+    )
+    complete_result = TimingProjector(
+        scope=scope, mapping=mapping, policy=TimingPolicy(30)
+    ).consume_minute(
+        complete_minute,
+        _facts(scope, basket=True, exposure=1_000_000_000, fill=4_000_000_000),
+        _clock(scope, mapping, 120_000_001_000),
+        require_calendar=True,
+    )
+    assert complete_result.reason == "CALENDAR_ENTRY_REJECTED"
+    assert complete_result.required_phase == "HALTED_MONITORING"
+    assert complete_result.risk_action == "HANDOVER"
+    assert complete_result.normal_exit_allowed is False
+    assert complete_result.token is None
+
+
+def test_actual_cerebro_complete_basket_without_calendar_can_still_exit() -> None:
+    """Calendar loss blocks a new entry but cannot trap an already complete basket."""
+
+    fixture_module = __import__(
+        "examples.014_2_ctp_options_midfreq.execution_fixture", fromlist=["*"]
+    )
+    runner = __import__("examples.014_2_ctp_options_midfreq.run", fromlist=["*"])
+    provider = fixture_module.build_normal_exit_fixture()
+    provider._calendar = None  # Explicitly model unavailable calendar evidence.
+    feed = fixture_module.TimingFixtureFeed(idle_polls=provider.idle_count, bar_count=2)
+    cerebro = bt.Cerebro(stdstats=False, runonce=False, quicknotify=True)
+    cerebro.adddata(feed, name="mf-t1-timing-feed")
+    cerebro.addstrategy(
+        runner.CTPOptionsMidFrequencyStrategy,
+        config=runner.load_config(EXAMPLE / "config.yaml"),
+        timing_provider=provider,
+    )
+
+    strategy = cerebro.run(runonce=False, preload=False)[0]
+    next_results = [
+        result
+        for result in strategy.build_report()["timing"]["results"]
+        if result["origin"] == "next"
+    ]
+    assert len(next_results) == 2
+    assert next_results[0]["normal_exit_allowed"] is False
+    assert next_results[1]["reason"] == "NORMAL_EXIT_PROPOSAL"
+    assert next_results[1]["normal_exit_allowed"] is True
+    assert all(result["token"] is None for result in next_results)
 
 
 def test_actual_cerebro_two_minute_fixture_reaches_normal_exit_and_idle_stays_risk_only():

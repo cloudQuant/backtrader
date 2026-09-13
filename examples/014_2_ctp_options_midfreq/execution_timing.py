@@ -10,7 +10,7 @@ Synthetic inputs are marked as such and therefore always produce
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 import math
 from types import MappingProxyType
@@ -28,6 +28,82 @@ def _nonempty(value: Any, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise TimingContractError(f"{field_name} must be a non-empty string")
     return value
+
+
+_SOURCE_SUFFIXES = frozenset(
+    {
+        (),
+        ("anchor",),
+        ("calendar",),
+        ("clock",),
+        ("event",),
+        ("execution",),
+        ("facts",),
+        ("mapping",),
+        ("reconciliation",),
+        ("scope",),
+        ("contract", "rules"),
+    }
+)
+_SYNTHETIC_SOURCE_SCHEMAS = {
+    ("synthetic",): frozenset({(), ("calendar",), ("event",), ("facts",)}),
+    ("synthetic", "mf", "t1"): _SOURCE_SUFFIXES,
+    ("mf", "t1", "explicit", "synthetic"): _SOURCE_SUFFIXES - {()},
+    ("astra", "synthetic"): _SOURCE_SUFFIXES,
+}
+_PUBLIC_SDK_SOURCE_SCHEMAS = {
+    ("sdk", "public"): _SOURCE_SUFFIXES,
+    ("bt", "api", "sdk", "public"): _SOURCE_SUFFIXES,
+    ("session", "sdk", "public"): _SOURCE_SUFFIXES,
+}
+
+
+def _matches_source_schema(
+    source: str, schemas: Mapping[Tuple[str, ...], frozenset[Tuple[str, ...]]]
+) -> bool:
+    """Match a complete canonical provenance label, never a substring."""
+
+    parts = tuple(source.split("-"))
+    return any(
+        parts[: len(prefix)] == prefix and parts[len(prefix) :] in allowed_suffixes
+        for prefix, allowed_suffixes in schemas.items()
+    )
+
+
+def _recognized_source(value: Any, field_name: str, *, synthetic: Optional[bool] = None) -> str:
+    """Require a complete local-synthetic or public-SDK provenance schema.
+
+    A truthy flag and a marker substring are not provenance. The accepted
+    labels have a fixed lower-case token schema, so ``untrusted-synthetic``
+    and ``not-public-sdk`` cannot acquire authority by containing familiar
+    words. Unknown future labels fail closed until this read-model schema is
+    deliberately extended.
+    """
+
+    source = _nonempty(value, field_name)
+    synthetic_source = _matches_source_schema(source, _SYNTHETIC_SOURCE_SCHEMAS)
+    public_sdk_source = _matches_source_schema(source, _PUBLIC_SDK_SOURCE_SCHEMAS)
+    if synthetic is True and not synthetic_source:
+        raise TimingContractError(f"{field_name} must match the synthetic provenance schema")
+    if synthetic is False and not public_sdk_source:
+        raise TimingContractError(f"{field_name} must match the public SDK provenance schema")
+    if synthetic is None and not (synthetic_source or public_sdk_source):
+        raise TimingContractError(f"{field_name} has unrecognized provenance schema")
+    return source
+
+
+def _canonical_leg(value: Any, field_name: str) -> str:
+    """Require one exact, canonical raw F/C/P leg identity.
+
+    Prefix matching is unsafe here: ``F-foreign-order`` is not the future
+    leg.  The timing read model has no authority to normalize instrument
+    aliases, so only its frozen raw names are admissible.
+    """
+
+    symbol = _nonempty(value, field_name)
+    if symbol not in {"F", "C", "P"}:
+        raise TimingContractError(f"{field_name} must be exact canonical F/C/P")
+    return symbol
 
 
 def _ns(value: Any, field_name: str, *, allow_none: bool = False) -> Optional[int]:
@@ -203,11 +279,20 @@ class ClockObservation:
         _nonempty(self.source, "clock source")
         _bool(self.trusted, "trusted")
         _bool(self.synthetic, "synthetic")
-        lower = self.monotonic_ns if self.lower_ns is None else _ns(self.lower_ns, "lower_ns")
-        upper = self.monotonic_ns if self.upper_ns is None else _ns(self.upper_ns, "upper_ns")
+        # A mapping error is part of the supplied observation, not an optional
+        # tolerance. Risk deadlines use the conservative upper end while
+        # minimum-hold eligibility uses the lower end.
+        mapped_lower = max(0, self.monotonic_ns - self.mapping.error_bound_ns)
+        mapped_upper = self.monotonic_ns + self.mapping.error_bound_ns
+        lower = mapped_lower if self.lower_ns is None else _ns(self.lower_ns, "lower_ns")
+        upper = mapped_upper if self.upper_ns is None else _ns(self.upper_ns, "upper_ns")
         assert lower is not None and upper is not None
+        lower = min(lower, mapped_lower)
+        upper = max(upper, mapped_upper)
         if lower > self.monotonic_ns or self.monotonic_ns > upper:
             raise TimingContractError("clock observation bounds must contain monotonic_ns")
+        if upper > self.mapping.valid_until_ns:
+            raise TimingContractError("clock observation upper bound is outside mapping validity")
         object.__setattr__(self, "lower_ns", lower)
         object.__setattr__(self, "upper_ns", upper)
         if self.clock_domain != self.mapping.clock_domain:
@@ -375,11 +460,13 @@ class ExecutionFacts:
     events: Tuple[ExecutionEvent, ...] = ()
     unknown: bool = False
     expiry_ns: Optional[int] = None
+    predecessor_scope_key: Optional[Tuple[str, ...]] = None
+    reconciliation_evidence_id: Optional[str] = None
 
     def __post_init__(self) -> None:
-        _nonempty(self.source, "execution source")
         if self.source_kind not in {"synthetic", "sdk-public"}:
             raise TimingContractError("source_kind must be synthetic or sdk-public")
+        _nonempty(self.source, "execution source")
         _bool(self.trusted, "trusted")
         _nonempty(self.reported_phase, "reported_phase")
         _nonempty(self.collection_version, "collection_version")
@@ -394,9 +481,9 @@ class ExecutionFacts:
             "earliest_exposure_lower_ns",
             "latest_complete_fill_upper_ns",
             "risk_event_origin_ns",
-            "expiry_ns",
         ):
             _ns(getattr(self, name), name, allow_none=True)
+        _ns(self.expiry_ns, "expiry_ns", allow_none=True)
         if (
             type(self.complete_basket) is not bool
             or type(self.authoritative_flat_verified) is not bool
@@ -427,11 +514,31 @@ class ExecutionFacts:
                 raise TimingContractError("contradictory duplicate execution event")
         object.__setattr__(self, "events", events)
         if self.authoritative_flat_verified and (
-            self.unknown or self.possible_exposure_qty is None or self.possible_exposure_qty != 0
+            self.unknown
+            or self.possible_exposure_qty is None
+            or self.possible_exposure_qty != 0
+            or self.confirmed_qty != 0
         ):
             raise TimingContractError(
                 "FLAT_VERIFIED is incompatible with unknown possible exposure"
             )
+        predecessor = self.predecessor_scope_key
+        reconciliation = self.reconciliation_evidence_id
+        if (predecessor is None) != (reconciliation is None):
+            raise TimingContractError(
+                "scope succession requires both predecessor identity and reconciliation evidence"
+            )
+        if predecessor is not None:
+            if self.source_kind != "sdk-public" or not self.authoritative_flat_verified:
+                raise TimingContractError(
+                    "scope succession requires a public SDK verified-flat reconciliation"
+                )
+            normalized_predecessor = _tuple_strings(predecessor, "predecessor_scope_key")
+            if len(normalized_predecessor) != len(self.scope.key):
+                raise TimingContractError("predecessor_scope_key is malformed")
+            object.__setattr__(self, "predecessor_scope_key", normalized_predecessor)
+            assert reconciliation is not None
+            _nonempty(reconciliation, "reconciliation_evidence_id")
 
     @property
     def possible_exposure_unknown(self) -> bool:
@@ -442,6 +549,35 @@ class ExecutionFacts:
     @property
     def scope_key(self) -> Tuple[str, ...]:
         return self.scope.key
+
+    @property
+    def fingerprint(self) -> Tuple[Any, ...]:
+        """A frozen snapshot identity for version and event consistency checks."""
+
+        return (
+            self.scope.key,
+            self.source,
+            self.source_kind,
+            self.trusted,
+            self.reported_phase,
+            self.first_leg_intent_ns,
+            self.first_basket_intent_ns,
+            self.cancel_intent_ns,
+            self.earliest_exposure_lower_ns,
+            self.latest_complete_fill_upper_ns,
+            self.complete_basket,
+            self.authoritative_flat_verified,
+            self.possible_exposure_qty,
+            self.confirmed_qty,
+            self.event_ids,
+            self.collection_version,
+            self.risk_event_origin_ns,
+            tuple(event.fingerprint for event in self.events),
+            self.unknown,
+            self.expiry_ns,
+            self.predecessor_scope_key,
+            self.reconciliation_evidence_id,
+        )
 
 
 @dataclass(frozen=True)
@@ -675,16 +811,43 @@ def evaluate_calendar(
             return CalendarProjection(False, True, True, "EXERCISE_OR_DELIVERY_CUTOFF")
     if evidence.trading_days_to_maturity < 5:
         return CalendarProjection(False, True, True, "MATURITY_TOO_NEAR")
-    if (
-        evidence.exercise_or_delivery_seconds is not None
-        and evidence.exercise_or_delivery_seconds <= 0
-    ):
+    effective_seconds = evidence.seconds_to_close
+    exercise_or_delivery_is_stricter = False
+    if evidence.exercise_or_delivery_seconds is not None:
+        if evidence.exercise_or_delivery_seconds <= 0:
+            return CalendarProjection(False, True, True, "EXERCISE_OR_DELIVERY_CUTOFF")
+        if evidence.exercise_or_delivery_seconds < effective_seconds:
+            effective_seconds = evidence.exercise_or_delivery_seconds
+            exercise_or_delivery_is_stricter = True
+    if effective_seconds <= 0:
         return CalendarProjection(False, True, True, "EXERCISE_OR_DELIVERY_CUTOFF")
+    if effective_seconds <= 180:
+        return CalendarProjection(
+            False,
+            True,
+            True,
+            "EXERCISE_OR_DELIVERY_CUTOFF" if exercise_or_delivery_is_stricter else "SESSION_CUTOFF",
+        )
+    if effective_seconds <= 600:
+        return CalendarProjection(
+            False,
+            True,
+            False,
+            "EXERCISE_OR_DELIVERY_CUTOFF" if exercise_or_delivery_is_stricter else "SESSION_CUTOFF",
+        )
     return CalendarProjection(
-        entry_allowed=evidence.seconds_to_close > 1_800,
-        risk_exit_due=evidence.seconds_to_close <= 600,
-        handover_due=evidence.seconds_to_close <= 180,
-        reason="READY" if evidence.seconds_to_close > 1_800 else "SESSION_CUTOFF",
+        entry_allowed=effective_seconds > 1_800,
+        risk_exit_due=False,
+        handover_due=False,
+        reason=(
+            "READY"
+            if effective_seconds > 1_800
+            else (
+                "EXERCISE_OR_DELIVERY_CUTOFF"
+                if exercise_or_delivery_is_stricter
+                else "SESSION_CUTOFF"
+            )
+        ),
     )
 
 
@@ -733,6 +896,12 @@ class TimingProjector:
         self._retired_scope_keys: Deque[Tuple[str, ...]] = deque(maxlen=audit_capacity)
         self._retired_scope_set: set[Tuple[str, ...]] = set()
         self._last_facts: Optional[ExecutionFacts] = None
+        self._fact_version_fingerprints: Dict[Tuple[Tuple[str, ...], str], Tuple[Any, ...]] = {}
+        self._fact_version_order: Deque[Tuple[Tuple[str, ...], str]] = deque(maxlen=audit_capacity)
+        self._event_fingerprints: Dict[Tuple[Tuple[str, ...], str], Tuple[Any, ...]] = {}
+        self._event_order: Deque[Tuple[Tuple[str, ...], str]] = deque(maxlen=audit_capacity)
+        self._origin_floor: Dict[Tuple[Tuple[str, ...], str], int] = {}
+        self._unresolved_predecessor_scope_key: Optional[Tuple[str, ...]] = None
         self._remember_scope(scope)
 
     @property
@@ -812,11 +981,33 @@ class TimingProjector:
             "now_lower_ns": None if now is None else now.lower_ns,
             "now_observed_ns": None if now is None else now.monotonic_ns,
             "now_upper_ns": None if now is None else now.upper_ns,
+            "processing_monotonic_ns": None if now is None else now.monotonic_ns,
             "facts_scope_key": list(facts.scope.key),
+            "collection_version": facts.collection_version,
+            "facts_expiry_ns": facts.expiry_ns,
             "first_leg_intent_ns": facts.first_leg_intent_ns,
             "first_basket_intent_ns": facts.first_basket_intent_ns,
+            "cancel_intent_ns": facts.cancel_intent_ns,
             "earliest_exposure_lower_ns": facts.earliest_exposure_lower_ns,
             "latest_complete_fill_upper_ns": facts.latest_complete_fill_upper_ns,
+            "risk_event_origin_ns": facts.risk_event_origin_ns,
+            "possible_exposure_qty": facts.possible_exposure_qty,
+            "confirmed_qty": facts.confirmed_qty,
+            "event_ids": list(facts.event_ids),
+            "events": [
+                {
+                    "event_id": event.event_id,
+                    "kind": event.kind,
+                    "leg": event.leg,
+                    "quantity": event.quantity,
+                    "occurred_lower_ns": event.occurred_lower_ns,
+                    "occurred_upper_ns": event.occurred_upper_ns,
+                    "received_ns": event.received_ns,
+                    "terminal": event.terminal,
+                    "source": event.source,
+                }
+                for event in facts.events
+            ],
             "minute_id": None if minute is None else minute.minute_id,
             "minute_bucket_end_ns": None if minute is None else minute.bucket_end_ns,
             "calendar_as_of_ns": None if calendar is None else calendar.as_of_ns,
@@ -833,21 +1024,162 @@ class TimingProjector:
             return False
         return (
             facts.possible_exposure_unknown
-            or not facts.complete_basket
-            and (
-                facts.confirmed_qty > 0
-                or facts.first_leg_intent_ns is not None
-                or facts.first_basket_intent_ns is not None
-                or facts.earliest_exposure_lower_ns is not None
-            )
+            or facts.complete_basket
+            or facts.confirmed_qty > 0
+            or facts.first_leg_intent_ns is not None
+            or facts.first_basket_intent_ns is not None
+            or facts.earliest_exposure_lower_ns is not None
         )
+
+    def _remember_bounded(
+        self,
+        order: Deque[Tuple[Tuple[str, ...], str]],
+        values: Dict[Tuple[Tuple[str, ...], str], Tuple[Any, ...]],
+        key: Tuple[Tuple[str, ...], str],
+        value: Tuple[Any, ...],
+    ) -> None:
+        if key not in values and len(order) == order.maxlen:
+            retired = order.popleft()
+            values.pop(retired, None)
+        if key not in values:
+            order.append(key)
+        values[key] = value
+
+    def _evidence_reason(
+        self,
+        facts: ExecutionFacts,
+        now: ClockObservation,
+        *,
+        minute: Optional[MinuteInput],
+        calendar: Optional[CalendarEvidence],
+    ) -> Optional[str]:
+        """Validate provenance and raw F/C/P bindings at the decision boundary."""
+
+        try:
+            _recognized_source(self.scope.source, "scope source", synthetic=self.scope.synthetic)
+            _recognized_source(
+                self.mapping.source, "mapping source", synthetic=self.mapping.synthetic
+            )
+            _recognized_source(now.source, "clock source", synthetic=now.synthetic)
+            _recognized_source(
+                facts.source,
+                "execution source",
+                synthetic=facts.source_kind == "synthetic",
+            )
+            for event in facts.events:
+                _recognized_source(
+                    event.source,
+                    "execution event source",
+                    synthetic=facts.source_kind == "synthetic",
+                )
+            if minute is not None:
+                try:
+                    legs = tuple(
+                        _canonical_leg(symbol, "quote cutoff symbol")
+                        for symbol, _ in minute.quote_cutoffs
+                    )
+                except TimingContractError:
+                    return "MINUTE_FOREIGN_SYMBOLS"
+                # The tuple is parallel to the frozen F/C/P source evidence;
+                # accepting a re-ordered label would detach a cutoff from the
+                # bar/source identity it is meant to constrain.
+                if legs != ("F", "C", "P"):
+                    return "MINUTE_FOREIGN_SYMBOLS"
+            if calendar is not None:
+                _recognized_source(
+                    calendar.source,
+                    "calendar source",
+                    synthetic=self.scope.synthetic,
+                )
+        except TimingContractError:
+            return "EVIDENCE_PROVENANCE_INVALID"
+        return None
+
+    def _validate_and_freeze_facts(
+        self, facts: ExecutionFacts, now_upper_ns: int
+    ) -> Tuple[ExecutionFacts, Optional[str]]:
+        """Reject contradictory snapshots and keep earliest risk origins frozen."""
+
+        if facts.expiry_ns is None or now_upper_ns >= facts.expiry_ns:
+            return facts, "EXECUTION_FACTS_EXPIRED"
+        if (
+            facts.earliest_exposure_lower_ns is not None
+            and facts.latest_complete_fill_upper_ns is not None
+            and facts.latest_complete_fill_upper_ns < facts.earliest_exposure_lower_ns
+        ):
+            return facts, "COMPLETE_FILL_PRECEDES_EXPOSURE"
+        for event in facts.events:
+            try:
+                _canonical_leg(event.leg, "execution event leg")
+            except TimingContractError:
+                return facts, "EXECUTION_EVENT_FOREIGN_LEG"
+            if event.occurred_upper_ns > now_upper_ns or event.received_ns > now_upper_ns:
+                return facts, "EXECUTION_EVENT_FUTURE"
+
+        version_key = (facts.scope.key, facts.collection_version)
+        known_version = self._fact_version_fingerprints.get(version_key)
+        if known_version is not None and known_version != facts.fingerprint:
+            return facts, "EXECUTION_FACTS_VERSION_CONFLICT"
+        for event in facts.events:
+            event_key = (facts.scope.key, event.event_id)
+            known_event = self._event_fingerprints.get(event_key)
+            if known_event is not None and known_event != event.fingerprint:
+                return facts, "EXECUTION_EVENT_CONFLICT"
+
+        effective = facts
+        origin_updates: Dict[Tuple[Tuple[str, ...], str], int] = {}
+        for name in (
+            "first_leg_intent_ns",
+            "first_basket_intent_ns",
+            "cancel_intent_ns",
+            "earliest_exposure_lower_ns",
+            "risk_event_origin_ns",
+        ):
+            key = (facts.scope.key, name)
+            original = self._origin_floor.get(key)
+            current = getattr(facts, name)
+            if original is None:
+                if current is not None:
+                    origin_updates[key] = current
+                continue
+            if current is None:
+                if facts.complete_basket or facts.authoritative_flat_verified:
+                    effective = replace(effective, **{name: original})
+                    continue
+                return facts, "EXECUTION_FACTS_ORIGIN_REMOVED"
+            if current > original:
+                return facts, "EXECUTION_FACTS_ORIGIN_RENEWAL"
+            if current < original:
+                origin_updates[key] = current
+
+        self._remember_bounded(
+            self._fact_version_order,
+            self._fact_version_fingerprints,
+            version_key,
+            facts.fingerprint,
+        )
+        for event in facts.events:
+            self._remember_bounded(
+                self._event_order,
+                self._event_fingerprints,
+                (facts.scope.key, event.event_id),
+                event.fingerprint,
+            )
+        self._origin_floor.update(origin_updates)
+        return effective, None
 
     def _deadlines(self, facts: ExecutionFacts, now_ns: int) -> Dict[str, DeadlineProjection]:
         leg = _deadline_projection(
-            "leg", facts.first_leg_intent_ns, self.policy.leg_timeout_ns, now_ns
+            "leg",
+            None if facts.complete_basket else facts.first_leg_intent_ns,
+            self.policy.leg_timeout_ns,
+            now_ns,
         )
         basket = _deadline_projection(
-            "basket", facts.first_basket_intent_ns, self.policy.basket_timeout_ns, now_ns
+            "basket",
+            None if facts.complete_basket else facts.first_basket_intent_ns,
+            self.policy.basket_timeout_ns,
+            now_ns,
         )
         cancel = _deadline_projection(
             "cancel", facts.cancel_intent_ns, self.policy.cancel_timeout_ns, now_ns
@@ -880,6 +1212,9 @@ class TimingProjector:
         now: Optional[ClockObservation] = None,
         minute: Optional[MinuteInput] = None,
         calendar: Optional[CalendarEvidence] = None,
+        required_phase: Optional[str] = None,
+        risk_action: Optional[str] = None,
+        deadlines: Optional[Mapping[str, DeadlineProjection]] = None,
     ) -> TimingProjection:
         basis, time_facts = self._execution_basis(
             facts, now, channel="blocked", minute=minute, calendar=calendar
@@ -889,11 +1224,19 @@ class TimingProjector:
             scope_key=facts.scope.key,
             reported_phase=facts.reported_phase,
             required_phase=(
-                "HALTED_MONITORING" if facts.possible_exposure_unknown else facts.reported_phase
+                required_phase
+                if required_phase is not None
+                else (
+                    "HALTED_MONITORING" if facts.possible_exposure_unknown else facts.reported_phase
+                )
             ),
-            risk_action="HANDOVER" if facts.possible_exposure_unknown else "NONE",
+            risk_action=(
+                risk_action
+                if risk_action is not None
+                else ("HANDOVER" if facts.possible_exposure_unknown else "NONE")
+            ),
             execution_permission="NOT_PROVEN",
-            deadlines=MappingProxyType({}),
+            deadlines=MappingProxyType(dict(deadlines or {})),
             minimum_hold_deadline_ns=None,
             maximum_hold_deadline_ns=None,
             normal_exit_allowed=False,
@@ -920,6 +1263,8 @@ class TimingProjector:
             )
         if minute is not None and not isinstance(minute, MinuteInput):
             raise TimingContractError("minute must be a typed MinuteInput value")
+        if calendar is not None and not isinstance(calendar, CalendarEvidence):
+            raise TimingContractError("calendar must be typed CalendarEvidence")
         if facts.scope != self.scope:
             return self._blocked(facts, "SCOPE_MISMATCH", now=now, minute=minute, calendar=calendar)
         if minute is not None and minute.scope != self.scope:
@@ -927,10 +1272,6 @@ class TimingProjector:
         if not facts.trusted:
             return self._blocked(
                 facts, "EXECUTION_FACTS_UNTRUSTED", now=now, minute=minute, calendar=calendar
-            )
-        if facts.expiry_ns is not None and now.monotonic_ns >= facts.expiry_ns:
-            return self._blocked(
-                facts, "EXECUTION_FACTS_EXPIRED", now=now, minute=minute, calendar=calendar
             )
         if self._clock_fault is not None:
             return self._blocked(
@@ -960,10 +1301,66 @@ class TimingProjector:
                 minute=minute,
                 calendar=calendar,
             )
-        self._last_facts = facts
         now_lower_ns = now.lower_ns
         now_upper_ns = now.upper_ns
         assert now_lower_ns is not None and now_upper_ns is not None
+        evidence_reason = self._evidence_reason(facts, now, minute=minute, calendar=calendar)
+        if evidence_reason is not None:
+            return self._blocked(
+                facts,
+                evidence_reason,
+                now=now,
+                minute=minute,
+                calendar=calendar,
+            )
+        if self._unresolved_predecessor_scope_key is not None:
+            reconciles_predecessor = (
+                facts.source_kind == "sdk-public"
+                and facts.authoritative_flat_verified
+                and facts.predecessor_scope_key == self._unresolved_predecessor_scope_key
+                and facts.reconciliation_evidence_id is not None
+            )
+            if not reconciles_predecessor:
+                return self._blocked(
+                    facts,
+                    "UNRESOLVED_PREDECESSOR_SCOPE",
+                    now=now,
+                    minute=minute,
+                    calendar=calendar,
+                    required_phase="HALTED_MONITORING",
+                    risk_action="HANDOVER",
+                )
+            self._audit.append(
+                {
+                    "kind": "SCOPE_SUCCESSION_RECONCILED",
+                    "predecessor_scope": list(self._unresolved_predecessor_scope_key),
+                    "reconciliation_evidence_id": facts.reconciliation_evidence_id,
+                }
+            )
+            self._unresolved_predecessor_scope_key = None
+        facts, facts_reason = self._validate_and_freeze_facts(facts, now_upper_ns)
+        if facts_reason is not None:
+            return self._blocked(
+                facts,
+                facts_reason,
+                now=now,
+                minute=minute,
+                calendar=calendar,
+                required_phase="HALTED_MONITORING",
+                risk_action="HANDOVER",
+                deadlines=self._deadlines(facts, now_upper_ns),
+            )
+        if calendar is not None and calendar.segment_id != self.scope.session_segment:
+            return self._blocked(
+                facts,
+                "CALENDAR_SEGMENT_MISMATCH",
+                now=now,
+                minute=minute,
+                calendar=calendar,
+                required_phase="RISK_EXIT_DUE",
+                risk_action="RISK_REDUCING",
+            )
+        self._last_facts = facts
         calendar_projection = (
             evaluate_calendar(
                 calendar, expected_rules_hash=self.scope.rules_hash, now_ns=now_upper_ns
@@ -993,20 +1390,26 @@ class TimingProjector:
         )
         if minute is not None:
             normal_allowed = normal_allowed and minute.legal_barrier
+            normal_allowed = normal_allowed and minute.bucket_end_ns <= now_lower_ns
             if facts.latest_complete_fill_upper_ns is not None:
                 normal_allowed = normal_allowed and (
                     minute.bucket_end_ns > facts.latest_complete_fill_upper_ns
                 )
-            if minute.z_score is not None:
-                normal_allowed = normal_allowed and (
-                    abs(minute.z_score) <= 0.5 or minute.continuation_cost_failed
-                )
-        calendar_reason = None if calendar_projection is None else calendar_projection.reason
-        if calendar_projection is not None and not calendar_projection.entry_allowed:
+            normal_allowed = normal_allowed and (
+                minute.continuation_cost_failed
+                or (minute.z_score is not None and abs(minute.z_score) <= 0.5)
+            )
+        # Stop-entry is not an ordinary-exit prohibition.  In the 30–10
+        # minute window a fully held, legally closed basket can still reduce
+        # risk through its normal exit path; only the risk/handover cutoffs
+        # below take that path away.
+        if calendar_projection is not None and (
+            calendar_projection.risk_exit_due or calendar_projection.handover_due
+        ):
             normal_allowed = False
         required_phase = facts.reported_phase
         risk_action = "NONE"
-        reason = calendar_reason or "READY"
+        reason = "READY"
         if facts.possible_exposure_unknown and not facts.authoritative_flat_verified:
             required_phase = "HALTED_MONITORING"
             risk_action = "HANDOVER"
@@ -1027,6 +1430,18 @@ class TimingProjector:
             required_phase = "RECOVERY_REQUIRED"
             risk_action = "RISK_REDUCING"
             reason = "LEG_DEADLINE_EXPIRED"
+        elif projections["cancel"].expired and not facts.authoritative_flat_verified:
+            required_phase = "RECOVERY_REQUIRED"
+            risk_action = "RISK_REDUCING"
+            reason = "CANCEL_DEADLINE_EXPIRED"
+        elif (
+            calendar_projection is not None
+            and calendar_projection.handover_due
+            and not facts.authoritative_flat_verified
+        ):
+            required_phase = "HALTED_MONITORING"
+            risk_action = "HANDOVER"
+            reason = calendar_projection.reason
         elif calendar_projection is not None and calendar_projection.risk_exit_due:
             required_phase = "RISK_EXIT_DUE"
             risk_action = "RISK_REDUCING"
@@ -1053,6 +1468,20 @@ class TimingProjector:
             time_facts=time_facts,
         )
 
+    def _retire_minute(self, minute: MinuteInput, *, advance_watermark: bool) -> None:
+        """Retire exactly one offered minute without silently reviving it later."""
+
+        if minute.minute_id not in self._consumed_set:
+            if len(self._consumed_minutes) == self._consumed_minutes.maxlen:
+                retired = self._consumed_minutes.popleft()
+                self._consumed_set.discard(retired)
+            self._consumed_minutes.append(minute.minute_id)
+            self._consumed_set.add(minute.minute_id)
+        if advance_watermark and (
+            self._minute_watermark_ns is None or minute.bucket_end_ns > self._minute_watermark_ns
+        ):
+            self._minute_watermark_ns = minute.bucket_end_ns
+
     def consume_minute(
         self,
         minute: MinuteInput,
@@ -1060,11 +1489,20 @@ class TimingProjector:
         now: ClockObservation,
         *,
         calendar: Optional[CalendarEvidence] = None,
+        callback_invocation_id: Optional[str] = None,
+        require_calendar: bool = False,
     ) -> TimingProjection:
-        """Consume one closed minute; all outcomes retire its ordinary action."""
+        """Consume one closed minute; every rejection retires its ordinary action."""
 
+        if not isinstance(minute, MinuteInput):
+            raise TimingContractError("consume_minute requires a typed MinuteInput")
+        if not isinstance(facts, ExecutionFacts) or not isinstance(now, ClockObservation):
+            raise TimingContractError("consume_minute requires typed facts and clock observation")
+        if callback_invocation_id is not None:
+            _nonempty(callback_invocation_id, "callback_invocation_id")
+        _bool(require_calendar, "require_calendar")
         if minute.scope != self.scope or facts.scope != self.scope:
-            return self._blocked(facts, "SCOPE_MISMATCH")
+            return self._blocked(facts, "SCOPE_MISMATCH", now=now, minute=minute)
         if minute.minute_id in self._consumed_set:
             base = self.project(facts, now, minute=minute, calendar=calendar)
             return TimingProjection(
@@ -1074,20 +1512,64 @@ class TimingProjector:
             self._minute_watermark_ns is not None
             and minute.bucket_end_ns <= self._minute_watermark_ns
         ):
-            return self._blocked(facts, "MINUTE_RETIRED")
+            return self._blocked(facts, "MINUTE_RETIRED", now=now, minute=minute, calendar=calendar)
+
         base = self.project(facts, now, minute=minute, calendar=calendar)
+        now_lower_ns = now.lower_ns
+        assert now_lower_ns is not None
+        closed = minute.bucket_end_ns <= now_lower_ns
+        started = minute.bucket_start_ns <= now_lower_ns
         if base.timing_fault is not None or base.risk_action != "NONE" or base.reason != "READY":
-            # A rejected projection is terminal for this minute.  Admission
+            # A rejected projection is terminal for this minute. Admission
             # must never reinterpret an execution, clock, calendar, or risk
             # rejection as permission to issue an ordinary token.
+            self._retire_minute(minute, advance_watermark=closed)
             return TimingProjection(
                 **{**base.__dict__, "minute_consumed": True, "token": None, "decision_id": None}
             )
-        self._consumed_minutes.append(minute.minute_id)
-        self._consumed_set.add(minute.minute_id)
-        while len(self._consumed_set) > self._consumed_minutes.maxlen:
-            self._consumed_set.discard(self._consumed_minutes.popleft())
-        self._minute_watermark_ns = minute.bucket_end_ns
+        if callback_invocation_id is not None and minute.invocation_id != callback_invocation_id:
+            self._retire_minute(minute, advance_watermark=closed)
+            return TimingProjection(
+                **{
+                    **base.__dict__,
+                    "reason": "CALLBACK_INVOCATION_MISMATCH",
+                    "minute_consumed": True,
+                    "token": None,
+                    "decision_id": None,
+                    "normal_exit_allowed": False,
+                }
+            )
+        if not started or not closed:
+            self._retire_minute(minute, advance_watermark=False)
+            return TimingProjection(
+                **{
+                    **base.__dict__,
+                    "reason": "MINUTE_NOT_STARTED" if not started else "MINUTE_NOT_CLOSED",
+                    "minute_consumed": True,
+                    "token": None,
+                    "decision_id": None,
+                    "normal_exit_allowed": False,
+                }
+            )
+        if require_calendar and calendar is None:
+            # A missing calendar has no safe normal-exit interpretation for a
+            # complete basket either.  Retain the minute as consumed and hand
+            # off to risk monitoring rather than allowing the basket branch
+            # below to replace this with NORMAL_EXIT_PROPOSAL.
+            self._retire_minute(minute, advance_watermark=True)
+            return TimingProjection(
+                **{
+                    **base.__dict__,
+                    "reason": "CALENDAR_ENTRY_REJECTED",
+                    "required_phase": "HALTED_MONITORING",
+                    "risk_action": "HANDOVER",
+                    "normal_exit_allowed": False,
+                    "minute_consumed": True,
+                    "token": None,
+                    "decision_id": None,
+                }
+            )
+        self._retire_minute(minute, advance_watermark=True)
         reason = base.reason
         token: Optional[TimingToken] = None
         if base.max_hold_due or base.required_phase in {"HALTED_MONITORING", "RECOVERY_REQUIRED"}:
@@ -1115,12 +1597,18 @@ class TimingProjector:
             reason = "ACTIVE_SCOPE_NO_ENTRY"
         elif not minute.budget_allowed:
             reason = "BUDGET_REJECTED"
-        elif self.policy.decision_deadline_seconds is None or minute.decision_deadline_ns is None:
+        elif self.policy.decision_deadline_seconds is None:
             reason = "DECISION_DEADLINE_MISSING"
         elif minute.next_boundary_ns is None:
             reason = "MINUTE_BOUNDARY_MISSING"
         else:
-            expiry = min(minute.next_boundary_ns, minute.decision_deadline_ns)
+            policy_expiry = (
+                minute.bucket_end_ns + self.policy.decision_deadline_seconds * NS_PER_SECOND
+            )
+            expiry_candidates = [minute.next_boundary_ns, policy_expiry]
+            if minute.decision_deadline_ns is not None:
+                expiry_candidates.append(minute.decision_deadline_ns)
+            expiry = min(expiry_candidates)
             if now.monotonic_ns >= expiry:
                 reason = "DECISION_TOKEN_EXPIRED"
             else:
@@ -1213,8 +1701,16 @@ class TimingProjector:
         if mapping.synthetic != scope.synthetic:
             raise TimingContractError("scope and mapping synthetic provenance mismatch")
         if self._last_facts is not None and self._has_unresolved_obligation(self._last_facts):
-            raise TimingContractError(
-                "UNRESOLVED_EXECUTION_OBLIGATION: scope reset cannot clear active risk"
+            # A generation/domain transition cannot erase an unknown or
+            # non-flat obligation. Cross-domain arithmetic is deliberately
+            # unavailable here, so the new scope remains handover-only until
+            # a typed public-SDK verified-flat succession fact arrives.
+            self._unresolved_predecessor_scope_key = self.scope.key
+            self._audit.append(
+                {
+                    "kind": "UNRESOLVED_SCOPE_HANDOVER",
+                    "predecessor_scope": list(self.scope.key),
+                }
             )
         self._remember_scope(self.scope)
         self.scope = scope

@@ -695,15 +695,34 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         self._tokens = _TokenLedger()
         self._init_timing_projector()
 
+    @staticmethod
+    def _provider_calendar(provider: Any, method_name: str) -> Any:
+        """Read optional frozen calendar evidence without inventing a calendar."""
+
+        callback = getattr(provider, method_name, None)
+        return None if callback is None else callback()
+
     def _timing_next(self) -> None:
         provider = self._timing_provider
         if provider is None or self._timing_projector is None:
             return
         minute = provider.next_minute()
+        facts = provider.execution_facts()
+        now = provider.clock_for_next()
         result = self._timing_projector.consume_minute(
             minute,
-            provider.execution_facts(),
-            provider.clock_for_next(),
+            facts,
+            now,
+            calendar=self._provider_calendar(provider, "calendar_for_next"),
+            # The strategy, not the provider, derives the callback identity
+            # from the frozen closed bucket. A provider cannot substitute an
+            # arbitrary next() invocation after the bar barrier has sealed.
+            callback_invocation_id=f"A{minute.bucket_end_ns}",
+            # Calendar evidence is mandatory for a new admission. An already
+            # complete basket must retain its conservative exit path even if
+            # calendar evidence expires; otherwise the missing entry evidence
+            # would trap an exposed basket instead of preventing a new one.
+            require_calendar=not facts.complete_basket,
         )
         self._timing_results.append({"origin": "next", **result.to_dict()})
 
@@ -715,6 +734,7 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         result = self._timing_projector.notify_idle(
             provider.execution_facts(),
             provider.clock_for_idle(),
+            calendar=self._provider_calendar(provider, "calendar_for_idle"),
         )
         self._timing_results.append({"origin": "notify_idle", **result.to_dict()})
 
@@ -1050,8 +1070,12 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                 "timing": {
                     "results": list(self._timing_results),
                     "idle_callback_count": self._timing_idle_count,
-                    "provider_next_calls": 0 if provider is None else provider.next_calls,
-                    "provider_idle_calls": 0 if provider is None else provider.idle_calls,
+                    "provider_next_calls": (
+                        0 if provider is None else getattr(provider, "next_calls", None)
+                    ),
+                    "provider_idle_calls": (
+                        0 if provider is None else getattr(provider, "idle_calls", None)
+                    ),
                     "projector": (
                         {}
                         if self._timing_projector is None
