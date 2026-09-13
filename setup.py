@@ -27,7 +27,10 @@ setup(
             "docs.*",
         ]
     ),
-    # package_data={'bt_alpha': ['bt_alpha/utils/*', 'utils/*']},
+    # Keep the tracked, credential-free account configuration template available
+    # to installed consumers.  The real account_config.yaml is intentionally
+    # ignored and is never included in a distribution.
+    package_data={"backtrader": ["configs/account_config_example.yaml"]},
     author="cloud",  # Author name
     author_email="yunjinqi@qq.com",  # Author email
     description="Python Algorithmic Trading Backtesting Framework",  # Project description
