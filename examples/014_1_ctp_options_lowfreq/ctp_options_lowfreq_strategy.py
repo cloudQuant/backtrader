@@ -420,6 +420,11 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         if not result.ready:
             if result.reset_warmup:
                 self._history.clear()
+                # The barrier has retired its active scope.  A Feed callback
+                # may already have queued the old READY input for ``next()``,
+                # so retire both strategy-local handles with the barrier.
+                self._pending_feed_decision_inputs.clear()
+                self._last_decision_input = None
                 self._reset_entry_confirmation("BARARRIER_SCOPE_RESET")
             return None
         self._last_decision_input = decision_input

@@ -501,6 +501,49 @@ def test_feed_decision_backlog_is_bounded_and_halts_on_overflow():
     assert broker.get_param("market_data_only") is True
 
 
+def test_generation_reset_discards_queued_old_feed_decision_before_next():
+    """A retired barrier scope cannot leave an old READY input actionable in ``next``."""
+
+    strategy_module = importlib.import_module(
+        "examples.014_1_ctp_options_lowfreq.ctp_options_lowfreq_strategy"
+    )
+    client, broker, _, strategy = _run_chain(
+        strategy_module.CtpOptionsLowfreqStrategy,
+        evidence_provider=_closed_bar_evidence,
+    )
+    decision = strategy._last_decision_input
+    assert decision is not None
+    assert strategy._queue_feed_decision(decision) is True
+
+    generation_eight_mapping = replace(
+        decision.clock_mapping,
+        mapping_id=f"{decision.clock_mapping.mapping_id}:generation-8",
+        connection_generation=8,
+    )
+    generation_eight_bar = replace(
+        decision.bars[FUTURE],
+        generation=8,
+        clock_mapping=generation_eight_mapping,
+        bar_id=f"{decision.bars[FUTURE].bar_id}:generation-8",
+    )
+    result = strategy._barrier.ingest(generation_eight_bar)
+
+    assert result.reason == "GENERATION_MISMATCH"
+    assert result.ready is False
+    assert result.reset_warmup is True
+    assert strategy._consume_barrier_result(result, generation_eight_bar.bucket_end) is None
+    assert not strategy._pending_feed_decision_inputs
+    assert strategy._last_decision_input is None
+    assert strategy._barrier.last_input is None
+
+    strategy.next()
+
+    assert strategy._rejections[-1] == "BARARRIER_NOT_READY"
+    assert client.submitted_orders == []
+    assert client.cancelled_orders == []
+    assert broker.get_param("market_data_only") is True
+
+
 def test_feed_callback_burst_halts_before_an_unconsumed_second_cohort_can_act():
     """A stalled consumer cannot use a second real cohort after queue saturation."""
 
