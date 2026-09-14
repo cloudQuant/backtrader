@@ -2049,15 +2049,21 @@ def test_close_timeout_blocks_restart_until_close_generation_exits():
     api = SlowCloseSdk()
     store = make_store(api, command_shutdown_timeout=0.01)
     store.start()
-    health = store.stop(timeout=0.01)
-    assert close_started.is_set()
-    assert health["shutdown_state"] == "INCOMPLETE"
-    assert health["close_thread_alive"] is True
-    assert health["restart_blocked_by_close"] is True
-    with pytest.raises(BtApiStoreError, match="close callback"):
-        store.start()
+    try:
+        health = store.stop(timeout=0.01)
+        # ``stop`` owns one total deadline. Under xdist the worker/funding
+        # drain can consume it before the daemon close thread is scheduled,
+        # so assert the real close/restart fence rather than an instantaneous
+        # scheduler outcome at the return boundary.
+        assert close_started.wait(1.0)
+        assert health["shutdown_state"] == "INCOMPLETE"
+        assert health["close_thread_alive"] is True
+        assert health["restart_blocked_by_close"] is True
+        with pytest.raises(BtApiStoreError, match="close callback"):
+            store.start()
+    finally:
+        release.set()
 
-    release.set()
     deadline = time.monotonic() + 1
     while store.get_command_health()["close_thread_alive"] and time.monotonic() < deadline:
         time.sleep(0.001)
