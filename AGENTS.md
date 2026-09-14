@@ -201,9 +201,15 @@ Access patterns: `data.close[0]` (current bar), `data.close[-1]` (previous).
 - `feed.py` + `feeds/` (17 files) — CSV, pandas, IB, CCXT, etc.;
   `resamplerfilter.py` for resample/replay.
 - `broker.py` + `brokers/` — order matching and portfolio state.
-- `cerebro.py` (~2,440 lines) — orchestrator. `run()` → `runstrategies()` →
-  `_runonce()` (vectorized) or `_runnext()` (event-driven). Tick-level mode is
-  also supported.
+- `cerebro.py` (~810 lines, public facade) + `_cerebro/` private mixin package
+  (9 files, iteration 28 split) — orchestrator. The facade keeps the `Cerebro`
+  class definition (params/descriptors/`__init__`/`run`/pickle protocol) and
+  `OptReturn`; `registry/notifications/lifecycle/channel/execution` hold
+  configuration, dispatch and orchestration; `runnext`/`runonce` hold the
+  four engine loops (hot paths — verbatim-moved, see
+  `docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/`).
+  `run()` → `runstrategies()` → `_runonce()` (vectorized) or `_runnext()`
+  (event-driven). Tick-level mode is also supported.
 
 ### Indicator registration & multi-data clocks (high-bug-risk area)
 
@@ -247,7 +253,8 @@ Data Feed(s) → Cerebro → Strategy → Indicators / Observers / Analyzers
 
 ```
 backtrader/            core library
-  cerebro.py strategy.py indicator.py analyzer.py observer.py broker.py feed.py
+  cerebro.py (facade) + _cerebro/ (private engine mixins) strategy.py
+  indicator.py analyzer.py observer.py broker.py feed.py
   metabase.py parameters.py
   lineroot.py linebuffer.py lineseries.py lineiterator.py dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/

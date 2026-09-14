@@ -1,0 +1,24 @@
+{
+ "resolve_from_install_root": {
+  "backtrader": true,
+  "backtrader.cerebro": true,
+  "backtrader._cerebro.registry": true,
+  "backtrader._cerebro.notifications": true,
+  "backtrader._cerebro.lifecycle": true,
+  "backtrader._cerebro.channel": true,
+  "backtrader._cerebro.execution": true,
+  "backtrader._cerebro.runnext": true,
+  "backtrader._cerebro.runonce": true,
+  "backtrader._cerebro.presentation": true
+ },
+ "all_resolved": true,
+ "run_bars": 250,
+ "final_value": 10219.239999999998,
+ "opt_groups": 2,
+ "opt_order": [
+  5,
+  10
+ ],
+ "cerebro_module": "backtrader.cerebro",
+ "PASS": true
+}

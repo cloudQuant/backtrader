@@ -32,6 +32,7 @@ _R2_PREFIXES = (
     "backtrader/lineiterator.py",
     "backtrader/metabase.py",
     "backtrader/cerebro.py",
+    "backtrader/_cerebro/",
     "backtrader/strategy.py",
     "backtrader/broker.py",
     "backtrader/brokers/",

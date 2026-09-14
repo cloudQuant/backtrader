@@ -1,0 +1,615 @@
+{
+ "facade": [
+  "__init__",
+  "setbroker",
+  "getbroker",
+  "__call__",
+  "__getstate__",
+  "__setstate__",
+  "_resolve_run_flags",
+  "run",
+  "_build_optreturn_results"
+ ],
+ "moves": [
+  {
+   "method": "iterize",
+   "from": "backtrader/cerebro.py:502-519",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 1,
+   "text_fixes": []
+  },
+  {
+   "method": "set_fund_history",
+   "from": "backtrader/cerebro.py:521-543",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "add_order_history",
+   "from": "backtrader/cerebro.py:545-584",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "notify_timer",
+   "from": "backtrader/cerebro.py:586-594",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_add_timer",
+   "from": "backtrader/cerebro.py:596-640",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "add_timer",
+   "from": "backtrader/cerebro.py:642-758",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addtz",
+   "from": "backtrader/cerebro.py:760-778",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addcalendar",
+   "from": "backtrader/cerebro.py:780-802",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "add_signal",
+   "from": "backtrader/cerebro.py:804-806",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "signal_strategy",
+   "from": "backtrader/cerebro.py:808-810",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "signal_concurrent",
+   "from": "backtrader/cerebro.py:812-814",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "signal_accumulate",
+   "from": "backtrader/cerebro.py:816-820",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addstore",
+   "from": "backtrader/cerebro.py:822-825",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_maybe_add_store",
+   "from": "backtrader/cerebro.py:827-831",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addwriter",
+   "from": "backtrader/cerebro.py:833-836",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addsizer",
+   "from": "backtrader/cerebro.py:838-842",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addsizer_byidx",
+   "from": "backtrader/cerebro.py:844-849",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addindicator",
+   "from": "backtrader/cerebro.py:851-853",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addanalyzer",
+   "from": "backtrader/cerebro.py:855-857",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addobserver",
+   "from": "backtrader/cerebro.py:859-864",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addobservermulti",
+   "from": "backtrader/cerebro.py:866-874",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "adddata",
+   "from": "backtrader/cerebro.py:1277-1306",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "chaindata",
+   "from": "backtrader/cerebro.py:1308-1323",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "rolloverdata",
+   "from": "backtrader/cerebro.py:1325-1342",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "replaydata",
+   "from": "backtrader/cerebro.py:1344-1361",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "resampledata",
+   "from": "backtrader/cerebro.py:1363-1380",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "optcallback",
+   "from": "backtrader/cerebro.py:1382-1389",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "optstrategy",
+   "from": "backtrader/cerebro.py:1391-1437",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addstrategy",
+   "from": "backtrader/cerebro.py:1439-1451",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_check_timers",
+   "from": "backtrader/cerebro.py:2971-2988",
+   "to": "backtrader/_cerebro/registry.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "addstorecb",
+   "from": "backtrader/cerebro.py:876-889",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_notify_store",
+   "from": "backtrader/cerebro.py:891-896",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "notify_store",
+   "from": "backtrader/cerebro.py:898-907",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_storenotify",
+   "from": "backtrader/cerebro.py:909-919",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "adddatacb",
+   "from": "backtrader/cerebro.py:921-934",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_datanotify",
+   "from": "backtrader/cerebro.py:936-962",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_notify_data",
+   "from": "backtrader/cerebro.py:964-969",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "notify_data",
+   "from": "backtrader/cerebro.py:971-980",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_brokernotify",
+   "from": "backtrader/cerebro.py:2250-2280",
+   "to": "backtrader/_cerebro/notifications.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_begin_run",
+   "from": "backtrader/cerebro.py:1666-1675",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_open_run_scope",
+   "from": "backtrader/cerebro.py:1677-1693",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_end_run_if_started_by_current_thread",
+   "from": "backtrader/cerebro.py:1695-1703",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_retire_run_scope_locked",
+   "from": "backtrader/cerebro.py:1705-1712",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_end_run",
+   "from": "backtrader/cerebro.py:1714-1728",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_retain_external_channel_scope",
+   "from": "backtrader/cerebro.py:1730-1741",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "close_channel",
+   "from": "backtrader/cerebro.py:1743-1776",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "runstop",
+   "from": "backtrader/cerebro.py:1778-1788",
+   "to": "backtrader/_cerebro/lifecycle.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "dispatch_channel_event",
+   "from": "backtrader/cerebro.py:982-1022",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_get_channel_data_ref",
+   "from": "backtrader/cerebro.py:1024-1041",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": [
+    [
+     "minimal annotation: self._channel_data_refs -> Dict[str, ChannelDataRef] (mypy, D28-07)"
+    ]
+   ]
+  },
+  {
+   "method": "_start_channel_strategy",
+   "from": "backtrader/cerebro.py:1043-1055",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_advance_channel_strategy_clock",
+   "from": "backtrader/cerebro.py:1057-1100",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_step_channel_strategy",
+   "from": "backtrader/cerebro.py:1102-1111",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_stop_channel_strategy",
+   "from": "backtrader/cerebro.py:1113-1133",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_run_channel",
+   "from": "backtrader/cerebro.py:1135-1214",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_teardown_channel",
+   "from": "backtrader/cerebro.py:1216-1222",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_instantiate_channel_strategies",
+   "from": "backtrader/cerebro.py:1224-1254",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_wire_channel_strategies",
+   "from": "backtrader/cerebro.py:1256-1275",
+   "to": "backtrader/_cerebro/channel.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_init_stcount",
+   "from": "backtrader/cerebro.py:1984-1986",
+   "to": "backtrader/_cerebro/execution.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_next_stid",
+   "from": "backtrader/cerebro.py:1988-1990",
+   "to": "backtrader/_cerebro/execution.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_prepare_run",
+   "from": "backtrader/cerebro.py:1992-2040",
+   "to": "backtrader/_cerebro/execution.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "runstrategies",
+   "from": "backtrader/cerebro.py:2042-2195",
+   "to": "backtrader/_cerebro/execution.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "stop_writers",
+   "from": "backtrader/cerebro.py:2219-2248",
+   "to": "backtrader/_cerebro/execution.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_next_writers",
+   "from": "backtrader/cerebro.py:2397-2415",
+   "to": "backtrader/_cerebro/execution.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_disable_runonce",
+   "from": "backtrader/cerebro.py:2417-2420",
+   "to": "backtrader/_cerebro/execution.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_runnext_old",
+   "from": "backtrader/cerebro.py:2282-2347",
+   "to": "backtrader/_cerebro/runnext.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_runnext",
+   "from": "backtrader/cerebro.py:2422-2886",
+   "to": "backtrader/_cerebro/runnext.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_runonce_old",
+   "from": "backtrader/cerebro.py:2349-2395",
+   "to": "backtrader/_cerebro/runonce.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_runonce",
+   "from": "backtrader/cerebro.py:2888-2969",
+   "to": "backtrader/_cerebro/runonce.py",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "plot",
+   "from": "backtrader/cerebro.py:1473-1618",
+   "to": "backtrader/_cerebro/presentation.py",
+   "decorators": 0,
+   "text_fixes": [
+    [
+     "from .bokeh import BokehPlot",
+     "from ..bokeh import BokehPlot"
+    ],
+    [
+     "from . import plot",
+     "from .. import plot"
+    ],
+    [
+     "from . import plot",
+     "from .. import plot"
+    ],
+    [
+     "from . import plot",
+     "from .. import plot"
+    ],
+    [
+     "from . import plot",
+     "from .. import plot"
+    ]
+   ]
+  },
+  {
+   "method": "add_report_analyzers",
+   "from": "backtrader/cerebro.py:2990-3015",
+   "to": "backtrader/_cerebro/presentation.py",
+   "decorators": 0,
+   "text_fixes": [
+    [
+     "from . import analyzers",
+     "from .. import analyzers"
+    ]
+   ]
+  },
+  {
+   "method": "generate_report",
+   "from": "backtrader/cerebro.py:3017-3060",
+   "to": "backtrader/_cerebro/presentation.py",
+   "decorators": 0,
+   "text_fixes": [
+    [
+     "from .reports import ReportGenerator",
+     "from ..reports import ReportGenerator"
+    ]
+   ]
+  },
+  {
+   "method": "setbroker",
+   "from": "backtrader/cerebro.py:1453-1461",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "getbroker",
+   "from": "backtrader/cerebro.py:1463-1469",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "__call__",
+   "from": "backtrader/cerebro.py:1620-1631",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "__getstate__",
+   "from": "backtrader/cerebro.py:1633-1652",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "__setstate__",
+   "from": "backtrader/cerebro.py:1654-1664",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "_resolve_run_flags",
+   "from": "backtrader/cerebro.py:1790-1834",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 0,
+   "text_fixes": []
+  },
+  {
+   "method": "run",
+   "from": "backtrader/cerebro.py:1836-1982",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 1,
+   "text_fixes": []
+  },
+  {
+   "method": "_build_optreturn_results",
+   "from": "backtrader/cerebro.py:2197-2217",
+   "to": "backtrader/cerebro.py (facade)",
+   "decorators": 0,
+   "text_fixes": []
+  }
+ ],
+ "post_split_adjustments": {
+  "verbatim_fixes": [
+   "presentation lazy imports: relative depth +1 (4 sites, registered pre-move)",
+   "channel._get_channel_data_ref: minimal Dict[str, ChannelDataRef] annotation (mypy, D28-07)",
+   "mixin module headers/logger name 'backtrader.cerebro' kept (D28-04.6)"
+  ],
+  "facade_only_changes": [
+   "class Cerebro bases extended with 8 private mixins (MRO change allowed by D28-04.8)",
+   "top-of-file pylint/ruff unused-import exemptions for star-export parity",
+   "too-many-ancestors inline pylint disable with rationale"
+  ]
+ }
+}
