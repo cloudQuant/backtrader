@@ -70,7 +70,11 @@ def test_build_uses_one_native_store_feed_broker_cerebro_chain():
         "cerebro": "Cerebro",
     }
     assert report["external_network_requests"] == 0
-    assert report["external_trade_writes"] == 0
+    assert report["adapter_scoped_write_attempts"] == "NOT_OBSERVED"
+    assert report["external_trade_writes"] == "NOT_PROVEN"
+    assert report["external_trade_writes_basis"] == (
+        "NOT_PROVEN: an unstarted construction graph cannot attest raw external provider writes."
+    )
     assert report["market_data_only"] is True
     assert report["execution_permission"] == "NOT_PROVEN"
 

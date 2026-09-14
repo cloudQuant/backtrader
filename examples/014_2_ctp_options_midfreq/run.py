@@ -150,6 +150,11 @@ def run_replay(
         if isinstance(replay, dict):
             replay["scenario"] = scenario
     config = validate_config(effective)
+    if config["mode"] != "replay":
+        raise ConfigurationError(
+            "ENGINEERING_OBSERVATION_API_ONLY",
+            "engineering observation must use the injected live Store/Feed/Cerebro entry point",
+        )
     producer = _producer_for(config)
     frames = _minute_rows(config, config["replay"]["scenario"])
 
@@ -201,6 +206,11 @@ def run_timing_replay(
     """Run the MF-T1 projector through real Cerebro ``next`` and idle hooks."""
 
     config = validate_config(copy.deepcopy(raw_config))
+    if config["mode"] != "replay":
+        raise ConfigurationError(
+            "ENGINEERING_OBSERVATION_API_ONLY",
+            "engineering observation cannot run a local timing replay fixture",
+        )
     provider = build_normal_exit_fixture() if normal_exit_fixture else build_timing_fixture()
     feed = TimingFixtureFeed(
         idle_polls=provider.idle_count,
@@ -251,6 +261,51 @@ def run_engineering_smoke(raw_config: Dict[str, Any], *, api: Any = None) -> Dic
     return build_engineering_smoke(config=config, api=api)
 
 
+def run_engineering_observation(
+    raw_config: Dict[str, Any],
+    *,
+    api: Any,
+    environment_profile: str,
+    run_seconds: float,
+    feed_clock: Any,
+    clock_mapping: Any,
+    closed_bar_evidence_provider: Any,
+) -> Dict[str, Any]:
+    """Run the explicit, bounded Set-2 zero-write strategy observation.
+
+    This is intentionally an API-only entry point.  It does not load ``.env``,
+    choose an SDK, or expose a CLI path that could accidentally connect with
+    ambient credentials.  Its runtime mode is explicit and distinct from the
+    local replay fixture, while the outer report remains a ``shadow``
+    observation so it cannot be confused with G3/G4 execution.
+    """
+
+    if not isinstance(raw_config, dict) or raw_config.get("mode") not in {
+        "replay",
+        "engineering_observation",
+    }:
+        raise ConfigurationError(
+            "ENGINEERING_OBSERVATION_MODE",
+            "engineering observation accepts only the frozen replay template or explicit runtime mode",
+        )
+    runtime_config = copy.deepcopy(raw_config)
+    runtime_config["mode"] = "engineering_observation"
+    config = validate_config(runtime_config)
+    try:
+        from .simnow_adapter import run_engineering_observation as _run_observation
+    except ImportError:
+        from simnow_adapter import run_engineering_observation as _run_observation
+    return _run_observation(
+        config=config,
+        api=api,
+        environment_profile=environment_profile,
+        run_seconds=run_seconds,
+        feed_clock=feed_clock,
+        clock_mapping=clock_mapping,
+        closed_bar_evidence_provider=closed_bar_evidence_provider,
+    )
+
+
 def _arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=EXAMPLE_DIR / "config.yaml")
@@ -292,7 +347,9 @@ def main() -> int:
             raw_config["mode"] = args.mode
         if args.purpose == "engineering_smoke":
             if args.mode != "simnow":
-                raise ConfigurationError("ENGINEERING_SMOKE_MODE", "engineering_smoke requires --mode simnow")
+                raise ConfigurationError(
+                    "ENGINEERING_SMOKE_MODE", "engineering_smoke requires --mode simnow"
+                )
             # No API factory, environment lookup, or .env loading is allowed
             # in this entry point.  Tests and a separately governed launcher
             # may call run_engineering_smoke(..., api=explicit_api).

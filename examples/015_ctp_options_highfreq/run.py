@@ -14,15 +14,18 @@ import copy
 import hashlib
 import json
 import math
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping
 
 import backtrader as bt
 import yaml
 from backtrader.brokers.tickbroker import TickBroker
 from backtrader.channel import Event, EventPriority
 from backtrader.events import BarEvent, TickEvent
+from backtrader.feeds import ClockMapping, CtpCohortNow
 
 try:
     from .ctp_options_highfreq_strategy import CtpOptionsHighfreqStrategy, canonical_sha256
@@ -50,6 +53,10 @@ FROZEN_TIMING_MS = {
 MODES = frozenset({"replay", "shadow", "simnow", "production"})
 REPLAY_PURPOSES = frozenset({"formula"})
 _CREDENTIAL_TOKENS = ("password", "secret", "token", "auth_code", "api_key", "credential")
+_ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY = (
+    "NOT_PROVEN: the adapter membrane and market_data_only Broker only observe "
+    "adapter-routed attempts; they cannot attest raw external provider writes."
+)
 
 
 class RunnerConfigurationError(ValueError):
@@ -625,6 +632,908 @@ def _strategy_params(config: Mapping[str, Any], bundle: Mapping[str, Any]) -> di
         "complete_cohort_confirmations": int(feed["complete_cohort_confirmations"]),
         "entry_buffer_cny": signal["entry_buffer_cny"],
         "total_reserve_cny": signal["total_reserve_cny"],
+    }
+
+
+class _ObservationTrustedNowProvider:
+    """Validate caller-owned CTP time evidence at the Feed dispatch boundary.
+
+    ``BtApiFeed`` intentionally swallows provider exceptions to keep a raw
+    malformed quote from crashing its dispatch loop.  This wrapper therefore
+    retains the first failure and lets the outer observation boundary reject
+    the whole run only after normal, read-only shutdown has completed.
+    """
+
+    _SYNTHETIC_MARKERS = ("fixture", "replay", "synthetic")
+
+    def __init__(
+        self,
+        *,
+        provider: Callable[[Any], CtpCohortNow],
+        mapping: ClockMapping,
+        expected_symbols: tuple[str, ...],
+        observation_duration_seconds: float,
+        observation_blocked: type[Exception],
+    ) -> None:
+        self._provider = provider
+        self._mapping = mapping
+        self._expected_symbols = expected_symbols
+        self._observation_window_ns = int(math.ceil(observation_duration_seconds * 1_000_000_000.0))
+        self._observation_blocked = observation_blocked
+        self._failure: Exception | None = None
+        self.calls = 0
+        self._accepted_symbols: set[str] = set()
+        self._initial_coherent_mono_ns: int | None = None
+
+    @property
+    def accepted_symbols(self) -> list[str]:
+        return [symbol for symbol in self._expected_symbols if symbol in self._accepted_symbols]
+
+    def __call__(self, tick: Any) -> CtpCohortNow:
+        self.calls += 1
+        try:
+            self._validate_tick(tick)
+            now = self._provider(tick)
+            if not isinstance(now, CtpCohortNow):
+                self._reject(
+                    "TRUSTED_COHORT_NOW_REQUIRED",
+                    "live observation requires CtpCohortNow evidence",
+                )
+            if now.clock_domain_id != self._mapping.clock_domain_id:
+                self._reject(
+                    "TRUSTED_COHORT_NOW_DOMAIN",
+                    "trusted CTP time must use the live mapping clock domain",
+                )
+            tick_receive_ns = getattr(tick, "recv_monotonic_ns", None)
+            if type(tick_receive_ns) is not int or now.now_monotonic_ns < tick_receive_ns:
+                self._reject(
+                    "TRUSTED_COHORT_NOW_STALE",
+                    "trusted CTP time predates the delivered quote",
+                )
+            try:
+                self._mapping.validate_pair(now.now_epoch, now.now_monotonic_ns / 1_000_000_000.0)
+            except (TypeError, ValueError, OverflowError):
+                self._reject(
+                    "TRUSTED_COHORT_NOW_MAPPING",
+                    "trusted CTP time is outside the caller-owned live mapping",
+                )
+            self._require_observation_window_coverage(now)
+            self._accepted_symbols.add(str(tick.symbol))
+            return now
+        except Exception as error:
+            if self._failure is None:
+                self._failure = error
+            raise
+
+    def require_complete(self) -> None:
+        """Turn swallowed Feed validation failures into a terminal run result."""
+
+        if self._failure is not None:
+            raise self._failure
+        missing = [
+            symbol for symbol in self._expected_symbols if symbol not in self._accepted_symbols
+        ]
+        if missing:
+            self._reject(
+                "TRUSTED_COHORT_NOW_INCOMPLETE",
+                "live observation did not receive trusted CTP time for every configured leg",
+            )
+
+    def _require_observation_window_coverage(self, now: CtpCohortNow) -> None:
+        """Bind the complete bounded run to its first coherent live time.
+
+        The wall-clock watchdog may remain active while an otherwise live
+        source is idle.  A mapping that merely covers already-delivered ticks
+        cannot attest that idle part of the requested observation interval.
+        The first CTP-coherent time is therefore a conservative trusted origin:
+        the mapping must remain valid for the entire requested interval after
+        it, including its declared calibration error.
+        """
+
+        if self._initial_coherent_mono_ns is not None:
+            return
+        required_valid_until_ns = (
+            now.now_monotonic_ns + self._observation_window_ns + self._mapping.error_bound_ns
+        )
+        if required_valid_until_ns > self._mapping.valid_until_mono_ns:
+            self._reject(
+                "LIVE_CLOCK_MAPPING_DURATION_REQUIRED",
+                "trusted clock mapping does not cover the full engineering observation window",
+            )
+        self._initial_coherent_mono_ns = now.now_monotonic_ns
+
+    def _validate_tick(self, tick: Any) -> None:
+        if getattr(tick, "schema_version", None) != "ctp.quote.v2":
+            self._reject(
+                "LIVE_CTP_QUOTE_REQUIRED", "live observation requires strict CTP-v2 quotes"
+            )
+        if getattr(tick, "clock_domain_id", None) != self._mapping.clock_domain_id:
+            self._reject(
+                "LIVE_QUOTE_CLOCK_DOMAIN",
+                "CTP quote clock domain differs from the caller-owned live mapping",
+            )
+        if getattr(tick, "connection_generation", None) != self._mapping.connection_generation:
+            self._reject(
+                "LIVE_QUOTE_GENERATION",
+                "CTP quote generation differs from the caller-owned live mapping",
+            )
+        if getattr(tick, "rules_hash", None) != self._mapping.rules_hash:
+            self._reject(
+                "LIVE_QUOTE_RULES_HASH",
+                "CTP quote rules identity differs from the frozen candidate bundle",
+            )
+        source_values = (
+            str(getattr(tick, "source", "") or "").lower(),
+            str(getattr(tick, "event_time_source", "") or "").lower(),
+        )
+        if any(marker in value for value in source_values for marker in self._SYNTHETIC_MARKERS):
+            self._reject(
+                "SYNTHETIC_QUOTE_SOURCE",
+                "engineering observation rejects replay or synthetic quote provenance",
+            )
+
+    def _reject(self, code: str, message: str) -> None:
+        raise self._observation_blocked(code, message)
+
+
+class _ObservationLifecycleProbe(bt.Analyzer):
+    """Start the deadline only once the real strategy lifecycle is active."""
+
+    params = (("on_started", None),)
+
+    def start(self) -> None:
+        on_started = self.p.on_started
+        if not callable(on_started):
+            raise RuntimeError("engineering observation lifecycle callback is unavailable")
+        on_started()
+
+
+def _require_engineering_duration(run_seconds: Any, observation_blocked: type[Exception]) -> float:
+    if isinstance(run_seconds, bool):
+        raise observation_blocked(
+            "ENGINEERING_DURATION", "run_seconds must be a bounded positive number"
+        )
+    try:
+        seconds = float(run_seconds)
+    except (TypeError, ValueError) as error:
+        raise observation_blocked(
+            "ENGINEERING_DURATION", "run_seconds must be a bounded positive number"
+        ) from error
+    if not math.isfinite(seconds) or not 0.0 < seconds <= 3600.0:
+        raise observation_blocked(
+            "ENGINEERING_DURATION", "engineering observation must run for at most 3600 seconds"
+        )
+    return seconds
+
+
+def _require_live_clock_mapping(
+    mapping: Any,
+    *,
+    bundle_hash: str,
+    observation_blocked: type[Exception],
+) -> ClockMapping:
+    if not isinstance(mapping, ClockMapping):
+        raise observation_blocked(
+            "LIVE_CLOCK_MAPPING_REQUIRED", "engineering observation requires a live ClockMapping"
+        )
+    source = str(mapping.source or "").lower()
+    if (
+        mapping.synthetic is not False
+        or mapping.rules_hash != bundle_hash
+        or any(marker in source for marker in ("fixture", "replay", "synthetic"))
+    ):
+        raise observation_blocked(
+            "LIVE_CLOCK_MAPPING_REQUIRED",
+            "engineering observation requires a non-synthetic candidate-bound ClockMapping",
+        )
+    return mapping
+
+
+def _require_feed_clock(feed_clock: Any, observation_blocked: type[Exception]) -> None:
+    if not any(
+        callable(getattr(feed_clock, name, None))
+        for name in ("monotonic_ns", "monotonic_now", "monotonic")
+    ):
+        raise observation_blocked(
+            "LIVE_FEED_CLOCK_REQUIRED",
+            "engineering observation requires an injected monotonic feed clock",
+        )
+
+
+def _observation_shutdown_summary(
+    broker: Any, store: Any, observation_blocked: type[Exception]
+) -> dict[str, Any]:
+    getter = getattr(broker, "get_shutdown_summary", None)
+    try:
+        summary = getter() if callable(getter) else None
+    except Exception as error:
+        raise observation_blocked(
+            "SHUTDOWN_INCOMPLETE", "market-data-only shutdown evidence could not be read"
+        ) from error
+    if not isinstance(summary, Mapping):
+        raise observation_blocked(
+            "SHUTDOWN_INCOMPLETE", "market-data-only shutdown evidence is unavailable"
+        )
+    if (
+        summary.get("status") not in {"OBSERVATION_ONLY", "OBSERVATION_ONLY_NONFLAT"}
+        or summary.get("market_data_only") is not True
+        or summary.get("cancel_requested") != 0
+        or summary.get("close_requested") != 0
+        or summary.get("store_shutdown_state") != "PASS"
+    ):
+        raise observation_blocked(
+            "SHUTDOWN_INCOMPLETE", "market-data-only shutdown did not prove a zero-write stop"
+        )
+    try:
+        health = store.get_command_health()
+    except Exception as error:
+        raise observation_blocked(
+            "SHUTDOWN_INCOMPLETE", "Store shutdown health could not be read"
+        ) from error
+    if not isinstance(health, Mapping) or health.get("shutdown_state") != "PASS":
+        raise observation_blocked("SHUTDOWN_INCOMPLETE", "Store shutdown health is not PASS")
+    return {
+        "status": str(summary["status"]),
+        "market_data_only": True,
+        "cancel_requested": 0,
+        "close_requested": 0,
+        "store_shutdown_state": "PASS",
+    }
+
+
+def _unstarted_observation_graph_shutdown_proven(
+    *,
+    broker: Any | None,
+    store: Any | None,
+    guarded_api: Any | None,
+) -> bool:
+    """Prove that a graph which never started could not have written.
+
+    A construction failure can happen after a Store, Broker, or one Feed has
+    been created but before Cerebro starts either transport.  The normal
+    broker summary is deliberately ``NOT_STARTED`` in that state, so it cannot
+    meet the stricter live-session shutdown projection.  It is nevertheless
+    safe only when the Store confirms that it never connected and the
+    deny-default membrane observed no attempted write.
+    """
+
+    if store is None:
+        return broker is None
+    try:
+        health = store.get_command_health()
+    except Exception:
+        return False
+    if not isinstance(health, Mapping) or health.get("shutdown_state") not in {
+        "NOT_STARTED",
+        "PASS",
+    }:
+        return False
+    if getattr(store, "is_connected", None) is not False:
+        return False
+    if broker is not None:
+        try:
+            summary = broker.get_shutdown_summary()
+        except Exception:
+            return False
+        if not isinstance(summary, Mapping) or summary.get("status") != "NOT_STARTED":
+            return False
+    if guarded_api is not None:
+        try:
+            audit = guarded_api.audit()
+        except Exception:
+            return False
+        if not isinstance(audit, Mapping) or audit.get("forbidden_write_attempts") != {}:
+            return False
+    return True
+
+
+def _force_observation_graph_shutdown(
+    *,
+    broker: Any | None,
+    feeds: Iterable[Any],
+    store: Any | None,
+    guarded_api: Any | None,
+    observation_blocked: type[Exception],
+) -> None:
+    """Stop every constructed graph component and prove a zero-write teardown.
+
+    This is only used when normal Cerebro cleanup was skipped.  It attempts
+    every stop in dependency order even if an earlier stop fails, and a
+    shutdown-proof failure intentionally takes precedence over the initiating
+    construction or binding exception.
+    """
+
+    cleanup_failed = False
+    if broker is not None:
+        try:
+            broker.stop()
+        except BaseException:
+            cleanup_failed = True
+    for feed in feeds:
+        try:
+            feed.stop()
+        except BaseException:
+            cleanup_failed = True
+    if store is not None:
+        try:
+            store.stop(timeout=2.0)
+        except BaseException:
+            cleanup_failed = True
+    if cleanup_failed:
+        raise observation_blocked(
+            "SHUTDOWN_INCOMPLETE",
+            "engineering observation could not stop every constructed component",
+        )
+    if store is None:
+        return
+    try:
+        _observation_shutdown_summary(broker, store, observation_blocked)
+    except observation_blocked:
+        if not _unstarted_observation_graph_shutdown_proven(
+            broker=broker,
+            store=store,
+            guarded_api=guarded_api,
+        ):
+            raise
+
+
+def _require_ctp_session_binding(
+    store: Any,
+    mapping: ClockMapping,
+    observation_blocked: type[Exception],
+) -> dict[str, Any]:
+    """Bind this run through the owned Store's public CTP read accessor."""
+
+    if store.is_connected is not True:
+        raise observation_blocked(
+            "CTP_SESSION_STORE_UNREADY",
+            "engineering observation requires a connected owned Store before session binding",
+        )
+    try:
+        get_state = getattr(store, "get_ctp_session_state")
+    except AttributeError:
+        raise observation_blocked(
+            "CTP_SESSION_STATE_REQUIRED",
+            "public CTP session-state evidence is unavailable",
+        ) from None
+    if not callable(get_state):
+        raise observation_blocked(
+            "CTP_SESSION_STATE_REQUIRED",
+            "public CTP session-state evidence is unavailable",
+        )
+    try:
+        state = get_state()
+    except Exception:
+        raise observation_blocked(
+            "CTP_SESSION_STATE_REQUIRED",
+            "public CTP session-state evidence could not be read",
+        ) from None
+    if not isinstance(state, Mapping):
+        raise observation_blocked(
+            "CTP_SESSION_STATE_REQUIRED",
+            "public CTP session-state evidence must be a mapping",
+        )
+    required_fields = {
+        "environment_profile",
+        "connected",
+        "read_only_ready",
+        "execution_gate_armed",
+        "account_fingerprint",
+        "connection_generation",
+    }
+    if not required_fields.issubset(state):
+        raise observation_blocked(
+            "CTP_SESSION_STATE_REQUIRED",
+            "public CTP session-state evidence is incomplete",
+        )
+
+    actual_profile = state.get("environment_profile")
+    if not isinstance(actual_profile, str) or not actual_profile.startswith("set2_7x24"):
+        raise observation_blocked(
+            "CTP_SESSION_PROFILE_REQUIRED",
+            "connected CTP session is not the required Set-2 7x24 environment",
+        )
+    if state.get("connected") is not True:
+        raise observation_blocked(
+            "CTP_SESSION_CONNECTED_REQUIRED",
+            "public CTP session-state evidence is not connected",
+        )
+    if state.get("read_only_ready") is not True:
+        raise observation_blocked(
+            "CTP_SESSION_READ_ONLY_REQUIRED",
+            "public CTP session-state evidence is not read-only ready",
+        )
+    if state.get("execution_gate_armed") is not False:
+        raise observation_blocked(
+            "CTP_SESSION_EXECUTION_GATE_REQUIRED",
+            "public CTP session-state evidence reports an armed execution gate",
+        )
+    account_fingerprint = state.get("account_fingerprint")
+    if not isinstance(account_fingerprint, str) or not account_fingerprint.strip():
+        raise observation_blocked(
+            "CTP_SESSION_FINGERPRINT_REQUIRED",
+            "public CTP session-state evidence lacks an account fingerprint",
+        )
+    generation = state.get("connection_generation")
+    if (
+        type(generation) is not int
+        or generation <= 0
+        or generation != mapping.connection_generation
+    ):
+        raise observation_blocked(
+            "CTP_SESSION_GENERATION_REQUIRED",
+            "public CTP session generation does not match the trusted clock mapping",
+        )
+
+    binding = {
+        "source": "BtApiStore.get_ctp_session_state",
+        "exchange_name": "CTP___FUTURE",
+        "actual_environment_profile": actual_profile,
+        "profile_family_prefix": "set2_7x24",
+        "account_fingerprint_sha256": hashlib.sha256(
+            account_fingerprint.encode("utf-8")
+        ).hexdigest(),
+        "read_only_ready": True,
+        "execution_gate_armed": False,
+        "connection_generation": generation,
+        "clock_mapping_id": mapping.mapping_id,
+        "clock_mapping_generation": mapping.connection_generation,
+    }
+    trading_day = state.get("trading_day")
+    if isinstance(trading_day, str) and trading_day.strip():
+        binding["trading_day"] = trading_day.strip()
+    return binding
+
+
+def run_engineering_observation(
+    config: Mapping[str, Any],
+    *,
+    api: Any,
+    environment_profile: str,
+    run_seconds: float,
+    feed_clock: Any,
+    clock_mapping: ClockMapping,
+    live_now_provider: Callable[[Any], CtpCohortNow],
+) -> dict[str, Any]:
+    """Run one bounded, injected, zero-write Set-2 strategy observation.
+
+    This is deliberately not a CLI mode and does not load credentials.  A
+    separately governed CTP owner must inject both the already-created API and
+    the calibrated clock evidence.  Successful completion proves only that
+    this strategy callback chain observed live-shaped data in a forced
+    market-data-only session; it cannot establish G3, G4, profitability, or
+    HFT admission.
+    """
+
+    try:
+        from .engineering_smoke import (
+            ENGINEERING_OBSERVATION_G3_STATUS,
+            ENGINEERING_OBSERVATION_MAX_SECONDS,
+            SECOND_SET_ENGINEERING_PROFILE,
+            EngineeringObservationBlocked,
+            _ObservationReadOnlyApi,
+        )
+    except ImportError:  # Direct module loading from this example directory.
+        from engineering_smoke import (  # type: ignore[no-redef]
+            ENGINEERING_OBSERVATION_G3_STATUS,
+            ENGINEERING_OBSERVATION_MAX_SECONDS,
+            SECOND_SET_ENGINEERING_PROFILE,
+            EngineeringObservationBlocked,
+            _ObservationReadOnlyApi,
+        )
+
+    if api is None:
+        raise EngineeringObservationBlocked(
+            "SDK_NOT_INJECTED", "engineering observation requires an explicit API object"
+        )
+    if environment_profile != SECOND_SET_ENGINEERING_PROFILE:
+        raise EngineeringObservationBlocked(
+            "SECOND_SET_PROFILE_REQUIRED",
+            "engineering observation is restricted to the second SimNow profile",
+        )
+    seconds = _require_engineering_duration(run_seconds, EngineeringObservationBlocked)
+    if seconds > ENGINEERING_OBSERVATION_MAX_SECONDS:
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_DURATION", "engineering observation must run for at most 3600 seconds"
+        )
+    if not callable(live_now_provider):
+        raise EngineeringObservationBlocked(
+            "TRUSTED_COHORT_NOW_REQUIRED",
+            "engineering observation requires an injected CtpCohortNow provider",
+        )
+    _require_feed_clock(feed_clock, EngineeringObservationBlocked)
+
+    effective = effective_config(config, mode="shadow", purpose="observation")
+    fixture, _fixture_path, _fixture_hash = load_fixture(effective)
+    bundle = validate_bundle(fixture, effective)
+    bundle_hash = canonical_sha256(bundle)
+    mapping = _require_live_clock_mapping(
+        clock_mapping,
+        bundle_hash=bundle_hash,
+        observation_blocked=EngineeringObservationBlocked,
+    )
+    symbols = tuple(str(bundle[role]["symbol"]) for role in ("future", "call", "put"))
+    trusted_now = _ObservationTrustedNowProvider(
+        provider=live_now_provider,
+        mapping=mapping,
+        expected_symbols=symbols,
+        observation_duration_seconds=seconds,
+        observation_blocked=EngineeringObservationBlocked,
+    )
+    # This ceiling starts before the native graph exists.  A slow Store,
+    # Broker, Feed, or session binding must consume the same one-hour budget
+    # as strategy observation; it cannot earn a fresh full hour afterwards.
+    started_at = time.monotonic()
+    lifecycle_deadline = started_at + ENGINEERING_OBSERVATION_MAX_SECONDS
+    lifecycle_started = threading.Event()
+    deadline_stop_requested = threading.Event()
+    lifecycle_deadline_stop_requested = threading.Event()
+    lifecycle_lock = threading.Lock()
+    lifecycle_started_at: list[float] = []
+    deadline_timer: list[threading.Timer] = []
+    lifecycle_deadline_timer: list[threading.Timer] = []
+    session_identity: list[dict[str, Any]] = []
+    cerebro_ref: list[Any] = []
+    guarded_api: Any | None = None
+    store: Any | None = None
+    broker: Any | None = None
+    cerebro: Any | None = None
+    feeds: list[Any] = []
+
+    def request_lifecycle_deadline_stop() -> None:
+        lifecycle_deadline_stop_requested.set()
+        with lifecycle_lock:
+            active_cerebro = cerebro_ref[0] if cerebro_ref else None
+        if active_cerebro is not None:
+            active_cerebro.runstop()
+
+    def lifecycle_expired() -> bool:
+        if time.monotonic() >= lifecycle_deadline:
+            request_lifecycle_deadline_stop()
+        return lifecycle_deadline_stop_requested.is_set()
+
+    def require_lifecycle_budget() -> None:
+        if lifecycle_expired():
+            raise EngineeringObservationBlocked(
+                "OBSERVATION_LIFECYCLE_DURATION_EXCEEDED",
+                "engineering observation exhausted its end-to-end 3600-second lifecycle budget",
+            )
+
+    def cancel_watchdog(timer: threading.Timer | None) -> EngineeringObservationBlocked | None:
+        if timer is None:
+            return None
+        timer.cancel()
+        timer.join(timeout=1.0)
+        if timer.is_alive():
+            return EngineeringObservationBlocked(
+                "WATCHDOG_INCOMPLETE", "engineering observation watchdog did not stop"
+            )
+        return None
+
+    def start_lifecycle_deadline_watchdog() -> None:
+        remaining_seconds = lifecycle_deadline - time.monotonic()
+        if remaining_seconds <= 0.0:
+            request_lifecycle_deadline_stop()
+            return
+        timer = threading.Timer(remaining_seconds, request_lifecycle_deadline_stop)
+        timer.name = "iter25-engineering-observation-lifecycle-deadline"
+        timer.daemon = True
+        with lifecycle_lock:
+            lifecycle_deadline_timer.append(timer)
+        timer.start()
+
+    # It can fire before Cerebro exists.  In that case the event makes every
+    # construction checkpoint fail closed before ``run()`` clears its own
+    # stop event for a new scope.
+    start_lifecycle_deadline_watchdog()
+    construction_error: BaseException | None = None
+    construction_shutdown_error: EngineeringObservationBlocked | None = None
+    try:
+        require_lifecycle_budget()
+        guarded_api = _ObservationReadOnlyApi(api)
+        store = bt.stores.BtApiStore(
+            provider="btapi",
+            api=guarded_api,
+            config={"execution_config": {"market_data_only": True}},
+            autostart=False,
+        )
+        require_lifecycle_budget()
+        broker = store.getbroker(
+            market_data_only=True,
+            flatten_on_stop=False,
+            force_refresh_queries=False,
+            account_refresh_interval=3600.0,
+            positions_refresh_interval=3600.0,
+            open_orders_refresh_interval=3600.0,
+            sdk_preflight=False,
+            cash=float(_mapping(effective["replay"], "replay")["starting_cash"]),
+        )
+        require_lifecycle_budget()
+        cerebro = bt.Cerebro(stdstats=False, quicknotify=True, runonce=False)
+        with lifecycle_lock:
+            cerebro_ref.append(cerebro)
+        cerebro.setbroker(broker)
+        require_lifecycle_budget()
+        for symbol, role in zip(symbols, ("future", "call", "put")):
+            feed = store.getdata(
+                dataname=symbol,
+                timeframe=bt.TimeFrame.Ticks,
+                compression=1,
+                backfill_start=False,
+                dispatch_ticks=True,
+                dispatch_bars=False,
+                qcheck=0.01,
+                price_tick=float(bundle[role]["tick_size"]),
+                clock=feed_clock,
+                ctp_decision_now_provider=trusted_now,
+            )
+            feeds.append(feed)
+            cerebro.adddata(feed, name=feed._dataname)
+            require_lifecycle_budget()
+        cerebro.addstrategy(CtpOptionsHighfreqStrategy, **_strategy_params(effective, bundle))
+        require_lifecycle_budget()
+    except BaseException as error:
+        construction_error = error
+        with lifecycle_lock:
+            deadline = deadline_timer[0] if deadline_timer else None
+            lifecycle_timer = lifecycle_deadline_timer[0] if lifecycle_deadline_timer else None
+        for timer in (deadline, lifecycle_timer):
+            watchdog_error = cancel_watchdog(timer)
+            if watchdog_error is not None:
+                construction_shutdown_error = watchdog_error
+        try:
+            _force_observation_graph_shutdown(
+                broker=broker,
+                feeds=feeds,
+                store=store,
+                guarded_api=guarded_api,
+                observation_blocked=EngineeringObservationBlocked,
+            )
+        except EngineeringObservationBlocked as shutdown_failure:
+            construction_shutdown_error = shutdown_failure
+        if construction_shutdown_error is not None:
+            raise construction_shutdown_error from construction_error
+        if isinstance(construction_error, EngineeringObservationBlocked):
+            raise construction_error from None
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_CONSTRUCTION_FAILED",
+            "engineering observation could not construct its native graph",
+        ) from construction_error
+
+    def request_deadline_stop() -> None:
+        deadline_stop_requested.set()
+        if cerebro is not None:
+            cerebro.runstop()
+
+    def start_deadline_watchdog() -> None:
+        """Spend only the remaining end-to-end budget after session binding."""
+
+        lifecycle_budget_exhausted = False
+        with lifecycle_lock:
+            if lifecycle_started.is_set():
+                return
+            lifecycle_started_at.append(time.monotonic())
+            lifecycle_started.set()
+            remaining_seconds = lifecycle_deadline - time.monotonic()
+            if remaining_seconds <= 0.0 or lifecycle_deadline_stop_requested.is_set():
+                lifecycle_budget_exhausted = True
+            else:
+                timer = threading.Timer(min(seconds, remaining_seconds), request_deadline_stop)
+                timer.name = "iter25-engineering-observation-watchdog"
+                timer.daemon = True
+                deadline_timer.append(timer)
+                timer.start()
+        if lifecycle_budget_exhausted:
+            request_lifecycle_deadline_stop()
+
+    def bind_session_then_start_deadline() -> None:
+        session_identity.append(
+            _require_ctp_session_binding(
+                store,
+                mapping,
+                EngineeringObservationBlocked,
+            )
+        )
+        start_deadline_watchdog()
+
+    try:
+        cerebro.addanalyzer(_ObservationLifecycleProbe, on_started=bind_session_then_start_deadline)
+        require_lifecycle_budget()
+    except BaseException as error:
+        with lifecycle_lock:
+            deadline = deadline_timer[0] if deadline_timer else None
+            lifecycle_timer = lifecycle_deadline_timer[0] if lifecycle_deadline_timer else None
+        for timer in (deadline, lifecycle_timer):
+            watchdog_error = cancel_watchdog(timer)
+            if watchdog_error is not None:
+                construction_shutdown_error = watchdog_error
+        try:
+            _force_observation_graph_shutdown(
+                broker=broker,
+                feeds=feeds,
+                store=store,
+                guarded_api=guarded_api,
+                observation_blocked=EngineeringObservationBlocked,
+            )
+        except EngineeringObservationBlocked as shutdown_failure:
+            construction_shutdown_error = shutdown_failure
+        if construction_shutdown_error is not None:
+            raise construction_shutdown_error from error
+        if isinstance(error, EngineeringObservationBlocked):
+            raise error from None
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_CONSTRUCTION_FAILED",
+            "engineering observation could not finish constructing its native graph",
+        ) from error
+
+    strategies: list[Any] | None = None
+    run_error: BaseException | None = None
+    shutdown_error: EngineeringObservationBlocked | None = None
+    run_finished_at = started_at
+    try:
+        strategies = cerebro.run(preload=False, runonce=False)
+    except BaseException as error:
+        run_error = error
+    finally:
+        run_finished_at = time.monotonic()
+        with lifecycle_lock:
+            deadline = deadline_timer[0] if deadline_timer else None
+            lifecycle_timer = lifecycle_deadline_timer[0] if lifecycle_deadline_timer else None
+        for timer in (deadline, lifecycle_timer):
+            watchdog_error = cancel_watchdog(timer)
+            if watchdog_error is not None:
+                shutdown_error = watchdog_error
+        # An error-path summary reader is evidence, not cleanup itself.  Treat
+        # a failed read as unproven so the forced graph teardown below still
+        # runs; otherwise a getter exception could escape this ``finally`` and
+        # bypass Broker, Feed, and Store shutdown altogether.
+        try:
+            shutdown_getter = getattr(broker, "get_shutdown_summary", None)
+            shutdown_before = shutdown_getter() if callable(shutdown_getter) else None
+        except BaseException:
+            shutdown_before = None
+        aborted_before_normal_teardown = run_error is not None and (
+            bool(getattr(store, "is_connected", False))
+            or not isinstance(shutdown_before, Mapping)
+            or shutdown_before.get("status") == "NOT_STARTED"
+        )
+        if aborted_before_normal_teardown:
+            try:
+                _force_observation_graph_shutdown(
+                    broker=broker,
+                    feeds=feeds,
+                    store=store,
+                    guarded_api=guarded_api,
+                    observation_blocked=EngineeringObservationBlocked,
+                )
+            except EngineeringObservationBlocked as error:
+                shutdown_error = error
+        if run_error is not None and shutdown_error is None:
+            try:
+                _observation_shutdown_summary(broker, store, EngineeringObservationBlocked)
+            except EngineeringObservationBlocked as error:
+                shutdown_error = error
+    ended_at = time.monotonic()
+    elapsed_seconds = ended_at - started_at
+    lifecycle_complete = (
+        elapsed_seconds <= ENGINEERING_OBSERVATION_MAX_SECONDS
+        and not lifecycle_deadline_stop_requested.is_set()
+    )
+
+    if shutdown_error is not None:
+        raise shutdown_error
+    if not lifecycle_complete:
+        raise EngineeringObservationBlocked(
+            "OBSERVATION_LIFECYCLE_DURATION_EXCEEDED",
+            "engineering observation exceeded its end-to-end 3600-second lifecycle budget",
+        )
+    if run_error is not None:
+        if isinstance(run_error, EngineeringObservationBlocked):
+            raise run_error
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_RUN_FAILED",
+            "engineering observation did not complete its native lifecycle",
+        ) from run_error
+    if not isinstance(strategies, list) or len(strategies) != 1:
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_STRATEGY_MISSING",
+            "engineering observation did not produce one strategy instance",
+        )
+    strategy = strategies[0]
+    if not isinstance(strategy, CtpOptionsHighfreqStrategy):
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_STRATEGY_TYPE",
+            "engineering observation did not run CtpOptionsHighfreqStrategy",
+        )
+    shutdown = _observation_shutdown_summary(broker, store, EngineeringObservationBlocked)
+    trusted_now.require_complete()
+    write_guard = guarded_api.audit()
+    if write_guard["forbidden_write_attempts"]:
+        raise EngineeringObservationBlocked(
+            "FORBIDDEN_WRITE_ATTEMPT", "engineering observation attempted an API write"
+        )
+    adapter_scoped_write_attempts = sum(write_guard["forbidden_write_attempts"].values())
+    strategy_report = strategy.replay_report()
+    if strategy_report.get("hft_status") != "NOT_ADMITTED":
+        raise EngineeringObservationBlocked(
+            "HFT_ADMISSION_STATE_INVALID", "engineering observation cannot alter HFT admission"
+        )
+    if broker.get_param("market_data_only") is not True:
+        raise EngineeringObservationBlocked(
+            "MARKET_DATA_ONLY_REQUIRED", "engineering observation broker is not read-only"
+        )
+    if getattr(store, "_sdk_mode", False) and not store._is_sdk_market_data_only():
+        raise EngineeringObservationBlocked(
+            "MARKET_DATA_ONLY_REQUIRED", "managed Store is not read-only"
+        )
+    if not lifecycle_started.is_set() or not lifecycle_started_at:
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_LIFECYCLE_MISSING",
+            "engineering observation did not enter the strategy lifecycle",
+        )
+    if len(session_identity) != 1:
+        raise EngineeringObservationBlocked(
+            "CTP_SESSION_STATE_REQUIRED",
+            "engineering observation did not bind exactly one connected CTP session",
+        )
+    if not deadline_stop_requested.is_set():
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_DURATION_INCOMPLETE",
+            "engineering observation ended before its bounded deadline",
+        )
+
+    return {
+        "schema_version": "iter25.ctp-options-highfreq-engineering-observation.v1",
+        "status": "PASS_ENGINEERING_STRATEGY_OBSERVATION",
+        "mode": "shadow",
+        "purpose": "observation",
+        "requested_environment_profile": str(environment_profile),
+        "session_binding": session_identity[0],
+        "config_sha256": _canonical_hash(effective),
+        "bundle_sha256": bundle_hash,
+        "chain": {
+            "store": type(store).__name__,
+            "feeds": [type(feed).__name__ for feed in feeds],
+            "broker": type(broker).__name__,
+            "cerebro": type(cerebro).__name__,
+            "strategy": type(strategy).__name__,
+        },
+        "duration": {
+            "requested_seconds": seconds,
+            "elapsed_seconds": elapsed_seconds,
+            "strategy_started": True,
+            "active_window_elapsed_seconds": run_finished_at - lifecycle_started_at[0],
+            "deadline_stop_requested": deadline_stop_requested.is_set(),
+            "lifecycle_deadline_stop_requested": lifecycle_deadline_stop_requested.is_set(),
+            "elapsed_within_maximum": lifecycle_complete,
+            "maximum_seconds": ENGINEERING_OBSERVATION_MAX_SECONDS,
+        },
+        "feed_evidence": {
+            "clock_mapping_id": mapping.mapping_id,
+            "clock_domain": mapping.clock_domain_id,
+            "clock_source": mapping.source,
+            "synthetic": False,
+            "trusted_cohort_now_calls": trusted_now.calls,
+            "accepted_symbols": trusted_now.accepted_symbols,
+        },
+        "strategy": {
+            "callback_counts": dict(strategy.callback_counts),
+            "ordinary_intent_count": len(strategy._ordinary_intents),
+            "hft_status": "NOT_ADMITTED",
+            "execution_permission": "NOT_PROVEN",
+        },
+        "write_guard": write_guard,
+        "shutdown": shutdown,
+        "adapter_scoped_write_attempts": adapter_scoped_write_attempts,
+        "external_trade_writes": "NOT_PROVEN",
+        "external_trade_writes_basis": _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY,
+        "pnl_fields_emitted": False,
+        "gates": {
+            "G3_first_set_read_only": ENGINEERING_OBSERVATION_G3_STATUS,
+            "G3_evaluation": "NOT_APPLICABLE_ENGINEERING_ONLY",
+            "G4_simnow_mechanical": "NOT_RUN",
+            "HFT_admission": "NOT_ADMITTED",
+        },
     }
 
 

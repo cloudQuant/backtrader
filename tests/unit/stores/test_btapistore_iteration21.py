@@ -338,6 +338,47 @@ class TypedSdk(AsyncSdk):
         )
 
 
+class MetadataProbeTypedSdk(TypedSdk):
+    """Typed fixture whose execution state must be explicitly made read-only."""
+
+    instances = []
+
+    def __init__(self, *args, **kwargs):
+        exchange_kwargs = kwargs.pop("exchange_kwargs", None)
+        kwargs.pop("execution_config", None)
+        kwargs.pop("debug", None)
+        kwargs.pop("transport_mode", None)
+        kwargs.pop("forwarding_config", None)
+        kwargs.pop("event_bus", None)
+        super().__init__(*args, **kwargs)
+        if exchange_kwargs is not None:
+            self.exchange_kwargs = deepcopy(exchange_kwargs)
+        MetadataProbeTypedSdk.instances.append(self)
+        self.execution_configurations = []
+        self.execution_events = []
+        self.market_data_only = False
+        self.execution_armed = True
+
+    def configure_execution(self, config):
+        self.execution_configurations.append(deepcopy(config))
+        self.execution_events.append(("configure_execution", deepcopy(config)))
+        if config != {"market_data_only": True}:
+            raise AssertionError("metadata probe must configure only market_data_only")
+        self.market_data_only = True
+        self.execution_armed = False
+
+    def connect(self):
+        self.execution_events.append(("connect",))
+
+    def get_execution_summary(self):
+        summary = super().get_execution_summary()
+        summary.update(
+            market_data_only=self.market_data_only,
+            armed=self.execution_armed,
+        )
+        return summary
+
+
 def make_store(api, **config):
     return BtApiStore(
         provider="btapi",
@@ -357,6 +398,24 @@ def make_owned_store(api_cls):
         config={
             "exchange_kwargs": {VENUE: {"environment": "demo"}},
             "symbol_routes": {SYMBOL: VENUE},
+        },
+    )
+
+
+def make_trusted_owned_metadata_probe_store(
+    monkeypatch, *, api_cls=MetadataProbeTypedSdk, routes=None
+):
+    """Replace the installed SDK only at the unit-test dependency boundary."""
+
+    import bt_api_py
+
+    MetadataProbeTypedSdk.instances.clear()
+    monkeypatch.setattr(bt_api_py, "BtApi", api_cls)
+    return BtApiStore(
+        provider="btapi",
+        config={
+            "exchange_kwargs": {VENUE: {"environment": "demo"}},
+            "symbol_routes": routes or {SYMBOL: VENUE},
         },
     )
 
@@ -948,6 +1007,351 @@ def test_typed_sdk_contracts_are_adapted_without_losing_decimal_or_freshness():
         }
     finally:
         store.stop()
+
+
+def test_bounded_read_only_metadata_probe_owns_lifecycle_and_returns_typed_contracts(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    second_symbol = "ETH-USDT-SWAP"
+    store = make_trusted_owned_metadata_probe_store(
+        monkeypatch,
+        routes={SYMBOL: VENUE, second_symbol: VENUE},
+    )
+
+    result = store.run_bounded_read_only_metadata_probe(
+        datanames=(SYMBOL, second_symbol),
+        timeout_seconds=0.5,
+    )
+    api = MetadataProbeTypedSdk.instances[-1]
+
+    assert set(result["instrument_specs"]) == {SYMBOL, second_symbol}
+    assert set(result["funding_snapshots"]) == {SYMBOL, second_symbol}
+    for symbol in (SYMBOL, second_symbol):
+        assert isinstance(result["instrument_specs"][symbol], TypedInstrument)
+        assert isinstance(result["funding_snapshots"][symbol], TypedFunding)
+        assert result["instrument_specs"][symbol].symbol == symbol
+        assert result["funding_snapshots"][symbol].symbol == symbol
+    assert result["order_write_attempts"] == 0
+    assert api.execution_configurations == [{"market_data_only": True}]
+    assert api.execution_events[:2] == [
+        ("configure_execution", {"market_data_only": True}),
+        ("connect",),
+    ]
+    assert result["store_health"] == {
+        **result["store_health"],
+        "shutdown_state": "PASS",
+        "queue_depth": 0,
+        "inflight": 0,
+        "worker_alive": False,
+        "close_thread_alive": False,
+        "broker_update_conservation": True,
+        "last_error_code": "",
+        "read_only_metadata_probe_active": False,
+    }
+    assert api.closed is True
+    assert store._started is False
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+
+
+def test_bounded_read_only_metadata_probe_rejects_caller_supplied_sdk_without_trusted_binding():
+    api = TypedSdk()
+    store = make_store(api)
+
+    with pytest.raises(BtApiStoreError, match="requires a Store-owned installed SDK"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    assert store._started is False
+    assert api.closed is False
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+
+
+def test_bounded_read_only_metadata_probe_rejects_noop_caller_sdk_claiming_safe_state():
+    class NoopClaimedSafeSdk(MetadataProbeTypedSdk):
+        def configure_execution(self, config):
+            self.execution_configurations.append(deepcopy(config))
+
+        def get_execution_summary(self):
+            summary = super().get_execution_summary()
+            summary.update(session_enabled=True, market_data_only=True, armed=False)
+            return summary
+
+    api = NoopClaimedSafeSdk()
+    store = make_store(api)
+
+    with pytest.raises(BtApiStoreError, match="requires a Store-owned installed SDK"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    assert api.execution_configurations == []
+    assert api.closed is False
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+
+
+def test_bounded_read_only_metadata_probe_rejects_caller_supplied_sdk_class_without_receipt():
+    store = make_owned_store(MetadataProbeTypedSdk)
+
+    with pytest.raises(BtApiStoreError, match="requires a Store-owned installed SDK"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    assert store._started is False
+    assert store.sdk_api is None
+
+
+def test_bounded_read_only_metadata_probe_fails_closed_when_sdk_state_cannot_verify_disarm(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class ForgedReadOnlySdk(MetadataProbeTypedSdk):
+        def get_execution_summary(self):
+            summary = super().get_execution_summary()
+            summary["armed"] = True
+            return summary
+
+    store = make_trusted_owned_metadata_probe_store(monkeypatch, api_cls=ForgedReadOnlySdk)
+
+    with pytest.raises(BtApiStoreError, match="bounded read-only metadata probe failed"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    assert api.execution_configurations == [{"market_data_only": True}]
+    assert store._started is False
+    assert api.closed is True
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+
+
+def test_bounded_read_only_metadata_probe_fails_closed_without_an_active_sdk_session(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class UnboundReadOnlySdk(MetadataProbeTypedSdk):
+        def get_execution_summary(self):
+            summary = super().get_execution_summary()
+            summary["session_enabled"] = False
+            return summary
+
+    store = make_trusted_owned_metadata_probe_store(monkeypatch, api_cls=UnboundReadOnlySdk)
+
+    with pytest.raises(BtApiStoreError, match="bounded read-only metadata probe failed"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    assert api.execution_configurations == [{"market_data_only": True}]
+    assert store._started is False
+    assert api.closed is True
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+
+
+def test_bounded_read_only_metadata_probe_rechecks_raw_sdk_state_after_connect(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class ConnectArmsSdk(MetadataProbeTypedSdk):
+        def connect(self):
+            super().connect()
+            self.market_data_only = False
+            self.execution_armed = True
+
+    store = make_trusted_owned_metadata_probe_store(monkeypatch, api_cls=ConnectArmsSdk)
+
+    with pytest.raises(BtApiStoreError, match="bounded read-only metadata probe failed"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    assert ("connect",) in api.execution_events
+    assert api.closed is True
+    assert "get_instrument_spec" not in {call[0] for call in api.calls}
+    assert "get_funding_snapshot" not in {call[0] for call in api.calls}
+
+
+def test_bounded_read_only_metadata_probe_checks_post_connect_state_before_balance_read(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class ConnectArmsBeforeBalanceSdk(MetadataProbeTypedSdk):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.balance_reads = 0
+
+        def connect(self):
+            super().connect()
+            self.market_data_only = False
+            self.execution_armed = True
+
+        def get_all_balances(self, *, normalized=False):
+            self.balance_reads += 1
+            return super().get_all_balances(normalized=normalized)
+
+    store = make_trusted_owned_metadata_probe_store(
+        monkeypatch,
+        api_cls=ConnectArmsBeforeBalanceSdk,
+    )
+
+    with pytest.raises(BtApiStoreError, match="bounded read-only metadata probe failed"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    assert api.balance_reads == 0
+    assert api.closed is True
+    assert "get_instrument_spec" not in {call[0] for call in api.calls}
+    assert "get_funding_snapshot" not in {call[0] for call in api.calls}
+
+
+def test_bounded_read_only_metadata_probe_fails_closed_after_typed_query_error(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FailingTypedSdk(MetadataProbeTypedSdk):
+        def get_instrument_spec(self, venue, symbol):
+            self.calls.append(("get_instrument_spec", venue, symbol))
+            raise RuntimeError("api_secret=must-not-escape")
+
+    store = make_trusted_owned_metadata_probe_store(monkeypatch, api_cls=FailingTypedSdk)
+
+    with pytest.raises(BtApiStoreError, match="bounded read-only metadata probe failed") as raised:
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    assert "must-not-escape" not in str(raised.value)
+    assert api.closed is True
+    assert store.get_command_health()["shutdown_state"] == "PASS"
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+
+
+def test_bounded_read_only_metadata_probe_fails_closed_for_untyped_or_incomplete_result(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class UntypedFundingSdk(MetadataProbeTypedSdk):
+        def get_funding_snapshot(self, venue, symbol):
+            self.calls.append(("get_funding_snapshot", venue, symbol))
+            return {"exchange_name": venue, "symbol": symbol}
+
+    store = make_trusted_owned_metadata_probe_store(monkeypatch, api_cls=UntypedFundingSdk)
+
+    with pytest.raises(BtApiStoreError, match="returned incomplete typed metadata"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    assert api.closed is True
+    assert store.get_command_health()["shutdown_state"] == "PASS"
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+
+
+def test_bounded_read_only_metadata_probe_times_out_without_concurrent_close(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class BlockingTypedSdk(MetadataProbeTypedSdk):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.metadata_started = threading.Event()
+            self.release_metadata = threading.Event()
+
+        def get_instrument_spec(self, venue, symbol):
+            self.calls.append(("get_instrument_spec", venue, symbol))
+            self.metadata_started.set()
+            self.release_metadata.wait(1.0)
+            return super().get_instrument_spec(venue, symbol)
+
+    store = make_trusted_owned_metadata_probe_store(monkeypatch, api_cls=BlockingTypedSdk)
+    api = None
+    try:
+        with pytest.raises(BtApiStoreError, match="bounded read-only metadata probe timed out"):
+            store.run_bounded_read_only_metadata_probe(
+                datanames=(SYMBOL,),
+                timeout_seconds=0.01,
+            )
+
+        api = MetadataProbeTypedSdk.instances[-1]
+        assert api.metadata_started.wait(0.2)
+        health = store.get_command_health()
+        assert health["shutdown_state"] == "INCOMPLETE"
+        assert health["read_only_metadata_probe_active"] is True
+        assert api.closed is False
+        with pytest.raises(
+            BtApiStoreError, match="bounded read-only metadata probe owns the Store"
+        ):
+            store.start()
+        assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
+    finally:
+        if api is None:
+            api = MetadataProbeTypedSdk.instances[-1]
+        api.release_metadata.set()
+
+    deadline = time.monotonic() + 1.0
+    while store.get_command_health().get("read_only_metadata_probe_active"):
+        if time.monotonic() >= deadline:
+            pytest.fail("timed-out metadata probe did not finish its own shutdown")
+        time.sleep(0.001)
+
+    assert store._started is False
+    assert api.closed is True
+
+
+@pytest.mark.parametrize(
+    "timeout_seconds",
+    (
+        float(threading.TIMEOUT_MAX) * 2,
+        10**400,
+    ),
+)
+def test_bounded_read_only_metadata_probe_rejects_unjoinable_timeout_before_store_ownership(
+    timeout_seconds,
+):
+    api = MetadataProbeTypedSdk()
+    store = make_store(api)
+
+    with pytest.raises(BtApiStoreError, match="timeout is invalid"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=timeout_seconds,
+        )
+
+    assert store.get_command_health()["read_only_metadata_probe_active"] is False
+    assert store._started is False
+    assert api.execution_configurations == []
+    assert api.closed is False
+
+
+def test_bounded_read_only_metadata_probe_rejects_an_incomplete_shutdown(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    class FailingCloseSdk(MetadataProbeTypedSdk):
+        def close(self):
+            raise RuntimeError("close failure")
+
+    store = make_trusted_owned_metadata_probe_store(monkeypatch, api_cls=FailingCloseSdk)
+
+    with pytest.raises(BtApiStoreError, match="metadata probe shutdown is incomplete"):
+        store.run_bounded_read_only_metadata_probe(
+            datanames=(SYMBOL,),
+            timeout_seconds=0.5,
+        )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    health = store.get_command_health()
+    assert health["shutdown_state"] == "FAIL"
+    assert health["close_thread_alive"] is False
+    assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
 
 
 def test_causal_event_fields_preserve_legacy_positional_constructor_order():

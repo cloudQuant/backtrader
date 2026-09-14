@@ -3475,6 +3475,9 @@ class BtApiStore(LiveStoreBase):
         self._last_open_orders_refresh = 0.0
         self._connected = False
         self._started = False
+        self._read_only_metadata_probe_condition = threading.Condition(threading.RLock())
+        self._read_only_metadata_probe_thread: Optional[threading.Thread] = None
+        self._read_only_metadata_probe_active = False
         self._data_feeds: list = []
         self._tick_consumers: Dict[str, Any] = {}
         self._latest_ticks: Dict[str, Any] = {}
@@ -3919,6 +3922,16 @@ class BtApiStore(LiveStoreBase):
 
     def start(self, data=None, broker=None):
         """Start the store and attach broker/feed instances."""
+        with self._read_only_metadata_probe_condition:
+            probe_worker = self._read_only_metadata_probe_thread
+            if (
+                self._read_only_metadata_probe_active
+                and probe_worker is not None
+                and probe_worker is not threading.current_thread()
+            ):
+                raise BtApiStoreError(
+                    "Cannot start while a bounded read-only metadata probe owns the Store"
+                )
         if data is not None and data not in self._data_feeds:
             self._data_feeds.append(data)
 
@@ -3970,6 +3983,311 @@ class BtApiStore(LiveStoreBase):
                 self._start_command_worker()
             self._started = True
             self._begin_funding_refresh_generation()
+
+    @staticmethod
+    def _bounded_metadata_probe_contract(
+        value: Any,
+        *,
+        expected_exchange_name: str,
+        expected_symbol: str,
+        required_fields: Tuple[str, ...],
+    ) -> Any:
+        """Require a complete public typed contract without remapping it.
+
+        The one-shot runner consumes the SDK's dataclass contracts directly.
+        A compatibility mapping, an unavailable response, or stale/incomplete
+        freshness evidence must never be promoted into a successful probe.
+        """
+
+        if not is_dataclass(value) or isinstance(value, type):
+            raise BtApiStoreError(
+                "bounded read-only metadata probe returned incomplete typed metadata"
+            )
+        if (
+            str(getattr(value, "exchange_name", "")) != expected_exchange_name
+            or str(getattr(value, "symbol", "")) != expected_symbol
+            or getattr(value, "available", None) is not True
+        ):
+            raise BtApiStoreError(
+                "bounded read-only metadata probe returned incomplete typed metadata"
+            )
+        freshness = getattr(value, "freshness", None)
+        observed_at = getattr(freshness, "observed_at", None)
+        if (
+            not is_dataclass(freshness)
+            or isinstance(freshness, type)
+            or getattr(freshness, "stale", None) is not False
+            or not isinstance(observed_at, _dt.datetime)
+            or observed_at.tzinfo is None
+            or observed_at.utcoffset() is None
+            or any(getattr(value, field, None) in (None, "") for field in required_fields)
+        ):
+            raise BtApiStoreError(
+                "bounded read-only metadata probe returned incomplete typed metadata"
+            )
+        return value
+
+    @staticmethod
+    def _bounded_metadata_probe_shutdown_proven(health: Any) -> bool:
+        """Return whether a one-shot probe has no live Store work left behind."""
+
+        return bool(
+            isinstance(health, Mapping)
+            and health.get("shutdown_state") == "PASS"
+            and int(health.get("queue_depth", 0) or 0) == 0
+            and not health.get("inflight")
+            and not health.get("worker_alive")
+            and not health.get("close_thread_alive")
+            and health.get("broker_update_conservation") is True
+            and not health.get("last_error_code")
+        )
+
+    def _configure_bounded_metadata_probe_sdk_market_data_only(self) -> None:
+        """Require the raw SDK to acknowledge the probe's zero-write session."""
+
+        api = self._api
+        configure_execution = getattr(api, "configure_execution", None)
+        if not callable(configure_execution):
+            raise BtApiStoreError(
+                "bounded read-only metadata probe requires SDK market-data-only configuration"
+            )
+        try:
+            # Keep this raw public-SDK call intentionally narrow.  A one-shot
+            # metadata probe must not inherit any caller-provided execution
+            # capability, approval, or authorization setting.
+            configure_execution({"market_data_only": True})
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            raise BtApiStoreError(
+                "bounded read-only metadata probe could not configure SDK market-data-only mode"
+            ) from None
+
+        self._verify_bounded_metadata_probe_sdk_market_data_only()
+
+    def _verify_bounded_metadata_probe_sdk_market_data_only(self) -> None:
+        """Require public SDK state after every probe lifecycle transition."""
+
+        api = self._api
+        get_execution_summary = getattr(api, "get_execution_summary", None)
+        if not callable(get_execution_summary):
+            raise BtApiStoreError(
+                "bounded read-only metadata probe cannot verify SDK market-data-only mode"
+            )
+        try:
+            summary = get_execution_summary()
+        except Exception as exc:
+            self.sanitize_exception(exc)
+            raise BtApiStoreError(
+                "bounded read-only metadata probe cannot verify SDK market-data-only mode"
+            ) from None
+        if not isinstance(summary, Mapping) or not (
+            summary.get("session_enabled") is True
+            and summary.get("market_data_only") is True
+            and summary.get("armed") is False
+        ):
+            raise BtApiStoreError(
+                "bounded read-only metadata probe cannot verify SDK market-data-only mode"
+            )
+
+    def run_bounded_read_only_metadata_probe(
+        self,
+        *,
+        datanames: Sequence[str],
+        timeout_seconds: float,
+    ) -> Dict[str, Any]:
+        """Run one complete, bounded, zero-write SDK metadata lifecycle.
+
+        This is intentionally the only one-shot path used by the cross-venue
+        shadow runners.  It owns Store start and stop, requests only public
+        ``InstrumentSpec`` / ``FundingSnapshot`` contracts, and never exposes
+        a partial result.  Python cannot cancel a vendor's synchronous read;
+        if one outlives the deadline, the read worker retains shutdown
+        ownership and the Store is left fail-closed until that worker exits.
+        """
+
+        if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, (int, float)):
+            raise BtApiStoreError("bounded read-only metadata probe timeout is invalid")
+        try:
+            timeout_seconds_value = float(timeout_seconds)
+        except (OverflowError, ValueError):
+            raise BtApiStoreError("bounded read-only metadata probe timeout is invalid") from None
+        if (
+            not math.isfinite(timeout_seconds_value)
+            or timeout_seconds_value <= 0
+            or timeout_seconds_value > threading.TIMEOUT_MAX
+        ):
+            raise BtApiStoreError("bounded read-only metadata probe timeout is invalid")
+        if isinstance(datanames, (str, bytes)) or not isinstance(datanames, Sequence):
+            raise BtApiStoreError("bounded read-only metadata probe datanames are invalid")
+        if any(not isinstance(dataname, str) for dataname in datanames):
+            raise BtApiStoreError("bounded read-only metadata probe datanames are invalid")
+        symbols = tuple(dataname.strip() for dataname in datanames)
+        if (
+            not symbols
+            or any(not symbol for symbol in symbols)
+            or len(set(symbols)) != len(symbols)
+        ):
+            raise BtApiStoreError("bounded read-only metadata probe datanames are invalid")
+        if not self._sdk_mode:
+            raise BtApiStoreError("bounded read-only metadata probe requires the SDK provider")
+        if not self._sdk_owned_api or self._api_cls is not None:
+            # The public SDK currently exposes no signed configuration receipt
+            # or immutable MDO-state binding.  The probe therefore accepts
+            # only the Store-created default installed client, never a caller
+            # supplied object/class whose methods could merely claim safe
+            # state.  This is a local implementation boundary, not proof
+            # against arbitrary in-process Python monkeypatching.
+            raise BtApiStoreError(
+                "bounded read-only metadata probe requires a Store-owned installed SDK client"
+            )
+
+        deadline = time.monotonic() + timeout_seconds_value
+        state: Dict[str, Any] = {
+            "instrument_specs": {},
+            "funding_snapshots": {},
+            "failure": None,
+            "timed_out": False,
+            "store_health": None,
+        }
+
+        def remaining() -> float:
+            return max(deadline - time.monotonic(), 0.0)
+
+        def assert_before_deadline() -> None:
+            if remaining() <= 0:
+                state["timed_out"] = True
+                raise TimeoutError("bounded metadata deadline elapsed")
+
+        def run_probe() -> None:
+            try:
+                # A one-shot probe never inherits a caller's write setting.
+                # ``start`` makes the raw public-SDK configuration call before
+                # any connection or metadata query is issued.
+                self._sdk_execution_config = {"market_data_only": True}
+                self._bounded_metadata_probe_requires_sdk_market_data_only = True
+                with self._command_condition:
+                    self._command_accept_openings = False
+                assert_before_deadline()
+                self.start()
+                # ``connect`` is a separate SDK transition and must not be
+                # trusted to preserve the pre-connect MDO acknowledgement.
+                # Verify raw public state before the first typed metadata read.
+                self._verify_bounded_metadata_probe_sdk_market_data_only()
+                if not self._is_sdk_market_data_only():
+                    raise BtApiStoreError(
+                        "bounded read-only metadata probe write guard is unavailable"
+                    )
+                with self._command_condition:
+                    self._command_accept_openings = False
+                for symbol in symbols:
+                    assert_before_deadline()
+                    venue = self._sdk_exchange(symbol)
+                    instrument = self.get_typed_instrument_spec(symbol)
+                    state["instrument_specs"][symbol] = self._bounded_metadata_probe_contract(
+                        instrument,
+                        expected_exchange_name=str(venue),
+                        expected_symbol=symbol,
+                        required_fields=(
+                            "contract_value",
+                            "contract_multiplier",
+                            "price_tick",
+                            "quantity_step",
+                            "min_quantity",
+                            "quantity_unit",
+                            "quote_currency",
+                        ),
+                    )
+                    assert_before_deadline()
+                    funding = self.get_typed_funding_snapshot(symbol)
+                    state["funding_snapshots"][symbol] = self._bounded_metadata_probe_contract(
+                        funding,
+                        expected_exchange_name=str(venue),
+                        expected_symbol=symbol,
+                        required_fields=(
+                            "rate",
+                            "next_funding_time",
+                            "settlement_interval_seconds",
+                            "source",
+                        ),
+                    )
+                assert_before_deadline()
+            except TimeoutError:
+                state["timed_out"] = True
+            except BaseException as exc:
+                self.sanitize_exception(exc)
+                state["failure"] = exc
+            finally:
+                try:
+                    shutdown_timeout = remaining()
+                    # Once a read has exceeded its caller-visible deadline,
+                    # it still owns the shared client.  Give its eventual
+                    # cleanup a bounded Store shutdown window rather than a
+                    # zero-second close that leaves the client open forever.
+                    if shutdown_timeout <= 0:
+                        shutdown_timeout = self._command_shutdown_timeout
+                    self.stop(timeout=shutdown_timeout)
+                except BaseException as exc:
+                    self.sanitize_exception(exc)
+                    if state["failure"] is None:
+                        state["failure"] = exc
+                finally:
+                    self._bounded_metadata_probe_requires_sdk_market_data_only = False
+                with self._read_only_metadata_probe_condition:
+                    self._read_only_metadata_probe_active = False
+                    self._read_only_metadata_probe_thread = None
+                    self._read_only_metadata_probe_condition.notify_all()
+                state["store_health"] = self.get_command_health()
+                if time.monotonic() > deadline:
+                    state["timed_out"] = True
+
+        worker = threading.Thread(
+            target=run_probe,
+            name="BtApiStoreReadOnlyMetadataProbe",
+            daemon=True,
+        )
+        with self._read_only_metadata_probe_condition:
+            if self._read_only_metadata_probe_active:
+                raise BtApiStoreError("bounded read-only metadata probe is already active")
+            if self._started or self._connected:
+                raise BtApiStoreError("bounded read-only metadata probe requires an idle Store")
+            self._read_only_metadata_probe_active = True
+            self._read_only_metadata_probe_thread = worker
+        try:
+            worker.start()
+        except BaseException:
+            with self._read_only_metadata_probe_condition:
+                self._read_only_metadata_probe_active = False
+                self._read_only_metadata_probe_thread = None
+                self._read_only_metadata_probe_condition.notify_all()
+            raise
+        worker.join(timeout_seconds_value)
+        if worker.is_alive():
+            self._shutdown_state = "INCOMPLETE"
+            self._command_health["read_only_metadata_probe_timeouts"] += 1
+            raise BtApiStoreError(
+                "bounded read-only metadata probe timed out before shutdown was proven"
+            )
+        if state["timed_out"]:
+            raise BtApiStoreError(
+                "bounded read-only metadata probe timed out before shutdown was proven"
+            )
+        if state["failure"] is not None:
+            if isinstance(state["failure"], BtApiStoreError) and str(state["failure"]) == (
+                "bounded read-only metadata probe returned incomplete typed metadata"
+            ):
+                raise BtApiStoreError(
+                    "bounded read-only metadata probe returned incomplete typed metadata"
+                )
+            raise BtApiStoreError("bounded read-only metadata probe failed")
+        health = state["store_health"]
+        if not self._bounded_metadata_probe_shutdown_proven(health):
+            raise BtApiStoreError("bounded read-only metadata probe shutdown is incomplete")
+        return {
+            "instrument_specs": dict(state["instrument_specs"]),
+            "funding_snapshots": dict(state["funding_snapshots"]),
+            "order_write_attempts": 0,
+            "store_health": health,
+        }
 
     def _reset_sdk_stream_generation(self) -> None:
         """Discard every market-event identity from the previous SDK generation."""
@@ -4602,6 +4920,21 @@ class BtApiStore(LiveStoreBase):
 
     def stop(self, timeout: Optional[float] = None):
         """Bound command draining and disconnect the underlying client."""
+        with self._read_only_metadata_probe_condition:
+            probe_worker = self._read_only_metadata_probe_thread
+            probe_owned_shutdown_pending = bool(
+                self._read_only_metadata_probe_active
+                and probe_worker is not None
+                and probe_worker is not threading.current_thread()
+            )
+        if probe_owned_shutdown_pending:
+            # The bounded probe's worker may still be inside a synchronous SDK
+            # read.  Closing the shared API concurrently could turn a read
+            # timeout into an unknown transport state, so only its owner may
+            # finish shutdown.  Callers receive an explicit incomplete state.
+            self._shutdown_state = "INCOMPLETE"
+            self._command_health["read_only_metadata_probe_shutdown_blocked"] += 1
+            return self.get_command_health()
         deadline = time.monotonic() + (
             self._command_shutdown_timeout if timeout is None else max(float(timeout), 0.0)
         )
@@ -6524,6 +6857,8 @@ class BtApiStore(LiveStoreBase):
 
     def get_command_health(self) -> Dict[str, Any]:
         """Return queue and worker health without exposing command payloads."""
+        with self._read_only_metadata_probe_condition:
+            read_only_metadata_probe_active = self._read_only_metadata_probe_active
         with self._command_condition:
             depth = len(self._command_heap)
             inflight = self._command_inflight
@@ -6572,6 +6907,7 @@ class BtApiStore(LiveStoreBase):
             "command_drop_records": command_drop_records,
             "broker_update_drop_records": update_drop_records,
             "logging_errors": _LOGGING_HEALTH["logging_errors"],
+            "read_only_metadata_probe_active": read_only_metadata_probe_active,
         }
         funding_health = self.get_funding_refresh_health()
         result.update(
@@ -14368,6 +14704,9 @@ class BtApiStore(LiveStoreBase):
 
     def _ensure_api_ready(self):
         """Instantiate and connect the underlying bt_api_py client on demand."""
+        metadata_probe_requires_market_data_only = bool(
+            getattr(self, "_bounded_metadata_probe_requires_sdk_market_data_only", False)
+        )
         if self._funding_restart_blocked_by_worker:
             self._prepare_funding_refresh_start()
         if self._sdk_mode and (self._restart_blocked_by_worker or self._restart_blocked_by_close):
@@ -14400,10 +14739,13 @@ class BtApiStore(LiveStoreBase):
                         if key in options
                     },
                 )
-            elif "execution_config" in options or any(
-                key in options for key in _SDK_EXECUTION_CONFIG_KEYS
+            elif not metadata_probe_requires_market_data_only and (
+                "execution_config" in options
+                or any(key in options for key in _SDK_EXECUTION_CONFIG_KEYS)
             ):
                 self._api.configure_execution(execution)
+            if metadata_probe_requires_market_data_only:
+                self._configure_bounded_metadata_probe_sdk_market_data_only()
             self._sdk_configured = True
             self._last_execution_summary = None
 
@@ -14447,6 +14789,14 @@ class BtApiStore(LiveStoreBase):
             raise
 
         self._connected = True
+        if metadata_probe_requires_market_data_only:
+            # Connection is an SDK lifecycle transition which may replace or
+            # mutate its execution session.  Check raw public state before
+            # Store's first balance/readiness query, then check once more in
+            # the probe before its first typed metadata query.  The summary
+            # remains an SDK evidence boundary rather than an unforgeable
+            # receipt; arbitrary caller injection is rejected by the probe.
+            self._verify_bounded_metadata_probe_sdk_market_data_only()
         if self._successful_connect_count > 0:
             self.emit_runtime_event("store_reconnect_success", status="connected")
         self._successful_connect_count += 1

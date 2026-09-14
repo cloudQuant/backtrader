@@ -26,6 +26,162 @@ class EngineeringSmokeError(RuntimeError):
     """A fail-closed engineering-smoke rejection."""
 
 
+class EngineeringObservationBlocked(EngineeringSmokeError):
+    """A zero-write engineering-observation prerequisite was not met."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+# This module intentionally names the only Set-2 profile accepted by the
+# injected observation seam.  It neither discovers profiles nor reads an
+# environment file, so caller-owned CTP session construction remains outside
+# this example.
+SECOND_SET_ENGINEERING_PROFILE = "simnow_second_7x24"
+ENGINEERING_OBSERVATION_MAX_SECONDS = 3600.0
+ENGINEERING_OBSERVATION_G3_STATUS = "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION"
+
+
+class _ObservationReadOnlyApi:
+    """Deny every execution-shaped API call before it reaches an injected SDK.
+
+    A managed SDK may require a one-way ``configure_execution`` call when the
+    Store starts.  The sole permitted value is exactly
+    ``{"market_data_only": True}``; any broader configuration, authorization,
+    settlement, order, cancellation, or recovery method is rejected locally.
+    """
+
+    _FORBIDDEN_METHODS = frozenset(
+        {
+            "submit_order",
+            "make_order",
+            "async_make_order",
+            "place_order",
+            "create_order",
+            "send_order",
+            "order_insert",
+            "req_order_insert",
+            "ReqOrderInsert",
+            "cancel_order",
+            "async_cancel_order",
+            "order_action",
+            "req_order_action",
+            "ReqOrderAction",
+            "settlement_confirm",
+            "confirm_settlement",
+            "confirm_ctp_settlement",
+            "prepare_settlement",
+            "prepare_ctp_settlement",
+            "prepare_execution_authorization",
+            "configure_ctp_execution_authorization",
+            "configure_execution_authorization",
+            "arm_execution",
+            "arm_sdk_execution",
+            "arm_execution_recovery",
+            "complete_execution_recovery",
+            "prepare_execution_recovery",
+            "abort_execution_recovery",
+            "enable_execution",
+            "enable_trading",
+            "disarm_execution",
+            "arm_execution_from_preflight",
+            "arm_execution_from_approval",
+            "confirm_ctp_settlement_from_approval",
+        }
+    )
+    _SAFE_READ_PREFIXES = (
+        "get_",
+        "query_",
+        "list_",
+        "fetch_",
+        "poll_",
+        "read_",
+        "is_",
+        "has_",
+        "iter_",
+        "supports_",
+        "async_get_",
+        "async_query_",
+        "async_list_",
+        "async_fetch_",
+        "async_poll_",
+    )
+    _SAFE_LIFECYCLE_METHODS = frozenset(
+        {
+            "connect",
+            "disconnect",
+            "close",
+            "start",
+            "stop",
+            "subscribe",
+            "unsubscribe",
+        }
+    )
+
+    def __init__(self, api: Any) -> None:
+        if api is None:
+            raise EngineeringObservationBlocked(
+                "SDK_NOT_INJECTED", "engineering observation requires an explicit API object"
+            )
+        self._api = api
+        self._forbidden_write_attempts: dict[str, int] = {}
+        self._safe_market_data_only_configuration_calls = 0
+
+    def _blocked(self, method_name: str) -> None:
+        self._forbidden_write_attempts[method_name] = (
+            self._forbidden_write_attempts.get(method_name, 0) + 1
+        )
+        raise EngineeringObservationBlocked(
+            "FORBIDDEN_WRITE_ATTEMPT",
+            f"engineering observation forbids API method {method_name}",
+        )
+
+    def configure_execution(self, execution_config: Any) -> Any:
+        """Permit only the managed SDK's irreversible read-only configuration."""
+
+        if not isinstance(execution_config, Mapping) or dict(execution_config) != {
+            "market_data_only": True
+        }:
+            self._blocked("configure_execution")
+        configure = getattr(self._api, "configure_execution", None)
+        if not callable(configure):
+            raise EngineeringObservationBlocked(
+                "SDK_MARKET_DATA_ONLY_UNAVAILABLE",
+                "injected managed SDK cannot prove market_data_only configuration",
+            )
+        self._safe_market_data_only_configuration_calls += 1
+        return configure({"market_data_only": True})
+
+    def __getattr__(self, name: str) -> Any:
+        if self._is_forbidden_method(name):
+            return lambda *_args, **_kwargs: self._blocked(name)
+        value = getattr(self._api, name)
+        if callable(value) and not self._is_safe_read_method(name):
+            return lambda *_args, **_kwargs: self._blocked(name)
+        return value
+
+    @classmethod
+    def _is_forbidden_method(cls, name: str) -> bool:
+        normalized = str(name).lower()
+        return normalized in {method.lower() for method in cls._FORBIDDEN_METHODS}
+
+    @classmethod
+    def _is_safe_read_method(cls, name: str) -> bool:
+        normalized = str(name).lower()
+        return normalized in cls._SAFE_LIFECYCLE_METHODS or normalized.startswith(
+            cls._SAFE_READ_PREFIXES
+        )
+
+    def audit(self) -> dict[str, Any]:
+        """Return only aggregate membrane facts; never expose API configuration."""
+
+        return {
+            "forbidden_write_attempts": dict(sorted(self._forbidden_write_attempts.items())),
+            "safe_market_data_only_configuration_calls": self._safe_market_data_only_configuration_calls,
+        }
+
+
 @dataclass(frozen=True)
 class SessionIdentity:
     account_fingerprint: str
@@ -465,7 +621,10 @@ class EngineeringSmokeAdapter:
             self.state.ordinary_entry_blocked = True
             self.state.reason = "RECONCILIATION_REQUIRES_SECOND_FRESH_OBSERVATION"
             self.state.cycle_id = ""
-        elif self._reconciliation_request_ids is None or self._reconciliation_request_ids & request_ids:
+        elif (
+            self._reconciliation_request_ids is None
+            or self._reconciliation_request_ids & request_ids
+        ):
             self.state.reconciliation_rounds = 0
             self._reconciliation_fingerprint = None
             self._reconciliation_request_ids = None
@@ -644,15 +803,22 @@ def _valid_reconciliation_snapshot(snapshot: Mapping[str, Any], session: Session
         and snapshot.get("active_order_count") == 0
         and snapshot.get("unknown_intent_count") == 0
         and snapshot.get("unmatched_trade_count") == 0
-        and all(isinstance(snapshot.get(key), (list, tuple)) for key in ("account", "positions", "orders", "trades"))
+        and all(
+            isinstance(snapshot.get(key), (list, tuple))
+            for key in ("account", "positions", "orders", "trades")
+        )
         and _valid_identity(snapshot, session)
     )
 
 
 __all__ = [
     "AppendOnlyJournal",
+    "ENGINEERING_OBSERVATION_G3_STATUS",
+    "ENGINEERING_OBSERVATION_MAX_SECONDS",
     "EngineeringSmokeAdapter",
     "EngineeringSmokeError",
+    "EngineeringObservationBlocked",
     "NativeAssociation",
+    "SECOND_SET_ENGINEERING_PROFILE",
     "SessionIdentity",
 ]

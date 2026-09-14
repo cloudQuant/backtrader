@@ -392,9 +392,7 @@ def _blocked_report(mode: str, config: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def run_simnow_engineering_smoke(
-    config: Mapping[str, Any], *, api: Any = None
-) -> dict[str, Any]:
+def run_simnow_engineering_smoke(config: Mapping[str, Any], *, api: Any = None) -> dict[str, Any]:
     """Run the injected, read-only SimNow engineering smoke path.
 
     A real native API must be supplied by the SDK-owned launcher.  This
@@ -407,9 +405,7 @@ def run_simnow_engineering_smoke(
         adapter = SimNowOptionsAdapter(config, api=api)
         return adapter.run_engineering_smoke()
     except SimNowBlocked as exc:
-        if api is None:
-            request_counts = {"network": 0, "order_write": 0}
-        elif bool(getattr(api, "iter23_pure_mock", False)):
+        if api is None or bool(getattr(api, "iter23_pure_mock", False)):
             request_counts = {"network": 0, "order_write": 0}
         else:
             request_counts = {"network": "NOT_OBSERVED", "order_write": "NOT_OBSERVED"}
@@ -420,6 +416,45 @@ def run_simnow_engineering_smoke(
             "reason": str(exc),
             "external_request_counts": request_counts,
         }
+
+
+def run_engineering_observation(
+    config: Mapping[str, Any],
+    *,
+    api: Any,
+    environment_profile: str,
+    run_seconds: float,
+    feed_clock: Any,
+    clock_mapping: Any,
+    closed_bar_evidence_provider: Any,
+) -> dict[str, Any]:
+    """Run the explicit, API-injected Set-2 zero-write observation seam.
+
+    This function intentionally has no CLI equivalent: the operator that owns
+    the SimNow session must inject its already-created API, calibrated clock
+    mapping and Feed-owned closed-bar evidence provider.  The local replay
+    template is copied solely for its frozen candidate/risk schema and then
+    relabelled ``shadow`` for the bounded engineering observation.
+    """
+
+    if not isinstance(config, Mapping) or config.get("mode") not in {"replay", "shadow"}:
+        raise RunnerConfigurationError("ENGINEERING_OBSERVATION_MODE")
+    runtime_config = deepcopy(config)
+    runtime_config["mode"] = "shadow"
+    validated = validate_config(runtime_config)
+    try:
+        from .simnow_adapter import run_engineering_observation as _run_observation
+    except ImportError:  # Direct execution through this directory's run.py.
+        from simnow_adapter import run_engineering_observation as _run_observation
+    return _run_observation(
+        config=validated,
+        api=api,
+        environment_profile=environment_profile,
+        run_seconds=run_seconds,
+        feed_clock=feed_clock,
+        clock_mapping=clock_mapping,
+        closed_bar_evidence_provider=closed_bar_evidence_provider,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -440,9 +475,11 @@ def main(argv: list[str] | None = None) -> int:
         report = (
             run_replay(config, args.scenario)
             if mode == "replay"
-            else run_simnow_engineering_smoke({**deepcopy(config), "mode": mode})
-            if mode == "simnow" and args.purpose == "engineering_smoke"
-            else _blocked_report(mode, config)
+            else (
+                run_simnow_engineering_smoke({**deepcopy(config), "mode": mode})
+                if mode == "simnow" and args.purpose == "engineering_smoke"
+                else _blocked_report(mode, config)
+            )
         )
     except RunnerConfigurationError as exc:
         report = {

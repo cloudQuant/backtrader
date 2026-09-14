@@ -112,7 +112,7 @@ def _optional_positive_int(value: Any, path: str) -> Optional[int]:
 
 
 def validate_config(raw: Any) -> Dict[str, Any]:
-    """Validate the replay contract before constructing Cerebro or a broker."""
+    """Validate a replay fixture or explicit engineering-observation contract."""
 
     config = _require_mapping(raw, "config")
     required_config_keys = {"mode", "candidate", "budget", "signal", "features", "replay"}
@@ -124,7 +124,7 @@ def validate_config(raw: Any) -> Dict[str, Any]:
             f"config has unknown keys {unknown_config_keys} or missing keys {missing_config_keys}",
         )
     mode = config["mode"]
-    if mode != "replay":
+    if mode not in {"replay", "engineering_observation"}:
         code = "PRODUCTION_DISABLED" if mode == "production" else "MODE_NOT_SUPPORTED_OFFLINE"
         raise ConfigurationError(code, f"mode {mode!r} is disabled by this offline example")
 
@@ -405,7 +405,7 @@ def validate_config(raw: Any) -> Dict[str, Any]:
             raise ConfigurationError("TIMING_CAPACITY", "timing history capacity is too small")
 
     return {
-        "mode": "replay",
+        "mode": mode,
         "candidate": {
             "candidate_id": candidate["candidate_id"],
             "exchange": candidate["exchange"],
@@ -594,6 +594,11 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         # the immutable closed-bar evidence synchronously sealed by BtApiFeed.
         ("require_feed_bar_evidence", False),
         ("max_pending_feed_decisions", 1),
+        # The local fixture is explicitly replay-clocked.  A separately
+        # injected engineering observation must opt in to a live mapping and
+        # cannot be relabelled as this replay default.
+        ("feed_evidence_clock_mode", "replay"),
+        ("feed_evidence_clock_domain", "iter24-replay-clock"),
     )
 
     def __init__(self) -> None:
@@ -606,6 +611,19 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         max_pending_feed_decisions = _positive_int(
             self.p.max_pending_feed_decisions, "max_pending_feed_decisions"
         )
+        feed_evidence_clock_mode = self.p.feed_evidence_clock_mode
+        feed_evidence_clock_domain = self.p.feed_evidence_clock_domain
+        if feed_evidence_clock_mode not in {"replay", "live"}:
+            raise ConfigurationError(
+                "FEED_EVIDENCE_CLOCK_MODE", "feed_evidence_clock_mode must be replay or live"
+            )
+        if (
+            not isinstance(feed_evidence_clock_domain, str)
+            or not feed_evidence_clock_domain.strip()
+        ):
+            raise ConfigurationError(
+                "FEED_EVIDENCE_CLOCK_DOMAIN", "feed_evidence_clock_domain must be non-empty"
+            )
         if self.p.require_feed_bar_evidence and self.p.quote_producer is not None:
             raise ConfigurationError(
                 "FEED_EVIDENCE_EXCLUSIVE",
@@ -626,6 +644,17 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
         self._producer = self.p.quote_producer
         self._timing_provider = self.p.timing_provider
         self._feed_evidence_mode = self.p.require_feed_bar_evidence
+        self._feed_evidence_clock_mode = feed_evidence_clock_mode
+        self._feed_evidence_clock_domain = feed_evidence_clock_domain
+        if self._feed_evidence_mode:
+            expected_clock_mode = (
+                "live" if self._config["mode"] == "engineering_observation" else "replay"
+            )
+            if self._feed_evidence_clock_mode != expected_clock_mode:
+                raise ConfigurationError(
+                    "FEED_EVIDENCE_CLOCK_MODE",
+                    f"{self._config['mode']} Feed evidence requires {expected_clock_mode} clock mode",
+                )
         self._feed_data_by_symbol: Dict[str, Any] = {}
         if self._feed_evidence_mode:
             expected_symbols = tuple(contracts[field] for field in ("future", "call", "put"))
@@ -711,8 +740,8 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             candidate_id=candidate["candidate_id"],
             expected_rules_hash=candidate["rules_hash"],
             policy=BarBarrierPolicy(timeframe_seconds=60.0, timeout_seconds=2.0),
-            clock_mode="replay",
-            expected_clock_domain="iter24-replay-clock",
+            clock_mode=self._feed_evidence_clock_mode,
+            expected_clock_domain=self._feed_evidence_clock_domain,
         )
         if self._timing_provider is not None:
             self._init_timing_projector()
@@ -986,7 +1015,11 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                     token, decision_input, next_id=self._next_id
                 )
                 token_info = token.to_dict()
-                outcome = "REPLAY_WRITE_DISABLED" if consumed else token_reason or "TOKEN_REJECTED"
+                outcome = (
+                    "ENGINEERING_WRITE_DISABLED"
+                    if self._config["mode"] == "engineering_observation" and consumed
+                    else "REPLAY_WRITE_DISABLED" if consumed else token_reason or "TOKEN_REJECTED"
+                )
         elif features.reason not in {
             self._feature_reason.NO_SIGNAL,
             self._feature_reason.NO_SIGNAL_NET_EDGE,
@@ -1266,10 +1299,23 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                 },
             }
 
+        engineering_observation = self._config["mode"] == "engineering_observation"
+        engineering_write_evidence_boundary = (
+            "NOT_PROVEN: the strategy only sees its local callback graph and cannot attest "
+            "raw external provider network requests or writes."
+        )
         report = {
-            "status": "LOCAL_REPLAY_PASS",
-            "scope": "offline_local_replay_fixture",
-            "mode": "replay",
+            "status": (
+                "ENGINEERING_OBSERVATION_RUNTIME"
+                if engineering_observation
+                else "LOCAL_REPLAY_PASS"
+            ),
+            "scope": (
+                "second_set_engineering_shadow_observation"
+                if engineering_observation
+                else "offline_local_replay_fixture"
+            ),
+            "mode": self._config["mode"],
             "candidate_id": self._config["candidate"]["candidate_id"],
             "contracts": dict(self._config["candidate"]["contracts"]),
             "minute_bar_interval": self._config["signal"]["bar_minutes"],
@@ -1282,8 +1328,8 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                     if self._last_decision_input is not None
                     else None
                 ),
-                "clock_mode": "replay",
-                "clock_domain": "iter24-replay-clock",
+                "clock_mode": self._feed_evidence_clock_mode,
+                "clock_domain": self._feed_evidence_clock_domain,
                 "quote_cutoff": "frozen_at_bar_seal",
                 "tick_feature_scope": "full_5s_60s_window",
                 "tradable_signal_scope": "fq2_frozen_features_only",
@@ -1309,6 +1355,8 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
                 "pending_decision_count": len(self._pending_feed_decision_inputs),
                 "max_pending_decisions": self._max_pending_feed_decisions,
                 "fault": self._feed_evidence_fault,
+                "clock_mode": self._feed_evidence_clock_mode,
+                "clock_domain": self._feed_evidence_clock_domain,
             },
             "history_window_bars": self._config["signal"]["history_bars"],
             "ordinary_decision_count": len(self._ordinary_decisions),
@@ -1321,22 +1369,45 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
             "rejected_tick_count": self._rejected_tick_count,
             "token_ledger": self._tokens.to_dict(),
             "orders_submitted": self._orders_submitted,
-            "external_network_requests": 0,
-            "external_trade_writes": 0,
-            "local_broker": "BackBroker",
-            "execution_basis": "no_execution_replay_decision_fixture",
+            "external_network_requests": "NOT_PROVEN" if engineering_observation else 0,
+            "external_trade_writes": "NOT_PROVEN" if engineering_observation else 0,
+            "external_trade_writes_basis": (
+                engineering_write_evidence_boundary if engineering_observation else None
+            ),
+            "local_broker": "BtApiBroker" if engineering_observation else "BackBroker",
+            "execution_basis": (
+                "market_data_only_feed_sealed_engineering_observation"
+                if engineering_observation
+                else "no_execution_replay_decision_fixture"
+            ),
             "actual_order_permission": "NOT_PROVEN",
             "actual_pnl": None,
             "actual_pnl_status": "NOT_AVAILABLE",
-            "pnl_statement": "This report is not live, SimNow, hypothetical-fill, or actual PnL.",
-            "gates": {
-                "G1_full_offline_contract": "BLOCKED",
-                "G2_package_native": "NOT_RUN",
-                "G3_first_set_read_only": "NOT_RUN",
-                "G4_simnow_mechanical": "NOT_RUN",
-                "R1_oos_research": "NOT_RUN",
-                "R2_natural_signal_research": "NOT_RUN",
-            },
+            "pnl_statement": (
+                "This is a zero-write Set-2 engineering observation, not G3/G4, fill, or PnL evidence."
+                if engineering_observation
+                else "This report is not live, SimNow, hypothetical-fill, or actual PnL."
+            ),
+            "gates": (
+                {
+                    "G1_full_offline_contract": "NOT_EVALUATED_ENGINEERING_OBSERVATION",
+                    "G2_package_native": "NOT_EVALUATED_ENGINEERING_OBSERVATION",
+                    "G3_first_set_read_only": "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION",
+                    "G3_evaluation": "NOT_APPLICABLE_ENGINEERING_ONLY",
+                    "G4_simnow_mechanical": "NOT_RUN",
+                    "R1_oos_research": "NOT_RUN",
+                    "R2_natural_signal_research": "NOT_RUN",
+                }
+                if engineering_observation
+                else {
+                    "G1_full_offline_contract": "BLOCKED",
+                    "G2_package_native": "NOT_RUN",
+                    "G3_first_set_read_only": "NOT_RUN",
+                    "G4_simnow_mechanical": "NOT_RUN",
+                    "R1_oos_research": "NOT_RUN",
+                    "R2_natural_signal_research": "NOT_RUN",
+                }
+            ),
         }
         if self._timing_projector is not None:
             report["timing"] = {
