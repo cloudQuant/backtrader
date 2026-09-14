@@ -153,17 +153,28 @@ class EventPathQualification:
 
     @property
     def route_key(self) -> str:
+        """Return the direction and first-venue key shared by markout routes."""
+
         buy_venue, sell_venue = self.direction
         return f"{buy_venue}->{sell_venue}|first={self.first_venue}"
 
     @property
     def path_key(self) -> Tuple[str, str, str, str, str]:
+        """Return the full admission key: direction, first venue and both buckets."""
+
         return (*self.direction, self.first_venue, self.fee_bucket, self.depth_bucket)
 
     def as_dict(self) -> dict:
+        """Serialize the artifact payload together with its model digest."""
+
         return {**_event_path_model_payload(asdict(self)), "model_sha256": self.model_sha256}
 
     def rejection(self, *, minimum_samples: int) -> Optional[str]:
+        """Return why this path fails admission, or ``None`` when it qualifies.
+
+        Fails closed on the qualification flag, evidence role, latency
+        scope, sample count and content-addressed fingerprint.
+        """
         if not self.qualified:
             return "event_model_not_qualified"
         if self.evidence_role != EVENT_PATH_EVIDENCE_ROLE:
@@ -179,6 +190,8 @@ class EventPathQualification:
 
 @dataclass(frozen=True)
 class EventBook:
+    """Immutable normalized L2 event snapshot for a single venue."""
+
     venue: str
     bids: Tuple[Tuple[Decimal, Decimal], ...]
     asks: Tuple[Tuple[Decimal, Decimal], ...]
@@ -197,6 +210,8 @@ class EventBook:
 
 @dataclass(frozen=True)
 class VenueExecutionStats:
+    """Frozen per-venue execution statistics used to pick the first leg."""
+
     ack_p99_seconds: Decimal = Decimal("0.05")
     reject_rate: Decimal = Decimal(0)
 
@@ -213,6 +228,8 @@ class VenueExecutionStats:
 
 @dataclass(frozen=True)
 class EventDrivenRisk:
+    """Frozen risk parameters for the taker-taker event-driven strategy."""
+
     quantity_base: Decimal = Decimal("0.01")
     maximum_quote_age_seconds: Decimal = Decimal("0.5")
     maximum_venue_skew_seconds: Decimal = Decimal("0.25")
@@ -268,6 +285,8 @@ class EventDrivenRisk:
 
 @dataclass(frozen=True)
 class EventIntent:
+    """Immutable two-leg taker decision for an opportunity that survived p99."""
+
     long_venue: str
     short_venue: str
     first_venue: str
@@ -283,6 +302,8 @@ class EventIntent:
     exit_buy_preview: ExecutableVWAP
 
     def as_dict(self):
+        """Serialize the intent with ``Decimal`` fields and VWAPs as nested mappings."""
+
         return {
             "long_venue": self.long_venue,
             "short_venue": self.short_venue,
@@ -302,6 +323,8 @@ class EventIntent:
 
 @dataclass
 class EventActivePair:
+    """Mutable state of one open two-leg hedged pair."""
+
     intent: EventIntent
     opened_at: Decimal
     quantity_base: Decimal
@@ -321,6 +344,8 @@ class EventArbitrageEngine:
         venue_stats: Optional[Mapping[str, VenueExecutionStats]] = None,
         admission_models: Optional[Iterable[EventPathQualification]] = None,
     ):
+        """Bind rules, risk, venue statistics and indexed admission models."""
+
         if set(rules) != set(VENUE_SYMBOLS):
             raise ValueError("rules must contain okx and binance")
         self.rules = dict(rules)
@@ -359,9 +384,13 @@ class EventArbitrageEngine:
         self.last_exit_economics = None
 
     def reject(self, reason: str) -> None:
+        """Count one named rejection reason for diagnostics."""
+
         self.reject_reasons[reason] += 1
 
     def update_book(self, book: EventBook) -> bool:
+        """Validate and store one venue book, then collect due markouts."""
+
         if book.venue not in self.rules or not book.bids or not book.asks:
             self.reject("invalid_book")
             return False
@@ -662,6 +691,12 @@ class EventArbitrageEngine:
             self.reject("markout_probe_overflow")
 
     def evaluate(self, now_value) -> Optional[EventIntent]:
+        """Evaluate both directions and maybe return an admitted intent.
+
+        Requires the surviving opportunity to outlive its measured path
+        p99 and the markout tail gate; any path change or failed gate
+        restarts the opportunity clock.
+        """
         now = decimal_value(now_value, "now")
         if not self._fresh(now):
             self.opportunity_direction = None
@@ -785,6 +820,11 @@ class EventArbitrageEngine:
         entry_sell: Optional[ExecutableVWAP] = None,
         entry_fees_paid=None,
     ) -> None:
+        """Record the pair as opened with confirmed fills on both legs.
+
+        Missing broker fills default to the intent prices, and the
+        funding snapshot is frozen for realized funding accounting.
+        """
         quantity = (
             intent.quantity_base
             if quantity_base is None
@@ -821,6 +861,8 @@ class EventArbitrageEngine:
         )
 
     def mark_closed(self) -> None:
+        """Clear the active pair once both exit legs are flat."""
+
         self.active_pair = None
 
     def _realized_funding(self) -> Decimal:
@@ -880,6 +922,11 @@ class EventArbitrageEngine:
         return result
 
     def exit_reason(self, now_value) -> Optional[str]:
+        """Return why the open pair should close, or ``None`` to keep holding.
+
+        Checks freshness, maximum holding, exit depth, the loss limit
+        and profitable convergence in that priority order.
+        """
         if self.active_pair is None:
             return None
         now = decimal_value(now_value, "now")
@@ -978,6 +1025,8 @@ class EventArbitrageEngine:
         self.pending_markouts = remaining
 
     def mark_unknown(self) -> None:
+        """Halt evaluation after an execution outcome became unknowable."""
+
         self.halted_unknown = True
         self.reject("unknown_execution")
 
@@ -1095,6 +1144,8 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the engine, bind both venue feeds and reset execution state."""
+
         self.rules = dict(self.p.rules or {})
         self.risk = (
             self.p.risk
@@ -2332,6 +2383,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         execution_summary: Optional[Mapping[str, object]] = None,
         signed_funding=None,
     ) -> bool:
+        """Prove both venues flat from a fenced reconcile snapshot and close.
+
+        Fails closed to unknown unless venue coverage, fencing epochs,
+        evidence completeness, empty open orders and zero positions all
+        hold; success finalizes realized economics and ends the cycle.
+        """
         if not self.awaiting_reconciliation:
             return False
         self._ensure_runtime_state()

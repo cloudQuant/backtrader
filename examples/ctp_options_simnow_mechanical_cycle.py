@@ -99,6 +99,8 @@ def _semantic_hash(snapshot: Mapping[str, Any]) -> str:
 
 @dataclass(frozen=True)
 class MechanicalLeg:
+    """One immutable, validated leg of the mechanical entry/exit basket."""
+
     symbol: str
     side: str
     price: float
@@ -125,6 +127,7 @@ class MechanicalCycle:
         cycle_id: str,
         budget_capability: Any = None,
     ):
+        """Validate the public broker interfaces and initialize a disarmed cycle."""
         if not callable(getattr(broker, "buy", None)) or not callable(
             getattr(broker, "sell", None)
         ):
@@ -153,6 +156,7 @@ class MechanicalCycle:
 
     @property
     def journal(self) -> tuple[dict[str, Any], ...]:
+        """Return a defensive copy of the evidence journal rows."""
         return tuple(dict(item) for item in self._journal)
 
     def _record(self, status: str, *, intent_id: str | None = None, order: Any = None) -> None:
@@ -164,6 +168,7 @@ class MechanicalCycle:
         self._journal.append(row)
 
     def arm(self, proof: Mapping[str, Any]) -> None:
+        """Verify the injected settlement, reconciliation and arming proofs, then arm."""
         if self.state != "DISARMED":
             raise MechanicalCycleBlocked("CYCLE_ALREADY_ARMED_OR_STARTED")
         if not isinstance(proof, Mapping) or proof.get("settlement_verified") is not True:
@@ -205,6 +210,7 @@ class MechanicalCycle:
         self._record("ARMED")
 
     def plan_entry(self, legs: list[MechanicalLeg], *, intent_id: str) -> None:
+        """Record the single entry plan (1-3 unique legs); submits nothing."""
         if self.state != "ARMED":
             raise MechanicalCycleBlocked("CYCLE_NOT_ARMED")
         if self.planned_legs or not 1 <= len(legs) <= 3:
@@ -259,6 +265,7 @@ class MechanicalCycle:
         return order
 
     def submit_next_entry(self) -> Any:
+        """Submit the next entry leg as a one-lot limit ``open`` order."""
         if self.phase != "OPEN" or not self.planned_legs:
             raise MechanicalCycleBlocked("ENTRY_PLAN_REQUIRED")
         index = len(self.completed_legs)
@@ -321,6 +328,7 @@ class MechanicalCycle:
         self._record(reason, intent_id=self.pending_intent_id, order=self.pending_order)
 
     def on_order_update(self, order: Any) -> None:
+        """Accept only a complete native fill of the pending order; halt otherwise."""
         if (
             self.pending_order is None
             or order is not self.pending_order
@@ -378,6 +386,7 @@ class MechanicalCycle:
             )
 
     def plan_exit(self, legs: list[MechanicalLeg], *, intent_id: str) -> None:
+        """Plan exit legs that exactly reverse the natively filled entry legs."""
         if self.state != "OPEN" or len(self.completed_legs) != len(self._entry_legs):
             raise MechanicalCycleBlocked("EXIT_REQUIRES_NATIVE_OPEN_FILLS")
         if len(legs) != len(self._entry_legs):
@@ -406,6 +415,7 @@ class MechanicalCycle:
         self._record("EXIT_PLANNED", intent_id=intent_id)
 
     def submit_next_exit(self) -> Any:
+        """Submit the next exit leg as a one-lot limit ``close`` order."""
         if self.phase != "CLOSE" or not self._exit_planned:
             raise MechanicalCycleBlocked("EXIT_PLAN_REQUIRED")
         index = len(self.completed_legs)
@@ -418,6 +428,7 @@ class MechanicalCycle:
         )
 
     def cancel_pending(self) -> Any:
+        """Request cancellation of the single pending order and record the request."""
         if self.pending_order is None:
             raise MechanicalCycleBlocked("NO_PENDING_ORDER")
         order = self.broker.cancel(self.pending_order)
@@ -426,10 +437,12 @@ class MechanicalCycle:
         return order
 
     def timeout(self) -> None:
+        """Halt the cycle and demand recovery; a timed-out cycle never resumes."""
         self._halt("TIMEOUT_RECOVERY_REQUIRED")
         raise MechanicalCycleBlocked("TIMEOUT_RECOVERY_REQUIRED")
 
     def reconnect(self, generation: int) -> None:
+        """Fail closed on reconnect: cycles must re-arm with fresh proofs."""
         if self._identity is None or generation != self._identity[2]:
             self._halt("RECONNECT_GENERATION_CHANGED")
             raise MechanicalCycleBlocked("RECONNECT_GENERATION_CHANGED")
@@ -437,6 +450,7 @@ class MechanicalCycle:
         raise MechanicalCycleBlocked("RECONNECT_REQUIRES_REARM")
 
     def finalize_flat(self, first: Mapping[str, Any], second: Mapping[str, Any]) -> None:
+        """Verify two stable final reconciliations and mark the cycle CLOSED_FLAT."""
         if (
             self.phase != "CLOSE"
             or self.state != "CLOSE_FILLED"

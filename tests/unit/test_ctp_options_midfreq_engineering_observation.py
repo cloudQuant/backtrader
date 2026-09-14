@@ -23,6 +23,7 @@ from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.events import TickEvent
 from backtrader.feeds import BarEvidence, ClockMapping
 from backtrader.feeds.btapifeed import BtApiFeed
+from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 
 runner = importlib.import_module("examples.014_2_ctp_options_midfreq.run")
@@ -414,6 +415,282 @@ def test_engineering_observation_runs_real_three_feed_strategy_with_live_evidenc
     }
 
 
+def test_engineering_observation_accepts_one_transferred_store_without_rewrapping_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The supplied Store is the only Store and owns exactly one SDK lifecycle."""
+
+    source = _ticks()
+    api = LiveFixtureApi(live_ticks=copy.deepcopy(source))
+    store = adapter.BtApiStore(
+        provider="btapi",
+        api=api,
+        config={
+            "market_data_only": True,
+            "execution_config": {"market_data_only": True},
+        },
+        autostart=False,
+    )
+    store.start()
+    provider = LiveEvidenceProvider(source, _live_mapping())
+
+    def unexpected_second_store(*_args: Any, **_kwargs: Any) -> Any:
+        raise AssertionError("store= observation must not construct a second BtApiStore")
+
+    def forbidden_sdk_api(self: BtApiStore) -> Any:
+        del self
+        raise AssertionError("store= observation must not access store.sdk_api")
+
+    # The instance above is deliberately created before replacing the adapter
+    # constructor.  The observation must use that exact instance and must not
+    # obtain/re-wrap ``store.sdk_api`` into another Store.
+    monkeypatch.setattr(adapter, "BtApiStore", unexpected_second_store)
+    monkeypatch.setattr(BtApiStore, "sdk_api", property(forbidden_sdk_api))
+
+    report = runner.run_engineering_observation(
+        copy.deepcopy(CONFIG),
+        api=None,
+        store=store,
+        store_ownership="transfer",
+        environment_profile="simnow_second_7x24",
+        run_seconds=1.0,
+        feed_clock=FixedLiveClock(),
+        clock_mapping=_live_mapping(),
+        closed_bar_evidence_provider=provider,
+    )
+
+    assert report["status"] == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+    assert report["chain"]["store"] == "BtApiStore"
+    assert report["store_ownership"] == "INJECTED_STORE_LIFECYCLE_TRANSFERRED"
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 1
+    assert api.connected is False
+    assert api.submitted_orders == []
+    assert api.cancelled_orders == []
+    assert report["adapter_scoped_write_attempts"] == 0
+    assert report["external_trade_writes"] == "NOT_PROVEN"
+
+
+def test_store_transfer_rejects_an_overridden_write_audit_recorder() -> None:
+    """The public Store audit must remain the base aggregate implementation."""
+
+    class NoOpRecorderStore(BtApiStore):
+        def record_market_data_only_broker_rejection(self, _operation: str) -> None:
+            return None
+
+    source = _ticks()
+    api = LiveFixtureApi(live_ticks=copy.deepcopy(source))
+    store = NoOpRecorderStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    try:
+        with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
+            adapter._require_injected_store_transfer(store, ownership="transfer")
+
+        assert error.value.code == "INJECTED_STORE_AUDIT_CONTRACT_REQUIRED"
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        store.stop()
+
+    assert api.disconnect_calls == 1
+
+
+def test_engineering_observation_reuses_connected_preflight_store_without_second_connect() -> None:
+    """A read-only preflight may transfer its live Store and generation in-place."""
+
+    source = _ticks()
+    api = LiveFixtureApi(live_ticks=copy.deepcopy(source))
+    store = adapter.BtApiStore(
+        provider="btapi",
+        api=api,
+        config={
+            "market_data_only": True,
+            "execution_config": {"market_data_only": True},
+        },
+        autostart=False,
+    )
+    # This models the operator's read-only bundle preflight connecting the
+    # Store before explicitly transferring its lifecycle to the strategy.
+    store.start()
+    assert api.connect_calls == 1
+    assert store.is_connected is True
+    provider = LiveEvidenceProvider(source, _live_mapping())
+
+    report = runner.run_engineering_observation(
+        copy.deepcopy(CONFIG),
+        api=None,
+        store=store,
+        store_ownership="transfer",
+        environment_profile="simnow_second_7x24",
+        run_seconds=1.0,
+        feed_clock=FixedLiveClock(),
+        clock_mapping=_live_mapping(),
+        closed_bar_evidence_provider=provider,
+    )
+
+    assert report["status"] == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+    assert report["session_binding"]["connection_generation"] == 7
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 1
+    assert api.connected is False
+    assert store.is_connected is False
+    assert api.submitted_orders == []
+    assert api.cancelled_orders == []
+
+
+@pytest.mark.parametrize(
+    ("health_key", "busy_value"),
+    (
+        ("read_only_metadata_probe_active", True),
+        ("broker_update_queue_depth", 1),
+        ("broker_update_dropped", 1),
+        ("risk_state_latched", True),
+        ("funding_pending", 1),
+    ),
+)
+def test_busy_preflight_store_is_not_transferred_or_stopped(
+    monkeypatch: pytest.MonkeyPatch, health_key: str, busy_value: Any
+) -> None:
+    """An active preflight probe is not silently claimed by the strategy graph."""
+
+    source = _ticks()
+    api = LiveFixtureApi(live_ticks=copy.deepcopy(source))
+    store = adapter.BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"market_data_only": True, "execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    original_health = store.get_command_health
+
+    def busy_health() -> Mapping[str, Any]:
+        health = dict(original_health())
+        health[health_key] = busy_value
+        return health
+
+    monkeypatch.setattr(store, "get_command_health", busy_health)
+    try:
+        with pytest.raises(adapter.EngineeringSmokeBlocked) as error:
+            runner.run_engineering_observation(
+                copy.deepcopy(CONFIG),
+                api=None,
+                store=store,
+                store_ownership="transfer",
+                environment_profile="simnow_second_7x24",
+                run_seconds=1.0,
+                feed_clock=FixedLiveClock(),
+                clock_mapping=_live_mapping(),
+                closed_bar_evidence_provider=LiveEvidenceProvider(source, _live_mapping()),
+            )
+
+        assert error.value.code == "INJECTED_STORE_BUSY"
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        monkeypatch.setattr(store, "get_command_health", original_health)
+        store.stop()
+
+    assert api.disconnect_calls == 1
+
+
+def test_idle_command_worker_is_valid_for_store_transfer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An empty SDK command worker is not a conflicting preflight activity."""
+
+    source = _ticks()
+    api = LiveFixtureApi(live_ticks=copy.deepcopy(source))
+    store = adapter.BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"market_data_only": True, "execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    original_health = store.get_command_health
+
+    def idle_worker_health() -> Mapping[str, Any]:
+        health = dict(original_health())
+        health["worker_alive"] = True
+        return health
+
+    monkeypatch.setattr(store, "get_command_health", idle_worker_health)
+    try:
+        assert adapter._require_injected_store_transfer(store, ownership="transfer") == 0
+    finally:
+        monkeypatch.setattr(store, "get_command_health", original_health)
+        store.stop()
+
+
+def test_store_write_guard_reports_rejected_market_data_only_delta() -> None:
+    """A Store-local rejection is surfaced instead of being reported as zero."""
+
+    class RejectedStore:
+        def get_command_health(self) -> Mapping[str, Any]:
+            return {
+                "shutdown_state": "PASS",
+                "accepting_openings": False,
+                "rejected_market_data_only": 3,
+            }
+
+    guard = adapter._store_write_guard(RejectedStore(), baseline=1, ownership="INJECTED_STORE")
+
+    assert guard["rejected_market_data_only"] == {"baseline": 1, "final": 3, "delta": 2}
+    assert guard["forbidden_write_attempts"] == {"store_market_data_only_rejected": 2}
+
+
+def test_engineering_observation_rejects_ambiguous_or_untransferred_store_before_connect() -> None:
+    """A caller must choose exactly one input and explicitly hand over stop ownership."""
+
+    source = _ticks()
+    api = LiveFixtureApi(live_ticks=copy.deepcopy(source))
+    store = adapter.BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"market_data_only": True},
+        autostart=False,
+    )
+    provider = LiveEvidenceProvider(source, _live_mapping())
+
+    with pytest.raises(adapter.EngineeringSmokeBlocked) as ambiguous:
+        runner.run_engineering_observation(
+            copy.deepcopy(CONFIG),
+            api=api,
+            store=store,
+            store_ownership="transfer",
+            environment_profile="simnow_second_7x24",
+            run_seconds=1.0,
+            feed_clock=FixedLiveClock(),
+            clock_mapping=_live_mapping(),
+            closed_bar_evidence_provider=provider,
+        )
+    assert ambiguous.value.code == "ENGINEERING_STORE_INPUT"
+
+    with pytest.raises(adapter.EngineeringSmokeBlocked) as untransferred:
+        runner.run_engineering_observation(
+            copy.deepcopy(CONFIG),
+            api=None,
+            store=store,
+            environment_profile="simnow_second_7x24",
+            run_seconds=1.0,
+            feed_clock=FixedLiveClock(),
+            clock_mapping=_live_mapping(),
+            closed_bar_evidence_provider=provider,
+        )
+    assert untransferred.value.code == "STORE_OWNERSHIP_TRANSFER_REQUIRED"
+    assert api.connect_calls == 0
+    assert api.disconnect_calls == 0
+    assert api.connected is False
+
+
 def test_engineering_smoke_does_not_claim_raw_external_provider_write_count() -> None:
     """Unstarted local construction has no raw-provider write attestation."""
 
@@ -511,6 +788,38 @@ def test_engineering_observation_guard_blocks_write_surface_without_delegating()
             guard.configure_execution(invalid_config)
         assert error.value.code == "FORBIDDEN_WRITE_ATTEMPT"
     assert api.execution_configuration_calls == [{"market_data_only": True}]
+
+
+def test_injected_store_guard_does_not_confuse_queue_availability_with_execution_permission() -> (
+    None
+):
+    """Async Stores can queue rejected MDO commands while execution remains unarmed."""
+
+    class AsyncMarketDataOnlyStore:
+        def get_command_health(self) -> Mapping[str, Any]:
+            return {
+                # This is queue availability, not an order grant.  The
+                # session-binding and Broker checks are exercised by the full
+                # transferred-Store observation tests above.
+                "accepting_openings": True,
+                "rejected_market_data_only": 0,
+                "shutdown_state": "PASS",
+            }
+
+    audit = adapter._store_write_guard(
+        AsyncMarketDataOnlyStore(),
+        baseline=0,
+        ownership="INJECTED_STORE",
+    )
+
+    assert audit == {
+        "source": "BtApiStore.get_command_health",
+        "ownership": "INJECTED_STORE",
+        "forbidden_write_attempts": {},
+        "command_queue_accepting_openings": True,
+        "market_data_only": "PROVEN_BY_SESSION_BINDING_AND_BROKER",
+        "rejected_market_data_only": {"baseline": 0, "final": 0, "delta": 0},
+    }
 
 
 @pytest.mark.parametrize(

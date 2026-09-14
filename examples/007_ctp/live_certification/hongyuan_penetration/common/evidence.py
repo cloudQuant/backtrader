@@ -20,6 +20,7 @@ RECONCILIATION_FILE = "reconciliation.json"
 
 
 def mask_account_id(account_id: Any) -> str:
+    """Mask an account id to ``ab***yz`` for evidence redaction (short ids pass through)."""
     text = str(account_id or "")
     if len(text) <= 4:
         return text

@@ -109,20 +109,25 @@ class QuoteSnapshot:
 
     @property
     def mid(self) -> float:
+        """Return the bid/ask midpoint."""
         return (self.bid + self.ask) / 2.0
 
     @property
     def imbalance(self) -> float:
+        """Return the signed level-one depth imbalance."""
         return (self.bid_size - self.ask_size) / (self.bid_size + self.ask_size)
 
     @property
     def microprice(self) -> float:
+        """Return the size-weighted level-one microprice."""
         depth = self.bid_size + self.ask_size
         return (self.ask * self.bid_size + self.bid * self.ask_size) / depth
 
 
 @dataclass(frozen=True)
 class QuoteValidation:
+    """Outcome of normalizing one raw quote event, carrying the snapshot when valid."""
+
     valid: bool
     reason: str
     quote: Optional[QuoteSnapshot] = None
@@ -371,6 +376,8 @@ def normalize_quote(
 
 @dataclass(frozen=True)
 class FastFeatures:
+    """Frozen quote-driven fast (H-side) feature bundle with readiness reasons."""
+
     ready: bool
     reasons: tuple[str, ...]
     event_time: float
@@ -386,6 +393,7 @@ class FastFeatures:
     valid_changes_60s: int = 0
 
     def as_dict(self) -> dict[str, Any]:
+        """Return a plain dict copy for evidence serialization."""
         return asdict(self)
 
 
@@ -393,6 +401,7 @@ class QuoteFeatureWindow:
     """Bounded time-window calculator for the frozen v0 feature formulas."""
 
     def __init__(self, tick_size: float, retention_seconds: float = 62.5) -> None:
+        """Validate the tick size and fix the quote retention horizon (minimum 62 s)."""
         if not _finite(tick_size) or float(tick_size) <= 0:
             raise ValueError("tick_size must be finite and positive")
         self.tick_size = float(tick_size)
@@ -404,12 +413,19 @@ class QuoteFeatureWindow:
 
     @property
     def quotes(self) -> tuple[QuoteSnapshot, ...]:
+        """Return the retained quotes as an ordered tuple."""
         return tuple(self._quotes)
 
     def clear(self) -> None:
+        """Drop all retained quotes while keeping the ingest-sequence watermark."""
         self._quotes.clear()
 
     def add(self, quote: QuoteSnapshot) -> bool:
+        """Append one quote if causally ordered, then trim past the retention.
+
+        Returns ``False`` and records the reason when ``ingest_seq`` does
+        not strictly increase or ``event_time`` goes backwards.
+        """
         if quote.ingest_seq <= self._last_ingest_seq:
             self.invalid_count += 1
             self.last_invalid_reason = "nonincreasing_global_ingest_seq"
@@ -509,6 +525,7 @@ class QuoteFeatureWindow:
         return sigma, len(changes), ""
 
     def calculate(self) -> FastFeatures:
+        """Compute the frozen v0 fast features from the retained quote window."""
         if not self._quotes:
             return FastFeatures(False, ("no_quotes",), 0.0)
         current = self._quotes[-1]
@@ -555,5 +572,6 @@ class QuoteFeatureWindow:
 
 
 def quote_window_span(quotes: Iterable[QuoteSnapshot]) -> float:
+    """Return the event-time span of ``quotes`` in seconds, or 0.0 when empty."""
     values = tuple(quotes)
     return max(values[-1].event_time - values[0].event_time, 0.0) if values else 0.0

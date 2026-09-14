@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""TH04: 验证报撤单总数达到或超过阈值时会预警"""
+"""TH04: Verify that an alert is triggered when the total order and cancel count reaches or exceeds the threshold"""
 from __future__ import annotations
 
 import sys

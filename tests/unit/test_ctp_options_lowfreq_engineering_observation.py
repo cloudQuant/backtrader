@@ -21,6 +21,7 @@ import pytest
 from backtrader.events import TickEvent
 from backtrader.feeds import BarEvidence, ClockMapping
 from backtrader.feeds.btapifeed import BtApiFeed
+from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
 
 runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
@@ -294,6 +295,32 @@ def _run_observation(
     return report, api, provider
 
 
+def _injected_store(api: ObservationApi, *, store_cls: type[BtApiStore] = BtApiStore) -> BtApiStore:
+    """Build the one Store whose lifecycle the observation will own."""
+
+    candidate = CONFIG["candidate"]
+    metadata = {
+        symbol: {
+            "tick_size": CONFIG["strategy_params"]["price_tick"],
+            "contract_multiplier": candidate["multiplier"],
+            "min_size": 1,
+            "lot_size": 1,
+            "quantity_step": 1,
+            "currency": "CNY",
+        }
+        for symbol in (candidate["future"], candidate["call"], candidate["put"])
+    }
+    return store_cls(
+        provider="btapi",
+        api=api,
+        config={"market_data_only": True, "execution_config": {"market_data_only": True}},
+        cash=float(CONFIG["budget"]["capital_limit"]),
+        value=float(CONFIG["budget"]["capital_limit"]),
+        contract_metadata=metadata,
+        autostart=False,
+    )
+
+
 def test_engineering_observation_runs_actual_lowfreq_strategy_on_native_chain() -> None:
     report, api, provider = _run_observation()
 
@@ -371,6 +398,429 @@ def test_engineering_observation_runs_actual_lowfreq_strategy_on_native_chain() 
         "G4_simnow_mechanical": "NOT_RUN",
         "lowfreq_signal_logic": "NOT_EVALUATED_INSUFFICIENT_CLOSED_BARS",
     }
+
+
+def test_engineering_observation_uses_one_injected_store_without_sdk_rewrapping(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Store hand-off must not construct another Store from ``sdk_api``."""
+
+    class NoSdkApiAccessStore(BtApiStore):
+        @property
+        def sdk_api(self) -> Any:
+            raise AssertionError("the Store-injected path must not access sdk_api")
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api, store_cls=NoSdkApiAccessStore)
+    # A Store hand-off is valid only after the preflight owner has connected
+    # its final generation.  The strategy must reuse—not restart—it.
+    store.start()
+    construction_attempts: list[tuple[tuple[Any, ...], dict[str, Any]]] = []
+
+    def reject_second_store(*args: Any, **kwargs: Any) -> Any:
+        construction_attempts.append((args, kwargs))
+        raise AssertionError("the Store-injected path must not create another BtApiStore")
+
+    # The supplied Store was constructed before the replacement.  The runtime
+    # must use it directly, so any new Store construction is a test failure.
+    monkeypatch.setattr(adapter, "BtApiStore", reject_second_store)
+
+    clock_mapping = _mapping()
+    provider = LiveEvidenceProvider(clock_mapping)
+    report = runner.run_engineering_observation(
+        copy.deepcopy(CONFIG),
+        store=store,
+        store_ownership="transfer",
+        environment_profile="simnow_second_7x24",
+        run_seconds=0.05,
+        feed_clock=FixedLiveClock(),
+        clock_mapping=clock_mapping,
+        closed_bar_evidence_provider=provider,
+    )
+
+    assert report["status"] == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+    assert report["store_ownership"] == "INJECTED_STORE_LIFECYCLE_TRANSFERRED"
+    assert report["write_guard"]["forbidden_write_attempts"] == {}
+    assert report["write_guard"]["store_market_data_only"] == {
+        "source": "BtApiStore.get_command_health",
+        "ownership": "INJECTED_STORE",
+        "forbidden_write_attempts": {},
+        "accepting_openings": False,
+        "rejected_market_data_only": {"baseline": 0, "final": 0, "delta": 0},
+    }
+    assert report["write_guard"]["broker_market_data_only"]["total_rejected"] == 0
+    assert report["adapter_scoped_write_attempts"] == 0
+    assert report["external_trade_writes"] == "NOT_PROVEN"
+    assert report["external_trade_writes_basis"] == (
+        "NOT_PROVEN: the transferred Store and market_data_only Broker only observe "
+        "Store-routed attempts; they cannot attest raw external provider writes."
+    )
+    assert construction_attempts == []
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 1
+    assert api.submitted_orders == []
+    assert api.cancelled_orders == []
+    assert store.is_connected is False
+
+
+def test_store_transfer_rejects_an_overridden_write_audit_recorder() -> None:
+    """A subclass may extend SDK access, but cannot replace the Store audit contract."""
+
+    class NoOpRecorderStore(BtApiStore):
+        def record_market_data_only_broker_rejection(self, _operation: str) -> None:
+            return None
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api, store_cls=NoOpRecorderStore)
+    store.start()
+    try:
+        with pytest.raises(
+            adapter.SimNowBlocked, match="ENGINEERING_STORE_AUDIT_CONTRACT_REQUIRED"
+        ):
+            adapter._require_transferable_observation_store(store)
+
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        store.stop()
+
+    assert api.disconnect_calls == 1
+
+
+def test_engineering_observation_rejects_ambiguous_api_and_store_before_start() -> None:
+    """A caller must transfer exactly one ownership root to the observation."""
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api)
+    clock_mapping = _mapping()
+
+    with pytest.raises(adapter.SimNowBlocked, match="ENGINEERING_STORE_API_EXCLUSIVE"):
+        runner.run_engineering_observation(
+            copy.deepcopy(CONFIG),
+            api=api,
+            store=store,
+            store_ownership="transfer",
+            environment_profile="simnow_second_7x24",
+            run_seconds=0.05,
+            feed_clock=FixedLiveClock(),
+            clock_mapping=clock_mapping,
+            closed_bar_evidence_provider=LiveEvidenceProvider(clock_mapping),
+        )
+
+    assert api.connect_calls == 0
+    assert api.disconnect_calls == 0
+    assert store.is_connected is False
+
+
+def test_store_injection_requires_explicit_ownership_transfer_before_start() -> None:
+    """A Store remains owned by its caller unless the transfer is explicit."""
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api)
+    clock_mapping = _mapping()
+
+    with pytest.raises(
+        adapter.SimNowBlocked, match="ENGINEERING_STORE_OWNERSHIP_TRANSFER_REQUIRED"
+    ):
+        runner.run_engineering_observation(
+            copy.deepcopy(CONFIG),
+            store=store,
+            environment_profile="simnow_second_7x24",
+            run_seconds=0.05,
+            feed_clock=FixedLiveClock(),
+            clock_mapping=clock_mapping,
+            closed_bar_evidence_provider=LiveEvidenceProvider(clock_mapping),
+        )
+
+    assert api.connect_calls == 0
+    assert api.disconnect_calls == 0
+    assert store.is_connected is False
+
+
+def test_connected_store_transfer_reuses_preflight_connection_once() -> None:
+    """A preflight-connected Store is not reconnected after its transfer."""
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api)
+    store.start()
+    assert store.is_connected is True
+    assert api.connect_calls == 1
+    assert store.get_ctp_session_state()["connected"] is True
+
+    clock_mapping = _mapping()
+    report = runner.run_engineering_observation(
+        copy.deepcopy(CONFIG),
+        store=store,
+        store_ownership="transfer",
+        environment_profile="simnow_second_7x24",
+        run_seconds=0.05,
+        feed_clock=FixedLiveClock(),
+        clock_mapping=clock_mapping,
+        closed_bar_evidence_provider=LiveEvidenceProvider(clock_mapping),
+    )
+
+    assert report["status"] == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 1
+    assert store.is_connected is False
+
+
+@pytest.mark.parametrize(
+    ("health_key", "busy_value"),
+    (
+        ("read_only_metadata_probe_active", True),
+        ("broker_update_queue_depth", 1),
+        ("broker_update_dropped", 1),
+        ("risk_state_latched", True),
+        ("funding_pending", 1),
+    ),
+)
+def test_busy_preflight_store_is_not_transferred_or_stopped(
+    monkeypatch: pytest.MonkeyPatch, health_key: str, busy_value: Any
+) -> None:
+    """An active preflight probe keeps lifecycle ownership with its caller."""
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api)
+    store.start()
+    original_health = store.get_command_health
+
+    def busy_health() -> Mapping[str, Any]:
+        health = dict(original_health())
+        health[health_key] = busy_value
+        return health
+
+    monkeypatch.setattr(store, "get_command_health", busy_health)
+    mapping = _mapping()
+    try:
+        with pytest.raises(adapter.SimNowBlocked, match="ENGINEERING_STORE_OWNERSHIP_REQUIRED"):
+            runner.run_engineering_observation(
+                copy.deepcopy(CONFIG),
+                store=store,
+                store_ownership="transfer",
+                environment_profile="simnow_second_7x24",
+                run_seconds=0.05,
+                feed_clock=FixedLiveClock(),
+                clock_mapping=mapping,
+                closed_bar_evidence_provider=LiveEvidenceProvider(mapping),
+            )
+
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        monkeypatch.setattr(store, "get_command_health", original_health)
+        store.stop()
+
+    assert api.disconnect_calls == 1
+
+
+def test_idle_sdk_command_worker_is_valid_for_store_transfer() -> None:
+    """A real idle SDK command worker is part of a live Store, not foreign work."""
+
+    class AsyncSdkObservationApi:
+        exchange_kwargs = {"BINANCE": {}}
+
+        def __init__(self) -> None:
+            self.connected = False
+
+        def connect(self) -> None:
+            self.connected = True
+
+        def disconnect(self) -> None:
+            self.connected = False
+
+        def close(self) -> None:
+            self.disconnect()
+
+        def poll_event(self, _venue: str) -> None:
+            return None
+
+        def configure_execution(self, _config: Mapping[str, Any]) -> None:
+            return None
+
+        def get_all_balances(self, *, normalized: bool = False) -> Mapping[str, Any]:
+            assert normalized is True
+            return {"BINANCE": {"cash": 0.0, "equity": 0.0}}
+
+        def get_portfolio_balance(
+            self, *, venue_balances: Mapping[str, Any]
+        ) -> Mapping[str, float]:
+            assert venue_balances
+            return {"cash": 0.0, "value": 0.0}
+
+        def get_execution_summary(self) -> Mapping[str, bool]:
+            return {"market_data_only": True}
+
+        async def async_make_order(self, *_args: Any, **_kwargs: Any) -> Mapping[str, Any]:
+            return {}
+
+        async def async_cancel_order(self, *_args: Any, **_kwargs: Any) -> Mapping[str, Any]:
+            return {}
+
+        async def async_query_order(self, *_args: Any, **_kwargs: Any) -> Mapping[str, Any]:
+            return {}
+
+    api = AsyncSdkObservationApi()
+    store = BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    try:
+        transferred, baseline = adapter._require_transferable_observation_store(store)
+        assert transferred is store
+        assert baseline == 0
+        assert store.uses_async_commands is True
+        assert store.get_command_health()["worker_alive"] is True
+    finally:
+        store.stop()
+
+
+def test_store_write_guard_reports_rejected_market_data_only_delta() -> None:
+    """A local Store rejection is evidence of a prohibited callback attempt."""
+
+    class RejectedStore:
+        def get_command_health(self) -> Mapping[str, Any]:
+            return {
+                "shutdown_state": "PASS",
+                "accepting_openings": False,
+                "rejected_market_data_only": 2,
+            }
+
+    guard = adapter._store_write_guard(RejectedStore(), baseline=1, ownership="INJECTED_STORE")
+
+    assert guard["rejected_market_data_only"] == {"baseline": 1, "final": 2, "delta": 1}
+    assert guard["forbidden_write_attempts"] == {"store_market_data_only_rejected": 1}
+
+
+def test_observation_fails_closed_for_a_replacement_broker_write_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The transferred Store audit covers a Broker created outside the graph."""
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api)
+    store.start()
+    original_broker_cls = adapter.BtApiBroker
+
+    def graph_broker_with_replacement(*args: Any, **kwargs: Any) -> Any:
+        graph_broker = original_broker_cls(*args, **kwargs)
+        replacement = original_broker_cls(*args, **kwargs)
+        assert replacement.batch_cancel() == []
+        return graph_broker
+
+    monkeypatch.setattr(adapter, "BtApiBroker", graph_broker_with_replacement)
+    mapping = _mapping()
+    report = runner.run_engineering_observation(
+        copy.deepcopy(CONFIG),
+        store=store,
+        store_ownership="transfer",
+        environment_profile="simnow_second_7x24",
+        run_seconds=0.05,
+        feed_clock=FixedLiveClock(),
+        clock_mapping=mapping,
+        closed_bar_evidence_provider=LiveEvidenceProvider(mapping),
+    )
+
+    assert report["status"] == "INCOMPLETE_ENGINEERING_STRATEGY_OBSERVATION"
+    assert report["failure_codes"] == ["FORBIDDEN_WRITE_ATTEMPT"]
+    assert report["write_guard"]["store_market_data_only"]["rejected_market_data_only"] == {
+        "baseline": 0,
+        "final": 1,
+        "delta": 1,
+    }
+    assert report["write_guard"]["broker_market_data_only"]["total_rejected"] == 0
+    assert report["adapter_scoped_write_attempts"] == 1
+    assert api.submitted_orders == []
+    assert api.cancelled_orders == []
+    assert api.disconnect_calls == 1
+
+
+def test_failed_pure_validation_does_not_take_preflight_store_ownership() -> None:
+    """A rejected mapping leaves an already-connected Store with its caller."""
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api)
+    store.start()
+    rejected_mapping = _mapping(synthetic=True)
+
+    with pytest.raises(adapter.SimNowBlocked, match="LIVE_CLOCK_MAPPING_REQUIRED"):
+        runner.run_engineering_observation(
+            copy.deepcopy(CONFIG),
+            store=store,
+            store_ownership="transfer",
+            environment_profile="simnow_second_7x24",
+            run_seconds=0.05,
+            feed_clock=FixedLiveClock(),
+            clock_mapping=rejected_mapping,
+            closed_bar_evidence_provider=LiveEvidenceProvider(rejected_mapping),
+        )
+
+    assert store.is_connected is True
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 0
+    store.stop()
+    assert api.disconnect_calls == 1
+
+
+def test_transferred_store_construction_failure_stops_preflight_connection_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After transfer, a graph-construction failure owns one full shutdown."""
+
+    api = ObservationApi(_ticks())
+    store = _injected_store(api)
+    store.start()
+    assert api.connect_calls == 1
+
+    def fail_getdata(*_args: Any, **_kwargs: Any) -> Any:
+        raise RuntimeError("injected transferred-store construction failure")
+
+    monkeypatch.setattr(BtApiStore, "getdata", fail_getdata)
+    clock_mapping = _mapping()
+    with pytest.raises(adapter.SimNowBlocked, match="ENGINEERING_OBSERVATION_RUNTIME"):
+        runner.run_engineering_observation(
+            copy.deepcopy(CONFIG),
+            store=store,
+            store_ownership="transfer",
+            environment_profile="simnow_second_7x24",
+            run_seconds=0.05,
+            feed_clock=FixedLiveClock(),
+            clock_mapping=clock_mapping,
+            closed_bar_evidence_provider=LiveEvidenceProvider(clock_mapping),
+        )
+
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 1
+    assert store.is_connected is False
+
+
+def test_store_injected_observation_keeps_second_set_session_gate_and_closes() -> None:
+    """Store ownership does not weaken public second-set session validation."""
+
+    api = ObservationApi(_ticks(), session_state={"execution_gate_armed": True})
+    store = _injected_store(api)
+    store.start()
+    clock_mapping = _mapping()
+    with pytest.raises(adapter.SimNowBlocked, match="SESSION_EXECUTION_GATE_NOT_UNARMED"):
+        runner.run_engineering_observation(
+            copy.deepcopy(CONFIG),
+            store=store,
+            store_ownership="transfer",
+            environment_profile="simnow_second_7x24",
+            run_seconds=0.05,
+            feed_clock=FixedLiveClock(),
+            clock_mapping=clock_mapping,
+            closed_bar_evidence_provider=LiveEvidenceProvider(clock_mapping),
+        )
+
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 1
+    assert store.is_connected is False
 
 
 def test_engineering_observation_accepts_a_public_second_set_profile_variant() -> None:

@@ -421,9 +421,11 @@ class SimNowMechanicalSession:
     report: dict[str, Any]
 
     def submit_next_entry(self) -> Any:
+        """Delegate the next entry-leg submission to the owned cycle."""
         return self.cycle.submit_next_entry()
 
     def on_order_update(self, order: Any) -> dict[str, Any]:
+        """Forward a fill, chain the next leg when idle, and return status."""
         self.cycle.on_order_update(order)
         if self.cycle.phase == "OPEN" and self.cycle.pending_order is None:
             if len(self.cycle.completed_legs) < len(self.cycle.planned_legs):
@@ -440,6 +442,7 @@ class SimNowMechanicalSession:
         intent_id: str,
         reference_snapshot: Mapping[str, Any],
     ) -> None:
+        """Validate exit prices against a newer reference, then plan the closing legs."""
         if self.cycle.state != "OPEN":
             raise SimNowLiveRunnerBlocked("EXIT_REQUIRES_ALL_NATIVE_ENTRY_FILLS")
         self.runner._validate_prices(prices, side="exit", reference_snapshot=reference_snapshot)
@@ -456,23 +459,29 @@ class SimNowMechanicalSession:
         self.cycle.plan_exit(legs, intent_id=intent_id)
 
     def submit_next_exit(self) -> Any:
+        """Delegate the next exit-leg submission to the owned cycle."""
         return self.cycle.submit_next_exit()
 
     def cancel_pending(self) -> Any:
+        """Delegate the pending-order cancel request to the owned cycle."""
         return self.cycle.cancel_pending()
 
     def timeout(self) -> None:
+        """Delegate the fail-closed timeout halt to the owned cycle."""
         self.cycle.timeout()
 
     def reconnect(self, generation: int) -> None:
+        """Delegate the fail-closed reconnect handling to the owned cycle."""
         self.cycle.reconnect(generation)
 
     def finalize_flat(self, first: Mapping[str, Any], second: Mapping[str, Any]) -> dict[str, Any]:
+        """Normalize the reconciliation rounds, close the cycle flat, return status."""
         normalized = _normalized_reconciliation_rounds(self.runner.broker, [first, second])
         self.cycle.finalize_flat(*normalized)
         return self.status()
 
     def status(self) -> dict[str, Any]:
+        """Return a redacted cycle snapshot: state, phase, pending flag and journal."""
         return {
             "status": "MECHANICAL_PASS" if self.cycle.state == "CLOSED_FLAT" else self.cycle.state,
             "iteration_25": "HFT_NOT_ADMITTED",
@@ -505,6 +514,7 @@ class SimNowLiveRunner:
         max_quote_age_seconds: float = 2.0,
         exact_instrument_ids: Mapping[str, str] | None = None,
     ):
+        """Validate and store the injected parts; no connection or read happens here."""
         if not isinstance(feeds, Mapping) or not feeds:
             raise SimNowLiveRunnerBlocked("CALLER_FEEDS_REQUIRED")
         if not callable(getattr(broker, "buy", None)) or not callable(
@@ -692,6 +702,7 @@ class SimNowLiveRunner:
             self._entry_quote_timestamp = (quote["timestamp_kind"], quote["timestamp"])
 
     def preflight(self) -> dict[str, Any]:
+        """Validate injected read-only evidence and freeze the preflight report."""
         if self._frozen_report is not None:
             return dict(self._frozen_report)
         bundle = self._discover_bundle()
@@ -800,6 +811,7 @@ class SimNowLiveRunner:
         execution_authorization: Mapping[str, Any] | None = None,
         budget_capability: Any = None,
     ) -> SimNowMechanicalSession:
+        """Check lifecycle/authorization proofs, arm the cycle, submit the first entry leg."""
         if self._proof is None or self._frozen_report is None or self._bundle is None:
             raise SimNowLiveRunnerBlocked("PREFLIGHT_REQUIRED_BEFORE_EXECUTION")
         if not isinstance(execution_state, Mapping):
@@ -881,6 +893,7 @@ class SimNowLiveRunner:
         execution_state: Mapping[str, Any] | None = None,
         reference_snapshot: Mapping[str, Any] | None = None,
     ) -> Any:
+        """Dispatch to :meth:`preflight` (default) or :meth:`execute_preflighted`."""
         if not execute:
             return self.preflight()
         return self.execute_preflighted(

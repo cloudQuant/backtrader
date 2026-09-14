@@ -46,6 +46,12 @@ class ReplayQuoteProducer:
         discount_factor: Decimal,
         base: datetime = REPLAY_BASE,
     ) -> None:
+        """Bind the fixture identity: candidate contracts, scenario and clock base.
+
+        Synthetic evidence is generated deterministically per minute index;
+        the scenario picks the residual series (no_edge stays zero, edge
+        alternates ±10 for the first 60 minutes then widens).
+        """
         required = ("future", "call", "put")
         if tuple(contracts) != required:
             raise ValueError("contracts must be ordered future, call, put")
@@ -78,11 +84,13 @@ class ReplayQuoteProducer:
         )
 
     def minute_end(self, minute_index: int) -> datetime:
+        """Return the timezone-aware UTC end of the given fixture minute."""
         if type(minute_index) is not int or minute_index < 0:
             raise ValueError("minute_index must be a non-negative integer")
         return self.base + timedelta(minutes=minute_index + 1)
 
     def residual_for_minute(self, minute_index: int) -> Decimal:
+        """Return the scenario residual injected at this minute index."""
         if type(minute_index) is not int or minute_index < 0:
             raise ValueError("minute_index must be a non-negative integer")
         if self.scenario == "no_edge":
@@ -207,6 +215,11 @@ class ReplayQuoteProducer:
         }
 
     def bar_for(self, minute_index: int, symbol: str, data: Any, leg_index: int) -> BarEvidence:
+        """Build one sealed one-minute bar with per-leg watermark offsets.
+
+        seal_at is staggered by 100ms per leg to exercise the cross-leg seal
+        ordering checks.
+        """
         if symbol not in self.contracts.values():
             raise ValueError(f"unknown contract {symbol}")
         if type(leg_index) is not int or leg_index not in range(3):
@@ -262,6 +275,11 @@ class ReplayQuoteProducer:
         symbol: Optional[str] = None,
         at_cutoff: bool = False,
     ) -> Dict[str, Any]:
+        """Return the last quote of the minute, optionally stamped exactly at cutoff.
+
+        at_cutoff=True stamps a receive time exactly at T to verify that
+        events equal to the cutoff are rejected.
+        """
         symbol = symbol or self.contracts["future"]
         event = self.quote_events_for(minute_index, symbol)[-1]
         end = self.minute_end(minute_index)

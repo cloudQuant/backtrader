@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""M04: 验证能正常统计报单笔数"""
+"""M04: Verify that the number of order submissions is counted correctly"""
 from __future__ import annotations
 
 import sys

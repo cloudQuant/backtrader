@@ -1,4 +1,4 @@
-"""宏源期货仿真环境配置与凭证管理."""
+"""Hongyuan Futures simulation environment configuration and credential management."""
 from __future__ import annotations
 
 import os

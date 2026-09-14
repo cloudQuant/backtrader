@@ -169,6 +169,12 @@ class BasisModelQualification:
         expected_contract_sha256: Optional[str] = None,
         expected_direction: Optional[Tuple[str, str]] = None,
     ) -> Optional[str]:
+        """Return the rejection reason for trading under this artifact now.
+
+        Checks the validity window, sample count, method, provenance,
+        basis definition, direction/venue/contract digests, stationarity,
+        unit-root confidence and half-life; ``None`` means qualified.
+        """
         now = decimal_value(now_epoch, "qualification_now_epoch")
         maximum = decimal_value(maximum_half_life_seconds, "maximum_half_life_seconds")
         if now < self.valid_from_epoch:
@@ -213,6 +219,8 @@ class BasisModelQualification:
         return None
 
     def as_dict(self) -> Mapping[str, object]:
+        """Serialize the artifact with ``Decimal`` fields rendered as strings."""
+
         return {
             "basis_series_sha256": self.basis_series_sha256,
             "source_data_sha256": self.source_data_sha256,
@@ -454,6 +462,8 @@ def qualify_basis_model(
 
 @dataclass(frozen=True)
 class BookState:
+    """Immutable normalized L2 book snapshot for a single venue."""
+
     venue: str
     bids: Tuple[Tuple[Decimal, Decimal], ...]
     asks: Tuple[Tuple[Decimal, Decimal], ...]
@@ -472,6 +482,8 @@ class BookState:
 
 @dataclass(frozen=True)
 class MidFrequencyRisk:
+    """Frozen risk parameters for the robust-basis mid-frequency strategy."""
+
     quantity_base: Decimal = Decimal("0.01")
     zscore_window: int = 120
     minimum_samples: int = 120
@@ -593,6 +605,8 @@ def qualification_contract_sha256(
 
 @dataclass(frozen=True)
 class PairIntent:
+    """Immutable two-leg entry decision with its executable cost evidence."""
+
     long_venue: str
     short_venue: str
     quantity_base: Decimal
@@ -611,6 +625,8 @@ class PairIntent:
     reason: str = "robust_deviation_and_net_edge"
 
     def as_dict(self) -> Mapping[str, object]:
+        """Serialize the intent with ``Decimal`` fields and VWAPs as nested mappings."""
+
         return {
             "long_venue": self.long_venue,
             "short_venue": self.short_venue,
@@ -633,6 +649,8 @@ class PairIntent:
 
 @dataclass
 class ActivePair:
+    """Mutable state of one open two-leg hedged pair."""
+
     intent: PairIntent
     opened_at: Decimal
     quantity_base: Decimal
@@ -648,10 +666,14 @@ class RobustBasisWindow:
     """Rolling median/MAD model that never includes the evaluated sample."""
 
     def __init__(self, size: int, minimum_samples: int):
+        """Configure the rolling window size and minimum scoring samples."""
+
         self.values: Deque[Decimal] = deque(maxlen=size)
         self.minimum_samples = minimum_samples
 
     def score(self, value: Decimal) -> Optional[Decimal]:
+        """Return the robust z-score of ``value`` against past samples only."""
+
         if len(self.values) < self.minimum_samples:
             return None
         center = decimal_value(median(self.values), "basis_median")
@@ -664,6 +686,8 @@ class RobustBasisWindow:
         return (value - center) / scale
 
     def append(self, value: Decimal) -> None:
+        """Add one observed basis sample to the rolling window."""
+
         self.values.append(value)
 
 
@@ -677,6 +701,8 @@ class MidFrequencyEngine:
         model_qualification: Optional[object] = None,
         wall_clock: Callable[[], object] = time.time,
     ):
+        """Bind rules, risk and qualifications, then reset all pairing state."""
+
         if set(rules) != set(VENUE_SYMBOLS):
             raise ValueError("rules must contain okx and binance")
         self.rules = dict(rules)
@@ -749,9 +775,13 @@ class MidFrequencyEngine:
         return True
 
     def reject(self, reason: str) -> None:
+        """Count one named rejection reason for diagnostics."""
+
         self.reject_reasons[reason] += 1
 
     def update_book(self, book: BookState) -> bool:
+        """Validate and store one venue book, flagging gaps until recovery."""
+
         if book.venue not in self.rules or not book.bids or not book.asks:
             self.reject("invalid_book")
             return False
@@ -934,6 +964,12 @@ class MidFrequencyEngine:
         )
 
     def evaluate(self, now_value) -> Optional[PairIntent]:
+        """Evaluate both directions and maybe return a confirmed intent.
+
+        Appends each observed basis to its robust window, keeps the
+        best-net candidate only while no pair is open, and requires the
+        confirmation and persistence gates before publishing it.
+        """
         now = decimal_value(now_value, "now")
         if not self.model_qualifications:
             self.reject("model_qualification_missing")
@@ -996,6 +1032,11 @@ class MidFrequencyEngine:
         entry_sell: Optional[ExecutableVWAP] = None,
         entry_fees_paid=None,
     ) -> None:
+        """Record the pair as opened with confirmed fills on both legs.
+
+        Missing broker fills default to the intent prices, and the
+        funding snapshot is frozen for realized funding accounting.
+        """
         quantity = (
             intent.quantity_base
             if quantity_base is None
@@ -1092,6 +1133,12 @@ class MidFrequencyEngine:
         return result
 
     def exit_reason(self, now_value, margin_ok: bool = True) -> Optional[str]:
+        """Return why the open pair should close, or ``None`` to keep holding.
+
+        Priority: stale data, margin, maximum holding, exit depth, loss
+        limit, profitable convergence, then divergence z-score; also
+        tracks the pair's maximum adverse z-score.
+        """
         if self.active_pair is None:
             return None
         now = decimal_value(now_value, "now")
@@ -1135,6 +1182,8 @@ class MidFrequencyEngine:
         return None
 
     def mark_closed(self) -> None:
+        """Clear the active pair once both exit legs are flat."""
+
         self.active_pair = None
 
     def snapshot(self) -> Mapping[str, object]:
@@ -1227,6 +1276,8 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the engine, bind both venue feeds and reset execution state."""
+
         self.rules = dict(self.p.rules or {})
         self.risk = (
             self.p.risk

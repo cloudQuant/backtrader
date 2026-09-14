@@ -659,6 +659,12 @@ def test_native_path_buy_is_rejected_before_the_fixture_client_write_boundary():
     assert client.submitted_orders == []
     assert client.cancelled_orders == []
     assert broker.get_param("market_data_only") is True
+    assert broker.get_market_data_only_audit() == {
+        "submit_rejected": 1,
+        "cancel_rejected": 0,
+        "batch_cancel_rejected": 0,
+        "total_rejected": 1,
+    }
 
 
 def test_sealed_candidate_conversion_reaches_read_only_broker_without_transport_write():

@@ -14,6 +14,7 @@ import copy
 import hashlib
 import json
 import math
+import os
 import threading
 import time
 from datetime import datetime, timezone
@@ -26,6 +27,7 @@ from backtrader.brokers.tickbroker import TickBroker
 from backtrader.channel import Event, EventPriority
 from backtrader.events import BarEvent, TickEvent
 from backtrader.feeds import ClockMapping, CtpCohortNow
+from backtrader.stores.btapistore import BtApiStore
 
 try:
     from .ctp_options_highfreq_strategy import CtpOptionsHighfreqStrategy, canonical_sha256
@@ -57,6 +59,11 @@ _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY = (
     "NOT_PROVEN: the adapter membrane and market_data_only Broker only observe "
     "adapter-routed attempts; they cannot attest raw external provider writes."
 )
+_INJECTED_STORE_WRITE_EVIDENCE_BOUNDARY = (
+    "NOT_PROVEN: public BtApiStore lifecycle and market-data-only state do not attest "
+    "raw external provider writes."
+)
+_BTAPI_STORE_TYPE = BtApiStore
 
 
 class RunnerConfigurationError(ValueError):
@@ -343,6 +350,8 @@ def effective_config(
 
 
 def load_fixture(config: Mapping[str, Any]) -> tuple[dict[str, Any], Path, str]:
+    """Load and schema-check the replay fixture, returning it with its SHA-256."""
+
     replay = _mapping(config["replay"], "replay")
     fixture_path = _within_example(HERE / str(replay["fixture"]))
     if not fixture_path.is_file():
@@ -655,6 +664,8 @@ class _ObservationTrustedNowProvider:
         observation_duration_seconds: float,
         observation_blocked: type[Exception],
     ) -> None:
+        """Freeze the validation inputs and clear the retained-failure slot."""
+
         self._provider = provider
         self._mapping = mapping
         self._expected_symbols = expected_symbols
@@ -667,9 +678,13 @@ class _ObservationTrustedNowProvider:
 
     @property
     def accepted_symbols(self) -> list[str]:
+        """List the expected legs that produced at least one trusted time."""
+
         return [symbol for symbol in self._expected_symbols if symbol in self._accepted_symbols]
 
     def __call__(self, tick: Any) -> CtpCohortNow:
+        """Validate one tick's trusted time; retain the first swallowed failure."""
+
         self.calls += 1
         try:
             self._validate_tick(tick)
@@ -782,6 +797,8 @@ class _ObservationLifecycleProbe(bt.Analyzer):
     params = (("on_started", None),)
 
     def start(self) -> None:
+        """Invoke the deadline callback once the strategy lifecycle is active."""
+
         on_started = self.p.on_started
         if not callable(on_started):
             raise RuntimeError("engineering observation lifecycle callback is unavailable")
@@ -838,6 +855,265 @@ def _require_feed_clock(feed_clock: Any, observation_blocked: type[Exception]) -
             "LIVE_FEED_CLOCK_REQUIRED",
             "engineering observation requires an injected monotonic feed clock",
         )
+
+
+_TRANSFER_IDLE_COUNTERS = (
+    "queue_depth",
+    "inflight",
+    "publications_pending",
+    "funding_queue_depth",
+    "funding_pending",
+    "broker_update_queue_depth",
+    "broker_update_dropped",
+)
+_TRANSFER_IDLE_FLAGS = (
+    "close_thread_alive",
+    "funding_inflight",
+    "funding_worker_alive",
+    "read_only_metadata_probe_active",
+    "restart_blocked_by_worker",
+    "restart_blocked_by_close",
+    "funding_restart_blocked_by_worker",
+    "risk_state_latched",
+)
+_TRANSFER_REQUIRED_TRUE_FLAGS = ("broker_update_conservation",)
+
+
+def _read_market_data_only_rejection_count(
+    health: Mapping[str, Any], observation_blocked: type[Exception]
+) -> int:
+    rejected = health.get("rejected_market_data_only")
+    if type(rejected) is not int or rejected < 0:
+        raise observation_blocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "Store market-data-only rejection audit is unavailable",
+        )
+    return rejected
+
+
+def _uses_canonical_store_rejection_recorder(store: Any) -> bool:
+    """Require the Store-owned aggregate audit implementation, not an override."""
+
+    canonical = getattr(_BTAPI_STORE_TYPE, "record_market_data_only_broker_rejection", None)
+    recorder = getattr(store, "record_market_data_only_broker_rejection", None)
+    return (
+        callable(canonical)
+        and callable(recorder)
+        and getattr(recorder, "__self__", None) is store
+        and getattr(recorder, "__func__", None) is canonical
+    )
+
+
+def _require_injected_store_transfer(
+    store: Any, *, ownership: Any, observation_blocked: type[Exception]
+) -> int:
+    """Accept one connected Store only after its lifecycle is explicitly transferred.
+
+    A CTP operator may use one Store for read-only bundle/session preflight,
+    then transfer that same connected Store to the strategy graph.  This
+    function deliberately does not unwrap ``store.sdk_api`` or reconstruct a
+    Store around it: doing so would create ambiguous client ownership and can
+    reconnect or close the live session twice.  A transfer is irrevocable for
+    this bounded run; the caller must not reuse or stop the Store afterwards.
+    """
+
+    if ownership != "transfer":
+        raise observation_blocked(
+            "STORE_OWNERSHIP_TRANSFER_REQUIRED",
+            "store= requires store_ownership='transfer' before observation may stop it",
+        )
+    if not isinstance(store, _BTAPI_STORE_TYPE):
+        raise observation_blocked(
+            "INJECTED_STORE_INTERFACE_REQUIRED",
+            "store= must be a real BtApiStore instance",
+        )
+    if str(getattr(store, "provider", "")).strip().lower() != "btapi":
+        raise observation_blocked(
+            "INJECTED_STORE_PROVIDER_REQUIRED",
+            "store= must use the btapi provider",
+        )
+    if getattr(store, "is_connected", False) is not True:
+        raise observation_blocked(
+            "CTP_SESSION_STORE_UNREADY",
+            "store= must already be connected before lifecycle transfer",
+        )
+    if any(
+        not callable(getattr(store, name, None))
+        for name in (
+            "getbroker",
+            "getdata",
+            "get_command_health",
+            "get_ctp_session_state",
+            "record_market_data_only_broker_rejection",
+            "stop",
+        )
+    ):
+        raise observation_blocked(
+            "INJECTED_STORE_INTERFACE_REQUIRED",
+            "store= must provide the public BtApiStore observation interface",
+        )
+    if not _uses_canonical_store_rejection_recorder(store):
+        raise observation_blocked(
+            "INJECTED_STORE_AUDIT_CONTRACT_REQUIRED",
+            "store= must retain the canonical BtApiStore rejected-write aggregate",
+        )
+    try:
+        health = store.get_command_health()
+    except Exception as error:
+        raise observation_blocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "store= command health could not be read before lifecycle transfer",
+        ) from error
+    if not isinstance(health, Mapping):
+        raise observation_blocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "store= command health is not a public mapping",
+        )
+    if health.get("shutdown_state") in {"PASS", "FAIL", "INCOMPLETE"}:
+        raise observation_blocked(
+            "INJECTED_STORE_TERMINATED",
+            "store= has a terminal shutdown state and cannot be transferred",
+        )
+    for field in _TRANSFER_IDLE_COUNTERS:
+        value = health.get(field)
+        if type(value) is not int or value != 0:
+            raise observation_blocked(
+                "INJECTED_STORE_BUSY",
+                "store= has queued or in-flight work and cannot be transferred",
+            )
+    if any(health.get(field) is not False for field in _TRANSFER_IDLE_FLAGS):
+        raise observation_blocked(
+            "INJECTED_STORE_BUSY",
+            "store= has an active worker/probe and cannot be transferred",
+        )
+    if any(health.get(field) is not True for field in _TRANSFER_REQUIRED_TRUE_FLAGS):
+        raise observation_blocked(
+            "INJECTED_STORE_BUSY",
+            "store= broker updates are not fully reconciled and cannot be transferred",
+        )
+    if health.get("last_error_code") != "":
+        raise observation_blocked(
+            "INJECTED_STORE_BUSY",
+            "store= has a prior command error and cannot be transferred",
+        )
+    if health.get("funding_last_refresh_error") is not None:
+        raise observation_blocked(
+            "INJECTED_STORE_BUSY",
+            "store= has a prior funding refresh error and cannot be transferred",
+        )
+    rejected = _read_market_data_only_rejection_count(health, observation_blocked)
+    if rejected != 0:
+        raise observation_blocked(
+            "ENGINEERING_STORE_WRITE_BASELINE_REQUIRED",
+            "store= recorded a market-data-only write rejection before transfer",
+        )
+    return rejected
+
+
+def _injected_store_write_guard(
+    store: Any,
+    *,
+    baseline: int,
+    ownership: str,
+    observation_blocked: type[Exception],
+) -> dict[str, Any]:
+    """Project the public local write fence for a transferred Store.
+
+    This intentionally reports a local lifecycle boundary rather than claiming
+    provider-side execution proof.  The session binding and market-data-only
+    Broker shutdown independently establish that this graph did not open its
+    order path.
+    """
+
+    try:
+        health = store.get_command_health()
+    except Exception as error:
+        raise observation_blocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "transferred Store command health could not be read",
+        ) from error
+    if (
+        not isinstance(health, Mapping)
+        or health.get("shutdown_state") != "PASS"
+        or health.get("accepting_openings") is not False
+    ):
+        raise observation_blocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "transferred Store did not reach a complete shutdown state",
+        )
+    rejected = _read_market_data_only_rejection_count(health, observation_blocked)
+    if rejected < baseline:
+        raise observation_blocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "transferred Store market-data-only health is invalid",
+        )
+    rejected_delta = rejected - baseline
+    return {
+        "source": "BtApiStore.get_command_health",
+        "ownership": ownership,
+        "forbidden_write_attempts": (
+            {"store_market_data_only_rejected": rejected_delta} if rejected_delta else {}
+        ),
+        "market_data_only": "PROVEN_BY_SESSION_BINDING_AND_BROKER",
+        "rejected_market_data_only": {
+            "baseline": baseline,
+            "final": rejected,
+            "delta": rejected_delta,
+        },
+    }
+
+
+def _broker_write_guard(broker: Any, observation_blocked: type[Exception]) -> dict[str, Any]:
+    getter = getattr(broker, "get_market_data_only_audit", None)
+    if not callable(getter):
+        raise observation_blocked(
+            "BROKER_WRITE_AUDIT_UNAVAILABLE",
+            "market-data-only Broker audit is unavailable",
+        )
+    try:
+        audit = getter()
+    except Exception as error:
+        raise observation_blocked(
+            "BROKER_WRITE_AUDIT_UNAVAILABLE",
+            "market-data-only Broker audit could not be read",
+        ) from error
+    fields = ("submit_rejected", "cancel_rejected", "batch_cancel_rejected", "total_rejected")
+    if (
+        not isinstance(audit, Mapping)
+        or any(type(audit.get(field)) is not int or audit[field] < 0 for field in fields)
+        or audit["total_rejected"] != sum(audit[field] for field in fields[:-1])
+    ):
+        raise observation_blocked(
+            "BROKER_WRITE_AUDIT_UNAVAILABLE",
+            "market-data-only Broker audit is invalid",
+        )
+    total = audit["total_rejected"]
+    return {
+        "source": "BtApiBroker.get_market_data_only_audit",
+        **{field: audit[field] for field in fields},
+        "forbidden_write_attempts": ({"broker_market_data_only_rejected": total} if total else {}),
+    }
+
+
+def _combine_write_guards(
+    *guards: Mapping[str, Any], observation_blocked: type[Exception]
+) -> dict[str, int]:
+    combined: dict[str, int] = {}
+    for guard in guards:
+        attempts = guard.get("forbidden_write_attempts")
+        if not isinstance(attempts, Mapping):
+            raise observation_blocked(
+                "INJECTED_STORE_HEALTH_UNAVAILABLE",
+                "market-data-only write audit is invalid",
+            )
+        for name, value in attempts.items():
+            if type(value) is not int or value <= 0:
+                raise observation_blocked(
+                    "INJECTED_STORE_HEALTH_UNAVAILABLE",
+                    "market-data-only write audit is invalid",
+                )
+            combined[str(name)] = combined.get(str(name), 0) + value
+    return combined
 
 
 def _observation_shutdown_summary(
@@ -1088,7 +1364,9 @@ def _require_ctp_session_binding(
 def run_engineering_observation(
     config: Mapping[str, Any],
     *,
-    api: Any,
+    api: Any = None,
+    store: Any = None,
+    store_ownership: str | None = None,
     environment_profile: str,
     run_seconds: float,
     feed_clock: Any,
@@ -1098,9 +1376,11 @@ def run_engineering_observation(
     """Run one bounded, injected, zero-write Set-2 strategy observation.
 
     This is deliberately not a CLI mode and does not load credentials.  A
-    separately governed CTP owner must inject both the already-created API and
-    the calibrated clock evidence.  Successful completion proves only that
-    this strategy callback chain observed live-shaped data in a forced
+    separately governed CTP owner injects exactly one lifecycle root: an API,
+    or a connected Store whose lifecycle it explicitly transfers after a
+    read-only preflight.  The Store path never reads ``store.sdk_api`` and
+    never creates a second Store.  Successful completion proves only that this
+    strategy callback chain observed live-shaped data in a forced
     market-data-only session; it cannot establish G3, G4, profitability, or
     HFT admission.
     """
@@ -1122,9 +1402,19 @@ def run_engineering_observation(
             _ObservationReadOnlyApi,
         )
 
-    if api is None:
+    if api is not None and store is not None:
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_STORE_INPUT",
+            "engineering observation accepts exactly one of api= or store=",
+        )
+    if api is None and store is None:
         raise EngineeringObservationBlocked(
             "SDK_NOT_INJECTED", "engineering observation requires an explicit API object"
+        )
+    if store is None and store_ownership is not None:
+        raise EngineeringObservationBlocked(
+            "ENGINEERING_STORE_INPUT",
+            "store_ownership is valid only when store= is supplied",
         )
     if environment_profile != SECOND_SET_ENGINEERING_PROFILE:
         raise EngineeringObservationBlocked(
@@ -1160,6 +1450,7 @@ def run_engineering_observation(
         observation_duration_seconds=seconds,
         observation_blocked=EngineeringObservationBlocked,
     )
+    injected_store = store
     # This ceiling starts before the native graph exists.  A slow Store,
     # Broker, Feed, or session binding must consume the same one-hour budget
     # as strategy observation; it cannot earn a fresh full hour afterwards.
@@ -1179,6 +1470,7 @@ def run_engineering_observation(
     broker: Any | None = None
     cerebro: Any | None = None
     feeds: list[Any] = []
+    store_write_baseline: int | None = None
 
     def request_lifecycle_deadline_stop() -> None:
         lifecycle_deadline_stop_requested.set()
@@ -1230,13 +1522,40 @@ def run_engineering_observation(
     construction_shutdown_error: EngineeringObservationBlocked | None = None
     try:
         require_lifecycle_budget()
-        guarded_api = _ObservationReadOnlyApi(api)
-        store = bt.stores.BtApiStore(
-            provider="btapi",
-            api=guarded_api,
-            config={"execution_config": {"market_data_only": True}},
-            autostart=False,
-        )
+        if injected_store is None:
+            guarded_api = _ObservationReadOnlyApi(api)
+            store = bt.stores.BtApiStore(
+                provider="btapi",
+                api=guarded_api,
+                config={"execution_config": {"market_data_only": True}},
+                autostart=False,
+            )
+            health = store.get_command_health()
+            if not isinstance(health, Mapping):
+                raise EngineeringObservationBlocked(
+                    "INJECTED_STORE_HEALTH_UNAVAILABLE",
+                    "new Store command health is unavailable",
+                )
+            store_write_baseline = _read_market_data_only_rejection_count(
+                health,
+                EngineeringObservationBlocked,
+            )
+            if store_write_baseline != 0:
+                raise EngineeringObservationBlocked(
+                    "ENGINEERING_STORE_WRITE_BASELINE_REQUIRED",
+                    "new Store recorded a market-data-only write rejection",
+                )
+        else:
+            store_write_baseline = _require_injected_store_transfer(
+                injected_store,
+                ownership=store_ownership,
+                observation_blocked=EngineeringObservationBlocked,
+            )
+            # Ownership transfers immediately before graph construction.  Do
+            # not unwrap the Store's managed SDK API or reconstruct a Store
+            # from it: both operations can create an ambiguous second client
+            # lifecycle around one live CTP session.
+            store = injected_store
         require_lifecycle_budget()
         broker = store.getbroker(
             market_data_only=True,
@@ -1253,6 +1572,34 @@ def run_engineering_observation(
         with lifecycle_lock:
             cerebro_ref.append(cerebro)
         cerebro.setbroker(broker)
+        if os.getenv("TRADE_LOGGER_CONSOLE", "1").strip().lower() not in (
+            "0",
+            "false",
+            "no",
+            "off",
+        ):
+            # Local-only operational log set: real-time console plus JSON line
+            # files under this example's ignored reports/ directory. It adds
+            # no external request and never touches the observation contract.
+            console_dir = (
+                HERE
+                / "reports"
+                / "trade-logger"
+                / datetime.now().strftime("%Y%m%d_%H%M%S")
+            )
+            cerebro.addobserver(
+                bt.observers.TradeLogger,
+                obsname="trade_logger",
+                log_dir=str(console_dir),
+                log_format="json",
+                log_to_console=True,
+                log_ticks=True,
+                log_bars=True,
+                log_positions=False,
+                log_indicators=False,
+                log_value=False,
+                log_position_snapshot=False,
+            )
         require_lifecycle_budget()
         for symbol, role in zip(symbols, ("future", "call", "put")):
             feed = store.getdata(
@@ -1447,7 +1794,40 @@ def run_engineering_observation(
         )
     shutdown = _observation_shutdown_summary(broker, store, EngineeringObservationBlocked)
     trusted_now.require_complete()
-    write_guard = guarded_api.audit()
+    if store_write_baseline is None:
+        raise EngineeringObservationBlocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "Store write-audit baseline is unavailable",
+        )
+    membrane_guard = (
+        guarded_api.audit() if guarded_api is not None else {"forbidden_write_attempts": {}}
+    )
+    store_guard = _injected_store_write_guard(
+        store,
+        baseline=store_write_baseline,
+        ownership=("INJECTED_STORE" if injected_store is not None else "ADAPTER_OWNED_STORE"),
+        observation_blocked=EngineeringObservationBlocked,
+    )
+    broker_guard = _broker_write_guard(broker, EngineeringObservationBlocked)
+    # The Store-scoped delta already includes every Broker bound to this
+    # Store, including this graph's Broker.  Keep the Broker result as an
+    # attribution breakdown without counting one rejected callback twice.
+    forbidden_write_attempts = _combine_write_guards(
+        membrane_guard,
+        store_guard,
+        observation_blocked=EngineeringObservationBlocked,
+    )
+    write_guard = {
+        **dict(membrane_guard),
+        "forbidden_write_attempts": forbidden_write_attempts,
+        "store_market_data_only": store_guard,
+        "broker_market_data_only": broker_guard,
+    }
+    write_evidence_boundary = (
+        _INJECTED_STORE_WRITE_EVIDENCE_BOUNDARY
+        if injected_store is not None
+        else _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY
+    )
     if write_guard["forbidden_write_attempts"]:
         raise EngineeringObservationBlocked(
             "FORBIDDEN_WRITE_ATTEMPT", "engineering observation attempted an API write"
@@ -1488,6 +1868,11 @@ def run_engineering_observation(
         "mode": "shadow",
         "purpose": "observation",
         "requested_environment_profile": str(environment_profile),
+        "store_ownership": (
+            "INJECTED_STORE_LIFECYCLE_TRANSFERRED"
+            if injected_store is not None
+            else "ADAPTER_OWNED_STORE_FROM_API"
+        ),
         "session_binding": session_identity[0],
         "config_sha256": _canonical_hash(effective),
         "bundle_sha256": bundle_hash,
@@ -1526,7 +1911,7 @@ def run_engineering_observation(
         "shutdown": shutdown,
         "adapter_scoped_write_attempts": adapter_scoped_write_attempts,
         "external_trade_writes": "NOT_PROVEN",
-        "external_trade_writes_basis": _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY,
+        "external_trade_writes_basis": write_evidence_boundary,
         "pnl_fields_emitted": False,
         "gates": {
             "G3_first_set_read_only": ENGINEERING_OBSERVATION_G3_STATUS,
@@ -1634,6 +2019,8 @@ def run_replay(
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser for the frozen, replay-only modes."""
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--mode", choices=sorted(MODES))
@@ -1644,6 +2031,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run one fail-closed replay and print the JSON report; return exit status."""
+
     args = build_parser().parse_args(argv)
     try:
         config, _ = load_config(args.config)

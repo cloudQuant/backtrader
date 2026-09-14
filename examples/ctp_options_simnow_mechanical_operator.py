@@ -122,6 +122,7 @@ class MechanicalBlocked(RuntimeError):
     """A fail-closed mechanical-cycle precondition."""
 
     def __init__(self, reason: str):
+        """Attach the stable machine-readable ``reason`` code."""
         super().__init__(reason)
         self.reason = reason
 
@@ -135,6 +136,8 @@ def _require_mechanical_execution_enabled() -> None:
 
 @dataclass(frozen=True)
 class MechanicalConfiguration:
+    """Validated mechanical-cycle inputs; secrets stay only in the env mapping."""
+
     environment: str
     product_id: str
     exchange_id: str
@@ -768,9 +771,11 @@ class _MechanicalOwner:
     """Minimal notification sink; the drive loop drains the broker queue."""
 
     def notify_order(self, order: Any) -> None:  # pragma: no cover - sink
+        """Discard the notification; the drive loop drains the broker queue."""
         del order
 
     def notify_trade(self, trade: Any) -> None:  # pragma: no cover - sink
+        """Discard the notification; the drive loop drains the broker queue."""
         del trade
 
 
@@ -1307,6 +1312,7 @@ def run_mechanical_cycle(
 
 
 def load_authorization_secret(env: Mapping[str, str]) -> str:
+    """Return the stripped approval HMAC secret, fail-closed when under 32 chars."""
     secret = str(env.get("ITER_APPROVAL_HMAC_SECRET") or "").strip()
     if len(secret) < 32:
         raise MechanicalBlocked("ITER_APPROVAL_HMAC_SECRET_REQUIRED")
@@ -1314,6 +1320,7 @@ def load_authorization_secret(env: Mapping[str, str]) -> str:
 
 
 def runtime_environment_profile(store: BtApiStore) -> str:
+    """Return the live session's environment profile; fail closed when absent."""
     state = store.get_ctp_session_state()
     profile = str(state.get("environment_profile") or "").strip()
     if not profile:
@@ -1413,6 +1420,11 @@ def _as_operator_config(config: MechanicalConfiguration) -> OperatorConfiguratio
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse the CLI, run one governed mechanical cycle, and emit its report.
+
+    Returns 0 only for ``MECHANICAL_PASS``; any mechanical/operator
+    precondition emits a ``BLOCKED`` report and exit code 2 (fail-closed).
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", type=Path, default=DEFAULT_ENV_PATH)
     parser.add_argument(

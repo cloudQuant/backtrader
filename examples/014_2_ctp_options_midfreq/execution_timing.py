@@ -188,6 +188,7 @@ class ScopeIdentity:
 
     @property
     def key(self) -> Tuple[str, ...]:
+        """The complete frozen scope identity tuple, from candidate to mapping."""
         return (
             self.candidate_id,
             self.basket_id,
@@ -238,6 +239,7 @@ class ClockMapping:
         _bool(self.synthetic, "synthetic")
 
     def map_wall_to_mono_ns(self, wall_utc: datetime) -> int:
+        """Translate a UTC wall time into this mapping's monotonic domain."""
         wall = _aware(wall_utc, "wall_utc")
         delta = wall - self.anchor_wall_utc.astimezone(UTC)
         return (
@@ -248,6 +250,7 @@ class ClockMapping:
         )
 
     def validate_pair(self, wall_utc: datetime, monotonic_ns: int) -> None:
+        """Reject a wall/monotonic pair outside validity or beyond the error bound."""
         observed = _ns(monotonic_ns, "monotonic_ns")
         assert observed is not None
         expected = self.map_wall_to_mono_ns(wall_utc)
@@ -365,30 +368,37 @@ class TimingPolicy:
 
     @property
     def leg_timeout_ns(self) -> int:
+        """Leg timeout converted to nanoseconds."""
         return self.leg_timeout_seconds * NS_PER_SECOND
 
     @property
     def basket_timeout_ns(self) -> int:
+        """Basket timeout converted to nanoseconds."""
         return self.basket_timeout_seconds * NS_PER_SECOND
 
     @property
     def cancel_timeout_ns(self) -> int:
+        """Cancel timeout converted to nanoseconds."""
         return self.cancel_timeout_seconds * NS_PER_SECOND
 
     @property
     def recovery_timeout_ns(self) -> int:
+        """Recovery timeout converted to nanoseconds."""
         return self.recovery_timeout_seconds * NS_PER_SECOND
 
     @property
     def minimum_hold_ns(self) -> int:
+        """Minimum hold window converted to nanoseconds."""
         return self.minimum_hold_seconds * NS_PER_SECOND
 
     @property
     def maximum_hold_ns(self) -> int:
+        """Maximum hold window converted to nanoseconds."""
         return self.maximum_hold_seconds * NS_PER_SECOND
 
     @property
     def idle_interval_ns(self) -> int:
+        """Idle cadence interval converted to nanoseconds."""
         return self.idle_interval_ms * 1_000_000
 
 
@@ -423,6 +433,7 @@ class ExecutionEvent:
 
     @property
     def fingerprint(self) -> Tuple[Any, ...]:
+        """Every public field as one tuple; a repeated event_id must repeat it exactly."""
         return (
             self.event_id,
             self.kind,
@@ -542,12 +553,14 @@ class ExecutionFacts:
 
     @property
     def possible_exposure_unknown(self) -> bool:
+        """True when the exposure cannot be bounded from these facts."""
         return (
             self.unknown or self.possible_exposure_qty is None or self.reported_phase == "UNKNOWN"
         )
 
     @property
     def scope_key(self) -> Tuple[str, ...]:
+        """The frozen identity key of the scope that owns these facts."""
         return self.scope.key
 
     @property
@@ -645,6 +658,8 @@ class MinuteInput:
 
 @dataclass(frozen=True)
 class DeadlineProjection:
+    """One named deadline: its origin, timeout, absolute expiry, and expiry state."""
+
     name: str
     origin_ns: Optional[int]
     timeout_ns: int
@@ -654,6 +669,8 @@ class DeadlineProjection:
 
 @dataclass(frozen=True)
 class TimingToken:
+    """A single-invocation timing token whose permission defaults to NOT_PROVEN."""
+
     token_id: str
     candidate_id: str
     minute_id: str
@@ -668,6 +685,7 @@ class TimingToken:
     execution_permission: str = "NOT_PROVEN"
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize the token into a plain JSON-friendly dict."""
         return {
             "token_id": self.token_id,
             "candidate_id": self.candidate_id,
@@ -686,6 +704,8 @@ class TimingToken:
 
 @dataclass(frozen=True)
 class TimingProjection:
+    """The immutable result of one timing projection over supplied facts."""
+
     reason: str
     scope_key: Tuple[str, ...]
     reported_phase: str
@@ -707,6 +727,7 @@ class TimingProjection:
     time_facts: Mapping[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Serialize the projection, nested deadlines, and token to plain dicts."""
         return {
             "reason": self.reason,
             "scope_key": list(self.scope_key),
@@ -781,6 +802,8 @@ class CalendarEvidence:
 
 @dataclass(frozen=True)
 class CalendarProjection:
+    """Fail-closed entry, risk-exit, and handover verdicts with one reason."""
+
     entry_allowed: bool
     risk_exit_due: bool
     handover_due: bool
@@ -793,6 +816,12 @@ def evaluate_calendar(
     expected_rules_hash: str,
     now_ns: Optional[int] = None,
 ) -> CalendarProjection:
+    """Derive entry, risk-exit, and handover verdicts from explicit calendar facts.
+
+    Missing or stale evidence, a rules-hash mismatch, near maturity, and
+    session or exercise/delivery cutoffs each return a distinct fail-closed
+    reason instead of raising.
+    """
     if evidence is None:
         return CalendarProjection(False, True, True, "CALENDAR_EVIDENCE_MISSING")
     if evidence.rules_hash != expected_rules_hash:
@@ -871,6 +900,11 @@ class TimingProjector:
         policy: TimingPolicy,
         audit_capacity: int = 256,
     ) -> None:
+        """Bind one scope, mapping, and policy, then initialize bounded history.
+
+        Scope/mapping identity, generation, rules, and synthetic provenance
+        must agree; mismatches are rejected here, not during projection.
+        """
         if not isinstance(scope, ScopeIdentity) or not isinstance(mapping, ClockMapping):
             raise TimingContractError("scope and mapping are required typed values")
         if mapping.mapping_id != scope.mapping_id or mapping.clock_domain != scope.clock_domain:
@@ -906,14 +940,17 @@ class TimingProjector:
 
     @property
     def clock_fault(self) -> bool:
+        """True once any clock fault has latched."""
         return self._clock_fault is not None
 
     @property
     def timing_fault(self) -> Optional[str]:
+        """The latched clock-fault reason, or None while timing is still sound."""
         return self._clock_fault
 
     @property
     def audit(self) -> Tuple[Mapping[str, Any], ...]:
+        """A frozen tuple of shallow-copied audit records in append order."""
         return tuple(MappingProxyType(dict(item)) for item in self._audit)
 
     def _latch(self, reason: str) -> None:
@@ -1257,6 +1294,12 @@ class TimingProjector:
         minute: Optional[MinuteInput] = None,
         calendar: Optional[CalendarEvidence] = None,
     ) -> TimingProjection:
+        """Project one timing verdict from typed facts and a clock observation.
+
+        Scope mismatch, untrusted facts, a latched or newly observed clock
+        fault, and evidence failures each return a blocked projection with
+        a distinct reason instead of raising.
+        """
         if not isinstance(facts, ExecutionFacts) or not isinstance(now, ClockObservation):
             raise TimingContractError(
                 "project requires typed execution facts and clock observation"
@@ -1727,6 +1770,7 @@ class TimingProjector:
         self._audit.append({"kind": "SCOPE_RESET", "scope": list(scope.key)})
 
     def build_report(self) -> Dict[str, Any]:
+        """Assemble a summary report; execution permission stays NOT_PROVEN."""
         return {
             "scope": list(self.scope.key),
             "clock_fault": self._clock_fault,

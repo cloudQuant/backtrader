@@ -128,6 +128,7 @@ class LiveMultiSymbolStrategy(bt.Strategy):
     params = (("symbols", []),)
 
     def __init__(self):
+        """Initialize per-symbol event counters and latest-payload caches."""
         self.ticks_received = defaultdict(int)
         self.orderbooks_received = defaultdict(int)
         self.bars_received = defaultdict(int)
@@ -139,6 +140,7 @@ class LiveMultiSymbolStrategy(bt.Strategy):
         self.start_time = time.time()
 
     def notify_tick(self, tick):
+        """Count and cache every live tick; print a one-line quote snapshot."""
         symbol = tick.symbol
         data = tick.data
         self.ticks_received[symbol] += 1
@@ -150,6 +152,7 @@ class LiveMultiSymbolStrategy(bt.Strategy):
             )
 
     def notify_orderbook(self, orderbook):
+        """Count orderbook updates; print best bid/ask and spread every 5th event."""
         symbol = orderbook.symbol
         data = orderbook.data
         self.orderbooks_received[symbol] += 1
@@ -166,6 +169,7 @@ class LiveMultiSymbolStrategy(bt.Strategy):
             )
 
     def notify_bar(self, bar):
+        """Count bars and print a one-line OHLCV summary for each closed bar."""
         symbol = bar.symbol
         data = bar.data
         self.bars_received[symbol] += 1
@@ -177,6 +181,7 @@ class LiveMultiSymbolStrategy(bt.Strategy):
         )
 
     def next(self):
+        """Aggregate per-strategy-clock statistics over symbols with live data."""
         self.next_calls += 1
         current_symbols = {
             symbol

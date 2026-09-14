@@ -282,13 +282,16 @@ class QuoteSnapshot:
 
     @property
     def mid(self) -> Decimal:
+        """Return the decimal bid/ask midpoint."""
         return (self.bid + self.ask) / Decimal("2")
 
     @property
     def imbalance(self) -> Decimal:
+        """Return the signed one-level quantity imbalance in [-1, 1]."""
         return (self.bid_qty - self.ask_qty) / (self.bid_qty + self.ask_qty)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-safe view of this quote snapshot (decimal fields as str/float)."""
         return {
             "symbol": self.symbol,
             "event_time": self.event_time.isoformat(),
@@ -697,9 +700,12 @@ class MinuteFeatures:
 
     @property
     def tradable(self) -> bool:
+        """Alias for signal readiness used by downstream gating."""
         return self.signal_ready
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-safe view of this frozen minute feature record."""
+
         def number(value: Optional[Decimal]) -> Optional[float]:
             return None if value is None else float(value)
 

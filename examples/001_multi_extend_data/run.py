@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""策略运行脚本 - 可转债双低因子多品种策略"""
+"""Strategy runner - convertible-bond dual-low factor across multiple products."""
 
 import os
 import datetime
@@ -11,21 +11,21 @@ import backtrader as bt
 import pandas as pd
 from backtrader.comminfo import ComminfoFuturesPercent
 
-# 导入策略类
+# Import the strategy class
 from strategy_multi_extend_data import BondConvertTwoFactor, ExtendPandasFeed
 
 BASE_DIR = Path(__file__).resolve().parent
 
 
 def load_config():
-    """从config.yaml加载配置"""
+    """Load configuration from config.yaml."""
     config_path = BASE_DIR / "config.yaml"
     with open(config_path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
 def resolve_data_path(filename: str) -> Path:
-    """查找数据文件路径"""
+    """Locate the data file paths."""
     search_paths = []
 
     # 1. Current directory
@@ -59,7 +59,7 @@ def resolve_data_path(filename: str) -> Path:
 
 
 def load_index_data(csv_file):
-    """加载指数数据"""
+    """Load the index data."""
     df = pd.read_csv(csv_file)
     df.columns = [
         "symbol",
@@ -84,7 +84,7 @@ def load_index_data(csv_file):
 
 
 def clean_data():
-    """清洗并准备可转债数据"""
+    """Clean and prepare the convertible-bond data."""
     df = pd.read_csv(resolve_data_path("bond_merged_all_data.csv"))
     df.columns = [
         "symbol",
@@ -114,20 +114,20 @@ def clean_data():
 
 
 def run(max_bonds=None):
-    """运行策略回测"""
+    """Run the strategy backtest."""
     config = load_config()
 
-    # 创建cerebro
+    # Create the Cerebro engine
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 添加策略（从config加载参数）
+    # Add the strategy (params loaded from config)
     params = config.get('params', {})
     cerebro.addstrategy(BondConvertTwoFactor, **params)
 
 
 
 
-    # 添加指数数据
+    # Add the index data
     print("Loading index data...")
     index_data = pd.read_csv(resolve_data_path("bond_index_000000.csv"))
     index_data.index = pd.to_datetime(index_data["datetime"])
@@ -138,7 +138,7 @@ def run(max_bonds=None):
     feed = ExtendPandasFeed(dataname=index_data)
     cerebro.adddata(feed, name="000000")
 
-    # 清洗数据并添加可转债数据
+    # Clean the data and add the convertible-bond feeds
     print("\nLoading convertible bond data...")
     datas = clean_data()
     print(f"Total {len(datas)} convertible bonds")
@@ -155,7 +155,7 @@ def run(max_bonds=None):
             if added_count > 10:
                 break
 
-            # 添加交易手续费
+            # Add trading commissions
             comm = ComminfoFuturesPercent(commission=0.0001, margin=0.1, mult=1)
             cerebro.broker.addcommissioninfo(comm, name=symbol)
 
@@ -164,17 +164,17 @@ def run(max_bonds=None):
 
     print(f"\nSuccessfully added {added_count} convertible bonds")
 
-    # 添加资金
+    # Set the starting cash
     bt_config = config.get('backtest', {})
     cerebro.broker.setcash(bt_config.get('initial_cash', 100000000.0))
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
-    # 日志配置
+    # Logging configuration
     log_dir = os.path.join(os.path.dirname(__file__), 'logs')
     cerebro.addobserver(
         bt.observers.TradeLogger,
@@ -182,10 +182,10 @@ def run(max_bonds=None):
         log_trades=True,
         log_positions=True,
         log_data=True,
-        log_indicators=True,       # 在data日志中包含策略指标
+        log_indicators=True,       # Include strategy indicators in the data log
         log_dir=log_dir,
         log_file_enabled=True,
-        file_format='log',         # 默认log(tab分隔)，也可选'csv'
+        file_format='log',         # Default log is tab-separated; 'csv' is also available
         # MySQL disabled by default - uncomment to enable
         # mysql_enabled=True,
         # mysql_host='localhost',
@@ -196,18 +196,18 @@ def run(max_bonds=None):
         # mysql_table_prefix='bt',
     )
 
-    # 运行回测
+    # Run the backtest
     print("\nStarting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取结果
+    # Collect the results
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis()["sharperatio"]
     annual_return = strat.analyzers.my_returns.get_analysis()["rnorm"]
     max_drawdown = strat.analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
     trade_num = strat.analyzers.my_trade_analyzer.get_analysis()["total"]["total"]
 
-    # 打印结果
+    # Print the results
     print("\n" + "=" * 60)
     print("Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
@@ -217,7 +217,7 @@ def run(max_bonds=None):
     print(f"  trade_num: {trade_num}")
     print("=" * 60)
 
-    # **关键**：与原test文件完全相同的断言
+    # **Key**: assertions identical to the original test file
     assert strat.bar_num == 1885, f"Expected bar_num=1885, got {strat.bar_num}"
     assert trade_num == 12, f"Expected trade_num=12, got {trade_num}"
     assert abs(sharpe_ratio - (-6.232087920949364)) < 1e-6, f"Expected sharpe_ratio=-6.232087920949364, got {sharpe_ratio}"

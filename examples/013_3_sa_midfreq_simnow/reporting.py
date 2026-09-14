@@ -50,18 +50,22 @@ class EvidenceWriteError(RuntimeError):
 
 
 def canonical_json(value: Any) -> str:
+    """Serialize ``value`` to canonical JSON with sorted keys for stable hashing."""
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
 
 
 def sha256_bytes(value: bytes) -> str:
+    """Return the SHA-256 hex digest of ``value``."""
     return hashlib.sha256(value).hexdigest()
 
 
 def sha256_json(value: Any) -> str:
+    """Hash the canonical JSON encoding of ``value`` with SHA-256."""
     return sha256_bytes(canonical_json(value).encode("utf-8"))
 
 
 def sha256_file(path: Path | str) -> str:
+    """Return the SHA-256 hex digest of a file, read in 1 MiB chunks."""
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -70,6 +74,7 @@ def sha256_file(path: Path | str) -> str:
 
 
 def source_tree_hash(paths: Iterable[Path | str]) -> str:
+    """Hash a sorted name-plus-digest manifest of the given source files."""
     records = []
     for raw_path in sorted((Path(value) for value in paths), key=lambda item: str(item)):
         records.append({"name": raw_path.name, "sha256": sha256_file(raw_path)})
@@ -77,6 +82,7 @@ def source_tree_hash(paths: Iterable[Path | str]) -> str:
 
 
 def account_fingerprint(broker_id: str, investor_id: str) -> str:
+    """Derive a non-reversible ``acct_`` fingerprint, or "" if identifiers are missing."""
     if not broker_id or not investor_id:
         return ""
     return "acct_" + sha256_bytes(f"{broker_id}:{investor_id}".encode("utf-8"))[:16]
@@ -111,6 +117,7 @@ def redact(value: Any, *, secret_values: Iterable[str] = ()) -> Any:
 
 
 def atomic_write_json(path: Path, payload: Any) -> None:
+    """Write ``payload`` as pretty JSON through fsynced atomic file replacement."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
     try:
@@ -129,6 +136,7 @@ def atomic_write_json(path: Path, payload: Any) -> None:
 
 
 def atomic_write_text(path: Path, text: str) -> None:
+    """Write ``text`` through fsynced atomic file replacement."""
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
     try:
@@ -178,6 +186,7 @@ class EvidenceWriter:
         audit_flush_interval: float = 0.05,
         max_rotated_files_per_stream: int = 128,
     ) -> None:
+        """Create the directory, validate limits, and start the background writer."""
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.secret_values = tuple(str(item) for item in secret_values if str(item))
@@ -336,6 +345,12 @@ class EvidenceWriter:
                 self._condition.notify_all()
 
     def write_json(self, name: str, payload: Any) -> Path:
+        """Write one redacted JSON artifact atomically into the evidence directory.
+
+        ``daily_report.json`` additionally emits a markdown companion built
+        from the same sanitized payload.  Any failure latches the evidence
+        lane before re-raising.
+        """
         safe = redact(payload, secret_values=self.secret_values)
         path = self.directory / name
         try:
@@ -376,6 +391,13 @@ class EvidenceWriter:
         return path
 
     def append(self, stream: str, payload: Any) -> Path:
+        """Append one redacted record to an evidence ``.jsonl`` stream.
+
+        Critical streams are fsynced before returning; every other stream
+        enters the bounded background audit lane.  Queue overflow, lost
+        disk capacity, or a closed writer raises and latches the lane
+        permanently instead of dropping evidence silently.
+        """
         if stream not in self.STREAMS:
             raise ValueError(f"unsupported evidence stream {stream!r}")
         if self._closed or self._stop_requested:
@@ -418,6 +440,7 @@ class EvidenceWriter:
 
     @property
     def pending_counts(self) -> dict[str, int]:
+        """Snapshot the per-stream count of accepted but not yet fsynced records."""
         with self._condition:
             return dict(self._pending_counts)
 
@@ -434,6 +457,11 @@ class EvidenceWriter:
             return True
 
     def close(self, timeout: float = 30.0) -> bool:
+        """Drain the audit lane, stop the writer thread, and report success.
+
+        Returns ``True`` only when draining finished within ``timeout``
+        and no record was ever dropped.
+        """
         drained = self.drain(timeout)
         with self._condition:
             self._stop_requested = True
@@ -463,6 +491,7 @@ class EvidenceWriter:
         fee_source: str,
         hypothetical_fills: bool,
     ) -> dict[str, Any]:
+        """Build, persist, and return the run manifest with hashes and runtime context."""
         payload = {
             "schema_version": "iter22.manifest.v1",
             "iteration": 22,
@@ -494,6 +523,12 @@ class EvidenceWriter:
         return payload
 
     def finalize_manifest(self, manifest: dict[str, Any], exit_status: str) -> None:
+        """Close the writer and rewrite the manifest with final evidence health.
+
+        Any latched failure downgrades ``exit_status`` to
+        ``FAIL_EVIDENCE_INCOMPLETE`` and demotes PASS gates to INCOMPLETE,
+        so incomplete evidence is never reported as a clean run.
+        """
         healthy = self.close()
         updated = dict(manifest)
         evidence_complete = bool(healthy and self.opening_allowed)

@@ -69,6 +69,8 @@ def _contained_config_path(path: Path | str) -> Path:
 
 
 def load_config(path: Path | str = EXAMPLE_DIR / "config.yaml") -> Dict[str, Any]:
+    """Load the contained YAML config as a mapping; reject anything else."""
+
     try:
         loaded = yaml.safe_load(_contained_config_path(path).read_text(encoding="utf-8"))
     except OSError as error:
@@ -264,7 +266,9 @@ def run_engineering_smoke(raw_config: Dict[str, Any], *, api: Any = None) -> Dic
 def run_engineering_observation(
     raw_config: Dict[str, Any],
     *,
-    api: Any,
+    api: Any = None,
+    store: Any = None,
+    store_ownership: Any = None,
     environment_profile: str,
     run_seconds: float,
     feed_clock: Any,
@@ -273,11 +277,13 @@ def run_engineering_observation(
 ) -> Dict[str, Any]:
     """Run the explicit, bounded Set-2 zero-write strategy observation.
 
-    This is intentionally an API-only entry point.  It does not load ``.env``,
-    choose an SDK, or expose a CLI path that could accidentally connect with
-    ambient credentials.  Its runtime mode is explicit and distinct from the
-    local replay fixture, while the outer report remains a ``shadow``
-    observation so it cannot be confused with G3/G4 execution.
+    This does not load ``.env``, choose an SDK, or expose a CLI path that could
+    accidentally connect with ambient credentials.  Callers may inject either
+    an API object or one governed Store whose lifecycle they explicitly
+    transfer; the adapter rejects mixed ownership.  Its runtime mode is
+    explicit and distinct from the local replay fixture, while the outer
+    report remains a ``shadow`` observation so it cannot be confused with
+    G3/G4 execution.
     """
 
     if not isinstance(raw_config, dict) or raw_config.get("mode") not in {
@@ -298,6 +304,8 @@ def run_engineering_observation(
     return _run_observation(
         config=config,
         api=api,
+        store=store,
+        store_ownership=store_ownership,
         environment_profile=environment_profile,
         run_seconds=run_seconds,
         feed_clock=feed_clock,
@@ -340,6 +348,8 @@ def _arguments() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Dispatch the offline CLI, print one JSON report, and return exit status."""
+
     args = _arguments()
     try:
         raw_config = load_config(args.config)

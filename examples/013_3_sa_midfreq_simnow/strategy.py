@@ -49,10 +49,14 @@ def _epoch(value: Any) -> float:
 
 
 class SystemClock:
+    """Wall and monotonic clock seam, replaceable for deterministic tests."""
+
     def utc_now(self) -> float:
+        """Return the current wall-clock UTC epoch in seconds."""
         return time.time()
 
     def monotonic_now(self) -> float:
+        """Return the current monotonic clock in seconds."""
         return time.monotonic()
 
 
@@ -149,9 +153,11 @@ class RuntimeControl:
     """Signal-safe shared request inspected from strategy callbacks."""
 
     def __init__(self) -> None:
+        """Initialize with no stop reason latched."""
         self.stop_reason = ""
 
     def request_stop(self, reason: str) -> None:
+        """Latch the first stop request; later requests never overwrite it."""
         if not self.stop_reason:
             self.stop_reason = str(reason)
 
@@ -229,6 +235,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
     )
 
     def __init__(self) -> None:
+        """Initialize indicators, trackers, and execution-state containers.
+
+        Binds the EMA/ATR indicators, quote window, confirmation tracker,
+        GFD deadline, and the counters/evidence containers the frozen v0
+        candidate uses across replay/shadow/SimNow modes.
+        """
         self.ema5 = bt.indicators.EMA(self.data.close, period=5)
         self.ema20 = bt.indicators.EMA(self.data.close, period=20)
         self.atr14 = bt.indicators.ATR(self.data, period=14)
@@ -325,10 +337,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
 
     @property
     def reporter(self):
+        """Return the evidence reporter supplied via params (or ``None``)."""
         return self.p.reporter
 
     @property
     def risk_store(self) -> Optional[DailyRiskStore]:
+        """Return the daily risk store supplied via params (or ``None``)."""
         return self.p.risk_store
 
     def _position_legs(self) -> tuple[int, int]:
@@ -451,6 +465,13 @@ class SAMidFrequencyStrategy(bt.Strategy):
         return True
 
     def start(self) -> None:
+        """Validate mode/admission invariants and route into the initial state.
+
+        Shadow runs with external account state stay read-only observers;
+        a non-zero startup position requires SDK-owned recovery; execution
+        modes must pass admission, preflight, and durable-intent checks
+        before warmup.
+        """
         if self.p.mode not in {"replay", "shadow", "simnow"}:
             self._transition("HALTED", "invalid_mode")
             return
@@ -523,6 +544,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
             self._transition("WARMING", "warmup_not_complete")
 
     def notify_bar(self, bar: Any) -> None:
+        """Cache the latest bar event for identity validation in ``next``."""
         self._latest_bar_event = bar
 
     def _bar_identity(self, fallback_start: float) -> tuple[str, float, float, str, bool, str]:
@@ -625,6 +647,11 @@ class SAMidFrequencyStrategy(bt.Strategy):
         return bar_id, end, available, trading_day, valid, ",".join(map(str, flags))
 
     def next(self) -> None:
+        """Validate each completed bar and refresh minute-level features.
+
+        An invalid completed bar resets signal confirmation; a valid bar
+        extends the closed-bar/volume history feeding the fused decision.
+        """
         start = bt.num2date(self.data.datetime[0]).replace(tzinfo=timezone.utc).timestamp()
         bar_id, bar_end, available, trading_day, valid, invalid_reason = self._bar_identity(start)
         if not valid:
@@ -685,6 +712,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
         _publish_trade_logger_context_if_ready(self)
 
     def notify_tick(self, tick: Any) -> None:
+        """Validate a level-one snapshot and advance signal/execution state.
+
+        Quotes failing schema, freshness, session, or generation checks are
+        rejected and reset confirmation; valid quotes update the feature
+        window, evidence streams, deadlines, and entry evaluation.
+        """
         raw_event_time = _event_value(tick, "event_time_utc", "timestamp", default=None)
         try:
             _epoch(raw_event_time)
@@ -1364,6 +1397,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 self._transition("MANUAL_INTERVENTION", "drain_timeout_with_residual", now)
 
     def notify_idle(self) -> None:
+        """Run time-based supervision when no market-data callback fires.
+
+        Drives reconciliation retries and timeouts, resets confirmation on
+        stale quotes, and requests an emergency exit while holding a
+        position on stale market data.
+        """
         now = self._clock.monotonic_now()
         self._advance_time(now, self._clock.utc_now())
         if self.state == "RECOVERING":
@@ -1392,6 +1431,11 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 self._request_exit("market_data_stale", now, emergency=True)
 
     def request_drain(self, reason: str, now: Optional[float] = None) -> None:
+        """Enter DRAINING and cancel any still-pending entry order.
+
+        Shadow mode instead transitions to OBSERVATION_STOPPED and
+        runstops; already-terminal states are ignored.
+        """
         now = self._clock.monotonic_now() if now is None else float(now)
         if self.state in {"STOPPED_FLAT", "OBSERVATION_STOPPED", "MANUAL_INTERVENTION"}:
             return
@@ -1416,6 +1460,13 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 self.deadline.cancel_requested(now)
 
     def notify_order(self, order) -> None:
+        """Record each order transition and drive the execution state machine.
+
+        Latches send-to-callback fill bounds on the first entry fill,
+        cancels partial entries, and routes terminal orders into
+        OPEN/COOLDOWN or emergency requote/manual paths on residual
+        exposure.
+        """
         role = self._order_roles.get(order.ref, "unknown")
         status = order.getstatusname()
         cycle_id = getattr(self, "_order_cycles", {}).get(order.ref) or order.info.get(
@@ -1540,6 +1591,7 @@ class SAMidFrequencyStrategy(bt.Strategy):
                 self._enter_unknown("exit_terminal_with_residual", now)
 
     def notify_trade(self, trade) -> None:
+        """Record a closed trade and fold it into the daily risk store."""
         if not trade.isclosed:
             return
         gross = float(trade.pnl)
@@ -2066,6 +2118,12 @@ class SAMidFrequencyStrategy(bt.Strategy):
             self._block("broker_reconciliation_request_rejected")
 
     def stop(self) -> None:
+        """Finalize the run and enforce terminal-state invariants.
+
+        Captures terminal session state, forces MANUAL_INTERVENTION for
+        shadow order breaches, missing recovery completion, or residual
+        positions, and forces a final trade-logger context publish.
+        """
         provider = self.p.session_state_provider
         if callable(provider):
             try:

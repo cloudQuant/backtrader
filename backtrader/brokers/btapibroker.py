@@ -318,6 +318,11 @@ class BtApiBroker(BrokerBase):
             self.p.startup_account_state
         )
         self._strategy_paused = False
+        # Market-data-only is a hard local write boundary.  Keep a public,
+        # credential-free audit of rejected strategy write attempts so a
+        # bounded observation can distinguish "no attempt" from "attempted
+        # but stopped before reaching the Store".
+        self._market_data_only_rejections: collections.Counter[str] = collections.Counter()
         self._approval_lock = threading.Lock()
         self._approval_operation_count = 0
         self._approval_expires_at_utc = self._parse_approval_expiry(self.p.approval_expires_at_utc)
@@ -1744,6 +1749,40 @@ class BtApiBroker(BrokerBase):
         """Return the public bounded winddown evidence used by run acceptance."""
         return self.get_shutdown_state()
 
+    def get_market_data_only_audit(self):
+        """Return local rejected-write counts for an observation-only Broker.
+
+        The counts do not attest provider-side state; they only record calls
+        rejected before any Store command can be routed.  They are useful to a
+        strategy observation that must fail closed if callback logic attempts
+        submit/cancel behavior despite its read-only contract.
+        """
+
+        counts = self._market_data_only_rejections
+        submit_rejected = int(counts["submit"])
+        cancel_rejected = int(counts["cancel"])
+        batch_cancel_rejected = int(counts["batch_cancel"])
+        return {
+            "submit_rejected": submit_rejected,
+            "cancel_rejected": cancel_rejected,
+            "batch_cancel_rejected": batch_cancel_rejected,
+            "total_rejected": submit_rejected + cancel_rejected + batch_cancel_rejected,
+        }
+
+    def _record_market_data_only_rejection(self, operation: str) -> None:
+        """Record a local rejection on this Broker and its owning Store.
+
+        The Store-level increment makes a bounded observation's audit cover
+        every Broker attached to the same Store, including one created later
+        through ``store.getbroker()``.  Older/custom Store doubles remain
+        compatible because they need not expose the optional recorder.
+        """
+
+        self._market_data_only_rejections[operation] += 1
+        recorder = getattr(self.store, "record_market_data_only_broker_rejection", None)
+        if callable(recorder):
+            recorder(operation)
+
     def get_last_reconcile_result(self):
         """Return a credential-safe copy of the latest remote risk snapshot."""
         return deepcopy(self._redact_runtime_value(self._last_reconcile_result))
@@ -2520,6 +2559,7 @@ class BtApiBroker(BrokerBase):
     def submit(self, order):
         """Submit an order through the store."""
         if self._is_market_data_only():
+            self._record_market_data_only_rejection("submit")
             return self._reject_order(
                 order,
                 "market_data_only",
@@ -2704,6 +2744,7 @@ class BtApiBroker(BrokerBase):
             return order
 
         if self._is_market_data_only():
+            self._record_market_data_only_rejection("cancel")
             order.addinfo(
                 cancel_requested_remote=False,
                 cancel_rejected_local=True,
@@ -3632,6 +3673,7 @@ class BtApiBroker(BrokerBase):
     def batch_cancel(self, orders=None):
         """Cancel a batch of live orders and return the canceled order objects."""
         if self._is_market_data_only():
+            self._record_market_data_only_rejection("batch_cancel")
             # Do not even refresh remote orders here.  Observation sessions
             # may see account-owned orders, but cannot establish authority to
             # mutate them through this convenience path.

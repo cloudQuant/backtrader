@@ -65,10 +65,14 @@ PAPER_RISK_LEDGER_PATH = (
 
 
 class RunnerConfigurationError(ValueError):
+    """Raised when runner configuration or admission inputs are invalid."""
+
     pass
 
 
 class DemoApprovalError(RunnerConfigurationError):
+    """Raised when the signed demo approval receipt is missing or unverifiable."""
+
     pass
 
 
@@ -81,6 +85,12 @@ class ShadowOneShotProbeCapabilityError(RunnerConfigurationError):
 
 
 def mode_policy(mode):
+    """Return the capability flags that scope what a mode may do.
+
+    Replay and shadow forbid fills, only demo may write through the SDK,
+    and only paper-live reports hypothetical fills.  An unknown mode is
+    rejected as a configuration error.
+    """
     if mode not in MODES:
         raise RunnerConfigurationError(f"unsupported mode: {mode}")
     return {
@@ -145,6 +155,13 @@ def _file_sha256(path: Path, label: str) -> str:
 
 
 def load_config(path: Path = DEFAULT_CONFIG):
+    """Load and validate the candidate-bound YAML configuration.
+
+    Rejects unknown or missing top-level fields, wrong schema versions,
+    venues other than the configured perpetual contracts, and invalid
+    OKX API regions.  Returns the parsed mapping with a normalized
+    ``okx_api_region`` entry.
+    """
     with Path(path).open("r", encoding="utf-8") as handle:
         config = yaml.safe_load(handle) or {}
     required = {
@@ -173,6 +190,14 @@ def load_config(path: Path = DEFAULT_CONFIG):
 
 
 def load_candidate(manifest_path: Path = MANIFEST_PATH):
+    """Load this strategy's candidate row and verify its content-addressed binding.
+
+    Requires exactly one matching candidate whose fingerprint, runner,
+    strategy and config file hashes match the manifest, and whose content
+    paths stay inside the example directory.  Returns the manifest, the
+    candidate row and the resolved manifest path; any mismatch fails
+    closed before execution.
+    """
     path = Path(manifest_path).resolve()
     with path.open("r", encoding="utf-8") as handle:
         manifest = json.load(handle)
@@ -321,6 +346,12 @@ def _approval_lease(receipt, requested_duration, risk, shutdown_seconds, now=Non
 
 
 def require_demo_approval(candidate, manifest_path: Path):
+    """Verify the signed demo approval receipt against the pinned trust root.
+
+    Collects runtime source provenance and delegates to the shared
+    approval verifier; verification failures are re-raised as
+    ``DemoApprovalError`` so demo admission stays fail-closed.
+    """
     try:
         runtime_source = collect_runtime_source_provenance()
         return verify_demo_approval(
@@ -337,6 +368,7 @@ def require_demo_approval(candidate, manifest_path: Path):
 
 
 def risk_from_config(config) -> EventDrivenRisk:
+    """Build the risk parameters from config, rejecting unknown fields."""
     allowed = set(asdict(EventDrivenRisk()))
     params = dict(config["strategy_params"])
     unknown = sorted(set(params) - allowed)
@@ -346,6 +378,11 @@ def risk_from_config(config) -> EventDrivenRisk:
 
 
 def funding_settings_from_config(config):
+    """Validate and return the funding ledger refresh settings as Decimals.
+
+    Requires exactly the configured fields with ``0 < refresh < max_age``;
+    a missing or inconsistent funding configuration fails closed.
+    """
     values = config.get("funding")
     allowed = {"refresh_interval_seconds", "max_age_seconds"}
     if not isinstance(values, Mapping) or set(values) != allowed:
@@ -383,6 +420,13 @@ def event_path_models_from_candidate(candidate, risk: EventDrivenRisk):
 
 
 def required_observation_duration(config, risk: EventDrivenRisk) -> Decimal:
+    """Validate the observation block and return the minimum run duration.
+
+    The requirement is the statistical window plus the risk maximum
+    holding time plus the shutdown buffer, in seconds.  The exact field
+    set, positive durations and the boolean settlement flag are enforced
+    before the value is returned.
+    """
     observation = config["observation"]
     allowed = {
         "minimum_statistical_seconds",
@@ -411,6 +455,13 @@ def validate_duration(
     next_funding_times=(),
     active_observation_seconds=None,
 ):
+    """Enforce the duration gate and return its report fields.
+
+    The duration must cover the required observation window and, when
+    ``require_funding_settlement`` is set, the active horizon must reach
+    the next funding settlement on every venue with a refresh margin to
+    spare.  Returns the gate summary recorded in the run report.
+    """
     value = decimal_value(duration, "duration")
     required = required_observation_duration(config, risk)
     if value < required:
@@ -445,6 +496,7 @@ def validate_duration(
 
 
 def replay_rules() -> Mapping[str, InstrumentRule]:
+    """Return the conservative per-venue instrument rules for replay fixtures."""
     return {
         "okx": InstrumentRule(
             multiplier=Decimal("0.01"),
@@ -500,6 +552,13 @@ def _book(
 
 
 def replay_events(scenario, risk: EventDrivenRisk):
+    """Yield synthetic per-venue order books for a deterministic replay scenario.
+
+    Emits a fixed number of quarter-second-spaced books; eligible
+    scenarios widen the Binance quotes throughout, and ``gap`` injects a
+    sequence break so continuity rejection can be exercised.  All other
+    books carry monotonic per-venue sequences.
+    """
     if scenario not in SCENARIOS:
         raise RunnerConfigurationError("unsupported replay scenario")
     sequence = {"okx": 0, "binance": 0}
@@ -585,6 +644,15 @@ def run_replay(
     config_path: Path = DEFAULT_CONFIG,
     manifest_path: Path = MANIFEST_PATH,
 ):
+    """Run the offline formula-fixture check for a replay scenario.
+
+    Verifies the config binding to the selected candidate, then drives
+    the event-driven engine (with any candidate-bound path models) over
+    synthetic books.  The returned report's status flips to
+    ``FORMULA_CHECK_FAIL`` when a fixture branch misbehaves (no-edge
+    intent, undetected sequence gap, or a mishandled unknown execution).
+    No orders are submitted and no network access occurs.
+    """
     config = load_config(config_path)
     _, candidate, _ = load_candidate(manifest_path)
     if _file_sha256(config_path, "run config") != candidate["config_sha256"]:
@@ -692,6 +760,13 @@ def build_store(
     funding_settings=None,
     okx_api_region="global",
 ):
+    """Build the ``BtApiStore`` for a network mode.
+
+    Demo mode loads credentials, requires account risk and demo
+    environments, and rejects the unverified OKX TR demo endpoints;
+    shadow and paper-live stay read-only against production.  Funding
+    ledger refresh bounds come from the candidate settings.
+    """
     credentials = _load_demo_credentials(Path(env_file)) if mode == "demo" else None
     risk = risk or EventDrivenRisk()
     funding_settings = funding_settings or {
@@ -1689,6 +1764,16 @@ def run_network(
     preflight=False,
     manifest_path=MANIFEST_PATH,
 ):
+    """Run a shadow, paper-live or demo session against the live venues.
+
+    Applies manifest and config admission governance before any Store
+    exists, and for demo verifies the signed approval lease against the
+    requested duration, quantity and shutdown window.  Duration 0 admits
+    only a bounded read-only shadow metadata probe.  Execution modes
+    additionally require the immutable candidate-bound event path models
+    (plus, for paper-live/demo, the account risk ledger); any missing
+    prerequisite fails closed into the returned report.
+    """
     if mode not in {"shadow", "paper-live", "demo"}:
         raise RunnerConfigurationError("network mode is invalid")
     if mode == "demo" and Path(manifest_path).resolve() != MANIFEST_PATH.resolve():
@@ -2123,6 +2208,7 @@ def run_network(
 
 
 def build_parser():
+    """Build the CLI argument parser for the runner."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=MODES, default="replay")
     parser.add_argument("--scenario", choices=SCENARIOS, default="profitable")
@@ -2140,6 +2226,12 @@ def build_parser():
 
 
 def main(argv=None):
+    """Execute the CLI: dispatch to replay or network mode and emit the report.
+
+    Writes the private JSON report to disk, prints it, and returns 0 only
+    for passing statuses.  Shadow-mode failures are converted into a
+    failure report instead of an exception; other modes re-raise.
+    """
     args = build_parser().parse_args(argv)
     config = None
     try:

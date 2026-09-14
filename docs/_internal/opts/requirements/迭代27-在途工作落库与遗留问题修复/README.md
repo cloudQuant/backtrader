@@ -1,11 +1,11 @@
 # 迭代27：在途工作落库与遗留问题修复
 
-版本：1.6；日期：2026-09-14；时区：Asia/Shanghai。状态：第一轮记录见[执行记录](执行记录.md)；
-第五轮已把 `21bcbeb8` 的观察安全加固绑定到一次当前源码全量回归和当前-head 五 wheel 消费者核验。源码、
-静态检查、隔离导入和 CTP 原生加载均通过；但 examples 未被 wheel 打包，不能伪造 wheel consumer replay。
-第二套 CTP 的两个直接只读入口仍在策略执行前 fail-closed，跨所候选仍受 source binding 和研究否决约束，
-故外部 G3/T4、研究/经济性及 HFT 门仍未关闭。总体 **INCOMPLETE / NO-GO**；详见
-[第五轮验收记录](第五轮验收记录-2026-09-14.md)，历史外部复核见
+版本：1.7；日期：2026-09-14；时区：Asia/Shanghai。状态：第一轮记录见[执行记录](执行记录.md)；
+第六轮已修复 Iter23–25 工程观察中已连接 Store 的二次包装风险，并将只读 Broker 拒写审计提升为
+Store 作用域聚合。当前源码全量回归和性能门均通过；但修复后第二套 CTP operator 在动态选约门以
+`BUNDLE_SELECTION_FAILED:BUNDLE_MISSING_OR_AMBIGUOUS` fail-closed，订单写入为零且策略没有启动。
+因此外部 G3/T4、研究/经济性及 HFT 门仍未关闭，整体继续 **INCOMPLETE / NO-GO**；详见
+[第六轮 Iter23–25 单 Store 转交与 Set-2 复核](第六轮-Iter23-25单Store转交与Set2复核-2026-09-14.md)，历史外部复核见
 [第三轮验收记录](第三轮验收记录-2026-09-14.md)和
 [第四轮外部运行复核](第四轮外部运行复核-2026-09-14.md)。
 
@@ -23,6 +23,8 @@
 | [第五轮验收记录](第五轮验收记录-2026-09-14.md) | 当前源码全量回归、观察安全加固、wheel consumer core 和第二套重试的最终边界 |
 | [第五轮 T10 wheel 收据](current-head-t10-wheel-consumer-21bcbeb8-20260914.json) | 当前五 wheel 的离库导入、原生加载与未打包 replay 限制 |
 | [第五轮 CTP 脱敏收据](set2-ctp-revalidation-21bcbeb8-20260914.json) | 当前第二套直接探测的红线终态和 owner-local 原件指纹 |
+| [第六轮 Iter23–25 单 Store 转交与 Set-2 复核](第六轮-Iter23-25单Store转交与Set2复核-2026-09-14.md) | 单 Store 生命周期修复、Store 作用域零写审计、当前全量回归与第二套 fail-closed 复核 |
+| [第六轮 Set-2 CTP 脱敏收据](set2-ctp-iter23-25-postfix-20260914.json) | 当前只读 operator 的动态选约阻断、零订单写入与 owner-local 原件指纹 |
 
 ## 一句话目标
 

@@ -123,6 +123,11 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Validate the fixed parameter contract and initialize basket state.
+
+        Any parameter that weakens a mandated timing, hold, or evidence
+        fence raises ``TimingContractError`` before any bar is processed.
+        """
         def positive_int(value: object, name: str) -> int:
             if type(value) is not int or value <= 0:
                 raise TimingContractError(f"{name} must be a positive integer")
@@ -1134,6 +1139,12 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
         )
 
     def notify_order(self, order) -> None:
+        """Ingest broker order callbacks and latch recovery on any ambiguity.
+
+        Unknown-execution, partial, size-mismatched, or unexpected orders
+        halt new submissions while their measured facts are retained for a
+        later authoritative reconciliation.
+        """
         # ``BtApiBroker`` intentionally keeps an ambiguous remote submission
         # alive under its original client identity and reports it as an
         # Accepted order with ``execution_unknown=True``.  Do not let the
@@ -1371,6 +1382,13 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             self._queue_feed_decision(decision)
 
     def next(self) -> None:
+        """Evaluate one sealed closed-bar decision input for the basket.
+
+        FLAT state qualifies entries only with a confirmed z-score and cost
+        evidence inside the capital fences; OPEN state projects hold windows
+        and exits; every non-qualified or unsafe input resets confirmation
+        or records a rejection instead of submitting.
+        """
         if self.p.require_feed_bar_evidence:
             decision_input = (
                 self._pending_feed_decision_inputs.popleft()
@@ -1516,6 +1534,11 @@ class CtpOptionsLowfreqStrategy(bt.Strategy):
             self._history = self._history[-(int(self.p.window) * 2) :]
 
     def report(self) -> dict[str, object]:
+        """Return the full offline evidence and status report dictionary.
+
+        The report is self-declared offline: no network request, order
+        write, fill timing, or authoritative flatness is claimed.
+        """
         positions = {
             symbol: float(self.getposition(data).size)
             for symbol, data in sorted(self._data_by_symbol.items())

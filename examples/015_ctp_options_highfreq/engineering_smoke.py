@@ -30,6 +30,8 @@ class EngineeringObservationBlocked(EngineeringSmokeError):
     """A zero-write engineering-observation prerequisite was not met."""
 
     def __init__(self, code: str, message: str) -> None:
+        """Attach a stable machine-readable code to the blocked observation."""
+
         super().__init__(message)
         self.code = code
 
@@ -120,6 +122,8 @@ class _ObservationReadOnlyApi:
     )
 
     def __init__(self, api: Any) -> None:
+        """Wrap only an explicitly injected SDK; a missing API object fails closed."""
+
         if api is None:
             raise EngineeringObservationBlocked(
                 "SDK_NOT_INJECTED", "engineering observation requires an explicit API object"
@@ -184,6 +188,8 @@ class _ObservationReadOnlyApi:
 
 @dataclass(frozen=True)
 class SessionIdentity:
+    """Immutable cohort identity every observed tick and snapshot must match."""
+
     account_fingerprint: str
     trading_day: str
     generation: int
@@ -193,6 +199,8 @@ class SessionIdentity:
 
 @dataclass(frozen=True)
 class NativeAssociation:
+    """Frozen one-cycle intent mapping onto native order and fill identifiers."""
+
     cycle_id: str
     intent_id: str
     bt_order_ref: str
@@ -213,6 +221,8 @@ class NativeAssociation:
 
 @dataclass
 class SmokeState:
+    """Mutable lifecycle state and counters for one fail-closed smoke run."""
+
     status: str = "DISARMED"
     hft_status: str = "NOT_ADMITTED"
     ordinary_entry_blocked: bool = True
@@ -232,10 +242,14 @@ class AppendOnlyJournal:
     """Small JSONL journal; each lifecycle event is persisted before progress."""
 
     def __init__(self, path: Path | str):
+        """Bind the journal file path, creating only its parent directories."""
+
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def append(self, event: str, **fields: Any) -> None:
+        """Persist one append-only JSONL record; earlier lines are never rewritten."""
+
         record = {"schema_version": "iter25.ctp-options-engineering-journal.v1", "event": event}
         record.update(fields)
         with self.path.open("a", encoding="utf-8") as handle:
@@ -246,15 +260,23 @@ class _SmokeStrategy(bt.Strategy):
     """Only forwards native strategy callbacks to the adapter."""
 
     def __init__(self, adapter: "EngineeringSmokeAdapter") -> None:
+        """Hold the adapter that receives every native strategy callback."""
+
         self._engineering_smoke_adapter = adapter
 
     def notify_tick(self, tick: Any) -> None:
+        """Forward a native tick notification to the adapter."""
+
         self._engineering_smoke_adapter.on_tick(tick)
 
     def notify_order(self, order: Any) -> None:
+        """Forward a native order notification to the adapter."""
+
         self._engineering_smoke_adapter.on_order_event(order)
 
     def notify_trade(self, trade: Any) -> None:
+        """Forward a native trade notification to the adapter."""
+
         self._engineering_smoke_adapter.on_trade_event(trade)
 
 
@@ -281,6 +303,8 @@ class EngineeringSmokeAdapter:
         now_ns: Callable[[], int] = time.monotonic_ns,
         starting_cash: float = 10_000.0,
     ) -> None:
+        """Build the market-data-only chain or reject without any side effect."""
+
         if not isinstance(store, BtApiStore):
             raise EngineeringSmokeError("BTAPISTORE_REQUIRED")
         self.store = store
@@ -335,6 +359,8 @@ class EngineeringSmokeAdapter:
 
     @property
     def runtime_chain(self) -> dict[str, Any]:
+        """Return the concrete runtime object types as reportable evidence."""
+
         return {
             "store": _type_name(self.store),
             "feed": [_type_name(item) for item in self.feed],
@@ -353,6 +379,8 @@ class EngineeringSmokeAdapter:
         return now
 
     def on_tick(self, tick: Any) -> None:
+        """Accept a tick only from the exact session cohort; otherwise block."""
+
         generation = getattr(tick, "connection_generation", None)
         domain = getattr(tick, "clock_domain_id", None)
         if (
@@ -465,6 +493,8 @@ class EngineeringSmokeAdapter:
         return dict(result)
 
     def arm_one_cycle(self, *, cycle_id: str, intent_id: str) -> None:
+        """Arm one cycle only after every generation-bound gate has been proven."""
+
         if self.state.status not in {"DISARMED", "FLAT_VERIFIED"}:
             raise EngineeringSmokeError("CYCLE_ALREADY_ARMED_OR_CONSUMED")
         if not self._authorization_verified:
@@ -513,6 +543,8 @@ class EngineeringSmokeAdapter:
         )
 
     def record_send(self, association: NativeAssociation) -> None:
+        """Journal and register one single-lot association; reject anything broader."""
+
         if (
             self.state.status not in {"READY", "ENTERING"}
             or not self.state.cycle_id
@@ -536,6 +568,8 @@ class EngineeringSmokeAdapter:
         self.journal.append("cancel_send", order_ref=order_ref)
 
     def on_order_event(self, event: Any) -> str:
+        """Journal one order event by status and return the resulting state."""
+
         status = str(getattr(event, "status", getattr(event, "Status", ""))).lower()
         if status in {"unknown", "rejected", "error"}:
             self._unknown("EXECUTION_UNKNOWN")
@@ -548,6 +582,8 @@ class EngineeringSmokeAdapter:
         return self.state.status
 
     def on_trade_event(self, trade: Any) -> str:
+        """Deduplicate trades and classify fills, late fills and cancel races."""
+
         trade_id = str(getattr(trade, "trade_id", getattr(trade, "TradeID", "")) or "")
         if not trade_id:
             self._unknown("TRADE_ID_MISSING")
@@ -572,6 +608,8 @@ class EngineeringSmokeAdapter:
         return self.state.status
 
     def on_reconnect(self, *, session: SessionIdentity) -> None:
+        """Accept a newer generation only by invalidating every prior gate."""
+
         if session.generation <= self.session.generation:
             self._block("STALE_CONNECTION_GENERATION")
             return
@@ -598,6 +636,8 @@ class EngineeringSmokeAdapter:
         )
 
     def reconcile(self, snapshot: Mapping[str, Any]) -> bool:
+        """Apply the two-round fresh-snapshot gate; True only when flat-verified."""
+
         snapshot = _normalize_reconciliation_snapshot(snapshot)
         if not _valid_reconciliation_snapshot(snapshot, self.session):
             self.state.reconciliation_rounds = 0
@@ -648,6 +688,8 @@ class EngineeringSmokeAdapter:
         return self.state.status == "FLAT_VERIFIED"
 
     def report(self) -> dict[str, Any]:
+        """Emit the final zero-write report; HFT stays NOT_ADMITTED by construction."""
+
         return {
             "status": self.state.status,
             "hft_status": "NOT_ADMITTED",

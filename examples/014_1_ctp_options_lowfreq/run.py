@@ -72,6 +72,8 @@ def _contained_config_path(path: Path | str) -> Path:
 
 
 def load_config(path: Path | str = DEFAULT_CONFIG) -> dict[str, Any]:
+    """Read and validate the contained local YAML configuration file."""
+
     try:
         with _contained_config_path(path).open("r", encoding="utf-8") as handle:
             raw = yaml.safe_load(handle)
@@ -252,6 +254,12 @@ def _bar(close: float) -> dict[str, float]:
 
 
 def replay_bars(candidate: Mapping[str, Any], scenario: str) -> dict[str, list[dict[str, float]]]:
+    """Generate the synthetic closed 15-minute C/P/F bars for a named scenario.
+
+    Unknown scenario names are rejected before any bar is produced; the wide
+    synthetic call ranges only let staged local orders cross and invent no
+    tick or depth evidence.
+    """
     if scenario not in {"eligible", "no_edge", "budget_reject", "misaligned"}:
         raise RunnerConfigurationError("unsupported replay scenario")
     result = {candidate["future"]: [], candidate["call"]: [], candidate["put"]: []}
@@ -421,20 +429,23 @@ def run_simnow_engineering_smoke(config: Mapping[str, Any], *, api: Any = None) 
 def run_engineering_observation(
     config: Mapping[str, Any],
     *,
-    api: Any,
     environment_profile: str,
     run_seconds: float,
     feed_clock: Any,
     clock_mapping: Any,
     closed_bar_evidence_provider: Any,
+    api: Any = None,
+    store: Any = None,
+    store_ownership: str | None = None,
 ) -> dict[str, Any]:
-    """Run the explicit, API-injected Set-2 zero-write observation seam.
+    """Run the explicit Set-2 zero-write observation seam.
 
-    This function intentionally has no CLI equivalent: the operator that owns
-    the SimNow session must inject its already-created API, calibrated clock
-    mapping and Feed-owned closed-bar evidence provider.  The local replay
-    template is copied solely for its frozen candidate/risk schema and then
-    relabelled ``shadow`` for the bounded engineering observation.
+    This function intentionally has no CLI equivalent: the operator must
+    inject exactly one lifecycle root (an API or a Store transferred with
+    ``store_ownership=\"transfer\"``), a calibrated clock mapping and Feed-owned
+    closed-bar evidence provider.  The local replay template is copied solely
+    for its frozen candidate/risk schema and then relabelled ``shadow`` for
+    the bounded engineering observation.
     """
 
     if not isinstance(config, Mapping) or config.get("mode") not in {"replay", "shadow"}:
@@ -448,16 +459,23 @@ def run_engineering_observation(
         from simnow_adapter import run_engineering_observation as _run_observation
     return _run_observation(
         config=validated,
-        api=api,
         environment_profile=environment_profile,
         run_seconds=run_seconds,
         feed_clock=feed_clock,
         clock_mapping=clock_mapping,
         closed_bar_evidence_provider=closed_bar_evidence_provider,
+        api=api,
+        store=store,
+        store_ownership=store_ownership,
     )
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse CLI arguments, dispatch exactly one mode, and print the JSON report.
+
+    Returns 0 only for a completed replay and 2 for any rejected or
+    non-replay mode, after emitting a fail-closed report.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--mode", choices=sorted(MODES))

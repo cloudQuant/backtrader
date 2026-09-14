@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""T03: 验证能正常下达撤单指令"""
+"""T03: Verify that a cancel order instruction can be placed normally"""
 from __future__ import annotations
 
 import datetime as dt

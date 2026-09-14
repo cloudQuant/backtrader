@@ -194,6 +194,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
     )
 
     def __init__(self) -> None:
+        """Snapshot the frozen cohort bundle/tick sizes and init the observer state."""
         self._symbols = tuple(str(symbol) for symbol in self.p.symbols)
         self._bundle = dict(self.p.bundle or {})
         self._tick_sizes = dict(self.p.tick_sizes or {})

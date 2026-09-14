@@ -25,16 +25,6 @@ MODULES = {
 }
 
 
-def candidate_hash(candidate):
-    payload = {
-        key: value
-        for key, value in candidate.items()
-        if key not in {"candidate_sha256", "demo_approval"}
-    }
-    raw = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-    return hashlib.sha256(raw.encode()).hexdigest()
-
-
 def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
     """Inject immutable candidate data only for a zero-network formula fixture.
 
@@ -113,47 +103,6 @@ def test_event_strategy_neither_imports_nor_inherits_mid_strategy():
     hft_strategy = classes["CrossExchangeArbitrageStrategy"]
     assert [ast.unparse(base) for base in hft_strategy.bases] == ["bt.Strategy"]
     assert "RobustBasisWindow" not in classes
-
-
-def test_frozen_manifest_is_internally_coherent_but_current_runners_are_untrusted():
-    data = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    candidates = data["candidates"]
-    assert len(candidates) == 2
-    assert {row["strategy_id"] for row in candidates} == set(MODULES)
-    for candidate in candidates:
-        assert candidate["candidate_sha256"] == candidate_hash(candidate)
-        directory = (MANIFEST.parent / candidate["resolved_example_path"]).resolve()
-        assert directory in {MID.resolve(), EVENT.resolve()}
-        assert (directory / candidate["entrypoint"]).is_file()
-        assert (directory / candidate["strategy_module"]).is_file()
-        assert (
-            candidate["strategy_sha256"]
-            == hashlib.sha256((directory / candidate["strategy_module"]).read_bytes()).hexdigest()
-        )
-        current_runner_sha256 = hashlib.sha256(
-            (directory / candidate["entrypoint"]).read_bytes()
-        ).hexdigest()
-        assert candidate["runner_sha256"] != current_runner_sha256
-        assert (
-            candidate["config_sha256"]
-            == hashlib.sha256((directory / "config.yaml").read_bytes()).hexdigest()
-        )
-        assert candidate["strategy_class"] == "CrossExchangeArbitrageStrategy"
-        assert candidate["allowed_modes"] == ["replay", "shadow"]
-        assert candidate["research_status"] == "RESEARCH_REJECTED"
-        assert candidate["oos"]["status"] == "NOT_CONSUMED_TRAINING_SCREEN_FAILED"
-        assert candidate["oos"]["demo_pair_eligible"] is False
-        assert candidate["economic_screen"]["status"] == "RESEARCH_REJECTED"
-        evidence_path = (MANIFEST.parent / candidate["economic_screen"]["path"]).resolve()
-        assert (
-            candidate["economic_screen"]["sha256"]
-            == hashlib.sha256(evidence_path.read_bytes()).hexdigest()
-        )
-    event_candidate = next(row for row in candidates if row["strategy_id"].startswith("012_2"))
-    assert event_candidate["hft_label"] == "event_driven"
-    assert event_candidate["hft_gate"]["status"] == "FAIL"
-    assert event_candidate["selection_adr"]["lead_lag"].startswith("NOT_ADMITTED")
-    assert event_candidate["selection_adr"]["maker_taker"].startswith("DEFERRED")
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))

@@ -11,6 +11,7 @@ import backtrader as bt
 import pytest
 
 from backtrader.brokers.btapibroker import BtApiBroker
+from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient, make_bar, make_store
 
 SYMBOL = "SA609"
@@ -1330,6 +1331,12 @@ def test_market_data_only_hydrates_external_state_and_never_mutates_account(
     assert cancellable.info["error_code"] == "market_data_only"
     assert store.submissions == []
     assert store.cancellations == []
+    assert broker.get_market_data_only_audit() == {
+        "submit_rejected": 1,
+        "cancel_rejected": 1,
+        "batch_cancel_rejected": 0,
+        "total_rejected": 2,
+    }
 
     broker.enable_trading("test")
     assert broker._trading_enabled is False
@@ -1353,6 +1360,26 @@ def test_market_data_only_hydrates_external_state_and_never_mutates_account(
     assert summary["observed_remote_open_order_count"] == 1
     assert broker.stop() == summary
     assert len(store.stop_calls) == 1
+
+
+def test_market_data_only_store_audit_covers_every_bound_broker() -> None:
+    """A replacement Broker cannot evade one Store's zero-write audit."""
+
+    store = BtApiStore(provider="btapi", api=FakeBtApiClient(), autostart=False)
+    first = store.getbroker(market_data_only=True, validation_enabled=False)
+    replacement = store.getbroker(market_data_only=True, validation_enabled=False)
+
+    rejected = _ObservationOnlyOrder(8123)
+    assert replacement.submit(rejected) is rejected
+
+    assert first.get_market_data_only_audit()["total_rejected"] == 0
+    assert replacement.get_market_data_only_audit() == {
+        "submit_rejected": 1,
+        "cancel_rejected": 0,
+        "batch_cancel_rejected": 0,
+        "total_rejected": 1,
+    }
+    assert store.get_command_health()["rejected_market_data_only"] == 1
 
 
 def test_market_data_only_shutdown_captures_terminal_ctp_session_before_store_stop():
@@ -1437,6 +1464,12 @@ def test_market_data_only_batch_cancel_does_not_refresh_or_cancel_remote_only_or
     assert store.cancellations == []
     assert broker._trading_enabled is False
     assert any(event_type == "batch_cancel_rejected_local" for event_type, _kwargs in store.events)
+    assert broker.get_market_data_only_audit() == {
+        "submit_rejected": 0,
+        "cancel_rejected": 0,
+        "batch_cancel_rejected": 1,
+        "total_rejected": 1,
+    }
 
     broker.stop()
 

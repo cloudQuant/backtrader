@@ -190,6 +190,7 @@ def test_engineering_observation_runs_actual_highfreq_strategy_on_real_native_ch
     assert report["mode"] == "shadow"
     assert report["purpose"] == "observation"
     assert report["requested_environment_profile"] == "simnow_second_7x24"
+    assert report["store_ownership"] == "ADAPTER_OWNED_STORE_FROM_API"
     assert report["session_binding"] == {
         "source": "BtApiStore.get_ctp_session_state",
         "exchange_name": "CTP___FUTURE",
@@ -255,6 +256,297 @@ def test_engineering_observation_runs_actual_highfreq_strategy_on_real_native_ch
         "G4_simnow_mechanical": "NOT_RUN",
         "HFT_admission": "NOT_ADMITTED",
     }
+
+
+def test_engineering_observation_reuses_one_explicitly_transferred_store_without_sdk_unwrap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A preflight-owned Store must be the graph's only lifecycle root."""
+
+    ticks, bundle = _live_ticks()
+    clock = LiveClock()
+    api = ObservationApi(ticks, clock=clock)
+    store = BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    # This stands in for the operator's bounded, read-only preflight.  The
+    # mapping is deliberately acquired after this Store has joined its final
+    # connection generation, before lifecycle ownership is handed off.
+    store.start()
+    mapping = _mapping(ticks, bundle)
+    provider = LiveNowProvider(mapping)
+
+    def unexpected_second_store(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise AssertionError("transferred Store path constructed a second Store")
+
+    def forbidden_sdk_api(self: BtApiStore) -> Any:
+        del self
+        raise AssertionError("transferred Store path accessed store.sdk_api")
+
+    monkeypatch.setattr(runner.bt.stores, "BtApiStore", unexpected_second_store)
+    monkeypatch.setattr(BtApiStore, "sdk_api", property(forbidden_sdk_api))
+
+    report = runner.run_engineering_observation(
+        copy.deepcopy(CONFIG),
+        store=store,
+        store_ownership="transfer",
+        environment_profile="simnow_second_7x24",
+        run_seconds=0.05,
+        feed_clock=clock,
+        clock_mapping=mapping,
+        live_now_provider=provider,
+    )
+
+    assert report["status"] == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+    assert report["store_ownership"] == "INJECTED_STORE_LIFECYCLE_TRANSFERRED"
+    assert report["write_guard"]["store_market_data_only"] == {
+        "source": "BtApiStore.get_command_health",
+        "ownership": "INJECTED_STORE",
+        "forbidden_write_attempts": {},
+        "market_data_only": "PROVEN_BY_SESSION_BINDING_AND_BROKER",
+        "rejected_market_data_only": {"baseline": 0, "final": 0, "delta": 0},
+    }
+    assert report["write_guard"]["forbidden_write_attempts"] == {}
+    assert report["write_guard"]["broker_market_data_only"]["total_rejected"] == 0
+    assert report["external_trade_writes_basis"] == (
+        "NOT_PROVEN: public BtApiStore lifecycle and market-data-only state do not attest "
+        "raw external provider writes."
+    )
+    assert api.submitted_orders == []
+    assert api.cancelled_orders == []
+    assert api.connect_calls == 1
+    assert api.disconnect_calls == 1
+    assert api.connected is False
+
+
+def test_store_transfer_rejects_an_overridden_write_audit_recorder() -> None:
+    """A no-op aggregate recorder must not make an HFT observation look clean."""
+
+    class NoOpRecorderStore(BtApiStore):
+        def record_market_data_only_broker_rejection(self, _operation: str) -> None:
+            return None
+
+    ticks, _ = _live_ticks()
+    clock = LiveClock()
+    api = ObservationApi(ticks, clock=clock)
+    store = NoOpRecorderStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    try:
+        with pytest.raises(adapter.EngineeringObservationBlocked) as error:
+            runner._require_injected_store_transfer(
+                store,
+                ownership="transfer",
+                observation_blocked=adapter.EngineeringObservationBlocked,
+            )
+
+        assert error.value.code == "INJECTED_STORE_AUDIT_CONTRACT_REQUIRED"
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        store.stop()
+
+    assert api.disconnect_calls == 1
+
+
+@pytest.mark.parametrize(
+    ("health_key", "busy_value"),
+    (
+        ("read_only_metadata_probe_active", True),
+        ("broker_update_queue_depth", 1),
+        ("broker_update_dropped", 1),
+        ("risk_state_latched", True),
+        ("funding_pending", 1),
+    ),
+)
+def test_busy_preflight_store_is_not_transferred_or_stopped(
+    monkeypatch: pytest.MonkeyPatch, health_key: str, busy_value: Any
+) -> None:
+    """An active read-only probe cannot be handed off to an HFT graph."""
+
+    ticks, bundle = _live_ticks()
+    clock = LiveClock()
+    api = ObservationApi(ticks, clock=clock)
+    store = BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    original_health = store.get_command_health
+
+    def busy_health() -> Mapping[str, Any]:
+        health = dict(original_health())
+        health[health_key] = busy_value
+        return health
+
+    monkeypatch.setattr(store, "get_command_health", busy_health)
+    mapping = _mapping(ticks, bundle)
+    try:
+        with pytest.raises(adapter.EngineeringObservationBlocked) as error:
+            runner.run_engineering_observation(
+                copy.deepcopy(CONFIG),
+                store=store,
+                store_ownership="transfer",
+                environment_profile="simnow_second_7x24",
+                run_seconds=0.05,
+                feed_clock=clock,
+                clock_mapping=mapping,
+                live_now_provider=LiveNowProvider(mapping),
+            )
+
+        assert error.value.code == "INJECTED_STORE_BUSY"
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        monkeypatch.setattr(store, "get_command_health", original_health)
+        store.stop(timeout=2.0)
+
+    assert api.disconnect_calls == 1
+
+
+def test_idle_command_worker_is_valid_for_store_transfer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Store's own empty SDK worker does not invalidate a clean hand-off."""
+
+    ticks, _bundle = _live_ticks()
+    clock = LiveClock()
+    api = ObservationApi(ticks, clock=clock)
+    store = BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    original_health = store.get_command_health
+
+    def idle_worker_health() -> Mapping[str, Any]:
+        health = dict(original_health())
+        health["worker_alive"] = True
+        return health
+
+    monkeypatch.setattr(store, "get_command_health", idle_worker_health)
+    try:
+        assert (
+            runner._require_injected_store_transfer(
+                store,
+                ownership="transfer",
+                observation_blocked=adapter.EngineeringObservationBlocked,
+            )
+            == 0
+        )
+    finally:
+        monkeypatch.setattr(store, "get_command_health", original_health)
+        store.stop(timeout=2.0)
+
+
+def test_store_write_guard_reports_rejected_market_data_only_delta() -> None:
+    """A rejected Store command is not erased by the terminal health report."""
+
+    class RejectedStore:
+        def get_command_health(self) -> Mapping[str, Any]:
+            return {
+                "shutdown_state": "PASS",
+                "accepting_openings": False,
+                "rejected_market_data_only": 4,
+            }
+
+    guard = runner._injected_store_write_guard(
+        RejectedStore(),
+        baseline=1,
+        ownership="INJECTED_STORE",
+        observation_blocked=adapter.EngineeringObservationBlocked,
+    )
+
+    assert guard["rejected_market_data_only"] == {"baseline": 1, "final": 4, "delta": 3}
+    assert guard["forbidden_write_attempts"] == {"store_market_data_only_rejected": 3}
+
+
+def test_engineering_observation_requires_explicit_store_ownership_before_taking_it_down() -> None:
+    ticks, bundle = _live_ticks()
+    clock = LiveClock()
+    api = ObservationApi(ticks, clock=clock)
+    store = BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    mapping = _mapping(ticks, bundle)
+
+    try:
+        with pytest.raises(adapter.EngineeringObservationBlocked) as error:
+            runner.run_engineering_observation(
+                copy.deepcopy(CONFIG),
+                store=store,
+                environment_profile="simnow_second_7x24",
+                run_seconds=0.05,
+                feed_clock=clock,
+                clock_mapping=mapping,
+                live_now_provider=LiveNowProvider(mapping),
+            )
+
+        assert error.value.code == "STORE_OWNERSHIP_TRANSFER_REQUIRED"
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        store.stop(timeout=2.0)
+
+    assert api.connected is False
+    assert api.disconnect_calls == 1
+
+
+def test_engineering_observation_rejects_mixed_api_and_store_before_store_transfer() -> None:
+    ticks, bundle = _live_ticks()
+    clock = LiveClock()
+    api = ObservationApi(ticks, clock=clock)
+    store = BtApiStore(
+        provider="btapi",
+        api=api,
+        config={"execution_config": {"market_data_only": True}},
+        autostart=False,
+    )
+    store.start()
+    mapping = _mapping(ticks, bundle)
+
+    try:
+        with pytest.raises(adapter.EngineeringObservationBlocked) as error:
+            runner.run_engineering_observation(
+                copy.deepcopy(CONFIG),
+                api=api,
+                store=store,
+                store_ownership="transfer",
+                environment_profile="simnow_second_7x24",
+                run_seconds=0.05,
+                feed_clock=clock,
+                clock_mapping=mapping,
+                live_now_provider=LiveNowProvider(mapping),
+            )
+
+        assert error.value.code == "ENGINEERING_STORE_INPUT"
+        assert store.is_connected is True
+        assert api.connect_calls == 1
+        assert api.disconnect_calls == 0
+    finally:
+        store.stop(timeout=2.0)
+
+    assert api.connected is False
+    assert api.disconnect_calls == 1
 
 
 def test_engineering_observation_rejects_synthetic_mapping_before_api_start() -> None:

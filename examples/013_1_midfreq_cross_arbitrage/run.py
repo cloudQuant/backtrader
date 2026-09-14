@@ -1,7 +1,8 @@
 """Runner for the mid-frequency cross-product pair arbitrage example.
 
-复用 ``examples/007_ctp/ctp_example_support`` 的 SimNow 接线与配置加载；
-``--replay`` 使用合成 tick 在本地 MixBroker 上验证策略状态机。
+Reuses the SimNow wiring and config loading from
+``examples/007_ctp/ctp_example_support``; ``--replay`` validates the strategy
+state machine on a local MixBroker with synthetic ticks.
 """
 
 import argparse
@@ -9,6 +10,7 @@ import datetime as dt
 import hashlib
 import json
 import math
+import os
 import sys
 import tempfile
 from collections.abc import Mapping
@@ -110,6 +112,11 @@ def load_config(directory=HERE, name=DEFAULT_CONFIG):
 
 
 def configure_commissions(broker, symbols, params):
+    """Register per-symbol futures commission/multiplier/margin on the broker.
+
+    Defaults model per-lot commissions for meal-class products and can be
+    overridden by the config strategy_params.
+    """
     for symbol in symbols:
         broker.addcommissioninfo(
             ComminfoFuturesPercent(
@@ -121,18 +128,24 @@ def configure_commissions(broker, symbols, params):
         )
 
 
+def _trade_logger_console_enabled() -> bool:
+    """Real-time console streaming; on by default, opt out with TRADE_LOGGER_CONSOLE=0."""
+    return os.getenv("TRADE_LOGGER_CONSOLE", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
 def _attach_trade_logger(cerebro, log_dir):
     """Attach the generic report owner under a stable strategy-local name."""
+    console = _trade_logger_console_enabled()
     cerebro.addobserver(
         bt.observers.TradeLogger,
         obsname="trade_logger",
         log_dir=str(log_dir),
         log_format="json",
-        log_to_console=False,
+        log_to_console=console,
         log_positions=False,
         log_indicators=False,
-        log_ticks=False,
-        log_bars=False,
+        log_ticks=console,
+        log_bars=console,
         log_value=False,
         log_position_snapshot=False,
     )
@@ -203,6 +216,7 @@ class ReplayClient:
     """Tick-only input fixture; no order or account engine."""
 
     def __init__(self, ticks):
+        """Hold the frozen synthetic tick stream and empty client state."""
         self.ticks = deque(ticks)
         self.subscriptions = []
         self.connected = False
@@ -210,21 +224,32 @@ class ReplayClient:
         self._empty_polls = 0
 
     def set_stop_callback(self, callback):
+        """Store cerebro.runstop so tick exhaustion can end the replay."""
         self._stop = callback
 
     def connect(self):
+        """Mark the fake client connected (no network side effects)."""
         self.connected = True
 
     def disconnect(self):
+        """Mark the fake client disconnected."""
         self.connected = False
 
     def subscribe(self, symbol):
+        """Record the requested subscription for replay bookkeeping."""
         self.subscriptions.append(symbol)
 
     def supports_live_ticks(self, symbol):
+        """Declare tick streaming support so the store keeps polling us."""
         return True
 
     def poll_tick(self, symbol):
+        """Pop the next tick for ``symbol``; after 8 empty polls stop Cerebro.
+
+        A tick is popped only when the queue head matches, preserving the
+        two-leg interleaving order; consecutive empty polls end the replay
+        via runstop.
+        """
         if not self.ticks:
             self._empty_polls += 1
             if self._empty_polls > 8 and self._stop:
@@ -240,6 +265,12 @@ def _defaults():
 
 
 def replay_ticks(symbols, scenario, window, step, burst):
+    """Generate the interleaved two-leg synthetic tick stream for a scenario.
+
+    profitable: the spread widens then reverts; loss: widens then keeps
+    inverting; no_edge: a stable spread. Two-leg ticks interleave per
+    ``pair()`` so ReplayClient consumes them in order.
+    """
     base = 3500.0
     stamp = 100.0
 
@@ -277,6 +308,12 @@ def replay_ticks(symbols, scenario, window, step, burst):
 
 
 def run_replay(scenario="profitable"):
+    """Run the synthetic tick replay on a local MixBroker and freeze its report.
+
+    No network and no exchange orders; the frozen pair_arbitrage extension
+    is read from the named TradeLogger at the end, with a business_summary/hash
+    attached for equivalent-replay comparison.
+    """
     defaults = _defaults()
     window = int(defaults["period"])
     step = 2.0 if defaults["min_interval"] >= 1.0 else 0.05
@@ -317,6 +354,13 @@ def run_replay(scenario="profitable"):
 
 
 def run_live(args):
+    """Run the SimNow live session (default 7x24) and freeze its final report.
+
+    Symbols can be overridden via --symbols or yaml (dominant legs resolved
+    from the delivery calendar by default); connection info is printed first
+    (password excluded) and run_timeout_seconds stops the run through
+    run_cerebro_with_timeout to freeze the final business report.
+    """
     config = load_config(HERE, args.config)
     symbols = (
         [token.strip() for token in args.symbols.split(",")] if args.symbols else resolve_symbols()
@@ -353,6 +397,7 @@ def run_live(args):
 
 
 def main():
+    """Parse CLI args, dispatch replay vs live, print and optionally write the report."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=DEFAULT_CONFIG)
     parser.add_argument("--replay", action="store_true", help="synthetic tick replay")

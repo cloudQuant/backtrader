@@ -30,6 +30,8 @@ class EngineeringSmokeBlocked(RuntimeError):
     """A missing safety prerequisite; no external action was attempted."""
 
     def __init__(self, code: str, message: str):
+        """Store the stable machine-readable rejection code beside the message."""
+
         super().__init__(message)
         self.code = code
 
@@ -47,6 +49,14 @@ _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY = (
     "NOT_PROVEN: the adapter membrane and market_data_only Broker only observe "
     "adapter-routed attempts; they cannot attest raw external provider writes."
 )
+_INJECTED_STORE_WRITE_EVIDENCE_BOUNDARY = (
+    "NOT_PROVEN: public BtApiStore lifecycle and market-data-only state do not attest "
+    "raw external provider writes."
+)
+# Keep a stable type guard when a focused test replaces the construction
+# symbol.  A transfer must receive a caller-created real Store, never a duck
+# object that can fabricate a session/health report.
+_BTAPI_STORE_TYPE = BtApiStore
 
 
 class _ObservationReadOnlyApi:
@@ -122,6 +132,8 @@ class _ObservationReadOnlyApi:
     _FORBIDDEN_METHODS_NORMALIZED = frozenset(method.lower() for method in _FORBIDDEN_METHODS)
 
     def __init__(self, api: Any) -> None:
+        """Wrap an explicitly injected SDK object; fail closed without one."""
+
         if api is None:
             raise EngineeringSmokeBlocked(
                 "SDK_NOT_INJECTED", "engineering observation requires an explicit API object"
@@ -175,6 +187,8 @@ class _ObservationReadOnlyApi:
         )
 
     def audit(self) -> dict[str, Any]:
+        """Return forbidden-write and safe-configuration counters as evidence."""
+
         return {
             "forbidden_write_attempts": dict(sorted(self._forbidden_write_attempts.items())),
             "safe_market_data_only_configuration_calls": self._safe_market_data_only_configuration_calls,
@@ -205,6 +219,8 @@ class RealtimeCohortEvent:
 
     @classmethod
     def from_mapping(cls, event: Mapping[str, Any]) -> "RealtimeCohortEvent":
+        """Build one event, rejecting any missing causal identity field."""
+
         event_time = _utc(event.get("event_time"), "event_time")
         recv = event.get("recv_monotonic", event.get("received_monotonic"))
         if recv is None and event.get("recv_monotonic_ns") is not None:
@@ -247,10 +263,14 @@ class DurableExecutionJournal:
     """Append-only, identity-bearing execution evidence."""
 
     def __init__(self, path: Path):
+        """Bind the journal to ``path``, creating parent directories eagerly."""
+
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def append(self, kind: str, record: Mapping[str, Any]) -> None:
+        """Append one fsynced JSON-lines record stamped with kind and time."""
+
         if not kind or not isinstance(record, Mapping):
             raise ValueError("journal records require a kind and mapping")
         entry = {
@@ -266,6 +286,8 @@ class DurableExecutionJournal:
 
 @dataclass(frozen=True)
 class FeeMarginInputs:
+    """External fee/margin evidence covering each leg of one basket."""
+
     fee_source: str
     margin_source: str
     fee_by_leg: Mapping[str, float]
@@ -273,6 +295,8 @@ class FeeMarginInputs:
     identity: Mapping[str, str]
 
     def validate(self, symbols: Iterable[str]) -> None:
+        """Reject unless every leg has non-negative fee/margin and identity."""
+
         expected = set(symbols)
         if not self.fee_source or not self.margin_source:
             raise EngineeringSmokeBlocked(
@@ -295,6 +319,8 @@ class ThreeLegExecutionCoordinator:
     """Advance a basket only from confirmed external fills."""
 
     def __init__(self, symbols: tuple[str, str, str], journal: DurableExecutionJournal):
+        """Require exactly three distinct symbols and start IDLE and clean."""
+
         if len(symbols) != 3 or len(set(symbols)) != 3:
             raise ValueError("exactly three distinct symbols are required")
         self.symbols = symbols
@@ -322,6 +348,8 @@ class ThreeLegExecutionCoordinator:
         *,
         client_order_id: str,
     ) -> None:
+        """Journal one in-sequence leg intent; reject basket/identity drift."""
+
         self._require_writable_evidence()
         if (
             self.status not in {"IDLE", "NEXT_LEG_CONFIRMED"}
@@ -369,6 +397,8 @@ class ThreeLegExecutionCoordinator:
         client_order_id: str,
         identity: Mapping[str, Any],
     ) -> None:
+        """Journal the exchange ACK that matches the pending intent leg."""
+
         self._require_writable_evidence()
         identity_key = self._identity_key(identity)
         if self.status != "INTENT" or self._intent_symbol != symbol:
@@ -404,6 +434,8 @@ class ThreeLegExecutionCoordinator:
     def record_fill(
         self, basket_id: str, symbol: str, quantity: float, identity: Mapping[str, Any]
     ) -> None:
+        """Advance one leg from a deduplicated, matched external fill."""
+
         self._require_writable_evidence()
         identity_key, trade_key = self._fill_identity(identity, symbol)
         if self.status not in {"ACKED", "PARTIAL", "RECOVERY"} or self._intent_symbol != symbol:
@@ -469,6 +501,8 @@ class ThreeLegExecutionCoordinator:
         self.status = next_status
 
     def mark_compensation(self, basket_id: str, reason: str, identity: Mapping[str, Any]) -> None:
+        """Journal an explicit compensation or recovery for the pending leg."""
+
         self._require_writable_evidence()
         identity_key = self._terminal_identity(identity)
         if self.status not in {"ACKED", "PARTIAL"} or self._intent_symbol is None:
@@ -753,11 +787,15 @@ class CtpStoreLifecycle:
     """Use the existing public Store gates; never reach into a native client."""
 
     def __init__(self, store: BtApiStore):
+        """Hold the caller-created public Store driven by these gates."""
+
         self.store = store
 
     def startup(
         self, legs: Any, *, primary_leg: Any = None, timeout: float = 15.0
     ) -> dict[str, Any]:
+        """Gate startup on a flat read-only preflight and two reconciliations."""
+
         bundle = self.store.get_ctp_bundle_preflight_snapshot(
             legs, primary_leg=primary_leg, timeout=timeout, read_only=True
         )
@@ -780,6 +818,8 @@ class CtpStoreLifecycle:
         return {"bundle_preflight": bundle, "reconciliation": (first, second)}
 
     def shutdown(self, *, timeout: float = 5.0) -> tuple[Mapping[str, Any], Mapping[str, Any]]:
+        """Return two fresh flat reconciliations required before shutdown."""
+
         rounds = (
             self.store.get_ctp_reconciliation_snapshot(timeout=timeout),
             self.store.get_ctp_reconciliation_snapshot(timeout=timeout),
@@ -788,6 +828,8 @@ class CtpStoreLifecycle:
         return rounds
 
     def verify_settlement(self, *, timeout: float = 5.0) -> Mapping[str, Any]:
+        """Return verified public settlement evidence or fail closed."""
+
         result = self.store.verify_ctp_settlement(timeout=timeout)
         if not result.get("evidence_complete"):
             raise EngineeringSmokeBlocked(
@@ -845,6 +887,8 @@ class _ObservationSessionBindingProbe(bt.Analyzer):
     params = (("on_session_bound", None),)
 
     def start(self) -> None:
+        """Invoke the session-binding callback once; fail without a callable."""
+
         on_session_bound = self.p.on_session_bound
         if not callable(on_session_bound):
             raise RuntimeError("engineering observation session-binding callback is unavailable")
@@ -1111,6 +1155,258 @@ def _engineering_observation_unstarted_graph_shutdown_complete(
     return bool(isinstance(summary, Mapping) and summary.get("status") == "NOT_STARTED")
 
 
+_TRANSFER_IDLE_COUNTERS = (
+    "queue_depth",
+    "inflight",
+    "publications_pending",
+    "funding_queue_depth",
+    "funding_pending",
+    "broker_update_queue_depth",
+    "broker_update_dropped",
+)
+_TRANSFER_IDLE_FLAGS = (
+    "close_thread_alive",
+    "funding_inflight",
+    "funding_worker_alive",
+    "read_only_metadata_probe_active",
+    "restart_blocked_by_worker",
+    "restart_blocked_by_close",
+    "funding_restart_blocked_by_worker",
+    "risk_state_latched",
+)
+_TRANSFER_REQUIRED_TRUE_FLAGS = ("broker_update_conservation",)
+
+
+def _read_market_data_only_rejection_count(health: Mapping[str, Any]) -> int:
+    rejected = health.get("rejected_market_data_only")
+    if type(rejected) is not int or rejected < 0:
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "Store market-data-only rejection audit is unavailable",
+        )
+    return rejected
+
+
+def _uses_canonical_store_rejection_recorder(store: Any) -> bool:
+    """Require the Store-owned aggregate audit implementation, not an override."""
+
+    canonical = getattr(_BTAPI_STORE_TYPE, "record_market_data_only_broker_rejection", None)
+    recorder = getattr(store, "record_market_data_only_broker_rejection", None)
+    return (
+        callable(canonical)
+        and callable(recorder)
+        and getattr(recorder, "__self__", None) is store
+        and getattr(recorder, "__func__", None) is canonical
+    )
+
+
+def _require_injected_store_transfer(store: Any, *, ownership: Any) -> int:
+    """Accept a Store only after the caller explicitly transfers its lifecycle.
+
+    A CTP preflight may already have connected the same Store.  The public
+    Store API has no general-purpose lease/handoff object, so an explicit
+    transfer marker is required before this adapter may attach a new graph and
+    eventually call ``stop``.  This avoids silently taking down a caller-owned
+    session while still allowing the preflight and strategy observation to use
+    one connection generation.
+    """
+
+    if ownership != "transfer":
+        raise EngineeringSmokeBlocked(
+            "STORE_OWNERSHIP_TRANSFER_REQUIRED",
+            "store= requires store_ownership='transfer' before observation may stop it",
+        )
+    if not isinstance(store, _BTAPI_STORE_TYPE):
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_INTERFACE_REQUIRED",
+            "store= must be a real BtApiStore instance",
+        )
+    if str(getattr(store, "provider", "")).strip().lower() != "btapi":
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_PROVIDER_REQUIRED",
+            "store= must use the btapi provider",
+        )
+    if getattr(store, "is_connected", False) is not True:
+        raise EngineeringSmokeBlocked(
+            "CTP_SESSION_STORE_UNREADY",
+            "store= must already be connected before lifecycle transfer",
+        )
+    if any(
+        not callable(getattr(store, name, None))
+        for name in (
+            "getbroker",
+            "getdata",
+            "get_command_health",
+            "get_ctp_session_state",
+            "record_market_data_only_broker_rejection",
+            "stop",
+        )
+    ):
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_INTERFACE_REQUIRED",
+            "store= must provide the public BtApiStore observation interface",
+        )
+    if not _uses_canonical_store_rejection_recorder(store):
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_AUDIT_CONTRACT_REQUIRED",
+            "store= must retain the canonical BtApiStore rejected-write aggregate",
+        )
+    try:
+        health = store.get_command_health()
+    except Exception as error:
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "store= command health could not be read before lifecycle transfer",
+        ) from error
+    if not isinstance(health, Mapping):
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "store= command health is not a public mapping",
+        )
+    if health.get("shutdown_state") in {"PASS", "FAIL", "INCOMPLETE"}:
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_TERMINATED",
+            "store= has a terminal shutdown state and cannot be transferred",
+        )
+    for health_field in _TRANSFER_IDLE_COUNTERS:
+        value = health.get(health_field)
+        if type(value) is not int or value != 0:
+            raise EngineeringSmokeBlocked(
+                "INJECTED_STORE_BUSY",
+                "store= has queued or in-flight work and cannot be transferred",
+            )
+    if any(health.get(field) is not False for field in _TRANSFER_IDLE_FLAGS):
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_BUSY",
+            "store= has an active worker/probe and cannot be transferred",
+        )
+    if any(health.get(field) is not True for field in _TRANSFER_REQUIRED_TRUE_FLAGS):
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_BUSY",
+            "store= broker updates are not fully reconciled and cannot be transferred",
+        )
+    if health.get("last_error_code") != "":
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_BUSY",
+            "store= has a prior command error and cannot be transferred",
+        )
+    if health.get("funding_last_refresh_error") is not None:
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_BUSY",
+            "store= has a prior funding refresh error and cannot be transferred",
+        )
+    rejected = _read_market_data_only_rejection_count(health)
+    if rejected != 0:
+        raise EngineeringSmokeBlocked(
+            "ENGINEERING_STORE_WRITE_BASELINE_REQUIRED",
+            "store= recorded a market-data-only write rejection before transfer",
+        )
+    return rejected
+
+
+def _store_write_guard(store: Any, *, baseline: int, ownership: str) -> dict[str, Any]:
+    """Project the public read-only fence for a transferred Store.
+
+    Unlike the ``api=`` path, this adapter must not unwrap ``store.sdk_api``
+    merely to install a second membrane.  The Store and market-data-only
+    Broker are the local guard, while raw provider writes remain explicitly
+    unproven.
+    """
+
+    try:
+        health = store.get_command_health()
+    except Exception as error:
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "transferred Store command health could not be read",
+        ) from error
+    if (
+        not isinstance(health, Mapping)
+        or health.get("shutdown_state") != "PASS"
+        or type(health.get("accepting_openings")) is not bool
+    ):
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_READ_ONLY_STATE_REQUIRED",
+            "transferred Store command health is missing its public queue state",
+        )
+    rejected = _read_market_data_only_rejection_count(health)
+    if rejected < baseline:
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "transferred Store market-data-only health is invalid",
+        )
+    rejected_delta = rejected - baseline
+    return {
+        "source": "BtApiStore.get_command_health",
+        "ownership": ownership,
+        "forbidden_write_attempts": (
+            {"store_market_data_only_rejected": rejected_delta} if rejected_delta else {}
+        ),
+        # ``accepting_openings`` means only that an async command queue can
+        # accept a request; it is not an execution grant and may be true for a
+        # market-data-only SDK.  The independently checked public CTP session
+        # binding plus the Broker shutdown summary carry the read-only proof.
+        "command_queue_accepting_openings": health["accepting_openings"],
+        "market_data_only": "PROVEN_BY_SESSION_BINDING_AND_BROKER",
+        "rejected_market_data_only": {
+            "baseline": baseline,
+            "final": rejected,
+            "delta": rejected_delta,
+        },
+    }
+
+
+def _broker_write_guard(broker: Any) -> dict[str, Any]:
+    getter = getattr(broker, "get_market_data_only_audit", None)
+    if not callable(getter):
+        raise EngineeringSmokeBlocked(
+            "BROKER_WRITE_AUDIT_UNAVAILABLE",
+            "market-data-only Broker audit is unavailable",
+        )
+    try:
+        audit = getter()
+    except Exception as error:
+        raise EngineeringSmokeBlocked(
+            "BROKER_WRITE_AUDIT_UNAVAILABLE",
+            "market-data-only Broker audit could not be read",
+        ) from error
+    fields = ("submit_rejected", "cancel_rejected", "batch_cancel_rejected", "total_rejected")
+    if (
+        not isinstance(audit, Mapping)
+        or any(type(audit.get(field)) is not int or audit[field] < 0 for field in fields)
+        or audit["total_rejected"] != sum(audit[field] for field in fields[:-1])
+    ):
+        raise EngineeringSmokeBlocked(
+            "BROKER_WRITE_AUDIT_UNAVAILABLE",
+            "market-data-only Broker audit is invalid",
+        )
+    total = audit["total_rejected"]
+    return {
+        "source": "BtApiBroker.get_market_data_only_audit",
+        **{field: audit[field] for field in fields},
+        "forbidden_write_attempts": ({"broker_market_data_only_rejected": total} if total else {}),
+    }
+
+
+def _combine_write_guards(*guards: Mapping[str, Any]) -> dict[str, int]:
+    combined: dict[str, int] = {}
+    for guard in guards:
+        attempts = guard.get("forbidden_write_attempts")
+        if not isinstance(attempts, Mapping):
+            raise EngineeringSmokeBlocked(
+                "INJECTED_STORE_HEALTH_UNAVAILABLE",
+                "market-data-only write audit is invalid",
+            )
+        for name, value in attempts.items():
+            if type(value) is not int or value <= 0:
+                raise EngineeringSmokeBlocked(
+                    "INJECTED_STORE_HEALTH_UNAVAILABLE",
+                    "market-data-only write audit is invalid",
+                )
+            combined[str(name)] = combined.get(str(name), 0) + value
+    return combined
+
+
 def _stop_engineering_observation_graph(*, broker: Any, feeds: list[Any], store: Any) -> bool:
     """Stop every constructed component and prove its zero-write terminal state."""
 
@@ -1186,7 +1482,9 @@ def _engineering_observation_elapsed_within_maximum(elapsed_seconds: float) -> b
 def run_engineering_observation(
     *,
     config: Mapping[str, Any],
-    api: Any,
+    api: Any = None,
+    store: Any = None,
+    store_ownership: Any = None,
     environment_profile: str,
     run_seconds: Any,
     feed_clock: Any,
@@ -1195,17 +1493,31 @@ def run_engineering_observation(
 ) -> dict[str, Any]:
     """Run one bounded Set-2 shadow observation through Store/Feed/Cerebro.
 
-    This entry point is deliberately API-only.  It neither looks up an SDK nor
-    reads any environment/credential file.  The caller has to inject an
-    already-created API object, a calibrated live clock mapping and a provider
-    that turns Feed-owned closed bars into immutable evidence.  It can never
-    authorize execution, settle, submit, cancel or create synthetic fills.
+    The ``api=`` path is deliberately injection-only: it neither looks up an
+    SDK nor reads any environment/credential file.  A governed operator may
+    instead transfer a single existing Store with
+    ``store_ownership='transfer'`` after read-only preflight.  The adapter
+    never unwraps that Store's SDK API or constructs a second Store.  Both
+    paths require a calibrated live clock mapping and a provider that turns
+    Feed-owned closed bars into immutable evidence; neither can authorize
+    execution, settle, submit, cancel or create synthetic fills.
     """
 
-    if api is None:
+    if api is not None and store is not None:
+        raise EngineeringSmokeBlocked(
+            "ENGINEERING_STORE_INPUT",
+            "engineering observation accepts exactly one of api= or store=",
+        )
+    if store is None and api is None:
         raise EngineeringSmokeBlocked(
             "SDK_NOT_INJECTED", "engineering observation requires an explicit API object"
         )
+    if store is None and store_ownership is not None:
+        raise EngineeringSmokeBlocked(
+            "ENGINEERING_STORE_INPUT",
+            "store_ownership is valid only when store= is supplied",
+        )
+    injected_store = store is not None
     if environment_profile != SECOND_SET_ENGINEERING_PROFILE:
         raise EngineeringSmokeBlocked(
             "ENGINEERING_PROFILE_REQUIRED",
@@ -1256,9 +1568,10 @@ def run_engineering_observation(
     lifecycle_lock = threading.Lock()
     cerebro: Any = None
     guarded_api: Any = None
-    store: Any = None
     broker: Any = None
     feeds: list[Any] = []
+    store_write_baseline: int | None = None
+    store_owned_by_observation = False
 
     def request_deadline_stop() -> None:
         deadline_stop_requested.set()
@@ -1310,15 +1623,44 @@ def run_engineering_observation(
 
     try:
         require_lifecycle_budget()
-        guarded_api = _ObservationReadOnlyApi(api)
-        # A managed SDK may require this narrowing transition at Store start.
-        # The API membrane above admits only this exact non-arming configuration.
-        store = BtApiStore(
-            provider="btapi",
-            api=guarded_api,
-            config={"market_data_only": True, "execution_config": {"market_data_only": True}},
-            autostart=False,
-        )
+        if injected_store:
+            # The caller has explicitly transferred the already-created Store
+            # after any read-only preflight.  Do not touch ``store.sdk_api``:
+            # that would create a second Store/client lifecycle around one
+            # connection and make shutdown evidence ambiguous.
+            assert store is not None
+            store_write_baseline = _require_injected_store_transfer(
+                store,
+                ownership=store_ownership,
+            )
+            store_owned_by_observation = True
+        else:
+            guarded_api = _ObservationReadOnlyApi(api)
+            # A managed SDK may require this narrowing transition at Store
+            # start.  The API membrane admits only this exact non-arming
+            # configuration.
+            store = BtApiStore(
+                provider="btapi",
+                api=guarded_api,
+                config={
+                    "market_data_only": True,
+                    "execution_config": {"market_data_only": True},
+                },
+                autostart=False,
+            )
+            store_owned_by_observation = True
+            health = store.get_command_health()
+            if not isinstance(health, Mapping):
+                raise EngineeringSmokeBlocked(
+                    "INJECTED_STORE_HEALTH_UNAVAILABLE",
+                    "new Store command health is unavailable",
+                )
+            store_write_baseline = _read_market_data_only_rejection_count(health)
+            if store_write_baseline != 0:
+                raise EngineeringSmokeBlocked(
+                    "ENGINEERING_STORE_WRITE_BASELINE_REQUIRED",
+                    "new Store recorded a market-data-only write rejection",
+                )
         require_lifecycle_budget()
         broker = store.getbroker(
             market_data_only=True,
@@ -1372,10 +1714,13 @@ def run_engineering_observation(
         require_lifecycle_budget()
     except BaseException as error:
         timer_shutdown_failed = not cancel_observation_timers()
-        graph_shutdown_complete = store is None or _stop_engineering_observation_graph(
-            broker=broker,
-            feeds=feeds,
-            store=store,
+        graph_shutdown_complete = (
+            not store_owned_by_observation
+            or _stop_engineering_observation_graph(
+                broker=broker,
+                feeds=feeds,
+                store=store,
+            )
         )
         if timer_shutdown_failed or not graph_shutdown_complete:
             raise EngineeringSmokeBlocked(
@@ -1508,12 +1853,38 @@ def run_engineering_observation(
         if strategy is not None
         else (False, "STRATEGY_RUNTIME_MISSING")
     )
-    write_guard = guarded_api.audit()
+    if store_write_baseline is None:
+        raise EngineeringSmokeBlocked(
+            "INJECTED_STORE_HEALTH_UNAVAILABLE",
+            "Store write-audit baseline is unavailable",
+        )
+    membrane_guard = (
+        guarded_api.audit() if guarded_api is not None else {"forbidden_write_attempts": {}}
+    )
+    store_guard = _store_write_guard(
+        store,
+        baseline=store_write_baseline,
+        ownership=("INJECTED_STORE" if injected_store else "ADAPTER_OWNED_STORE"),
+    )
+    broker_guard = _broker_write_guard(broker)
+    # The Store-scoped delta already includes every Broker bound to this
+    # Store, including this graph's Broker.  Keep the Broker result as an
+    # attribution breakdown without counting one rejected callback twice.
+    forbidden_write_attempts = _combine_write_guards(
+        membrane_guard,
+        store_guard,
+    )
+    write_guard = {
+        **dict(membrane_guard),
+        "forbidden_write_attempts": forbidden_write_attempts,
+        "store_market_data_only": store_guard,
+        "broker_market_data_only": broker_guard,
+    }
     shutdown_complete = _engineering_observation_shutdown_complete(shutdown, store)
     duration_complete = deadline_stop_requested.is_set()
     elapsed_within_maximum = _engineering_observation_elapsed_within_maximum(elapsed_seconds)
     lifecycle_complete = elapsed_within_maximum and not lifecycle_deadline_stop_requested.is_set()
-    write_complete = not write_guard["forbidden_write_attempts"]
+    write_complete = not forbidden_write_attempts
     complete = (
         duration_complete
         and lifecycle_complete
@@ -1535,13 +1906,18 @@ def run_engineering_observation(
 
     strategy_report = strategy.build_report() if strategy is not None else None
     adapter_scoped_write_attempts = sum(write_guard["forbidden_write_attempts"].values())
+    write_evidence_boundary = (
+        _INJECTED_STORE_WRITE_EVIDENCE_BOUNDARY
+        if injected_store
+        else _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY
+    )
     if isinstance(strategy_report, Mapping):
         # The strategy report is local to this injected graph.  Preserve its
         # decision evidence but remove its implied raw-provider write count.
         strategy_report = dict(strategy_report)
         strategy_report["adapter_scoped_write_attempts"] = adapter_scoped_write_attempts
         strategy_report["external_trade_writes"] = "NOT_PROVEN"
-        strategy_report["external_trade_writes_basis"] = _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY
+        strategy_report["external_trade_writes_basis"] = write_evidence_boundary
     return {
         "status": (
             "PASS_ENGINEERING_STRATEGY_OBSERVATION"
@@ -1552,6 +1928,11 @@ def run_engineering_observation(
         "purpose": "observation",
         "strategy_runtime_mode": config.get("mode"),
         "candidate_id": candidate["candidate_id"],
+        "store_ownership": (
+            "INJECTED_STORE_LIFECYCLE_TRANSFERRED"
+            if injected_store
+            else "ADAPTER_OWNED_STORE_FROM_API"
+        ),
         "chain": {
             "store": "BtApiStore",
             "feeds": ["BtApiFeed"] * len(feeds),
@@ -1580,7 +1961,7 @@ def run_engineering_observation(
         "write_guard": write_guard,
         "adapter_scoped_write_attempts": adapter_scoped_write_attempts,
         "external_trade_writes": "NOT_PROVEN",
-        "external_trade_writes_basis": _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY,
+        "external_trade_writes_basis": write_evidence_boundary,
         "shutdown": _engineering_observation_shutdown_projection(shutdown),
         "strategy": strategy_report,
         "failure_codes": failure_codes,

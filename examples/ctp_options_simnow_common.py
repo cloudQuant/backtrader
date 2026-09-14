@@ -16,12 +16,15 @@ class BundleSelectionError(ValueError):
     """A deterministic fail-closed discovery or selection rejection."""
 
     def __init__(self, reason: str):
+        """Attach the stable machine-readable rejection ``reason``."""
         super().__init__(reason)
         self.reason = reason
 
 
 @dataclass(frozen=True)
 class LegIdentity:
+    """Immutable per-leg identity and contract metadata from one CTP record."""
+
     instrument_id: str
     exchange_id: str
     product_id: str
@@ -38,6 +41,8 @@ class LegIdentity:
 
 @dataclass(frozen=True)
 class ThreeLegBundle:
+    """A strict future/call/put triple sharing product, expiry, and strike."""
+
     exchange_id: str
     product_id: str
     trading_day: str

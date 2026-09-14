@@ -1,9 +1,12 @@
 """Mid-frequency cross-product pair arbitrage (soybean meal m vs rapeseed meal RM).
 
-策略完全基于 Backtrader 原生构件：``bt.indicators.SpreadZScore`` 提供双腿价差
-z-score（指标在 next() 中就绪），限价参考 ``notify_tick`` 缓存的买卖一档。
-执行为逐腿顺序限价 IOC：先空腿、确认终态后按实际成交量提交多腿；第二腿
-未成交立即反向平掉裸腿；任一腿超时或未知状态即停机留痕，由人工对账。
+The strategy is built purely from native Backtrader pieces:
+``bt.indicators.SpreadZScore`` provides the two-leg spread z-score (ready in
+next()) and limit prices reference the best bid/ask cached by ``notify_tick``.
+Execution is sequential per-leg limit IOC: the short leg goes first, the long
+leg follows after a terminal state using the actual filled size; an unfilled
+second leg immediately flattens the naked leg; any leg timeout or unknown
+state halts the run with evidence left for manual reconciliation.
 """
 
 import math
@@ -49,6 +52,7 @@ class PairArbitrageStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the spread indicator, per-leg close offsets and execution state."""
         self.spread = btind.SpreadZScore(self.data0, self.data1, period=self.p.period)
         self.symbols = [data._name for data in self.datas]
         self.close_offsets = {symbol: close_offset(symbol) for symbol in self.symbols}
@@ -76,6 +80,12 @@ class PairArbitrageStrategy(bt.Strategy):
         self._trade_logger_context_last_error = None
 
     def start(self):
+        """Record the starting equity and refuse to run with any open exposure.
+
+        The strategy assumes an initially flat SimNow account; otherwise it
+        halts immediately instead of mistaking pre-existing positions for its
+        own exposure.
+        """
         self.initial_value = self.broker.getvalue()
         for data in self.datas:
             if abs(self.broker.getposition(data).size) > 1e-12:
@@ -85,6 +95,7 @@ class PairArbitrageStrategy(bt.Strategy):
         self._publish_trade_logger_context(force=True)
 
     def halt(self, reason):
+        """Latch the halted flag; every next() call becomes a no-op afterwards."""
         self.halted, self.halt_reason = True, reason
         self._mark_trade_logger_context_dirty()
         self._publish_trade_logger_context()
@@ -92,6 +103,7 @@ class PairArbitrageStrategy(bt.Strategy):
     # ---------------- market data ----------------
 
     def notify_tick(self, tick):
+        """Cache the freshest one-level quotes used by limit pricing in next()."""
         symbol = getattr(tick, "symbol", None)
         if symbol not in self.symbols:
             return
@@ -126,6 +138,11 @@ class PairArbitrageStrategy(bt.Strategy):
     # ---------------- main loop ----------------
 
     def next(self):
+        """Drive the entry/exit state machine once per bar using the spread z-score.
+
+        Entry: z breaks ±entry_z with confirmations/min-interval; exit:
+        reversion to exit_z, timeout or loss stop. No-op once halted.
+        """
         try:
             if self.halted:
                 return
@@ -238,6 +255,7 @@ class PairArbitrageStrategy(bt.Strategy):
         self._mark_trade_logger_context_dirty()
 
     def notify_order(self, order):
+        """Record every order transition into the report ledger and drive legs."""
         self.orders[order.ref] = {
             "ref": order.ref,
             "symbol": order.data._name,
@@ -249,7 +267,8 @@ class PairArbitrageStrategy(bt.Strategy):
             "commission": order.executed.comm,
             "offset": order.info.get("offset"),
             # Remote status text is only meaningful on rejections; CTP
-            # success reports ("全部成交报单已提交") must not pose as errors.
+            # success reports (the Chinese "all orders submitted" message)
+            # must not pose as errors.
             "error_code": (
                 order.info.get("error_code") if order.getstatusname() == "Rejected" else None
             ),
@@ -339,6 +358,7 @@ class PairArbitrageStrategy(bt.Strategy):
     # ---------------- reporting ----------------
 
     def stop(self):
+        """Freeze the final report; halt if exposure survived data exhaustion."""
         if not self.halted and any(
             abs(self.broker.getposition(data).size) > 1e-12 for data in self.datas
         ):

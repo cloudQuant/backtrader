@@ -1,9 +1,10 @@
 """Fail-closed SimNow adapter for the Iteration 23 low-frequency example.
 
 The adapter is deliberately small and owns no CTP client.  A caller must
-inject the already-created ``bt_api_py`` API object (or a pure mock).  This
-keeps credential loading, native lifecycle and authorization in their owning
-SDK while making the example's startup and reconciliation contract testable.
+inject either an already-created ``bt_api_py`` API object (or a pure mock), or
+explicitly transfer one preflight-owned ``BtApiStore``.  This keeps credential
+loading and native authorization in their owning SDK while making one runtime
+lifecycle and the example's startup/reconciliation contract testable.
 """
 
 from __future__ import annotations
@@ -52,6 +53,14 @@ _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY = (
     "NOT_PROVEN: the adapter membrane and market_data_only Broker only observe "
     "adapter-routed attempts; they cannot attest raw external provider writes."
 )
+_INJECTED_STORE_WRITE_EVIDENCE_BOUNDARY = (
+    "NOT_PROVEN: the transferred Store and market_data_only Broker only observe "
+    "Store-routed attempts; they cannot attest raw external provider writes."
+)
+# Keep this stable if a focused test replaces the construction symbol.  The
+# Store-injected path accepts only a real, caller-created BtApiStore and must
+# never construct a second Store from ``store.sdk_api``.
+_BTAPI_STORE_TYPE = BtApiStore
 
 
 class _ObservationReadOnlyApi:
@@ -125,6 +134,8 @@ class _ObservationReadOnlyApi:
     _FORBIDDEN_METHODS_NORMALIZED = frozenset(method.lower() for method in _FORBIDDEN_METHODS)
 
     def __init__(self, api: Any) -> None:
+        """Wrap a caller-injected SDK API inside the read-only membrane."""
+
         if api is None:
             raise SimNowBlocked("SDK_NOT_INJECTED")
         self._api = api
@@ -184,10 +195,19 @@ class _ObservationClockProvider:
     """Translate the caller's calibrated monotonic source into strategy time."""
 
     def __init__(self, *, feed_clock: Any, clock_mapping: ClockMapping) -> None:
+        """Hold the calibrated feed clock and its mapping for later calls."""
+
         self._feed_clock = feed_clock
         self._clock_mapping = clock_mapping
 
     def __call__(self) -> dict[str, Any]:
+        """Project the live monotonic reading onto trusted wall-clock time.
+
+        Fail closed with ``SimNowBlocked`` unless a callable integer
+        ``monotonic_ns`` source is present and its reading falls inside the
+        calibrated mapping window; the returned observation is therefore
+        always trusted and never synthesized.
+        """
         monotonic_ns = getattr(self._feed_clock, "monotonic_ns", None)
         if not callable(monotonic_ns):
             raise SimNowBlocked("LIVE_FEED_CLOCK_REQUIRED")
@@ -291,12 +311,190 @@ def _engineering_duration_seconds(value: Any) -> float:
     return seconds
 
 
+_TRANSFER_IDLE_COUNTERS = (
+    "queue_depth",
+    "inflight",
+    "publications_pending",
+    "funding_queue_depth",
+    "funding_pending",
+    "broker_update_queue_depth",
+    "broker_update_dropped",
+)
+_TRANSFER_IDLE_FLAGS = (
+    "close_thread_alive",
+    "funding_inflight",
+    "funding_worker_alive",
+    "read_only_metadata_probe_active",
+    "restart_blocked_by_worker",
+    "restart_blocked_by_close",
+    "funding_restart_blocked_by_worker",
+    "risk_state_latched",
+)
+_TRANSFER_REQUIRED_TRUE_FLAGS = ("broker_update_conservation",)
+
+
+def _read_market_data_only_rejection_count(health: Mapping[str, Any]) -> int:
+    rejected = health.get("rejected_market_data_only")
+    if type(rejected) is not int or rejected < 0:
+        raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE")
+    return rejected
+
+
+def _uses_canonical_store_rejection_recorder(store: Any) -> bool:
+    """Require the Store-owned aggregate audit implementation, not an override."""
+
+    canonical = getattr(_BTAPI_STORE_TYPE, "record_market_data_only_broker_rejection", None)
+    recorder = getattr(store, "record_market_data_only_broker_rejection", None)
+    return (
+        callable(canonical)
+        and callable(recorder)
+        and getattr(recorder, "__self__", None) is store
+        and getattr(recorder, "__func__", None) is canonical
+    )
+
+
+def _require_idle_transfer_health(health: Mapping[str, Any]) -> int:
+    """Return a zero write-attempt baseline for an exclusively idle Store."""
+
+    if health.get("shutdown_state") in {"PASS", "FAIL", "INCOMPLETE"}:
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    for field in _TRANSFER_IDLE_COUNTERS:
+        value = health.get(field)
+        if type(value) is not int or value != 0:
+            raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    if any(health.get(field) is not False for field in _TRANSFER_IDLE_FLAGS):
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    if any(health.get(field) is not True for field in _TRANSFER_REQUIRED_TRUE_FLAGS):
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    if health.get("last_error_code") != "":
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    if health.get("funding_last_refresh_error") is not None:
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    rejected = _read_market_data_only_rejection_count(health)
+    if rejected != 0:
+        raise SimNowBlocked("ENGINEERING_STORE_WRITE_BASELINE_REQUIRED")
+    return rejected
+
+
+def _require_transferable_observation_store(value: Any) -> tuple[BtApiStore, int]:
+    """Accept one Store whose full lifecycle transfers to this run.
+
+    The check intentionally uses only public Store contracts.  An already
+    stopped Store cannot safely be reused, and recreating a Store around a
+    managed SDK would create a second lifecycle.  A connected Store is valid:
+    an operator may use it for one read-only CTP preflight, then explicitly
+    transfer its only remaining lifecycle to this observation.  The normal
+    Broker/Store start path is idempotent in that case and must not reconnect.
+    """
+
+    if not isinstance(value, _BTAPI_STORE_TYPE):
+        raise SimNowBlocked("ENGINEERING_STORE_REQUIRED")
+    if str(getattr(value, "provider", "")).strip().lower() != "btapi":
+        raise SimNowBlocked("ENGINEERING_STORE_PROVIDER_REQUIRED")
+    connected = getattr(value, "is_connected", False) is True
+    health_reader = getattr(value, "get_command_health", None)
+    if not callable(health_reader):
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    try:
+        health = health_reader()
+    except Exception as exc:
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED") from exc
+    if not isinstance(health, Mapping):
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    if not connected:
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_REQUIRED")
+    if not _uses_canonical_store_rejection_recorder(value):
+        raise SimNowBlocked("ENGINEERING_STORE_AUDIT_CONTRACT_REQUIRED")
+    return value, _require_idle_transfer_health(health)
+
+
+def _store_write_guard(store: Any, *, baseline: int, ownership: str) -> dict[str, Any]:
+    """Project the transferred Store's public local write fence.
+
+    The adapter must not unwrap ``store.sdk_api`` to install a second
+    membrane.  Instead, it checks public Store health after the
+    market-data-only Broker completes its lifecycle.  This proves only the
+    local routing fence; raw provider-side writes remain NOT_PROVEN.
+    """
+
+    health_reader = getattr(store, "get_command_health", None)
+    if not callable(health_reader):
+        raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE")
+    try:
+        health = health_reader()
+    except Exception as exc:
+        raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE") from exc
+    if (
+        not isinstance(health, Mapping)
+        or health.get("shutdown_state") != "PASS"
+        or health.get("accepting_openings") is not False
+    ):
+        raise SimNowBlocked("INJECTED_STORE_READ_ONLY_STATE_REQUIRED")
+    rejected = _read_market_data_only_rejection_count(health)
+    if rejected < baseline:
+        raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE")
+    rejected_delta = rejected - baseline
+    return {
+        "source": "BtApiStore.get_command_health",
+        "ownership": ownership,
+        "forbidden_write_attempts": (
+            {"store_market_data_only_rejected": rejected_delta} if rejected_delta else {}
+        ),
+        "accepting_openings": False,
+        "rejected_market_data_only": {
+            "baseline": baseline,
+            "final": rejected,
+            "delta": rejected_delta,
+        },
+    }
+
+
+def _broker_write_guard(broker: Any) -> dict[str, Any]:
+    """Read the Broker's public local rejected-write audit after shutdown."""
+
+    getter = getattr(broker, "get_market_data_only_audit", None)
+    if not callable(getter):
+        raise SimNowBlocked("BROKER_WRITE_AUDIT_UNAVAILABLE")
+    try:
+        audit = getter()
+    except Exception as exc:
+        raise SimNowBlocked("BROKER_WRITE_AUDIT_UNAVAILABLE") from exc
+    if not isinstance(audit, Mapping):
+        raise SimNowBlocked("BROKER_WRITE_AUDIT_UNAVAILABLE")
+    fields = ("submit_rejected", "cancel_rejected", "batch_cancel_rejected", "total_rejected")
+    if any(type(audit.get(field)) is not int or audit[field] < 0 for field in fields):
+        raise SimNowBlocked("BROKER_WRITE_AUDIT_UNAVAILABLE")
+    total = audit["total_rejected"]
+    if total != sum(audit[field] for field in fields[:-1]):
+        raise SimNowBlocked("BROKER_WRITE_AUDIT_UNAVAILABLE")
+    return {
+        "source": "BtApiBroker.get_market_data_only_audit",
+        **{field: audit[field] for field in fields},
+        "forbidden_write_attempts": ({"broker_market_data_only_rejected": total} if total else {}),
+    }
+
+
+def _combine_write_guards(*guards: Mapping[str, Any]) -> dict[str, int]:
+    combined: dict[str, int] = {}
+    for guard in guards:
+        attempts = guard.get("forbidden_write_attempts")
+        if not isinstance(attempts, Mapping):
+            raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE")
+        for name, value in attempts.items():
+            if type(value) is not int or value <= 0:
+                raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE")
+            combined[str(name)] = combined.get(str(name), 0) + value
+    return combined
+
+
 class _ObservationSessionBindingProbe(bt.Analyzer):
     """Bind the already-connected Store to one real public CTP session state."""
 
     params = (("on_session_bound", None),)
 
     def start(self) -> None:
+        """Invoke the single mandatory session-binding callback at start."""
+
         on_session_bound = self.p.on_session_bound
         if not callable(on_session_bound):
             raise RuntimeError("engineering observation session-binding callback is unavailable")
@@ -631,25 +829,41 @@ def _engineering_observation_evidence_complete(
 def run_engineering_observation(
     *,
     config: Mapping[str, Any],
-    api: Any,
     environment_profile: str,
     run_seconds: Any,
     feed_clock: Any,
     clock_mapping: Any,
     closed_bar_evidence_provider: Callable[[Any], Any],
+    api: Any = None,
+    store: BtApiStore | None = None,
+    store_ownership: str | None = None,
 ) -> dict[str, Any]:
     """Run one explicit, bounded Set-2 zero-write low-frequency observation.
 
-    This API-only seam requires a caller-owned SDK object plus a calibrated
-    live clock mapping and immutable closed-bar evidence provider.  It does
-    not read an environment file, instantiate an SDK, call a preflight that
-    could be misreported as G3, or expose a CLI connection path.  A 60-minute
-    run starts from no history and cannot establish the strategy's 40-bar
-    signal logic; it proves only lifecycle and BAR_ONLY feed hand-off facts.
+    The caller supplies exactly one lifecycle root: either an API (which this
+    adapter narrows through its read-only membrane) or one Store with an
+    explicit ownership transfer.  The latter path never reads ``store.sdk_api``
+    or creates another Store.  Neither path reads an environment file,
+    instantiates an SDK, calls a preflight that could be misreported as G3, or
+    exposes a CLI connection path.  A 60-minute run starts from no history and
+    cannot establish the strategy's 40-bar signal logic; it proves only
+    lifecycle and BAR_ONLY feed hand-off facts.
     """
 
-    if api is None:
+    api_supplied = api is not None
+    store_supplied = store is not None
+    if api_supplied and store_supplied:
+        raise SimNowBlocked("ENGINEERING_STORE_API_EXCLUSIVE")
+    if not api_supplied and not store_supplied:
+        # Preserve the original API-only entrypoint's fail-closed result for
+        # callers that have not adopted the Store transfer contract.
         raise SimNowBlocked("SDK_NOT_INJECTED")
+    injected_store: BtApiStore | None = None
+    if store_supplied:
+        if store_ownership != "transfer":
+            raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_TRANSFER_REQUIRED")
+    elif store_ownership is not None:
+        raise SimNowBlocked("ENGINEERING_STORE_OWNERSHIP_UNEXPECTED")
     if environment_profile != SECOND_SET_ENGINEERING_PROFILE:
         raise SimNowBlocked("ENGINEERING_PROFILE_REQUIRED")
     if not isinstance(config, Mapping):
@@ -687,7 +901,7 @@ def run_engineering_observation(
         closed_bar_evidence_provider,
         clock_mapping=trusted_mapping,
     )
-    guarded_api = _ObservationReadOnlyApi(api)
+    guarded_api = _ObservationReadOnlyApi(api) if api_supplied else None
     metadata = {
         symbol: {
             "tick_size": strategy_params["price_tick"],
@@ -706,6 +920,7 @@ def run_engineering_observation(
     lifecycle_deadline_timers: list[threading.Timer] = []
     lifecycle_lock = threading.Lock()
     cerebro: Any = None
+    store_write_baseline: int | None = None
 
     def request_deadline_stop() -> None:
         deadline_stop_requested.set()
@@ -741,25 +956,40 @@ def run_engineering_observation(
     lifecycle_deadline_timers.append(lifecycle_timer)
     lifecycle_timer.start()
 
-    store: Any = None
+    observation_store: Any = None
     broker: Any = None
     feeds: list[Any] = []
     try:
         require_lifecycle_budget()
+        if store_supplied:
+            # Transfer only after all pure caller/configuration validation has
+            # completed and while the graph teardown guard is active.  A
+            # later construction error then closes the transferred Store;
+            # earlier validation failures leave it with its original owner.
+            injected_store, store_write_baseline = _require_transferable_observation_store(store)
+            observation_store = injected_store
+        require_lifecycle_budget()
         cerebro = bt.Cerebro(stdstats=False, quicknotify=True, runonce=False)
         require_lifecycle_budget()
-        store = BtApiStore(
-            provider="btapi",
-            api=guarded_api,
-            config={"market_data_only": True, "execution_config": {"market_data_only": True}},
-            cash=float(budget["capital_limit"]),
-            value=float(budget["capital_limit"]),
-            contract_metadata=metadata,
-            autostart=False,
-        )
+        if injected_store is None:
+            observation_store = BtApiStore(
+                provider="btapi",
+                api=guarded_api,
+                config={"market_data_only": True, "execution_config": {"market_data_only": True}},
+                cash=float(budget["capital_limit"]),
+                value=float(budget["capital_limit"]),
+                contract_metadata=metadata,
+                autostart=False,
+            )
+            health = observation_store.get_command_health()
+            if not isinstance(health, Mapping):
+                raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE")
+            store_write_baseline = _read_market_data_only_rejection_count(health)
+            if store_write_baseline != 0:
+                raise SimNowBlocked("ENGINEERING_STORE_WRITE_BASELINE_REQUIRED")
         require_lifecycle_budget()
         broker = BtApiBroker(
-            store=store,
+            store=observation_store,
             provider="btapi",
             cash=float(budget["capital_limit"]),
             value=float(budget["capital_limit"]),
@@ -773,7 +1003,7 @@ def run_engineering_observation(
         cerebro.setbroker(broker)
         require_lifecycle_budget()
         for symbol in typed_symbols:
-            feed = store.getdata(
+            feed = observation_store.getdata(
                 dataname=symbol,
                 timeframe=bt.TimeFrame.Minutes,
                 compression=15,
@@ -805,10 +1035,10 @@ def run_engineering_observation(
     except BaseException as exc:
         lifecycle_timer.cancel()
         lifecycle_timer.join(timeout=1.0)
-        graph_shutdown_complete = store is None or _stop_observation_graph(
+        graph_shutdown_complete = observation_store is None or _stop_observation_graph(
             broker=broker,
             feeds=feeds,
-            store=store,
+            store=observation_store,
         )
         if lifecycle_timer.is_alive() or not graph_shutdown_complete:
             raise SimNowBlocked("ENGINEERING_OBSERVATION_SHUTDOWN_INCOMPLETE") from exc
@@ -820,7 +1050,7 @@ def run_engineering_observation(
         """Run only after Cerebro has started the Store and real strategy."""
 
         binding = _require_second_set_session_binding(
-            store,
+            observation_store,
             clock_mapping=trusted_mapping,
         )
         with lifecycle_lock:
@@ -853,7 +1083,7 @@ def run_engineering_observation(
         graph_shutdown_complete = _stop_observation_graph(
             broker=broker,
             feeds=feeds,
-            store=store,
+            store=observation_store,
         )
         if lifecycle_timer.is_alive() or not graph_shutdown_complete:
             raise SimNowBlocked("ENGINEERING_OBSERVATION_SHUTDOWN_INCOMPLETE") from exc
@@ -891,11 +1121,11 @@ def run_engineering_observation(
             # Preserve the original runtime/binding reason only when the
             # public Broker/Store summary already proves the zero-write stop;
             # otherwise make one explicit full-graph attempt and fail closed.
-            if not _observation_shutdown_complete(shutdown_before, store):
+            if not _observation_shutdown_complete(shutdown_before, observation_store):
                 if not _stop_observation_graph(
                     broker=broker,
                     feeds=feeds,
-                    store=store,
+                    store=observation_store,
                 ):
                     shutdown_incomplete = True
     elapsed_seconds = max(time.monotonic() - started_at, 0.0)
@@ -928,11 +1158,46 @@ def run_engineering_observation(
         if observed_cohorts < required_bars
         else "OBSERVED_ZERO_WRITE_NO_SIGNAL_OR_EXECUTION_CLAIM"
     )
-    write_guard = guarded_api.audit()
-    adapter_scoped_write_attempts = sum(write_guard["forbidden_write_attempts"].values())
-    shutdown_complete = _observation_shutdown_complete(shutdown, store)
+    if store_write_baseline is None:
+        raise SimNowBlocked("INJECTED_STORE_HEALTH_UNAVAILABLE")
+    membrane_guard = (
+        guarded_api.audit() if guarded_api is not None else {"forbidden_write_attempts": {}}
+    )
+    store_guard = _store_write_guard(
+        observation_store,
+        baseline=store_write_baseline,
+        ownership=("INJECTED_STORE" if injected_store is not None else "ADAPTER_OWNED_STORE"),
+    )
+    broker_guard = _broker_write_guard(broker)
+    # The Store-scoped delta already includes every Broker bound to this
+    # Store, including this graph's Broker.  Keep the Broker result as an
+    # attribution breakdown without counting one rejected callback twice.
+    forbidden_write_attempts = _combine_write_guards(
+        membrane_guard,
+        store_guard,
+    )
+    write_guard = {
+        **dict(membrane_guard),
+        "forbidden_write_attempts": forbidden_write_attempts,
+        "store_market_data_only": store_guard,
+        "broker_market_data_only": broker_guard,
+    }
+    adapter_scoped_write_attempts = sum(forbidden_write_attempts.values())
+    write_complete = bool(
+        not forbidden_write_attempts
+        and session_binding
+        and session_binding[0].get("read_only_ready") is True
+        and session_binding[0].get("execution_armed") is False
+        and isinstance(shutdown, Mapping)
+        and shutdown.get("market_data_only") is True
+    )
+    write_evidence_boundary = (
+        _INJECTED_STORE_WRITE_EVIDENCE_BOUNDARY
+        if injected_store is not None
+        else _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY
+    )
+    shutdown_complete = _observation_shutdown_complete(shutdown, observation_store)
     duration_complete = deadline_stop_requested.is_set()
-    write_complete = not write_guard["forbidden_write_attempts"]
     complete = (
         duration_complete
         and lifecycle_duration_complete
@@ -962,6 +1227,11 @@ def run_engineering_observation(
         "mode": "shadow",
         "purpose": "observation",
         "candidate_id": ENGINEERING_OBSERVATION_CANDIDATE_ID,
+        "store_ownership": (
+            "INJECTED_STORE_LIFECYCLE_TRANSFERRED"
+            if injected_store is not None
+            else "ADAPTER_OWNED_STORE_FROM_API"
+        ),
         "chain": {
             "store": "BtApiStore",
             "feeds": ["BtApiFeed"] * len(feeds),
@@ -998,7 +1268,7 @@ def run_engineering_observation(
         "write_guard": write_guard,
         "adapter_scoped_write_attempts": adapter_scoped_write_attempts,
         "external_trade_writes": "NOT_PROVEN",
-        "external_trade_writes_basis": _ADAPTER_SCOPED_WRITE_EVIDENCE_BOUNDARY,
+        "external_trade_writes_basis": write_evidence_boundary,
         "shutdown": _observation_shutdown_projection(shutdown),
         "strategy": strategy_report,
         "strategy_report_boundary": (
@@ -1018,6 +1288,8 @@ def run_engineering_observation(
 
 @dataclass(frozen=True)
 class SimNowIdentity:
+    """Immutable public account/session identity triple."""
+
     account_fingerprint: str
     trading_day: str
     generation: int
@@ -1025,6 +1297,8 @@ class SimNowIdentity:
 
 @dataclass(frozen=True)
 class ReconciliationResult:
+    """Immutable outcome of the two-round read-only account reconciliation."""
+
     status: str
     identity: SimNowIdentity
     rounds: int
@@ -1035,6 +1309,8 @@ class ReconciliationResult:
 
     @property
     def flat_verified(self) -> bool:
+        """True only when a stable snapshot proves a fully flat account."""
+
         return (
             self.status == "FLAT_VERIFIED"
             and not self.positions
@@ -1055,6 +1331,8 @@ class SimNowOptionsAdapter:
     )
 
     def __init__(self, config: Mapping[str, Any], api: Any = None):
+        """Fail closed unless a caller-injected API object is provided."""
+
         if api is None:
             raise SimNowBlocked("SIMNOW_API_INJECTION_REQUIRED")
         self.config = config
@@ -1156,6 +1434,11 @@ class SimNowOptionsAdapter:
             self._request_count_deltas.append(dict(delta))
 
     def external_request_counts(self) -> dict[str, Any]:
+        """Aggregate observed request deltas without assuming absent ones are zero.
+
+        Pure mocks report zero; a native path with no recorded deltas reports
+        ``NOT_OBSERVED`` instead of an unproven zero count.
+        """
         if self._mock_query_mode:
             return {"network": 0, "order_write": 0}
         if not self._request_count_deltas:
@@ -1291,6 +1574,13 @@ class SimNowOptionsAdapter:
         }
 
     def reconcile(self, *, rounds: int = 2) -> ReconciliationResult:
+        """Run exactly two stable read-only snapshots and judge flatness.
+
+        Fail closed with ``SimNowBlocked`` when identity changes between
+        rounds or the canonical snapshot hashes differ; any remaining
+        position, active order, or unknown intent yields
+        ``EXPOSURE_REMAINS`` rather than a flat claim.
+        """
         if rounds != 2:
             raise ValueError("Iter23 requires exactly two reconciliation rounds")
         if not self._mock_query_mode and self.store is not None:
@@ -1346,6 +1636,11 @@ class SimNowOptionsAdapter:
         )
 
     def build_chain(self) -> tuple[bt.Cerebro, BtApiStore, Any, BtApiBroker]:
+        """Construct the single market-data-only Store/Feed/Broker/Cerebro chain.
+
+        Requires a completed startup preflight and returns the runtime chain
+        without starting any data consumption or strategy run.
+        """
         if self.identity is None:
             raise SimNowBlocked("STARTUP_PREFLIGHT_REQUIRED")
         candidate = self.config["candidate"]
@@ -1403,6 +1698,12 @@ class SimNowOptionsAdapter:
         return self.cerebro, self.store, self.feed, self.broker
 
     def run_engineering_smoke(self) -> dict[str, Any]:
+        """Execute the bounded engineering smoke path end to end.
+
+        Runs startup preflight, builds but never runs the chain, and
+        reconciles twice; the report claims no native execution, fill, or
+        authorization evidence.
+        """
         preflight = self.startup_preflight()
         cerebro, store, feed, broker = self.build_chain()
         # No bars are consumed here: a live feed with no injected finite source

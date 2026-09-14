@@ -179,6 +179,12 @@ class ClockObservation:
 
     @classmethod
     def from_value(cls, value: Any) -> "ClockObservation":
+        """Normalize a mapping or attribute object into one validated observation.
+
+        External observations must supply their clock generation explicitly;
+        absent or malformed fields raise ``TimingContractError``.
+        """
+
         if isinstance(value, cls):
             return value
         monotonic_ns = _read(value, ("monotonic_ns", "now_monotonic_ns", "mono_ns"))
@@ -247,6 +253,8 @@ class ClockObservation:
 
     @property
     def clock_domain_id(self) -> str:
+        """Compatibility alias for the monotonic clock :attr:`domain`."""
+
         return self.domain
 
 
@@ -264,13 +272,24 @@ class ScopedClock:
 
     @property
     def rejection_reason(self) -> str | None:
+        """Latched fail-closed reason, or ``None`` while the clock is usable."""
+
         return self._latched_reason
 
     @property
     def last(self) -> ClockObservation | None:
+        """Most recently accepted observation, or ``None`` before the first."""
+
         return self._last
 
     def observe(self, value: Any = None) -> ClockObservation:
+        """Validate and accept one observation, or latch a fail-closed stop.
+
+        Untrusted input, a missing source, a changed source/domain/generation/
+        boot id, or a monotonic regression latches ``ClockSafetyError``
+        permanently; the accepted observation is returned.
+        """
+
         if self._latched_reason is not None:
             raise ClockSafetyError(self._latched_reason)
         if value is None:
@@ -333,6 +352,8 @@ class ScopedClock:
         return observation
 
     def now(self) -> ClockObservation:
+        """Fetch a fresh observation via :meth:`observe` from the provider."""
+
         return self.observe()
 
     def _latch(self, reason: str) -> None:
@@ -341,6 +362,8 @@ class ScopedClock:
 
     @staticmethod
     def deadline_delta_ns(anchor_ns: int, current_ns: int) -> int:
+        """Validated ``current_ns - anchor_ns``; both must be non-negative ints."""
+
         return _integer(current_ns, "current_ns", nonnegative=True) - _integer(
             anchor_ns, "anchor_ns", nonnegative=True
         )
@@ -376,6 +399,8 @@ class BarPriceEnvelope:
 
     @property
     def execution_eligible(self) -> bool:
+        """Whether the envelope uses known exchange limits, not bar-only bounds."""
+
         return self.exchange_limits_known
 
 
@@ -481,6 +506,8 @@ def compute_bar_envelope(
 
 
 def price_allowed(envelope: BarPriceEnvelope, side: str, price: Any) -> bool:
+    """Return whether ``price`` lies within the frozen envelope bounds."""
+
     if not isinstance(envelope, BarPriceEnvelope):
         raise TimingContractError("envelope is required")
     if side not in {"buy", "sell"}:
@@ -499,6 +526,8 @@ def execution_price_allowed(envelope: BarPriceEnvelope, side: str, price: Any) -
 
 @dataclass(frozen=True)
 class EconomicScore:
+    """Gated economic score for one conversion/reversal direction."""
+
     direction: str
     gross_cny: float
     total_cost_cny: float
@@ -589,6 +618,8 @@ calculate_economic_scores = economic_scores
 
 @dataclass(frozen=True)
 class TimingGate:
+    """Immutable one-stage timing verdict with its deadline and reason."""
+
     status: str
     stage: str
     now_ns: int
@@ -617,6 +648,15 @@ class ExecutionWindow:
         self.completion_deadline_ns = self.decision_mono_ns + self.completion_seconds * NANOSECOND
 
     def gate(self, now_ns: int, stage: str, *, possible_exposure: bool = False) -> TimingGate:
+        """Check one stage against its immutable deadline and return the verdict.
+
+        An expired first-send deadline yields ``RECOVERY_REQUIRED`` only when
+        exposure is possible, otherwise ``REJECT_NEW_ORDINARY_WRITE``; an
+        expired completion deadline likewise yields ``RECOVERY_REQUIRED`` or
+        ``REJECT_TARGET_COMPLETION``.  Unknown stages raise
+        ``TimingContractError``.
+        """
+
         now = _integer(now_ns, "now_ns", nonnegative=True)
         if stage in {"first_send", "first_leg", "send_first_leg"}:
             deadline = self.first_send_deadline_ns
@@ -643,6 +683,8 @@ class ExecutionWindow:
         self._ack_observations.append(_integer(now_ns, "ack_now_ns", nonnegative=True))
 
     def projection(self) -> dict[str, int]:
+        """Return the frozen decision instant and both deadlines as a mapping."""
+
         return {
             "decision_mono_ns": self.decision_mono_ns,
             "first_send_deadline_ns": self.first_send_deadline_ns,
@@ -651,16 +693,24 @@ class ExecutionWindow:
 
     @property
     def first_leg_deadline_ns(self) -> int:
+        """Alias for the first-send deadline in monotonic nanoseconds."""
+
         return self.first_send_deadline_ns
 
     @property
     def remaining_leg_deadline_ns(self) -> int:
+        """Alias for the completion deadline in monotonic nanoseconds."""
+
         return self.completion_deadline_ns
 
     def check_first_send(self, now_ns: int, *, possible_exposure: bool = False) -> TimingGate:
+        """Gate the first send against the first-send deadline (see :meth:`gate`)."""
+
         return self.gate(now_ns, "first_send", possible_exposure=possible_exposure)
 
     def check_completion(self, now_ns: int, *, possible_exposure: bool = False) -> TimingGate:
+        """Gate remaining legs against the completion deadline (see :meth:`gate`)."""
+
         return self.gate(now_ns, "remaining_legs", possible_exposure=possible_exposure)
 
 
@@ -716,6 +766,8 @@ class ExecutionFact:
 
     @property
     def timestamped_fill(self) -> bool:
+        """True only for synthetic-source completed facts carrying a fill interval."""
+
         return (
             self.status == "completed"
             and self.fill_lower_ns is not None
@@ -752,6 +804,8 @@ class ExecutionFact:
 
 @dataclass(frozen=True)
 class FillTimingResult:
+    """Frozen fill classification: confirmed quantity, exposure flag, reason."""
+
     status: str
     confirmed_quantity: float
     possible_exposure: bool = False
@@ -792,6 +846,14 @@ def classify_execution_facts(
     expected_generation: int | None = None,
     decision_mono_ns: int | None = None,
 ) -> FillTimingResult:
+    """Classify deduplicated execution facts against the completion deadline.
+
+    Only synthetic timestamped completed fills inside ``[decision_mono_ns,
+    deadline_ns]`` on the expected clock domain/generation count toward the
+    confirmed quantity; accepted/ACK/partial/unknown facts and foreign-clock
+    facts only raise possible exposure and never confirm a fill.
+    """
+
     deadline = _integer(deadline_ns, "deadline_ns", nonnegative=True)
     if expected_clock_domain is not None:
         _text(expected_clock_domain, "expected_clock_domain")
@@ -862,6 +924,8 @@ class HoldProjection:
             raise TimingContractError("maximum hold cannot be below minimum hold")
 
     def record_possible_exposure(self, leg: str, *, lower_ns: int) -> None:
+        """Track the earliest possible-exposure lower bound for a known leg."""
+
         if leg not in self.expected_legs:
             raise TimingContractError("unknown basket leg")
         lower = _integer(lower_ns, "possible exposure lower bound", nonnegative=True)
@@ -869,6 +933,8 @@ class HoldProjection:
             self._first_possible_lower_ns = lower
 
     def record_confirmed_fill(self, leg: str, fill_lower_ns: int, fill_upper_ns: int) -> None:
+        """Record a leg's confirmed fill interval; inverted intervals are rejected."""
+
         if leg not in self.expected_legs:
             raise TimingContractError("unknown basket leg")
         lower = _integer(fill_lower_ns, "fill lower bound", nonnegative=True)
@@ -878,31 +944,43 @@ class HoldProjection:
         self._fill_upper_by_leg[leg] = upper
 
     def record_fill_interval(self, leg: str, interval: tuple[int, int]) -> None:
+        """Record a confirmed fill supplied as a ``(lower, upper)`` tuple."""
+
         if not isinstance(interval, (tuple, list)) or len(interval) != 2:
             raise TimingContractError("fill interval must be a two-item tuple")
         self.record_confirmed_fill(leg, interval[0], interval[1])
 
     @property
     def minimum_deadline_ns(self) -> int | None:
+        """Earliest normal exit, or ``None`` until every expected leg has a fill."""
+
         if set(self._fill_upper_by_leg) != set(self.expected_legs):
             return None
         return max(self._fill_upper_by_leg.values()) + self.minimum_hold_seconds * NANOSECOND
 
     @property
     def maximum_deadline_ns(self) -> int | None:
+        """Latest risk exit from the first possible exposure, or ``None`` if unrecorded."""
+
         if self._first_possible_lower_ns is None:
             return None
         return self._first_possible_lower_ns + self.maximum_hold_seconds * NANOSECOND
 
     def normal_exit_allowed(self, now_ns: int) -> bool:
+        """Whether ``now`` is at or past the minimum-hold deadline."""
+
         deadline = self.minimum_deadline_ns
         return deadline is not None and _integer(now_ns, "now_ns", nonnegative=True) >= deadline
 
     def risk_exit_allowed(self, now_ns: int) -> bool:
+        """Whether ``now`` is at or past the maximum-hold deadline."""
+
         deadline = self.maximum_deadline_ns
         return deadline is not None and _integer(now_ns, "now_ns", nonnegative=True) >= deadline
 
     def projection(self) -> dict[str, Any]:
+        """Return the hold-deadline snapshot as a plain mapping."""
+
         return {
             "minimum_deadline_ns": self.minimum_deadline_ns,
             "maximum_deadline_ns": self.maximum_deadline_ns,
@@ -913,25 +991,37 @@ class HoldProjection:
 
     @property
     def min_hold_deadline_ns(self) -> int | None:
+        """Alias for :attr:`minimum_deadline_ns`."""
+
         return self.minimum_deadline_ns
 
     @property
     def max_hold_deadline_ns(self) -> int | None:
+        """Alias for :attr:`maximum_deadline_ns`."""
+
         return self.maximum_deadline_ns
 
     @property
     def first_possible_exposure_mono_ns(self) -> int | None:
+        """The first recorded possible-exposure lower bound, or ``None``."""
+
         return self._first_possible_lower_ns
 
     def can_normal_exit(self, now_ns: int) -> bool:
+        """Alias for :meth:`normal_exit_allowed`."""
+
         return self.normal_exit_allowed(now_ns)
 
     def risk_due(self, now_ns: int) -> bool:
+        """Alias for :meth:`risk_exit_allowed`."""
+
         return self.risk_exit_allowed(now_ns)
 
 
 @dataclass
 class ConfirmationProjection:
+    """Contiguous same-scope/same-direction bar confirmation streak counter."""
+
     required: int = 2
     bar_interval_seconds: int = 15 * 60
     _scope: Any = field(default=None, init=False)
@@ -946,6 +1036,8 @@ class ConfirmationProjection:
         )
 
     def reset(self, reason: str | None = None) -> None:
+        """Forget the current streak; ``reason`` is advisory and ignored."""
+
         self._scope = None
         self._direction = None
         self._last_key = None
@@ -953,6 +1045,8 @@ class ConfirmationProjection:
 
     @property
     def count(self) -> int:
+        """Length of the current contiguous confirmation streak."""
+
         return self._count
 
     def _contiguous(self, previous: Any, current: Any) -> bool:
@@ -971,6 +1065,13 @@ class ConfirmationProjection:
         return current != previous
 
     def accept(self, direction: str, scope: Any, key: Any, *, qualified: bool) -> bool:
+        """Fold one qualified bar into the streak and report confirmation.
+
+        The streak survives only within one scope and direction with
+        contiguous keys; unqualified bars and duplicates reset it.  Returns
+        ``True`` exactly when the streak reaches ``required`` confirmations.
+        """
+
         if not qualified:
             self.reset("qualification_failed")
             return False
@@ -997,6 +1098,8 @@ class ConfirmationProjection:
 
 @dataclass(frozen=True)
 class ExecutionToken:
+    """Frozen dedup token identifying one decision at one bar end."""
+
     candidate: str
     trading_day: str
     session: str
@@ -1008,6 +1111,8 @@ class ExecutionToken:
 
     @property
     def canonical(self) -> str:
+        """Canonical compact sorted-key JSON form of the token."""
+
         return json.dumps(
             {
                 "bar_end": self.bar_end,
@@ -1022,6 +1127,8 @@ class ExecutionToken:
 
     @property
     def digest(self) -> str:
+        """SHA-256 hex digest of the canonical JSON form."""
+
         return hashlib.sha256(self.canonical.encode("utf-8")).hexdigest()
 
 
@@ -1036,6 +1143,8 @@ class TokenProjection:
         self.max_tokens = _integer(self.max_tokens, "max_tokens", positive=True)
 
     def consume(self, token: ExecutionToken) -> bool:
+        """Consume a token once; duplicates return ``False`` and capacity evicts the oldest."""
+
         if not isinstance(token, ExecutionToken):
             raise TimingContractError("token must be an ExecutionToken")
         if token.digest in self._consumed:
@@ -1047,11 +1156,15 @@ class TokenProjection:
 
     @property
     def durability_status(self) -> str:
+        """Constant ``SDK_OWNER_REQUIRED``: durable dedup stays with the SDK."""
+
         return "SDK_OWNER_REQUIRED"
 
 
 @dataclass(frozen=True)
 class RiskBarProjection:
+    """Frozen projection of which recovery actions one risk bar permits."""
+
     status: str
     age_upper_seconds: float
     allowed_actions: tuple[str, ...]
@@ -1060,6 +1173,8 @@ class RiskBarProjection:
 
     @property
     def can_propose_recovery(self) -> bool:
+        """Whether recovery-price proposals are permitted for this bar."""
+
         return self.status == "RECOVERY_PRICE_ELIGIBLE"
 
 
@@ -1119,6 +1234,13 @@ class SessionRiskPolicy:
         account_risk_known: bool = False,
         fees_complete: bool = False,
     ) -> SessionRiskProjection:
+        """Project session gates from remaining time, loss facts, and evidence.
+
+        Loss triggers fire only when both loss facts are supplied; ordinary
+        entry additionally requires a ``KNOWN`` account status (account risk
+        plus fee evidence) and no active stop-entry window or loss trigger.
+        """
+
         now = _utc(now_utc, "now_utc")
         end = _utc(session_end_utc, "session_end_utc")
         if end < now:

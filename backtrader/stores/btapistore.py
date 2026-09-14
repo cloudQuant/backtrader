@@ -5960,6 +5960,21 @@ class BtApiStore(LiveStoreBase):
         )
         return receipt
 
+    def record_market_data_only_broker_rejection(self, operation: str) -> None:
+        """Record a Broker-local write rejection against this Store's audit.
+
+        A single live Store can be reached through more than one
+        :class:`BtApiBroker`.  In an observation-only session those Brokers
+        reject writes before creating a Store command, so the Store must own
+        the aggregate counter used by a preflight-to-strategy transfer.  This
+        is local accounting only; it never dispatches a provider request.
+        """
+
+        if operation not in {"submit", "cancel", "batch_cancel"}:
+            raise ValueError("unsupported market-data-only Broker operation")
+        with self._command_condition:
+            self._command_health["rejected_market_data_only"] += 1
+
     async def _execute_sdk_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
         """Execute one typed SDK command and return a main-thread completion."""
         operation = command["operation"]
@@ -6876,6 +6891,14 @@ class BtApiStore(LiveStoreBase):
         update_dropped = self._command_health["broker_update_dropped"]
         result = {
             **dict(self._command_health),
+            # A read-only observation needs a stable zero baseline before it
+            # hands a Store from preflight to a strategy graph.  ``Counter``
+            # omits never-incremented keys when converted to ``dict``; expose
+            # this Store-scoped audit counter explicitly.  It includes Store
+            # commands and Broker-local write rejections from every Broker
+            # bound to this Store, so a replacement Broker cannot evade the
+            # transfer's final zero-write check.
+            "rejected_market_data_only": int(self._command_health["rejected_market_data_only"]),
             "queue_capacity": self._command_queue_size,
             "reserved_capacity": self._command_reserved_capacity,
             "queue_depth": depth,

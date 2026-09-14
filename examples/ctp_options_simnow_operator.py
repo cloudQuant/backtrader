@@ -70,6 +70,7 @@ class OperatorBlocked(RuntimeError):
     """A missing or contradictory operator precondition (fail-closed)."""
 
     def __init__(self, reason: str):
+        """Attach the stable machine-readable ``reason`` code."""
         super().__init__(reason)
         self.reason = reason
 
@@ -453,9 +454,11 @@ class _SmokeOwner:
     """Minimal notification sink; the mechanical session drains the broker queue."""
 
     def notify_order(self, order: Any) -> None:  # pragma: no cover - trivial sink
+        """Discard the notification; the session loop drains the broker queue."""
         del order
 
     def notify_trade(self, trade: Any) -> None:  # pragma: no cover - trivial sink
+        """Discard the notification; the session loop drains the broker queue."""
         del trade
 
 
@@ -599,6 +602,11 @@ def _request_counts(evidence: Mapping[str, Any]) -> dict[str, int]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse the CLI, run one governed smoke session, and emit its JSON report.
+
+    Returns 0 only for ``ENGINEERING_SMOKE_PASS``; any ``OperatorBlocked``
+    precondition emits a ``BLOCKED`` report and exit code 2 (fail-closed).
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--env", type=Path, default=DEFAULT_ENV_PATH)
     parser.add_argument("--environment", choices=sorted(ENVIRONMENTS), default="second_7x24")

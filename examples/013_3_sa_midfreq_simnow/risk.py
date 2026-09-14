@@ -13,6 +13,8 @@ from typing import Any, Optional
 
 @dataclass
 class DailyRiskRecord:
+    """Serializable per-day risk counters and halt state for one account."""
+
     schema_version: str
     account_fingerprint: str
     trading_day: str
@@ -51,6 +53,7 @@ class DailyRiskStore:
     }
 
     def __init__(self, path: Path | str) -> None:
+        """Bind the persistence path; ``load_or_create`` initializes the record."""
         self.path = Path(path)
         self.record: Optional[DailyRiskRecord] = None
         self.persistence_ok = True
@@ -70,6 +73,13 @@ class DailyRiskStore:
         starting_equity: float,
         reconciliation_complete: bool = False,
     ) -> DailyRiskRecord:
+        """Load same-day state or create a fresh baseline for a new TradingDay.
+
+        A persisted record must match schema and both fingerprints.  Creating
+        the first record or crossing a TradingDay additionally requires
+        ``reconciliation_complete`` so the equity baseline is bound to a
+        terminal reconciliation snapshot.
+        """
         if not account_fingerprint or not trading_day:
             raise ValueError("account fingerprint and TradingDay are required")
         if not math.isfinite(float(starting_equity)) or starting_equity <= 0:
@@ -98,6 +108,11 @@ class DailyRiskStore:
         return self.record
 
     def save(self) -> None:
+        """Atomically persist the record via fsync, rename, and dir fsync.
+
+        On failure marks persistence unhealthy (``persistence_ok = False``)
+        and re-raises so callers can latch the risk failure.
+        """
         if self.record is None:
             raise RuntimeError("risk record has not been initialized")
         try:
@@ -174,6 +189,11 @@ class DailyRiskStore:
         self.save()
 
     def reserve_entry(self, max_entries: int = 30, *, budget_key: str = "all") -> bool:
+        """Consume one persisted entry attempt from the named budget.
+
+        Returns ``False`` without side effects when persistence is unhealthy
+        or the budget is exhausted.
+        """
         record = self._require()
         if budget_key not in {"all", "engineering_smoke"}:
             raise ValueError("unsupported entry budget key")
@@ -210,6 +230,12 @@ class DailyRiskStore:
         allow_unpersisted_emergency: bool = False,
         emergency_key: str = "",
     ) -> bool:
+        """Reserve one SDK write permission.
+
+        Emergency requests draw from a small persisted reserve and may fall
+        back to one volatile token per key for risk-reducing requests when
+        persistence is unavailable.
+        """
         record = self._require()
         if not self.persistence_ok:
             if emergency and allow_unpersisted_emergency:
@@ -232,6 +258,7 @@ class DailyRiskStore:
         return True
 
     def record_closed_trade(self, gross_pnl: float, fee: float = 0.0) -> None:
+        """Accumulate gross PnL and fees; latch the three-loss halt reason."""
         record = self._require()
         gross = float(gross_pnl)
         commission = float(fee)
@@ -256,6 +283,13 @@ class DailyRiskStore:
         daily_loss_cny: float = 500.0,
         daily_loss_fraction: float = 0.005,
     ) -> tuple[bool, str, float]:
+        """Return ``(allowed, reason, threshold)`` for new entry admission.
+
+        The threshold is the smaller of the absolute CNY limit and the
+        starting-equity fraction.  Admission fails on persistence failure,
+        unavailable unrealized PnL, the daily loss limit, a three-loss
+        streak, or any latched halt reason.
+        """
         record = self._require()
         threshold = min(float(daily_loss_cny), record.starting_equity * float(daily_loss_fraction))
         if not self.persistence_ok:
@@ -287,20 +321,24 @@ class FillTimeBounds:
     trusted: bool
 
     def validate(self) -> None:
+        """Raise ``ValueError`` unless the bounds are finite and ordered."""
         if not all(math.isfinite(value) for value in (self.earliest, self.latest)):
             raise ValueError("fill time bounds must be finite")
         if self.earliest > self.latest:
             raise ValueError("earliest fill bound cannot follow latest bound")
 
     def normal_exit_allowed(self, now: float, minimum_seconds: float = 60.0) -> bool:
+        """Whether ``now`` is at least ``minimum_seconds`` past the latest bound."""
         self.validate()
         return float(now) - self.latest >= float(minimum_seconds)
 
     def maximum_expired(self, now: float, maximum_seconds: float = 900.0) -> bool:
+        """Whether ``now`` is at least ``maximum_seconds`` past the earliest bound."""
         self.validate()
         return float(now) - self.earliest >= float(maximum_seconds)
 
     def interval(self, now: float) -> tuple[float, float]:
+        """Return nonnegative ``(since_latest, since_earliest)`` seconds at ``now``."""
         self.validate()
         return max(float(now) - self.latest, 0.0), max(float(now) - self.earliest, 0.0)
 
@@ -309,29 +347,40 @@ class GFDOrderDeadline:
     """Track submit, cancel request, confirmation, and UNKNOWN transitions."""
 
     def __init__(self, entry_timeout: float = 3.0, cancel_timeout: float = 5.0) -> None:
+        """Configure entry/cancel timeouts and start in the reset state."""
         self.entry_timeout = float(entry_timeout)
         self.cancel_timeout = float(cancel_timeout)
         self.reset()
 
     def reset(self) -> None:
+        """Clear all timestamps and terminal/unknown flags for a new order."""
         self.submitted_at: float | None = None
         self.cancel_requested_at: float | None = None
         self.terminal = False
         self.unknown = False
 
     def submitted(self, now: float) -> None:
+        """Start a fresh tracking cycle at the submission time."""
         self.reset()
         self.submitted_at = float(now)
 
     def cancel_requested(self, now: float) -> None:
+        """Latch the cancel request time for the still-active order."""
         if self.submitted_at is None or self.terminal:
             raise RuntimeError("cannot cancel an inactive order")
         self.cancel_requested_at = float(now)
 
     def confirmed_terminal(self) -> None:
+        """Mark the tracked order as terminally confirmed."""
         self.terminal = True
 
     def action(self, now: float) -> str:
+        """Return the next deadline action for the tracked order.
+
+        One of ``wait``, ``cancel`` (entry timeout expired),
+        ``wait_for_cancel_confirmation``, or ``unknown`` (cancel
+        confirmation timed out).
+        """
         if self.terminal or self.submitted_at is None:
             return "wait"
         if self.cancel_requested_at is None:
@@ -343,4 +392,5 @@ class GFDOrderDeadline:
 
 
 def potential_exposure_lots(position_lots: int, pending_open_lots: int) -> int:
+    """Worst-case open lots: held position plus pending unexecuted intent."""
     return abs(int(position_lots)) + abs(int(pending_open_lots))

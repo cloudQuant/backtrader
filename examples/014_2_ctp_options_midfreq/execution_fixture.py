@@ -68,6 +68,12 @@ class TimingFixtureProvider:
         idle_clock_ns: Sequence[int],
         calendar: Optional[CalendarEvidence] = None,
     ) -> None:
+        """Store the frozen scope/clock/minute/fact material the callbacks replay.
+
+        Every input is explicitly synthetic deterministic evidence; reads
+        beyond the pre-declared budget raise FixtureExhausted so the strategy
+        cannot obtain "free" observations from an implicit clock.
+        """
         if not scope.synthetic or not mapping.synthetic or facts.source_kind != "synthetic":
             raise ValueError("TimingFixtureProvider only accepts explicitly synthetic evidence")
         self.scope = scope
@@ -95,9 +101,11 @@ class TimingFixtureProvider:
 
     @property
     def idle_count(self) -> int:
+        """Return the number of idle clock observations still available."""
         return len(self._idle_clock_ns)
 
     def next_minute(self) -> MinuteInput:
+        """Yield the next closed minute exactly once per call, else fail exhausted."""
         self.next_calls += 1
         if self._next_index >= len(self._minutes):
             raise FixtureExhausted("the fixture exposes one closed minute")
@@ -106,24 +114,30 @@ class TimingFixtureProvider:
         return minute
 
     def execution_facts(self) -> ExecutionFacts:
+        """Return the frozen execution fact snapshot (send/ack/fill evidence)."""
         return self._facts
 
     @property
     def calendar(self) -> Optional[CalendarEvidence]:
+        """Return the frozen calendar evidence, if the fixture provides one."""
         return self._calendar
 
     def calendar_for_next(self) -> Optional[CalendarEvidence]:
+        """Return the calendar evidence bound to the next-minute callback."""
         return self._calendar
 
     def calendar_for_idle(self) -> Optional[CalendarEvidence]:
+        """Return the calendar evidence bound to the idle callback."""
         return self._calendar
 
     def clock_for_next(self) -> ClockObservation:
+        """Return the monotonic clock paired with the last delivered minute."""
         if self._next_index == 0:
             raise FixtureExhausted("clock requested before a minute")
         return _clock_for(self.scope, self.mapping, self._next_clock_ns[self._next_index - 1])
 
     def clock_for_idle(self) -> ClockObservation:
+        """Consume one pre-declared idle clock value; extra reads fail exhausted."""
         if self._idle_index >= len(self._idle_clock_ns):
             raise FixtureExhausted("no implicit idle clock values are permitted")
         monotonic_ns = self._idle_clock_ns[self._idle_index]
@@ -144,6 +158,11 @@ class TimingFixtureFeed(bt.feed.DataBase):
         idle_polls: int = 2,
         bar_count: int = 1,
     ) -> None:
+        """Build a fake live feed that yields ``bar_count`` bars then idle polls.
+
+        timestamp must be timezone-aware; idle_polls/bar_count must be
+        positive integers.
+        """
         super().__init__()
         if timestamp.tzinfo is None or timestamp.utcoffset() is None:
             raise ValueError("timestamp must be timezone-aware")
@@ -159,9 +178,11 @@ class TimingFixtureFeed(bt.feed.DataBase):
         self.idle_returns = 0
 
     def islive(self) -> bool:
+        """Report live semantics so Cerebro uses the event-driven loop."""
         return True
 
     def haslivedata(self) -> bool:
+        """Report live data semantics for the polling loop."""
         return True
 
     def _load(self) -> Optional[bool]:

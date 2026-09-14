@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""O03: 验证能统计重复撤单报单笔数（选测）"""
+"""O03: Verify that the number of repeated cancel-order submissions can be counted (optional)"""
 from __future__ import annotations
 
 import sys

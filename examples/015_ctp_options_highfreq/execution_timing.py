@@ -224,6 +224,11 @@ class OrderAssociation:
         )
 
     def matches(self, fact: "TimingFact") -> bool:
+        """Strict equality on every identity field and the full alias set.
+
+        A partial alias overlap never matches: the observed submission
+        aliases must equal the immutable association exactly.
+        """
         if (
             fact.intent_id != self.intent_id
             or fact.decision_id != self.decision_id
@@ -560,6 +565,12 @@ class TimingProjector:
         lots_per_leg: int = 1,
         history_capacity: int = 128,
     ) -> None:
+        """Validate and freeze one scope, one intent, and one association per leg.
+
+        Malformed legs, non-synthetic lot counts, and associations that do
+        not share a single intent/decision/basket/cycle identity are
+        rejected here rather than during projection.
+        """
         if not isinstance(scope, TimingScope):
             raise TimingContractError("TimingProjector.scope must be a TimingScope")
         legs = tuple(str(leg) for leg in leg_ids)
@@ -1012,6 +1023,11 @@ class SyntheticTimingProvider:
         projector: TimingProjector,
         snapshots: Mapping[str, Iterable[TimingSnapshot]],
     ) -> None:
+        """Require a synthetic projector and one snapshot queue per callback.
+
+        Every queue entry must be a typed TimingSnapshot sharing the
+        projector's scope; unknown callbacks are rejected outright.
+        """
         if not isinstance(projector, TimingProjector) or not projector.scope.synthetic:
             raise TimingContractError(
                 "SyntheticTimingProvider requires a synthetic TimingProjector"
@@ -1034,6 +1050,7 @@ class SyntheticTimingProvider:
         self.calls: dict[str, int] = dict.fromkeys(_CALLBACKS, 0)
 
     def project(self, callback: str) -> TimingProjection | None:
+        """Pop the next queued snapshot for a callback and project it, else None."""
         queue = self._queues.get(callback, [])
         if not queue:
             return None

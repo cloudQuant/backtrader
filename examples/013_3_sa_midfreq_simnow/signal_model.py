@@ -18,6 +18,8 @@ def _clip(value: float) -> float:
 
 @dataclass(frozen=True)
 class MinuteFeatures:
+    """Frozen per-bar minute (K-side) features with readiness reasons."""
+
     ready: bool
     reasons: tuple[str, ...]
     bar_id: str
@@ -34,11 +36,14 @@ class MinuteFeatures:
     volume_ratio: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
+        """Return a plain dict copy for evidence serialization."""
         return asdict(self)
 
 
 @dataclass(frozen=True)
 class CostInputs:
+    """Frozen commission, slippage, and edge-buffer inputs for the v0 cost gate."""
+
     tick_size: float
     multiplier: float
     lots: int
@@ -55,6 +60,7 @@ class CostInputs:
     source: str = ""
 
     def validate(self) -> None:
+        """Raise ``ValueError`` unless every v0 cost-gate constraint holds."""
         numeric = (
             self.tick_size,
             self.multiplier,
@@ -78,6 +84,8 @@ class CostInputs:
 
 @dataclass(frozen=True)
 class CostDecision:
+    """Frozen roundtrip cost gate verdict with fee provenance."""
+
     admitted: bool
     move_proxy_ticks: float
     roundtrip_cost_ticks: float
@@ -90,6 +98,8 @@ class CostDecision:
 
 @dataclass(frozen=True)
 class FusionDecision:
+    """Frozen H/K fusion verdict with score contributions and cost gate."""
+
     ready: bool
     reasons: tuple[str, ...]
     direction: int
@@ -101,6 +111,7 @@ class FusionDecision:
     cost: CostDecision | None
 
     def as_dict(self) -> dict[str, Any]:
+        """Return a plain dict copy for evidence serialization."""
         value = asdict(self)
         return value
 
@@ -119,6 +130,11 @@ def minute_features(
     bar_end: float,
     available_at: float,
 ) -> MinuteFeatures:
+    """Assemble and gate minute features for one closed bar.
+
+    Continuity, warm-up, and validity problems are collected in
+    ``reasons``; values that cannot be computed causally stay ``None``.
+    """
     reasons: list[str] = []
     values = tuple(closes)
     if len(values) < 6:
@@ -185,6 +201,7 @@ def minute_features(
 def roundtrip_cost(
     spread_ticks: float, inputs: CostInputs, move_proxy_ticks: float
 ) -> CostDecision:
+    """Compute the roundtrip cost in ticks and admit ``move_proxy_ticks`` against it."""
     inputs.validate()
     if not math.isfinite(float(spread_ticks)) or spread_ticks < 0:
         raise ValueError("spread_ticks must be finite and nonnegative")
@@ -218,6 +235,13 @@ def fuse(
     *,
     entry_score: float = 0.35,
 ) -> FusionDecision:
+    """Fuse quote (H) and minute (K) features into one gated decision.
+
+    The uncalibrated score must clear ``entry_score``, both score families
+    must agree in sign, and the roundtrip cost gate must admit the move
+    proxy; every failure is reported as a machine-readable reason instead
+    of being silently dropped.
+    """
     reasons = list(fast.reasons) + list(minute.reasons)
     if not fast.ready:
         reasons.append("fast_features_not_ready")
@@ -278,11 +302,13 @@ class ConfirmationTracker:
     """Require fresh quote-driven confirmation for one immutable bar version."""
 
     def __init__(self, seconds: float = 2.0, quotes: int = 3) -> None:
+        """Configure the confirmation window length and quote-count threshold."""
         self.seconds = float(seconds)
         self.quotes = int(quotes)
         self.reset()
 
     def reset(self) -> None:
+        """Clear any in-progress confirmation accumulation."""
         self.direction = 0
         self.bar_id = ""
         self.started_at: float | None = None
@@ -290,6 +316,13 @@ class ConfirmationTracker:
         self.count = 0
 
     def observe(self, *, direction: int, bar_id: str, quote_time: float, eligible: bool) -> bool:
+        """Fold one quote observation in and report whether it is confirmed.
+
+        Returns ``True`` only after ``quotes`` eligible ticks of the same
+        direction on the same bar version span at least ``seconds``.  Any
+        non-eligible, opposite-direction, new-bar, or non-monotonic quote
+        restarts the accumulation.
+        """
         if not eligible or direction not in {-1, 1}:
             self.reset()
             return False

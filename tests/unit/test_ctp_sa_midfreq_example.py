@@ -4006,8 +4006,8 @@ def test_sa_trade_logger_extension_is_visible_in_a_live_cerebro_snapshot(monkeyp
     snapshots = []
     original_attach = runner._attach_trade_logger
 
-    def attach_with_probe(cerebro, output_directory):
-        original_attach(cerebro, output_directory)
+    def attach_with_probe(cerebro, output_directory, **kwargs):
+        original_attach(cerebro, output_directory, **kwargs)
 
         class SnapshotProbe(bt.Analyzer):
             def next(self):

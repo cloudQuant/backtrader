@@ -59,6 +59,8 @@ class ConfigurationError(ValueError):
     """A strict local-config rejection with a stable machine-readable code."""
 
     def __init__(self, code: str, message: str) -> None:
+        """Store the stable machine-readable rejection code beside the message."""
+
         super().__init__(message)
         self.code = code
 
@@ -495,6 +497,8 @@ class DecisionToken:
     next_id: int
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return a JSON-ready copy of the token's frozen decision identity."""
+
         return {
             "token_id": self.token_id,
             "candidate_id": self.candidate_id,
@@ -515,6 +519,8 @@ class _TokenLedger:
     _MAX = 128
 
     def __init__(self) -> None:
+        """Start empty with bounded deques for issued and consumed tokens."""
+
         self._issued: Deque[DecisionToken] = deque(maxlen=self._MAX)
         self._consumed: Deque[str] = deque(maxlen=self._MAX)
         self._consumed_ids = set()
@@ -529,6 +535,8 @@ class _TokenLedger:
         next_id: int,
         quantity: Mapping[str, int],
     ) -> DecisionToken:
+        """Mint and record one token bound to the closed-minute feature identity."""
+
         del decision_input
         token = DecisionToken(
             token_id=f"{features.candidate_id}:{features.bucket_end.isoformat()}:{next_id}",
@@ -551,6 +559,8 @@ class _TokenLedger:
     def consume(
         self, token: DecisionToken, decision_input: Any, *, next_id: int
     ) -> Tuple[bool, str]:
+        """Spend a token once, only when its decision context still matches."""
+
         if token.token_id in self._consumed_ids:
             return False, "TOKEN_ALREADY_CONSUMED"
         expected = (
@@ -575,6 +585,8 @@ class _TokenLedger:
         return True, "TOKEN_CONSUMED"
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return bounded counters with the recently issued tokens."""
+
         return {
             "issued_count": self.issued_count,
             "consumed_count": self.consumed_count,
@@ -602,6 +614,8 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
     )
 
     def __init__(self) -> None:
+        """Validate params and wire one evidence producer, or fail closed."""
+
         if self.p.config is None:
             raise ConfigurationError("CONFIG_REQUIRED", "strategy configuration is required")
         if not isinstance(self.p.require_feed_bar_evidence, bool):
@@ -1256,6 +1270,8 @@ class CTPOptionsMidFrequencyStrategy(bt.Strategy):
 
     @property
     def last_closed_minute(self) -> Optional[datetime]:
+        """The most recently closed minute, or ``None`` before the first close."""
+
         return self._last_closed_minute
 
     def build_report(self) -> Dict[str, Any]:

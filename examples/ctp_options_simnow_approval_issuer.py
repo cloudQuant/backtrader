@@ -115,6 +115,7 @@ def _private_signing_key(material: Mapping[str, str]):
 
 
 def command_keygen(args: argparse.Namespace) -> int:
+    """Generate one new Ed25519 keypair file (mode 0600); fail if it exists."""
     key_file = Path(args.key_file)
     if key_file.exists():
         raise IssuerError(f"KEY_FILE_EXISTS:{key_file}")
@@ -155,6 +156,7 @@ def command_keygen(args: argparse.Namespace) -> int:
 
 
 def command_trust_root(args: argparse.Namespace) -> int:
+    """Emit the trust-root JSON binding the key's public half for the SDK/Store."""
     material = _load_key(Path(args.key_file))
     now = _now()
     root = {
@@ -264,6 +266,7 @@ def build_entry_payload(
 
 
 def sign_payload(payload: Mapping[str, Any], private_key: Any) -> dict[str, Any]:
+    """Sign the canonical JSON payload and wrap it in the artifact envelope."""
     payload_bytes = json.dumps(
         payload,
         ensure_ascii=False,
@@ -281,6 +284,7 @@ def sign_payload(payload: Mapping[str, Any], private_key: Any) -> dict[str, Any]
 
 
 def command_sign(args: argparse.Namespace) -> int:
+    """Build and sign one entry approval artifact from a sealed context file."""
     material = _load_key(Path(args.key_file))
     private_key = _private_signing_key(material)
     context_path = Path(args.context)
@@ -335,6 +339,11 @@ def command_sign(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse the CLI and dispatch exactly one subcommand.
+
+    Any ``IssuerError`` prints a ``BLOCKED`` reason and returns exit code 2
+    (fail-closed); the private key is never printed or logged.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
 

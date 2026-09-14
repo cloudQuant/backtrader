@@ -260,10 +260,12 @@ CREDENTIAL_KEY_PARTS = (
 
 
 class RunnerConfigurationError(RuntimeError):
+    """Raised when configuration, environment, or admission inputs violate the frozen contract."""
     pass
 
 
 class PreflightError(RuntimeError):
+    """Raised when a read-only session, query, or readiness gate cannot prove its claim."""
     pass
 
 
@@ -280,22 +282,26 @@ class AdmissionReceipt:
     _marker: object
 
     def __init__(self, payload: Mapping[str, Any], marker: object) -> None:
+        """Deep-copy ``payload``; refuse construction unless ``marker`` comes from validate_receipt."""
         if marker is not _RECEIPT_VALIDATION_MARKER:
             raise RunnerConfigurationError("AdmissionReceipt must come from validate_receipt")
         object.__setattr__(self, "_payload", deepcopy(dict(payload)))
         object.__setattr__(self, "_marker", marker)
 
     def get(self, key: str, default: Any = None) -> Any:
+        """Return a deep copy of one payload value, or ``default`` when absent."""
         return deepcopy(self._payload.get(key, default))
 
     def __getitem__(self, key: str) -> Any:
         return deepcopy(self._payload[key])
 
     def evidence_view(self) -> dict[str, Any]:
+        """Return a deep copy of the full validated payload for evidence records."""
         return deepcopy(self._payload)
 
     @property
     def validated(self) -> bool:
+        """True only when the private marker proves this object was minted by validate_receipt."""
         return self._marker is _RECEIPT_VALIDATION_MARKER
 
 
@@ -318,10 +324,16 @@ def _mapping(value: Any) -> dict[str, Any]:
         return {}
 
 
+def _trade_logger_console_enabled() -> bool:
+    """Real-time console streaming; on by default, opt out with TRADE_LOGGER_CONSOLE=0."""
+    return os.getenv("TRADE_LOGGER_CONSOLE", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
 def _attach_trade_logger(
     cerebro: bt.Cerebro,
     output_directory: Path,
     *,
+    console: bool | None = None,
     startup_snapshot_file: str | None = None,
     startup_account_observation: Mapping[str, Any] | None = None,
 ) -> None:
@@ -330,15 +342,22 @@ def _attach_trade_logger(
     EvidenceWriter remains the authoritative durable audit lane for high-rate
     quote, bar, signal, order, trade, and risk evidence.  TradeLogger keeps
     the generic in-memory runtime report and a compact operational log set.
+
+    ``console`` controls real-time streaming (console output plus tick/bar
+    files).  It defaults to the ``TRADE_LOGGER_CONSOLE`` env switch for live
+    network sessions; the deterministic replay path must pass ``console=False``
+    to preserve its compact-log contract (no high-rate tick.log).
     """
+    if console is None:
+        console = _trade_logger_console_enabled()
     cerebro.addobserver(
         bt.observers.TradeLogger,
         obsname="trade_logger",
         log_dir=str(output_directory / "trade-logger"),
         log_format="json",
-        log_to_console=False,
-        log_ticks=False,
-        log_bars=False,
+        log_to_console=console,
+        log_ticks=console,
+        log_bars=console,
         log_positions=False,
         log_indicators=False,
         log_value=False,
@@ -394,6 +413,12 @@ def _load_env_file(path: Path) -> None:
 def load_config(
     path: Path | str = DEFAULT_CONFIG, *, env_values: Mapping[str, str] | None = None
 ) -> tuple[dict[str, Any], Path]:
+    """Load a YAML config and return it with its resolved path.
+
+    Without ``env_values`` the raw mapping is validated unchanged; with
+    ``env_values`` a profile-bound copy from :func:`effective_profile_config`
+    is returned instead.  A missing file or non-mapping root fails closed.
+    """
     config_path = Path(path)
     if not config_path.is_absolute():
         candidate = HERE / config_path
@@ -435,6 +460,12 @@ def effective_profile_config(
 
 
 def validate_config(config: Mapping[str, Any]) -> None:
+    """Fail closed unless ``config`` matches the frozen Iteration 22 v0 contract.
+
+    Frozen profiles, signal weights, execution, risk, warmup, feed,
+    quality, research, metadata, fee, and evidence values must match
+    exactly, and credentials must never appear inside config.yaml.
+    """
     mode = str(config.get("mode", "shadow"))
     if mode not in MODES:
         raise RunnerConfigurationError(f"unsupported mode {mode!r}")
@@ -620,10 +651,12 @@ def _strict_request_counts(value: Any) -> tuple[dict[str, int], bool]:
 
 
 def config_hash(config: Mapping[str, Any]) -> str:
+    """Return the canonical SHA-256 of the effective configuration mapping."""
     return sha256_json(config)
 
 
 def code_hash() -> str:
+    """Return the combined source-tree hash of this example's frozen source files."""
     return source_tree_hash(HERE / name for name in SOURCE_FILES)
 
 
@@ -723,6 +756,12 @@ def resolve_fronts(
     select_reachable: bool = False,
     reachable_selector: Callable[..., Any] | None = None,
 ) -> dict[str, str]:
+    """Resolve the frozen SimNow TD/MD fronts for the configured profile.
+
+    ``CTP_TD_FRONT``/``CTP_MD_FRONT`` overrides must be given together and
+    match the selected profile exactly.  With ``select_reachable`` the SDK
+    probe may substitute fronts, but only within the same approved family.
+    """
     profile_name = str(config["environment"])
     profile = _mapping(config["profiles"][profile_name])
     td_override = str(
@@ -779,6 +818,11 @@ def resolve_fronts(
 
 
 def credentials(env: Mapping[str, str]) -> dict[str, str]:
+    """Collect required SimNow credentials from ``env`` (CTP_* first, then SIMNOW_*/lowercase).
+
+    ``broker_id`` defaults to ``9999``; any other missing value fails
+    closed with the complete list of absent names.
+    """
     values = {
         "investor_id": str(
             env.get("CTP_USER_ID") or env.get("SIMNOW_USER_ID") or env.get("simnow_user_id") or ""
@@ -814,10 +858,12 @@ def credentials(env: Mapping[str, str]) -> dict[str, str]:
 
 
 def source_file_hashes() -> dict[str, str]:
+    """Return per-file SHA-256 digests of the frozen source files."""
     return {name: sha256_file(HERE / name) for name in SOURCE_FILES}
 
 
 def dependency_identity_hashes() -> dict[str, str]:
+    """Hash each imported runtime component identity for receipt binding."""
     return {
         name: sha256_json(identity) for name, identity in runtime_component_identities().items()
     }
@@ -1015,6 +1061,16 @@ def validate_receipt(
     mode: str,
     purpose: str,
 ) -> AdmissionReceipt:
+    """Verify a signed SimNow admission receipt and mint an :class:`AdmissionReceipt`.
+
+    Fail-closed gates: exact schema, local HMAC trust root with a
+    constant-time signature check, candidate/config/code/mode/purpose/
+    environment identity, a currently valid issued/expires interval,
+    G1-G3 PASS, one-lot and in-budget write limits, research rules per
+    purpose, SA instrument/account/trading-day identity, source and
+    dependency hashes equal to the running tree, and a complete frozen
+    engineering trigger only for ``engineering_smoke``.
+    """
     receipt_path = Path(path)
     if not receipt_path.is_file():
         raise RunnerConfigurationError("SimNow admission receipt is missing")
@@ -1771,6 +1827,12 @@ def _query_session_identity(
 
 
 def validate_metadata(metadata: Mapping[str, Any], config: Mapping[str, Any]) -> dict[str, Any]:
+    """Fail closed unless contract metadata equals the frozen SA expectation.
+
+    Accepts common CTP/SDK field spellings; PriceTick, VolumeMultiple,
+    and minimum order lots must match exactly.  Returns the normalized
+    triple used by later gates.
+    """
     expected = _mapping(config.get("metadata_expectation"))
     tick = float(_field(metadata, "price_tick", "PriceTick", "tick_size", default=0) or 0)
     multiplier = float(
@@ -1805,6 +1867,13 @@ def fee_snapshot(
     *,
     instrument: str,
 ) -> dict[str, Any]:
+    """Normalize the single applicable SA fee record into a verified snapshot.
+
+    Rejects absent records or fields, records bound to another instrument,
+    non-finite or negative rates, and an all-zero schedule; stamps the
+    result with the fee query session identity and the frozen replay
+    slip/edge buffers.
+    """
     query = _mapping(_mapping(snapshot.get("queries")).get("fees"))
     records = _query_records(snapshot, "fees")
     if len(records) != 1:
@@ -1853,6 +1922,12 @@ def fee_snapshot(
 
 
 def validate_margin(snapshot: Mapping[str, Any], *, instrument: str) -> dict[str, Any]:
+    """Extract worst-case margin rates from exactly one instrument record.
+
+    Fails closed unless the record is bound to ``instrument`` and carries
+    finite nonnegative long/short money/volume ratios with at least one
+    positive rate; returns the maxima plus query session identity.
+    """
     query = _mapping(_mapping(snapshot.get("queries")).get("margin"))
     records = _query_records(snapshot, "margin")
     if len(records) != 1:
@@ -2214,6 +2289,13 @@ def validate_stage_a(
     expected_account: str,
     expected_profile: str,
 ) -> dict[str, Any]:
+    """Validate the first read-only query stage (no fee/margin queries yet).
+
+    Proves a read-only session, complete account/positions/orders/trades/
+    instruments queries, stable identity, one account with positive equity
+    and nonnegative available cash, and calendar-aware contract selection;
+    a receipt additionally pins TradingDay, instrument, and calendar hash.
+    """
     session, counts = _validate_read_only_session(snapshot, expected_profile=expected_profile)
     required = ("account", "positions", "orders", "trades", "instruments")
     for name in required:
@@ -2283,6 +2365,14 @@ def validate_preflight(
     expected_profile: str = "",
     allow_execution_recovery: bool = False,
 ) -> dict[str, Any]:
+    """Run the full two-stage preflight and decide shadow/SimNow readiness.
+
+    Stage B must reproduce Stage A's identity with distinct request IDs,
+    re-prove account health and identical metadata, and validate margin,
+    fees, positions, and active orders.  Shadow needs a read-only-ready
+    session; SimNow also needs settlement confirmation, a non-engineering
+    profile, and a flat quiet account unless recovery is explicitly allowed.
+    """
     separate_stage_a = stage_a is not None
     stage_a_result = dict(
         stage_a
@@ -2536,11 +2626,15 @@ raise SystemExit(0 if result.get("ready") else 3)
 
 
 class AccountLock:
+    """Exclusive local flock so only one writer owns the SimNow account."""
+
     def __init__(self, path: Path) -> None:
+        """Store ``path``; the lock file itself is created lazily on __enter__."""
         self.path = path
         self.handle = None
 
     def __enter__(self):
+        """Acquire a non-blocking exclusive flock; fail closed if another writer holds it."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.handle = self.path.open("a+", encoding="utf-8")
         try:
@@ -2553,33 +2647,43 @@ class AccountLock:
         return self
 
     def __exit__(self, *_args):
+        """Release the flock and close the handle on context exit."""
         if self.handle is not None:
             fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
             self.handle.close()
 
 
 class ReplayClock:
+    """Deterministic wall/monotonic clock driven by replayed fixture ticks."""
+
     def __init__(self, wall: float, monotonic_value: float = 1000.0) -> None:
+        """Seed both clock domains; fixture ticks later reposition them via :meth:`set`."""
         self.wall = float(wall)
         self.monotonic_value = float(monotonic_value)
 
     def set(self, wall: float, monotonic_value: float) -> None:
+        """Reposition both clock domains to the values carried by one fixture tick."""
         self.wall = float(wall)
         self.monotonic_value = float(monotonic_value)
 
     def utc_now(self) -> float:
+        """Return the replayed wall-clock time in UTC epoch seconds."""
         return self.wall
 
     def monotonic_now(self) -> float:
+        """Return the replayed monotonic time in seconds."""
         return self.monotonic_value
 
     def monotonic(self) -> float:
+        """Alias of :meth:`monotonic_now` matching ``time.monotonic``."""
         return self.monotonic_value
 
     def monotonic_ns(self) -> int:
+        """Return the replayed monotonic time in nanoseconds."""
         return int(self.monotonic_value * 1_000_000_000)
 
     def advance(self, seconds: float) -> None:
+        """Shift both clock domains forward by ``seconds``."""
         self.wall += float(seconds)
         self.monotonic_value += float(seconds)
 
@@ -2588,6 +2692,7 @@ class ReplayClient:
     """Read-only local event source consumed through ``BtApiStore``."""
 
     def __init__(self, ticks, clock: ReplayClock, *, eof_event_time_watermark: float) -> None:
+        """Buffer fixture ``ticks``, bind ``clock``, and record the end-of-source watermark."""
         self.ticks = deque(ticks)
         self.clock = clock
         self.connected = False
@@ -2595,27 +2700,39 @@ class ReplayClient:
         self.eof_event_time_watermark = float(eof_event_time_watermark)
 
     def connect(self) -> None:
+        """Mark the local source connected (no I/O)."""
         self.connected = True
 
     def disconnect(self) -> None:
+        """Mark the local source disconnected (no I/O)."""
         self.connected = False
 
     def subscribe(self, symbol) -> None:
+        """Record ``symbol``; the local source serves every subscription."""
         self.subscriptions.append(symbol)
 
     def supports_live_ticks(self, _symbol) -> bool:
+        """Always true: the fixture delivers its ticks one at a time."""
         return True
 
     def has_pending_tick(self, _symbol) -> bool:
+        """True while buffered fixture ticks remain."""
         return bool(self.ticks)
 
     def is_source_exhausted(self, _symbol) -> bool:
+        """True once every fixture tick has been consumed."""
         return not self.ticks
 
     def get_source_event_time_watermark(self, _symbol) -> float:
+        """Return the fixed event-time watermark for the end of source."""
         return self.eof_event_time_watermark
 
     def poll_tick(self, symbol):
+        """Pop the next buffered tick for ``symbol`` and advance the replay clock.
+
+        Returns ``None`` when the buffer is empty or the head tick belongs
+        to another symbol.
+        """
         if not self.ticks:
             return None
         tick = self.ticks[0]
@@ -2627,6 +2744,13 @@ class ReplayClient:
 
 
 def generate_replay_ticks(fixture: Mapping[str, Any], scenario: str):
+    """Yield deterministic CTP V2 quote ticks from the synthetic fixture.
+
+    ``trend`` drifts up, ``reverse`` drifts down with crossed depths, and
+    ``no_signal`` oscillates flat; unknown scenarios fail closed.  Each
+    tick carries the full evidence contract so the production feed
+    quality gate can run unmodified.
+    """
     if fixture.get("schema_version") != "iter22.synthetic-quote-fixture.v1":
         raise RunnerConfigurationError("unsupported replay fixture schema")
     interval = float(fixture["tick_interval_seconds"])
@@ -3038,6 +3162,13 @@ def run_replay(
     run_id: str | None = None,
     retention_root: Path | None = None,
 ) -> dict[str, Any]:
+    """Execute the frozen synthetic fixture through the native replay path.
+
+    Drives the real Store/Feed/Broker/strategy chain with ``ReplayClient``
+    and ``ReplayClock``: no network, no local fill model, zero SDK write
+    requests.  Fails closed unless the strategy stays read-only and ends
+    flat; the manifest and evidence are finalized either way.
+    """
     output_directory = _claim_output_directory(output_directory)
     replay = _mapping(config.get("replay"))
     fixture_path = HERE / str(replay["fixture"])
@@ -3191,7 +3322,8 @@ def run_replay(
             clock=clock,
         )
         cerebro.adddata(feed, name=instrument)
-        _attach_trade_logger(cerebro, output_directory)
+        # Replay stays quiet: no console stream and no high-rate tick/bar files.
+        _attach_trade_logger(cerebro, output_directory, console=False)
         risk_store = DailyRiskStore(output_directory / "replay-risk.json")
         risk_store.load_or_create(
             account_fingerprint="acct_replay_fixture",
@@ -5411,6 +5543,15 @@ def run_network(
     run_id: str | None = None,
     retention_root: Path | None = None,
 ) -> dict[str, Any]:
+    """Run one controlled shadow or admitted SimNow network session.
+
+    Re-applies the CLI boundary for direct API callers (trust root, frozen
+    profile, receipt revalidation, invocation contract) before claiming an
+    output directory or building the Store.  Order writes require simnow
+    mode plus a validated receipt; every stage (settlement, two-stage
+    preflight, native probe, strategy execution, controlled drain,
+    reconciliation, recovery) fails closed into a finalized manifest.
+    """
     # API callers do not pass through ``main``.  Load the local trust root
     # before revalidating a signed receipt, and do both before claiming an
     # output directory or constructing a Store.
@@ -6459,6 +6600,7 @@ def run_network(
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI parser for every replay/shadow/SimNow runner action."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--mode", choices=MODES, help="default comes from config.yaml (shadow)")
@@ -6547,6 +6689,12 @@ def _cli_report_exit_code(report: Mapping[str, Any]) -> int:
 
 
 def main(argv=None) -> int:
+    """Parse CLI arguments, enforce mode/action invariants, and dispatch.
+
+    Every mode/purpose/action combination must be explicitly permitted;
+    SimNow order runs require a validated admission receipt.  Prints the
+    redacted report JSON and returns the mode-specific exit code.
+    """
     parser = build_parser()
     args = parser.parse_args(argv)
     _load_env_file(HERE / ".env")

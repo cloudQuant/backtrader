@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""M01: 验证连接成功时能正常显示连接成功"""
+"""M01: Verify that connection success is properly displayed when the connection succeeds"""
 from __future__ import annotations
 
 import sys
