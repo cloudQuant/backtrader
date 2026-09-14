@@ -1355,6 +1355,54 @@ def test_market_data_only_hydrates_external_state_and_never_mutates_account(
     assert len(store.stop_calls) == 1
 
 
+def test_market_data_only_shutdown_captures_terminal_ctp_session_before_store_stop():
+    """A G3 observer must bind final counters before Store teardown clears them."""
+
+    class TerminalSessionStore(_ObservationOnlyStore):
+        def __init__(self):
+            super().__init__()
+            self.terminal_reads = []
+
+        def get_ctp_session_state(self):
+            assert self.is_connected is True
+            self.terminal_reads.append("before_store_stop")
+            return {
+                "account_fingerprint": "acct_0123456789abcdef",
+                "environment_profile": "set1_group1",
+                "trading_day": "20260914",
+                "connection_generation": 7,
+                "request_counts": {
+                    "settlement_confirm": 0,
+                    "order_insert": 0,
+                    "order_action": 0,
+                },
+            }
+
+        def stop(self, timeout=None):
+            assert self.terminal_reads == ["before_store_stop"]
+            return super().stop(timeout=timeout)
+
+    store = TerminalSessionStore()
+    broker = BtApiBroker(store=store, market_data_only=True, validation_enabled=False)
+    broker.start()
+
+    summary = broker.stop()
+
+    assert summary["terminal_session_capture_status"] == "CAPTURED"
+    assert summary["terminal_session_state"] == {
+        "account_fingerprint": "acct_0123456789abcdef",
+        "environment_profile": "set1_group1",
+        "trading_day": "20260914",
+        "connection_generation": 7,
+        "request_counts": {
+            "settlement_confirm": 0,
+            "order_insert": 0,
+            "order_action": 0,
+        },
+    }
+    assert store.is_connected is False
+
+
 def test_market_data_only_rejects_execution_recovery_before_store_start():
     store = _ObservationOnlyStore()
     broker = BtApiBroker(

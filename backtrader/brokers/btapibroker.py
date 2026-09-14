@@ -1302,6 +1302,29 @@ class BtApiBroker(BrokerBase):
         self._emit_runtime_event("broker_observation_shutdown_started", status="running")
 
         self._live_started = False
+        # Store.stop() deliberately discards session-bound CTP evidence before
+        # it closes the SDK.  Preserve its cached, credential-redacted terminal
+        # state immediately before that teardown so a caller can independently
+        # judge a read-only observation without treating it as reconciliation.
+        terminal_session_state = {}
+        terminal_session_capture_status = "UNAVAILABLE"
+        terminal_getter = getattr(self.store, "get_ctp_session_state", None)
+        if callable(terminal_getter):
+            try:
+                terminal_state = terminal_getter()
+            except Exception as exc:
+                self._sanitize_exception(exc)
+                terminal_session_capture_status = "ERROR"
+            else:
+                if isinstance(terminal_state, Mapping):
+                    terminal_session_state = deepcopy(
+                        self._redact_runtime_value(dict(terminal_state))
+                    )
+                    terminal_session_capture_status = "CAPTURED"
+                else:
+                    terminal_session_capture_status = "INVALID"
+        summary["terminal_session_state"] = terminal_session_state
+        summary["terminal_session_capture_status"] = terminal_session_capture_status
         store_health = None
         if (
             self.store.is_connected

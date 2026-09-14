@@ -879,6 +879,245 @@ def test_engineering_observation_shutdown_accepts_only_clean_market_data_stop():
         assert runner._engineering_observation_shutdown_complete({**clean, **override}) is False
 
 
+def _first_set_g3_observation_shutdown_inputs():
+    """Return a complete, zero-write first-set shadow observation fixture."""
+
+    identity = {
+        "profile": "simnow_first_group1",
+        "sdk_profile": "set1_group1",
+        "market_alignment": "actual_market_hours",
+        "account_fingerprint": "acct_0123456789abcdef",
+    }
+    query_identity = {
+        "account_fingerprint": "0123456789abcdef",
+        "trading_day": "20260914",
+        "connection_generation": 7,
+    }
+    zero_writes = {
+        "settlement_confirm": 0,
+        "order_insert": 0,
+        "order_action": 0,
+    }
+    startup = {
+        "schema_version": "iter22.startup-account-observation.v1",
+        "source": "ctp_preflight_stage_b",
+        "scope": "account_wide",
+        "read_only": True,
+        "account_fingerprint": "0123456789abcdef",
+        "trading_day": "20260914",
+        "connection_generation": 7,
+        "nonzero_position_record_count": 0,
+        "gross_position_lots": 0,
+        "active_orders_count": 0,
+        "positions": [],
+    }
+    preflight = {
+        "status": "PASS",
+        "ready_for_shadow": True,
+        "request_counts": dict(zero_writes),
+        "query_identity": dict(query_identity),
+        "stage_a": {
+            "request_counts": dict(zero_writes),
+            "identity": dict(query_identity),
+        },
+        "startup_account_observation": dict(startup),
+        "environment_identity": dict(identity),
+    }
+    preflight["preflight_sha256"] = runner.sha256_json(runner._preflight_hash_payload(preflight))
+    startup = {**startup, "preflight_sha256": preflight["preflight_sha256"]}
+    observation = {
+        "g3_gate_status": "PASS",
+        "profile": identity["profile"],
+        "sdk_profile": identity["sdk_profile"],
+        "market_alignment": identity["market_alignment"],
+        "valid_session_seconds": 3600.0,
+        "qualified_completed_bars": 60,
+        "qualified_quote_window_seconds": 60.0,
+        "terminal_account_fingerprint": query_identity["account_fingerprint"],
+        "terminal_environment_profile": identity["sdk_profile"],
+        "terminal_trading_day": query_identity["trading_day"],
+        "terminal_connection_generation": query_identity["connection_generation"],
+        "request_counts_terminal": dict(zero_writes),
+        "forbidden_write_request_counts": dict(zero_writes),
+        "g3_checks": {
+            "first_set_profile": True,
+            "actual_market_alignment": True,
+            "valid_observation_seconds_gte_3600": True,
+            "qualified_completed_bars_gte_60": True,
+            "qualified_quote_window_seconds_gte_60": True,
+            "request_count_evidence_complete": True,
+            "write_request_counts_zero": True,
+            "profile_matches": True,
+            "account_matches": True,
+            "trading_day_matches": True,
+            "generation_matches": True,
+        },
+    }
+    shutdown = {
+        "status": "OBSERVATION_ONLY",
+        "market_data_only": True,
+        "store_shutdown_state": "PASS",
+        "cancel_requested": 0,
+        "close_requested": 0,
+        "unknown_orders": 0,
+        "active_order_count": 0,
+        "local_position_count": 0,
+        "observed_remote_open_order_count": 0,
+        "remote_flat_proven": False,
+        "remote_position_count": None,
+        "unknown_intent_count": None,
+        "unmatched_trade_count": None,
+        "startup_account_state_requires_nonflat": False,
+        "terminal_session_capture_status": "CAPTURED",
+        "terminal_session_state": {
+            "account_fingerprint": query_identity["account_fingerprint"],
+            "environment_profile": identity["sdk_profile"],
+            "trading_day": query_identity["trading_day"],
+            "connection_generation": query_identity["connection_generation"],
+            "request_counts": dict(zero_writes),
+        },
+    }
+    return observation, shutdown, preflight, startup, identity
+
+
+def test_first_set_g3_observation_shutdown_accepts_bound_zero_write_observation_only():
+    """G3 may seal a real observation, but its stop can never substitute for G4."""
+
+    observation, shutdown, preflight, startup, identity = (
+        _first_set_g3_observation_shutdown_inputs()
+    )
+
+    assert (
+        runner._first_set_g3_observation_shutdown_complete(
+            observation,
+            shutdown,
+            preflight=preflight,
+            startup_account_observation=startup,
+            identity=identity,
+        )
+        is True
+    )
+    assert runner._shutdown_summary_complete(shutdown) is False
+    assert (
+        runner._report_stopped_flat(
+            {
+                "state": "STOPPED_FLAT",
+                "position_lots": 0,
+                "unknown_intents": 0,
+                "active_order": None,
+            },
+            shutdown,
+        )
+        is False
+    )
+
+    finalized, complete = runner._finalize_first_set_g3_shadow_observation(
+        observation,
+        shutdown,
+        preflight=preflight,
+        startup_account_observation=startup,
+        identity=identity,
+    )
+    assert complete is True
+    assert finalized["g3_gate_status"] == "PASS"
+    assert finalized["g3_shutdown_evidence_complete"] is True
+
+    # Normal execution appends these post-proof runtime facts after Stage A/B
+    # is sealed.  They must not invalidate a legitimate preflight hash.
+    preflight["subscription_requested"] = True
+    preflight["daily_price_limits_source"] = "current_ctp_quote_v2"
+    assert (
+        runner._first_set_g3_observation_shutdown_complete(
+            observation,
+            shutdown,
+            preflight=preflight,
+            startup_account_observation=startup,
+            identity=identity,
+        )
+        is True
+    )
+
+
+@pytest.mark.parametrize(
+    "failure_case",
+    (
+        "terminal_write",
+        "forged_market_metrics",
+        "missing_stage_b",
+        "missing_stage_b_count",
+        "preflight_environment_mismatch",
+        "preflight_tampered_after_hash",
+        "terminal_account_mismatch",
+        "terminal_summary_mismatch",
+        "terminal_capture_missing",
+        "startup_nonflat_mismatch",
+        "bad_shutdown",
+    ),
+)
+def test_first_set_g3_observation_shutdown_fails_closed_when_required_evidence_is_missing(
+    failure_case,
+):
+    observation, shutdown, preflight, startup, identity = (
+        _first_set_g3_observation_shutdown_inputs()
+    )
+
+    if failure_case == "terminal_write":
+        observation["forbidden_write_request_counts"]["order_insert"] = 1
+        observation["request_counts_terminal"]["order_insert"] = 1
+    elif failure_case == "forged_market_metrics":
+        observation["qualified_completed_bars"] = 59
+    elif failure_case == "missing_stage_b":
+        preflight.pop("startup_account_observation")
+    elif failure_case == "missing_stage_b_count":
+        preflight["startup_account_observation"].pop("active_orders_count")
+        startup.pop("active_orders_count")
+        _reseal_first_set_g3_preflight(preflight, startup)
+    elif failure_case == "preflight_environment_mismatch":
+        preflight["environment_identity"]["profile"] = "simnow_second_7x24"
+        _reseal_first_set_g3_preflight(preflight, startup)
+    elif failure_case == "preflight_tampered_after_hash":
+        preflight["ready_for_shadow"] = False
+    elif failure_case == "terminal_account_mismatch":
+        observation["terminal_account_fingerprint"] = "other-account"
+    elif failure_case == "terminal_summary_mismatch":
+        shutdown["terminal_session_state"]["request_counts"]["order_insert"] = 1
+    elif failure_case == "terminal_capture_missing":
+        shutdown["terminal_session_capture_status"] = "UNAVAILABLE"
+    elif failure_case == "startup_nonflat_mismatch":
+        shutdown["startup_account_state_requires_nonflat"] = True
+    elif failure_case == "bad_shutdown":
+        shutdown["store_shutdown_state"] = "INCOMPLETE"
+    else:  # pragma: no cover - protects this fail-closed table when extended.
+        raise AssertionError(f"unexpected failure case: {failure_case}")
+
+    assert (
+        runner._first_set_g3_observation_shutdown_complete(
+            observation,
+            shutdown,
+            preflight=preflight,
+            startup_account_observation=startup,
+            identity=identity,
+        )
+        is False
+    )
+    finalized, complete = runner._finalize_first_set_g3_shadow_observation(
+        observation,
+        shutdown,
+        preflight=preflight,
+        startup_account_observation=startup,
+        identity=identity,
+    )
+    assert complete is False
+    assert finalized["g3_gate_status"] == "INCOMPLETE"
+
+
+def _reseal_first_set_g3_preflight(preflight, startup):
+    """Bind a deliberate fixture mutation so a later failure isolates its target check."""
+
+    preflight["preflight_sha256"] = runner.sha256_json(runner._preflight_hash_payload(preflight))
+    startup["preflight_sha256"] = preflight["preflight_sha256"]
+
+
 def test_engineering_observation_requires_complete_zero_terminal_write_counts():
     observation = {
         "forbidden_write_request_counts": {
@@ -931,6 +1170,38 @@ def test_engineering_observation_calendar_failure_preserves_non_gating_gate_stat
         "g3_gate_status": "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION",
         "g4_gate_status": "NOT_RUN",
     }
+
+
+def test_network_failure_downgrades_provisional_passes_before_manifest_seal():
+    """An exception after a runtime success cannot publish a transient PASS manifest."""
+
+    result = {
+        "exit_status": "PASS_SHADOW_G3",
+        "g3_gate_status": "PASS",
+        "g4_gate_status": "PASS",
+        "observation_evidence": {"g3_gate_status": "PASS"},
+    }
+    manifest = {
+        "g3_gate_status": "PASS",
+        "g4_gate_status": "PASS",
+        "observation_evidence": {"g3_gate_status": "PASS"},
+    }
+
+    runner._mark_network_failure_before_manifest_seal(result, manifest)
+    gates = runner._network_failure_gate_status(RuntimeError("fixture"), manifest)
+
+    assert result == {
+        "exit_status": "FAIL_CLOSED",
+        "g3_gate_status": "INCOMPLETE",
+        "g4_gate_status": "INCOMPLETE",
+        "observation_evidence": {"g3_gate_status": "INCOMPLETE"},
+    }
+    assert manifest == {
+        "g3_gate_status": "INCOMPLETE",
+        "g4_gate_status": "INCOMPLETE",
+        "observation_evidence": {"g3_gate_status": "INCOMPLETE"},
+    }
+    assert gates == {"g3_gate_status": "INCOMPLETE", "g4_gate_status": "INCOMPLETE"}
 
 
 @pytest.mark.parametrize(
@@ -1031,6 +1302,23 @@ def test_cli_returns_nonzero_for_incomplete_engineering_observation():
         )
         != 0
     )
+    assert runner._cli_report_exit_code({"mode": "shadow", "exit_status": "PASS_SHADOW_G3"}) == 0
+    assert (
+        runner._cli_report_exit_code(
+            {"mode": "shadow", "preflight_only": True, "exit_status": "PASS_PREFLIGHT"}
+        )
+        == 0
+    )
+    assert (
+        runner._cli_report_exit_code(
+            {"mode": "shadow", "preflight_only": True, "exit_status": "FAIL_EVIDENCE_INCOMPLETE"}
+        )
+        == runner.ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
+    )
+    assert (
+        runner._cli_report_exit_code({"mode": "shadow", "exit_status": "FAIL_EVIDENCE_INCOMPLETE"})
+        == runner.ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
+    )
 
 
 def test_sealed_manifest_downgrade_controls_engineering_observation_cli_exit():
@@ -1039,16 +1327,106 @@ def test_sealed_manifest_downgrade_controls_engineering_observation_cli_exit():
     result = {
         "engineering_strategy_observation": True,
         "exit_status": "PASS_ENGINEERING_STRATEGY_OBSERVATION",
+        "g3_gate_status": "PASS",
+        "observation_evidence": {"g3_gate_status": "PASS"},
     }
     runner._sync_result_exit_status_from_sealed_manifest(
         result,
-        {"exit_status": "FAIL_EVIDENCE_INCOMPLETE"},
+        {
+            "exit_status": "FAIL_EVIDENCE_INCOMPLETE",
+            "g3_gate_status": "INCOMPLETE",
+            "observation_evidence": {"g3_gate_status": "INCOMPLETE"},
+        },
     )
 
     assert result["exit_status"] == "FAIL_EVIDENCE_INCOMPLETE"
+    assert result["g3_gate_status"] == "INCOMPLETE"
+    assert result["observation_evidence"] == {"g3_gate_status": "INCOMPLETE"}
     assert (
         runner._cli_report_exit_code(result) == runner.ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
     )
+
+
+def test_first_set_g3_manifest_seal_binds_pending_artifacts_and_detects_tampering(tmp_path):
+    """Only a hash-bound atomic manifest can publish a first-set G3 PASS."""
+
+    pending = runner.FIRST_SET_G3_PENDING_MANIFEST_SEAL
+    for filename, payload in {
+        "daily_report.json": {
+            "mode": "shadow",
+            "g3_gate_status": pending,
+            "observation_evidence": {"g3_gate_status": pending},
+            "manifest_seal_status": "PENDING",
+            "g3_verdict_source": "manifest.json",
+        },
+        "reconciliation.json": {
+            "status": "STOPPED_FLAT",
+            "g3_gate_status": pending,
+            "observation_evidence": {"g3_gate_status": pending},
+            "manifest_seal_status": "PENDING",
+            "g3_verdict_source": "manifest.json",
+        },
+    }.items():
+        (tmp_path / filename).write_text(json.dumps(payload), encoding="utf-8")
+    (tmp_path / "daily_report.md").write_text("G3: PENDING_MANIFEST_SEAL\n", encoding="utf-8")
+
+    manifest = {
+        "exit_status": "PASS_SHADOW_G3",
+        "g3_gate_status": "PASS",
+        "observation_evidence": {"g3_gate_status": "PASS"},
+        "evidence_health": {"complete": True},
+    }
+    runner._bind_first_set_g3_artifacts_to_manifest(manifest, tmp_path)
+
+    seal = manifest["first_set_g3_artifact_seal"]
+    assert seal["schema_version"] == runner.FIRST_SET_G3_ARTIFACT_SEAL_SCHEMA
+    assert seal["verdict_source"] == "manifest.json"
+    assert seal["artifact_state"] == pending
+    assert set(seal["artifact_sha256"]) == set(runner.FIRST_SET_G3_ARTIFACT_NAMES)
+    assert runner._first_set_g3_manifest_seal_matches_artifacts(manifest, tmp_path) is True
+
+    (tmp_path / "daily_report.json").write_text("{}", encoding="utf-8")
+    assert runner._first_set_g3_manifest_seal_matches_artifacts(manifest, tmp_path) is False
+
+
+def test_first_set_g3_manifest_seal_rejects_independently_published_artifact_verdict(tmp_path):
+    """A daily/reconciliation PASS cannot be promoted outside manifest finalization."""
+
+    (tmp_path / "daily_report.json").write_text(
+        json.dumps(
+            {
+                "g3_gate_status": "PASS",
+                "observation_evidence": {"g3_gate_status": "PASS"},
+                "manifest_seal_status": "SEALED",
+                "g3_verdict_source": "daily_report.json",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(RuntimeError, match="not a pending manifest-bound snapshot"):
+        runner._bind_first_set_g3_artifacts_to_manifest({}, tmp_path)
+
+
+def test_first_set_g3_artifact_binding_failure_downgrades_result():
+    """A binding failure never leaves the returned verdict at PASS."""
+
+    result = {
+        "exit_status": "PASS_SHADOW_G3",
+        "g3_gate_status": "PASS",
+        "observation_evidence": {"g3_gate_status": "PASS"},
+    }
+    manifest = {
+        "exit_status": "PASS_SHADOW_G3",
+        "g3_gate_status": "PASS",
+        "observation_evidence": {"g3_gate_status": "PASS"},
+    }
+    runner._downgrade_first_set_g3_after_artifact_binding_failure(result, manifest)
+
+    assert result["exit_status"] == "FAIL_EVIDENCE_INCOMPLETE"
+    assert result["g3_gate_status"] == "INCOMPLETE"
+    assert result["observation_evidence"] == {"g3_gate_status": "INCOMPLETE"}
+    assert manifest["first_set_g3_artifact_seal"] == {"binding_status": "INVALID"}
 
 
 def test_direct_api_rejects_engineering_only_strategy_before_receipt_revalidation(
@@ -3252,6 +3630,7 @@ def test_g3_and_g4_are_machine_judgeable_and_zero_cycle_is_incomplete():
         "profile": "simnow_first_group1",
         "sdk_profile": "set1_group1",
         "market_alignment": "actual_market_hours",
+        "account_fingerprint": "acct_0123456789abcdef",
     }
     report = {
         "quote_window_seconds": 60.0,
@@ -3263,6 +3642,7 @@ def test_g3_and_g4_are_machine_judgeable_and_zero_cycle_is_incomplete():
         },
     }
     terminal = {
+        "account_fingerprint": "0123456789abcdef",
         "connection_generation": 7,
         "trading_day": "20260909",
         "environment_profile": "set1_group1",

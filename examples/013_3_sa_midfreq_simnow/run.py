@@ -130,6 +130,13 @@ SOURCE_FILES = (
 )
 _RECEIPT_VALIDATION_MARKER = object()
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
+FIRST_SET_G3_PENDING_MANIFEST_SEAL = "PENDING_MANIFEST_SEAL"
+FIRST_SET_G3_ARTIFACT_SEAL_SCHEMA = "iter22.first-set-g3-artifact-seal.v1"
+FIRST_SET_G3_ARTIFACT_NAMES = (
+    "daily_report.json",
+    "daily_report.md",
+    "reconciliation.json",
+)
 ARMING_PROOF_KEYS = frozenset(
     {
         "account_fingerprint",
@@ -203,6 +210,15 @@ WRITE_REQUEST_COUNT_KEYS = (
     "settlement_confirm",
     "order_insert",
     "order_action",
+)
+PREFLIGHT_RUNTIME_DERIVED_FIELDS = frozenset(
+    {
+        "preflight_sha256",
+        "subscription_requested",
+        "daily_price_limits_source",
+        "execution_recovery",
+        "execution_arming",
+    }
 )
 PROFILE_SELECTION_ENV = "ITER22_SIMNOW_PROFILE"
 API_DIAGNOSTIC_PROFILE = "simnow_second_7x24"
@@ -3310,6 +3326,16 @@ def _strategy_identity_sha256(config: Mapping[str, Any], *, purpose: str) -> str
     return sha256_json(material)
 
 
+def _preflight_hash_payload(preflight: Mapping[str, Any]) -> dict[str, Any]:
+    """Return immutable Stage-A/B evidence while omitting post-proof runtime facts."""
+
+    return {
+        key: value
+        for key, value in _mapping(preflight).items()
+        if key not in PREFLIGHT_RUNTIME_DERIVED_FIELDS
+    }
+
+
 def _build_live_store(
     config: Mapping[str, Any],
     env_values: Mapping[str, str],
@@ -3438,6 +3464,8 @@ def _observation_evidence(
     terminal_generation = terminal_session.get("connection_generation")
     expected_day = str(observed.get("trading_day") or "")
     terminal_day = str(terminal_session.get("trading_day") or "")
+    expected_account = _account_core(identity.get("account_fingerprint"))
+    terminal_account = _account_core(terminal_session.get("account_fingerprint"))
     try:
         generation_matches = bool(expected_generation) and int(expected_generation) == int(
             terminal_generation or 0
@@ -3456,6 +3484,7 @@ def _observation_evidence(
         and all(value == 0 for value in forbidden_counts.values()),
         "profile_matches": terminal_session.get("environment_profile")
         == identity.get("sdk_profile"),
+        "account_matches": bool(expected_account) and expected_account == terminal_account,
         "trading_day_matches": bool(expected_day) and expected_day == terminal_day,
         "generation_matches": generation_matches,
     }
@@ -3468,6 +3497,8 @@ def _observation_evidence(
         "profile": identity.get("profile"),
         "sdk_profile": identity.get("sdk_profile"),
         "market_alignment": identity.get("market_alignment"),
+        "terminal_account_fingerprint": terminal_session.get("account_fingerprint") or None,
+        "terminal_environment_profile": terminal_session.get("environment_profile") or None,
         "terminal_trading_day": terminal_day or None,
         "terminal_connection_generation": terminal_generation,
         "request_counts_terminal": counts,
@@ -3545,6 +3576,206 @@ def _engineering_observation_shutdown_complete(value: Any) -> bool:
         and all(
             type(summary.get(name)) is int and summary.get(name) == 0 for name in zero_count_keys
         )
+    )
+
+
+def _first_set_g3_observation_shutdown_complete(
+    observation: Mapping[str, Any],
+    shutdown_summary: Mapping[str, Any],
+    *,
+    preflight: Mapping[str, Any],
+    startup_account_observation: Mapping[str, Any],
+    identity: Mapping[str, Any],
+) -> bool:
+    """Accept only a bound first-set, zero-write G3 observation shutdown.
+
+    It deliberately recognizes an observation-only broker stop instead of
+    reusing ``_shutdown_summary_complete``: a shadow session never claims
+    remote flatness.  Consequently this predicate requires
+    ``market_data_only`` plus ``remote_flat_proven=False`` and cannot satisfy
+    the separate G4/mechanical-execution reconciliation predicate.
+    """
+
+    observed = _mapping(observation)
+    summary = _mapping(shutdown_summary)
+    preflight_result = _mapping(preflight)
+    startup = _mapping(startup_account_observation)
+    identity_value = _mapping(identity)
+    stage_a = _mapping(preflight_result.get("stage_a"))
+    stage_a_identity = _mapping(stage_a.get("identity"))
+    query_identity = _mapping(preflight_result.get("query_identity"))
+    stage_b_startup = _mapping(preflight_result.get("startup_account_observation"))
+
+    def zero_write_counts(value: Any) -> bool:
+        counts, complete = _strict_request_counts(value)
+        return complete and all(counts[name] == 0 for name in WRITE_REQUEST_COUNT_KEYS)
+
+    profile = str(identity_value.get("profile") or "")
+    sdk_profile = str(identity_value.get("sdk_profile") or "")
+    account = _account_core(identity_value.get("account_fingerprint"))
+    trading_day = str(query_identity.get("trading_day") or "")
+    generation = query_identity.get("connection_generation")
+    terminal_counts = _mapping(observed.get("forbidden_write_request_counts"))
+    preflight_hash = str(preflight_result.get("preflight_sha256") or "").lower()
+    identity_keys = ("account_fingerprint", "trading_day", "connection_generation")
+    local_zero_keys = (
+        "cancel_requested",
+        "close_requested",
+        "unknown_orders",
+        "active_order_count",
+        "local_position_count",
+    )
+    terminal_request_counts, terminal_counts_complete = _strict_request_counts(
+        observed.get("request_counts_terminal")
+    )
+    terminal_session = _mapping(summary.get("terminal_session_state"))
+    terminal_session_counts, terminal_session_counts_complete = _strict_request_counts(
+        terminal_session.get("request_counts")
+    )
+    nonzero_position_record_count = startup.get("nonzero_position_record_count")
+    gross_position_lots = startup.get("gross_position_lots")
+    active_orders_count = startup.get("active_orders_count")
+    positions = startup.get("positions")
+    startup_position_lots = (
+        [item.get("position_lots") for item in positions if isinstance(item, Mapping)]
+        if isinstance(positions, list)
+        else []
+    )
+    stage_b_shape_complete = bool(
+        startup.get("schema_version") == "iter22.startup-account-observation.v1"
+        and startup.get("source") == "ctp_preflight_stage_b"
+        and startup.get("scope") == "account_wide"
+        and startup.get("read_only") is True
+        and type(nonzero_position_record_count) is int
+        and nonzero_position_record_count >= 0
+        and not isinstance(gross_position_lots, bool)
+        and isinstance(gross_position_lots, (int, float))
+        and math.isfinite(float(gross_position_lots))
+        and float(gross_position_lots) >= 0.0
+        and type(active_orders_count) is int
+        and active_orders_count >= 0
+        and isinstance(positions, list)
+        and len(positions) == nonzero_position_record_count
+        and len(startup_position_lots) == len(positions)
+        and all(type(value) is int and value != 0 for value in startup_position_lots)
+        and sum(startup_position_lots) == float(gross_position_lots)
+    )
+    valid_seconds = observed.get("valid_session_seconds")
+    quote_window_seconds = observed.get("qualified_quote_window_seconds")
+    metrics_complete = bool(
+        not isinstance(valid_seconds, bool)
+        and isinstance(valid_seconds, (int, float))
+        and math.isfinite(float(valid_seconds))
+        and float(valid_seconds) >= 3600.0
+        and type(observed.get("qualified_completed_bars")) is int
+        and observed["qualified_completed_bars"] >= 60
+        and not isinstance(quote_window_seconds, bool)
+        and isinstance(quote_window_seconds, (int, float))
+        and math.isfinite(float(quote_window_seconds))
+        and float(quote_window_seconds) >= 60.0
+    )
+    preflight_hash_material = _preflight_hash_payload(preflight_result)
+    g3_checks = _mapping(observed.get("g3_checks"))
+    if not (
+        observed.get("g3_gate_status") == "PASS"
+        and profile in {"simnow_first_group1", "simnow_first_group2"}
+        and sdk_profile
+        and identity_value.get("market_alignment") == "actual_market_hours"
+        and observed.get("profile") == profile
+        and observed.get("sdk_profile") == sdk_profile
+        and observed.get("market_alignment") == "actual_market_hours"
+        and observed.get("terminal_environment_profile") == sdk_profile
+        and metrics_complete
+        and bool(g3_checks)
+        and all(value is True for value in g3_checks.values())
+        and terminal_counts_complete
+        and all(terminal_request_counts[name] == 0 for name in WRITE_REQUEST_COUNT_KEYS)
+        and summary.get("terminal_session_capture_status") == "CAPTURED"
+        and terminal_session_counts_complete
+        and terminal_session_counts == terminal_request_counts
+        and _account_core(terminal_session.get("account_fingerprint")) == account
+        and terminal_session.get("environment_profile") == sdk_profile
+        and str(terminal_session.get("trading_day") or "") == trading_day
+        and terminal_session.get("connection_generation") == generation
+        and all(
+            type(terminal_counts.get(name)) is int and terminal_counts[name] == 0
+            for name in WRITE_REQUEST_COUNT_KEYS
+        )
+        and preflight_result.get("status") == "PASS"
+        and preflight_result.get("ready_for_shadow") is True
+        and _mapping(preflight_result.get("environment_identity")) == identity_value
+        and bool(stage_a)
+        and all(stage_a_identity.get(name) == query_identity.get(name) for name in identity_keys)
+        and zero_write_counts(stage_a.get("request_counts"))
+        and zero_write_counts(preflight_result.get("request_counts"))
+        and _HEX64.fullmatch(preflight_hash) is not None
+        and sha256_json(preflight_hash_material) == preflight_hash
+        and str(startup.get("preflight_sha256") or "").lower() == preflight_hash
+        and account
+        and trading_day
+        and type(generation) is int
+        and generation > 0
+        and _account_core(query_identity.get("account_fingerprint")) == account
+        and str(observed.get("terminal_trading_day") or "") == trading_day
+        and observed.get("terminal_connection_generation") == generation
+        and _account_core(observed.get("terminal_account_fingerprint")) == account
+        and startup == {**stage_b_startup, "preflight_sha256": preflight_hash}
+        and stage_b_shape_complete
+        and _account_core(startup.get("account_fingerprint")) == account
+        and str(startup.get("trading_day") or "") == trading_day
+        and startup.get("connection_generation") == generation
+        and summary.get("market_data_only") is True
+        and summary.get("store_shutdown_state") == "PASS"
+        and summary.get("remote_flat_proven") is False
+        and summary.get("remote_position_count") is None
+        and summary.get("unknown_intent_count") is None
+        and summary.get("unmatched_trade_count") is None
+        and all(type(summary.get(name)) is int and summary[name] == 0 for name in local_zero_keys)
+        and type(summary.get("observed_remote_open_order_count")) is int
+        and summary["observed_remote_open_order_count"] >= 0
+    ):
+        return False
+
+    stage_b_nonflat = bool(
+        nonzero_position_record_count or gross_position_lots or active_orders_count
+    )
+    observed_nonflat = stage_b_nonflat or bool(summary["observed_remote_open_order_count"])
+    return bool(
+        summary.get("startup_account_state_requires_nonflat") is stage_b_nonflat
+        and (
+            (summary.get("status") == "OBSERVATION_ONLY" and not observed_nonflat)
+            or (summary.get("status") == "OBSERVATION_ONLY_NONFLAT" and observed_nonflat)
+        )
+    )
+
+
+def _finalize_first_set_g3_shadow_observation(
+    observation: Mapping[str, Any],
+    shutdown_summary: Mapping[str, Any],
+    *,
+    preflight: Mapping[str, Any],
+    startup_account_observation: Mapping[str, Any],
+    identity: Mapping[str, Any],
+) -> tuple[dict[str, Any], bool]:
+    """Return one coherent final G3 status for a normal first-set shadow run."""
+
+    shutdown_evidence_complete = _first_set_g3_observation_shutdown_complete(
+        observation,
+        shutdown_summary,
+        preflight=preflight,
+        startup_account_observation=startup_account_observation,
+        identity=identity,
+    )
+    complete = bool(
+        _mapping(observation).get("g3_gate_status") == "PASS" and shutdown_evidence_complete
+    )
+    return (
+        {
+            **_mapping(observation),
+            "g3_gate_status": "PASS" if complete else "INCOMPLETE",
+            "g3_shutdown_evidence_complete": shutdown_evidence_complete,
+        },
+        complete,
     )
 
 
@@ -4381,6 +4612,141 @@ def _sync_result_exit_status_from_sealed_manifest(
         if sealed_status and sealed_status != "RUNNING"
         else "FAIL_EVIDENCE_INCOMPLETE"
     )
+    sealed_observation = _mapping(manifest.get("observation_evidence"))
+    if sealed_observation:
+        result["observation_evidence"] = dict(sealed_observation)
+    sealed_g3_status = str(
+        manifest.get("g3_gate_status") or sealed_observation.get("g3_gate_status") or ""
+    )
+    if sealed_g3_status:
+        result["g3_gate_status"] = sealed_g3_status
+
+    # A result object can be returned to the CLI after finalization rejects the
+    # manifest.  Do not leave a provisional G3 PASS visible in that response:
+    # only a sealed PASS_SHADOW_G3 represents a completed first-set run.
+    if result.get("g3_gate_status") == "PASS" and result["exit_status"] != "PASS_SHADOW_G3":
+        result["g3_gate_status"] = "INCOMPLETE"
+        result_observation = _mapping(result.get("observation_evidence"))
+        if result_observation:
+            result["observation_evidence"] = {
+                **result_observation,
+                "g3_gate_status": "INCOMPLETE",
+            }
+
+
+def _first_set_g3_pending_artifact_payload(path: Path) -> Mapping[str, Any]:
+    """Read one provisional artifact and reject any independently published verdict.
+
+    The two JSON artifacts intentionally remain ``PENDING_MANIFEST_SEAL`` for
+    their entire lifetime.  A final G3 PASS is published only once: by the
+    atomic ``manifest.json`` replacement below.  That avoids treating a
+    best-effort, cross-file rewrite as a transaction.
+    """
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError) as exc:
+        raise RuntimeError(f"first-set G3 artifact is unavailable: {path.name}") from exc
+    if not isinstance(payload, Mapping):
+        raise RuntimeError(f"first-set G3 artifact is not a mapping: {path.name}")
+    observation = _mapping(payload.get("observation_evidence"))
+    if (
+        payload.get("g3_gate_status") != FIRST_SET_G3_PENDING_MANIFEST_SEAL
+        or observation.get("g3_gate_status") != FIRST_SET_G3_PENDING_MANIFEST_SEAL
+        or payload.get("manifest_seal_status") != "PENDING"
+        or payload.get("g3_verdict_source") != "manifest.json"
+    ):
+        raise RuntimeError(
+            f"first-set G3 artifact is not a pending manifest-bound snapshot: {path.name}"
+        )
+    return payload
+
+
+def _bind_first_set_g3_artifacts_to_manifest(
+    manifest: dict[str, Any], output_directory: Path
+) -> None:
+    """Hash-bind pending G3 artifacts before the manifest becomes authoritative.
+
+    ``EvidenceWriter.finalize_manifest`` replaces one file atomically.  The
+    seal records immutable hashes of the pending daily/reconciliation snapshots
+    and makes that manifest, rather than either snapshot, the sole source of a
+    G3 verdict.  Any missing, partial, or later-mutated artifact therefore
+    invalidates acceptance instead of leaving a stale standalone PASS.
+    """
+
+    hashes: dict[str, str] = {}
+    for filename in FIRST_SET_G3_ARTIFACT_NAMES:
+        path = output_directory / filename
+        if filename.endswith(".json"):
+            _first_set_g3_pending_artifact_payload(path)
+        try:
+            digest = sha256_file(path)
+        except OSError as exc:
+            raise RuntimeError(f"first-set G3 artifact hash is unavailable: {filename}") from exc
+        if not _HEX64.fullmatch(digest):
+            raise RuntimeError(f"first-set G3 artifact hash is invalid: {filename}")
+        hashes[filename] = digest
+
+    manifest["first_set_g3_artifact_seal"] = {
+        "schema_version": FIRST_SET_G3_ARTIFACT_SEAL_SCHEMA,
+        "verdict_source": "manifest.json",
+        "artifact_state": FIRST_SET_G3_PENDING_MANIFEST_SEAL,
+        "artifact_sha256": hashes,
+    }
+
+
+def _first_set_g3_manifest_seal_matches_artifacts(
+    manifest: Mapping[str, Any], output_directory: Path
+) -> bool:
+    """Return whether the single authoritative manifest still binds G3 evidence."""
+
+    observation = _mapping(manifest.get("observation_evidence"))
+    health = _mapping(manifest.get("evidence_health"))
+    seal = _mapping(manifest.get("first_set_g3_artifact_seal"))
+    expected = _mapping(seal.get("artifact_sha256"))
+    if (
+        manifest.get("exit_status") != "PASS_SHADOW_G3"
+        or manifest.get("g3_gate_status") != "PASS"
+        or observation.get("g3_gate_status") != "PASS"
+        or health.get("complete") is not True
+        or seal.get("schema_version") != FIRST_SET_G3_ARTIFACT_SEAL_SCHEMA
+        or seal.get("verdict_source") != "manifest.json"
+        or seal.get("artifact_state") != FIRST_SET_G3_PENDING_MANIFEST_SEAL
+        or set(expected) != set(FIRST_SET_G3_ARTIFACT_NAMES)
+    ):
+        return False
+    for filename in FIRST_SET_G3_ARTIFACT_NAMES:
+        digest = expected.get(filename)
+        if not isinstance(digest, str) or not _HEX64.fullmatch(digest):
+            return False
+        path = output_directory / filename
+        try:
+            if sha256_file(path) != digest:
+                return False
+            if filename.endswith(".json"):
+                _first_set_g3_pending_artifact_payload(path)
+        except (OSError, RuntimeError):
+            return False
+    return True
+
+
+def _downgrade_first_set_g3_after_artifact_binding_failure(
+    result: dict[str, Any] | None,
+    manifest: dict[str, Any],
+) -> None:
+    """Fail closed without ever rewriting a provisional artifact as PASS."""
+
+    manifest["exit_status"] = "FAIL_EVIDENCE_INCOMPLETE"
+    manifest["g3_gate_status"] = "INCOMPLETE"
+    observation = _mapping(manifest.get("observation_evidence"))
+    if observation:
+        manifest["observation_evidence"] = {**observation, "g3_gate_status": "INCOMPLETE"}
+    seal = _mapping(manifest.get("first_set_g3_artifact_seal"))
+    manifest["first_set_g3_artifact_seal"] = {
+        **seal,
+        "binding_status": "INVALID",
+    }
+    _sync_result_exit_status_from_sealed_manifest(result, manifest)
 
 
 def _reject_engineering_only_strategy_profile(config: Mapping[str, Any]) -> None:
@@ -4674,13 +5040,20 @@ def _write_api_diagnostic_construction_failure(
                 pass
 
 
+def _failure_gate_status(value: Any) -> str:
+    """Never carry a completed gate into an exception/failure artifact."""
+
+    status = str(value or "NOT_RUN")
+    return "INCOMPLETE" if status.startswith("PASS") else status
+
+
 def _network_failure_gate_status(
     failure: BaseException, manifest: Mapping[str, Any]
 ) -> dict[str, str]:
     """Keep fail-closed network evidence explicit about an unmet gate."""
 
-    default_g3 = str(manifest.get("g3_gate_status") or "NOT_RUN")
-    default_g4 = str(manifest.get("g4_gate_status") or "NOT_RUN")
+    default_g3 = _failure_gate_status(manifest.get("g3_gate_status"))
+    default_g4 = _failure_gate_status(manifest.get("g4_gate_status"))
     if manifest.get("engineering_strategy_observation") is True:
         # Calendar coverage can block this diagnostic, but Set-2 engineering
         # evidence is never a G3/G4 gate and must not be reported as one.
@@ -4693,6 +5066,39 @@ def _network_failure_gate_status(
             "g4_gate_status": "BLOCKED_G3",
         }
     return {"g3_gate_status": default_g3, "g4_gate_status": default_g4}
+
+
+def _mark_network_failure_before_manifest_seal(
+    result: dict[str, Any] | None, manifest: dict[str, Any]
+) -> None:
+    """Remove every provisional PASS before the final manifest write.
+
+    Network and teardown exceptions can happen after a runtime result has
+    tentatively met G3/G4.  The final manifest is the only publish point, so
+    it must be downgraded before ``EvidenceWriter.finalize_manifest`` performs
+    its atomic replacement; a later best-effort revocation is not sufficient.
+    """
+
+    for gate_name in ("g3_gate_status", "g4_gate_status"):
+        manifest[gate_name] = _failure_gate_status(manifest.get(gate_name))
+    observation = _mapping(manifest.get("observation_evidence"))
+    if observation and str(observation.get("g3_gate_status") or "").startswith("PASS"):
+        manifest["observation_evidence"] = {**observation, "g3_gate_status": "INCOMPLETE"}
+
+    if result is None:
+        return
+    result["exit_status"] = "FAIL_CLOSED"
+    for gate_name in ("g3_gate_status", "g4_gate_status"):
+        if gate_name in result:
+            result[gate_name] = _failure_gate_status(result.get(gate_name))
+    result_observation = _mapping(result.get("observation_evidence"))
+    if result_observation and str(result_observation.get("g3_gate_status") or "").startswith(
+        "PASS"
+    ):
+        result["observation_evidence"] = {
+            **result_observation,
+            "g3_gate_status": "INCOMPLETE",
+        }
 
 
 def run_api_diagnostic(
@@ -5309,7 +5715,7 @@ def run_network(
             preflight["stage_a"] = stage_a
             preflight["settlement_verification"] = settlement_verification
             preflight["environment_identity"] = identity
-            preflight_hash_material = dict(preflight)
+            preflight_hash_material = _preflight_hash_payload(preflight)
             preflight["preflight_sha256"] = sha256_json(preflight_hash_material)
             startup_account_observation = {
                 **_mapping(preflight["startup_account_observation"]),
@@ -5734,14 +6140,22 @@ def run_network(
                 shutdown_reader = getattr(broker, "get_shutdown_summary", None)
                 shutdown_summary = _mapping(shutdown_reader()) if callable(shutdown_reader) else {}
                 manifest["controlled_drain"] = shutdown_summary
-                terminal = _mapping(result.get("terminal_session_state"))
+                # Cerebro stops the strategy before the broker.  The
+                # market-data-only broker captures the cached CTP state before
+                # Store.stop() clears it; never revive Strategy.stop()'s stale
+                # snapshot for a normal first-set G3 decision.
+                terminal = _mapping(shutdown_summary.get("terminal_session_state"))
+                if not terminal and mode == "shadow" and not engineering_strategy_observation:
+                    raise PreflightError("broker controlled drain lacks terminal CTP session state")
                 if not terminal:
-                    terminal = _mapping(store.get_ctp_session_state())
+                    terminal = _mapping(result.get("terminal_session_state"))
                 observation = _observation_evidence(result, terminal, identity)
                 if engineering_strategy_observation:
                     observation = _mark_engineering_observation_evidence_non_gating(observation)
                 result.update(
                     run_id=run_id,
+                    mode=mode,
+                    purpose=purpose,
                     account_fingerprint=identity["account_fingerprint"],
                     environment_profile=identity["sdk_profile"],
                     observation_evidence=observation,
@@ -5757,6 +6171,48 @@ def run_network(
                         result["engineering_strategy_observation"] = True
                         result["g3_gate_status"] = ENGINEERING_STRATEGY_OBSERVATION_G3_STATUS
                         manifest["g3_gate_status"] = ENGINEERING_STRATEGY_OBSERVATION_G3_STATUS
+                        exit_status = (
+                            "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+                            if _engineering_observation_shutdown_complete(shutdown_summary)
+                            and _engineering_observation_terminal_writes_zero(observation)
+                            else "INCOMPLETE_ENGINEERING_STRATEGY_OBSERVATION"
+                        )
+                    else:
+                        observation, g3_complete = _finalize_first_set_g3_shadow_observation(
+                            observation,
+                            shutdown_summary,
+                            preflight=preflight,
+                            startup_account_observation=startup_account_observation,
+                            identity=identity,
+                        )
+                        result["observation_evidence"] = observation
+                        manifest["observation_evidence"] = observation
+                        result["g3_gate_status"] = observation["g3_gate_status"]
+                        manifest["g3_gate_status"] = observation["g3_gate_status"]
+                        exit_status = (
+                            "PASS_SHADOW_G3" if g3_complete else "INCOMPLETE_SHADOW_OBSERVATION"
+                        )
+                    artifact_observation = (
+                        _mark_engineering_observation_evidence_non_gating(observation)
+                        if engineering_strategy_observation
+                        else {
+                            **observation,
+                            "g3_gate_status": FIRST_SET_G3_PENDING_MANIFEST_SEAL,
+                        }
+                    )
+                    artifact_g3_status = (
+                        result.get("g3_gate_status", observation["g3_gate_status"])
+                        if engineering_strategy_observation
+                        else FIRST_SET_G3_PENDING_MANIFEST_SEAL
+                    )
+                    artifact_seal_fields = (
+                        {}
+                        if engineering_strategy_observation
+                        else {
+                            "manifest_seal_status": "PENDING",
+                            "g3_verdict_source": "manifest.json",
+                        }
+                    )
                     reporter.write_json(
                         "daily_report.json",
                         {
@@ -5768,26 +6224,11 @@ def run_network(
                             "zero_trade_day": True,
                             "fills_forbidden": True,
                             "pnl_fields_emitted": False,
-                            "g3_gate_status": result.get(
-                                "g3_gate_status", observation["g3_gate_status"]
-                            ),
-                            "observation_evidence": observation,
+                            "g3_gate_status": artifact_g3_status,
+                            "observation_evidence": artifact_observation,
+                            **artifact_seal_fields,
                         },
                     )
-                    if engineering_strategy_observation:
-                        exit_status = (
-                            "PASS_ENGINEERING_STRATEGY_OBSERVATION"
-                            if _engineering_observation_shutdown_complete(shutdown_summary)
-                            and _engineering_observation_terminal_writes_zero(observation)
-                            else "INCOMPLETE_ENGINEERING_STRATEGY_OBSERVATION"
-                        )
-                    else:
-                        exit_status = (
-                            "PASS_SHADOW_G3"
-                            if observation["g3_gate_status"] == "PASS"
-                            and _shutdown_summary_complete(shutdown_summary)
-                            else "INCOMPLETE_SHADOW_OBSERVATION"
-                        )
                 elif execution_recovery is not None:
                     result, recovery_report = _finalize_recovery_runtime_result(
                         result,
@@ -5850,6 +6291,20 @@ def run_network(
                         else "MANUAL_INTERVENTION"
                     )
                 result["exit_status"] = exit_status
+                normal_first_set_shadow = mode == "shadow" and not engineering_strategy_observation
+                reconciliation_observation = (
+                    {
+                        **observation,
+                        "g3_gate_status": FIRST_SET_G3_PENDING_MANIFEST_SEAL,
+                    }
+                    if normal_first_set_shadow
+                    else observation
+                )
+                reconciliation_g3_status = (
+                    FIRST_SET_G3_PENDING_MANIFEST_SEAL
+                    if normal_first_set_shadow
+                    else result.get("g3_gate_status", observation.get("g3_gate_status", "NOT_RUN"))
+                )
                 reporter.write_json(
                     "reconciliation.json",
                     {
@@ -5858,14 +6313,26 @@ def run_network(
                         "active_order": result["active_order"],
                         "unknown_intents": result["unknown_intents"],
                         "reconciliation_proofs": result.get("reconciliation_proofs") or [],
+                        "g3_gate_status": reconciliation_g3_status,
+                        "observation_evidence": reconciliation_observation,
                         "g4_gate_status": result.get("g4_gate_status", "NOT_RUN"),
                         "execution_recovery": result.get("execution_recovery"),
                         "broker_shutdown_summary": shutdown_summary,
                         "terminal_session": terminal,
+                        **(
+                            {
+                                "manifest_seal_status": "PENDING",
+                                "g3_verdict_source": "manifest.json",
+                            }
+                            if normal_first_set_shadow
+                            else {}
+                        ),
                     },
                 )
     except BaseException as exc:
         failure = exc
+        exit_status = "FAIL_CLOSED"
+        _mark_network_failure_before_manifest_seal(result, manifest)
         gate_status = _network_failure_gate_status(exc, manifest)
         manifest.update(gate_status)
         controlled_drain = {"status": "NOT_STARTED"}
@@ -5934,6 +6401,25 @@ def run_network(
                 if failure is None:
                     failure = exc
                     exit_status = "MANUAL_INTERVENTION"
+        if failure is not None:
+            # This must run before the first manifest finalization.  In
+            # particular, a late Store/account-lock failure must not let a
+            # previously computed G3 PASS become visible even transiently.
+            exit_status = "FAIL_CLOSED"
+            _mark_network_failure_before_manifest_seal(result, manifest)
+        normal_first_set_shadow = bool(
+            result is not None
+            and result.get("mode") == "shadow"
+            and result.get("engineering_strategy_observation") is not True
+            and result.get("preflight_only") is not True
+        )
+        if normal_first_set_shadow and failure is None:
+            try:
+                _bind_first_set_g3_artifacts_to_manifest(manifest, output_directory)
+            except BaseException as exc:
+                _downgrade_first_set_g3_after_artifact_binding_failure(result, manifest)
+                exit_status = "FAIL_EVIDENCE_INCOMPLETE"
+                failure = exc
         try:
             reporter.finalize_manifest(manifest, exit_status)
         except BaseException as exc:
@@ -5941,6 +6427,24 @@ def run_network(
                 failure = exc
         else:
             _sync_result_exit_status_from_sealed_manifest(result, manifest)
+            if (
+                normal_first_set_shadow
+                and manifest.get("exit_status") == "PASS_SHADOW_G3"
+                and not _first_set_g3_manifest_seal_matches_artifacts(manifest, output_directory)
+            ):
+                verification_failure = RuntimeError(
+                    "sealed first-set G3 manifest does not bind its pending artifacts"
+                )
+                _downgrade_first_set_g3_after_artifact_binding_failure(result, manifest)
+                try:
+                    reporter.write_json("manifest.json", manifest)
+                except Exception:
+                    # The existing atomic manifest has a stale hash binding;
+                    # readers must reject it because the required artifacts no
+                    # longer match.  The returned/CLI verdict remains failed.
+                    pass
+                if failure is None:
+                    failure = verification_failure
         # A recovery-only terminal result may already be pending as a return
         # value.  Raising from the end of ``finally`` prevents Store shutdown,
         # account-lock release, or evidence sealing failures from being hidden
@@ -6009,6 +6513,18 @@ def _cli_report_exit_code(report: Mapping[str, Any]) -> int:
         return (
             0
             if report.get("exit_status") == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
+            else ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
+        )
+    if report.get("preflight_only") is True:
+        return (
+            0
+            if report.get("exit_status") == "PASS_PREFLIGHT"
+            else ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
+        )
+    if str(report.get("mode") or "") == "shadow":
+        return (
+            0
+            if report.get("exit_status") == "PASS_SHADOW_G3"
             else ENGINEERING_OBSERVATION_INCOMPLETE_EXIT_CODE
         )
     recovery = _mapping(report.get("execution_recovery"))
