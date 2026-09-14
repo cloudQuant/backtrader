@@ -1,0 +1,48 @@
+{
+  "schema_version": "iter27.set2-ctp-revalidation.v2",
+  "record_date": "2026-09-14",
+  "runtime_code_commit": "21bcbeb8b48851c1da28f1153418e0585936c1a1",
+  "scope": "direct external read-only revalidation after the current-head local acceptance; no strategy result claimed",
+  "credential_boundary": {
+    "operator_directly_read_credentials": false,
+    "operator_printed_or_committed_credentials": false,
+    "runner_loaded_existing_ignored_environment_configuration": true
+  },
+  "runs": [
+    {
+      "id": "iter22-set2-api-diagnostic",
+      "command_shape": "ITER22_SIMNOW_PROFILE=simnow_second_7x24 run.py --mode shadow --purpose observation --api-diagnostic",
+      "exit_code": 2,
+      "status": "FAIL_CLOSED",
+      "error_code": "RuntimeError",
+      "failure_stage": "live_store_construction",
+      "strategy_status": "NOT_RUN",
+      "g3_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+      "g4_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+      "source_evidence": {
+        "owner_local_path": "/tmp/iter27-set2-retry.GEOpPm/iter22-api-diagnostic/api_diagnostic.json",
+        "sha256": "8edbe4849359fb098f954aab321ab141689a5fb1650aad7fd611b89d240ab7dc"
+      }
+    },
+    {
+      "id": "iter23-25-set2-operator-diagnostic",
+      "command_shape": "ctp_options_simnow_operator --environment second_7x24 --query-timeout 20",
+      "exit_code": 2,
+      "status": "BLOCKED",
+      "reason": "FRONT_PROBE_FAILED:RuntimeError",
+      "external_request_counts": {
+        "order_write": 0
+      },
+      "source_evidence": {
+        "owner_local_path": "/tmp/iter27-set2-retry.GEOpPm/ctp-operator.json",
+        "sha256": "3ceada229edff093de92e06f4f04dfdec0a3f48fd0c11c204155e30410e505d1"
+      }
+    }
+  ],
+  "disposition": {
+    "one_hour_engineering_observation": "NOT_STARTED",
+    "reason": "Neither inspected entry reached strategy execution. A current-session, hash-bound MANUAL_VALIDATED contract configuration is also absent.",
+    "g3_or_g4_advanced": false,
+    "claim": "This receipt retains only redacted terminal facts. It does not diagnose a shared root cause or prove a SimNow strategy run."
+  }
+}
