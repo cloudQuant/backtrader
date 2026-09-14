@@ -427,26 +427,30 @@ def test_source_observation_age_reduces_ttl_and_is_reported_as_cache_age(monkeyp
 
 
 @pytest.mark.parametrize(
-    ("observed_at", "reason"),
+    ("observed_at_case", "reason"),
     [
-        (None, "funding_observed_at_missing"),
-        (dt.datetime(2026, 9, 8), "funding_observed_at_timezone_missing"),
-        ("2026-09-08T00:00:00Z", "funding_observed_at_invalid"),
-        (
-            dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=5),
-            "funding_observed_at_in_future",
-        ),
-        (
-            dt.datetime.now(dt.timezone.utc) - dt.timedelta(minutes=5),
-            "funding_cache_ttl_expired",
-        ),
+        ("missing", "funding_observed_at_missing"),
+        ("timezone_missing", "funding_observed_at_timezone_missing"),
+        ("invalid", "funding_observed_at_invalid"),
+        ("future", "funding_observed_at_in_future"),
+        ("expired", "funding_cache_ttl_expired"),
     ],
 )
-def test_sdk_available_funding_rejects_invalid_or_expired_source_time(observed_at, reason):
+def test_sdk_available_funding_rejects_invalid_or_expired_source_time(observed_at_case, reason):
     malformed = _funding(seconds=3600)
-    if observed_at is None:
+    if observed_at_case == "missing":
         malformed["freshness"].pop("observed_at")
+    elif observed_at_case == "timezone_missing":
+        malformed["freshness"]["observed_at"] = dt.datetime(2026, 9, 8)
+    elif observed_at_case == "invalid":
+        malformed["freshness"]["observed_at"] = "2026-09-08T00:00:00Z"
     else:
+        now = dt.datetime.now(dt.timezone.utc)
+        observed_at = (
+            now + dt.timedelta(minutes=5)
+            if observed_at_case == "future"
+            else now - dt.timedelta(minutes=5)
+        )
         malformed["freshness"]["observed_at"] = observed_at
     api = FundingSdk([_funding(), malformed])
     store = _store(api, funding_max_age_seconds=30)

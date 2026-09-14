@@ -2050,11 +2050,15 @@ def test_close_timeout_blocks_restart_until_close_generation_exits():
     store = make_store(api, command_shutdown_timeout=0.01)
     store.start()
     try:
+        # This case isolates the close-generation fence.  Let the independent
+        # command-worker test concern itself with its own stop deadline; under
+        # an overloaded xdist worker a 10ms total Store deadline can expire
+        # before that worker exits, correctly preventing close() from starting.
+        assert store._stop_command_worker(timeout=1.0)
         health = store.stop(timeout=0.01)
-        # ``stop`` owns one total deadline. Under xdist the worker/funding
-        # drain can consume it before the daemon close thread is scheduled,
-        # so assert the real close/restart fence rather than an instantaneous
-        # scheduler outcome at the return boundary.
+        # The close callback is a daemon and may start just after ``stop``
+        # returns, so await its real scheduling boundary before checking the
+        # close-generation restart fence.
         assert close_started.wait(1.0)
         assert health["shutdown_state"] == "INCOMPLETE"
         assert health["close_thread_alive"] is True

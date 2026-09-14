@@ -47,10 +47,10 @@ lint:  ## Run pylint
 	pylint backtrader --rcfile=.pylintrc
 
 format:  ## Format code with black
-	black backtrader tests/original_tests --line-length=100
+	$(BT_CONDA_PYTHON) -m black backtrader --line-length=100
 
 format-check:  ## Check if code is formatted
-	black --check backtrader tests/original_tests --line-length=100
+	$(BT_CONDA_PYTHON) -m black --check backtrader --line-length=100
 
 type-check:  ## Run mypy type checking
 	mypy backtrader --config-file=pyproject.toml
