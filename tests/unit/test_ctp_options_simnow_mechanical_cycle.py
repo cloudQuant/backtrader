@@ -205,6 +205,20 @@ def make_cycle():
     return cycle, broker
 
 
+def test_semantic_hash_keeps_legacy_positions_and_active_orders_distinct():
+    canonical = snapshot(
+        nonzero_positions=[{"instrument_id": "SA701", "volume": 1}],
+        active_orders=[{"order_ref": "one"}],
+    )
+    legacy = dict(canonical)
+    legacy["positions"] = legacy.pop("nonzero_positions")
+
+    assert cycle_module._semantic_hash(legacy) == cycle_module._semantic_hash(canonical)
+    assert cycle_module._semantic_hash(snapshot(active_orders=[{"order_ref": "two"}])) != (
+        cycle_module._semantic_hash(snapshot(active_orders=[{"order_ref": "one"}]))
+    )
+
+
 def native_fill(order, *, cycle_id="cycle-23-test", intent_id="intent-open:open:0"):
     order.status = 4
     order._status_name = "Completed"

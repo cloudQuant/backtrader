@@ -125,7 +125,7 @@ def test_midnight_rollover_to_new_dir(tmp_path, backend, monkeypatch):
     tomorrow = today + timedelta(days=1)
     logger = bt.get_logger("roll")
     logger.info("before midnight")
-    monkeypatch.setattr(log_message, "_today", staticmethod(lambda: tomorrow))
+    monkeypatch.setattr(log_message, "_today", lambda: tomorrow)
     logger.info("after midnight")
     log_message.flush_all()
     d0 = tmp_path / "logs" / "testrun" / today.strftime("%Y_%m_%d")
@@ -310,6 +310,24 @@ def test_backend_auto_falls_back(monkeypatch, tmp_path, capsys):
         isinstance(handler, log_message._DailyLevelFileHandler)
         for handler in _managed_handlers(logger)
     )
+
+
+def test_closed_stdlib_handler_discards_records_without_private_logging_state(tmp_path):
+    """Closed split-file handlers stay inert on Python versions without ``_closed``."""
+    logger = _configure(tmp_path, backend="stdlib")
+    handler = next(
+        handler
+        for handler in _managed_handlers(logger)
+        if isinstance(handler, log_message._DailyLevelFileHandler) and handler._level_name == "info"
+    )
+    handler.close()
+    handler.__dict__.pop("_closed", None)
+    handler.emit(
+        logging.LogRecord("backtrader.closed", logging.INFO, __file__, 0, "closed", (), None)
+    )
+
+    path = tmp_path / "logs" / "testrun" / date.today().strftime("%Y_%m_%d") / "info.log"
+    assert "closed" not in _read(path)
 
 
 @pytest.mark.skipif(not HAS_SPDLOG, reason="spdlog unavailable")

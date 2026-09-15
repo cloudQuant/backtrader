@@ -1,6 +1,7 @@
 """Iteration 22 typed CTP query-completion oracles."""
 
 import asyncio
+import contextvars
 import datetime as dt
 import hashlib
 import hmac
@@ -11,10 +12,28 @@ import time
 
 import pytest
 
+import backtrader.stores.btapistore as btapistore_module
+
 from tests.test_utils.optional_sdk import optional_sdk
 
 from backtrader.stores.btapistore import BtApiStore, BtApiStoreError, _create_ctp_wrapper_class
 from tests.fixtures.fake_btapi import FakeBtApiClient, make_store
+
+
+def test_run_in_thread_uses_python38_compatible_context_aware_fallback(monkeypatch):
+    """The fallback must preserve ``asyncio.to_thread``'s observable contract."""
+    value = contextvars.ContextVar("btapistore_thread_context", default=None)
+    value.set("propagated")
+    caller_thread = threading.get_ident()
+    monkeypatch.delattr(btapistore_module.asyncio, "to_thread", raising=False)
+
+    def read_context():
+        return value.get(), threading.get_ident()
+
+    propagated_value, worker_thread = asyncio.run(btapistore_module._run_in_thread(read_context))
+
+    assert propagated_value == "propagated"
+    assert worker_thread != caller_thread
 
 
 class CompleteQueryClient(FakeBtApiClient):

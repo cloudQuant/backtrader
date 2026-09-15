@@ -75,6 +75,7 @@ setup(
             "python-dotenv",
             "psutil",
             "PyYAML",
+            "python-docx>=0.8.11",
             "websockets",
             "aiohttp",
             "cryptography>=3.4",

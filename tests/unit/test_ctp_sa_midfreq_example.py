@@ -9,6 +9,7 @@ import importlib
 import importlib.util
 import json
 import os
+import pickle
 import signal
 import subprocess
 import sys
@@ -592,6 +593,23 @@ def test_run_network_rejects_untrusted_receipt_before_side_effects(
         )
     assert not output.exists()
     assert path.exists()
+
+
+def test_admission_receipt_keeps_slot_backed_opaque_layout():
+    """Keep the Python 3.8-compatible manual slots layout for validated receipts."""
+    receipt = runner.AdmissionReceipt(
+        {"receipt_id": "compatibility"}, runner._RECEIPT_VALIDATION_MARKER
+    )
+    assert receipt.validated
+    assert not hasattr(receipt, "__dict__")
+    assert runner.AdmissionReceipt.__slots__ == ("_payload", "_marker")
+    state = receipt.__getstate__()
+    assert isinstance(state, list) and len(state) == 2
+
+    restored = pickle.loads(pickle.dumps(receipt))
+    assert restored.evidence_view() == receipt.evidence_view()
+    assert not hasattr(restored, "__dict__")
+    assert not restored.validated
 
 
 @pytest.mark.parametrize("purpose", ["engineering_smoke", "natural_signal"])

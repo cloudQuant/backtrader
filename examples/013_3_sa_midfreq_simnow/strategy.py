@@ -15,7 +15,11 @@ from collections import deque
 from collections.abc import Mapping
 from datetime import datetime, timezone
 from typing import Any, Optional
-from zoneinfo import ZoneInfo
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # Python 3.8: pytz is a declared core dependency.
+    from pytz import timezone as ZoneInfo
 
 import backtrader as bt
 

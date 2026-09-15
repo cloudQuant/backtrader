@@ -1086,6 +1086,10 @@ class ParameterAccessor:
         param_manager = object.__getattribute__(self, "_param_manager")
         return param_manager.get(name)
 
+    def __getstate__(self):
+        """Return normal instance state for Python 3.8/3.9 pickle protocols."""
+        return object.__getattribute__(self, "__dict__").copy()
+
     def _ensure_dynamic_parameter(self, name):
         """Register an ad-hoc parameter name so legacy writes remain introspectable."""
         param_manager = object.__getattribute__(self, "_param_manager")

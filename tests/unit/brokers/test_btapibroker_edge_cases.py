@@ -321,6 +321,10 @@ class TestShouldRefresh:
         assert BtApiBroker._should_refresh(time.monotonic(), 0) is True
         assert BtApiBroker._should_refresh(time.monotonic(), -1) is True
 
+    def test_uninitialized_refresh_timestamp_always_refreshes(self):
+        """A zero sentinel cannot suppress the first live refresh."""
+        assert BtApiBroker._should_refresh(0.0, 60.0) is True
+
     def test_recent_refresh_is_throttled(self):
         """Test that recent refresh with positive interval is throttled."""
         assert BtApiBroker._should_refresh(time.monotonic(), 60.0) is False

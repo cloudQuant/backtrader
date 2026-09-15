@@ -4172,7 +4172,7 @@ class BtApiBroker(BrokerBase):
     @staticmethod
     def _should_refresh(last_refresh, interval):
         """Return whether a throttled live refresh should run now."""
-        if interval <= 0:
+        if interval <= 0 or last_refresh <= 0:
             return True
 
         return (time.monotonic() - last_refresh) >= interval

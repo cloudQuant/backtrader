@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter, deque
 from dataclasses import asdict, dataclass, replace
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 import hashlib
 import json
@@ -1390,12 +1390,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
                 exchange_name=venue,
                 symbol=VENUE_SYMBOLS[venue],
                 rate=decimal_value(value[0], "funding_rate"),
-                next_funding_time=datetime.fromtimestamp(float(next_epoch), tz=UTC),
+                next_funding_time=datetime.fromtimestamp(float(next_epoch), tz=timezone.utc),
                 settlement_interval_seconds=int(self.rules[venue].funding_interval_seconds),
                 source="explicit_static_replay",
                 freshness=Freshness(
                     source="explicit_static_replay",
-                    observed_at=datetime.fromtimestamp(float(now_epoch), tz=UTC),
+                    observed_at=datetime.fromtimestamp(float(now_epoch), tz=timezone.utc),
                 ),
             )
         return states

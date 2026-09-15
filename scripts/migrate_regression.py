@@ -40,7 +40,7 @@ SELECTION_FILE = REPO / "scripts" / "regression_migration_selection.json"
 def _resolve_data_path(rel: str) -> str | None:
     for prefix in ("../../../datas/",):
         if rel.startswith(prefix):
-            tail = rel.removeprefix(prefix)
+            tail = rel[len(prefix) :]
             public = PUBLIC_DATA / tail
             if public.exists():
                 return str(public)

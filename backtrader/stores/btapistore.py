@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import asyncio
 import collections
+import contextvars
 import datetime as _dt
+import functools
 import hashlib
 import heapq
 import hmac
@@ -39,6 +41,23 @@ from .livestore import LiveStoreBase
 logger = get_logger(__name__)
 
 _LOGGING_HEALTH: "collections.Counter[str]" = collections.Counter()
+
+
+async def _run_in_thread(func: Callable[..., Any], /, *args: Any, **kwargs: Any) -> Any:
+    """Run synchronous SDK work off the event loop on Python 3.8 and later.
+
+    ``asyncio.to_thread`` was added in Python 3.9. Its fallback preserves the
+    default executor and ``ContextVar`` propagation used by that API.
+    """
+    to_thread = getattr(asyncio, "to_thread", None)
+    if to_thread is not None:
+        return await to_thread(func, *args, **kwargs)
+
+    loop = asyncio.get_running_loop()
+    context = contextvars.copy_context()
+    call = functools.partial(context.run, func, *args, **kwargs)
+    return await loop.run_in_executor(None, call)
+
 
 _SENSITIVE_TEXT_RE = re.compile(
     r"(?i)\b(api[_-]?key|api[_-]?secret|auth[_-]?code|credential(?:s)?|"
@@ -6034,20 +6053,20 @@ class BtApiStore(LiveStoreBase):
         }
         try:
             if operation == "reconcile":
-                result = await asyncio.to_thread(self._sdk_reconcile_snapshot)
+                result = await _run_in_thread(self._sdk_reconcile_snapshot)
             elif operation == "ctp_reconcile":
-                result = await asyncio.to_thread(
+                result = await _run_in_thread(
                     self.get_ctp_reconciliation_snapshot,
                     timeout=max(float(command.get("timeout") or 0.0), 0.0),
                 )
             elif operation == "execution_recovery_complete":
-                result = await asyncio.to_thread(
+                result = await _run_in_thread(
                     self._complete_queued_execution_recovery,
                     recovery_token_sha256=command["recovery_token_sha256"],
                     recovery_generation=command["recovery_generation"],
                 )
             elif operation == "account_risk":
-                result = await asyncio.to_thread(
+                result = await _run_in_thread(
                     self._read_account_risk_snapshot, self._ensure_api_ready()
                 )
             else:
@@ -6123,7 +6142,7 @@ class BtApiStore(LiveStoreBase):
             self._command_last_error = completion["error_code"]
         if recovery_submit and completion.get("success") is not True:
             try:
-                await asyncio.to_thread(
+                await _run_in_thread(
                     self.abort_execution_recovery,
                     "execution_recovery_dispatch_failed",
                 )

@@ -26,7 +26,11 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
-from zoneinfo import ZoneInfo
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # Python 3.8: pytz is a declared core dependency.
+    from pytz import timezone as ZoneInfo
 
 # Direct execution places only the example directory on ``sys.path``.  Pin the
 # source checkout before importing Backtrader so evidence cannot silently bind
@@ -261,15 +265,13 @@ CREDENTIAL_KEY_PARTS = (
 
 class RunnerConfigurationError(RuntimeError):
     """Raised when configuration, environment, or admission inputs violate the frozen contract."""
-    pass
 
 
 class PreflightError(RuntimeError):
     """Raised when a read-only session, query, or readiness gate cannot prove its claim."""
-    pass
 
 
-@dataclass(frozen=True, slots=True, init=False)
+@dataclass(frozen=True, init=False)
 class AdmissionReceipt:
     """Opaque result of complete receipt validation.
 
@@ -280,6 +282,7 @@ class AdmissionReceipt:
 
     _payload: dict[str, Any]
     _marker: object
+    __slots__ = ("_payload", "_marker")
 
     def __init__(self, payload: Mapping[str, Any], marker: object) -> None:
         """Deep-copy ``payload``; refuse construction unless ``marker`` comes from validate_receipt."""
@@ -298,6 +301,15 @@ class AdmissionReceipt:
     def evidence_view(self) -> dict[str, Any]:
         """Return a deep copy of the full validated payload for evidence records."""
         return deepcopy(self._payload)
+
+    def __getstate__(self):
+        """Match frozen slotted dataclass state behavior on Python 3.8/3.9."""
+        return [getattr(self, field_name) for field_name in self.__slots__]
+
+    def __setstate__(self, state):
+        """Restore frozen slot values without re-validating a serialized receipt."""
+        for field_name, value in zip(self.__slots__, state):
+            object.__setattr__(self, field_name, value)
 
     @property
     def validated(self) -> bool:

@@ -77,24 +77,23 @@ def _strict_snapshot(value: Any, name: str) -> dict[str, Any]:
 
 
 def _semantic_hash(snapshot: Mapping[str, Any]) -> str:
-    return _hash(
-        {
-            key: snapshot[key]
-            for key in (
-                "account_fingerprint",
-                "trading_day",
-                "connection_generation",
-                "flat",
-                "active_order_count",
-                "unknown_intent_count",
-                "unmatched_trade_count",
-            )
-        }
-        | {
-            "positions": snapshot.get("nonzero_positions", snapshot.get("positions", [])),
-            "active_orders": snapshot.get("active_orders", []),
-        }
+    payload = {
+        key: snapshot[key]
+        for key in (
+            "account_fingerprint",
+            "trading_day",
+            "connection_generation",
+            "flat",
+            "active_order_count",
+            "unknown_intent_count",
+            "unmatched_trade_count",
+        )
+    }
+    payload.update(
+        positions=snapshot.get("nonzero_positions", snapshot.get("positions", [])),
+        active_orders=snapshot.get("active_orders", []),
     )
+    return _hash(payload)
 
 
 @dataclass(frozen=True)

@@ -300,7 +300,7 @@ def _local_distribution_root(distribution_name: str) -> Optional[Path]:
     if not isinstance(expected_sha256, str) or _SHA256_RE.fullmatch(expected_sha256) is None:
         legacy_hash = archive.get("hash") if isinstance(archive, Mapping) else None
         expected_sha256 = (
-            legacy_hash.removeprefix("sha256=")
+            legacy_hash[len("sha256=") :]
             if isinstance(legacy_hash, str) and legacy_hash.startswith("sha256=")
             else None
         )

@@ -708,7 +708,8 @@ def _evidence_segment_manifest(
                 errors.append(f"{path.name}:{type(exc).__name__}")
                 continue
             base_name = f"{stream}.jsonl"
-            suffix = path.name.removeprefix(base_name)
+            name = path.name
+            suffix = name[len(base_name) :] if name.startswith(base_name) else name
             identity["active"] = suffix == ""
             if suffix == "":
                 identity["rotation_index"] = None

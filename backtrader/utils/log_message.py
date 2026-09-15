@@ -106,7 +106,12 @@ class _RedactingFormatter(logging.Formatter):
 
 
 class _NonFatalHandlerMixin:
-    _closed: bool
+    """Shared failure isolation for handlers owned by this module."""
+
+    # ``logging.Handler._closed`` is a private implementation detail and is
+    # absent on Python 3.8/3.9.  Keep the lifecycle state we need under our
+    # own stable name instead.
+    _bt_closed: bool
 
     def handleError(self, record):
         _warn_once("write", "log write failed; further logging failures are suppressed")
@@ -693,6 +698,7 @@ class _DailyLevelFileHandler(_NonFatalHandlerMixin, logging.FileHandler):
         self._cur_date = _today()
         path = self._path_for(self._cur_date)
         super().__init__(path, mode="a", encoding="utf-8", delay=False)
+        self._bt_closed = False
         self.setLevel(handler_level)
         if exact_filter is not None:
             self.addFilter(exact_filter)
@@ -705,7 +711,7 @@ class _DailyLevelFileHandler(_NonFatalHandlerMixin, logging.FileHandler):
         return path
 
     def emit(self, record):
-        if self._closed:
+        if self._bt_closed:
             return
         try:
             today = _today()
@@ -726,6 +732,11 @@ class _DailyLevelFileHandler(_NonFatalHandlerMixin, logging.FileHandler):
         if old_stream is not None:
             old_stream.close()
         _cleanup_retention(self._script_dir, self._retention_days)
+
+    def close(self):
+        """Close once and keep a closed FileHandler from reopening on emit."""
+        self._bt_closed = True
+        super().close()
 
 
 def _detect_spdlog():
@@ -780,6 +791,7 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
         self, spdlog_mod, script_dir, level_name, handler_level, exact_filter, retention_days
     ):
         super().__init__(level=handler_level)
+        self._bt_closed = False
         self._mod = spdlog_mod
         self._script_dir = script_dir
         self._level_name = level_name
@@ -814,7 +826,7 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
         return "debug"
 
     def emit(self, record):
-        if self._closed:
+        if self._bt_closed:
             return
         try:
             today = _today()
@@ -840,7 +852,7 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
     def flush(self):
         self.acquire()
         try:
-            if getattr(self, "_owner_pid", None) != os.getpid() or self._closed:
+            if getattr(self, "_owner_pid", None) != os.getpid() or self._bt_closed:
                 return
             try:
                 self._logger.flush()
@@ -853,13 +865,14 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
     def close(self):
         self.acquire()
         try:
-            if getattr(self, "_owner_pid", None) == os.getpid() and not self._closed:
+            if getattr(self, "_owner_pid", None) == os.getpid() and not self._bt_closed:
                 try:
                     self._logger.flush()
                     self._mod.drop(self._unique)
                 except Exception:  # nosec B110
                     # Best-effort cleanup only.
                     pass
+            self._bt_closed = True
             super().close()
         finally:
             self.release()
