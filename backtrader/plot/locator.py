@@ -17,14 +17,9 @@ from matplotlib.dates import (
 )
 from matplotlib.dates import AutoDateFormatter as ADFormatter
 from matplotlib.dates import AutoDateLocator as ADLocator
-from matplotlib.dates import (
-    MicrosecondLocator,
-)
+from matplotlib.dates import MicrosecondLocator
 from matplotlib.dates import RRuleLocator as RRLocator
-from matplotlib.dates import (
-    num2date,
-    rrulewrapper,
-)
+from matplotlib.dates import num2date, rrulewrapper
 
 from ..utils.log_message import get_logger, throttled_warning
 
