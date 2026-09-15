@@ -69,6 +69,12 @@ def _read(path):
     return path.read_text(encoding="utf-8")
 
 
+def _managed_handlers(logger):
+    return [
+        handler for handler in logger.handlers if getattr(handler, "_backtrader_managed", False)
+    ]
+
+
 # ---------------------------------------------------------------------------
 # layout + routing (parametrized over available backends)
 # ---------------------------------------------------------------------------
@@ -299,30 +305,43 @@ def test_backend_auto_falls_back(monkeypatch, tmp_path, capsys):
     today = date.today().strftime("%Y_%m_%d")
     assert "fallback works" in _read(tmp_path / "logs" / "testrun" / today / "info.log")
     assert capsys.readouterr().err.count("spdlog unavailable") == 1
-    assert log_message._active_backend == "stdlib"
+    assert _managed_handlers(logger)
+    assert all(
+        isinstance(handler, log_message._DailyLevelFileHandler)
+        for handler in _managed_handlers(logger)
+    )
 
 
 @pytest.mark.skipif(not HAS_SPDLOG, reason="spdlog unavailable")
 def test_auto_records_active_spdlog_backend(tmp_path):
-    _configure(tmp_path, backend="auto")
-    assert log_message._active_backend == "spdlog"
+    logger = _configure(tmp_path, backend="auto")
+    assert _managed_handlers(logger)
+    assert all(
+        isinstance(handler, log_message.SpdlogHandler) for handler in _managed_handlers(logger)
+    )
     assert log_message._get_logging_config_snapshot()["backend"] == "auto"
 
 
 @pytest.mark.skipif(not HAS_SPDLOG, reason="spdlog unavailable")
 def test_auto_cerebro_snapshot_reprobes_backend_on_restore(tmp_path, monkeypatch):
     """A spawned/unpickled auto policy must fall back when spdlog disappears."""
-    _configure(tmp_path, backend="auto")
+    logger = _configure(tmp_path, backend="auto")
     state = bt.Cerebro(stdstats=False).__getstate__()
     assert state["_logging_config"]["backend"] == "auto"
-    assert log_message._active_backend == "spdlog"
+    assert all(
+        isinstance(handler, log_message.SpdlogHandler) for handler in _managed_handlers(logger)
+    )
 
     log_message.reset_logging()
     monkeypatch.setattr(log_message, "_detect_spdlog", lambda: None)
     restored = bt.Cerebro.__new__(bt.Cerebro)
     restored.__setstate__(state)
 
-    assert log_message._active_backend == "stdlib"
+    logger = bt.get_logger()
+    assert all(
+        isinstance(handler, log_message._DailyLevelFileHandler)
+        for handler in _managed_handlers(logger)
+    )
     bt.get_logger("restored_auto").info("auto policy restored with stdlib")
     log_message.flush_all()
     today = date.today().strftime("%Y_%m_%d")
@@ -496,9 +515,11 @@ def test_retention_failure_warns_once(tmp_path, monkeypatch, capsys):
         raise PermissionError("private path")
 
     monkeypatch.setattr(shutil, "rmtree", denied)
-    monkeypatch.setattr(log_message, "_RETENTION_WARNED", False)
     log_message._warned_failures.clear()
     log_message._cleanup_retention(str(script), 30)
+    log_message._cleanup_retention(str(script), 30)
+    assert capsys.readouterr().err.count("log retention cleanup failed") == 1
+    log_message._after_fork()
     log_message._cleanup_retention(str(script), 30)
     assert capsys.readouterr().err.count("log retention cleanup failed") == 1
 
@@ -553,7 +574,6 @@ def test_failed_configuration_preserves_original_error_when_pending_close_fails(
     assert logger.handlers == previous
     assert logger.level == logging.INFO
     assert log_message._get_logging_config_snapshot() == snapshot
-    assert log_message._active_backend == "stdlib"
     assert capsys.readouterr().err == (
         "backtrader: log handler close failed; further close failures are suppressed\n"
     )
@@ -582,7 +602,6 @@ def test_reconfiguration_completes_when_previous_handlers_fail_to_close(
     assert all(handler not in logger.handlers for handler in previous)
     assert logger.level == logging.DEBUG
     assert logger.propagate is True
-    assert log_message._active_backend == "stdlib"
     assert log_message._get_logging_config_snapshot() == {
         "level": logging.DEBUG,
         "log_dir": str(tmp_path / "replacement" / "logs"),

@@ -301,7 +301,7 @@ def configure_logging(
     """
     from logging.handlers import RotatingFileHandler
 
-    global _active_backend, _logging_config
+    global _logging_config
     if log_dir is not None and log_file is not None:
         raise ValueError("log_dir and log_file are mutually exclusive; pass only one")
     if backend not in {"auto", "stdlib", "spdlog"}:
@@ -317,7 +317,6 @@ def configure_logging(
     debug_scopes = _normalize_debug_scopes(_debug_scopes)
     formatter = _RedactingFormatter(fmt or DEFAULT_FORMAT, datefmt or DEFAULT_DATEFMT)
     spdlog_mod = None
-    selected_backend = None
     snapshot = None
     if log_dir is not None:
         log_dir = os.path.abspath(os.fspath(log_dir))
@@ -331,7 +330,6 @@ def configure_logging(
                 raise ImportError("backend='spdlog' requested but the spdlog package is not usable")
             if spdlog_mod is None:
                 _warn_once("backend", "spdlog unavailable; using stdlib logging")
-        selected_backend = "spdlog" if spdlog_mod is not None else "stdlib"
         snapshot = {
             "level": level_int,
             "log_dir": log_dir,
@@ -402,7 +400,6 @@ def configure_logging(
         _close_handler_safely(handler)
     logger.setLevel(level_int)
     logger.propagate = propagate
-    _active_backend = selected_backend
     _logging_config = snapshot
     if log_dir is not None:
         _cleanup_retention(script_dir, retention_days)
@@ -456,14 +453,13 @@ def reset_logging():
     Mainly useful in tests to return to the pristine, no-output state. Also
     flushes and releases any spdlog-side resources held by managed handlers.
     """
-    global _active_backend, _logging_config
+    global _logging_config
     logger = logging.getLogger(ROOT_LOGGER_NAME)
     with _THROTTLE_LOCK:
         _throttle_state.clear()
     _remove_managed_handlers(logger)
     logger.setLevel(logging.NOTSET)
     logger.propagate = False
-    _active_backend = None
     _logging_config = None
     if not any(isinstance(h, logging.NullHandler) for h in logger.handlers):
         logger.addHandler(logging.NullHandler())
@@ -566,13 +562,7 @@ class SpdLogManager:
 # See docs/_internal/opts/requirements/迭代29-日志体系完善/.
 # ===========================================================================
 
-# Backend actually activated by the last configure_logging(log_dir=...) call.
-_active_backend = None
-
 _DATE_DIR_RE = re.compile(r"^\d{4}_\d{2}_\d{2}$")
-
-# One-shot stderr warning flag for retention cleanup failures.
-_RETENTION_WARNED = False
 
 # Test hook: override to freeze the "current day" (rollover tests monkeypatch
 # this instead of relying on the real clock crossing midnight).
@@ -639,7 +629,6 @@ def _cleanup_retention(script_dir, retention_days):
     entries are never touched. Failures warn once on stderr and never raise
     (logging teardown must not break a running backtest).
     """
-    global _RETENTION_WARNED
     if retention_days is None or os.path.islink(script_dir) or not os.path.isdir(script_dir):
         return
     try:
@@ -659,9 +648,7 @@ def _cleanup_retention(script_dir, retention_days):
                     continue
                 shutil.rmtree(path)
     except Exception:  # cleanup must never affect trading
-        if not _RETENTION_WARNED:
-            _warn_once("retention", "log retention cleanup failed")
-            _RETENTION_WARNED = True
+        _warn_once("retention", "log retention cleanup failed")
 
 
 class _ExactLevelFilter(logging.Filter):
