@@ -156,6 +156,47 @@ def test_startup_report_uses_cached_positions_without_reading_preloaded_close():
     json.dumps(report, allow_nan=False)
 
 
+def test_stop_removes_and_closes_per_run_file_handlers(tmp_path):
+    """TradeLogger must release file handles before a Windows temp directory is removed."""
+    trade_logger = _make_bare_logger(log_monitoring=False)
+    file_logger = logging.Logger("trade-logger-test-file-handler")
+    file_handler = logging.FileHandler(tmp_path / "order.log", encoding="utf-8")
+    file_logger.addHandler(file_handler)
+    trade_logger._order_logger = file_logger
+    trade_logger._refresh_report_state = lambda: None
+    trade_logger._log_event = lambda *_args, **_kwargs: None
+    trade_logger._freeze_report = lambda: None
+
+    TradeLogger.stop(trade_logger)
+
+    assert file_logger.handlers == []
+    assert file_handler.stream is None
+    assert trade_logger._order_logger is None
+    (tmp_path / "order.log").unlink()
+
+
+def test_file_handler_cleanup_failures_are_reported_at_warning_level(bt_caplog):
+    """Cleanup failures must remain visible before references are discarded."""
+
+    class BrokenHandler:
+        def close(self):
+            raise OSError("close failed")
+
+    class BrokenLogger:
+        handlers = [BrokenHandler()]
+
+        @staticmethod
+        def removeHandler(_handler):
+            raise OSError("remove failed")
+
+    with bt_caplog.at_level(logging.WARNING):
+        TradeLogger._close_logger_handlers(BrokenLogger())
+
+    messages = [record.getMessage() for record in bt_caplog.records]
+    assert "Failed to remove TradeLogger file handler" in messages
+    assert "Failed to close TradeLogger file handler" in messages
+
+
 @pytest.mark.parametrize(
     "observation",
     [
@@ -327,7 +368,9 @@ class TestDefensiveAccessors:
             result = TradeLogger._store_provider(tl)
 
         assert result == ""
-        assert any("Failed to read store provider" in record.message for record in bt_caplog.records)
+        assert any(
+            "Failed to read store provider" in record.message for record in bt_caplog.records
+        )
 
     def test_session_id_failure_logged(self, bt_caplog):
         """Session id accessor failures should emit a debug log."""

@@ -1157,12 +1157,7 @@ class TradeLogger(Observer):
         logger = logging.getLogger(f"{name}:{id(self)}")
         logger.setLevel(logging.INFO)
         logger.propagate = False
-        for handler in list(logger.handlers):
-            try:
-                handler.close()
-            except Exception as e:
-                logger.debug("Failed to close log handler: %s", e)
-        logger.handlers = []  # Clear existing handlers
+        self._close_logger_handlers(logger)
 
         # File handler - write to file
         file_handler = logging.FileHandler(file_path, encoding="utf-8")
@@ -1178,6 +1173,43 @@ class TradeLogger(Observer):
             logger.addHandler(console_handler)
 
         return logger
+
+    @staticmethod
+    def _close_logger_handlers(file_logger):
+        """Detach and close every handler owned by one per-instance file logger."""
+        for handler in list(getattr(file_logger, "handlers", ()) or ()):
+            remove_handler = getattr(file_logger, "removeHandler", None)
+            if callable(remove_handler):
+                try:
+                    remove_handler(handler)
+                except Exception:
+                    logger.warning("Failed to remove TradeLogger file handler", exc_info=True)
+            close_handler = getattr(handler, "close", None)
+            if callable(close_handler):
+                try:
+                    close_handler()
+                except Exception:
+                    logger.warning("Failed to close TradeLogger file handler", exc_info=True)
+
+    def _shutdown_file_loggers(self):
+        """Release each per-run log file before a caller cleans up its directory."""
+        for attribute in (
+            "_order_logger",
+            "_trade_logger",
+            "_position_logger",
+            "_indicator_logger",
+            "_signal_logger",
+            "_system_logger",
+            "_monitor_logger",
+            "_tick_logger",
+            "_bar_logger",
+            "_value_logger",
+            "_error_logger",
+        ):
+            file_logger = getattr(self, attribute, None)
+            if file_logger is not None:
+                self._close_logger_handlers(file_logger)
+                setattr(self, attribute, None)
 
     @staticmethod
     def _generate_run_id():
@@ -2934,4 +2966,7 @@ class TradeLogger(Observer):
             except Exception as exc:
                 logger.debug("Failed to close MySQL connection: %s", exc)
             finally:
-                self._freeze_report()
+                try:
+                    self._shutdown_file_loggers()
+                finally:
+                    self._freeze_report()

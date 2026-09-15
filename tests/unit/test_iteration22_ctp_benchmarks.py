@@ -82,6 +82,15 @@ def test_default_schedule_requires_every_expected_event() -> None:
     assert failed["valid"] is False
 
 
+def test_hardware_accepts_hosts_without_getloadavg(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delattr(BENCHMARKS.os, "getloadavg", raising=False)
+
+    hardware = BENCHMARKS._hardware()
+
+    assert hardware["load_average_at_start"] is None
+    assert hardware["platform"]
+
+
 def test_rss_windows_require_all_seven_windows_and_valid_samples() -> None:
     samples = [
         {

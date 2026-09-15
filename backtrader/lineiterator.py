@@ -1178,9 +1178,19 @@ class LineIterator(LineIteratorMixin, LineSeries):
             owner = None
             try:
                 owner = metabase.findowner(instance, LineIterator)
-            except Exception:
+            except (AttributeError, TypeError):
                 # Standalone LineIterators legitimately have no discoverable
                 # owner during construction.
+                owner = None
+            except Exception:  # nosec B110
+                # Keep the historical standalone fallback, but surface actual
+                # OwnerContext failures without logging a traceback or payload.
+                throttled_warning(
+                    logger,
+                    "lineiterator.new.owner_discovery_recovery",
+                    "LineIterator owner discovery failed; continuing without owner",
+                    exc_info=False,
+                )
                 owner = None
 
             try:
@@ -1864,10 +1874,17 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 try:
                     if len(data_clock) <= len(data):
                         continue
-                except Exception:  # nosec B110
+                except (AttributeError, TypeError):
                     # Clock/data without comparable length; fall through and advance.
                     # Optional length probes run per bar and are intentionally quiet.
                     pass
+                except Exception:  # nosec B110
+                    throttled_warning(
+                        logger,
+                        "lineiterator.next.clock_length_probe_recovery",
+                        "LineIterator clock length probe failed; advancing line action",
+                        exc_info=False,
+                    )
 
             data._next()
 

@@ -7592,13 +7592,24 @@ class BtApiStore(LiveStoreBase):
         return data
 
     @staticmethod
-    def _ctp_query_result_complete(result: Mapping[str, Any]) -> bool:
+    def _ctp_native_positive_request_id(value: Any) -> Optional[int]:
+        """Return a CTP request ID only when it is a native positive ``int``.
+
+        Request IDs bind query evidence to the native client request.  Coercing
+        strings, floats, booleans, or objects implementing ``__int__`` would
+        let a caller change that identity while retaining an apparently valid
+        snapshot, so those values deliberately fail closed.
+        """
+        return value if type(value) is int and value > 0 else None
+
+    @classmethod
+    def _ctp_query_result_complete(cls, result: Mapping[str, Any]) -> bool:
         error_code = result.get("error_code")
         try:
-            request_id = int(result.get("request_id") or 0)
             generation = int(result.get("connection_generation") or 0)
         except (TypeError, ValueError):
             return False
+        request_id = cls._ctp_native_positive_request_id(result.get("request_id"))
         return bool(
             result.get("complete") is True
             and result.get("is_last_seen") is True
@@ -7606,7 +7617,7 @@ class BtApiStore(LiveStoreBase):
             and result.get("unsupported") is not True
             and error_code in (None, "", 0, "0")
             and result.get("completed_at_utc") not in (None, "")
-            and request_id > 0
+            and request_id is not None
             and generation > 0
             and str(result.get("account_fingerprint") or "").strip()
             and result.get("request_type_matches") is True
@@ -8213,7 +8224,7 @@ class BtApiStore(LiveStoreBase):
             due = self._ctp_query_last_started_monotonic + self._ctp_query_min_interval_seconds
             if deadline is not None and due >= deadline:
                 return None
-            if due > now:
+            while due > now:
                 time.sleep(due - now)
                 now = time.monotonic()
         if deadline is not None and now >= deadline:
@@ -8499,15 +8510,8 @@ class BtApiStore(LiveStoreBase):
 
         all_request_ids: Dict[str, int] = {}
         for name, result in query_results.items():
-            raw_request_id = result.get("request_id")
-            if isinstance(raw_request_id, bool):
-                parsed_request_id = 0
-            else:
-                try:
-                    parsed_request_id = int(raw_request_id or 0)
-                except (TypeError, ValueError):
-                    parsed_request_id = 0
-            all_request_ids[name] = parsed_request_id
+            request_id = self._ctp_native_positive_request_id(result.get("request_id"))
+            all_request_ids[name] = request_id if request_id is not None else 0
         positive_request_ids = [value for value in all_request_ids.values() if value > 0]
         if len(set(positive_request_ids)) != len(positive_request_ids):
             errors.append("query_request_id_not_unique")
@@ -9100,15 +9104,8 @@ class BtApiStore(LiveStoreBase):
 
         all_request_ids: Dict[str, int] = {}
         for label, result in query_results.items():
-            raw_request_id = result.get("request_id")
-            if isinstance(raw_request_id, bool):
-                request_id = 0
-            else:
-                try:
-                    request_id = int(raw_request_id or 0)
-                except (TypeError, ValueError):
-                    request_id = 0
-            all_request_ids[label] = request_id
+            request_id = self._ctp_native_positive_request_id(result.get("request_id"))
+            all_request_ids[label] = request_id if request_id is not None else 0
         positive_request_ids = [value for value in all_request_ids.values() if value > 0]
         if len(set(positive_request_ids)) != len(positive_request_ids):
             errors.append("query_request_id_not_unique")
@@ -9682,16 +9679,24 @@ class BtApiStore(LiveStoreBase):
             }
 
         request_ids: Dict[str, int] = {}
+        valid_request_ids: List[int] = []
+        invalid_request_id = False
         for label, result in results.items():
-            try:
-                request_id = int(result.get("request_id") or 0)
-            except (TypeError, ValueError):
-                request_id = 0
-            request_ids[label] = request_id
-        if any(value <= 0 for value in request_ids.values()):
-            errors.append("bundle_quote_request_id_missing")
-        elif len(set(request_ids.values())) != len(request_ids):
+            request_id = self._ctp_native_positive_request_id(result.get("request_id"))
+            if request_id is None:
+                request_ids[label] = 0
+                invalid_request_id = True
+            else:
+                request_ids[label] = request_id
+                valid_request_ids.append(request_id)
+        if invalid_request_id:
+            errors.append("bundle_quote_request_id_invalid")
+        if len(valid_request_ids) != len(set(valid_request_ids)):
             errors.append("bundle_quote_request_id_not_unique")
+        for index in range(len(parsed_legs)):
+            quote_evidence[index]["request_id"] = request_ids.get(
+                f"leg[{index}].depth_market_data", 0
+            )
 
         session_after = self._read_ctp_session_state()
         after_counts = self._ctp_request_counts(session_after)
@@ -9842,9 +9847,9 @@ class BtApiStore(LiveStoreBase):
         before_session = self._read_ctp_session_state()
         before_counts = self._ctp_request_counts(before_session)
         started = time.monotonic()
-        # Rate-limit every reference query against the caller's total budget;
-        # reserving with a None deadline collapses the slot to a zero timeout
-        # and turns flow-control waits into spurious query timeouts.
+        # Positive timeouts rate-limit every reference query against the
+        # caller's total budget.  ``timeout=0`` remains the established
+        # immediate fixture/probe mode and forwards a zero provider timeout.
         total_timeout = max(float(timeout), 0.0)
         deadline = started + total_timeout if total_timeout > 0 else None
         targets = self._ctp_query_targets()
@@ -9860,19 +9865,42 @@ class BtApiStore(LiveStoreBase):
                     request_type, before_session, "query_capability_unavailable"
                 )
             else:
-                try:
-                    slot = self._reserve_ctp_query_slot(deadline)
-                    result = self._normalise_ctp_query_result(
-                        self._invoke_ctp_query(
-                            target, request_type, method_name, timeout=slot or 0.0, kwargs=kwargs
-                        ),
-                        request_type,
-                    )
-                except Exception as exc:
-                    _safe_log("warning", "btapistore:9810 fallback on Exception")
-                    result = self._ctp_query_failure(
-                        request_type, before_session, type(exc).__name__
-                    )
+                with self._ctp_query_lock:
+                    try:
+                        slot = (
+                            self._reserve_ctp_query_slot(deadline) if deadline is not None else 0.0
+                        )
+                    except Exception as exc:
+                        _safe_log("warning", "btapistore:9810 fallback on Exception")
+                        result = self._ctp_query_failure(
+                            request_type, before_session, type(exc).__name__
+                        )
+                    else:
+                        if slot is None:
+                            result = self._ctp_query_failure(
+                                request_type, before_session, "query_deadline_exceeded"
+                            )
+                        else:
+                            # The local request envelope begins after any
+                            # rate-limit sleep, immediately before provider I/O.
+                            sent_at = _dt.datetime.now(_UTC)
+                            sent_mono = time.monotonic()
+                            try:
+                                result = self._normalise_ctp_query_result(
+                                    self._invoke_ctp_query(
+                                        target,
+                                        request_type,
+                                        method_name,
+                                        timeout=slot,
+                                        kwargs=kwargs,
+                                    ),
+                                    request_type,
+                                )
+                            except Exception as exc:
+                                _safe_log("warning", "btapistore:9810 fallback on Exception")
+                                result = self._ctp_query_failure(
+                                    request_type, before_session, type(exc).__name__
+                                )
             received_at = _dt.datetime.now(_UTC)
             result["requested_at_utc"] = sent_at.isoformat()
             result["received_at_utc"] = received_at.isoformat()
@@ -9912,6 +9940,7 @@ class BtApiStore(LiveStoreBase):
                     "received_at_utc": result.get("received_at_utc"),
                     "requested_monotonic": result.get("requested_monotonic"),
                     "received_monotonic": result.get("received_monotonic"),
+                    "request_id": result.get("request_id"),
                 }
                 # Cost input is the executable entry side, never an arbitrary
                 # lattice price: buys bind to ask.
@@ -10007,12 +10036,20 @@ class BtApiStore(LiveStoreBase):
                     received_at_utc=request_windows[label][1],
                 )
             )
-        request_ids = [
-            result.get("request_id")
-            for result in results.values()
-            if result.get("request_id") not in (None, "", 0, "0")
-        ]
-        if len(request_ids) != len(set(request_ids)):
+        request_ids: Dict[str, int] = {}
+        valid_request_ids: List[int] = []
+        invalid_request_id = False
+        for label, result in results.items():
+            request_id = self._ctp_native_positive_request_id(result.get("request_id"))
+            if request_id is None:
+                request_ids[label] = 0
+                invalid_request_id = True
+            else:
+                request_ids[label] = request_id
+                valid_request_ids.append(request_id)
+        if invalid_request_id:
+            errors.append("execution_reference_request_id_invalid")
+        if len(valid_request_ids) != len(set(valid_request_ids)):
             errors.append("execution_reference_request_id_not_unique")
         if (
             after_session.get("connection_generation") != expected_generation
@@ -10033,6 +10070,7 @@ class BtApiStore(LiveStoreBase):
             broker_contract_metadata=broker_contract_metadata,
             quote_evidence=quotes,
             parsed_legs=parsed_legs,
+            request_ids=request_ids,
         )
 
     def _build_ctp_broker_contract_metadata(
@@ -10248,7 +10286,9 @@ class BtApiStore(LiveStoreBase):
         broker_contract_metadata: Optional[Mapping[str, Any]] = None,
         quote_evidence: Optional[Mapping[int, Mapping[str, Any]]] = None,
         parsed_legs: Optional[Iterable[Mapping[str, str]]] = None,
+        request_ids: Optional[Mapping[str, int]] = None,
     ) -> Dict[str, Any]:
+        canonical_request_ids = deepcopy(dict(request_ids or {}))
         snapshot = {
             "schema_version": "backtrader.ctp.bundle-execution-reference.v1",
             "read_only": True,
@@ -10261,9 +10301,11 @@ class BtApiStore(LiveStoreBase):
                     "instrument_id": leg["instrument_id"],
                     "exchange_id": leg["exchange_id"],
                     **dict((quote_evidence or {}).get(index, {})),
+                    "request_id": canonical_request_ids.get(f"leg[{index}].depth_market_data", 0),
                 }
                 for index, leg in enumerate(parsed_legs or [])
             ],
+            "request_ids": canonical_request_ids,
             "broker_contract_metadata": (
                 deepcopy(dict(broker_contract_metadata))
                 if broker_contract_metadata is not None

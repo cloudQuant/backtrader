@@ -54,6 +54,7 @@ try:
     from .reporting import (
         EvidenceWriter,
         account_fingerprint,
+        atomic_append_text,
         business_summary_hash,
         redact,
         sha256_file,
@@ -66,6 +67,7 @@ except ImportError:  # Direct execution from the repository root.
     from reporting import (
         EvidenceWriter,
         account_fingerprint,
+        atomic_append_text,
         business_summary_hash,
         redact,
         sha256_file,
@@ -3003,21 +3005,10 @@ def _claim_output_directory(path: Path) -> Path:
 
 
 def _append_retention_audit(path: Path, payload: Mapping[str, Any]) -> None:
-    """Append and fsync one root-level retention decision."""
+    """Append one root-level retention decision through a durable replacement."""
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = (
-        json.dumps(dict(payload), sort_keys=True, separators=(",", ":"), default=str) + "\n"
-    ).encode("utf-8")
-    with path.open("ab") as handle:
-        handle.write(encoded)
-        handle.flush()
-        os.fsync(handle.fileno())
-    descriptor = os.open(path.parent, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
+    encoded = json.dumps(dict(payload), sort_keys=True, separators=(",", ":"), default=str) + "\n"
+    atomic_append_text(path, encoded)
 
 
 def _retention_protection(directory: Path, manifest: Mapping[str, Any]) -> tuple[bool, str]:

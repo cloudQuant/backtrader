@@ -802,7 +802,13 @@ def test_model_qualification_rejects_seeded_random_walks_conservatively():
         level = D("0")
         samples = []
         for _ in range(180):
-            level += D(str(rng.gauss(0, 1)))
+            # ``Random.uniform`` is pure Mersenne-Twister arithmetic while
+            # ``Random.gauss`` routes through libm ``cos``/``sin``/``log``,
+            # whose last-bit differences across platforms reshuffle the whole
+            # walk.  A libm-free innovation keeps the seeded rejection
+            # contract identical on every OS (a Linux CI runner previously
+            # flipped seed 8 across the bootstrap p-value boundary).
+            level += D(str(rng.uniform(-1, 1)))
             samples.append(level)
         artifact = qualify(samples)
         assert artifact.qualified is False, (seed, artifact.as_dict())

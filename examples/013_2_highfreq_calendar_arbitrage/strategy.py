@@ -11,12 +11,14 @@ state halts the run with evidence left for manual reconciliation.
 
 import math
 from collections.abc import Mapping
+from datetime import datetime, timezone
 
 import backtrader as bt
 import backtrader.indicators as btind
 
 # SHFE requires an explicit close_today; DCE/CZCE close plain.
 CLOSE_TODAY_PREFIXES = ("rb", "hc")
+_UTC_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
 
 
 def close_offset(symbol):
@@ -119,7 +121,12 @@ class PairArbitrageStrategy(bt.Strategy):
             self._publish_trade_logger_context()
 
     def _now(self):
-        return bt.num2date(self.data0.datetime[0]).timestamp()
+        bar_datetime = bt.num2date(self.data0.datetime[0])
+        if bar_datetime.tzinfo is None or bar_datetime.utcoffset() is None:
+            bar_datetime = bar_datetime.replace(tzinfo=timezone.utc)
+        else:
+            bar_datetime = bar_datetime.astimezone(timezone.utc)
+        return (bar_datetime - _UTC_EPOCH).total_seconds()
 
     def _zscore(self):
         # A perfectly stable spread is a 0.0 z-score by construction.

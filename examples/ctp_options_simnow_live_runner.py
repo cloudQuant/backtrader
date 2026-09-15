@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 import time
+from copy import deepcopy
 from datetime import datetime
 from dataclasses import dataclass
 from typing import Any, Mapping
@@ -197,6 +198,49 @@ def _quote_timestamp(value: Any, name: str) -> tuple[str, Any]:
     if isinstance(value, str) and value.strip():
         return "text", value.strip()
     raise SimNowLiveRunnerBlocked(f"{name}_INVALID")
+
+
+def _depth_request_ids(snapshot: Mapping[str, Any]) -> frozenset[int] | None:
+    """Return the three authoritative depth-query identities from one snapshot.
+
+    Windows hosts can expose a coarse monotonic-clock tick, so two independently
+    executed quote collections can have equal receive timestamps.  Distinct
+    positive depth request IDs are the independent evidence that resolves that
+    tie without accepting the entry snapshot again.
+    """
+
+    query_results = snapshot.get("query_results")
+    request_ids = snapshot.get("request_ids")
+    legs = snapshot.get("legs")
+    if not isinstance(query_results, Mapping):
+        return None
+    if not isinstance(request_ids, Mapping) or not isinstance(legs, list) or len(legs) != 3:
+        return None
+    labels = tuple(f"leg[{index}].depth_market_data" for index in range(3))
+    try:
+        results = [query_results[label] for label in labels]
+    except KeyError:
+        return None
+    if not all(isinstance(result, Mapping) for result in results):
+        return None
+    if any(label not in request_ids for label in labels):
+        return None
+    parsed = []
+    for index, (label, result) in enumerate(zip(labels, results)):
+        value = result.get("request_id")
+        if type(value) is not int or value <= 0:
+            return None
+        leg = legs[index]
+        if not isinstance(leg, Mapping):
+            return None
+        if request_ids.get(label) != value or type(request_ids.get(label)) is not int:
+            return None
+        if leg.get("request_id") != value or type(leg.get("request_id")) is not int:
+            return None
+        parsed.append(value)
+    if len(set(parsed)) != 3:
+        return None
+    return frozenset(parsed)
 
 
 def _reference_quotes(
@@ -437,20 +481,30 @@ class SimNowMechanicalSession:
 
     def plan_exit(
         self,
-        prices: Mapping[str, float],
+        prices: Mapping[str, float] | None = None,
         *,
         intent_id: str,
-        reference_snapshot: Mapping[str, Any],
+        reference_snapshot: Mapping[str, Any] | None = None,
     ) -> None:
-        """Validate exit prices against a newer reference, then plan the closing legs."""
+        """Plan closing legs from one Store-fetched, frozen quote reference."""
         if self.cycle.state != "OPEN":
             raise SimNowLiveRunnerBlocked("EXIT_REQUIRES_ALL_NATIVE_ENTRY_FILLS")
-        self.runner._validate_prices(prices, side="exit", reference_snapshot=reference_snapshot)
+        if prices is not None:
+            raise SimNowLiveRunnerBlocked("EXIT_PRICE_MUST_BE_STORE_DERIVED")
+        if reference_snapshot is not None:
+            raise SimNowLiveRunnerBlocked("EXIT_REFERENCE_MUST_BE_STORE_COLLECTED")
+        trusted_reference = self.runner._collect_exit_quote_reference()
+        derived_prices = self.runner._exit_prices_from_reference(trusted_reference)
+        self.runner._validate_prices(
+            derived_prices,
+            side="exit",
+            reference_snapshot=trusted_reference,
+        )
         legs = [
             MechanicalLeg(
                 symbol=leg.symbol,
                 side="sell" if leg.side == "buy" else "buy",
-                price=float(prices[leg.symbol]),
+                price=float(derived_prices[leg.symbol]),
                 data=leg.data,
                 position_side=leg.position_side,
             )
@@ -512,6 +566,7 @@ class SimNowLiveRunner:
         entry_sides: Mapping[str, str] | None = None,
         basket_budget: int = 3,
         max_quote_age_seconds: float = 2.0,
+        exit_reference_timeout: float = 15.0,
         exact_instrument_ids: Mapping[str, str] | None = None,
     ):
         """Validate and store the injected parts; no connection or read happens here."""
@@ -539,9 +594,15 @@ class SimNowLiveRunner:
         ):
             raise SimNowLiveRunnerBlocked("REFERENCE_MAX_AGE_INVALID")
         self.max_quote_age_seconds = float(max_quote_age_seconds)
-        self.exact_instrument_ids = (
-            dict(exact_instrument_ids) if exact_instrument_ids else None
-        )
+        if (
+            isinstance(exit_reference_timeout, bool)
+            or not isinstance(exit_reference_timeout, (int, float))
+            or not math.isfinite(float(exit_reference_timeout))
+            or float(exit_reference_timeout) <= 0
+        ):
+            raise SimNowLiveRunnerBlocked("EXIT_REFERENCE_TIMEOUT_INVALID")
+        self.exit_reference_timeout = float(exit_reference_timeout)
+        self.exact_instrument_ids = dict(exact_instrument_ids) if exact_instrument_ids else None
         if self.exact_instrument_ids is not None and set(self.exact_instrument_ids) != {
             "future",
             "call",
@@ -553,7 +614,9 @@ class SimNowLiveRunner:
         self._public_status: dict[str, Any] = {}
         self._observed_snapshots: dict[str, Any] = {}
         self._execution_reference_data: dict[str, Any] = {}
+        self._exit_quote_reference_data: dict[str, Any] | None = None
         self._entry_quote_timestamp: tuple[str, Any] | None = None
+        self._entry_depth_request_ids: frozenset[int] | None = None
         self._frozen_report: dict[str, Any] | None = None
 
     def _discover_bundle(self) -> ThreeLegBundle:
@@ -631,6 +694,76 @@ class SimNowLiveRunner:
         }
         return collected
 
+    def _collect_exit_quote_reference(self) -> dict[str, Any]:
+        """Fetch and freeze one new, read-only exit reference from the bound Store.
+
+        The Store supplies both the exit bids and the evidence that authorizes
+        them.  In particular, same-tick timestamps are only accepted when this
+        Store call yields a distinct, internally consistent depth-query set.
+        """
+        if self._bundle is None or self._proof is None:
+            raise SimNowLiveRunnerBlocked("PREFLIGHT_REQUIRED_BEFORE_EXIT_REFERENCE")
+        method = getattr(self.store, "get_ctp_bundle_quote_reference_snapshot", None)
+        if not callable(method):
+            raise SimNowLiveRunnerBlocked(
+                "PUBLIC_CAPABILITY_MISSING:get_ctp_bundle_quote_reference_snapshot"
+            )
+        legs = [
+            {
+                "exchange_id": leg.exchange_id,
+                "instrument_id": leg.instrument_id,
+                "is_primary": index == 0,
+            }
+            for index, leg in enumerate((self._bundle.future, self._bundle.call, self._bundle.put))
+        ]
+        try:
+            raw_reference = method(legs, timeout=self.exit_reference_timeout)
+        except Exception as exc:
+            raise SimNowLiveRunnerBlocked("EXIT_REFERENCE_COLLECTION_FAILED") from exc
+        expected_legs = tuple(
+            (leg.exchange_id, leg.instrument_id, index == 0)
+            for index, leg in enumerate((self._bundle.future, self._bundle.call, self._bundle.put))
+        )
+        validated_reference = _execution_reference(
+            raw_reference,
+            expected_legs,
+            max_quote_age_seconds=self.max_quote_age_seconds,
+            kind="quote",
+        )
+        try:
+            exit_identity = _identity(validated_reference["_reference_scope"], "exit_reference")
+            preflight_identity = _identity(self._proof["bundle_preflight"], "frozen_preflight")
+        except MechanicalCycleBlocked as exc:
+            raise SimNowLiveRunnerBlocked(str(exc)) from exc
+        if exit_identity != preflight_identity:
+            raise SimNowLiveRunnerBlocked("EXIT_REFERENCE_IDENTITY_MISMATCH")
+        # Retain a private deep copy.  No caller-owned Mapping can mutate it or
+        # become a capability for the same-timestamp exception.
+        self._exit_quote_reference_data = deepcopy(validated_reference)
+        return self._exit_quote_reference_data
+
+    def _exit_prices_from_reference(
+        self, reference_snapshot: Mapping[str, Any]
+    ) -> dict[str, float]:
+        """Derive closing bids from the exact private reference being validated."""
+        if self._bundle is None:
+            raise SimNowLiveRunnerBlocked("PREFLIGHT_REQUIRED_BEFORE_EXIT_REFERENCE")
+        expected_legs = tuple(
+            (leg.exchange_id, leg.instrument_id, index == 0)
+            for index, leg in enumerate((self._bundle.future, self._bundle.call, self._bundle.put))
+        )
+        quotes = _reference_quotes(
+            reference_snapshot,
+            expected_legs,
+            max_quote_age_seconds=self.max_quote_age_seconds,
+        )
+        return {
+            f"{leg.exchange_id}.{leg.instrument_id}": quotes[
+                f"{leg.exchange_id}.{leg.instrument_id}"
+            ]["bid"]
+            for leg in (self._bundle.future, self._bundle.call, self._bundle.put)
+        }
+
     def _validate_prices(
         self,
         prices: Mapping[str, float],
@@ -666,12 +799,21 @@ class SimNowLiveRunner:
             raise SimNowLiveRunnerBlocked("PRICE_LEGS_MUST_MATCH_REFERENCE")
         if side == "exit":
             entry_timestamp = self._entry_quote_timestamp
+            entry_request_ids = self._entry_depth_request_ids
             exit_quote = next(iter(quotes.values()))
             exit_timestamp = (exit_quote["timestamp_kind"], exit_quote["timestamp"])
             if (
                 entry_timestamp is None
                 or exit_timestamp[0] != entry_timestamp[0]
-                or exit_timestamp[1] <= entry_timestamp[1]
+                or exit_timestamp[1] < entry_timestamp[1]
+                or (
+                    exit_timestamp[1] == entry_timestamp[1]
+                    and (
+                        entry_request_ids is None
+                        or (exit_request_ids := _depth_request_ids(validated_reference)) is None
+                        or not entry_request_ids.isdisjoint(exit_request_ids)
+                    )
+                )
             ):
                 raise SimNowLiveRunnerBlocked("EXIT_REFERENCE_MUST_BE_NEWER")
         for symbol in expected:
@@ -700,6 +842,7 @@ class SimNowLiveRunner:
         if side == "entry":
             quote = next(iter(quotes.values()))
             self._entry_quote_timestamp = (quote["timestamp_kind"], quote["timestamp"])
+            self._entry_depth_request_ids = _depth_request_ids(validated_reference)
 
     def preflight(self) -> dict[str, Any]:
         """Validate injected read-only evidence and freeze the preflight report."""
@@ -771,7 +914,9 @@ class SimNowLiveRunner:
         }
         self._bundle = bundle
         self._execution_reference_data = execution_reference
+        self._exit_quote_reference_data = None
         self._entry_quote_timestamp = None
+        self._entry_depth_request_ids = None
         self._proof = {
             "settlement_verified": self.snapshots.get("settlement_verified") is True,
             "bundle_preflight": derived_bundle,

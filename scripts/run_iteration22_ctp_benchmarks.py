@@ -103,10 +103,12 @@ def _cpu_model() -> str:
 
 def _hardware() -> dict[str, Any]:
     load_average = None
-    try:
-        load_average = list(os.getloadavg())
-    except OSError:
-        pass
+    getloadavg = getattr(os, "getloadavg", None)
+    if callable(getloadavg):
+        try:
+            load_average = list(getloadavg())
+        except OSError:
+            pass
     return {
         "platform": platform.platform(),
         "architecture": platform.machine(),

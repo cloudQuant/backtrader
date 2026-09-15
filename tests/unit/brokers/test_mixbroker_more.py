@@ -1,7 +1,12 @@
 """Tests for MixBroker additional scenarios."""
 
 import json
+import logging
+import os
+import sys
+from types import SimpleNamespace
 
+import backtrader.brokers.mixbroker as mixbroker_module
 from backtrader.brokers.mixbroker import MixBroker
 from backtrader.events import BarEvent, TickEvent
 from backtrader.order import Order
@@ -15,6 +20,102 @@ class DummyData:
         self._name = name
         self.name = name
         self.symbol = name
+
+
+def test_account_risk_windows_replace_requests_write_through(monkeypatch, tmp_path):
+    """The Windows ledger fence must request a write-through replacement."""
+
+    source = tmp_path / "ledger.tmp"
+    target = tmp_path / "ledger.json"
+    source.write_text("{}", encoding="utf-8")
+    calls = []
+
+    class FakeMoveFile:
+        argtypes = None
+        restype = None
+
+        def __call__(self, *args):
+            calls.append(args)
+            return 1
+
+    move_file = FakeMoveFile()
+    fake_ctypes = SimpleNamespace(
+        WinDLL=lambda *_args, **_kwargs: SimpleNamespace(MoveFileExW=move_file),
+        c_wchar_p=str,
+        c_uint=int,
+        c_int=int,
+        get_last_error=lambda: 0,
+    )
+
+    class WindowsOsProxy:
+        name = "nt"
+
+        def __getattr__(self, name):
+            return getattr(os, name)
+
+    monkeypatch.setattr(mixbroker_module, "os", WindowsOsProxy())
+    monkeypatch.setitem(sys.modules, "ctypes", fake_ctypes)
+
+    mixbroker_module._durable_replace(source, target)
+
+    assert calls == [(str(source), str(target), 0x00000001 | 0x00000008)]
+
+
+def test_account_risk_startup_and_persist_failures_log_exception_context(
+    monkeypatch, tmp_path, bt_caplog
+):
+    """Fail-closed account-risk gates must retain their underlying I/O cause."""
+
+    ledger = tmp_path / "risk.json"
+    broker = MixBroker(
+        cash=1000.0,
+        account_risk_ledger_path=ledger,
+        account_risk_venues=("OKX___SWAP",),
+    )
+    monkeypatch.setattr(
+        mixbroker_module,
+        "_durable_replace",
+        lambda *_args: (_ for _ in ()).throw(OSError("write-through denied")),
+    )
+
+    with bt_caplog.at_level(logging.WARNING):
+        broker.start()
+
+    snapshot = broker.get_account_risk_snapshot()
+    assert snapshot["trading_blocked"] is True
+    assert snapshot["error_code"] == "account_risk_ledger_persist_failed"
+    records = [
+        record
+        for record in bt_caplog.records
+        if "account-risk ledger persistence failed" in record.getMessage()
+    ]
+    assert len(records) == 1
+    assert records[0].exc_info is not None
+    broker.stop()
+
+    second = MixBroker(
+        cash=1000.0,
+        account_risk_ledger_path=tmp_path / "second.json",
+        account_risk_venues=("OKX___SWAP",),
+    )
+    monkeypatch.setattr(
+        mixbroker_module,
+        "_acquire_nonblocking_file_lock",
+        lambda _handle: (_ for _ in ()).throw(OSError("lock denied")),
+    )
+    bt_caplog.clear()
+    with bt_caplog.at_level(logging.WARNING):
+        second.start()
+
+    assert second.get_account_risk_snapshot()["trading_blocked"] is True
+    records = [
+        record
+        for record in bt_caplog.records
+        if "account-risk ledger startup failed" in record.getMessage()
+    ]
+    assert len(records) == 1
+    assert records[0].exc_info is not None
+    second.stop()
 
 
 def test_mixbroker_prefers_tick_over_bar_and_no_double_fill():

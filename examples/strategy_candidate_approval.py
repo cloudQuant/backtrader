@@ -22,7 +22,8 @@ import re
 import subprocess
 import tempfile
 from typing import Any, Mapping, Optional
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 APPROVAL_ALGORITHM = "Ed25519"
 APPROVAL_KEY_ID = "iter21-demo-approval-ed25519-2026-09"
@@ -288,7 +289,10 @@ def _local_distribution_root(distribution_name: str) -> Optional[Path]:
         return None
     if parsed.netloc not in {"", "localhost"}:
         return None
-    path = Path(unquote(parsed.path)).resolve()
+    # ``urlparse`` retains the leading slash in a Windows file URI
+    # (``file:///C:/...``).  ``url2pathname`` performs the platform-specific
+    # conversion before ``Path`` resolves it.
+    path = Path(url2pathname(parsed.path)).resolve()
     if path.is_dir():
         return path
     if not path.is_file():
@@ -632,6 +636,17 @@ def _load_public_key(path: Path):
     return public_key, raw
 
 
+def _public_key_fingerprint(raw: bytes) -> str:
+    """Return the pinned PEM fingerprint independent of checkout newlines.
+
+    Git may materialize a text PEM with CRLF on Windows even though the
+    committed artifact uses LF.  That representation contains the same public
+    key, so normalize only CRLF line endings before checking the pinned digest.
+    """
+
+    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _verify_candidate_evidence(candidate: Mapping) -> dict:
     if candidate.get("research_status") != "PASS":
         raise DemoApprovalVerificationError("demo requires research_status PASS")
@@ -873,7 +888,7 @@ def verify_demo_approval(
         expected_public_key_sha256, "expected approval public key fingerprint"
     )
     public_key, public_key_raw = _load_public_key(Path(trust_root_path))
-    public_key_sha = hashlib.sha256(public_key_raw).hexdigest()
+    public_key_sha = _public_key_fingerprint(public_key_raw)
     if public_key_sha != expected_public_key_sha256:
         raise DemoApprovalVerificationError("demo approval trust root fingerprint is invalid")
     if signature_contract.get("public_key_sha256") != expected_public_key_sha256:

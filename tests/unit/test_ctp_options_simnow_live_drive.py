@@ -47,9 +47,8 @@ class FakeSession:
             self.pending = fills < 6
         return self._status()
 
-    def plan_exit(self, prices, *, intent_id, reference_snapshot):
-        assert prices == {"F": 1, "C": 2, "P": 3}
-        assert reference_snapshot == {"quote": "fresh"}
+    def plan_exit(self, *, intent_id):
+        assert intent_id == "simnow-mechanical-exit"
         self.exit_plans += 1
         self.phase = "CLOSE"
         self.pending = False
@@ -89,7 +88,6 @@ def _drive(session, broker, **kwargs):
     return drive_simnow_mechanical_session(
         broker=broker,
         session=session,
-        fresh_exit_prices=lambda: ({"F": 1, "C": 2, "P": 3}, {"quote": "fresh"}),
         reconciliation_snapshot=lambda: {"flat": True},
         monotonic=monotonic,
         sleep=sleep,
@@ -157,7 +155,6 @@ def test_invalid_public_surface_fails_closed_without_side_effects():
     result = drive_simnow_mechanical_session(
         broker=object(),
         session=object(),
-        fresh_exit_prices=dict,
         reconciliation_snapshot=dict,
     )
 

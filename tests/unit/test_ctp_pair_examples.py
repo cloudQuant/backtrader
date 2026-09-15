@@ -6,6 +6,7 @@ one pytest process.
 """
 
 import copy
+import datetime as dt
 import importlib.util
 import sys
 from pathlib import Path
@@ -87,6 +88,24 @@ def test_midfreq_defaults_are_slower_than_highfreq(ex1, ex2):
     assert slow_map["confirmations"] > fast_map["confirmations"]
     assert slow_map["entry_z"] > fast_map["entry_z"]
     assert slow_map["max_holding_seconds"] > fast_map["max_holding_seconds"]
+
+
+@pytest.mark.parametrize("strategy_fixture", ("ex1", "ex2"))
+def test_pair_now_avoids_platform_timestamp_conversion(request, monkeypatch, strategy_fixture):
+    """Pair timing must not depend on platform ``datetime.timestamp()`` support."""
+
+    module = request.getfixturevalue(strategy_fixture)
+
+    class TimestampUnsafeDatetime(dt.datetime):
+        def timestamp(self):
+            raise OSError(22, "Invalid argument")
+
+    bar_datetime = TimestampUnsafeDatetime(1969, 12, 31, 23, 59, 59)
+    monkeypatch.setattr(module.bt, "num2date", lambda _value: bar_datetime)
+    strategy = module.PairArbitrageStrategy
+    holder = SimpleNamespace(data0=SimpleNamespace(datetime=[1.0]))
+
+    assert strategy._now(holder) == -1.0
 
 
 def test_runner_resolves_symbols_with_product_calendars(run1, run2):

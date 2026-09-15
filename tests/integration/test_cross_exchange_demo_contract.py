@@ -172,7 +172,7 @@ def _approval_artifact(
     receipt["signature"] = {
         "algorithm": APPROVAL_ALGORITHM,
         "key_id": APPROVAL_KEY_ID,
-        "public_key_sha256": hashlib.sha256(trust_raw).hexdigest(),
+        "public_key_sha256": demo_approval._public_key_fingerprint(trust_raw),
         "value": base64.b64encode(signature).decode("ascii"),
     }
     receipt_path = receipts / f"{runner.STRATEGY_ID}.receipt.json"
@@ -377,6 +377,17 @@ def test_replacing_trust_root_cannot_authorize_a_new_signer(runner, tmp_path):
 
     with pytest.raises(DemoApprovalVerificationError, match="trust root fingerprint is invalid"):
         _verify(runner, artifact)
+
+
+@pytest.mark.parametrize("runner", RUNNERS)
+def test_crlf_checkout_trust_root_keeps_the_pinned_fingerprint(runner, tmp_path):
+    artifact = _approval_artifact(runner, tmp_path)
+    trust_root = artifact["trust_path"]
+    trust_root.write_bytes(trust_root.read_bytes().replace(b"\n", b"\r\n"))
+
+    receipt = _verify(runner, artifact)
+
+    assert receipt["signature"]["public_key_sha256"] == artifact["trust_sha256"]
 
 
 def test_missing_cryptography_dependency_fails_closed(monkeypatch, tmp_path):
@@ -787,7 +798,10 @@ def test_candidate_source_or_config_tamper_stops_before_store(
 
 def test_repository_trust_root_has_expected_fingerprint():
     trust_root = Path(__file__).parents[2] / "examples" / "demo-approval-trust-root.pem"
+    raw = trust_root.read_bytes()
 
-    assert hashlib.sha256(trust_root.read_bytes()).hexdigest() == (
-        "2563eac8a40505f80903dd2659fe8667cafd3b8d0d5290db6620d4b3293e8f98"
+    assert demo_approval._public_key_fingerprint(raw) == demo_approval.APPROVAL_PUBLIC_KEY_SHA256
+    assert (
+        demo_approval._public_key_fingerprint(raw.replace(b"\n", b"\r\n"))
+        == demo_approval.APPROVAL_PUBLIC_KEY_SHA256
     )

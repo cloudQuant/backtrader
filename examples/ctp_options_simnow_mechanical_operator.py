@@ -1218,6 +1218,7 @@ def run_mechanical_cycle(
         # queries (three legs ~= 3s apart); the 2s tick window cannot hold
         # that acquisition pattern.
         max_quote_age_seconds=10.0,
+        exit_reference_timeout=float(config.query_timeout),
         exact_instrument_ids=(
             {
                 "future": config.future_instrument_id,
@@ -1243,46 +1244,9 @@ def run_mechanical_cycle(
         budget_capability=reservation,
     )
 
-    def fresh_exit_prices():
-        fresh = store.get_ctp_bundle_execution_reference_snapshot(
-            [
-                {
-                    "exchange_id": leg.exchange_id,
-                    "instrument_id": leg.instrument_id,
-                    "is_primary": index == 0,
-                }
-                for index, leg in enumerate((bundle.future, bundle.call, bundle.put))
-            ],
-            primary_leg={
-                "exchange_id": bundle.future.exchange_id,
-                "instrument_id": bundle.future.instrument_id,
-                "is_primary": True,
-            },
-            timeout=float(config.query_timeout),
-        )
-        prices = {}
-        for leg in (bundle.future, bundle.call, bundle.put):
-            symbol = f"{leg.exchange_id}.{leg.instrument_id}"
-            row = next(
-                (
-                    item
-                    for item in fresh.get("legs") or ()
-                    if isinstance(item, Mapping) and item.get("instrument_id") == leg.instrument_id
-                ),
-                None,
-            )
-            if row is None:
-                raise MechanicalBlocked(f"EXIT_QUOTE_MISSING:{symbol}")
-            price = _first_number(row, ("exit_sell_price", "bid_price"))
-            if price is None or price <= 0:
-                raise MechanicalBlocked(f"EXIT_QUOTE_INVALID:{symbol}")
-            prices[symbol] = price
-        return prices, fresh
-
     drive = drive_simnow_mechanical_session(
         broker=broker,
         session=session,
-        fresh_exit_prices=fresh_exit_prices,
         reconciliation_snapshot=lambda: store.get_ctp_reconciliation_snapshot(
             timeout=float(config.query_timeout)
         ),

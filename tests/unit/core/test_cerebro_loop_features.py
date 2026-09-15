@@ -13,6 +13,7 @@ The traces are deterministic (fixed data, fixed code path), therefore exact
 float values (rounded to 1e-9) are compared - drift indicates a real
 behavioral change.
 """
+
 import datetime
 import hashlib
 import json
@@ -199,7 +200,9 @@ def _compare_or_record(name, payload):
     if expected is None:
         raise AssertionError(f"{name}: missing from baseline - regenerate baseline first")
     if expected != payload:
-        raise AssertionError(f"{name}: trace differs\nfirst divergence: {_first_diff(expected, payload)}")
+        raise AssertionError(
+            f"{name}: trace differs\nfirst divergence: {_first_diff(expected, payload)}"
+        )
 
 
 def _first_diff(expected, actual):
@@ -219,9 +222,7 @@ def _fastpath_hit(strat):
 
 def teardown_module(module):
     if UPDATE:
-        existing = (
-            json.loads(BASELINE_PATH.read_text()) if BASELINE_PATH.exists() else {}
-        )
+        existing = json.loads(BASELINE_PATH.read_text()) if BASELINE_PATH.exists() else {}
         existing.update(_TRACES)
         BASELINE_PATH.write_text(json.dumps(existing, indent=1, sort_keys=True))
 
@@ -292,26 +293,35 @@ def test_order_timers_and_quicknotify():
 
 def test_order_writer_csv():
     with tempfile.TemporaryDirectory() as tmp:
-        out = os.path.join(tmp, "writer.csv")
+        out = Path(tmp) / "writer.csv"
         cerebro = bt.Cerebro(runonce=False, writer=True)
         # WriterFile includes ``data._name`` in its header and every data row.
         # ``DATAPATH`` is checkout-local, so use a fixed display name to keep
         # this frozen CSV artifact independent of the CI workspace path.
         data = bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False)
         cerebro.adddata(data, name="iter28_writer_data")
-        cerebro.addwriter(bt.WriterFile, csv=True, out=out)
-        cerebro.addstrategy(TraceStrategy)
-        cerebro.run()
-        with open(out, "rb") as f:
-            content = f.read()
-        trace = [("writer_bytes", len(content)), ("writer_sha256", hashlib.sha256(content).hexdigest())]
+        # The Writer emits ``\n``.  Supplying a text stream with explicit LF
+        # translation keeps the frozen byte-level artifact stable on Windows.
+        with out.open("w", encoding="utf-8", newline="\n") as output:
+            cerebro.addwriter(bt.WriterFile, csv=True, out=output, close_out=False)
+            cerebro.addstrategy(TraceStrategy)
+            cerebro.run()
+        content = out.read_bytes()
+        trace = [
+            ("writer_bytes", len(content)),
+            ("writer_sha256", hashlib.sha256(content).hexdigest()),
+        ]
         _run_and_record_probe("order_writer_csv", trace, {})
 
 
 def test_order_signal_strategy():
     cerebro = _make_cerebro(runonce=False)
-    cerebro.add_signal(bt.SIGNAL_LONG, bt.indicators.CrossOver, bt.indicators.SMA(period=5),
-                       bt.indicators.SMA(period=10))
+    cerebro.add_signal(
+        bt.SIGNAL_LONG,
+        bt.indicators.CrossOver,
+        bt.indicators.SMA(period=5),
+        bt.indicators.SMA(period=10),
+    )
     results = cerebro.run()
     strat = results[0]
     broker = cerebro.getbroker()

@@ -3,6 +3,8 @@ import gc
 from importlib import import_module
 import time
 
+import pytest
+
 from tests.test_utils.optional_sdk import optional_sdk
 
 InstrumentRule = optional_sdk(allow_module_level=True).CrossVenueLeg
@@ -13,6 +15,7 @@ EVENT_COUNT = 100_000
 P99_LIMIT_NS = 5_000_000
 
 
+@pytest.mark.performance
 def test_event_engine_100k_update_and_decision_diagnostic_p99():
     rules = {
         venue: InstrumentRule(D("1"), D(".001"), D(".001"), D("0"), D(".1"), D("0"))

@@ -676,6 +676,16 @@ class ExecutionReferenceBundleClient(BundleQueryClient):
         )
 
 
+class _IntCoercibleRequestId:
+    """A provider value that must never be promoted to a native request identity."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __int__(self):
+        return self.value
+
+
 class OpaqueOnlyBundleClient(BundleQueryClient):
     """Match the real SDK arm signature: one opaque authorization object."""
 
@@ -1024,6 +1034,16 @@ def test_ctp_bundle_execution_reference_uses_real_quote_inputs_and_no_writes():
     assert snapshot["legs"][1]["bid_volume"] == 10.0
     assert snapshot["legs"][1]["entry_buy_price"] == 101.0
     assert snapshot["legs"][1]["exit_sell_price"] == 100.0
+    assert snapshot["request_ids"] == {
+        label: result["request_id"] for label, result in snapshot["query_results"].items()
+    }
+    assert len(snapshot["request_ids"]) == len(set(snapshot["request_ids"].values()))
+    assert all(
+        type(request_id) is int and request_id > 0
+        for request_id in snapshot["request_ids"].values()
+    )
+    for index, leg in enumerate(snapshot["legs"]):
+        assert leg["request_id"] == snapshot["request_ids"][f"leg[{index}].depth_market_data"]
     cost_requests = [
         request for request in client.reference_requests if request["name"] == "option_trade_cost"
     ]
@@ -1039,6 +1059,62 @@ def test_ctp_bundle_execution_reference_uses_real_quote_inputs_and_no_writes():
         client.request_counts[name] == 0
         for name in ("settlement_confirm", "order_insert", "order_action")
     )
+
+
+def test_ctp_bundle_execution_reference_deadline_does_not_call_provider(monkeypatch):
+    """An expired execution-reference slot must fail closed before provider I/O."""
+
+    client = ExecutionReferenceBundleClient()
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+    preflight = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
+    assert preflight["evidence_complete"] is True
+    monkeypatch.setattr(
+        store, "get_ctp_bundle_preflight_snapshot", lambda *_args, **_kwargs: preflight
+    )
+    monkeypatch.setattr(store, "_reserve_ctp_query_slot", lambda _deadline: None)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0.01)
+
+    assert client.depth_requests == []
+    assert snapshot["evidence_complete"] is False
+    assert {result["error_code"] for result in snapshot["query_results"].values()} == {
+        "query_deadline_exceeded"
+    }
+
+
+@pytest.mark.parametrize(
+    "invalid_request_id",
+    [None, 0, -701, True, 701.0, "701", _IntCoercibleRequestId(701)],
+    ids=["missing", "zero", "negative", "bool", "float", "string", "int-coercible-object"],
+)
+def test_ctp_bundle_execution_reference_rejects_non_native_depth_request_ids(invalid_request_id):
+    client = ExecutionReferenceBundleClient()
+    client.request_id_override["depth_market_data"] = invalid_request_id
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "execution_reference_request_id_invalid" in snapshot["evidence_errors"]
+    assert all(
+        snapshot["request_ids"][f"leg[{index}].depth_market_data"] == 0 for index in range(3)
+    )
+    assert all(leg["request_id"] == 0 for leg in snapshot["legs"])
+
+
+def test_ctp_bundle_execution_reference_rejects_duplicate_request_ids_across_queries():
+    client = ExecutionReferenceBundleClient()
+    client.request_id_override["depth_market_data"] = 701
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "execution_reference_request_id_not_unique" in snapshot["evidence_errors"]
+    assert all(
+        snapshot["request_ids"][f"leg[{index}].depth_market_data"] == 701 for index in range(3)
+    )
+    assert all(leg["request_id"] == 701 for leg in snapshot["legs"])
 
 
 @pytest.mark.parametrize(
@@ -1185,6 +1261,16 @@ def test_ctp_bundle_quote_reference_uses_only_depth_against_frozen_scope():
     assert snapshot["legs"][1]["ask_volume"] == 10.0
     assert snapshot["legs"][1]["entry_buy_price"] == 101.0
     assert snapshot["legs"][1]["exit_sell_price"] == 100.0
+    assert snapshot["request_ids"] == {
+        label: result["request_id"] for label, result in snapshot["query_results"].items()
+    }
+    assert len(snapshot["request_ids"]) == len(set(snapshot["request_ids"].values()))
+    assert all(
+        type(request_id) is int and request_id > 0
+        for request_id in snapshot["request_ids"].values()
+    )
+    for index, leg in enumerate(snapshot["legs"]):
+        assert leg["request_id"] == snapshot["request_ids"][f"leg[{index}].depth_market_data"]
     assert all(leg["request_id"] > 0 for leg in snapshot["legs"])
     assert all(leg["requested_at_utc"] for leg in snapshot["legs"])
     assert all(leg["received_at_utc"] for leg in snapshot["legs"])
@@ -1308,6 +1394,23 @@ def test_ctp_bundle_quote_reference_rejects_duplicate_depth_request_ids():
     assert snapshot["evidence_complete"] is False
     assert "bundle_quote_request_id_not_unique" in snapshot["evidence_errors"]
     assert len(client.depth_requests) == 3
+
+
+@pytest.mark.parametrize(
+    "invalid_request_id",
+    [None, 0, -701, True, 701.0, "701", _IntCoercibleRequestId(701)],
+    ids=["missing", "zero", "negative", "bool", "float", "string", "int-coercible-object"],
+)
+def test_ctp_bundle_quote_reference_rejects_non_native_depth_request_ids(invalid_request_id):
+    client, store, _before_counts = _frozen_quote_reference_store()
+    client.request_id_override["depth_market_data"] = invalid_request_id
+
+    snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
+
+    assert snapshot["evidence_complete"] is False
+    assert "bundle_quote_request_id_invalid" in snapshot["evidence_errors"]
+    assert all(request_id == 0 for request_id in snapshot["request_ids"].values())
+    assert all(leg["request_id"] == 0 for leg in snapshot["legs"])
 
 
 def test_ctp_bundle_quote_reference_rejects_write_counter_change_during_depth_query():
@@ -3534,6 +3637,23 @@ def test_ctp_query_group_obeys_minimum_start_interval():
     assert snapshot["evidence_complete"] is True
     assert len(starts) == 4
     assert all(right - left >= 0.008 for left, right in zip(starts, starts[1:]))
+
+
+def test_ctp_query_group_timeout_zero_keeps_immediate_probe_mode(monkeypatch):
+    """The documented zero-timeout fixture/probe path does not reserve a sleep slot."""
+
+    client = CompleteQueryClient()
+    client.ctp_query_min_interval_seconds = 1.0
+    store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
+
+    def unexpected_slot_reservation(_deadline):
+        raise AssertionError("zero timeout must not sleep")
+
+    monkeypatch.setattr(store, "_reserve_ctp_query_slot", unexpected_slot_reservation)
+
+    snapshot = store.get_ctp_reconciliation_snapshot(timeout=0)
+
+    assert snapshot["evidence_complete"] is True
 
 
 @pytest.mark.performance

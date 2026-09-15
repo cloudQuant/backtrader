@@ -22,8 +22,13 @@ from pathlib import Path
 
 try:
     import fcntl as _fcntl
-except ImportError:  # pragma: no cover - unsupported hosts fail closed at runtime
+except ImportError:  # pragma: no cover - unavailable on Windows
     _fcntl = None
+
+try:
+    import msvcrt as _msvcrt
+except ImportError:  # pragma: no cover - unavailable on POSIX hosts
+    _msvcrt = None
 
 from backtrader.brokers.tickbroker import TickBroker
 from backtrader.parameters import ParameterDescriptor
@@ -33,6 +38,79 @@ from ..utils.log_message import get_logger
 logger = get_logger(__name__)
 
 __all__ = ["MixBroker", "MidFreqContext"]
+
+
+def _acquire_nonblocking_file_lock(handle):
+    """Acquire one portable, process-scoped exclusive lock for ``handle``.
+
+    ``fcntl.flock`` is not available on Windows.  The Windows CRT lock is
+    byte-range based, so reserve byte zero in the lock file before taking its
+    non-blocking lock.  The lock file's JSON payload remains diagnostic only;
+    ownership is still established by the operating-system lease.
+    """
+
+    if _fcntl is not None:
+        _fcntl.flock(handle.fileno(), _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+        return
+    if _msvcrt is not None:
+        handle.seek(0, os.SEEK_END)
+        if handle.tell() == 0:
+            handle.write(" ")
+            handle.flush()
+        handle.seek(0)
+        try:
+            _msvcrt.locking(handle.fileno(), _msvcrt.LK_NBLCK, 1)
+        except OSError as exc:
+            raise BlockingIOError from exc
+        return
+    raise RuntimeError("account_risk_locking_unavailable")
+
+
+def _release_file_lock(handle):
+    """Release a lock acquired by :func:`_acquire_nonblocking_file_lock`."""
+
+    if _fcntl is not None:
+        _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+    elif _msvcrt is not None:
+        handle.seek(0)
+        _msvcrt.locking(handle.fileno(), _msvcrt.LK_UNLCK, 1)
+
+
+def _fsync_directory(path):
+    """Persist a POSIX rename without treating unsupported Windows APIs as failure."""
+
+    # Windows cannot open a directory through ``os.open`` for ``os.fsync``.
+    # The replacement has already been flushed and fsynced; that is the
+    # strongest portable guarantee exposed by the standard library there.
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _durable_replace(source, target):
+    """Replace one same-directory ledger file with the strongest host primitive."""
+
+    if os.name != "nt":
+        os.replace(source, target)
+        return
+
+    # ``os.replace`` does not request a write-through move on Windows.  The
+    # ledger is the fence that blocks unsafe paper trading after a crash, so
+    # fail closed if the Win32 durable move cannot be requested.
+    import ctypes
+
+    move_file = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+    move_file.argtypes = (ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint)
+    move_file.restype = ctypes.c_int
+    movefile_replace_existing = 0x00000001
+    movefile_write_through = 0x00000008
+    if not move_file(str(source), str(target), movefile_replace_existing | movefile_write_through):
+        error_code = ctypes.get_last_error()
+        raise OSError(error_code, "MoveFileExW write-through replacement failed", str(target))
 
 
 class MixBroker(TickBroker):
@@ -83,6 +161,7 @@ class MixBroker(TickBroker):
         """
         super().__init__(**kwargs)
         self._account_risk_lock_handle = None
+        self._account_risk_lock_acquired = False
         self._account_risk_owner_token = uuid.uuid4().hex
         self._account_risk_realized_net = Decimal("0")
         self._account_risk_last_persist_ns = 0
@@ -185,7 +264,7 @@ class MixBroker(TickBroker):
                 "account_risk_venues_required"
             )
             return
-        if _fcntl is None:
+        if _fcntl is None and _msvcrt is None:
             self._account_risk_snapshot = self._unavailable_account_risk_snapshot(
                 "account_risk_locking_unavailable"
             )
@@ -197,7 +276,8 @@ class MixBroker(TickBroker):
             ledger_path.parent.mkdir(parents=True, exist_ok=True)
             lock_handle = lock_path.open("a+", encoding="utf-8")
             self._account_risk_lock_handle = lock_handle
-            _fcntl.flock(lock_handle.fileno(), _fcntl.LOCK_EX | _fcntl.LOCK_NB)
+            _acquire_nonblocking_file_lock(lock_handle)
+            self._account_risk_lock_acquired = True
 
             generation = 1
             fencing_epoch = 1
@@ -265,7 +345,11 @@ class MixBroker(TickBroker):
             self._account_risk_failed = False
             self._persist_account_risk_snapshot(force=True)
         except Exception as exc:
-            logger.warning("mixbroker:267 fallback on Exception")
+            logger.warning(
+                "MixBroker account-risk ledger startup failed: %s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             code = "account_risk_ledger_locked" if isinstance(exc, BlockingIOError) else str(exc)
             if not code.startswith("account_risk_"):
                 code = "account_risk_ledger_start_failed"
@@ -290,13 +374,8 @@ class MixBroker(TickBroker):
                 handle.write(encoded)
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(temporary, ledger_path)
-            directory_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-            directory_fd = os.open(ledger_path.parent, directory_flags)
-            try:
-                os.fsync(directory_fd)
-            finally:
-                os.close(directory_fd)
+            _durable_replace(temporary, ledger_path)
+            _fsync_directory(ledger_path.parent)
         finally:
             if descriptor is not None:
                 os.close(descriptor)
@@ -340,8 +419,12 @@ class MixBroker(TickBroker):
             self._account_risk_snapshot = snapshot
             self._account_risk_last_persist_ns = now_ns
             return True
-        except Exception:
-            logger.warning("mixbroker:342 fallback on Exception")
+        except Exception as exc:
+            logger.warning(
+                "MixBroker account-risk ledger persistence failed: %s",
+                type(exc).__name__,
+                exc_info=True,
+            )
             self._account_risk_failed = True
             self._account_risk_snapshot = {
                 **self._unavailable_account_risk_snapshot("account_risk_ledger_persist_failed"),
@@ -353,11 +436,13 @@ class MixBroker(TickBroker):
     def _release_account_risk_ledger(self):
         handle = self._account_risk_lock_handle
         self._account_risk_lock_handle = None
+        lock_acquired = self._account_risk_lock_acquired
+        self._account_risk_lock_acquired = False
         if handle is None:
             return
         try:
-            if _fcntl is not None:
-                _fcntl.flock(handle.fileno(), _fcntl.LOCK_UN)
+            if lock_acquired:
+                _release_file_lock(handle)
         finally:
             handle.close()
 

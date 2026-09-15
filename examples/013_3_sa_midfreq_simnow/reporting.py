@@ -128,7 +128,7 @@ def atomic_write_json(path: Path, payload: Any) -> None:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temp_name, path)
+        _durable_replace(temp_name, path)
         _fsync_directory(path.parent)
     finally:
         if os.path.exists(temp_name):
@@ -146,15 +146,60 @@ def atomic_write_text(path: Path, text: str) -> None:
                 handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temp_name, path)
+        _durable_replace(temp_name, path)
         _fsync_directory(path.parent)
     finally:
         if os.path.exists(temp_name):
             os.unlink(temp_name)
 
 
+def atomic_append_text(path: Path, text: str) -> None:
+    """Append text through a write-through atomic replacement.
+
+    The retention lane is serialized by its caller's account lock.  Rewriting
+    its bounded audit file lets Windows use the same durable replacement fence
+    as the manifest and risk ledger instead of claiming that a newly-created
+    directory entry survived a direct append.
+    """
+
+    try:
+        previous = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        previous = ""
+    atomic_write_text(path, previous + text)
+
+
+def _durable_replace(source: Path | str, target: Path | str) -> None:
+    """Replace a same-directory evidence file with a host durability fence."""
+
+    if os.name != "nt":
+        os.replace(source, target)
+        return
+
+    # Windows cannot express POSIX directory ``fsync`` through ``os.open``.
+    # Ask the kernel for the corresponding write-through replacement instead;
+    # callers propagate failure and latch their evidence/risk gates.
+    import ctypes
+
+    move_file = ctypes.WinDLL("kernel32", use_last_error=True).MoveFileExW
+    move_file.argtypes = (ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint)
+    move_file.restype = ctypes.c_int
+    movefile_replace_existing = 0x00000001
+    movefile_write_through = 0x00000008
+    if not move_file(str(source), str(target), movefile_replace_existing | movefile_write_through):
+        error_code = ctypes.get_last_error()
+        raise OSError(error_code, "MoveFileExW write-through replacement failed", str(target))
+
+
 def _fsync_directory(path: Path) -> None:
-    descriptor = os.open(path, os.O_RDONLY)
+    """Persist a POSIX rename without requiring unsupported Windows directory FDs."""
+
+    # Windows replacements reach this helper only after ``_durable_replace``
+    # has requested a write-through MoveFileExW operation.  POSIX keeps the
+    # explicit directory-entry durability check and propagates I/O failures.
+    if os.name == "nt":
+        return
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
     try:
         os.fsync(descriptor)
     finally:
@@ -219,6 +264,7 @@ class EvidenceWriter:
         self._audit_queue: deque[tuple[str, bytes]] = deque()
         self._pending_counts = dict.fromkeys(self.STREAMS, 0)
         self._writer_busy = False
+        self._critical_writes_in_flight = 0
         self._stop_requested = False
         self._closed = False
         self._last_disk_check_monotonic = 0.0
@@ -274,15 +320,21 @@ class EvidenceWriter:
         # The active file may contain a just-written normal-lane batch.  Sync
         # it before rename so the rotation boundary cannot acknowledge data
         # that only exists in the page cache.
-        with path.open("rb") as handle:
+        # Windows maps ``os.fsync`` to ``_commit``.  Use a write-capable
+        # descriptor even though this branch does not mutate the file, so the
+        # already-written batch can be committed on both platforms.
+        with path.open("r+b") as handle:
             os.fsync(handle.fileno())
-        os.replace(path, rotated)
+        _durable_replace(path, rotated)
         _fsync_directory(self.directory)
         self.rotation_counts[stream] = index
 
     def _write_encoded(self, stream: str, encoded: bytes, *, durable: bool) -> None:
         path = self.directory / f"{stream}.jsonl"
         with self._io_lock:
+            if not path.exists():
+                self._create_initial_stream(path, encoded)
+                return
             self._rotate_if_needed(stream, path, len(encoded))
             with path.open("ab") as handle:
                 handle.write(encoded)
@@ -290,13 +342,33 @@ class EvidenceWriter:
                 if durable:
                     os.fsync(handle.fileno())
 
+    @staticmethod
+    def _create_initial_stream(path: Path, encoded: bytes) -> None:
+        """Create the first stream file through the same durable rename fence."""
+
+        fd, temporary = tempfile.mkstemp(
+            prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+        )
+        try:
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(encoded)
+                handle.flush()
+                os.fsync(handle.fileno())
+            _durable_replace(temporary, path)
+            _fsync_directory(path.parent)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
     def _sync_streams(self, streams: set[str]) -> None:
         with self._io_lock:
             for stream in streams:
                 path = self.directory / f"{stream}.jsonl"
                 if not path.exists():
                     continue
-                with path.open("rb") as handle:
+                # See ``_rotate_if_needed``: a read-only descriptor is not a
+                # portable target for the Windows ``_commit`` implementation.
+                with path.open("r+b") as handle:
                     os.fsync(handle.fileno())
 
     def _writer_loop(self) -> None:
@@ -400,9 +472,6 @@ class EvidenceWriter:
         """
         if stream not in self.STREAMS:
             raise ValueError(f"unsupported evidence stream {stream!r}")
-        if self._closed or self._stop_requested:
-            self._latch_failure("evidence_writer_closed")
-            raise EvidenceWriteError("evidence writer is closed")
         capacity_ok = self._check_disk()
         if not capacity_ok and stream not in self.CRITICAL_STREAMS:
             raise EvidenceWriteError(self.failure_reason or "evidence capacity unavailable")
@@ -412,6 +481,9 @@ class EvidenceWriter:
 
         if stream not in self.CRITICAL_STREAMS:
             with self._condition:
+                if self._closed or self._stop_requested:
+                    self._latch_failure("evidence_writer_closed")
+                    raise EvidenceWriteError("evidence writer is closed")
                 if len(self._audit_queue) >= self.audit_queue_limit:
                     self.dropped_counts[stream] += 1
                     self._latch_failure("audit_queue_full")
@@ -426,6 +498,11 @@ class EvidenceWriter:
                 self._condition.notify()
             return path
 
+        with self._condition:
+            if self._closed or self._stop_requested:
+                self._latch_failure("evidence_writer_closed")
+                raise EvidenceWriteError("evidence writer is closed")
+            self._critical_writes_in_flight += 1
         try:
             self._write_encoded(stream, encoded, durable=True)
             with self._condition:
@@ -436,6 +513,10 @@ class EvidenceWriter:
                 self.dropped_counts[stream] += 1
             self._latch_failure("evidence_write_failed")
             raise
+        finally:
+            with self._condition:
+                self._critical_writes_in_flight -= 1
+                self._condition.notify_all()
         return path
 
     @property
@@ -448,7 +529,7 @@ class EvidenceWriter:
         """Wait until every accepted normal-lane record is fsynced."""
         deadline = time.monotonic() + max(float(timeout), 0.0)
         with self._condition:
-            while self._audit_queue or self._writer_busy:
+            while self._audit_queue or self._writer_busy or self._critical_writes_in_flight:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     self._latch_failure("evidence_drain_timeout")
@@ -462,10 +543,10 @@ class EvidenceWriter:
         Returns ``True`` only when draining finished within ``timeout``
         and no record was ever dropped.
         """
-        drained = self.drain(timeout)
         with self._condition:
             self._stop_requested = True
             self._condition.notify_all()
+        drained = self.drain(timeout)
         remaining = max(float(timeout), 0.0)
         self._writer_thread.join(remaining)
         if self._writer_thread.is_alive():

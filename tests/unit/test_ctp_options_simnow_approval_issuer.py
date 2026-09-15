@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 
 import pytest
 
@@ -45,9 +46,7 @@ def _context(**changes):
 
 
 def _key_material(tmp_path):
-    cryptography = pytest.importorskip(
-        "cryptography.hazmat.primitives.asymmetric.ed25519"
-    )
+    cryptography = pytest.importorskip("cryptography.hazmat.primitives.asymmetric.ed25519")
     private = cryptography.Ed25519PrivateKey.generate()
     public_raw = private.public_key().public_bytes_raw()
     return {
@@ -77,7 +76,8 @@ def test_keygen_trust_root_and_sign_roundtrip(tmp_path, capsys):
         "private_key",
         "public_key",
     }
-    assert key_file.stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":
+        assert key_file.stat().st_mode & 0o777 == 0o600
 
     trust_file = tmp_path / "trust-root.json"
     assert (
@@ -127,12 +127,8 @@ def test_keygen_trust_root_and_sign_roundtrip(tmp_path, capsys):
     assert artifact["payload"]["purpose"] == "ctp_execution_approval"
     assert artifact["payload"]["receipt_sha256"] == "b" * 64
 
-    cryptography = pytest.importorskip(
-        "cryptography.hazmat.primitives.asymmetric.ed25519"
-    )
-    public = cryptography.Ed25519PublicKey.from_public_bytes(
-        _b64decode(material["public_key"])
-    )
+    cryptography = pytest.importorskip("cryptography.hazmat.primitives.asymmetric.ed25519")
+    public = cryptography.Ed25519PublicKey.from_public_bytes(_b64decode(material["public_key"]))
     payload_bytes = json.dumps(
         artifact["payload"],
         ensure_ascii=False,

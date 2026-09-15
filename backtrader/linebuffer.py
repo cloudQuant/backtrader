@@ -2327,10 +2327,17 @@ class LinesOperation(LineActions):
                 target_len = len(operand) + ago
                 if target_len < minperiod:
                     return float("nan")
-            except Exception:  # nosec B110
+            except (AttributeError, TypeError):
                 # Operand without a usable length; skip the warmup guard.
                 # This optional protocol probe runs per sample, so stay quiet.
                 pass
+            except Exception:  # nosec B110
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.operand_minperiod_probe_recovery",
+                    "LinesOperation operand length probe failed; skipping warmup guard",
+                    exc_info=False,
+                )
 
         if hasattr(operand, "__getitem__"):
             return operand[ago]
@@ -2354,10 +2361,17 @@ class LinesOperation(LineActions):
             try:
                 if len(clock) <= len(operand):
                     return
-            except Exception:  # nosec B110
+            except (AttributeError, TypeError):
                 # Clock without a comparable length; advance the operand anyway.
                 # This optional protocol probe runs per bar, so stay quiet.
                 pass
+            except Exception:  # nosec B110
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.operand_clock_probe_recovery",
+                    "LinesOperation operand clock length probe failed; advancing operand",
+                    exc_info=False,
+                )
 
         operand._next()
 
@@ -2443,10 +2457,17 @@ class LinesOperation(LineActions):
             try:
                 if len(clock) <= len(self):
                     return
-            except Exception:  # nosec B110
+            except (AttributeError, TypeError):
                 # Clock without a comparable length; proceed to advance operands.
                 # This optional protocol probe runs per bar, so stay quiet.
                 pass
+            except Exception:  # nosec B110
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.clock_probe_recovery",
+                    "LinesOperation clock length probe failed; advancing operation",
+                    exc_info=False,
+                )
 
         for operand in self._next_operands:
             self._next_operand_if_due(operand)

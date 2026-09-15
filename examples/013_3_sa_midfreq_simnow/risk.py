@@ -10,6 +10,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Optional
 
+try:
+    from .reporting import _durable_replace, _fsync_directory
+except ImportError:  # Direct execution from the example directory.
+    from reporting import _durable_replace, _fsync_directory
+
 
 @dataclass
 class DailyRiskRecord:
@@ -108,7 +113,7 @@ class DailyRiskStore:
         return self.record
 
     def save(self) -> None:
-        """Atomically persist the record via fsync, rename, and dir fsync.
+        """Atomically persist the record via fsync, rename, and supported directory sync.
 
         On failure marks persistence unhealthy (``persistence_ok = False``)
         and re-raises so callers can latch the risk failure.
@@ -134,8 +139,8 @@ class DailyRiskStore:
                     handle.write("\n")
                     handle.flush()
                     os.fsync(handle.fileno())
-                os.replace(temp_name, self.path)
-                self._fsync_directory(self.path.parent)
+                _durable_replace(temp_name, self.path)
+                _fsync_directory(self.path.parent)
             finally:
                 if os.path.exists(temp_name):
                     os.unlink(temp_name)
@@ -172,14 +177,6 @@ class DailyRiskStore:
                 raise ValueError(f"risk state {name} must be a nonnegative integer")
         if not isinstance(raw.get("halted_reason"), str):
             raise ValueError("risk state halted_reason must be a string")
-
-    @staticmethod
-    def _fsync_directory(path: Path) -> None:
-        descriptor = os.open(path, os.O_RDONLY)
-        try:
-            os.fsync(descriptor)
-        finally:
-            os.close(descriptor)
 
     def _update(self, **values: Any) -> None:
         if self.record is None:

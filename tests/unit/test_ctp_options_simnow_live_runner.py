@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import examples.ctp_options_simnow_live_runner as live_runner
 from examples.ctp_options_simnow_live_runner import (
     SimNowLiveRunner,
     SimNowLiveRunnerBlocked,
@@ -89,7 +90,7 @@ def _bundle():
     )
 
 
-def _execution_reference(received_monotonic=None):
+def _execution_reference(received_monotonic=None, depth_request_ids=(101, 102, 103)):
     received_monotonic = (
         received_monotonic if received_monotonic is not None else time.monotonic() - 0.1
     )
@@ -112,8 +113,9 @@ def _execution_reference(received_monotonic=None):
             "received_at_utc": received_at.isoformat(),
             "requested_monotonic": received_monotonic - 0.02,
             "received_monotonic": received_monotonic,
+            "request_id": depth_request_ids[index],
         }
-        for i, symbol in enumerate(SYMBOLS)
+        for index, symbol in enumerate(SYMBOLS)
     ]
     bundle_preflight = _identity(
         schema_version="backtrader.ctp.bundle-preflight.v2",
@@ -125,7 +127,14 @@ def _execution_reference(received_monotonic=None):
         "read_only": True,
         "execution_eligible": False,
         "bundle_preflight": bundle_preflight,
-        "query_results": {},
+        "query_results": {
+            f"leg[{index}].depth_market_data": {"request_id": request_id}
+            for index, request_id in enumerate(depth_request_ids)
+        },
+        "request_ids": {
+            f"leg[{index}].depth_market_data": request_id
+            for index, request_id in enumerate(depth_request_ids)
+        },
         "prices": {},
         "legs": quote_legs,
         "broker_contract_metadata": None,
@@ -137,8 +146,8 @@ def _execution_reference(received_monotonic=None):
     }
 
 
-def _quote_reference(received_monotonic=None):
-    full = _execution_reference(received_monotonic)
+def _quote_reference(received_monotonic=None, depth_request_ids=(201, 202, 203)):
+    full = _execution_reference(received_monotonic, depth_request_ids)
     bundle = full["bundle_preflight"]
     primary = next(leg for leg in bundle["legs"] if leg["is_primary"] is True)
     scope = {
@@ -158,7 +167,12 @@ def _quote_reference(received_monotonic=None):
         "write_request_free": True,
         "bundle_scope": scope,
         "bundle_preflight": copy.deepcopy(bundle),
+        "query_results": copy.deepcopy(full["query_results"]),
         "legs": copy.deepcopy(full["legs"]),
+        "request_ids": {
+            f"leg[{index}].depth_market_data": request_id
+            for index, request_id in enumerate(depth_request_ids)
+        },
         "snapshot_sha256": "q" * 64,
     }
 
@@ -207,6 +221,7 @@ def _snapshots():
 class FakeStore:
     def __init__(self):
         self.calls = []
+        self.exit_reference = None
 
     def get_ctp_preflight_snapshot(self, *args, **kwargs):
         self.calls.append(("preflight", args, kwargs))
@@ -231,6 +246,10 @@ class FakeStore:
             )
         )
         return _execution_reference()
+
+    def get_ctp_bundle_quote_reference_snapshot(self, legs, *, timeout=15.0):
+        self.calls.append(("quote_reference", (legs,), {"timeout": timeout}))
+        return copy.deepcopy(self.exit_reference or _quote_reference())
 
     def get_ctp_reconciliation_snapshot(self, *args, **kwargs):
         self.calls.append(("reconciliation", args, kwargs))
@@ -302,11 +321,12 @@ def _execution_state():
     }
 
 
-def _runner(broker=None, authorization=None):
+def _runner(broker=None, authorization=None, store=None):
     broker = broker or FakeBroker()
+    store = store or FakeStore()
     return (
         SimNowLiveRunner(
-            store=FakeStore(),
+            store=store,
             broker=broker,
             feeds={symbol: object() for symbol in SYMBOLS},
             owner=object(),
@@ -388,33 +408,116 @@ def test_quote_only_reference_cannot_replace_full_preflight():
 
 
 def test_exit_accepts_quote_only_reference_after_frozen_full_preflight():
+    store = FakeStore()
+    runner, broker = _runner(store=store)
+    reference_time = time.monotonic() - 0.1
+    runner.snapshots["bundle_execution_reference"] = _execution_reference(reference_time)
+    store.exit_reference = _quote_reference(reference_time, (201, 202, 203))
+    session = _execute(runner)
+    for index in range(3):
+        session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"T{index}"))
+
+    session.plan_exit(intent_id="exit")
+    assert session.cycle.phase == "CLOSE"
+    assert store.calls[-1][0] == "quote_reference"
+
+
+def test_exit_rejects_same_timestamp_without_new_depth_query_ids():
+    store = FakeStore()
+    runner, broker = _runner(store=store)
+    reference_time = time.monotonic() - 0.1
+    request_ids = (101, 102, 103)
+    runner.snapshots["bundle_execution_reference"] = _execution_reference(
+        reference_time, request_ids
+    )
+    store.exit_reference = _quote_reference(reference_time, request_ids)
+    session = _execute(runner)
+    for index in range(3):
+        session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"T{index}"))
+
+    with pytest.raises(SimNowLiveRunnerBlocked, match="EXIT_REFERENCE_MUST_BE_NEWER"):
+        session.plan_exit(intent_id="exit")
+
+
+@pytest.mark.parametrize(
+    "request_ids",
+    [
+        (101.9, 102.9, 103.9),
+        ("101", "102", "103"),
+        (
+            type("CoercibleRequestId", (), {"__int__": lambda self: 101})(),
+            type("CoercibleRequestId", (), {"__int__": lambda self: 102})(),
+            type("CoercibleRequestId", (), {"__int__": lambda self: 103})(),
+        ),
+    ],
+)
+def test_depth_request_ids_require_native_positive_integers(request_ids):
+    """The equal-timestamp exit exception trusts only Store-native integer IDs."""
+
+    assert live_runner._depth_request_ids(_quote_reference(depth_request_ids=request_ids)) is None
+
+
+def test_depth_request_ids_allow_execution_reference_non_depth_queries():
+    reference = _execution_reference()
+    reference["request_ids"].update(
+        {
+            "leg[1].option_trade_cost": 104,
+            "leg[1].option_commission_rate": 105,
+            "leg[2].option_trade_cost": 106,
+            "leg[2].option_commission_rate": 107,
+        }
+    )
+
+    assert live_runner._depth_request_ids(reference) == frozenset({101, 102, 103})
+
+
+def test_depth_request_ids_reject_cross_representation_mismatch():
+    reference = _quote_reference()
+    reference["request_ids"]["leg[1].depth_market_data"] = 999
+
+    assert live_runner._depth_request_ids(reference) is None
+
+
+def test_exit_rejects_caller_supplied_reference_even_with_disjoint_ids():
     runner, broker = _runner()
     session = _execute(runner)
     for index in range(3):
         session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"T{index}"))
 
-    session.plan_exit(
-        dict.fromkeys(SYMBOLS, 9.5),
-        intent_id="exit",
-        reference_snapshot=_quote_reference(),
-    )
-    assert session.cycle.phase == "CLOSE"
+    with pytest.raises(SimNowLiveRunnerBlocked, match="EXIT_REFERENCE_MUST_BE_STORE_COLLECTED"):
+        session.plan_exit(
+            intent_id="exit",
+            reference_snapshot=_quote_reference(depth_request_ids=(901, 902, 903)),
+        )
+
+    with pytest.raises(SimNowLiveRunnerBlocked, match="EXIT_PRICE_MUST_BE_STORE_DERIVED"):
+        session.plan_exit(dict.fromkeys(SYMBOLS, 9.5), intent_id="exit")
+
+
+def test_exit_rejects_store_quote_reference_with_changed_identity():
+    store = FakeStore()
+    store.exit_reference = _quote_reference()
+    store.exit_reference["bundle_preflight"]["connection_generation"] = 8
+    store.exit_reference["bundle_scope"]["connection_generation"] = 8
+    runner, broker = _runner(store=store)
+    session = _execute(runner)
+    for index in range(3):
+        session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"T{index}"))
+
+    with pytest.raises(SimNowLiveRunnerBlocked, match="EXIT_REFERENCE_IDENTITY_MISMATCH"):
+        session.plan_exit(intent_id="exit")
 
 
 def test_quote_only_reference_rejects_bundle_scope_drift():
-    runner, broker = _runner()
+    store = FakeStore()
+    store.exit_reference = _quote_reference()
+    store.exit_reference["bundle_scope"]["exchange_id"] = "CZCE"
+    runner, broker = _runner(store=store)
     session = _execute(runner)
     for index in range(3):
         session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"T{index}"))
-    reference = _quote_reference()
-    reference["bundle_scope"]["exchange_id"] = "CZCE"
-
     with pytest.raises(SimNowLiveRunnerBlocked, match="QUOTE_REFERENCE_SCOPE_MISMATCH"):
-        session.plan_exit(
-            dict.fromkeys(SYMBOLS, 9.5),
-            intent_id="exit",
-            reference_snapshot=reference,
-        )
+        session.plan_exit(intent_id="exit")
 
 
 def test_preflight_freezes_once_and_execute_does_not_record_raw_again():
@@ -508,12 +611,7 @@ def test_three_leg_entry_then_exit_requires_native_callbacks_and_two_flat_rounds
         session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"T{index + 1}"))
         if index < 2:
             assert len(broker.writes) == index + 2
-    exit_reference = _quote_reference()
-    session.plan_exit(
-        dict.fromkeys(SYMBOLS, 9.5),
-        intent_id="exit",
-        reference_snapshot=exit_reference,
-    )
+    session.plan_exit(intent_id="exit")
     session.submit_next_exit()
     assert broker.writes[3][0] == "sell"
     for index in range(3):
@@ -545,12 +643,7 @@ def test_final_flat_requires_two_stable_rounds():
     session = _execute(runner)
     for index in range(3):
         session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"T{index}"))
-    exit_reference = _quote_reference()
-    session.plan_exit(
-        dict.fromkeys(SYMBOLS, 9.5),
-        intent_id="exit",
-        reference_snapshot=exit_reference,
-    )
+    session.plan_exit(intent_id="exit")
     session.submit_next_exit()
     for index in range(3):
         session.on_order_update(_native_fill(broker.orders[-1], trade_id=f"C{index}"))

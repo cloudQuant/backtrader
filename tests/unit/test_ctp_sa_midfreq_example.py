@@ -3875,6 +3875,262 @@ def test_evidence_critical_is_fsynced_even_after_low_disk_latch(monkeypatch, tmp
     writer.close()
 
 
+def test_windows_directory_sync_fallback_keeps_atomic_evidence_and_risk_persistence(
+    monkeypatch, tmp_path
+):
+    """Windows uses a write-through replacement instead of directory ``fsync``."""
+
+    calls = []
+    real_os = os
+
+    class FakeMoveFile:
+        argtypes = None
+        restype = None
+
+        def __call__(self, source, target, flags):
+            calls.append((source, target, flags))
+            real_os.replace(source, target)
+            return 1
+
+    move_file = FakeMoveFile()
+    fake_ctypes = SimpleNamespace(
+        WinDLL=lambda *_args, **_kwargs: SimpleNamespace(MoveFileExW=move_file),
+        c_wchar_p=str,
+        c_uint=int,
+        c_int=int,
+        get_last_error=lambda: 0,
+    )
+
+    class WindowsOsProxy:
+        name = "nt"
+
+        def __init__(self):
+            self.directory_open_calls = []
+
+        def open(self, *args, **kwargs):
+            self.directory_open_calls.append((args, kwargs))
+            raise AssertionError("Windows directory sync must not call os.open")
+
+        def __getattr__(self, name):
+            return getattr(os, name)
+
+    windows_os = WindowsOsProxy()
+    monkeypatch.setattr(reporting, "os", windows_os)
+    monkeypatch.setattr(risk, "os", windows_os)
+    monkeypatch.setattr(runner, "os", windows_os)
+    monkeypatch.setitem(sys.modules, "ctypes", fake_ctypes)
+
+    json_path = tmp_path / "atomic" / "evidence.json"
+    text_path = tmp_path / "atomic" / "evidence.txt"
+    reporting.atomic_write_json(json_path, {"status": "PASS"})
+    reporting.atomic_write_text(text_path, "durable")
+    assert json.loads(json_path.read_text(encoding="utf-8")) == {"status": "PASS"}
+    assert text_path.read_text(encoding="utf-8") == "durable\n"
+
+    writer = reporting.EvidenceWriter(
+        tmp_path / "writer",
+        min_free_bytes=0,
+        rotate_bytes=1,
+    )
+    try:
+        writer.write_json("daily_report.json", {"mode": "replay"})
+        writer.append("orders", {"seq": 1})
+        writer.append("orders", {"seq": 2})  # exercise the rename rotation path
+    finally:
+        assert writer.close(timeout=5.0)
+
+    store = risk.DailyRiskStore(tmp_path / "risk" / "daily-risk.json")
+    store.load_or_create(
+        account_fingerprint="acct_a",
+        trading_day="20260909",
+        starting_equity=100000.0,
+        reconciliation_complete=True,
+    )
+    assert store.persistence_ok is True
+
+    audit_path = tmp_path / "retention" / "retention_audit.jsonl"
+    runner._append_retention_audit(audit_path, {"result": "KEPT"})
+    assert json.loads(audit_path.read_text(encoding="utf-8")) == {"result": "KEPT"}
+    assert windows_os.directory_open_calls == []
+    assert calls
+    assert all(flags == 0x00000001 | 0x00000008 for _source, _target, flags in calls)
+    assert any(Path(target).name == "orders.jsonl" for _source, target, _flags in calls)
+
+
+def test_windows_durable_replace_failure_latches_evidence_and_risk_store(monkeypatch, tmp_path):
+    """A failed Windows write-through replacement must close all durable gates."""
+
+    class WindowsOsProxy:
+        name = "nt"
+
+        def __getattr__(self, name):
+            return getattr(os, name)
+
+    class FailingMoveFile:
+        argtypes = None
+        restype = None
+
+        def __call__(self, *_args):
+            return 0
+
+    fake_ctypes = SimpleNamespace(
+        WinDLL=lambda *_args, **_kwargs: SimpleNamespace(MoveFileExW=FailingMoveFile()),
+        c_wchar_p=str,
+        c_uint=int,
+        c_int=int,
+        get_last_error=lambda: 5,
+    )
+    monkeypatch.setattr(reporting, "os", WindowsOsProxy())
+    monkeypatch.setitem(sys.modules, "ctypes", fake_ctypes)
+
+    writer = reporting.EvidenceWriter(tmp_path / "evidence", min_free_bytes=0)
+    try:
+        with pytest.raises(OSError, match="MoveFileExW"):
+            writer.write_json("manifest.json", {"status": "RUNNING"})
+        assert writer.opening_allowed is False
+        assert writer.failure_reason == "evidence_write_failed"
+    finally:
+        writer.close(timeout=5.0)
+
+    store = risk.DailyRiskStore(tmp_path / "risk" / "daily-risk.json")
+    with pytest.raises(OSError, match="MoveFileExW"):
+        store.load_or_create(
+            account_fingerprint="acct_a",
+            trading_day="20260909",
+            starting_equity=100000.0,
+            reconciliation_complete=True,
+        )
+    assert store.persistence_ok is False
+    assert store.last_error == "OSError"
+
+    with pytest.raises(OSError, match="MoveFileExW"):
+        runner._append_retention_audit(
+            tmp_path / "retention" / "retention_audit.jsonl", {"result": "KEPT"}
+        )
+
+    critical_writer = reporting.EvidenceWriter(tmp_path / "critical", min_free_bytes=0)
+    try:
+        with pytest.raises(OSError, match="MoveFileExW"):
+            critical_writer.append("orders", {"seq": 1})
+        assert critical_writer.opening_allowed is False
+        assert critical_writer.failure_reason == "evidence_write_failed"
+    finally:
+        critical_writer.close(timeout=5.0)
+
+
+def test_evidence_append_after_close_begins_is_rejected_and_latched(monkeypatch, tmp_path):
+    """Close and normal-lane admission share one atomic state transition."""
+
+    writer = reporting.EvidenceWriter(tmp_path, min_free_bytes=0)
+    close_started = threading.Event()
+    original_drain = writer.drain
+
+    def observed_drain(timeout):
+        close_started.set()
+        return original_drain(timeout)
+
+    monkeypatch.setattr(writer, "drain", observed_drain)
+    result = {}
+
+    def close_writer():
+        result["healthy"] = writer.close(timeout=5.0)
+
+    thread = threading.Thread(target=close_writer)
+    thread.start()
+    assert close_started.wait(1.0)
+    with pytest.raises(reporting.EvidenceWriteError, match="closed"):
+        writer.append("quotes", {"seq": 1})
+    thread.join(5.0)
+
+    assert not thread.is_alive()
+    assert result["healthy"] is True
+    assert writer.opening_allowed is False
+    assert writer.pending_counts["quotes"] == 0
+    assert writer.counts["quotes"] == writer.enqueued_counts["quotes"] == 0
+
+
+def test_evidence_close_waits_for_inflight_critical_append(monkeypatch, tmp_path):
+    """A close cannot publish healthy evidence before a critical write finishes."""
+
+    writer = reporting.EvidenceWriter(tmp_path, min_free_bytes=0)
+    entered = threading.Event()
+    release = threading.Event()
+    append_result = {}
+    close_result = {}
+    original_write = writer._write_encoded
+
+    def delayed_write(*args, **kwargs):
+        entered.set()
+        assert release.wait(5.0)
+        return original_write(*args, **kwargs)
+
+    monkeypatch.setattr(writer, "_write_encoded", delayed_write)
+
+    def append_critical():
+        try:
+            append_result["path"] = writer.append("orders", {"seq": 1})
+        except BaseException as exc:  # Preserve failure evidence for the assertion below.
+            append_result["error"] = exc
+
+    def close_writer():
+        close_result["healthy"] = writer.close(timeout=5.0)
+
+    append_thread = threading.Thread(target=append_critical)
+    append_thread.start()
+    assert entered.wait(1.0)
+    close_thread = threading.Thread(target=close_writer)
+    close_thread.start()
+    assert close_thread.is_alive()
+    release.set()
+    append_thread.join(5.0)
+    close_thread.join(5.0)
+
+    assert not append_thread.is_alive()
+    assert not close_thread.is_alive()
+    assert "error" not in append_result
+    assert append_result["path"].is_file()
+    assert close_result["healthy"] is True
+    assert writer.counts["orders"] == writer.enqueued_counts["orders"] == 1
+
+
+def test_evidence_sync_uses_write_capable_descriptors(monkeypatch, tmp_path):
+    writer = reporting.EvidenceWriter(tmp_path, min_free_bytes=0, rotate_bytes=1)
+    path = writer.append("orders", {"seq": 1})
+    modes = []
+    real_open = Path.open
+
+    def observed_open(self, *args, **kwargs):
+        mode = args[0] if args else kwargs.get("mode", "r")
+        if self == path:
+            modes.append(mode)
+        return real_open(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", observed_open)
+    try:
+        writer._sync_streams({"orders"})
+        writer._rotate_if_needed("orders", path, incoming_bytes=1)
+    finally:
+        assert writer.close(timeout=5.0)
+
+    assert modes == ["r+b", "r+b"]
+
+
+def test_posix_directory_sync_failures_are_not_suppressed(monkeypatch, tmp_path):
+    class FailingPosixOsProxy:
+        name = "posix"
+
+        @staticmethod
+        def open(*_args, **_kwargs):
+            raise OSError("injected directory sync failure")
+
+        def __getattr__(self, name):
+            return getattr(os, name)
+
+    monkeypatch.setattr(reporting, "os", FailingPosixOsProxy())
+    with pytest.raises(OSError, match="directory sync failure"):
+        reporting._fsync_directory(tmp_path)
+
+
 def test_evidence_close_drains_all_accepted_normal_records(tmp_path):
     writer = reporting.EvidenceWriter(
         tmp_path,

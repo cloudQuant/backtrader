@@ -4,10 +4,11 @@ This module is deliberately not a CTP client, authorizer, preflight runner, or
 strategy.  The caller must already have completed preflight and arming and must
 provide a started ``SimNowMechanicalSession`` backed by a started broker.  The
 driver only drains public broker notifications, forwards them to the session,
-plans exits from caller-supplied fresh prices, and requires two final flat
-reconciliation snapshots.  It never creates a client, reads credentials, or
-simulates fills.  ``MECHANICAL_PASS`` is execution-path evidence only; it is
-not strategy profitability evidence and does not admit Iter25 HFT activity.
+asks the session to plan exits from its own Store-bound quote reference, and
+requires two final flat reconciliation
+snapshots.  It never creates a client, reads credentials, or simulates fills.
+``MECHANICAL_PASS`` is execution-path evidence only; it is not strategy
+profitability evidence and does not admit Iter25 HFT activity.
 """
 
 from __future__ import annotations
@@ -95,9 +96,6 @@ def drive_simnow_mechanical_session(
     *,
     broker: Any,
     session: Any,
-    fresh_exit_prices: Callable[
-        [], Mapping[str, Any] | tuple[Mapping[str, Any], Mapping[str, Any]]
-    ],
     reconciliation_snapshot: Callable[[], Mapping[str, Any]],
     leg_timeout: float = 30.0,
     monotonic: Callable[[], float] = time.monotonic,
@@ -106,10 +104,9 @@ def drive_simnow_mechanical_session(
 ) -> dict[str, Any]:
     """Drive one already-armed, already-started three-leg mechanical session.
 
-    ``fresh_exit_prices`` must return either ``prices`` or
-    ``(prices, reference_snapshot)``.  The latter is passed to the public
-    session ``plan_exit`` contract.  ``reconciliation_snapshot`` is called
-    exactly twice only after all close fills are natively confirmed.
+    The session obtains one quote reference from its bound Store and derives
+    the exit prices from that same frozen snapshot.  ``reconciliation_snapshot``
+    is called exactly twice only after all close fills are natively confirmed.
     """
     if not callable(getattr(broker, "next", None)) or not callable(
         getattr(broker, "get_notification", None)
@@ -200,18 +197,7 @@ def drive_simnow_mechanical_session(
                     close_fill_count = max(close_fill_count, fill_count - entry_fill_count)
                 if phase == "OPEN" and not status.get("pending") and entry_fill_count == 3:
                     if not exit_planned:
-                        fresh = fresh_exit_prices()
-                        if isinstance(fresh, tuple) and len(fresh) == 2:
-                            prices, reference = fresh
-                        else:
-                            prices, reference = fresh, {}
-                        if not isinstance(prices, Mapping) or not isinstance(reference, Mapping):
-                            return fail("EXIT_PRICE_EVIDENCE_INVALID")
-                        session.plan_exit(
-                            prices,
-                            intent_id=exit_intent_id,
-                            reference_snapshot=reference,
-                        )
+                        session.plan_exit(intent_id=exit_intent_id)
                         session.submit_next_exit()
                         exit_planned = True
                         phase = "CLOSE"
