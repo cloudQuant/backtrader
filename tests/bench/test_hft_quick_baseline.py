@@ -102,6 +102,7 @@ def _run_cerebro_with_timeout(cerebro, channel, timeout=5.0):
 
 @pytest.mark.priority_p0
 @pytest.mark.integration
+@pytest.mark.performance
 def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
     """Test HFT quick replay baseline completes under 15 seconds."""
     root = Path(__file__).resolve().parents[1]
@@ -152,6 +153,7 @@ def test_hft_quick_replay_baseline_under_15_seconds(tmp_path):
 
 
 @pytest.mark.priority_p0
+@pytest.mark.performance
 @pytest.mark.parametrize("scenario_spec", get_hft_scenario_specs(), ids=lambda spec: spec.name)
 def test_hft_strategy_scenarios_are_in_quick_baseline_and_match_reference(scenario_spec):
     """Test HFT strategy scenarios are in quick baseline and match reference."""
