@@ -293,7 +293,12 @@ def test_order_timers_and_quicknotify():
 def test_order_writer_csv():
     with tempfile.TemporaryDirectory() as tmp:
         out = os.path.join(tmp, "writer.csv")
-        cerebro = _make_cerebro(runonce=False, writer=True)
+        cerebro = bt.Cerebro(runonce=False, writer=True)
+        # WriterFile includes ``data._name`` in its header and every data row.
+        # ``DATAPATH`` is checkout-local, so use a fixed display name to keep
+        # this frozen CSV artifact independent of the CI workspace path.
+        data = bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False)
+        cerebro.adddata(data, name="iter28_writer_data")
         cerebro.addwriter(bt.WriterFile, csv=True, out=out)
         cerebro.addstrategy(TraceStrategy)
         cerebro.run()

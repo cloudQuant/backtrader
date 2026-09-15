@@ -223,13 +223,25 @@ def test_default_throttled_warning_does_not_retain_hot_path_state():
     """A NullHandler-only library logger must not throttle or retain events."""
     host_root = logging.getLogger()
     prior_level = host_root.level
+    backtrader_root = logging.getLogger(log_message.ROOT_LOGGER_NAME)
+    prior_handlers = list(backtrader_root.handlers)
+    retained_handler = logging.StreamHandler()
+    # Model a direct handler that ``reset_logging()`` would preserve.
+    backtrader_root.addHandler(retained_handler)
     host_root.setLevel(logging.WARNING)
     try:
-        logger = bt.get_logger("silent_throttle")
+        # Use a detached NullHandler-only logger so a caller-owned handler
+        # preserved on the global backtrader namespace cannot turn this
+        # default-silence check into an explicit-output scenario.
+        logger = logging.Logger("backtrader.silent_throttle")
+        logger.propagate = False
+        logger.addHandler(logging.NullHandler())
         for _ in range(250):
             log_message.throttled_warning(logger, "silent-key", "should remain silent")
         assert not log_message._throttle_state
     finally:
+        backtrader_root.handlers[:] = prior_handlers
+        retained_handler.close()
         host_root.setLevel(prior_level)
 
 

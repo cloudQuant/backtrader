@@ -36,6 +36,10 @@ PUT = CANDIDATE["contracts"]["put"]
 SYMBOLS = (FUTURE, CALL, PUT)
 BASE = dt.datetime(2026, 1, 5, 9, 0, tzinfo=dt.timezone.utc)
 LIVE_DOMAIN = "iter24-engineering-live-clock"
+# The real three-feed qcheck path needs enough wall time to receive and seal
+# one bar per leg on slow CI workers.  This test-only budget does not alter the
+# production watchdog or feed scheduling policy.
+LIVE_OBSERVATION_RUN_SECONDS = 2.0
 
 
 class FixedLiveClock:
@@ -336,7 +340,7 @@ def _run_live_observation(
         copy.deepcopy(CONFIG),
         api=api,
         environment_profile="simnow_second_7x24",
-        run_seconds=1.0,
+        run_seconds=LIVE_OBSERVATION_RUN_SECONDS,
         feed_clock=FixedLiveClock(),
         clock_mapping=trusted_mapping or _live_mapping(),
         closed_bar_evidence_provider=provider,
@@ -383,7 +387,7 @@ def test_engineering_observation_runs_real_three_feed_strategy_with_live_evidenc
         "cerebro": "Cerebro",
         "strategy": "CTPOptionsMidFrequencyStrategy",
     }
-    assert report["duration"]["requested_seconds"] == 1.0
+    assert report["duration"]["requested_seconds"] == LIVE_OBSERVATION_RUN_SECONDS
     assert report["duration"]["deadline_stop_requested"] is True
     assert report["feed_evidence"]["accepted_complete_three_leg_input"] is True
     assert report["feed_evidence"]["clock_mode"] == "live"
@@ -452,7 +456,7 @@ def test_engineering_observation_accepts_one_transferred_store_without_rewrappin
         store=store,
         store_ownership="transfer",
         environment_profile="simnow_second_7x24",
-        run_seconds=1.0,
+        run_seconds=LIVE_OBSERVATION_RUN_SECONDS,
         feed_clock=FixedLiveClock(),
         clock_mapping=_live_mapping(),
         closed_bar_evidence_provider=provider,
@@ -527,7 +531,7 @@ def test_engineering_observation_reuses_connected_preflight_store_without_second
         store=store,
         store_ownership="transfer",
         environment_profile="simnow_second_7x24",
-        run_seconds=1.0,
+        run_seconds=LIVE_OBSERVATION_RUN_SECONDS,
         feed_clock=FixedLiveClock(),
         clock_mapping=_live_mapping(),
         closed_bar_evidence_provider=provider,

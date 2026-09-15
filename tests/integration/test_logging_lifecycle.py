@@ -225,6 +225,19 @@ def test_host_root_info_without_backtrader_output_does_not_probe_broker(monkeypa
     """Host logging alone must not enable lifecycle accessor side effects."""
     host_root = logging.getLogger()
     prior_level = host_root.level
+    backtrader_root = logging.getLogger(log_message.ROOT_LOGGER_NAME)
+    prior_handlers = list(backtrader_root.handlers)
+    prior_backtrader_level = backtrader_root.level
+    prior_propagate = backtrader_root.propagate
+    retained_handler = logging.StreamHandler()
+    # Model a caller-owned handler that ``reset_logging()`` would preserve.
+    backtrader_root.addHandler(retained_handler)
+
+    # Isolate this default-silence contract from the retained handler while
+    # preserving production support for direct caller-owned output handlers.
+    backtrader_root.handlers[:] = [logging.NullHandler()]
+    backtrader_root.setLevel(logging.NOTSET)
+    backtrader_root.propagate = False
     host_root.setLevel(logging.INFO)
     try:
         broker = _CountingBroker(cash=100000.0)
@@ -237,6 +250,10 @@ def test_host_root_info_without_backtrader_output_does_not_probe_broker(monkeypa
         assert broker.cash_reads == 0
         assert broker.value_reads == 0
     finally:
+        backtrader_root.handlers[:] = prior_handlers
+        retained_handler.close()
+        backtrader_root.setLevel(prior_backtrader_level)
+        backtrader_root.propagate = prior_propagate
         host_root.setLevel(prior_level)
 
 

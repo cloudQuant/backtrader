@@ -42,6 +42,12 @@ DATA_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "XAUUSD_1d.csv"
 
 
 def _fit_best_arima(train_returns, max_ar_order=2, max_ma_order=2):
+    # This regression uses only one-step forecast values.  A strided
+    # DatetimeIndex has no inferred frequency; statsmodels 0.15 rejects that
+    # index for out-of-sample forecasts, while earlier releases merely warn.
+    # Preserve the return sequence and give both versions the same supported
+    # positional index.
+    train_returns = train_returns.reset_index(drop=True)
     best_model = None
     best_order = None
     best_aic = np.inf
