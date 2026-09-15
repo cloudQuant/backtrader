@@ -533,8 +533,13 @@ def test_lineforward_preserves_offset_minperiod_and_cerebro_mode_parity():
     assert math.isnan(mode_values[1][2])
 
 
-def test_linebuffer_recovery_is_silent_without_logging_configuration(capsys):
+def test_linebuffer_recovery_is_silent_without_logging_configuration(capsys, monkeypatch):
     """The warning helper remains inert until callers opt in to logging."""
+    isolated_logger = logging.Logger("backtrader.linebuffer.default_silence", logging.NOTSET)
+    isolated_logger.propagate = False
+    isolated_logger.addHandler(logging.NullHandler())
+    monkeypatch.setattr(linebuffer_module, "logger", isolated_logger)
+
     left = linebuffer_module.LineBuffer()
     right = linebuffer_module.LineBuffer()
     left.forward()
@@ -554,6 +559,35 @@ def test_linebuffer_recovery_is_silent_without_logging_configuration(capsys):
     assert captured.out == ""
     assert captured.err == ""
     assert log_message._throttle_state == {}
+
+
+def test_linebuffer_recovery_uses_a_direct_host_handler_without_configuration(monkeypatch):
+    """A caller-owned handler is an explicit opt-in even without library setup."""
+    isolated_logger = logging.Logger("backtrader.linebuffer.direct_host_handler", logging.NOTSET)
+    isolated_logger.propagate = False
+    handler = RecordingHandler()
+    isolated_logger.addHandler(handler)
+    monkeypatch.setattr(linebuffer_module, "logger", isolated_logger)
+
+    left = linebuffer_module.LineBuffer()
+    right = linebuffer_module.LineBuffer()
+    left.forward()
+    left[0] = 1.0
+    right.forward()
+    right[0] = 2.0
+
+    def broken_operation(_left, _right):
+        raise RuntimeError(SECRET)
+
+    operation = linebuffer_module.LinesOperation(left, right, broken_operation)
+    operation.forward()
+    operation.next()
+
+    assert math.isnan(operation.array[operation._idx])
+    assert len(handler.records) == 1
+    assert handler.records[0].levelno == logging.WARNING
+    assert_safe_records(handler)
+    assert len(log_message._throttle_state) == 1
 
 
 class _BatchActionProbe:

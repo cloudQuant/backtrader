@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import fcntl
 import hashlib
 import hmac
 import importlib.metadata
@@ -26,6 +25,11 @@ from dataclasses import asdict, dataclass, is_dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 try:
     from zoneinfo import ZoneInfo
@@ -2638,7 +2642,7 @@ raise SystemExit(0 if result.get("ready") else 3)
 
 
 class AccountLock:
-    """Exclusive local flock so only one writer owns the SimNow account."""
+    """Exclusive non-blocking file lock so only one process owns the SimNow account."""
 
     def __init__(self, path: Path) -> None:
         """Store ``path``; the lock file itself is created lazily on __enter__."""
@@ -2646,23 +2650,43 @@ class AccountLock:
         self.handle = None
 
     def __enter__(self):
-        """Acquire a non-blocking exclusive flock; fail closed if another writer holds it."""
+        """Acquire an exclusive non-blocking lock; fail closed if it cannot be acquired."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.handle = self.path.open("a+", encoding="utf-8")
         try:
-            fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError as exc:
+            if os.name == "nt":
+                # ``msvcrt.locking`` locks a byte range and requires that byte
+                # to exist.  The sentinel stays inside the private lock file.
+                self.handle.seek(0, os.SEEK_END)
+                if self.handle.tell() == 0:
+                    self.handle.write("\0")
+                    self.handle.flush()
+                self.handle.seek(0)
+                msvcrt.locking(self.handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
             self.handle.close()
+            self.handle = None
             raise RunnerConfigurationError(
-                "another local writer owns the SimNow account lock"
+                "could not acquire exclusive local SimNow account lock"
             ) from exc
         return self
 
     def __exit__(self, *_args):
-        """Release the flock and close the handle on context exit."""
-        if self.handle is not None:
-            fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
-            self.handle.close()
+        """Release the platform lock and close the handle on context exit."""
+        handle = self.handle
+        self.handle = None
+        if handle is None:
+            return
+        try:
+            if os.name == "nt":
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        finally:
+            handle.close()
 
 
 class ReplayClock:

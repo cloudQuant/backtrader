@@ -58,6 +58,27 @@ except Exception:
     assert excepts[0]["disposition"] == "pass"
 
 
+def test_cross_volume_file_uses_normalized_absolute_path(scanner, tmp_path, monkeypatch):
+    source = tmp_path / "outside.py"
+    source.write_text('logger.info("message")\n', encoding="utf-8")
+
+    def cross_volume_relpath(*_args, **_kwargs):
+        raise ValueError("path is on mount 'C:', start on mount 'D:'")
+
+    monkeypatch.setattr(scanner.os.path, "relpath", cross_volume_relpath)
+    excepts, logcalls, prints = scanner.scan_file(str(source))
+
+    assert excepts == []
+    assert prints == []
+    assert logcalls == [
+        {
+            "file": str(source.resolve()).replace(scanner.os.sep, "/"),
+            "line": 1,
+            "level": "info",
+        }
+    ]
+
+
 def test_directory_and_file_order_make_catalogs_reproducible(scanner, tmp_path, monkeypatch):
     package = tmp_path / "package"
     for directory in ("z", "a"):

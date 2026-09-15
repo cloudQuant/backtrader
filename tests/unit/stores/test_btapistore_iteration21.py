@@ -1291,7 +1291,10 @@ def test_bounded_read_only_metadata_probe_times_out_without_concurrent_close(
         with pytest.raises(BtApiStoreError, match="bounded read-only metadata probe timed out"):
             store.run_bounded_read_only_metadata_probe(
                 datanames=(SYMBOL,),
-                timeout_seconds=0.01,
+                # Give the new worker enough scheduling time under the full
+                # xdist gate to enter the real metadata call before its
+                # deliberately blocked read exceeds the deadline.
+                timeout_seconds=0.5,
             )
 
         api = MetadataProbeTypedSdk.instances[-1]

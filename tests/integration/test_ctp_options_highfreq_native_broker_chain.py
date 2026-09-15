@@ -18,6 +18,7 @@ from __future__ import annotations
 import collections
 import copy
 import importlib
+import logging
 import socket
 from typing import Any, Mapping
 
@@ -106,10 +107,35 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
         return reject
 
+    # Keep the recovery diagnostic path active while preventing a host-owned
+    # transport handler from being mistaken for test traffic.
+    for module in (
+        importlib.import_module(BtApiStore.__module__),
+        importlib.import_module(BtApiBroker.__module__),
+    ):
+        isolated_logger = logging.Logger(f"{module.__name__}.network_guard", logging.NOTSET)
+        isolated_logger.propagate = False
+        isolated_logger.addHandler(logging.NullHandler())
+        monkeypatch.setattr(module, "logger", isolated_logger)
+
+    original_socket = socket.socket
+
+    class ForbiddenSocket(original_socket):
+        """Portable test-only socket factory that denies direct socket use."""
+
+        def connect(self, *_args: Any, **_kwargs: Any) -> None:
+            return blocked("socket.socket.connect")(*_args, **_kwargs)
+
+        def connect_ex(self, *_args: Any, **_kwargs: Any) -> None:
+            return blocked("socket.socket.connect_ex")(*_args, **_kwargs)
+
+        def sendto(self, *_args: Any, **_kwargs: Any) -> None:
+            return blocked("socket.socket.sendto")(*_args, **_kwargs)
+
     monkeypatch.setattr(socket, "create_connection", blocked("socket.create_connection"))
-    monkeypatch.setattr(socket.socket, "connect", blocked("socket.socket.connect"))
-    monkeypatch.setattr(socket.socket, "connect_ex", blocked("socket.socket.connect_ex"))
-    monkeypatch.setattr(socket.socket, "sendto", blocked("socket.socket.sendto"))
+    monkeypatch.setattr(socket, "socket", ForbiddenSocket)
+    if hasattr(socket, "SocketType"):
+        monkeypatch.setattr(socket, "SocketType", ForbiddenSocket)
     yield attempts
     assert attempts == []
 

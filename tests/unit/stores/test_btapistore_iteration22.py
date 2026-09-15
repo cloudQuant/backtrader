@@ -132,11 +132,7 @@ class CompleteQueryClient(FakeBtApiClient):
             "account_fingerprint": "acct-sha256",
             "started_at_utc": self.started_at_override.get(name, now.isoformat()),
             "completed_at_utc": (
-                self.completed_at_override.get(
-                    name, (now + dt.timedelta(microseconds=1)).isoformat()
-                )
-                if complete
-                else None
+                self.completed_at_override.get(name, now.isoformat()) if complete else None
             ),
             "is_last_seen": complete,
             "error_code": None,
@@ -3997,6 +3993,25 @@ def test_ctp_bundle_query_time_rejects_monotonic_receive_rollback():
     )
 
     assert "account_received_monotonic_before_request" in errors
+
+
+def test_ctp_bundle_query_time_accepts_equal_wall_clock_boundaries():
+    """A coarse host clock may sample every request boundary in one tick."""
+    base = dt.datetime(2026, 9, 11, tzinfo=dt.timezone.utc)
+
+    errors = BtApiStore._ctp_bundle_query_time_errors(
+        {
+            "started_at_utc": base,
+            "completed_at_utc": base,
+            "requested_monotonic": 20.0,
+            "received_monotonic": 20.0,
+        },
+        label="account",
+        requested_at_utc=base,
+        received_at_utc=base,
+    )
+
+    assert errors == []
 
 
 def test_ctp_bundle_arm_requires_opaque_public_sdk_authorization():

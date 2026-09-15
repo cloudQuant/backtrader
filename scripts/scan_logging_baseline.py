@@ -38,7 +38,13 @@ EXEMPT_PRINT_PREFIXES = ("bokeh", "plot")
 
 
 def relpath(path):
-    return os.path.relpath(path, os.path.dirname(PACKAGE_ROOT)).replace(os.sep, "/")
+    try:
+        return os.path.relpath(path, os.path.dirname(PACKAGE_ROOT)).replace(os.sep, "/")
+    except ValueError:
+        # Windows cannot make a relative path between drives.  Keep the
+        # catalog usable for an externally located file while normalizing its
+        # separator like ordinary package-relative entries.
+        return os.path.abspath(path).replace(os.sep, "/")
 
 
 def caught_names(handler):

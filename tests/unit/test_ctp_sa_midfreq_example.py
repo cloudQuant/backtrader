@@ -2624,6 +2624,48 @@ def test_shadow_full_network_run_holds_account_lock_before_store_start(monkeypat
     ]
 
 
+def test_account_lock_is_nonblocking_across_processes_and_releases(tmp_path):
+    """The account lock rejects a second process, then permits a later owner."""
+
+    path = tmp_path / "state" / "writer.lock"
+    child_probe = """
+import importlib.util
+import sys
+from pathlib import Path
+
+example = Path(sys.argv[1])
+sys.path.insert(0, str(example))
+spec = importlib.util.spec_from_file_location("account_lock_probe", example / "run.py")
+module = importlib.util.module_from_spec(spec)
+assert spec is not None and spec.loader is not None
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+try:
+    with module.AccountLock(Path(sys.argv[2])):
+        pass
+except module.RunnerConfigurationError:
+    raise SystemExit(0)
+raise SystemExit(1)
+"""
+
+    with runner.AccountLock(path) as first:
+        assert first.handle is not None
+        blocked = subprocess.run(
+            [sys.executable, "-c", child_probe, str(EXAMPLE), str(path)],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        assert blocked.returncode == 0, blocked.stderr
+
+    assert first.handle is None
+    with runner.AccountLock(path) as second:
+        assert second.handle is not None
+    assert second.handle is None
+
+
 def test_run_network_records_calendar_gate_in_failure_evidence(monkeypatch, tmp_path):
     """A missing authoritative calendar is a G3 block, not a generic failure."""
 

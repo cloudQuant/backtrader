@@ -33,7 +33,7 @@ def test_fingerprint_probe_mutates_only_snapshot_and_rejects_missing_files(tmp_p
 def test_split_files_retain_core_risk_ownership_and_independent_manifest_coverage():
     for path in [*probe.SPLIT_FILES, "backtrader/_cerebro/future_loop.py"]:
         assert classify_risk([path]) == "R2"
-    ownership = (probe.REPO / ".github/CODEOWNERS").read_text()
+    ownership = (probe.REPO / ".github/CODEOWNERS").read_text(encoding="utf-8")
     matches = [line.split() for line in ownership.splitlines() if line.startswith("/backtrader/")]
     facade_owner = next(parts[1:] for parts in matches if parts[0] == "/backtrader/cerebro.py")
     mixin_owner = next(parts[1:] for parts in matches if parts[0] == "/backtrader/_cerebro/")
@@ -42,7 +42,7 @@ def test_split_files_retain_core_risk_ownership_and_independent_manifest_coverag
         "run_iter27_hf_t1_independent_acceptance.py",
         "run_iter27_fq3_independent_acceptance.py",
     ):
-        tree = ast.parse((probe.REPO / "scripts" / script).read_text())
+        tree = ast.parse((probe.REPO / "scripts" / script).read_text(encoding="utf-8"))
         paths = {
             node.args[0].value
             for node in ast.walk(tree)
