@@ -126,7 +126,6 @@ class RunNextMixin:
             else:
                 single_runstrat = None
                 single_runstrat_next = None
-                single_runstrat_next_open = None
             idle_notifiers = tuple(
                 strat.notify_idle
                 for strat in runstrats
@@ -164,7 +163,6 @@ class RunNextMixin:
             )
             if default_broker_notifications:
                 broker_notifications = broker.notifs
-                broker_get_notification = None
             else:
                 broker_notifications = None
                 broker_get_notification = broker.get_notification
@@ -237,7 +235,6 @@ class RunNextMixin:
                 strat_next = single_runstrat.next
                 strat_nextstart = single_runstrat.nextstart
                 strat_prenext = single_runstrat.prenext
-                strat_clear = single_runstrat.clear
                 while True:
                     if not data0_direct_load():
                         break
@@ -283,10 +280,6 @@ class RunNextMixin:
                             strat_nextstart()
                         else:
                             strat_prenext()
-                        if strat_orderspending or strat_tradespending:
-                            strat_clear()
-                            strat_orderspending = single_runstrat._orderspending
-                            strat_tradespending = single_runstrat._tradespending
                     if self._event_stop:
                         return
 
