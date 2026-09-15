@@ -12,14 +12,17 @@ from __future__ import annotations
 
 import collections
 import datetime as dt
+import http.client
 import importlib
 import logging
 import socket
+import urllib.request
 from dataclasses import replace
 from typing import Any, Mapping
 
 import backtrader as bt
 import pytest
+import requests
 
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.events import TickEvent
@@ -73,24 +76,27 @@ def forbid_network(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         isolated_logger.addHandler(logging.NullHandler())
         monkeypatch.setattr(module, "logger", isolated_logger)
 
-    original_socket = socket.socket
-
-    class ForbiddenSocket(original_socket):
-        """Portable test-only socket factory that denies direct socket use."""
-
-        def connect(self, *_args: Any, **_kwargs: Any) -> None:
-            return blocked("socket.socket.connect")(*_args, **_kwargs)
-
-        def connect_ex(self, *_args: Any, **_kwargs: Any) -> None:
-            return blocked("socket.socket.connect_ex")(*_args, **_kwargs)
-
-        def sendto(self, *_args: Any, **_kwargs: Any) -> None:
-            return blocked("socket.socket.sendto")(*_args, **_kwargs)
-
-    monkeypatch.setattr(socket, "create_connection", blocked("socket.create_connection"))
-    monkeypatch.setattr(socket, "socket", ForbiddenSocket)
-    if hasattr(socket, "SocketType"):
-        monkeypatch.setattr(socket, "SocketType", ForbiddenSocket)
+    # Do not replace ``socket.socket``: on Windows the Proactor event loop
+    # builds its own local self-pipe with socketpair(), which would turn test
+    # infrastructure into a false CTP-network attempt.  These high-level
+    # egress points are portable, while the supplied finite fake transport and
+    # the blocked Store factories prove this test cannot construct an SDK
+    # client instead.
+    for name in ("create_connection", "getaddrinfo", "gethostbyname", "gethostbyname_ex"):
+        monkeypatch.setattr(socket, name, blocked(f"socket.{name}"))
+    monkeypatch.setattr(http.client.HTTPConnection, "connect", blocked("HTTPConnection.connect"))
+    monkeypatch.setattr(http.client.HTTPSConnection, "connect", blocked("HTTPSConnection.connect"))
+    monkeypatch.setattr(urllib.request, "urlopen", blocked("urllib.request.urlopen"))
+    monkeypatch.setattr(requests.sessions.Session, "request", blocked("requests.Session.request"))
+    store_module = importlib.import_module(BtApiStore.__module__)
+    monkeypatch.setattr(
+        store_module, "_resolve_bt_api_client", blocked("BtApiStore._resolve_bt_api_client")
+    )
+    monkeypatch.setattr(
+        store_module,
+        "_create_ctp_gateway_wrapper_class",
+        blocked("BtApiStore._create_ctp_gateway_wrapper_class"),
+    )
     yield attempts
     assert attempts == []
 

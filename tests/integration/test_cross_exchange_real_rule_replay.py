@@ -90,25 +90,13 @@ def _install_zero_network_and_execution_guards(monkeypatch, runner):
 
         return blocked
 
-    original_socket = socket.socket
-
-    class ForbiddenSocket(original_socket):
-        """Portable test-only socket factory that denies direct socket use."""
-
-        def connect(self, *_args, **_kwargs):
-            return block_network("socket.socket.connect")(*_args, **_kwargs)
-
-        def connect_ex(self, *_args, **_kwargs):
-            return block_network("socket.socket.connect_ex")(*_args, **_kwargs)
-
-        def sendto(self, *_args, **_kwargs):
-            return block_network("socket.socket.sendto")(*_args, **_kwargs)
-
+    # Keep the process-wide socket class intact.  Windows Proactor loops make
+    # a local socketpair for their self-pipe, so replacing it converts asyncio
+    # housekeeping into a false replay-network failure.  The runner's Store,
+    # broker, and order entry points are blocked below; these portable egress
+    # points cover the supported HTTP/DNS paths.
     for name in ("create_connection", "getaddrinfo", "gethostbyname", "gethostbyname_ex"):
         monkeypatch.setattr(socket, name, block_network(f"socket.{name}"))
-    monkeypatch.setattr(socket, "socket", ForbiddenSocket)
-    if hasattr(socket, "SocketType"):
-        monkeypatch.setattr(socket, "SocketType", ForbiddenSocket)
     monkeypatch.setattr(
         http.client.HTTPConnection, "connect", block_network("HTTPConnection.connect")
     )

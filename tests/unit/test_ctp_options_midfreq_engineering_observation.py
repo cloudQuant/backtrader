@@ -39,7 +39,7 @@ LIVE_DOMAIN = "iter24-engineering-live-clock"
 # The real three-feed qcheck path needs enough wall time to receive and seal
 # one bar per leg on slow CI workers.  This test-only budget does not alter the
 # production watchdog or feed scheduling policy.
-LIVE_OBSERVATION_RUN_SECONDS = 2.0
+LIVE_OBSERVATION_RUN_SECONDS = 5.0
 
 
 class FixedLiveClock:
