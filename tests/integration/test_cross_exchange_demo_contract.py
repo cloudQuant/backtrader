@@ -798,10 +798,19 @@ def test_candidate_source_or_config_tamper_stops_before_store(
 
 def test_repository_trust_root_has_expected_fingerprint():
     trust_root = Path(__file__).parents[2] / "examples" / "demo-approval-trust-root.pem"
-    raw = trust_root.read_bytes()
+    # Normalize first so the fixture starts from the committed LF bytes on
+    # every platform; a CRLF checkout must not double-convert the artifact.
+    raw = trust_root.read_bytes().replace(b"\r\n", b"\n")
 
     assert demo_approval._public_key_fingerprint(raw) == demo_approval.APPROVAL_PUBLIC_KEY_SHA256
     assert (
         demo_approval._public_key_fingerprint(raw.replace(b"\n", b"\r\n"))
+        == demo_approval.APPROVAL_PUBLIC_KEY_SHA256
+    )
+    # A checkout that was converted twice (e.g. CRLF materialized as \r\n and
+    # then newline-converted again) yields \r\r\n; the fingerprint must still
+    # match the pinned digest.
+    assert (
+        demo_approval._public_key_fingerprint(raw.replace(b"\n", b"\r\r\n"))
         == demo_approval.APPROVAL_PUBLIC_KEY_SHA256
     )

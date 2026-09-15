@@ -641,10 +641,11 @@ def _public_key_fingerprint(raw: bytes) -> str:
 
     Git may materialize a text PEM with CRLF on Windows even though the
     committed artifact uses LF.  That representation contains the same public
-    key, so normalize only CRLF line endings before checking the pinned digest.
+    key, so strip every carriage return (including doubled ``\\r\\r\\n``
+    produced by repeated newline conversion) before checking the pinned digest.
     """
 
-    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
+    return hashlib.sha256(raw.replace(b"\r", b"")).hexdigest()
 
 
 def _verify_candidate_evidence(candidate: Mapping) -> dict:
