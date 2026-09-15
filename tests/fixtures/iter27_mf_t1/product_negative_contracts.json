@@ -1,0 +1,402 @@
+{
+  "schema_version": "backtrader.iter27.mf-t1-product-negative-contracts.v1",
+  "contracts": {
+    "S01-MALFORMED-MONOTONIC-NS": {
+      "expected_use_count": 4,
+      "expected": {
+        "code": null,
+        "exception_class": "TimingContractError",
+        "kind": "exception",
+        "message": "monotonic_ns must be a non-negative integer nanosecond value",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      }
+    },
+    "S01-CLOCK-UNTRUSTED": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "CLOCK_UNTRUSTED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-COMPLETE-MISSING-Z": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "HOLD_MINIMUM_NOT_REACHED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-FACTS-UNTRUSTED": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EXECUTION_FACTS_UNTRUSTED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-MINUTE-BARRIER-REJECTED": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "MINUTE_BARRIER_REJECTED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-MINUTE-BEFORE-START": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "MINUTE_NOT_STARTED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-MINUTE-FOREIGN-SYMBOLS": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "MINUTE_FOREIGN_SYMBOLS",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-MINUTE-FUTURE-END": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "MINUTE_NOT_CLOSED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-PROVENANCE-CLOCK-UNKNOWN": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EVIDENCE_PROVENANCE_INVALID",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-PROVENANCE-FACTS-UNKNOWN": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EVIDENCE_PROVENANCE_INVALID",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-PROVENANCE-MAPPING-UNKNOWN": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EVIDENCE_PROVENANCE_INVALID",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S01-FACTS-EXPIRED": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EXECUTION_FACTS_EXPIRED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "HANDOVER",
+        "token_is_none": true
+      }
+    },
+    "S01-FACTS-MISSING-EXPIRY": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EXECUTION_FACTS_EXPIRED",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "HANDOVER",
+        "token_is_none": true
+      }
+    },
+    "S05-EVENT-FUTURE": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EXECUTION_EVENT_FUTURE",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "HANDOVER",
+        "token_is_none": true
+      }
+    },
+    "S05-EVENT-FOREIGN-LEG": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EXECUTION_EVENT_FOREIGN_LEG",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "HANDOVER",
+        "token_is_none": true
+      }
+    },
+    "S05-EVENT-UNKNOWN-SOURCE": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EVIDENCE_PROVENANCE_INVALID",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "NONE",
+        "token_is_none": true
+      }
+    },
+    "S05-FILL-BEFORE-EXPOSURE": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "COMPLETE_FILL_PRECEDES_EXPOSURE",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "HANDOVER",
+        "token_is_none": true
+      }
+    },
+    "S05-FLAT-WITH-CONFIRMED-FILL": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": null,
+        "exception_class": "TimingContractError",
+        "kind": "exception",
+        "message": "FLAT_VERIFIED is incompatible with unknown possible exposure",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      }
+    },
+    "S05-SAME-EVENT-CONFLICT-ACROSS-SNAPSHOTS": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EXECUTION_FACTS_VERSION_CONFLICT",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "HANDOVER",
+        "token_is_none": true
+      }
+    },
+    "S05-SAME-VERSION-CONFLICT": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "EXECUTION_FACTS_VERSION_CONFLICT",
+        "exception_class": null,
+        "kind": "projection",
+        "message": null,
+        "normal_exit_allowed": false,
+        "risk_action": "HANDOVER",
+        "token_is_none": true
+      },
+      "surface": "execution_timing.TimingProjector.consume_minute"
+    },
+    "S05-DUPLICATE-EVENT-FINGERPRINT": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": null,
+        "exception_class": "TimingContractError",
+        "kind": "exception",
+        "message": "contradictory duplicate execution event",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "execution_timing.ExecutionFacts"
+    },
+    "S06-TIMING-LEG-TIMEOUT-CAP": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "TIMING_LEG_TIMEOUT",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing leg timeout may not exceed five seconds",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-BASKET-TIMEOUT-CAP": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "TIMING_BASKET_TIMEOUT",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing basket timeout may not exceed fifteen seconds",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-CANCEL-TIMEOUT-CAP": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "TIMING_CANCEL_TIMEOUT",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing cancel timeout may not exceed five seconds",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-RECOVERY-TIMEOUT-CAP": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "TIMING_RECOVERY_TIMEOUT",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing recovery timeout may not exceed sixty seconds",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-MINIMUM-HOLD-FLOOR": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "TIMING_MIN_HOLD",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing minimum hold cannot be shortened",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-MAXIMUM-HOLD-CAP": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "TIMING_MAX_HOLD",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing maximum hold cannot be extended",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-IDLE-INTERVAL-CAP": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "TIMING_IDLE_INTERVAL",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing idle interval may not exceed 250ms",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-LEG-TIMEOUT-BOOL": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "CONFIG_RANGE",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing.leg_timeout_seconds must be a positive integer",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-LEG-TIMEOUT-STRING": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "CONFIG_RANGE",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing.leg_timeout_seconds must be a positive integer",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-MINIMUM-HOLD-NAN": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "CONFIG_RANGE",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing.minimum_hold_seconds must be a positive integer",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    },
+    "S06-TIMING-UNKNOWN-KEY": {
+      "expected_use_count": 1,
+      "expected": {
+        "code": "CONFIG_SCHEMA",
+        "exception_class": "ConfigurationError",
+        "kind": "exception",
+        "message": "timing has unknown keys ['extra'] or missing keys []",
+        "normal_exit_allowed": null,
+        "risk_action": null,
+        "token_is_none": null
+      },
+      "surface": "ctp_options_midfreq_strategy.validate_config"
+    }
+  }
+}

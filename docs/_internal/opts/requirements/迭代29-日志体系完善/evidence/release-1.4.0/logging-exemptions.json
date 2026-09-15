@@ -1,0 +1,779 @@
+{
+  "schema_version": 1,
+  "review_status": "STATIC_EXEMPTION_REVIEW_COMPLETE_FOUR_FILE_SCOPE_SUPERSEDED",
+  "generated_at_utc": "2026-09-15T02:19:37.950498+00:00",
+  "repo_root": "/Users/yunjinqi/Documents/new_projects/backtrader",
+  "head": "404383b7e92690374f33563e90c70497c98860b9",
+  "scope": "逐条静态读取当前源码；不改源码、不运行测试。豁免仅解释本异常分支不调用 logger 的理由，不豁免后续真实业务错误，也不证明故障时日志必然持久化。",
+  "catalog_file": "/tmp/backtrader-release140.zbR30K/logging-catalog-final/excepts.json",
+  "catalog_sha256": "c8d00a1b50cb5dc94704d5f39f71d8268042e7553fe2f03d5a0224e27cf8739d",
+  "counts": {
+    "broad_exception": 23,
+    "additional_narrow": 18,
+    "distinct_reviewed": 41,
+    "unlogged_pass_continue_raise_total": 32,
+    "broad_within_pass_continue_raise": 14,
+    "broad_categories": {
+      "sdk_diagnostic_guard": 3,
+      "hot_protocol": 7,
+      "sdk_redaction_guard": 1,
+      "logging_internal": 3,
+      "logging_cleanup": 5,
+      "logging_configuration": 1,
+      "logging_write_guard": 2,
+      "logging_backend_probe": 1
+    }
+  },
+  "source_files": {
+    "backtrader/bokeh/tab.py": "5141ca7a5b54a43ea0d6183abd62b654c8c785bac55ee50de32492dc11c43c38",
+    "backtrader/brokers/btapibroker.py": "9a413b8c4dee3db3f7e825424246ba37f5d68c6fa97e4623b22dee737a0d524a",
+    "backtrader/feeds/btapifeed.py": "5e4832c355009e01805255e210751ffeb06b4e38374ea0cafcf24ed4d56f3f52",
+    "backtrader/feeds/yahoo.py": "d833d420b802a9a13434b8b554903839354896541f828ad6792f76a0d8e68289",
+    "backtrader/linebuffer.py": "25c6c6eccd3bcd8b52eb83fbb79eb7d77cb43f108a7e3de901ba02759aa5efb4",
+    "backtrader/lineiterator.py": "c43e277f6d74296dc32ef6d79dd382ff11c653019835f1d281eb0a305bd480a1",
+    "backtrader/metabase.py": "d28e098e66891b0a9cd55e3857030e23d24f1df5cfb80371d9a666bfcb865a8d",
+    "backtrader/plot/__init__.py": "2810c46ddcb78c411770a53998a96abba4cd71ff87ee6bbb092e04d63398bb97",
+    "backtrader/stores/btapistore.py": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+    "backtrader/stores/vchartfile.py": "799568271be111b450c1e725f10981ce79e25a85950f493b47c5e3a9817e2e0f",
+    "backtrader/strategy.py": "44226caca3cee9238bc01ad6fc9838fc8f52d1668bf529c5ac29c373833a38f8",
+    "backtrader/utils/log_message.py": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7"
+  },
+  "broad_exemptions": [
+    {
+      "file": "backtrader/brokers/btapibroker.py",
+      "line": 46,
+      "end_line": 49,
+      "source_sha256": "9a413b8c4dee3db3f7e825424246ba37f5d68c6fa97e4623b22dee737a0d524a",
+      "function": "_safe_log",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "sdk_diagnostic_guard",
+      "exemption_reason": "日志器或脱敏步骤已经失败，再次向同一日志器写入会让异常逃逸，阻断经纪商的原控制流。",
+      "existing_observability": "_LOGGING_HEALTH['logging_errors'] 增一；BtApiBroker.get_logging_health() 可读取。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n        # No logging here by design: the sink itself just failed; calling the\n        # logger again would raise before the health counter is incremented.\n        _LOGGING_HEALTH[\"logging_errors\"] += 1"
+    },
+    {
+      "file": "backtrader/feeds/btapifeed.py",
+      "line": 32,
+      "end_line": 35,
+      "source_sha256": "5e4832c355009e01805255e210751ffeb06b4e38374ea0cafcf24ed4d56f3f52",
+      "function": "_safe_log",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "sdk_diagnostic_guard",
+      "exemption_reason": "保护行情回调免受日志器或脱敏失败影响；在 except 内重试日志器会中断 Feed 并遗漏健康计数。",
+      "existing_observability": "_LOGGING_HEALTH['logging_errors'] 增一；BtApiFeed.get_logging_health() 可读取。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n        # The sink itself failed. Calling it again would escape this guard\n        # before its health counter is incremented and disrupt feed callbacks.\n        _LOGGING_HEALTH[\"logging_errors\"] += 1"
+    },
+    {
+      "file": "backtrader/linebuffer.py",
+      "line": 2324,
+      "end_line": 2327,
+      "source_sha256": "25c6c6eccd3bcd8b52eb83fbb79eb7d77cb43f108a7e3de901ba02759aa5efb4",
+      "function": "LinesOperation._operand_value",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "hot_protocol",
+      "exemption_reason": "操作数未实现可用长度时，仅跳过可选 minperiod 长度保护；随后仍读取 operand[ago] 或标量值。每样本重复写日志会把正常协议兼容路径放大为风暴。",
+      "existing_observability": "返回实际操作数值；若后续取值本身失败，异常不由本段吞掉。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                # Operand without a usable length; skip the warmup guard.\n                # This optional protocol probe runs per sample, so stay quiet.\n                pass"
+    },
+    {
+      "file": "backtrader/linebuffer.py",
+      "line": 2351,
+      "end_line": 2354,
+      "source_sha256": "25c6c6eccd3bcd8b52eb83fbb79eb7d77cb43f108a7e3de901ba02759aa5efb4",
+      "function": "LinesOperation._next_operand_if_due",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "hot_protocol",
+      "exemption_reason": "clock 或 operand 不支持可比长度时，不能判定已经推进，因此沿原协议调用 operand._next()。本段不是处理业务计算错误。",
+      "existing_observability": "后续 _next() 的推进效果和异常仍对调用方可见；无独立日志或计数。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                # Clock without a comparable length; advance the operand anyway.\n                # This optional protocol probe runs per bar, so stay quiet.\n                pass"
+    },
+    {
+      "file": "backtrader/linebuffer.py",
+      "line": 2440,
+      "end_line": 2443,
+      "source_sha256": "25c6c6eccd3bcd8b52eb83fbb79eb7d77cb43f108a7e3de901ba02759aa5efb4",
+      "function": "LinesOperation._next",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "hot_protocol",
+      "exemption_reason": "LinesOperation 的可选时钟去重探针失败时，继续原有操作数推进、advance、next 与绑定更新；逐 bar 日志无额外决策价值。",
+      "existing_observability": "运算线和 bindings 的值仍更新；后续执行失败不在此 except 内。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                # Clock without a comparable length; proceed to advance operands.\n                # This optional protocol probe runs per bar, so stay quiet.\n                pass"
+    },
+    {
+      "file": "backtrader/lineiterator.py",
+      "line": 95,
+      "end_line": 98,
+      "source_sha256": "c43e277f6d74296dc32ef6d79dd382ff11c653019835f1d281eb0a305bd480a1",
+      "function": "_lineaction_source_clock.finish",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "hot_protocol",
+      "exemption_reason": "对象使用 __slots__ 或禁止写属性时不能保存时钟缓存；已算出的 result 仍返回，缓存写入不属于计算正确性的必要条件。",
+      "existing_observability": "返回已解析的 source clock；不支持缓存仅影响后续重新解析，没有单独错误计数。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                # Object rejects attribute caching (e.g. __slots__); skip caching.\n                # Unsupported caching is a normal per-bar protocol fallback.\n                pass"
+    },
+    {
+      "file": "backtrader/lineiterator.py",
+      "line": 1916,
+      "end_line": 1919,
+      "source_sha256": "c43e277f6d74296dc32ef6d79dd382ff11c653019835f1d281eb0a305bd480a1",
+      "function": "LineIterator._next",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "hot_protocol",
+      "exemption_reason": "数据和时钟没有可比长度时跳过去重判断，继续 data._next()；这是逐 bar 的可选协议回退。",
+      "existing_observability": "数据继续推进，后续 _next() 的异常和结果保持可见。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                    # Clock/data without comparable length; fall through and advance.\n                    # Optional length probes run per bar and are intentionally quiet.\n                    pass"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 85,
+      "end_line": 87,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "_redact_diagnostic",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "sdk_redaction_guard",
+      "exemption_reason": "无法安全复制未知供应商对象时只返回类型名称；不能调用任意 repr，也不能在脱敏失败中再次触发日志或原始载荷格式化。",
+      "existing_observability": "调用方收到安全的 type(value).__name__ 替代值；无专门失败计数。外层 _safe_log 对诊断失败另有计数。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n        # Redaction must not invoke a sink while handling an unsafe object.\n        return type(value).__name__"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 94,
+      "end_line": 97,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "_safe_log",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "sdk_diagnostic_guard",
+      "exemption_reason": "日志器或脱敏步骤已经失败，重复记录会把观测故障带入 Store 的命令、行情或风控控制流。",
+      "existing_observability": "_LOGGING_HEALTH['logging_errors'] 增一，并进入 Store 命令健康报告 logging_errors 字段。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n        # No logging here by design: the sink itself just failed; calling the\n        # logger again would raise before the health counter is incremented.\n        _LOGGING_HEALTH[\"logging_errors\"] += 1"
+    },
+    {
+      "file": "backtrader/strategy.py",
+      "line": 665,
+      "end_line": 670,
+      "source_sha256": "44226caca3cee9238bc01ad6fc9838fc8f52d1668bf529c5ac29c373833a38f8",
+      "function": "Strategy._next_strategy_lineactions",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "continue",
+      "category": "hot_protocol",
+      "exemption_reason": "已到当前时钟位置但缓冲区此索引尚未就绪时，跳过当前 LineAction；这是已有暖机/缓冲探针，每 bar 重复告警无益。",
+      "existing_observability": "本次不推进该 LineAction；250 次空缓冲回归断言推进次数为零且无日志。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B112\n                            # Per-bar hot path: the line buffer may not be\n                            # populated yet for this index. Skipping is the\n                            # intended behaviour; logging here would fire every\n                            # bar. No control-flow change.\n                            continue"
+    },
+    {
+      "file": "backtrader/strategy.py",
+      "line": 675,
+      "end_line": 678,
+      "source_sha256": "44226caca3cee9238bc01ad6fc9838fc8f52d1668bf529c5ac29c373833a38f8",
+      "function": "Strategy._next_strategy_lineactions",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "hot_protocol",
+      "exemption_reason": "直接挂在策略上的 LineActions 无法进行时钟或值比较时，沿既有路径回退 lineaction._next()。维持原有带理由的静默协议，不引入每 bar WARNING。",
+      "existing_observability": "后续 _next() 保持执行；250 次时钟不可比回归检查推进次数。该宽捕获的既有范围包含比较与 lineaction.next()，本轮未缩改其业务语义。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                    # Clock/value comparison unavailable; fall back to plain\n                    # _next(). Hot path, intentionally silent (no logging).\n                    pass"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 84,
+      "end_line": 86,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_warn_once",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "logging_internal",
+      "exemption_reason": "固定、脱敏的最后一级 stderr 诊断本身失败；此时没有安全的后备输出，不可递归调用日志器。",
+      "existing_observability": "调用前 _warned_failures 已登记 key；stderr 成功时每 key 一次，stderr 也失败时不保证外部可观察。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n        # No remaining safe diagnostic sink.\n        pass"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 183,
+      "end_line": 187,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_remove_managed_handlers",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "logging_cleanup",
+      "exemption_reason": "重新配置移除 handler 后，关闭可能已关闭或故障的资源属于尽力清理；不能再向正在拆除的 handler 写日志。",
+      "existing_observability": "logger 已移除该 handler，继续处理其余托管 handler；无独立关闭失败计数。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                # Handler may already be closed; closing is best-effort cleanup\n                # during logging reconfiguration. Logging here could recurse\n                # into the handler being torn down, so stay silent.\n                pass"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 194,
+      "end_line": 198,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_close_handler_safely",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "logging_cleanup",
+      "exemption_reason": "handler.close 失败不得替换原配置异常，也不得在新 handler 已安装后阻断 level/backend/config snapshot 提交；不再递归使用待关闭的日志器。",
+      "existing_observability": "_warn_once('handler_close', 固定文本) 提供至多一次 stderr 提示；调用方继续清理或提交配置，提示不包含 handler 或异常载荷。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n        _warn_once(\n            \"handler_close\",\n            \"log handler close failed; further close failures are suppressed\",\n        )"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 330,
+      "end_line": 333,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "configure_logging",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "raise",
+      "category": "logging_configuration",
+      "exemption_reason": "新 handler 构建失败时不应使用尚未安装的日志链重复报告；配置调用方通过重新抛出的异常获知失败，旧 logger 在此阶段尚未替换。",
+      "existing_observability": "原配置异常通过 bare raise 传播；pending handler 逐个经 _close_handler_safely 清理，单个关闭故障不替换原异常，也不阻止其余清理。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n        for handler in pending:\n            _close_handler_safely(handler)\n        raise"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 507,
+      "end_line": 509,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_mp_log_suffix",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "logging_internal",
+      "exemption_reason": "multiprocessing 模块或 parent_process 查询在退出期不可用时，进程识别不应破坏日志关闭；此前已优先检查显式 PID 和 fork PID。",
+      "existing_observability": "返回空 suffix 作为最终兼容回退；没有错误计数。不能据此声称异常环境下仍保证 spawn 文件隔离。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n        # Process detection must not break logging teardown.\n        pass"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 567,
+      "end_line": 570,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_cleanup_retention",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "logging_internal",
+      "exemption_reason": "过期目录清理是附属维护任务，删除失败不应停止回测；该段使用单次 stderr 提示而不是 logger.xxx，所以静态扫描 logged=false 不等于无诊断。",
+      "existing_observability": "_warn_once('retention', 固定文本) 至多提示一次，_RETENTION_WARNED=True；不输出路径载荷或原异常。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # cleanup must never affect trading\n        if not _RETENTION_WARNED:\n            _warn_once(\"retention\", \"log retention cleanup failed\")\n            _RETENTION_WARNED = True"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 620,
+      "end_line": 621,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_DailyLevelFileHandler.emit",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "logging_write_guard",
+      "exemption_reason": "stdlib split handler 轮转或写入失败时不能让异常进入交易回调；通过专门 handleError 处理，而不是再次调用原 logger。",
+      "existing_observability": "_NonFatalHandlerMixin.handleError -> _warn_once('write', 固定文本)，最多一次 stderr 提示；不输出原 record/traceback。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n            self.handleError(record)"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 664,
+      "end_line": 665,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_detect_spdlog",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "logging_backend_probe",
+      "exemption_reason": "可选 spdlog 的导入、能力和临时写入探针允许失败，返回 None 交给配置入口决定降级或拒绝；探针内部不重复写日志。",
+      "existing_observability": "backend='auto' 在 configure_logging 发一次固定降级提示并选择 stdlib；显式 backend='spdlog' 抛 ImportError。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n        return None"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 730,
+      "end_line": 731,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "SpdlogHandler.emit",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "other",
+      "category": "logging_write_guard",
+      "exemption_reason": "spdlog 后端轮转、格式化或写入失败时交给 handleError；重复使用失败的后端会递归或影响业务。",
+      "existing_observability": "_NonFatalHandlerMixin.handleError -> _warn_once('write', 固定文本)，最多一次 stderr 提示；原载荷不进入故障提示。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:\n            self.handleError(record)"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 752,
+      "end_line": 754,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "SpdlogHandler.flush",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "logging_cleanup",
+      "exemption_reason": "spdlog 的 flush 发生在受锁保护的关闭/刷新流程；故障不能递归触发该后端，也不能阻止 finally 释放锁。",
+      "existing_observability": "锁在 finally 释放，调用正常返回；无独立失败计数或落盘保证。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                # Best-effort cleanup only.\n                pass"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 765,
+      "end_line": 767,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "SpdlogHandler.close",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "logging_cleanup",
+      "exemption_reason": "spdlog 的 flush/drop 是尽力资源回收；即使后端失败，仍继续 Python Handler.close 和 finally 释放锁，不通过同一后端记录关闭错误。",
+      "existing_observability": "Handler 关闭状态与锁释放继续完成；无独立失败计数，不保证失败的原生 drop 已完成。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n                    # Best-effort cleanup only.\n                    pass"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 780,
+      "end_line": 782,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "flush_all",
+      "types": [
+        "Exception"
+      ],
+      "disposition": "pass",
+      "category": "logging_cleanup",
+      "exemption_reason": "flush_all 对每个框架托管 handler 做尽力刷新；单一 flush 故障不应阻止其他 handler 的刷新或退出流程，也不应递归使用失败日志器。",
+      "existing_observability": "继续刷新后续 handler；无独立失败计数，也不保证故障发生时数据已持久化。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except Exception:  # nosec B110\n            # Best-effort cleanup only.\n            pass"
+    }
+  ],
+  "narrow_classifications": [
+    {
+      "file": "backtrader/bokeh/tab.py",
+      "line": 32,
+      "end_line": 34,
+      "source_sha256": "5141ca7a5b54a43ea0d6183abd62b654c8c785bac55ee50de32492dc11c43c38",
+      "function": "<module>",
+      "types": [
+        "ImportError"
+      ],
+      "disposition": "pass",
+      "category": "optional_import",
+      "exemption_reason": "Bokeh 不存在时保持可选绘图能力关闭，不影响核心回测导入。",
+      "existing_observability": "BOKEH_AVAILABLE 保持 False；此 import 路径不发日志。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except ImportError:\n            # Bokeh not installed (optional dependency); BOKEH_AVAILABLE stays False.\n            pass"
+    },
+    {
+      "file": "backtrader/brokers/btapibroker.py",
+      "line": 885,
+      "end_line": 887,
+      "source_sha256": "9a413b8c4dee3db3f7e825424246ba37f5d68c6fa97e4623b22dee737a0d524a",
+      "function": "BtApiBroker._normalise_startup_account_state",
+      "types": [
+        "KeyError"
+      ],
+      "disposition": "continue",
+      "category": "structured_validation",
+      "exemption_reason": "启动账户证据中缺少必需字段时汇总所有缺失项，而不是每字段重复告警。",
+      "existing_observability": "missing 列表转为 malformed 的 missing_<key> 条目，进入验证证据。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except KeyError:\n                missing.append(key)\n                continue"
+    },
+    {
+      "file": "backtrader/feeds/yahoo.py",
+      "line": 280,
+      "end_line": 286,
+      "source_sha256": "d833d420b802a9a13434b8b554903839354896541f828ad6792f76a0d8e68289",
+      "function": "YahooFinanceData.start_v7",
+      "types": [
+        "ImportError"
+      ],
+      "disposition": "raise",
+      "category": "optional_import",
+      "exemption_reason": "仅实际使用 Yahoo v7 Feed 才需要 requests；缺失依赖通过带安装说明的 ImportError 报告，不重复日志。",
+      "existing_observability": "调用方获得明确缺失依赖的 ImportError。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except ImportError:\n            msg = (\n                \"The new Yahoo data feed requires to have the requests \"\n                \"module installed. Please use pip install requests or \"\n                \"the method of your choice\"\n            )\n            raise ImportError(msg) from None"
+    },
+    {
+      "file": "backtrader/lineiterator.py",
+      "line": 47,
+      "end_line": 50,
+      "source_sha256": "c43e277f6d74296dc32ef6d79dd382ff11c653019835f1d281eb0a305bd480a1",
+      "function": "_clock_is_replaying",
+      "types": [
+        "AttributeError"
+      ],
+      "disposition": "pass",
+      "category": "narrow_protocol",
+      "exemption_reason": "普通对象没有 replaying 可选标志是正常情况，继续查 source clock 和 datas；每 bar 缺失属性不应记录。",
+      "existing_observability": "最终 replay 布尔值可观察；slots/普通 clock 的250次回归验证无日志。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except AttributeError:\n        # Non-clock object without a usable 'replaying' flag; treat as not replaying.\n        # Missing optional flags are ordinary per-bar protocol probes.\n        pass"
+    },
+    {
+      "file": "backtrader/lineiterator.py",
+      "line": 83,
+      "end_line": 85,
+      "source_sha256": "c43e277f6d74296dc32ef6d79dd382ff11c653019835f1d281eb0a305bd480a1",
+      "function": "_lineaction_source_clock",
+      "types": [
+        "AttributeError"
+      ],
+      "disposition": "pass",
+      "category": "narrow_protocol",
+      "exemption_reason": "时钟缓存首次未建立或对象不支持缓存时，直接进入实际解析；缓存缺失不代表运行失败。",
+      "existing_observability": "返回解析结果，支持缓存时后续写入；不支持缓存路径另有明确豁免。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except AttributeError:\n            # Cache not populated yet; resolve below (hot path: no logging).\n            pass"
+    },
+    {
+      "file": "backtrader/metabase.py",
+      "line": 1159,
+      "end_line": 1181,
+      "source_sha256": "d28e098e66891b0a9cd55e3857030e23d24f1df5cfb80371d9a666bfcb865a8d",
+      "function": "ParamsMixin.__init_subclass__.patched_init",
+      "types": [
+        "TypeError"
+      ],
+      "disposition": "raise",
+      "category": "constructor_dispatch",
+      "exemption_reason": "构造工厂用 TypeError 区分自身缺少位置参数和内部真实错误；自身签名缺参时按原参数重试，其他错误直接重新抛出，框架再记录会重复报告。",
+      "existing_observability": "构造成功结果或原 TypeError 向调用者传播；未把内部错误统一吞掉。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except TypeError as e:\n                    # Check if the error is about THIS class's __init__, not an internal call\n                    # If the error mentions a different class name, it's from an internal call - re-raise it\n                    error_str = str(e)\n                    class_name = self.__class__.__name__\n\n                    # If error mentions a different class, it's from internal code - re-raise\n                    if \".__init__()\" in error_str:\n                        # Extract the class name from error message like \"SomeClass.__init__() ...\"\n                        import re\n\n                        match = re.search(r\"(\\w+)\\.__init__\\(\\)\", error_str)\n                        if match and match.group(1) != class_name:\n                            # Error is about a different class (internal call) - re-raise\n                            raise\n\n                    # If that failed, check if it's because THIS class needs positional arguments\n                    if \"missing\" in error_str and \"required positional argument\" in error_str:\n                        # This class needs positional args (like _LineDelay, LinesOperation)\n                        # Pass all args - they're needed\n                        return original_init(self, *args, **other_kwargs)\n                    # Different error - re-raise it\n                    raise"
+    },
+    {
+      "file": "backtrader/plot/__init__.py",
+      "line": 24,
+      "end_line": 25,
+      "source_sha256": "2810c46ddcb78c411770a53998a96abba4cd71ff87ee6bbb092e04d63398bb97",
+      "function": "_load_matplotlib_plotter",
+      "types": [
+        "ImportError"
+      ],
+      "disposition": "raise",
+      "category": "optional_import",
+      "exemption_reason": "延迟加载 Matplotlib，缺失时仅绘图调用失败；无需污染核心库导入日志。",
+      "existing_observability": "调用方获得 Matplotlib 缺失的 ImportError。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except ImportError:\n        raise ImportError(\"Matplotlib seems to be missing. Needed for plotting support\") from None"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 6080,
+      "end_line": 6087,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._execute_sdk_command",
+      "types": [
+        "CancelledError"
+      ],
+      "disposition": "raise",
+      "category": "cancellation",
+      "exemption_reason": "CancelledError 是协程取消控制信号；先解除对应 pending 标志，再原样传播，不能改成一般 SDK 错误或吞掉。",
+      "existing_observability": "pending 状态完成清理，任务保持取消/异常传播。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except asyncio.CancelledError:\n            with self._command_condition:\n                if operation == \"execution_recovery_complete\":\n                    self._clear_recovery_completion_pending_locked(command.get(\"receipt_id\"))\n                if operation == \"account_risk\":\n                    with self._account_risk_lock:\n                        self._account_risk_refresh_pending = False\n            raise"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 6406,
+      "end_line": 6408,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._sdk_execution_evidence",
+      "types": [
+        "BtApiStoreError"
+      ],
+      "disposition": "continue",
+      "category": "structured_validation",
+      "exemption_reason": "每 venue 身份验证失败集中进入 errors，继续汇总其他 venue，避免字段级/venue级日志风暴。",
+      "existing_observability": "errors 中保留 venue 与已验证错误，供后续 SDK execution evidence 判定；不是无记录忽略。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except BtApiStoreError as exc:\n                errors.append(f\"{venue}:{exc}\")\n                continue"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 10665,
+      "end_line": 10667,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._ctp_monotonic_clock_errors",
+      "types": [
+        "TypeError",
+        "ValueError",
+        "OverflowError"
+      ],
+      "disposition": "continue",
+      "category": "structured_validation",
+      "exemption_reason": "CTP 时钟字段无法转数值时收集确定的字段错误码并继续验证其余字段。",
+      "existing_observability": "errors 追加 <label>_<field>_invalid，最终校验结果可见。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except (TypeError, ValueError, OverflowError):\n                errors.append(f\"{label}_{field}_invalid\")\n                continue"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 10763,
+      "end_line": 10765,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._ctp_bundle_query_time_errors",
+      "types": [
+        "TypeError",
+        "ValueError",
+        "OverflowError"
+      ],
+      "disposition": "continue",
+      "category": "structured_validation",
+      "exemption_reason": "CTP bundle 查询时间字段的数值转换失败以结构化校验错误汇总，避免逐字段日志。",
+      "existing_observability": "errors 追加 <label>_<field>_invalid，最终校验结果可见。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except (TypeError, ValueError, OverflowError):\n                errors.append(f\"{label}_{field}_invalid\")\n                continue"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 12227,
+      "end_line": 12231,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._complete_execution_recovery_locked",
+      "types": [
+        "CancelledError"
+      ],
+      "disposition": "raise",
+      "category": "cancellation",
+      "exemption_reason": "SDK 恢复完成操作取消时必须收回写入授权并保持取消语义，不需要再打印同一错误。",
+      "existing_observability": "_force_sdk_market_data_only('execution_recovery_completion_cancelled', ...) 后重抛 CancelledError。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except asyncio.CancelledError:\n            self._force_sdk_market_data_only(\n                \"execution_recovery_completion_cancelled\", clear_authorization=False\n            )\n            raise"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 14656,
+      "end_line": 14658,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._drain_sdk_events",
+      "types": [
+        "KeyError",
+        "TypeError",
+        "ValueError"
+      ],
+      "disposition": "continue",
+      "category": "structured_drop",
+      "exemption_reason": "单条 orderbook 数据结构或值无效时丢弃该条，保留输入处理循环；使用专门丢弃审计而非再打印载荷。",
+      "existing_observability": "_record_market_drop(event, 'invalid_orderbook_snapshot') 记录丢弃原因。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except (KeyError, TypeError, ValueError):\n                            self._record_market_drop(event, \"invalid_orderbook_snapshot\")\n                            continue"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 14696,
+      "end_line": 14698,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._drain_sdk_events",
+      "types": [
+        "TypeError",
+        "ValueError"
+      ],
+      "disposition": "continue",
+      "category": "structured_drop",
+      "exemption_reason": "单条 tick 数值或类型无效时继续处理后续事件，通过专门丢弃审计可观察。",
+      "existing_observability": "_record_market_drop(event, 'invalid_tick') 记录丢弃原因。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except (TypeError, ValueError):\n                            self._record_market_drop(event, \"invalid_tick\")\n                            continue"
+    },
+    {
+      "file": "backtrader/stores/btapistore.py",
+      "line": 14912,
+      "end_line": 14914,
+      "source_sha256": "d2cb0234ca2ad45ff4385083349269be4b8a52bf5d6d40616d0b4497efaa11c6",
+      "function": "BtApiStore._ensure_api_ready",
+      "types": [
+        "BtApiStoreError"
+      ],
+      "disposition": "raise",
+      "category": "cleanup_reraise",
+      "exemption_reason": "CTP session 事件生成失败时先撤销 connected 状态，再把原 Store 错误交给调用方；框架层不重复诊断。",
+      "existing_observability": "self._connected=False，原 BtApiStoreError 重抛。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except BtApiStoreError:\n                self._connected = False\n                raise"
+    },
+    {
+      "file": "backtrader/stores/vchartfile.py",
+      "line": 70,
+      "end_line": 72,
+      "source_sha256": "799568271be111b450c1e725f10981ce79e25a85950f493b47c5e3a9817e2e0f",
+      "function": "VChartFile._find_vchart",
+      "types": [
+        "OSError"
+      ],
+      "disposition": "continue",
+      "category": "optional_discovery",
+      "exemption_reason": "按 Windows 用户/机器注册表候选路径查找可选 VisualChart 安装；候选键不存在时继续下一位置，不代表核心库故障。",
+      "existing_observability": "返回找到的目录或空字符串。format_exception 返回值未被输出，不能算作已记录日志。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except OSError as e:\n                traceback.format_exception(type(e), e, e.__traceback__)\n                continue"
+    },
+    {
+      "file": "backtrader/stores/vchartfile.py",
+      "line": 77,
+      "end_line": 79,
+      "source_sha256": "799568271be111b450c1e725f10981ce79e25a85950f493b47c5e3a9817e2e0f",
+      "function": "VChartFile._find_vchart",
+      "types": [
+        "OSError"
+      ],
+      "disposition": "continue",
+      "category": "optional_discovery",
+      "exemption_reason": "候选 VisualChart 注册表值不存在时继续搜索另一个根键，属于可选安装自动发现。",
+      "existing_observability": "最终目录或空字符串可观察；format_exception 返回值被丢弃，没有实际 traceback 日志。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except OSError as e:\n                traceback.format_exception(type(e), e, e.__traceback__)\n                continue"
+    },
+    {
+      "file": "backtrader/utils/log_message.py",
+      "line": 558,
+      "end_line": 559,
+      "source_sha256": "cc9aa513ea9a9f4ecf0f41832c20ae2ef3242f0f7a89437f0489c8c1239bacc7",
+      "function": "_cleanup_retention",
+      "types": [
+        "ValueError"
+      ],
+      "disposition": "continue",
+      "category": "narrow_protocol",
+      "exemption_reason": "即使目录名符合数字日期样式，也可能不是有效公历日期；跳过这种目录防止误删非有效日期目录。",
+      "existing_observability": "该目录保持原样，仅删除通过日期验证且超期的本脚本目录。",
+      "review_status": "STATIC_REVIEWED",
+      "test_execution_this_task": "NOT_RUN",
+      "source_excerpt": "except ValueError:\n                continue"
+    }
+  ],
+  "findings": [
+    {
+      "id": "LOG-EX-01",
+      "status": "FIXED_SOURCE_REVIEWED",
+      "file": "backtrader/utils/log_message.py",
+      "original_line": 319,
+      "current_line": 330,
+      "helper_line": 194,
+      "detail": "原 pending/previous handler.close 未受保护，可遮蔽配置原异常或中断状态提交；日志owner新增 _close_handler_safely 并接入两处清理。已只读核对修复源码，故障测试与最终全量结果由主任务单独归档；本文档不代替执行证据。"
+    }
+  ],
+  "four_file_scope_supersession": {
+    "status": "SUPERSEDED_FOR_CURRENT_SOURCE",
+    "scope": [
+      "backtrader/linebuffer.py",
+      "backtrader/lineiterator.py",
+      "backtrader/lineroot.py",
+      "backtrader/lineseries.py"
+    ],
+    "successor_json": "line-system-logger-remediation.json",
+    "successor_markdown": "line-system-logger-remediation.md",
+    "current_source_hashes": {
+      "backtrader/linebuffer.py": "7f182cf61a5e137c3e0dc2504b597b5a6de4f7b5a471df707c2e92c586b1cded",
+      "backtrader/lineiterator.py": "afcf6faa5fbd78952d2a839cb02f1b54d8eb4100ec3af00cf10dab9c9d39641d",
+      "backtrader/lineroot.py": "cb192bf65e1ea4ed28a8ae78b26f953ce32961d91562fffeaff9c48967a30f90",
+      "backtrader/lineseries.py": "492ca9ee5a88057e821e41401d8954a5d5e9a645847ba852553a879875e02249"
+    },
+    "reason": "The historical source_files and narrow_classifications entries in this record are not current proof for these four files after the final logger repair. Use the successor record for current hashes, AST counts, recovery semantics, and focused runtime evidence.",
+    "successor_note": "The successor also records the post-freeze lineiterator lifecycle-capability guard and the separate plot/locator.py Iteration 29 compatibility addendum."
+  }
+}

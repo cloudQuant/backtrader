@@ -6,7 +6,6 @@ which can be converted from/to dates
 """
 
 import datetime
-import traceback
 import warnings
 
 import numpy as np
@@ -18,14 +17,13 @@ from matplotlib.dates import (
 )
 from matplotlib.dates import AutoDateFormatter as ADFormatter
 from matplotlib.dates import AutoDateLocator as ADLocator
-from matplotlib.dates import (
-    MicrosecondLocator,
-)
+from matplotlib.dates import MicrosecondLocator
 from matplotlib.dates import RRuleLocator as RRLocator
-from matplotlib.dates import (
-    num2date,
-    rrulewrapper,
-)
+from matplotlib.dates import num2date, rrulewrapper
+
+from ..utils.log_message import get_logger, throttled_warning
+
+logger = get_logger(__name__)
 
 
 def _idx2dt(idx, dates, tz):
@@ -289,15 +287,25 @@ class AutoDateLocator(ADLocator):
             # try for matplotlib < 3.6.0
             locator.set_view_interval(*self.axis.get_view_interval())
             locator.set_data_interval(*self.axis.get_data_interval())
-        except Exception as e:
-            traceback.format_exception(type(e), e, e.__traceback__)
+        except Exception:
+            throttled_warning(
+                logger,
+                "plot.locator.legacy_interval_api_fallback",
+                "AutoDateLocator legacy interval API unavailable; using axis interval fallback",
+                exc_info=False,
+            )
             try:
                 # try for matplotlib >= 3.6.0
                 self.axis.set_view_interval(*self.axis.get_view_interval())
                 self.axis.set_data_interval(*self.axis.get_data_interval())
                 locator.set_axis(self.axis)
-            except Exception as e:
-                traceback.format_exception(type(e), e, e.__traceback__)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "plot.locator.axis_interval_sync_recovery",
+                    "AutoDateLocator axis interval synchronization failed; retaining locator fallback",
+                    exc_info=False,
+                )
         return locator
 
 

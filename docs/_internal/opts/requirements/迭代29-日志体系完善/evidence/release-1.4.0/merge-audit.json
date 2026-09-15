@@ -1,0 +1,3288 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-09-15",
+  "repository": "/Users/yunjinqi/Documents/new_projects/backtrader",
+  "master": "b418caf7364e1134983a4c4b394768686e1916aa",
+  "dev_committed": "404383b7e92690374f33563e90c70497c98860b9",
+  "branch_boundary_correction": {
+    "promotion": "dev -> development",
+    "master": "NOT_TOUCHED; historical read-only baseline used only for this source comparison.",
+    "applies_to": "Backtrader main repository only; separate SDK repository branch facts remain historical evidence."
+  },
+  "master_unique_count": 62,
+  "dev_unique_count": 1083,
+  "premerge_conflict_count": 284,
+  "merge_tree": "3c1dce65b1177d3d3fff550a6907f4a420a7c03c",
+  "records": [
+    {
+      "sha": "b418caf7364e1134983a4c4b394768686e1916aa",
+      "parents": [
+        "8a71452bf5eb6708c3dd323c3e87ffd432b29149"
+      ],
+      "subject": "Fix stale tick prices for stacked bars",
+      "category": "库行为修复",
+      "disposition": "stacked tick 已在 feed._fromstack(force=True) 和精确成交价回归保留。",
+      "changed_paths": [
+        "README.md",
+        "backtrader/feed.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "8a71452bf5eb6708c3dd323c3e87ffd432b29149",
+      "parents": [
+        "d35750e543a34ae22aea8b5380cc3773add0ad1c"
+      ],
+      "subject": "Allow canceling submitted broker orders",
+      "category": "库行为修复",
+      "disposition": "Submitted/OCO 取消已在现代 BackBroker 和 sibling 回归保留；工具与策略测试保留现代路径。",
+      "changed_paths": [
+        "README.md",
+        "backtrader/brokers/bbroker.py",
+        "scripts/run_strategy_branch_compare.py",
+        "tests/strategies/test_05_stop_order_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_05_stop_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_05_stop_order_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "d35750e543a34ae22aea8b5380cc3773add0ad1c",
+      "parents": [
+        "39cb9531c3083ab7a49576931cd55e3f1b15d121"
+      ],
+      "subject": "Fix check_submitted margin rollback bug",
+      "category": "库行为修复",
+      "disposition": "margin 试算回滚已在现代 BackBroker 和超额单后可负担单回归保留。",
+      "changed_paths": [
+        "backtrader/brokers/bbroker.py",
+        "docs/BUG_CHECK_SUBMITTED_MARGIN_ROLLBACK.md",
+        "tests/add_tests/test_check_submitted_margin_rollback.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "39cb9531c3083ab7a49576931cd55e3f1b15d121",
+      "parents": [
+        "efab731abc82cf7b5d458e58bb043f25452c0a33"
+      ],
+      "subject": "Add TradeLogger observer port and branch compare script",
+      "category": "库功能与工具",
+      "disposition": "TradeLogger 及 strategy/cerebro 转发已在现代版本增强；运行时事件测试存在。",
+      "changed_paths": [
+        "backtrader/cerebro.py",
+        "backtrader/observers/__init__.py",
+        "backtrader/observers/trade_logger.py",
+        "backtrader/strategy.py",
+        "scripts/run_strategy_branch_compare.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "efab731abc82cf7b5d458e58bb043f25452c0a33",
+      "parents": [
+        "c327dc46575ff52d36ea1d46fb1619b912be9c5a"
+      ],
+      "subject": "Fix strategy regression baselines and tooling",
+      "category": "库修复与基线工具",
+      "disposition": "基础 PyFolio 无 empyrical 顶层依赖；扩展报表本次补入。策略基线/工具使用现代 tests/functional、scripts 路径。",
+      "changed_paths": [
+        ".gitignore",
+        "README.en.md",
+        "README.md",
+        "backtrader/analyzers/pyfolio.py",
+        "debug_macd_replay.py",
+        "docs/README.md",
+        "pyproject.toml",
+        "run_master_tests.py",
+        "run_test_with_log.py",
+        "scripts/backtest_strategy_regression_expected.py",
+        "scripts/debug_macd_replay.py",
+        "scripts/profile_performance.py",
+        "scripts/run_all_backtests.py",
+        "scripts/run_master_tests.py",
+        "scripts/run_test_with_log.py",
+        "scripts/sync_and_test.py",
+        "scripts/test_python_versions_simple.bat",
+        "scripts/test_python_versions_simple.sh",
+        "strategies/benchmark_metrics.py",
+        "sync_and_test.py",
+        "test_python_versions_simple.bat",
+        "test_python_versions_simple.sh"
+      ],
+      "modern_same_name_candidates": {
+        "run_test_with_log.py": [
+          "scripts/run_test_with_log.py"
+        ],
+        "strategies/benchmark_metrics.py": [
+          "tests/test_utils/benchmark_metrics.py"
+        ],
+        "sync_and_test.py": [
+          "scripts/sync_and_test.py"
+        ]
+      }
+    },
+    {
+      "sha": "c327dc46575ff52d36ea1d46fb1619b912be9c5a",
+      "parents": [
+        "e05bbcff2193456c6c5005435dca47fcff0b379b"
+      ],
+      "subject": "add new data",
+      "category": "测试数据",
+      "disposition": "保留现代 tests/datas 中相应数据和回归；旧基线数据留历史可追溯。",
+      "changed_paths": [
+        "tests/datas/CFFEX_Futures_Contract_Data.csv",
+        "tests/datas/ChiNext_ETF.csv",
+        "tests/datas/SSE50_ETF.csv"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "e05bbcff2193456c6c5005435dca47fcff0b379b",
+      "parents": [
+        "f121e1765da0200ccb0caf4fe706693d7e053e71"
+      ],
+      "subject": "fix tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_01_premium_rate_strategy.py",
+        "tests/strategies/test_02_multi_extend_data.py",
+        "tests/strategies/test_03_two_ma.py",
+        "tests/strategies/test_04_simple_ma_multi_data.py",
+        "tests/strategies/test_05_stop_order_strategy.py",
+        "tests/strategies/test_06_macd_ema_fase_strategy.py",
+        "tests/strategies/test_07_macd_ema_true_strategy.py",
+        "tests/strategies/test_08_kelter_strategy.py",
+        "tests/strategies/test_09_dual_thrust_strategy.py",
+        "tests/strategies/test_101_rsi_long_short_strategy.py",
+        "tests/strategies/test_102_williams_r_strategy.py",
+        "tests/strategies/test_103_stochastic_strategy.py",
+        "tests/strategies/test_104_cci_strategy.py",
+        "tests/strategies/test_105_donchian_channel_strategy.py",
+        "tests/strategies/test_106_parabolic_sar_strategy.py",
+        "tests/strategies/test_107_trix_strategy.py",
+        "tests/strategies/test_108_keltner_channel_strategy.py",
+        "tests/strategies/test_109_ultimate_oscillator_strategy.py",
+        "tests/strategies/test_10_r_breaker_strategy.py",
+        "tests/strategies/test_110_buy_the_dip_strategy.py",
+        "tests/strategies/test_111_chandelier_exit_strategy.py",
+        "tests/strategies/test_112_macd_rsi_bb_strategy.py",
+        "tests/strategies/test_113_rsi_mtf_strategy.py",
+        "tests/strategies/test_114_supertrend_rsi_strategy.py",
+        "tests/strategies/test_115_volume_breakout_strategy.py",
+        "tests/strategies/test_116_triple_ema_strategy.py",
+        "tests/strategies/test_117_price_channel_strategy.py",
+        "tests/strategies/test_118_data_replay_bollinger.py",
+        "tests/strategies/test_119_data_replay_ema.py",
+        "tests/strategies/test_11_sky_garden_strategy.py",
+        "tests/strategies/test_120_data_replay_macd.py",
+        "tests/strategies/test_12_abberation_strategy.py",
+        "tests/strategies/test_13_fei_strategy.py",
+        "tests/strategies/test_14_hanse123_strategy.py",
+        "tests/strategies/test_15_fenshi_ma_strategy.py",
+        "tests/strategies/test_16_cb_strategy.py",
+        "tests/strategies/test_17_cb_monday_strategy.py",
+        "tests/strategies/test_18_etf_rotation_strategy.py",
+        "tests/strategies/test_19_index_future_momentum.py",
+        "tests/strategies/test_20_arbitrage_strategy.py",
+        "tests/strategies/test_21_the_strategy.py",
+        "tests/strategies/test_22_fear_greed_strategy.py",
+        "tests/strategies/test_23_put_call_strategy.py",
+        "tests/strategies/test_24_vix_strategy.py",
+        "tests/strategies/test_25_abbration_strategy.py",
+        "tests/strategies/test_26_boll_strategy.py",
+        "tests/strategies/test_27_boll_reverser_strategy.py",
+        "tests/strategies/test_28_boll_ema_strategy.py",
+        "tests/strategies/test_29_boll_kdj_strategy.py",
+        "tests/strategies/test_30_macd_kdj_strategy.py",
+        "tests/strategies/test_31_bb_adx_strategy.py",
+        "tests/strategies/test_32_stochastic_sr_strategy.py",
+        "tests/strategies/test_33_btc_sentiment_strategy.py",
+        "tests/strategies/test_34_turtle_strategy.py",
+        "tests/strategies/test_35_sma_cross_signal_strategy.py",
+        "tests/strategies/test_36_macd_atr_strategy.py",
+        "tests/strategies/test_37_bracket_order_strategy.py",
+        "tests/strategies/test_38_long_short_strategy.py",
+        "tests/strategies/test_39_btfd_strategy.py",
+        "tests/strategies/test_40_cheat_on_open_strategy.py",
+        "tests/strategies/test_41_oco_order_strategy.py",
+        "tests/strategies/test_42_stoptrail_strategy.py",
+        "tests/strategies/test_43_order_target_strategy.py",
+        "tests/strategies/test_44_signals_strategy.py",
+        "tests/strategies/test_45_multitrades_strategy.py",
+        "tests/strategies/test_46_pinkfish_strategy.py",
+        "tests/strategies/test_47_slippage_strategy.py",
+        "tests/strategies/test_48_strategy_selection.py",
+        "tests/strategies/test_49_calmar_analyzer.py",
+        "tests/strategies/test_50_vwr_analyzer.py",
+        "tests/strategies/test_51_optimization.py",
+        "tests/strategies/test_52_data_pandas.py",
+        "tests/strategies/test_53_data_resample.py",
+        "tests/strategies/test_54_commission_schemes.py",
+        "tests/strategies/test_55_psar_indicator.py",
+        "tests/strategies/test_56_sizer_test.py",
+        "tests/strategies/test_57_sharpe_timereturn.py",
+        "tests/strategies/test_58_data_replay.py",
+        "tests/strategies/test_59_multidata_strategy.py",
+        "tests/strategies/test_60_writer_test.py",
+        "tests/strategies/test_61_order_close.py",
+        "tests/strategies/test_62_timers.py",
+        "tests/strategies/test_63_pairs_trading_strategy.py",
+        "tests/strategies/test_64_atr_momentum_strategy.py",
+        "tests/strategies/test_65_td_sequential_strategy.py",
+        "tests/strategies/test_66_donchian_channel_strategy.py",
+        "tests/strategies/test_67_two_period_rsi_strategy.py",
+        "tests/strategies/test_68_bollinger_bands_strategy.py",
+        "tests/strategies/test_69_stochastic_cross_strategy.py",
+        "tests/strategies/test_70_keltner_channel_strategy.py",
+        "tests/strategies/test_71_double_sevens_strategy.py",
+        "tests/strategies/test_72_triple_cross_strategy.py",
+        "tests/strategies/test_73_simple_rsi_strategy.py",
+        "tests/strategies/test_74_macd_gradient_strategy.py",
+        "tests/strategies/test_75_extended_cross_strategy.py",
+        "tests/strategies/test_76_heikin_ashi_strategy.py",
+        "tests/strategies/test_77_slope_strategy.py",
+        "tests/strategies/test_78_percent_rank_strategy.py",
+        "tests/strategies/test_79_buy_dip_strategy.py",
+        "tests/strategies/test_80_rsi_dip_buy_strategy.py",
+        "tests/strategies/test_81_supertrend_strategy.py",
+        "tests/strategies/test_82_alligator_strategy.py",
+        "tests/strategies/test_83_pair_trade_bollinger_strategy.py",
+        "tests/strategies/test_84_arjun_bhatia_futures_strategy.py",
+        "tests/strategies/test_85_up_down_candles_strategy.py",
+        "tests/strategies/test_86_sunrise_ema_crossover_strategy.py",
+        "tests/strategies/test_87_hma_crossover_strategy.py",
+        "tests/strategies/test_88_supertrend_indicator_strategy.py",
+        "tests/strategies/test_89_adaptive_supertrend_strategy.py",
+        "tests/strategies/test_90_forex_ema_strategy.py",
+        "tests/strategies/test_91_hma_multitrend_strategy.py",
+        "tests/strategies/test_92_renko_ema_strategy.py",
+        "tests/strategies/test_93_macd_dmi_simple_strategy.py",
+        "tests/strategies/test_94_mean_reversion_sma_strategy.py",
+        "tests/strategies/test_95_udvd_strategy.py",
+        "tests/strategies/test_96_ichimoku_cloud_strategy.py",
+        "tests/strategies/test_97_bb_rsi_strategy.py",
+        "tests/strategies/test_98_dema_crossover_strategy.py",
+        "tests/strategies/test_99_momentum_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_01_premium_rate_strategy.py": [
+          "tests/functional/strategies/special/test_01_premium_rate_strategy.py"
+        ],
+        "tests/strategies/test_02_multi_extend_data.py": [
+          "tests/functional/strategies/special/test_02_multi_extend_data.py"
+        ],
+        "tests/strategies/test_03_two_ma.py": [
+          "tests/functional/strategies/trend_following/test_03_two_ma.py"
+        ],
+        "tests/strategies/test_04_simple_ma_multi_data.py": [
+          "tests/functional/strategies/special/test_04_simple_ma_multi_data.py"
+        ],
+        "tests/strategies/test_05_stop_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_05_stop_order_strategy.py"
+        ],
+        "tests/strategies/test_06_macd_ema_fase_strategy.py": [
+          "tests/functional/strategies/trend_following/test_06_macd_ema_fase_strategy.py"
+        ],
+        "tests/strategies/test_07_macd_ema_true_strategy.py": [
+          "tests/functional/strategies/trend_following/test_07_macd_ema_true_strategy.py"
+        ],
+        "tests/strategies/test_08_kelter_strategy.py": [
+          "tests/functional/strategies/volatility/test_08_kelter_strategy.py"
+        ],
+        "tests/strategies/test_09_dual_thrust_strategy.py": [
+          "tests/functional/strategies/breakout/test_09_dual_thrust_strategy.py"
+        ],
+        "tests/strategies/test_101_rsi_long_short_strategy.py": [
+          "tests/functional/strategies/momentum/test_101_rsi_long_short_strategy.py"
+        ],
+        "tests/strategies/test_102_williams_r_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_102_williams_r_strategy.py"
+        ],
+        "tests/strategies/test_103_stochastic_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_103_stochastic_strategy.py"
+        ],
+        "tests/strategies/test_104_cci_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_104_cci_strategy.py"
+        ],
+        "tests/strategies/test_105_donchian_channel_strategy.py": [
+          "tests/functional/strategies/breakout/test_105_donchian_channel_strategy.py"
+        ],
+        "tests/strategies/test_106_parabolic_sar_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_106_parabolic_sar_strategy.py"
+        ],
+        "tests/strategies/test_107_trix_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_107_trix_strategy.py"
+        ],
+        "tests/strategies/test_108_keltner_channel_strategy.py": [
+          "tests/functional/strategies/volatility/test_108_keltner_channel_strategy.py"
+        ],
+        "tests/strategies/test_109_ultimate_oscillator_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_109_ultimate_oscillator_strategy.py"
+        ],
+        "tests/strategies/test_10_r_breaker_strategy.py": [
+          "tests/functional/strategies/breakout/test_10_r_breaker_strategy.py"
+        ],
+        "tests/strategies/test_110_buy_the_dip_strategy.py": [
+          "tests/functional/strategies/misc/test_110_buy_the_dip_strategy.py"
+        ],
+        "tests/strategies/test_111_chandelier_exit_strategy.py": [
+          "tests/functional/strategies/volatility/test_111_chandelier_exit_strategy.py"
+        ],
+        "tests/strategies/test_112_macd_rsi_bb_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_112_macd_rsi_bb_strategy.py"
+        ],
+        "tests/strategies/test_113_rsi_mtf_strategy.py": [
+          "tests/functional/strategies/momentum/test_113_rsi_mtf_strategy.py"
+        ],
+        "tests/strategies/test_114_supertrend_rsi_strategy.py": [
+          "tests/functional/strategies/volatility/test_114_supertrend_rsi_strategy.py"
+        ],
+        "tests/strategies/test_115_volume_breakout_strategy.py": [
+          "tests/functional/strategies/breakout/test_115_volume_breakout_strategy.py"
+        ],
+        "tests/strategies/test_116_triple_ema_strategy.py": [
+          "tests/functional/strategies/trend_following/test_116_triple_ema_strategy.py"
+        ],
+        "tests/strategies/test_117_price_channel_strategy.py": [
+          "tests/functional/strategies/breakout/test_117_price_channel_strategy.py"
+        ],
+        "tests/strategies/test_118_data_replay_bollinger.py": [
+          "tests/functional/strategies/time_based/test_118_data_replay_bollinger.py"
+        ],
+        "tests/strategies/test_119_data_replay_ema.py": [
+          "tests/functional/strategies/time_based/test_119_data_replay_ema.py"
+        ],
+        "tests/strategies/test_11_sky_garden_strategy.py": [
+          "tests/functional/strategies/misc/test_11_sky_garden_strategy.py"
+        ],
+        "tests/strategies/test_120_data_replay_macd.py": [
+          "tests/functional/strategies/time_based/test_120_data_replay_macd.py"
+        ],
+        "tests/strategies/test_12_abberation_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_12_abberation_strategy.py"
+        ],
+        "tests/strategies/test_13_fei_strategy.py": [
+          "tests/functional/strategies/special/test_13_fei_strategy.py"
+        ],
+        "tests/strategies/test_14_hanse123_strategy.py": [
+          "tests/functional/strategies/special/test_14_hanse123_strategy.py"
+        ],
+        "tests/strategies/test_15_fenshi_ma_strategy.py": [
+          "tests/functional/strategies/trend_following/test_15_fenshi_ma_strategy.py"
+        ],
+        "tests/strategies/test_16_cb_strategy.py": [
+          "tests/functional/strategies/misc/test_16_cb_strategy.py"
+        ],
+        "tests/strategies/test_17_cb_monday_strategy.py": [
+          "tests/functional/strategies/misc/test_17_cb_monday_strategy.py"
+        ],
+        "tests/strategies/test_18_etf_rotation_strategy.py": [
+          "tests/functional/strategies/special/test_18_etf_rotation_strategy.py"
+        ],
+        "tests/strategies/test_19_index_future_momentum.py": [
+          "tests/functional/strategies/momentum/test_19_index_future_momentum.py"
+        ],
+        "tests/strategies/test_20_arbitrage_strategy.py": [
+          "tests/functional/strategies/special/test_20_arbitrage_strategy.py"
+        ],
+        "tests/strategies/test_21_the_strategy.py": [
+          "tests/functional/strategies/misc/test_21_the_strategy.py"
+        ],
+        "tests/strategies/test_22_fear_greed_strategy.py": [
+          "tests/functional/strategies/sentiment/test_22_fear_greed_strategy.py"
+        ],
+        "tests/strategies/test_23_put_call_strategy.py": [
+          "tests/functional/strategies/sentiment/test_23_put_call_strategy.py"
+        ],
+        "tests/strategies/test_24_vix_strategy.py": [
+          "tests/functional/strategies/sentiment/test_24_vix_strategy.py"
+        ],
+        "tests/strategies/test_25_abbration_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_25_abbration_strategy.py"
+        ],
+        "tests/strategies/test_26_boll_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_26_boll_strategy.py"
+        ],
+        "tests/strategies/test_27_boll_reverser_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_27_boll_reverser_strategy.py"
+        ],
+        "tests/strategies/test_28_boll_ema_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_28_boll_ema_strategy.py"
+        ],
+        "tests/strategies/test_29_boll_kdj_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_29_boll_kdj_strategy.py"
+        ],
+        "tests/strategies/test_30_macd_kdj_strategy.py": [
+          "tests/functional/strategies/trend_following/test_30_macd_kdj_strategy.py"
+        ],
+        "tests/strategies/test_31_bb_adx_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_31_bb_adx_strategy.py"
+        ],
+        "tests/strategies/test_32_stochastic_sr_strategy.py": [
+          "tests/functional/strategies/misc/test_32_stochastic_sr_strategy.py"
+        ],
+        "tests/strategies/test_33_btc_sentiment_strategy.py": [
+          "tests/functional/strategies/sentiment/test_33_btc_sentiment_strategy.py"
+        ],
+        "tests/strategies/test_34_turtle_strategy.py": [
+          "tests/functional/strategies/trend_following/test_34_turtle_strategy.py"
+        ],
+        "tests/strategies/test_35_sma_cross_signal_strategy.py": [
+          "tests/functional/strategies/trend_following/test_35_sma_cross_signal_strategy.py"
+        ],
+        "tests/strategies/test_36_macd_atr_strategy.py": [
+          "tests/functional/strategies/volatility/test_36_macd_atr_strategy.py"
+        ],
+        "tests/strategies/test_37_bracket_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_37_bracket_order_strategy.py"
+        ],
+        "tests/strategies/test_38_long_short_strategy.py": [
+          "tests/functional/strategies/misc/test_38_long_short_strategy.py"
+        ],
+        "tests/strategies/test_39_btfd_strategy.py": [
+          "tests/functional/strategies/misc/test_39_btfd_strategy.py"
+        ],
+        "tests/strategies/test_40_cheat_on_open_strategy.py": [
+          "tests/functional/strategies/misc/test_40_cheat_on_open_strategy.py"
+        ],
+        "tests/strategies/test_41_oco_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_41_oco_order_strategy.py"
+        ],
+        "tests/strategies/test_42_stoptrail_strategy.py": [
+          "tests/functional/strategies/order_types/test_42_stoptrail_strategy.py"
+        ],
+        "tests/strategies/test_43_order_target_strategy.py": [
+          "tests/functional/strategies/order_types/test_43_order_target_strategy.py"
+        ],
+        "tests/strategies/test_44_signals_strategy.py": [
+          "tests/functional/strategies/advanced/test_44_signals_strategy.py"
+        ],
+        "tests/strategies/test_45_multitrades_strategy.py": [
+          "tests/functional/strategies/advanced/test_45_multitrades_strategy.py"
+        ],
+        "tests/strategies/test_46_pinkfish_strategy.py": [
+          "tests/functional/strategies/misc/test_46_pinkfish_strategy.py"
+        ],
+        "tests/strategies/test_47_slippage_strategy.py": [
+          "tests/functional/strategies/misc/test_47_slippage_strategy.py"
+        ],
+        "tests/strategies/test_48_strategy_selection.py": [
+          "tests/functional/strategies/advanced/test_48_strategy_selection.py"
+        ],
+        "tests/strategies/test_49_calmar_analyzer.py": [
+          "tests/functional/strategies/misc/test_49_calmar_analyzer.py"
+        ],
+        "tests/strategies/test_50_vwr_analyzer.py": [
+          "tests/functional/strategies/misc/test_50_vwr_analyzer.py"
+        ],
+        "tests/strategies/test_51_optimization.py": [
+          "tests/functional/strategies/advanced/test_51_optimization.py"
+        ],
+        "tests/strategies/test_52_data_pandas.py": [
+          "tests/functional/strategies/time_based/test_52_data_pandas.py"
+        ],
+        "tests/strategies/test_53_data_resample.py": [
+          "tests/functional/strategies/time_based/test_53_data_resample.py"
+        ],
+        "tests/strategies/test_54_commission_schemes.py": [
+          "tests/functional/strategies/misc/test_54_commission_schemes.py"
+        ],
+        "tests/strategies/test_55_psar_indicator.py": [
+          "tests/functional/strategies/misc/test_55_psar_indicator.py"
+        ],
+        "tests/strategies/test_56_sizer_test.py": [
+          "tests/functional/strategies/misc/test_56_sizer_test.py"
+        ],
+        "tests/strategies/test_57_sharpe_timereturn.py": [
+          "tests/functional/strategies/misc/test_57_sharpe_timereturn.py"
+        ],
+        "tests/strategies/test_58_data_replay.py": [
+          "tests/functional/strategies/time_based/test_58_data_replay.py"
+        ],
+        "tests/strategies/test_59_multidata_strategy.py": [
+          "tests/functional/strategies/advanced/test_59_multidata_strategy.py"
+        ],
+        "tests/strategies/test_60_writer_test.py": [
+          "tests/functional/strategies/misc/test_60_writer_test.py"
+        ],
+        "tests/strategies/test_61_order_close.py": [
+          "tests/functional/strategies/order_types/test_61_order_close.py"
+        ],
+        "tests/strategies/test_62_timers.py": [
+          "tests/functional/strategies/time_based/test_62_timers.py"
+        ],
+        "tests/strategies/test_63_pairs_trading_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_63_pairs_trading_strategy.py"
+        ],
+        "tests/strategies/test_64_atr_momentum_strategy.py": [
+          "tests/functional/strategies/momentum/test_64_atr_momentum_strategy.py"
+        ],
+        "tests/strategies/test_65_td_sequential_strategy.py": [
+          "tests/functional/strategies/misc/test_65_td_sequential_strategy.py"
+        ],
+        "tests/strategies/test_66_donchian_channel_strategy.py": [
+          "tests/functional/strategies/breakout/test_66_donchian_channel_strategy.py"
+        ],
+        "tests/strategies/test_67_two_period_rsi_strategy.py": [
+          "tests/functional/strategies/momentum/test_67_two_period_rsi_strategy.py"
+        ],
+        "tests/strategies/test_68_bollinger_bands_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_68_bollinger_bands_strategy.py"
+        ],
+        "tests/strategies/test_69_stochastic_cross_strategy.py": [
+          "tests/functional/strategies/misc/test_69_stochastic_cross_strategy.py"
+        ],
+        "tests/strategies/test_70_keltner_channel_strategy.py": [
+          "tests/functional/strategies/volatility/test_70_keltner_channel_strategy.py"
+        ],
+        "tests/strategies/test_71_double_sevens_strategy.py": [
+          "tests/functional/strategies/misc/test_71_double_sevens_strategy.py"
+        ],
+        "tests/strategies/test_72_triple_cross_strategy.py": [
+          "tests/functional/strategies/trend_following/test_72_triple_cross_strategy.py"
+        ],
+        "tests/strategies/test_73_simple_rsi_strategy.py": [
+          "tests/functional/strategies/momentum/test_73_simple_rsi_strategy.py"
+        ],
+        "tests/strategies/test_74_macd_gradient_strategy.py": [
+          "tests/functional/strategies/momentum/test_74_macd_gradient_strategy.py"
+        ],
+        "tests/strategies/test_75_extended_cross_strategy.py": [
+          "tests/functional/strategies/trend_following/test_75_extended_cross_strategy.py"
+        ],
+        "tests/strategies/test_76_heikin_ashi_strategy.py": [
+          "tests/functional/strategies/misc/test_76_heikin_ashi_strategy.py"
+        ],
+        "tests/strategies/test_77_slope_strategy.py": [
+          "tests/functional/strategies/misc/test_77_slope_strategy.py"
+        ],
+        "tests/strategies/test_78_percent_rank_strategy.py": [
+          "tests/functional/strategies/momentum/test_78_percent_rank_strategy.py"
+        ],
+        "tests/strategies/test_79_buy_dip_strategy.py": [
+          "tests/functional/strategies/misc/test_79_buy_dip_strategy.py"
+        ],
+        "tests/strategies/test_80_rsi_dip_buy_strategy.py": [
+          "tests/functional/strategies/momentum/test_80_rsi_dip_buy_strategy.py"
+        ],
+        "tests/strategies/test_81_supertrend_strategy.py": [
+          "tests/functional/strategies/volatility/test_81_supertrend_strategy.py"
+        ],
+        "tests/strategies/test_82_alligator_strategy.py": [
+          "tests/functional/strategies/misc/test_82_alligator_strategy.py"
+        ],
+        "tests/strategies/test_83_pair_trade_bollinger_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_83_pair_trade_bollinger_strategy.py"
+        ],
+        "tests/strategies/test_84_arjun_bhatia_futures_strategy.py": [
+          "tests/functional/strategies/misc/test_84_arjun_bhatia_futures_strategy.py"
+        ],
+        "tests/strategies/test_85_up_down_candles_strategy.py": [
+          "tests/functional/strategies/misc/test_85_up_down_candles_strategy.py"
+        ],
+        "tests/strategies/test_86_sunrise_ema_crossover_strategy.py": [
+          "tests/functional/strategies/trend_following/test_86_sunrise_ema_crossover_strategy.py"
+        ],
+        "tests/strategies/test_87_hma_crossover_strategy.py": [
+          "tests/functional/strategies/trend_following/test_87_hma_crossover_strategy.py"
+        ],
+        "tests/strategies/test_88_supertrend_indicator_strategy.py": [
+          "tests/functional/strategies/volatility/test_88_supertrend_indicator_strategy.py"
+        ],
+        "tests/strategies/test_89_adaptive_supertrend_strategy.py": [
+          "tests/functional/strategies/volatility/test_89_adaptive_supertrend_strategy.py"
+        ],
+        "tests/strategies/test_90_forex_ema_strategy.py": [
+          "tests/functional/strategies/trend_following/test_90_forex_ema_strategy.py"
+        ],
+        "tests/strategies/test_91_hma_multitrend_strategy.py": [
+          "tests/functional/strategies/trend_following/test_91_hma_multitrend_strategy.py"
+        ],
+        "tests/strategies/test_92_renko_ema_strategy.py": [
+          "tests/functional/strategies/misc/test_92_renko_ema_strategy.py"
+        ],
+        "tests/strategies/test_93_macd_dmi_simple_strategy.py": [
+          "tests/functional/strategies/trend_following/test_93_macd_dmi_simple_strategy.py"
+        ],
+        "tests/strategies/test_94_mean_reversion_sma_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_94_mean_reversion_sma_strategy.py"
+        ],
+        "tests/strategies/test_95_udvd_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_95_udvd_strategy.py"
+        ],
+        "tests/strategies/test_96_ichimoku_cloud_strategy.py": [
+          "tests/functional/strategies/trend_following/test_96_ichimoku_cloud_strategy.py"
+        ],
+        "tests/strategies/test_97_bb_rsi_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_97_bb_rsi_strategy.py"
+        ],
+        "tests/strategies/test_98_dema_crossover_strategy.py": [
+          "tests/functional/strategies/trend_following/test_98_dema_crossover_strategy.py"
+        ],
+        "tests/strategies/test_99_momentum_strategy.py": [
+          "tests/functional/strategies/momentum/test_99_momentum_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "f121e1765da0200ccb0caf4fe706693d7e053e71",
+      "parents": [
+        "d6cfcd7c20224aeb9088de905e662b2f269feee5"
+      ],
+      "subject": "更新效率测试脚本",
+      "category": "分析工具",
+      "disposition": "效率测量脚本/旧JSON：保留 scripts 下现代版本，历史结果不冒称当前性能证据。",
+      "changed_paths": [
+        "performance_comparison.json",
+        "profile_performance.py",
+        "scripts/profile_performance.py"
+      ],
+      "modern_same_name_candidates": {
+        "profile_performance.py": [
+          "scripts/profile_performance.py"
+        ]
+      }
+    },
+    {
+      "sha": "d6cfcd7c20224aeb9088de905e662b2f269feee5",
+      "parents": [
+        "21d06edf69c7d9809201103bc7ea3a1bceeec47a"
+      ],
+      "subject": "update macd",
+      "category": "库兼容入口",
+      "disposition": "本次补入 MACD.lines.me1/me2；4个新增真实运行模式用例及2个原指标用例通过。",
+      "changed_paths": [
+        "backtrader/indicators/macd.py",
+        "docs/优化需求/迭代2-优化不同分支之间同步代码和对比测试功能.md",
+        "sync_and_test.py"
+      ],
+      "modern_same_name_candidates": {
+        "sync_and_test.py": [
+          "scripts/sync_and_test.py"
+        ]
+      }
+    },
+    {
+      "sha": "21d06edf69c7d9809201103bc7ea3a1bceeec47a",
+      "parents": [
+        "4694372b345ea997ba142c2922d642c0e97469bc"
+      ],
+      "subject": "test: add bar_num logging to MACD replay test",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_120_data_replay_macd.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_120_data_replay_macd.py": [
+          "tests/functional/strategies/time_based/test_120_data_replay_macd.py"
+        ]
+      }
+    },
+    {
+      "sha": "4694372b345ea997ba142c2922d642c0e97469bc",
+      "parents": [
+        "6582fdc3d9999dbd02f0d5805af7aff0fac5b9fa"
+      ],
+      "subject": "fix: use communicate() to capture all output",
+      "category": "工具修复",
+      "disposition": "scripts/run_test_with_log.py 使用 Popen.communicate 完整收集输出；根目录旧副本不恢复。",
+      "changed_paths": [
+        "run_test_with_log.py"
+      ],
+      "modern_same_name_candidates": {
+        "run_test_with_log.py": [
+          "scripts/run_test_with_log.py"
+        ]
+      }
+    },
+    {
+      "sha": "6582fdc3d9999dbd02f0d5805af7aff0fac5b9fa",
+      "parents": [
+        "39a5e90cb23428137ab8545bd446c81f79c5dd76"
+      ],
+      "subject": "update tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "debug_macd_replay.py",
+        "tests/strategies/test_118_data_replay_bollinger.py",
+        "tests/strategies/test_119_data_replay_ema.py",
+        "tests/strategies/test_120_data_replay_macd.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_118_data_replay_bollinger.py": [
+          "tests/functional/strategies/time_based/test_118_data_replay_bollinger.py"
+        ],
+        "tests/strategies/test_119_data_replay_ema.py": [
+          "tests/functional/strategies/time_based/test_119_data_replay_ema.py"
+        ],
+        "tests/strategies/test_120_data_replay_macd.py": [
+          "tests/functional/strategies/time_based/test_120_data_replay_macd.py"
+        ]
+      }
+    },
+    {
+      "sha": "39a5e90cb23428137ab8545bd446c81f79c5dd76",
+      "parents": [
+        "96d2a2f8405ebf8f016aa4180cd23b1a66e24817"
+      ],
+      "subject": "update tests/strategies/test_58_data_replay.py from origin",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_58_data_replay.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_58_data_replay.py": [
+          "tests/functional/strategies/time_based/test_58_data_replay.py"
+        ]
+      }
+    },
+    {
+      "sha": "96d2a2f8405ebf8f016aa4180cd23b1a66e24817",
+      "parents": [
+        "2626b98f20eadf30580d4ad05c48921b3e3bfbeb"
+      ],
+      "subject": "update test from origin",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_58_data_replay.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_58_data_replay.py": [
+          "tests/functional/strategies/time_based/test_58_data_replay.py"
+        ]
+      }
+    },
+    {
+      "sha": "2626b98f20eadf30580d4ad05c48921b3e3bfbeb",
+      "parents": [
+        "c318bf4e80d8c9be9e58db878b7a78d5b61dc7f1"
+      ],
+      "subject": "update tests/strategies/test_58_data_replay.py from origin",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_58_data_replay.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_58_data_replay.py": [
+          "tests/functional/strategies/time_based/test_58_data_replay.py"
+        ]
+      }
+    },
+    {
+      "sha": "c318bf4e80d8c9be9e58db878b7a78d5b61dc7f1",
+      "parents": [
+        "9616bb488739196e3233526cb06fa19352a17fea"
+      ],
+      "subject": "update tests/strategies/test_58_data_replay.py from master",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_58_data_replay.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_58_data_replay.py": [
+          "tests/functional/strategies/time_based/test_58_data_replay.py"
+        ]
+      }
+    },
+    {
+      "sha": "9616bb488739196e3233526cb06fa19352a17fea",
+      "parents": [
+        "85bc1559f8a5b593d76498b0b15a31187048e740"
+      ],
+      "subject": "update tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "docs/优化需求/迭代16-增加新的测试用例.md",
+        "docs/优化需求/迭代17-新增测试用例.md",
+        "docs/优化需求/迭代18-新增测试用例.md",
+        "docs/优化需求/迭代19-增加新的测试用例.md",
+        "docs/优化需求/迭代20-增加新的测试用例.md",
+        "docs/优化需求/迭代21-增加新的测试用例.md",
+        "docs/优化需求/迭代22-优化策略的运行时间和断言.md",
+        "docs/优化需求/迭代23-修复失败的测试用例.md",
+        "docs/参考说明.md",
+        "tests/datas/BTCUSD_Weekly.csv",
+        "tests/datas/BTC_Gtrends.csv",
+        "tests/datas/MA.csv",
+        "tests/datas/V.csv",
+        "tests/datas/XAUUSD_5m_5Yea.csv",
+        "tests/datas/sh600000.csv",
+        "tests/datas/spy-put-call-fear-greed-vix.csv",
+        "tests/datas/yhoo-1996-2014.txt",
+        "tests/strategies/test_02_multi_extend_data.py",
+        "tests/strategies/test_03_two_ma.py",
+        "tests/strategies/test_04_simple_ma_multi_data.py",
+        "tests/strategies/test_05_stop_order_strategy.py",
+        "tests/strategies/test_06_macd_ema_fase_strategy.py",
+        "tests/strategies/test_07_macd_ema_true_strategy.py",
+        "tests/strategies/test_08_kelter_strategy.py",
+        "tests/strategies/test_09_dual_thrust_strategy.py",
+        "tests/strategies/test_101_rsi_long_short_strategy.py",
+        "tests/strategies/test_102_williams_r_strategy.py",
+        "tests/strategies/test_103_stochastic_strategy.py",
+        "tests/strategies/test_104_cci_strategy.py",
+        "tests/strategies/test_105_donchian_channel_strategy.py",
+        "tests/strategies/test_106_parabolic_sar_strategy.py",
+        "tests/strategies/test_107_trix_strategy.py",
+        "tests/strategies/test_108_keltner_channel_strategy.py",
+        "tests/strategies/test_109_ultimate_oscillator_strategy.py",
+        "tests/strategies/test_10_r_breaker_strategy.py",
+        "tests/strategies/test_110_buy_the_dip_strategy.py",
+        "tests/strategies/test_111_chandelier_exit_strategy.py",
+        "tests/strategies/test_112_macd_rsi_bb_strategy.py",
+        "tests/strategies/test_113_rsi_mtf_strategy.py",
+        "tests/strategies/test_114_supertrend_rsi_strategy.py",
+        "tests/strategies/test_115_volume_breakout_strategy.py",
+        "tests/strategies/test_116_triple_ema_strategy.py",
+        "tests/strategies/test_117_price_channel_strategy.py",
+        "tests/strategies/test_11_sky_garden_strategy.py",
+        "tests/strategies/test_12_abberation_strategy.py",
+        "tests/strategies/test_13_fei_strategy.py",
+        "tests/strategies/test_14_hanse123_strategy.py",
+        "tests/strategies/test_15_fenshi_ma_strategy.py",
+        "tests/strategies/test_16_cb_strategy.py",
+        "tests/strategies/test_17_cb_monday_strategy.py",
+        "tests/strategies/test_18_etf_rotation_strategy.py",
+        "tests/strategies/test_19_index_future_momentum.py",
+        "tests/strategies/test_20_arbitrage_strategy.py",
+        "tests/strategies/test_21_the_strategy.py",
+        "tests/strategies/test_22_fear_greed_strategy.py",
+        "tests/strategies/test_23_put_call_strategy.py",
+        "tests/strategies/test_24_vix_strategy.py",
+        "tests/strategies/test_25_abbration_strategy.py",
+        "tests/strategies/test_26_boll_strategy.py",
+        "tests/strategies/test_27_boll_reverser_strategy.py",
+        "tests/strategies/test_28_boll_ema_strategy.py",
+        "tests/strategies/test_29_boll_kdj_strategy.py",
+        "tests/strategies/test_30_macd_kdj_strategy.py",
+        "tests/strategies/test_31_bb_adx_strategy.py",
+        "tests/strategies/test_32_stochastic_sr_strategy.py",
+        "tests/strategies/test_33_btc_sentiment_strategy.py",
+        "tests/strategies/test_34_turtle_strategy.py",
+        "tests/strategies/test_35_sma_cross_signal_strategy.py",
+        "tests/strategies/test_36_macd_atr_strategy.py",
+        "tests/strategies/test_37_bracket_order_strategy.py",
+        "tests/strategies/test_38_long_short_strategy.py",
+        "tests/strategies/test_39_btfd_strategy.py",
+        "tests/strategies/test_40_cheat_on_open_strategy.py",
+        "tests/strategies/test_41_oco_order_strategy.py",
+        "tests/strategies/test_42_stoptrail_strategy.py",
+        "tests/strategies/test_43_order_target_strategy.py",
+        "tests/strategies/test_44_signals_strategy.py",
+        "tests/strategies/test_45_multitrades_strategy.py",
+        "tests/strategies/test_46_pinkfish_strategy.py",
+        "tests/strategies/test_47_slippage_strategy.py",
+        "tests/strategies/test_48_strategy_selection.py",
+        "tests/strategies/test_49_calmar_analyzer.py",
+        "tests/strategies/test_50_vwr_analyzer.py",
+        "tests/strategies/test_51_optimization.py",
+        "tests/strategies/test_52_data_pandas.py",
+        "tests/strategies/test_53_data_resample.py",
+        "tests/strategies/test_54_commission_schemes.py",
+        "tests/strategies/test_55_psar_indicator.py",
+        "tests/strategies/test_56_sizer_test.py",
+        "tests/strategies/test_57_sharpe_timereturn.py",
+        "tests/strategies/test_58_data_replay.py",
+        "tests/strategies/test_59_multidata_strategy.py",
+        "tests/strategies/test_60_writer_test.py",
+        "tests/strategies/test_61_order_close.py",
+        "tests/strategies/test_62_timers.py",
+        "tests/strategies/test_63_pairs_trading_strategy.py",
+        "tests/strategies/test_64_atr_momentum_strategy.py",
+        "tests/strategies/test_65_td_sequential_strategy.py",
+        "tests/strategies/test_66_donchian_channel_strategy.py",
+        "tests/strategies/test_67_two_period_rsi_strategy.py",
+        "tests/strategies/test_68_bollinger_bands_strategy.py",
+        "tests/strategies/test_69_stochastic_cross_strategy.py",
+        "tests/strategies/test_70_keltner_channel_strategy.py",
+        "tests/strategies/test_71_double_sevens_strategy.py",
+        "tests/strategies/test_72_triple_cross_strategy.py",
+        "tests/strategies/test_73_simple_rsi_strategy.py",
+        "tests/strategies/test_74_macd_gradient_strategy.py",
+        "tests/strategies/test_75_extended_cross_strategy.py",
+        "tests/strategies/test_76_heikin_ashi_strategy.py",
+        "tests/strategies/test_77_slope_strategy.py",
+        "tests/strategies/test_78_percent_rank_strategy.py",
+        "tests/strategies/test_79_buy_dip_strategy.py",
+        "tests/strategies/test_80_rsi_dip_buy_strategy.py",
+        "tests/strategies/test_81_supertrend_strategy.py",
+        "tests/strategies/test_82_alligator_strategy.py",
+        "tests/strategies/test_83_pair_trade_bollinger_strategy.py",
+        "tests/strategies/test_84_arjun_bhatia_futures_strategy.py",
+        "tests/strategies/test_85_up_down_candles_strategy.py",
+        "tests/strategies/test_86_sunrise_ema_crossover_strategy.py",
+        "tests/strategies/test_87_hma_crossover_strategy.py",
+        "tests/strategies/test_88_supertrend_indicator_strategy.py",
+        "tests/strategies/test_89_adaptive_supertrend_strategy.py",
+        "tests/strategies/test_90_forex_ema_strategy.py",
+        "tests/strategies/test_91_hma_multitrend_strategy.py",
+        "tests/strategies/test_92_renko_ema_strategy.py",
+        "tests/strategies/test_93_macd_dmi_simple_strategy.py",
+        "tests/strategies/test_94_mean_reversion_sma_strategy.py",
+        "tests/strategies/test_95_udvd_strategy.py",
+        "tests/strategies/test_96_ichimoku_cloud_strategy.py",
+        "tests/strategies/test_97_bb_rsi_strategy.py",
+        "tests/strategies/test_98_dema_crossover_strategy.py",
+        "tests/strategies/test_99_momentum_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_02_multi_extend_data.py": [
+          "tests/functional/strategies/special/test_02_multi_extend_data.py"
+        ],
+        "tests/strategies/test_03_two_ma.py": [
+          "tests/functional/strategies/trend_following/test_03_two_ma.py"
+        ],
+        "tests/strategies/test_04_simple_ma_multi_data.py": [
+          "tests/functional/strategies/special/test_04_simple_ma_multi_data.py"
+        ],
+        "tests/strategies/test_05_stop_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_05_stop_order_strategy.py"
+        ],
+        "tests/strategies/test_06_macd_ema_fase_strategy.py": [
+          "tests/functional/strategies/trend_following/test_06_macd_ema_fase_strategy.py"
+        ],
+        "tests/strategies/test_07_macd_ema_true_strategy.py": [
+          "tests/functional/strategies/trend_following/test_07_macd_ema_true_strategy.py"
+        ],
+        "tests/strategies/test_08_kelter_strategy.py": [
+          "tests/functional/strategies/volatility/test_08_kelter_strategy.py"
+        ],
+        "tests/strategies/test_09_dual_thrust_strategy.py": [
+          "tests/functional/strategies/breakout/test_09_dual_thrust_strategy.py"
+        ],
+        "tests/strategies/test_101_rsi_long_short_strategy.py": [
+          "tests/functional/strategies/momentum/test_101_rsi_long_short_strategy.py"
+        ],
+        "tests/strategies/test_102_williams_r_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_102_williams_r_strategy.py"
+        ],
+        "tests/strategies/test_103_stochastic_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_103_stochastic_strategy.py"
+        ],
+        "tests/strategies/test_104_cci_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_104_cci_strategy.py"
+        ],
+        "tests/strategies/test_105_donchian_channel_strategy.py": [
+          "tests/functional/strategies/breakout/test_105_donchian_channel_strategy.py"
+        ],
+        "tests/strategies/test_106_parabolic_sar_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_106_parabolic_sar_strategy.py"
+        ],
+        "tests/strategies/test_107_trix_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_107_trix_strategy.py"
+        ],
+        "tests/strategies/test_108_keltner_channel_strategy.py": [
+          "tests/functional/strategies/volatility/test_108_keltner_channel_strategy.py"
+        ],
+        "tests/strategies/test_109_ultimate_oscillator_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_109_ultimate_oscillator_strategy.py"
+        ],
+        "tests/strategies/test_10_r_breaker_strategy.py": [
+          "tests/functional/strategies/breakout/test_10_r_breaker_strategy.py"
+        ],
+        "tests/strategies/test_110_buy_the_dip_strategy.py": [
+          "tests/functional/strategies/misc/test_110_buy_the_dip_strategy.py"
+        ],
+        "tests/strategies/test_111_chandelier_exit_strategy.py": [
+          "tests/functional/strategies/volatility/test_111_chandelier_exit_strategy.py"
+        ],
+        "tests/strategies/test_112_macd_rsi_bb_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_112_macd_rsi_bb_strategy.py"
+        ],
+        "tests/strategies/test_113_rsi_mtf_strategy.py": [
+          "tests/functional/strategies/momentum/test_113_rsi_mtf_strategy.py"
+        ],
+        "tests/strategies/test_114_supertrend_rsi_strategy.py": [
+          "tests/functional/strategies/volatility/test_114_supertrend_rsi_strategy.py"
+        ],
+        "tests/strategies/test_115_volume_breakout_strategy.py": [
+          "tests/functional/strategies/breakout/test_115_volume_breakout_strategy.py"
+        ],
+        "tests/strategies/test_116_triple_ema_strategy.py": [
+          "tests/functional/strategies/trend_following/test_116_triple_ema_strategy.py"
+        ],
+        "tests/strategies/test_117_price_channel_strategy.py": [
+          "tests/functional/strategies/breakout/test_117_price_channel_strategy.py"
+        ],
+        "tests/strategies/test_11_sky_garden_strategy.py": [
+          "tests/functional/strategies/misc/test_11_sky_garden_strategy.py"
+        ],
+        "tests/strategies/test_12_abberation_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_12_abberation_strategy.py"
+        ],
+        "tests/strategies/test_13_fei_strategy.py": [
+          "tests/functional/strategies/special/test_13_fei_strategy.py"
+        ],
+        "tests/strategies/test_14_hanse123_strategy.py": [
+          "tests/functional/strategies/special/test_14_hanse123_strategy.py"
+        ],
+        "tests/strategies/test_15_fenshi_ma_strategy.py": [
+          "tests/functional/strategies/trend_following/test_15_fenshi_ma_strategy.py"
+        ],
+        "tests/strategies/test_16_cb_strategy.py": [
+          "tests/functional/strategies/misc/test_16_cb_strategy.py"
+        ],
+        "tests/strategies/test_17_cb_monday_strategy.py": [
+          "tests/functional/strategies/misc/test_17_cb_monday_strategy.py"
+        ],
+        "tests/strategies/test_18_etf_rotation_strategy.py": [
+          "tests/functional/strategies/special/test_18_etf_rotation_strategy.py"
+        ],
+        "tests/strategies/test_19_index_future_momentum.py": [
+          "tests/functional/strategies/momentum/test_19_index_future_momentum.py"
+        ],
+        "tests/strategies/test_20_arbitrage_strategy.py": [
+          "tests/functional/strategies/special/test_20_arbitrage_strategy.py"
+        ],
+        "tests/strategies/test_21_the_strategy.py": [
+          "tests/functional/strategies/misc/test_21_the_strategy.py"
+        ],
+        "tests/strategies/test_22_fear_greed_strategy.py": [
+          "tests/functional/strategies/sentiment/test_22_fear_greed_strategy.py"
+        ],
+        "tests/strategies/test_23_put_call_strategy.py": [
+          "tests/functional/strategies/sentiment/test_23_put_call_strategy.py"
+        ],
+        "tests/strategies/test_24_vix_strategy.py": [
+          "tests/functional/strategies/sentiment/test_24_vix_strategy.py"
+        ],
+        "tests/strategies/test_25_abbration_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_25_abbration_strategy.py"
+        ],
+        "tests/strategies/test_26_boll_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_26_boll_strategy.py"
+        ],
+        "tests/strategies/test_27_boll_reverser_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_27_boll_reverser_strategy.py"
+        ],
+        "tests/strategies/test_28_boll_ema_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_28_boll_ema_strategy.py"
+        ],
+        "tests/strategies/test_29_boll_kdj_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_29_boll_kdj_strategy.py"
+        ],
+        "tests/strategies/test_30_macd_kdj_strategy.py": [
+          "tests/functional/strategies/trend_following/test_30_macd_kdj_strategy.py"
+        ],
+        "tests/strategies/test_31_bb_adx_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_31_bb_adx_strategy.py"
+        ],
+        "tests/strategies/test_32_stochastic_sr_strategy.py": [
+          "tests/functional/strategies/misc/test_32_stochastic_sr_strategy.py"
+        ],
+        "tests/strategies/test_33_btc_sentiment_strategy.py": [
+          "tests/functional/strategies/sentiment/test_33_btc_sentiment_strategy.py"
+        ],
+        "tests/strategies/test_34_turtle_strategy.py": [
+          "tests/functional/strategies/trend_following/test_34_turtle_strategy.py"
+        ],
+        "tests/strategies/test_35_sma_cross_signal_strategy.py": [
+          "tests/functional/strategies/trend_following/test_35_sma_cross_signal_strategy.py"
+        ],
+        "tests/strategies/test_36_macd_atr_strategy.py": [
+          "tests/functional/strategies/volatility/test_36_macd_atr_strategy.py"
+        ],
+        "tests/strategies/test_37_bracket_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_37_bracket_order_strategy.py"
+        ],
+        "tests/strategies/test_38_long_short_strategy.py": [
+          "tests/functional/strategies/misc/test_38_long_short_strategy.py"
+        ],
+        "tests/strategies/test_39_btfd_strategy.py": [
+          "tests/functional/strategies/misc/test_39_btfd_strategy.py"
+        ],
+        "tests/strategies/test_40_cheat_on_open_strategy.py": [
+          "tests/functional/strategies/misc/test_40_cheat_on_open_strategy.py"
+        ],
+        "tests/strategies/test_41_oco_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_41_oco_order_strategy.py"
+        ],
+        "tests/strategies/test_42_stoptrail_strategy.py": [
+          "tests/functional/strategies/order_types/test_42_stoptrail_strategy.py"
+        ],
+        "tests/strategies/test_43_order_target_strategy.py": [
+          "tests/functional/strategies/order_types/test_43_order_target_strategy.py"
+        ],
+        "tests/strategies/test_44_signals_strategy.py": [
+          "tests/functional/strategies/advanced/test_44_signals_strategy.py"
+        ],
+        "tests/strategies/test_45_multitrades_strategy.py": [
+          "tests/functional/strategies/advanced/test_45_multitrades_strategy.py"
+        ],
+        "tests/strategies/test_46_pinkfish_strategy.py": [
+          "tests/functional/strategies/misc/test_46_pinkfish_strategy.py"
+        ],
+        "tests/strategies/test_47_slippage_strategy.py": [
+          "tests/functional/strategies/misc/test_47_slippage_strategy.py"
+        ],
+        "tests/strategies/test_48_strategy_selection.py": [
+          "tests/functional/strategies/advanced/test_48_strategy_selection.py"
+        ],
+        "tests/strategies/test_49_calmar_analyzer.py": [
+          "tests/functional/strategies/misc/test_49_calmar_analyzer.py"
+        ],
+        "tests/strategies/test_50_vwr_analyzer.py": [
+          "tests/functional/strategies/misc/test_50_vwr_analyzer.py"
+        ],
+        "tests/strategies/test_51_optimization.py": [
+          "tests/functional/strategies/advanced/test_51_optimization.py"
+        ],
+        "tests/strategies/test_52_data_pandas.py": [
+          "tests/functional/strategies/time_based/test_52_data_pandas.py"
+        ],
+        "tests/strategies/test_53_data_resample.py": [
+          "tests/functional/strategies/time_based/test_53_data_resample.py"
+        ],
+        "tests/strategies/test_54_commission_schemes.py": [
+          "tests/functional/strategies/misc/test_54_commission_schemes.py"
+        ],
+        "tests/strategies/test_55_psar_indicator.py": [
+          "tests/functional/strategies/misc/test_55_psar_indicator.py"
+        ],
+        "tests/strategies/test_56_sizer_test.py": [
+          "tests/functional/strategies/misc/test_56_sizer_test.py"
+        ],
+        "tests/strategies/test_57_sharpe_timereturn.py": [
+          "tests/functional/strategies/misc/test_57_sharpe_timereturn.py"
+        ],
+        "tests/strategies/test_58_data_replay.py": [
+          "tests/functional/strategies/time_based/test_58_data_replay.py"
+        ],
+        "tests/strategies/test_59_multidata_strategy.py": [
+          "tests/functional/strategies/advanced/test_59_multidata_strategy.py"
+        ],
+        "tests/strategies/test_60_writer_test.py": [
+          "tests/functional/strategies/misc/test_60_writer_test.py"
+        ],
+        "tests/strategies/test_61_order_close.py": [
+          "tests/functional/strategies/order_types/test_61_order_close.py"
+        ],
+        "tests/strategies/test_62_timers.py": [
+          "tests/functional/strategies/time_based/test_62_timers.py"
+        ],
+        "tests/strategies/test_63_pairs_trading_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_63_pairs_trading_strategy.py"
+        ],
+        "tests/strategies/test_64_atr_momentum_strategy.py": [
+          "tests/functional/strategies/momentum/test_64_atr_momentum_strategy.py"
+        ],
+        "tests/strategies/test_65_td_sequential_strategy.py": [
+          "tests/functional/strategies/misc/test_65_td_sequential_strategy.py"
+        ],
+        "tests/strategies/test_66_donchian_channel_strategy.py": [
+          "tests/functional/strategies/breakout/test_66_donchian_channel_strategy.py"
+        ],
+        "tests/strategies/test_67_two_period_rsi_strategy.py": [
+          "tests/functional/strategies/momentum/test_67_two_period_rsi_strategy.py"
+        ],
+        "tests/strategies/test_68_bollinger_bands_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_68_bollinger_bands_strategy.py"
+        ],
+        "tests/strategies/test_69_stochastic_cross_strategy.py": [
+          "tests/functional/strategies/misc/test_69_stochastic_cross_strategy.py"
+        ],
+        "tests/strategies/test_70_keltner_channel_strategy.py": [
+          "tests/functional/strategies/volatility/test_70_keltner_channel_strategy.py"
+        ],
+        "tests/strategies/test_71_double_sevens_strategy.py": [
+          "tests/functional/strategies/misc/test_71_double_sevens_strategy.py"
+        ],
+        "tests/strategies/test_72_triple_cross_strategy.py": [
+          "tests/functional/strategies/trend_following/test_72_triple_cross_strategy.py"
+        ],
+        "tests/strategies/test_73_simple_rsi_strategy.py": [
+          "tests/functional/strategies/momentum/test_73_simple_rsi_strategy.py"
+        ],
+        "tests/strategies/test_74_macd_gradient_strategy.py": [
+          "tests/functional/strategies/momentum/test_74_macd_gradient_strategy.py"
+        ],
+        "tests/strategies/test_75_extended_cross_strategy.py": [
+          "tests/functional/strategies/trend_following/test_75_extended_cross_strategy.py"
+        ],
+        "tests/strategies/test_76_heikin_ashi_strategy.py": [
+          "tests/functional/strategies/misc/test_76_heikin_ashi_strategy.py"
+        ],
+        "tests/strategies/test_77_slope_strategy.py": [
+          "tests/functional/strategies/misc/test_77_slope_strategy.py"
+        ],
+        "tests/strategies/test_78_percent_rank_strategy.py": [
+          "tests/functional/strategies/momentum/test_78_percent_rank_strategy.py"
+        ],
+        "tests/strategies/test_79_buy_dip_strategy.py": [
+          "tests/functional/strategies/misc/test_79_buy_dip_strategy.py"
+        ],
+        "tests/strategies/test_80_rsi_dip_buy_strategy.py": [
+          "tests/functional/strategies/momentum/test_80_rsi_dip_buy_strategy.py"
+        ],
+        "tests/strategies/test_81_supertrend_strategy.py": [
+          "tests/functional/strategies/volatility/test_81_supertrend_strategy.py"
+        ],
+        "tests/strategies/test_82_alligator_strategy.py": [
+          "tests/functional/strategies/misc/test_82_alligator_strategy.py"
+        ],
+        "tests/strategies/test_83_pair_trade_bollinger_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_83_pair_trade_bollinger_strategy.py"
+        ],
+        "tests/strategies/test_84_arjun_bhatia_futures_strategy.py": [
+          "tests/functional/strategies/misc/test_84_arjun_bhatia_futures_strategy.py"
+        ],
+        "tests/strategies/test_85_up_down_candles_strategy.py": [
+          "tests/functional/strategies/misc/test_85_up_down_candles_strategy.py"
+        ],
+        "tests/strategies/test_86_sunrise_ema_crossover_strategy.py": [
+          "tests/functional/strategies/trend_following/test_86_sunrise_ema_crossover_strategy.py"
+        ],
+        "tests/strategies/test_87_hma_crossover_strategy.py": [
+          "tests/functional/strategies/trend_following/test_87_hma_crossover_strategy.py"
+        ],
+        "tests/strategies/test_88_supertrend_indicator_strategy.py": [
+          "tests/functional/strategies/volatility/test_88_supertrend_indicator_strategy.py"
+        ],
+        "tests/strategies/test_89_adaptive_supertrend_strategy.py": [
+          "tests/functional/strategies/volatility/test_89_adaptive_supertrend_strategy.py"
+        ],
+        "tests/strategies/test_90_forex_ema_strategy.py": [
+          "tests/functional/strategies/trend_following/test_90_forex_ema_strategy.py"
+        ],
+        "tests/strategies/test_91_hma_multitrend_strategy.py": [
+          "tests/functional/strategies/trend_following/test_91_hma_multitrend_strategy.py"
+        ],
+        "tests/strategies/test_92_renko_ema_strategy.py": [
+          "tests/functional/strategies/misc/test_92_renko_ema_strategy.py"
+        ],
+        "tests/strategies/test_93_macd_dmi_simple_strategy.py": [
+          "tests/functional/strategies/trend_following/test_93_macd_dmi_simple_strategy.py"
+        ],
+        "tests/strategies/test_94_mean_reversion_sma_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_94_mean_reversion_sma_strategy.py"
+        ],
+        "tests/strategies/test_95_udvd_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_95_udvd_strategy.py"
+        ],
+        "tests/strategies/test_96_ichimoku_cloud_strategy.py": [
+          "tests/functional/strategies/trend_following/test_96_ichimoku_cloud_strategy.py"
+        ],
+        "tests/strategies/test_97_bb_rsi_strategy.py": [
+          "tests/functional/strategies/mean_reversion/test_97_bb_rsi_strategy.py"
+        ],
+        "tests/strategies/test_98_dema_crossover_strategy.py": [
+          "tests/functional/strategies/trend_following/test_98_dema_crossover_strategy.py"
+        ],
+        "tests/strategies/test_99_momentum_strategy.py": [
+          "tests/functional/strategies/momentum/test_99_momentum_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "85bc1559f8a5b593d76498b0b15a31187048e740",
+      "parents": [
+        "a31f76db5574af7d8aba2e67a6d0c71e1a328690"
+      ],
+      "subject": "update tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_07_macd_ema_true_strategy.py",
+        "tests/strategies/test_08_kelter_strategy.py",
+        "tests/strategies/test_09_dual_thrust_strategy.py",
+        "tests/strategies/test_11_sky_garden_strategy.py",
+        "tests/strategies/test_15_fenshi_ma_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_07_macd_ema_true_strategy.py": [
+          "tests/functional/strategies/trend_following/test_07_macd_ema_true_strategy.py"
+        ],
+        "tests/strategies/test_08_kelter_strategy.py": [
+          "tests/functional/strategies/volatility/test_08_kelter_strategy.py"
+        ],
+        "tests/strategies/test_09_dual_thrust_strategy.py": [
+          "tests/functional/strategies/breakout/test_09_dual_thrust_strategy.py"
+        ],
+        "tests/strategies/test_11_sky_garden_strategy.py": [
+          "tests/functional/strategies/misc/test_11_sky_garden_strategy.py"
+        ],
+        "tests/strategies/test_15_fenshi_ma_strategy.py": [
+          "tests/functional/strategies/trend_following/test_15_fenshi_ma_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "a31f76db5574af7d8aba2e67a6d0c71e1a328690",
+      "parents": [
+        "2b69da08811ddbbf84f64b0fce6004da302eac7f"
+      ],
+      "subject": "update",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_03_two_ma.py",
+        "tests/strategies/test_04_simple_ma_multi_data.py",
+        "tests/strategies/test_05_stop_order_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_03_two_ma.py": [
+          "tests/functional/strategies/trend_following/test_03_two_ma.py"
+        ],
+        "tests/strategies/test_04_simple_ma_multi_data.py": [
+          "tests/functional/strategies/special/test_04_simple_ma_multi_data.py"
+        ],
+        "tests/strategies/test_05_stop_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_05_stop_order_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "2b69da08811ddbbf84f64b0fce6004da302eac7f",
+      "parents": [
+        "49bf2ca8b304c9a34566da58a0e1b351569fe149"
+      ],
+      "subject": "update",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_03_two_ma.py",
+        "tests/strategies/test_04_simple_ma_multi_data.py",
+        "tests/strategies/test_05_stop_order_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_03_two_ma.py": [
+          "tests/functional/strategies/trend_following/test_03_two_ma.py"
+        ],
+        "tests/strategies/test_04_simple_ma_multi_data.py": [
+          "tests/functional/strategies/special/test_04_simple_ma_multi_data.py"
+        ],
+        "tests/strategies/test_05_stop_order_strategy.py": [
+          "tests/functional/strategies/order_types/test_05_stop_order_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "49bf2ca8b304c9a34566da58a0e1b351569fe149",
+      "parents": [
+        "0466b7049081931c6e4aaedce951c1b056308574"
+      ],
+      "subject": "update profile_performance",
+      "category": "分析工具",
+      "disposition": "根目录 profile_performance 迭代由 scripts/profile_performance.py 的现代版本承接。",
+      "changed_paths": [
+        "profile_performance.py"
+      ],
+      "modern_same_name_candidates": {
+        "profile_performance.py": [
+          "scripts/profile_performance.py"
+        ]
+      }
+    },
+    {
+      "sha": "0466b7049081931c6e4aaedce951c1b056308574",
+      "parents": [
+        "5da3eb294ca548a36f3c8a8043c71d6fd859c213"
+      ],
+      "subject": "fix tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_18_etf_rotation_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_18_etf_rotation_strategy.py": [
+          "tests/functional/strategies/special/test_18_etf_rotation_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "5da3eb294ca548a36f3c8a8043c71d6fd859c213",
+      "parents": [
+        "ec3f9b3b2a2d9159e9857a3abf84c9a06c7cbc65"
+      ],
+      "subject": "update tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/datas/上证50ETF.csv",
+        "tests/datas/易方达创业板ETF.csv",
+        "tests/strategies/test_18_etf_rotation_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_18_etf_rotation_strategy.py": [
+          "tests/functional/strategies/special/test_18_etf_rotation_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "ec3f9b3b2a2d9159e9857a3abf84c9a06c7cbc65",
+      "parents": [
+        "5399c89bc37503373faa4d89bc9d9bfc3e9ba1fa"
+      ],
+      "subject": "fix: restore test_02_multi_extend_data.py from performance-optimization branch",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/strategies/test_02_multi_extend_data.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_02_multi_extend_data.py": [
+          "tests/functional/strategies/special/test_02_multi_extend_data.py"
+        ]
+      }
+    },
+    {
+      "sha": "5399c89bc37503373faa4d89bc9d9bfc3e9ba1fa",
+      "parents": [
+        "e44d54219130a8d6404735c6ffb1a7f7c8346898"
+      ],
+      "subject": "update tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "docs/优化需求/迭代10-增加新的测试用例test_14.md",
+        "docs/优化需求/迭代11-增加新的测试用例test_15.md",
+        "docs/优化需求/迭代12-增加新的测试用例test_16.md",
+        "docs/优化需求/迭代13-增加新的测试用例test_17.md",
+        "docs/优化需求/迭代14-增加新的测试用例test_18.md",
+        "docs/优化需求/迭代14-增加新的测试用例test_19.md",
+        "docs/优化需求/迭代15-增加新的测试用例test_20.md",
+        "docs/优化需求/迭代2-增加新的测试用例test_06.md",
+        "docs/优化需求/迭代3-增加新的测试用例test_07.md",
+        "docs/优化需求/迭代4-增加新的测试用例test_08.md",
+        "docs/优化需求/迭代5-增加新的测试用例test_09.md",
+        "docs/优化需求/迭代6-增加新的测试用例test_10.md",
+        "docs/优化需求/迭代7-增加新的测试用例test_11.md",
+        "docs/优化需求/迭代8-增加新的测试用例test_12.md",
+        "docs/优化需求/迭代9-增加新的测试用例test_13.md",
+        "tests/datas/FG889.csv",
+        "tests/datas/RB889.csv",
+        "tests/datas/ZN889.csv",
+        "tests/datas/rb/RB1001.csv",
+        "tests/datas/rb/RB1002.csv",
+        "tests/datas/rb/RB1003.csv",
+        "tests/datas/rb/RB1004.csv",
+        "tests/datas/rb/RB1005.csv",
+        "tests/datas/rb/RB1006.csv",
+        "tests/datas/rb/RB1007.csv",
+        "tests/datas/rb/RB1008.csv",
+        "tests/datas/rb/RB1009.csv",
+        "tests/datas/rb/RB1010.csv",
+        "tests/datas/rb/RB1011.csv",
+        "tests/datas/rb/RB1012.csv",
+        "tests/datas/rb/RB1101.csv",
+        "tests/datas/rb/RB1102.csv",
+        "tests/datas/rb/RB1103.csv",
+        "tests/datas/rb/RB1104.csv",
+        "tests/datas/rb/RB1105.csv",
+        "tests/datas/rb/RB1106.csv",
+        "tests/datas/rb/RB1107.csv",
+        "tests/datas/rb/RB1108.csv",
+        "tests/datas/rb/RB1109.csv",
+        "tests/datas/rb/RB1110.csv",
+        "tests/datas/rb/RB1111.csv",
+        "tests/datas/rb/RB1112.csv",
+        "tests/datas/rb/RB1201.csv",
+        "tests/datas/rb/RB1202.csv",
+        "tests/datas/rb/RB1203.csv",
+        "tests/datas/rb/RB1204.csv",
+        "tests/datas/rb/RB1205.csv",
+        "tests/datas/rb/RB1206.csv",
+        "tests/datas/rb/RB1207.csv",
+        "tests/datas/rb/RB1208.csv",
+        "tests/datas/rb/RB1209.csv",
+        "tests/datas/rb/RB1210.csv",
+        "tests/datas/rb/RB1211.csv",
+        "tests/datas/rb/RB1212.csv",
+        "tests/datas/rb/RB1301.csv",
+        "tests/datas/rb/RB1302.csv",
+        "tests/datas/rb/RB1303.csv",
+        "tests/datas/rb/RB1304.csv",
+        "tests/datas/rb/RB1305.csv",
+        "tests/datas/rb/RB1306.csv",
+        "tests/datas/rb/RB1307.csv",
+        "tests/datas/rb/RB1308.csv",
+        "tests/datas/rb/RB1309.csv",
+        "tests/datas/rb/RB1310.csv",
+        "tests/datas/rb/RB1311.csv",
+        "tests/datas/rb/RB1312.csv",
+        "tests/datas/rb/RB1401.csv",
+        "tests/datas/rb/RB1402.csv",
+        "tests/datas/rb/RB1403.csv",
+        "tests/datas/rb/RB1404.csv",
+        "tests/datas/rb/RB1405.csv",
+        "tests/datas/rb/RB1406.csv",
+        "tests/datas/rb/RB1407.csv",
+        "tests/datas/rb/RB1408.csv",
+        "tests/datas/rb/RB1409.csv",
+        "tests/datas/rb/RB1410.csv",
+        "tests/datas/rb/RB1411.csv",
+        "tests/datas/rb/RB1412.csv",
+        "tests/datas/rb/RB1501.csv",
+        "tests/datas/rb/RB1502.csv",
+        "tests/datas/rb/RB1503.csv",
+        "tests/datas/rb/RB1504.csv",
+        "tests/datas/rb/RB1505.csv",
+        "tests/datas/rb/RB1506.csv",
+        "tests/datas/rb/RB1507.csv",
+        "tests/datas/rb/RB1508.csv",
+        "tests/datas/rb/RB1509.csv",
+        "tests/datas/rb/RB1510.csv",
+        "tests/datas/rb/RB1511.csv",
+        "tests/datas/rb/RB1512.csv",
+        "tests/datas/rb/RB1601.csv",
+        "tests/datas/rb/RB1602.csv",
+        "tests/datas/rb/RB1603.csv",
+        "tests/datas/rb/RB1604.csv",
+        "tests/datas/rb/RB1605.csv",
+        "tests/datas/rb/RB1606.csv",
+        "tests/datas/rb/RB1607.csv",
+        "tests/datas/rb/RB1608.csv",
+        "tests/datas/rb/RB1609.csv",
+        "tests/datas/rb/RB1610.csv",
+        "tests/datas/rb/RB1611.csv",
+        "tests/datas/rb/RB1612.csv",
+        "tests/datas/rb/RB1701.csv",
+        "tests/datas/rb/RB1702.csv",
+        "tests/datas/rb/RB1703.csv",
+        "tests/datas/rb/RB1704.csv",
+        "tests/datas/rb/RB1705.csv",
+        "tests/datas/rb/RB1706.csv",
+        "tests/datas/rb/RB1707.csv",
+        "tests/datas/rb/RB1708.csv",
+        "tests/datas/rb/RB1709.csv",
+        "tests/datas/rb/RB1710.csv",
+        "tests/datas/rb/RB1711.csv",
+        "tests/datas/rb/RB1712.csv",
+        "tests/datas/rb/RB1801.csv",
+        "tests/datas/rb/RB1802.csv",
+        "tests/datas/rb/RB1803.csv",
+        "tests/datas/rb/RB1804.csv",
+        "tests/datas/rb/RB1805.csv",
+        "tests/datas/rb/RB1806.csv",
+        "tests/datas/rb/RB1807.csv",
+        "tests/datas/rb/RB1808.csv",
+        "tests/datas/rb/RB1809.csv",
+        "tests/datas/rb/RB1810.csv",
+        "tests/datas/rb/RB1811.csv",
+        "tests/datas/rb/RB1812.csv",
+        "tests/datas/rb/RB1901.csv",
+        "tests/datas/rb/RB1902.csv",
+        "tests/datas/rb/RB1903.csv",
+        "tests/datas/rb/RB1904.csv",
+        "tests/datas/rb/RB1905.csv",
+        "tests/datas/rb/RB1906.csv",
+        "tests/datas/rb/RB1907.csv",
+        "tests/datas/rb/RB1908.csv",
+        "tests/datas/rb/RB1909.csv",
+        "tests/datas/rb/RB1910.csv",
+        "tests/datas/rb/RB1911.csv",
+        "tests/datas/rb/RB1912.csv",
+        "tests/datas/rb/RB2001.csv",
+        "tests/datas/rb/RB2002.csv",
+        "tests/datas/rb/RB2003.csv",
+        "tests/datas/rb/RB2004.csv",
+        "tests/datas/rb/RB2005.csv",
+        "tests/datas/rb/RB2006.csv",
+        "tests/datas/rb/RB2007.csv",
+        "tests/datas/rb/RB2008.csv",
+        "tests/datas/rb/RB2009.csv",
+        "tests/datas/rb/RB2010.csv",
+        "tests/datas/rb/RB2011.csv",
+        "tests/datas/rb/RB2012.csv",
+        "tests/datas/rb/RB2101.csv",
+        "tests/datas/rb/RB2102.csv",
+        "tests/datas/rb/RB2103.csv",
+        "tests/datas/rb/RB2104.csv",
+        "tests/datas/rb/RB2105.csv",
+        "tests/datas/rb/RB2106.csv",
+        "tests/datas/rb/RB2107.csv",
+        "tests/datas/rb/RB2108.csv",
+        "tests/datas/rb/RB2109.csv",
+        "tests/datas/rb/RB2110.csv",
+        "tests/datas/rb/RB2111.csv",
+        "tests/datas/rb/RB2112.csv",
+        "tests/datas/rb/RB2201.csv",
+        "tests/datas/rb/RB2202.csv",
+        "tests/datas/rb/RB2203.csv",
+        "tests/datas/rb/RB2204.csv",
+        "tests/datas/rb/RB2205.csv",
+        "tests/datas/rb/RB2206.csv",
+        "tests/datas/rb/RB2207.csv",
+        "tests/datas/rb/RB99.csv",
+        "tests/datas/上证50ETF.csv",
+        "tests/datas/中金所期货合约数据.csv",
+        "tests/datas/填充部分缺失值之后的中金所日线数据.csv",
+        "tests/datas/易方达创业板ETF.csv",
+        "tests/strategies/test_06_macd_ema_fase_strategy.py",
+        "tests/strategies/test_07_macd_ema_true_strategy.py",
+        "tests/strategies/test_08_kelter_strategy.py",
+        "tests/strategies/test_09_dual_thrust_strategy.py",
+        "tests/strategies/test_10_r_breaker_strategy.py",
+        "tests/strategies/test_11_sky_garden_strategy.py",
+        "tests/strategies/test_12_abberation_strategy.py",
+        "tests/strategies/test_13_fei_strategy.py",
+        "tests/strategies/test_14_hanse123_strategy.py",
+        "tests/strategies/test_15_fenshi_ma_strategy.py",
+        "tests/strategies/test_16_cb_strategy.py",
+        "tests/strategies/test_17_cb_monday_strategy.py",
+        "tests/strategies/test_18_etf_rotation_strategy.py",
+        "tests/strategies/test_19_index_future_momentum.py",
+        "tests/strategies/test_20_arbitrage_strategy.py",
+        "tests/test_multi_extend_data.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_06_macd_ema_fase_strategy.py": [
+          "tests/functional/strategies/trend_following/test_06_macd_ema_fase_strategy.py"
+        ],
+        "tests/strategies/test_07_macd_ema_true_strategy.py": [
+          "tests/functional/strategies/trend_following/test_07_macd_ema_true_strategy.py"
+        ],
+        "tests/strategies/test_08_kelter_strategy.py": [
+          "tests/functional/strategies/volatility/test_08_kelter_strategy.py"
+        ],
+        "tests/strategies/test_09_dual_thrust_strategy.py": [
+          "tests/functional/strategies/breakout/test_09_dual_thrust_strategy.py"
+        ],
+        "tests/strategies/test_10_r_breaker_strategy.py": [
+          "tests/functional/strategies/breakout/test_10_r_breaker_strategy.py"
+        ],
+        "tests/strategies/test_11_sky_garden_strategy.py": [
+          "tests/functional/strategies/misc/test_11_sky_garden_strategy.py"
+        ],
+        "tests/strategies/test_12_abberation_strategy.py": [
+          "tests/functional/strategies/multi_indicator/test_12_abberation_strategy.py"
+        ],
+        "tests/strategies/test_13_fei_strategy.py": [
+          "tests/functional/strategies/special/test_13_fei_strategy.py"
+        ],
+        "tests/strategies/test_14_hanse123_strategy.py": [
+          "tests/functional/strategies/special/test_14_hanse123_strategy.py"
+        ],
+        "tests/strategies/test_15_fenshi_ma_strategy.py": [
+          "tests/functional/strategies/trend_following/test_15_fenshi_ma_strategy.py"
+        ],
+        "tests/strategies/test_16_cb_strategy.py": [
+          "tests/functional/strategies/misc/test_16_cb_strategy.py"
+        ],
+        "tests/strategies/test_17_cb_monday_strategy.py": [
+          "tests/functional/strategies/misc/test_17_cb_monday_strategy.py"
+        ],
+        "tests/strategies/test_18_etf_rotation_strategy.py": [
+          "tests/functional/strategies/special/test_18_etf_rotation_strategy.py"
+        ],
+        "tests/strategies/test_19_index_future_momentum.py": [
+          "tests/functional/strategies/momentum/test_19_index_future_momentum.py"
+        ],
+        "tests/strategies/test_20_arbitrage_strategy.py": [
+          "tests/functional/strategies/special/test_20_arbitrage_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "e44d54219130a8d6404735c6ffb1a7f7c8346898",
+      "parents": [
+        "c9ec1a7471a2d13f0cda44bc119725e4e59457e3"
+      ],
+      "subject": "update",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "run_test_with_log.py",
+        "tests/strategies/test_02_multi_extend_data.py"
+      ],
+      "modern_same_name_candidates": {
+        "run_test_with_log.py": [
+          "scripts/run_test_with_log.py"
+        ],
+        "tests/strategies/test_02_multi_extend_data.py": [
+          "tests/functional/strategies/special/test_02_multi_extend_data.py"
+        ]
+      }
+    },
+    {
+      "sha": "c9ec1a7471a2d13f0cda44bc119725e4e59457e3",
+      "parents": [
+        "c6374c1559a9035a637f94375e1a293882bbb412"
+      ],
+      "subject": "update",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        ".gitignore",
+        "tests/strategies/test_02_multi_extend_data.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_02_multi_extend_data.py": [
+          "tests/functional/strategies/special/test_02_multi_extend_data.py"
+        ]
+      }
+    },
+    {
+      "sha": "c6374c1559a9035a637f94375e1a293882bbb412",
+      "parents": [
+        "6ec8abf5e7906fcf1e16897ea376b17d4b6eb567"
+      ],
+      "subject": "update tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/datas/113013.csv",
+        "tests/strategies/test_01_premium_rate_strategy.py",
+        "tests/strategies/test_02_multi_extend_data.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/strategies/test_01_premium_rate_strategy.py": [
+          "tests/functional/strategies/special/test_01_premium_rate_strategy.py"
+        ],
+        "tests/strategies/test_02_multi_extend_data.py": [
+          "tests/functional/strategies/special/test_02_multi_extend_data.py"
+        ]
+      }
+    },
+    {
+      "sha": "6ec8abf5e7906fcf1e16897ea376b17d4b6eb567",
+      "parents": [
+        "5bee03b1ccf56c6e9b95b584163c871ae852e627"
+      ],
+      "subject": "update test_multi_extend_data.py",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/datas/bond_index_000000.csv",
+        "tests/datas/bond_merged_all_data.csv",
+        "tests/test_multi_extend_data.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "5bee03b1ccf56c6e9b95b584163c871ae852e627",
+      "parents": [
+        "e6130f05750d49eb78c4e7849bbbc6ed8c336e3e"
+      ],
+      "subject": "update strategy for bonds",
+      "category": "研究策略与数据",
+      "disposition": "旧可转债研究脚本/大CSV留历史；现代 special/misc 可转债回归路径保留，不恢复旧策略布局。",
+      "changed_paths": [
+        "strategies/bond_index_000000.csv",
+        "strategies/bond_merged_all_data.csv",
+        "strategies/优化策略1.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "e6130f05750d49eb78c4e7849bbbc6ed8c336e3e",
+      "parents": [
+        "c520da605bbd98720a23c64baae6484f11d71c8a"
+      ],
+      "subject": "update strategy",
+      "category": "研究策略与数据",
+      "disposition": "旧 strategies/0025 与 premium_rate 策略演变留历史；现代特殊策略回归及正确字段映射已保留。",
+      "changed_paths": [
+        "strategies/0025_可转债双低策略/原始策略回测.py",
+        "strategies/113013.csv",
+        "strategies/premium_rate_crossover_strategy.py"
+      ],
+      "modern_same_name_candidates": {
+        "strategies/premium_rate_crossover_strategy.py": [
+          "examples/premium_rate_crossover_strategy.py"
+        ]
+      }
+    },
+    {
+      "sha": "c520da605bbd98720a23c64baae6484f11d71c8a",
+      "parents": [
+        "a919abb442f849dbdd46c68e70f65892f261a4a4"
+      ],
+      "subject": "update profile_performance",
+      "category": "分析工具",
+      "disposition": "根目录 profile_performance 演变保留历史，采用 scripts 中现代工具。",
+      "changed_paths": [
+        "profile_performance.py"
+      ],
+      "modern_same_name_candidates": {
+        "profile_performance.py": [
+          "scripts/profile_performance.py"
+        ]
+      }
+    },
+    {
+      "sha": "a919abb442f849dbdd46c68e70f65892f261a4a4",
+      "parents": [
+        "4694a5fa3f2133238b68419f5c27afa9855d59c2"
+      ],
+      "subject": "update",
+      "category": "分析工具",
+      "disposition": "根目录 profile_performance 演变保留历史，采用 scripts 中现代工具。",
+      "changed_paths": [
+        "profile_performance.py"
+      ],
+      "modern_same_name_candidates": {
+        "profile_performance.py": [
+          "scripts/profile_performance.py"
+        ]
+      }
+    },
+    {
+      "sha": "4694a5fa3f2133238b68419f5c27afa9855d59c2",
+      "parents": [
+        "29dcbbb0b6c7155d157e2d2b8d5fa7335c46fa80"
+      ],
+      "subject": "update cal performance",
+      "category": "分析工具",
+      "disposition": "根目录 profile_performance 演变保留历史，采用 scripts 中现代工具。",
+      "changed_paths": [
+        "profile_performance.py"
+      ],
+      "modern_same_name_candidates": {
+        "profile_performance.py": [
+          "scripts/profile_performance.py"
+        ]
+      }
+    },
+    {
+      "sha": "29dcbbb0b6c7155d157e2d2b8d5fa7335c46fa80",
+      "parents": [
+        "5ce743d7befb989cc8a7f5e92a473f800c6fca35"
+      ],
+      "subject": "update",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        ".gitignore",
+        "tests/original_tests/test_strategy_unoptimized.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/original_tests/test_strategy_unoptimized.py": [
+          "tests/unit/core/test_strategy_unoptimized.py"
+        ]
+      }
+    },
+    {
+      "sha": "5ce743d7befb989cc8a7f5e92a473f800c6fca35",
+      "parents": [
+        "12140feedc7105bd86f783e13c55bd0b9e4b6261"
+      ],
+      "subject": "update test script",
+      "category": "测试工具与配置",
+      "disposition": "旧 run_master_tests 与配置由 scripts 现代工具和现有 pytest/Makefile 接管，不恢复过期根路径。",
+      "changed_paths": [
+        ".gitignore",
+        "pyproject.toml",
+        "requirements.txt",
+        "run_master_tests.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "12140feedc7105bd86f783e13c55bd0b9e4b6261",
+      "parents": [
+        "13cbcf46b5cc26bdb82bd6817fe09ade7f849a81"
+      ],
+      "subject": "delete some markdown files",
+      "category": "文档整理",
+      "disposition": "旧测试总结/说明删除，保留现代文档布局及历史记录。",
+      "changed_paths": [
+        "tests/add_tests/README.md",
+        "tests/add_tests/测试改进分析.md",
+        "tests/add_tests/测试改进完成报告.md",
+        "tests/add_tests/需求0和需求1完成总结.md",
+        "最终完成报告-需求0和1及改进.md",
+        "测试改进摘要.txt",
+        "测试覆盖率提升项目-最终报告.md",
+        "需求0和1最终报告.txt",
+        "需求0完成情况.md",
+        "需求1.md",
+        "需求1完成情况.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "13cbcf46b5cc26bdb82bd6817fe09ade7f849a81",
+      "parents": [
+        "9fb8960b991335cd6a6dd995bf3a463d2e1b796e"
+      ],
+      "subject": "update add_tests",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "docs/COMPLETION_REPORT.md",
+        "docs/README.md",
+        "docs/完成总结.md",
+        "tests/add_tests/README.md",
+        "tests/add_tests/__init__.py",
+        "tests/add_tests/test_analyzer_annualreturn.py",
+        "tests/add_tests/test_analyzer_calmar.py",
+        "tests/add_tests/test_analyzer_drawdown.py",
+        "tests/add_tests/test_analyzer_leverage.py",
+        "tests/add_tests/test_analyzer_logreturnsrolling.py",
+        "tests/add_tests/test_analyzer_periodstats.py",
+        "tests/add_tests/test_analyzer_positions.py",
+        "tests/add_tests/test_analyzer_pyfolio.py",
+        "tests/add_tests/test_analyzer_returns.py",
+        "tests/add_tests/test_analyzer_sharpe.py",
+        "tests/add_tests/test_analyzer_sharpe_ratio_stats.py",
+        "tests/add_tests/test_analyzer_total_value.py",
+        "tests/add_tests/test_analyzer_tradeanalyzer.py",
+        "tests/add_tests/test_analyzer_transactions.py",
+        "tests/add_tests/test_analyzer_vwr.py",
+        "tests/add_tests/test_broker.py",
+        "tests/add_tests/test_cerebro.py",
+        "tests/add_tests/test_dataseries.py",
+        "tests/add_tests/test_errors.py",
+        "tests/add_tests/test_feed.py",
+        "tests/add_tests/test_feeds_csv.py",
+        "tests/add_tests/test_fillers.py",
+        "tests/add_tests/test_filter_bsplitter.py",
+        "tests/add_tests/test_filter_calendardays.py",
+        "tests/add_tests/test_filter_datafiller.py",
+        "tests/add_tests/test_filter_datafilter.py",
+        "tests/add_tests/test_filter_daysteps.py",
+        "tests/add_tests/test_filter_heikinashi.py",
+        "tests/add_tests/test_filter_renko.py",
+        "tests/add_tests/test_filter_session.py",
+        "tests/add_tests/test_flt.py",
+        "tests/add_tests/test_functions.py",
+        "tests/add_tests/test_ind_basicops.py",
+        "tests/add_tests/test_ind_crossover.py",
+        "tests/add_tests/test_ind_deviation.py",
+        "tests/add_tests/test_ind_hadelta.py",
+        "tests/add_tests/test_ind_hurst.py",
+        "tests/add_tests/test_ind_mabase.py",
+        "tests/add_tests/test_ind_macd.py",
+        "tests/add_tests/test_ind_myind.py",
+        "tests/add_tests/test_ind_ols.py",
+        "tests/add_tests/test_ind_pivotpoint.py",
+        "tests/add_tests/test_ind_psar.py",
+        "tests/add_tests/test_ind_williams.py",
+        "tests/add_tests/test_indicator_base.py",
+        "tests/add_tests/test_observer_base.py",
+        "tests/add_tests/test_observer_benchmark.py",
+        "tests/add_tests/test_observer_broker.py",
+        "tests/add_tests/test_observer_buysell.py",
+        "tests/add_tests/test_observer_drawdown.py",
+        "tests/add_tests/test_observer_logreturns.py",
+        "tests/add_tests/test_observer_timereturn.py",
+        "tests/add_tests/test_observer_trades.py",
+        "tests/add_tests/test_resamplerfilter.py",
+        "tests/add_tests/test_signal.py",
+        "tests/add_tests/test_sizer_base.py",
+        "tests/add_tests/test_sizer_fixedsize.py",
+        "tests/add_tests/test_sizer_percents.py",
+        "tests/add_tests/test_store.py",
+        "tests/add_tests/test_strategy.py",
+        "tests/add_tests/test_talib.py",
+        "tests/add_tests/test_timer.py",
+        "tests/add_tests/test_tradingcal.py",
+        "tests/add_tests/test_utils.py",
+        "tests/add_tests/testcommon.py",
+        "tests/add_tests/测试改进分析.md",
+        "tests/add_tests/测试改进完成报告.md",
+        "tests/add_tests/需求0和需求1完成总结.md",
+        "最终完成报告-需求0和1及改进.md",
+        "测试改进摘要.txt",
+        "测试覆盖率提升项目-最终报告.md",
+        "需求0和1最终报告.txt",
+        "需求0完成情况.md",
+        "需求1.md",
+        "需求1完成情况.md"
+      ],
+      "modern_same_name_candidates": {
+        "tests/add_tests/test_analyzer_annualreturn.py": [
+          "tests/unit/analyzers/test_analyzer_annualreturn.py"
+        ],
+        "tests/add_tests/test_analyzer_calmar.py": [
+          "tests/unit/analyzers/test_analyzer_calmar.py"
+        ],
+        "tests/add_tests/test_analyzer_drawdown.py": [
+          "tests/unit/analyzers/test_analyzer_drawdown.py"
+        ],
+        "tests/add_tests/test_analyzer_leverage.py": [
+          "tests/unit/analyzers/test_analyzer_leverage.py"
+        ],
+        "tests/add_tests/test_analyzer_logreturnsrolling.py": [
+          "tests/unit/analyzers/test_analyzer_logreturnsrolling.py"
+        ],
+        "tests/add_tests/test_analyzer_periodstats.py": [
+          "tests/unit/analyzers/test_analyzer_periodstats.py"
+        ],
+        "tests/add_tests/test_analyzer_positions.py": [
+          "tests/unit/analyzers/test_analyzer_positions.py"
+        ],
+        "tests/add_tests/test_analyzer_pyfolio.py": [
+          "tests/unit/analyzers/test_analyzer_pyfolio.py"
+        ],
+        "tests/add_tests/test_analyzer_returns.py": [
+          "tests/unit/analyzers/test_analyzer_returns.py"
+        ],
+        "tests/add_tests/test_analyzer_sharpe.py": [
+          "tests/unit/analyzers/test_analyzer_sharpe.py"
+        ],
+        "tests/add_tests/test_analyzer_sharpe_ratio_stats.py": [
+          "tests/unit/analyzers/test_analyzer_sharpe_ratio_stats.py"
+        ],
+        "tests/add_tests/test_analyzer_total_value.py": [
+          "tests/unit/analyzers/test_analyzer_total_value.py"
+        ],
+        "tests/add_tests/test_analyzer_tradeanalyzer.py": [
+          "tests/unit/analyzers/test_analyzer_tradeanalyzer.py"
+        ],
+        "tests/add_tests/test_analyzer_transactions.py": [
+          "tests/unit/analyzers/test_analyzer_transactions.py"
+        ],
+        "tests/add_tests/test_analyzer_vwr.py": [
+          "tests/unit/analyzers/test_analyzer_vwr.py"
+        ],
+        "tests/add_tests/test_broker.py": [
+          "tests/unit/brokers/test_broker.py"
+        ],
+        "tests/add_tests/test_cerebro.py": [
+          "tests/unit/core/test_cerebro.py"
+        ],
+        "tests/add_tests/test_dataseries.py": [
+          "tests/unit/feeds/test_dataseries.py"
+        ],
+        "tests/add_tests/test_errors.py": [
+          "tests/unit/core/test_errors.py"
+        ],
+        "tests/add_tests/test_feed.py": [
+          "tests/unit/feeds/test_feed.py"
+        ],
+        "tests/add_tests/test_feeds_csv.py": [
+          "tests/unit/feeds/test_feeds_csv.py"
+        ],
+        "tests/add_tests/test_fillers.py": [
+          "tests/unit/brokers/test_fillers.py"
+        ],
+        "tests/add_tests/test_filter_bsplitter.py": [
+          "tests/unit/filters/test_filter_bsplitter.py"
+        ],
+        "tests/add_tests/test_filter_calendardays.py": [
+          "tests/unit/filters/test_filter_calendardays.py"
+        ],
+        "tests/add_tests/test_filter_datafiller.py": [
+          "tests/unit/filters/test_filter_datafiller.py"
+        ],
+        "tests/add_tests/test_filter_datafilter.py": [
+          "tests/unit/filters/test_filter_datafilter.py"
+        ],
+        "tests/add_tests/test_filter_daysteps.py": [
+          "tests/unit/filters/test_filter_daysteps.py"
+        ],
+        "tests/add_tests/test_filter_heikinashi.py": [
+          "tests/unit/filters/test_filter_heikinashi.py"
+        ],
+        "tests/add_tests/test_filter_renko.py": [
+          "tests/unit/filters/test_filter_renko.py"
+        ],
+        "tests/add_tests/test_filter_session.py": [
+          "tests/unit/filters/test_filter_session.py"
+        ],
+        "tests/add_tests/test_flt.py": [
+          "tests/unit/filters/test_flt.py"
+        ],
+        "tests/add_tests/test_functions.py": [
+          "tests/unit/core/test_functions.py"
+        ],
+        "tests/add_tests/test_ind_basicops.py": [
+          "tests/unit/indicators/test_ind_basicops.py"
+        ],
+        "tests/add_tests/test_ind_crossover.py": [
+          "tests/unit/indicators/test_ind_crossover.py"
+        ],
+        "tests/add_tests/test_ind_deviation.py": [
+          "tests/unit/indicators/test_ind_deviation.py"
+        ],
+        "tests/add_tests/test_ind_hadelta.py": [
+          "tests/unit/indicators/test_ind_hadelta.py"
+        ],
+        "tests/add_tests/test_ind_hurst.py": [
+          "tests/unit/indicators/test_ind_hurst.py"
+        ],
+        "tests/add_tests/test_ind_mabase.py": [
+          "tests/unit/indicators/test_ind_mabase.py"
+        ],
+        "tests/add_tests/test_ind_macd.py": [
+          "tests/unit/indicators/test_ind_macd.py"
+        ],
+        "tests/add_tests/test_ind_myind.py": [
+          "tests/unit/indicators/test_ind_myind.py"
+        ],
+        "tests/add_tests/test_ind_ols.py": [
+          "tests/unit/indicators/test_ind_ols.py"
+        ],
+        "tests/add_tests/test_ind_pivotpoint.py": [
+          "tests/unit/indicators/test_ind_pivotpoint.py"
+        ],
+        "tests/add_tests/test_ind_psar.py": [
+          "tests/unit/indicators/test_ind_psar.py"
+        ],
+        "tests/add_tests/test_ind_williams.py": [
+          "tests/unit/indicators/test_ind_williams.py"
+        ],
+        "tests/add_tests/test_indicator_base.py": [
+          "tests/unit/indicators/test_indicator_base.py"
+        ],
+        "tests/add_tests/test_observer_base.py": [
+          "tests/unit/observers/test_observer_base.py"
+        ],
+        "tests/add_tests/test_observer_benchmark.py": [
+          "tests/unit/observers/test_observer_benchmark.py"
+        ],
+        "tests/add_tests/test_observer_broker.py": [
+          "tests/unit/observers/test_observer_broker.py"
+        ],
+        "tests/add_tests/test_observer_buysell.py": [
+          "tests/unit/observers/test_observer_buysell.py"
+        ],
+        "tests/add_tests/test_observer_drawdown.py": [
+          "tests/unit/observers/test_observer_drawdown.py"
+        ],
+        "tests/add_tests/test_observer_logreturns.py": [
+          "tests/unit/observers/test_observer_logreturns.py"
+        ],
+        "tests/add_tests/test_observer_timereturn.py": [
+          "tests/unit/observers/test_observer_timereturn.py"
+        ],
+        "tests/add_tests/test_observer_trades.py": [
+          "tests/unit/observers/test_observer_trades.py"
+        ],
+        "tests/add_tests/test_resamplerfilter.py": [
+          "tests/unit/filters/test_resamplerfilter.py"
+        ],
+        "tests/add_tests/test_signal.py": [
+          "tests/unit/core/test_signal.py"
+        ],
+        "tests/add_tests/test_sizer_base.py": [
+          "tests/unit/core/test_sizer_base.py"
+        ],
+        "tests/add_tests/test_sizer_fixedsize.py": [
+          "tests/unit/core/test_sizer_fixedsize.py"
+        ],
+        "tests/add_tests/test_sizer_percents.py": [
+          "tests/unit/core/test_sizer_percents.py"
+        ],
+        "tests/add_tests/test_store.py": [
+          "tests/unit/core/test_store.py"
+        ],
+        "tests/add_tests/test_strategy.py": [
+          "tests/unit/core/test_strategy.py"
+        ],
+        "tests/add_tests/test_talib.py": [
+          "tests/unit/indicators/test_talib.py"
+        ],
+        "tests/add_tests/test_timer.py": [
+          "tests/unit/core/test_timer.py"
+        ],
+        "tests/add_tests/test_tradingcal.py": [
+          "tests/unit/core/test_tradingcal.py"
+        ],
+        "tests/add_tests/test_utils.py": [
+          "tests/unit/core/test_utils.py"
+        ],
+        "tests/add_tests/testcommon.py": [
+          "tests/testcommon.py"
+        ]
+      }
+    },
+    {
+      "sha": "9fb8960b991335cd6a6dd995bf3a463d2e1b796e",
+      "parents": [
+        "e874388910ab74824d1531712078aea450e032fb"
+      ],
+      "subject": "fix: 修复statsmodels导入错误导致测试失败",
+      "category": "可选依赖修复",
+      "disposition": "OLS 用 _get_statsmodels 惰性导入，保留无需可选包导入 backtrader 的意图。",
+      "changed_paths": [
+        "backtrader/indicators/__init__.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "e874388910ab74824d1531712078aea450e032fb",
+      "parents": [
+        "d9e9c93ce3c96267b041d7ce6758ee28d589ce81"
+      ],
+      "subject": "fix: 修复DataTrades observer数据源名称类型错误",
+      "category": "观察器修复",
+      "disposition": "现代固定 data0..data9 lines 不走旧动态 _derive(非字符串名称) 路径；保留现实现与观察器测试。",
+      "changed_paths": [
+        "backtrader/observers/trades.py",
+        "docs/CHANGELOG.md",
+        "docs/DATATRADES_FIX.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "d9e9c93ce3c96267b041d7ce6758ee28d589ce81",
+      "parents": [
+        "5d3b589f1d07cc5b1a73bd1ce7a707814bc62bd3"
+      ],
+      "subject": "docs: 添加安装指南解决版本冲突问题",
+      "category": "安装文档",
+      "disposition": "保留现代安装/版本说明，不恢复旧元类分支安装建议。",
+      "changed_paths": [
+        "docs/CHANGELOG.md",
+        "docs/INSTALLATION_GUIDE.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "5d3b589f1d07cc5b1a73bd1ce7a707814bc62bd3",
+      "parents": [
+        "69580a401ff1f16f0493b1efef048c9af490d120"
+      ],
+      "subject": "docs: 更新CHANGELOG记录ExtendPandasFeed修复",
+      "category": "修复说明",
+      "disposition": "ExtendPandasFeed 修复说明留历史；现代回归中 datetime=None 和字段0..8已保留。",
+      "changed_paths": [
+        "docs/CHANGELOG.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "69580a401ff1f16f0493b1efef048c9af490d120",
+      "parents": [
+        "55400fff15aa81f3526ad01e956349772d21c7c2"
+      ],
+      "subject": "fix: 修复ExtendPandasFeed列索引错误导致stdstats报错的问题",
+      "category": "策略缺陷修复",
+      "disposition": "set_index 后字段映射修复已在 special/test_01_premium_rate_strategy.py 与 test_02_multi_extend_data.py 保留。",
+      "changed_paths": [
+        "docs/EXTENDED_FEED_FIX.md",
+        "strategies/0025_可转债双低策略/原始策略回测.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "55400fff15aa81f3526ad01e956349772d21c7c2",
+      "parents": [
+        "4cf8c06b4556ae5a565bea4ff035e677a315cb4a"
+      ],
+      "subject": "chore: 清理项目根目录无用文件",
+      "category": "根目录整理",
+      "disposition": "清理旧安装/卸载脚本与页面：现代布局保持，不恢复旧文件。",
+      "changed_paths": [
+        "index.html",
+        "install_complete.py",
+        "install_offline_pip.py",
+        "setup_fix_subdirs.py",
+        "uninstall.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "4cf8c06b4556ae5a565bea4ff035e677a315cb4a",
+      "parents": [
+        "0696eba64e1a5b11d8d2bb1b5ed6eb8c8e97dba5"
+      ],
+      "subject": "docs: 添加项目更新日志",
+      "category": "更新日志",
+      "disposition": "历史变更记录由旧 master tag 保留；1.4.0 更新写当前 CHANGELOG。",
+      "changed_paths": [
+        "docs/CHANGELOG.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "0696eba64e1a5b11d8d2bb1b5ed6eb8c8e97dba5",
+      "parents": [
+        "19f95edf9a124e70e9ed180624bb107be9fc4a0c"
+      ],
+      "subject": "fix: 为indicators模块添加显式__all__导出列表",
+      "category": "导出与IDE提示",
+      "disposition": "不复制旧118项 __all__ 限制现代新增指标；保留当前常规/轻量导出策略，反射结构不宣称相同。",
+      "changed_paths": [
+        "backtrader/indicators/__init__.py"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "19f95edf9a124e70e9ed180624bb107be9fc4a0c",
+      "parents": [
+        "f222ee358b528db2b8d817c61e10d0e5d2ae6a5f"
+      ],
+      "subject": "docs: 优化CLAUDE.md和README.md文档内容",
+      "category": "项目文档",
+      "disposition": "以当前 AGENTS/README 真实架构为准，旧说明留历史。",
+      "changed_paths": [
+        "CLAUDE.md",
+        "README.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "f222ee358b528db2b8d817c61e10d0e5d2ae6a5f",
+      "parents": [
+        "68b8838a8b256b74bec15e07dc35166e5087d8dd"
+      ],
+      "subject": "fix format",
+      "category": "格式混合真实功能",
+      "disposition": "AST审计169文件仅格式/文档、btrun帮助拼写；PyFolio五个报表入口确为新增且本次兼容补入。",
+      "changed_paths": [
+        "MANIFEST.in",
+        "SYNC_SETUP.md",
+        "backtrader/__init__.py",
+        "backtrader/analyzer.py",
+        "backtrader/analyzers/__init__.py",
+        "backtrader/analyzers/annualreturn.py",
+        "backtrader/analyzers/calmar.py",
+        "backtrader/analyzers/drawdown.py",
+        "backtrader/analyzers/leverage.py",
+        "backtrader/analyzers/logreturnsrolling.py",
+        "backtrader/analyzers/periodstats.py",
+        "backtrader/analyzers/positions.py",
+        "backtrader/analyzers/pyfolio.py",
+        "backtrader/analyzers/returns.py",
+        "backtrader/analyzers/sharpe.py",
+        "backtrader/analyzers/sqn.py",
+        "backtrader/analyzers/timereturn.py",
+        "backtrader/analyzers/tradeanalyzer.py",
+        "backtrader/analyzers/transactions.py",
+        "backtrader/analyzers/vwr.py",
+        "backtrader/broker.py",
+        "backtrader/brokers/__init__.py",
+        "backtrader/brokers/bbroker.py",
+        "backtrader/brokers/ccxtbroker.py",
+        "backtrader/brokers/ibbroker.py",
+        "backtrader/brokers/oandabroker.py",
+        "backtrader/brokers/vcbroker.py",
+        "backtrader/btrun/__init__.py",
+        "backtrader/btrun/btrun.py",
+        "backtrader/cerebro.py",
+        "backtrader/comminfo.py",
+        "backtrader/commissions/__init__.py",
+        "backtrader/dataseries.py",
+        "backtrader/errors.py",
+        "backtrader/feed.py",
+        "backtrader/feeds/__init__.py",
+        "backtrader/feeds/blaze.py",
+        "backtrader/feeds/btcsv.py",
+        "backtrader/feeds/ccxtfeed.py",
+        "backtrader/feeds/chainer.py",
+        "backtrader/feeds/csvgeneric.py",
+        "backtrader/feeds/ctpdata.py",
+        "backtrader/feeds/ibdata.py",
+        "backtrader/feeds/influxfeed.py",
+        "backtrader/feeds/mt4csv.py",
+        "backtrader/feeds/oanda.py",
+        "backtrader/feeds/pandafeed.py",
+        "backtrader/feeds/quandl.py",
+        "backtrader/feeds/rollover.py",
+        "backtrader/feeds/sierrachart.py",
+        "backtrader/feeds/vcdata.py",
+        "backtrader/feeds/vchart.py",
+        "backtrader/feeds/vchartcsv.py",
+        "backtrader/feeds/vchartfile.py",
+        "backtrader/feeds/yahoo.py",
+        "backtrader/fillers.py",
+        "backtrader/filters/__init__.py",
+        "backtrader/filters/bsplitter.py",
+        "backtrader/filters/calendardays.py",
+        "backtrader/filters/datafiller.py",
+        "backtrader/filters/datafilter.py",
+        "backtrader/filters/daysteps.py",
+        "backtrader/filters/heikinashi.py",
+        "backtrader/filters/renko.py",
+        "backtrader/filters/session.py",
+        "backtrader/flt.py",
+        "backtrader/functions.py",
+        "backtrader/indicator.py",
+        "backtrader/indicators/__init__.py",
+        "backtrader/indicators/accdecoscillator.py",
+        "backtrader/indicators/aroon.py",
+        "backtrader/indicators/atr.py",
+        "backtrader/indicators/awesomeoscillator.py",
+        "backtrader/indicators/basicops.py",
+        "backtrader/indicators/bollinger.py",
+        "backtrader/indicators/cci.py",
+        "backtrader/indicators/contrib/__init__.py",
+        "backtrader/indicators/contrib/vortex.py",
+        "backtrader/indicators/crossover.py",
+        "backtrader/indicators/dema.py",
+        "backtrader/indicators/deviation.py",
+        "backtrader/indicators/directionalmove.py",
+        "backtrader/indicators/dma.py",
+        "backtrader/indicators/dpo.py",
+        "backtrader/indicators/dv2.py",
+        "backtrader/indicators/ema.py",
+        "backtrader/indicators/envelope.py",
+        "backtrader/indicators/hadelta.py",
+        "backtrader/indicators/heikinashi.py",
+        "backtrader/indicators/hma.py",
+        "backtrader/indicators/hurst.py",
+        "backtrader/indicators/ichimoku.py",
+        "backtrader/indicators/kama.py",
+        "backtrader/indicators/kst.py",
+        "backtrader/indicators/lrsi.py",
+        "backtrader/indicators/mabase.py",
+        "backtrader/indicators/macd.py",
+        "backtrader/indicators/momentum.py",
+        "backtrader/indicators/ols.py",
+        "backtrader/indicators/oscillator.py",
+        "backtrader/indicators/percentchange.py",
+        "backtrader/indicators/percentrank.py",
+        "backtrader/indicators/pivotpoint.py",
+        "backtrader/indicators/prettygoodoscillator.py",
+        "backtrader/indicators/priceoscillator.py",
+        "backtrader/indicators/psar.py",
+        "backtrader/indicators/rmi.py",
+        "backtrader/indicators/rsi.py",
+        "backtrader/indicators/sma.py",
+        "backtrader/indicators/smma.py",
+        "backtrader/indicators/stochastic.py",
+        "backtrader/indicators/trix.py",
+        "backtrader/indicators/tsi.py",
+        "backtrader/indicators/ultimateoscillator.py",
+        "backtrader/indicators/vortex.py",
+        "backtrader/indicators/williams.py",
+        "backtrader/indicators/wma.py",
+        "backtrader/indicators/zlema.py",
+        "backtrader/indicators/zlind.py",
+        "backtrader/linebuffer.py",
+        "backtrader/lineiterator.py",
+        "backtrader/lineroot.py",
+        "backtrader/lineseries.py",
+        "backtrader/mathsupport.py",
+        "backtrader/metabase.py",
+        "backtrader/observer.py",
+        "backtrader/observers/__init__.py",
+        "backtrader/observers/benchmark.py",
+        "backtrader/observers/broker.py",
+        "backtrader/observers/buysell.py",
+        "backtrader/observers/drawdown.py",
+        "backtrader/observers/logreturns.py",
+        "backtrader/observers/timereturn.py",
+        "backtrader/observers/trades.py",
+        "backtrader/order.py",
+        "backtrader/plot/__init__.py",
+        "backtrader/plot/finance.py",
+        "backtrader/plot/formatters.py",
+        "backtrader/plot/locator.py",
+        "backtrader/plot/multicursor.py",
+        "backtrader/plot/plot.py",
+        "backtrader/plot/scheme.py",
+        "backtrader/plot/utils.py",
+        "backtrader/position.py",
+        "backtrader/resamplerfilter.py",
+        "backtrader/signal.py",
+        "backtrader/signals/__init__.py",
+        "backtrader/sizer.py",
+        "backtrader/sizers/__init__.py",
+        "backtrader/sizers/fixedsize.py",
+        "backtrader/sizers/percents_sizer.py",
+        "backtrader/store.py",
+        "backtrader/stores/__init__.py",
+        "backtrader/stores/ccxtstore.py",
+        "backtrader/stores/ibstore.py",
+        "backtrader/stores/oandastore.py",
+        "backtrader/stores/vchartfile.py",
+        "backtrader/stores/vcstore.py",
+        "backtrader/strategy.py",
+        "backtrader/talib.py",
+        "backtrader/tests/test_backtrader_ts_strategy/test_backtrader_ts.py",
+        "backtrader/tests/test_vector_cs_strategy/test_backtrader_cs.py",
+        "backtrader/tests/test_vector_ts_strategy/test_backtrader_vector_ts_equal.py",
+        "backtrader/timer.py",
+        "backtrader/trade.py",
+        "backtrader/tradingcal.py",
+        "backtrader/utils/__init__.py",
+        "backtrader/utils/autodict.py",
+        "backtrader/utils/date.py",
+        "backtrader/utils/dateintern.py",
+        "backtrader/utils/flushfile.py",
+        "backtrader/utils/fractal.py",
+        "backtrader/utils/ordereddefaultdict.py",
+        "backtrader/utils/py3.py",
+        "backtrader/version.py",
+        "backtrader/writer.py",
+        "install_complete.py",
+        "install_offline_pip.py",
+        "pyproject.toml",
+        "requirements.txt",
+        "setup.py",
+        "setup_fix_subdirs.py",
+        "strategies/sma_crossover.py",
+        "studies/__init__.py",
+        "studies/contrib/__init__.py",
+        "studies/contrib/fractal.py",
+        "sync_to_github.bat",
+        "sync_to_github.sh",
+        "tests/original_tests/test_analyzer-sqn.py",
+        "tests/original_tests/test_analyzer-timereturn.py",
+        "tests/original_tests/test_comminfo.py",
+        "tests/original_tests/test_data_multiframe.py",
+        "tests/original_tests/test_data_replay.py",
+        "tests/original_tests/test_data_resample.py",
+        "tests/original_tests/test_fractal.py",
+        "tests/original_tests/test_ind_accdecosc.py",
+        "tests/original_tests/test_ind_aroonoscillator.py",
+        "tests/original_tests/test_ind_aroonupdown.py",
+        "tests/original_tests/test_ind_atr.py",
+        "tests/original_tests/test_ind_awesomeoscillator.py",
+        "tests/original_tests/test_ind_bbands.py",
+        "tests/original_tests/test_ind_cci.py",
+        "tests/original_tests/test_ind_dema.py",
+        "tests/original_tests/test_ind_demaenvelope.py",
+        "tests/original_tests/test_ind_demaosc.py",
+        "tests/original_tests/test_ind_dm.py",
+        "tests/original_tests/test_ind_dma.py",
+        "tests/original_tests/test_ind_downmove.py",
+        "tests/original_tests/test_ind_dpo.py",
+        "tests/original_tests/test_ind_dv2.py",
+        "tests/original_tests/test_ind_ema.py",
+        "tests/original_tests/test_ind_emaenvelope.py",
+        "tests/original_tests/test_ind_emaosc.py",
+        "tests/original_tests/test_ind_envelope.py",
+        "tests/original_tests/test_ind_heikinashi.py",
+        "tests/original_tests/test_ind_highest.py",
+        "tests/original_tests/test_ind_hma.py",
+        "tests/original_tests/test_ind_ichimoku.py",
+        "tests/original_tests/test_ind_kama.py",
+        "tests/original_tests/test_ind_kamaenvelope.py",
+        "tests/original_tests/test_ind_kamaosc.py",
+        "tests/original_tests/test_ind_kst.py",
+        "tests/original_tests/test_ind_lowest.py",
+        "tests/original_tests/test_ind_lrsi.py",
+        "tests/original_tests/test_ind_macdhisto.py",
+        "tests/original_tests/test_ind_minperiod.py",
+        "tests/original_tests/test_ind_momentum.py",
+        "tests/original_tests/test_ind_momentumoscillator.py",
+        "tests/original_tests/test_ind_oscillator.py",
+        "tests/original_tests/test_ind_pctchange.py",
+        "tests/original_tests/test_ind_pctrank.py",
+        "tests/original_tests/test_ind_pgo.py",
+        "tests/original_tests/test_ind_ppo.py",
+        "tests/original_tests/test_ind_pposhort.py",
+        "tests/original_tests/test_ind_priceosc.py",
+        "tests/original_tests/test_ind_rmi.py",
+        "tests/original_tests/test_ind_roc.py",
+        "tests/original_tests/test_ind_rsi.py",
+        "tests/original_tests/test_ind_rsi_safe.py",
+        "tests/original_tests/test_ind_sma.py",
+        "tests/original_tests/test_ind_smaenvelope.py",
+        "tests/original_tests/test_ind_smaosc.py",
+        "tests/original_tests/test_ind_smma.py",
+        "tests/original_tests/test_ind_smmaenvelope.py",
+        "tests/original_tests/test_ind_smmaosc.py",
+        "tests/original_tests/test_ind_stochastic.py",
+        "tests/original_tests/test_ind_stochasticfull.py",
+        "tests/original_tests/test_ind_sumn.py",
+        "tests/original_tests/test_ind_tema.py",
+        "tests/original_tests/test_ind_temaenvelope.py",
+        "tests/original_tests/test_ind_temaosc.py",
+        "tests/original_tests/test_ind_trix.py",
+        "tests/original_tests/test_ind_tsi.py",
+        "tests/original_tests/test_ind_ultosc.py",
+        "tests/original_tests/test_ind_upmove.py",
+        "tests/original_tests/test_ind_vortex.py",
+        "tests/original_tests/test_ind_williamsad.py",
+        "tests/original_tests/test_ind_williamsr.py",
+        "tests/original_tests/test_ind_wma.py",
+        "tests/original_tests/test_ind_wmaenvelope.py",
+        "tests/original_tests/test_ind_wmaosc.py",
+        "tests/original_tests/test_ind_zlema.py",
+        "tests/original_tests/test_ind_zlind.py",
+        "tests/original_tests/test_metaclass.py",
+        "tests/original_tests/test_order.py",
+        "tests/original_tests/test_position.py",
+        "tests/original_tests/test_strategy_optimized.py",
+        "tests/original_tests/test_strategy_unoptimized.py",
+        "tests/original_tests/test_trade.py",
+        "tests/original_tests/test_writer.py",
+        "tests/original_tests/testcommon.py",
+        "uninstall.py"
+      ],
+      "modern_same_name_candidates": {
+        "backtrader/indicators/contrib/vortex.py": [
+          "backtrader/indicators/vortex.py"
+        ],
+        "strategies/sma_crossover.py": [
+          "examples/sma_crossover.py"
+        ],
+        "tests/original_tests/test_analyzer-sqn.py": [
+          "tests/unit/analyzers/test_analyzer-sqn.py"
+        ],
+        "tests/original_tests/test_analyzer-timereturn.py": [
+          "tests/unit/analyzers/test_analyzer-timereturn.py"
+        ],
+        "tests/original_tests/test_comminfo.py": [
+          "tests/unit/brokers/test_comminfo.py"
+        ],
+        "tests/original_tests/test_data_multiframe.py": [
+          "tests/unit/feeds/test_data_multiframe.py"
+        ],
+        "tests/original_tests/test_data_replay.py": [
+          "tests/unit/feeds/test_data_replay.py"
+        ],
+        "tests/original_tests/test_data_resample.py": [
+          "tests/unit/feeds/test_data_resample.py"
+        ],
+        "tests/original_tests/test_fractal.py": [
+          "tests/unit/indicators/test_fractal.py"
+        ],
+        "tests/original_tests/test_ind_accdecosc.py": [
+          "tests/unit/indicators/test_ind_accdecosc.py"
+        ],
+        "tests/original_tests/test_ind_aroonoscillator.py": [
+          "tests/unit/indicators/test_ind_aroonoscillator.py"
+        ],
+        "tests/original_tests/test_ind_aroonupdown.py": [
+          "tests/unit/indicators/test_ind_aroonupdown.py"
+        ],
+        "tests/original_tests/test_ind_atr.py": [
+          "tests/unit/indicators/test_ind_atr.py"
+        ],
+        "tests/original_tests/test_ind_awesomeoscillator.py": [
+          "tests/unit/indicators/test_ind_awesomeoscillator.py"
+        ],
+        "tests/original_tests/test_ind_bbands.py": [
+          "tests/unit/indicators/test_ind_bbands.py"
+        ],
+        "tests/original_tests/test_ind_cci.py": [
+          "tests/unit/indicators/test_ind_cci.py"
+        ],
+        "tests/original_tests/test_ind_dema.py": [
+          "tests/unit/indicators/test_ind_dema.py"
+        ],
+        "tests/original_tests/test_ind_demaenvelope.py": [
+          "tests/unit/indicators/test_ind_demaenvelope.py"
+        ],
+        "tests/original_tests/test_ind_demaosc.py": [
+          "tests/unit/indicators/test_ind_demaosc.py"
+        ],
+        "tests/original_tests/test_ind_dm.py": [
+          "tests/unit/indicators/test_ind_dm.py"
+        ],
+        "tests/original_tests/test_ind_dma.py": [
+          "tests/unit/indicators/test_ind_dma.py"
+        ],
+        "tests/original_tests/test_ind_downmove.py": [
+          "tests/unit/indicators/test_ind_downmove.py"
+        ],
+        "tests/original_tests/test_ind_dpo.py": [
+          "tests/unit/indicators/test_ind_dpo.py"
+        ],
+        "tests/original_tests/test_ind_dv2.py": [
+          "tests/unit/indicators/test_ind_dv2.py"
+        ],
+        "tests/original_tests/test_ind_ema.py": [
+          "tests/unit/indicators/test_ind_ema.py"
+        ],
+        "tests/original_tests/test_ind_emaenvelope.py": [
+          "tests/unit/indicators/test_ind_emaenvelope.py"
+        ],
+        "tests/original_tests/test_ind_emaosc.py": [
+          "tests/unit/indicators/test_ind_emaosc.py"
+        ],
+        "tests/original_tests/test_ind_envelope.py": [
+          "tests/unit/indicators/test_ind_envelope.py"
+        ],
+        "tests/original_tests/test_ind_heikinashi.py": [
+          "tests/unit/indicators/test_ind_heikinashi.py"
+        ],
+        "tests/original_tests/test_ind_highest.py": [
+          "tests/unit/indicators/test_ind_highest.py"
+        ],
+        "tests/original_tests/test_ind_hma.py": [
+          "tests/unit/indicators/test_ind_hma.py"
+        ],
+        "tests/original_tests/test_ind_ichimoku.py": [
+          "tests/unit/indicators/test_ind_ichimoku.py"
+        ],
+        "tests/original_tests/test_ind_kama.py": [
+          "tests/unit/indicators/test_ind_kama.py"
+        ],
+        "tests/original_tests/test_ind_kamaenvelope.py": [
+          "tests/unit/indicators/test_ind_kamaenvelope.py"
+        ],
+        "tests/original_tests/test_ind_kamaosc.py": [
+          "tests/unit/indicators/test_ind_kamaosc.py"
+        ],
+        "tests/original_tests/test_ind_kst.py": [
+          "tests/unit/indicators/test_ind_kst.py"
+        ],
+        "tests/original_tests/test_ind_lowest.py": [
+          "tests/unit/indicators/test_ind_lowest.py"
+        ],
+        "tests/original_tests/test_ind_lrsi.py": [
+          "tests/unit/indicators/test_ind_lrsi.py"
+        ],
+        "tests/original_tests/test_ind_macdhisto.py": [
+          "tests/unit/indicators/test_ind_macdhisto.py"
+        ],
+        "tests/original_tests/test_ind_minperiod.py": [
+          "tests/unit/indicators/test_ind_minperiod.py"
+        ],
+        "tests/original_tests/test_ind_momentum.py": [
+          "tests/unit/indicators/test_ind_momentum.py"
+        ],
+        "tests/original_tests/test_ind_momentumoscillator.py": [
+          "tests/unit/indicators/test_ind_momentumoscillator.py"
+        ],
+        "tests/original_tests/test_ind_oscillator.py": [
+          "tests/unit/indicators/test_ind_oscillator.py"
+        ],
+        "tests/original_tests/test_ind_pctchange.py": [
+          "tests/unit/indicators/test_ind_pctchange.py"
+        ],
+        "tests/original_tests/test_ind_pctrank.py": [
+          "tests/unit/indicators/test_ind_pctrank.py"
+        ],
+        "tests/original_tests/test_ind_pgo.py": [
+          "tests/unit/indicators/test_ind_pgo.py"
+        ],
+        "tests/original_tests/test_ind_ppo.py": [
+          "tests/unit/indicators/test_ind_ppo.py"
+        ],
+        "tests/original_tests/test_ind_pposhort.py": [
+          "tests/unit/indicators/test_ind_pposhort.py"
+        ],
+        "tests/original_tests/test_ind_priceosc.py": [
+          "tests/unit/indicators/test_ind_priceosc.py"
+        ],
+        "tests/original_tests/test_ind_rmi.py": [
+          "tests/unit/indicators/test_ind_rmi.py"
+        ],
+        "tests/original_tests/test_ind_roc.py": [
+          "tests/unit/indicators/test_ind_roc.py"
+        ],
+        "tests/original_tests/test_ind_rsi.py": [
+          "tests/unit/indicators/test_ind_rsi.py"
+        ],
+        "tests/original_tests/test_ind_rsi_safe.py": [
+          "tests/unit/indicators/test_ind_rsi_safe.py"
+        ],
+        "tests/original_tests/test_ind_sma.py": [
+          "tests/unit/indicators/test_ind_sma.py"
+        ],
+        "tests/original_tests/test_ind_smaenvelope.py": [
+          "tests/unit/indicators/test_ind_smaenvelope.py"
+        ],
+        "tests/original_tests/test_ind_smaosc.py": [
+          "tests/unit/indicators/test_ind_smaosc.py"
+        ],
+        "tests/original_tests/test_ind_smma.py": [
+          "tests/unit/indicators/test_ind_smma.py"
+        ],
+        "tests/original_tests/test_ind_smmaenvelope.py": [
+          "tests/unit/indicators/test_ind_smmaenvelope.py"
+        ],
+        "tests/original_tests/test_ind_smmaosc.py": [
+          "tests/unit/indicators/test_ind_smmaosc.py"
+        ],
+        "tests/original_tests/test_ind_stochastic.py": [
+          "tests/unit/indicators/test_ind_stochastic.py"
+        ],
+        "tests/original_tests/test_ind_stochasticfull.py": [
+          "tests/unit/indicators/test_ind_stochasticfull.py"
+        ],
+        "tests/original_tests/test_ind_sumn.py": [
+          "tests/unit/indicators/test_ind_sumn.py"
+        ],
+        "tests/original_tests/test_ind_tema.py": [
+          "tests/unit/indicators/test_ind_tema.py"
+        ],
+        "tests/original_tests/test_ind_temaenvelope.py": [
+          "tests/unit/indicators/test_ind_temaenvelope.py"
+        ],
+        "tests/original_tests/test_ind_temaosc.py": [
+          "tests/unit/indicators/test_ind_temaosc.py"
+        ],
+        "tests/original_tests/test_ind_trix.py": [
+          "tests/unit/indicators/test_ind_trix.py"
+        ],
+        "tests/original_tests/test_ind_tsi.py": [
+          "tests/unit/indicators/test_ind_tsi.py"
+        ],
+        "tests/original_tests/test_ind_ultosc.py": [
+          "tests/unit/indicators/test_ind_ultosc.py"
+        ],
+        "tests/original_tests/test_ind_upmove.py": [
+          "tests/unit/indicators/test_ind_upmove.py"
+        ],
+        "tests/original_tests/test_ind_vortex.py": [
+          "tests/unit/indicators/test_ind_vortex.py"
+        ],
+        "tests/original_tests/test_ind_williamsad.py": [
+          "tests/unit/indicators/test_ind_williamsad.py"
+        ],
+        "tests/original_tests/test_ind_williamsr.py": [
+          "tests/unit/indicators/test_ind_williamsr.py"
+        ],
+        "tests/original_tests/test_ind_wma.py": [
+          "tests/unit/indicators/test_ind_wma.py"
+        ],
+        "tests/original_tests/test_ind_wmaenvelope.py": [
+          "tests/unit/indicators/test_ind_wmaenvelope.py"
+        ],
+        "tests/original_tests/test_ind_wmaosc.py": [
+          "tests/unit/indicators/test_ind_wmaosc.py"
+        ],
+        "tests/original_tests/test_ind_zlema.py": [
+          "tests/unit/indicators/test_ind_zlema.py"
+        ],
+        "tests/original_tests/test_ind_zlind.py": [
+          "tests/unit/indicators/test_ind_zlind.py"
+        ],
+        "tests/original_tests/test_metaclass.py": [
+          "tests/unit/core/test_metaclass.py"
+        ],
+        "tests/original_tests/test_order.py": [
+          "tests/unit/core/test_order.py"
+        ],
+        "tests/original_tests/test_position.py": [
+          "tests/unit/core/test_position.py"
+        ],
+        "tests/original_tests/test_strategy_optimized.py": [
+          "tests/unit/core/test_strategy_optimized.py"
+        ],
+        "tests/original_tests/test_strategy_unoptimized.py": [
+          "tests/unit/core/test_strategy_unoptimized.py"
+        ],
+        "tests/original_tests/test_trade.py": [
+          "tests/unit/core/test_trade.py"
+        ],
+        "tests/original_tests/test_writer.py": [
+          "tests/unit/core/test_writer.py"
+        ],
+        "tests/original_tests/testcommon.py": [
+          "tests/testcommon.py"
+        ]
+      }
+    },
+    {
+      "sha": "68b8838a8b256b74bec15e07dc35166e5087d8dd",
+      "parents": [
+        "b8a4e208dafac9adc023e882f664509626415f44"
+      ],
+      "subject": "update ci/cd 3",
+      "category": "旧CI与页面",
+      "disposition": "保持现代 workflows，旧 pages-simple/docs.disabled 不恢复。",
+      "changed_paths": [
+        ".github/workflows/docs.yml",
+        ".github/workflows/docs.yml.disabled",
+        ".github/workflows/pages-simple.yml",
+        "README.md",
+        "_config.yml",
+        "index.html"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "b8a4e208dafac9adc023e882f664509626415f44",
+      "parents": [
+        "e19f5eb244452ba928fc263d26af72606267b631"
+      ],
+      "subject": "update ci/cd 2",
+      "category": "旧CI与同步",
+      "disposition": "旧 sync.yml 的 force/all/tags 发布不恢复；现代精确双远程流程代替。",
+      "changed_paths": [
+        ".github/workflows/docs.yml",
+        ".github/workflows/sync.yml",
+        "README.md",
+        "SYNC_SETUP.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "e19f5eb244452ba928fc263d26af72606267b631",
+      "parents": [
+        "040eae9426939bacf19291f778ce69cc21b5bf31"
+      ],
+      "subject": "update ci/cd",
+      "category": "UTC兼容和布局CI",
+      "disposition": "现代 runnext/DTFaker UTC 已保留；删除旧 native/策略模块和危险发布工作流的状态保留。",
+      "changed_paths": [
+        ".github/dependabot.yml",
+        ".github/workflows/codeql.yml",
+        ".github/workflows/docs.yml",
+        ".github/workflows/publish.yml",
+        ".github/workflows/release.yml",
+        ".github/workflows/sync.yml",
+        ".github/workflows/tests.yml",
+        ".gitignore",
+        "CLAUDE.md",
+        "README.en.md",
+        "README.md",
+        "SYNC_SETUP.md",
+        "backtrader/__init__.py",
+        "backtrader/cerebro.py",
+        "backtrader/compile_cython_numba_files.py",
+        "backtrader/feeds/ccxtfeed.py",
+        "backtrader/feeds/ibdata.py",
+        "backtrader/resamplerfilter.py",
+        "backtrader/stores/ibstore.py",
+        "backtrader/stores/oandastore.py",
+        "backtrader/strategies/__init__.py",
+        "backtrader/strategies/params_01.json",
+        "backtrader/strategies/params_02.json",
+        "backtrader/strategies/sample.py",
+        "backtrader/strategies/sma_crossover.py",
+        "backtrader/strategies/test_backtrader_ccxt_okex_sma.py",
+        "backtrader/strategies/test_backtrader_ctp.py",
+        "backtrader/strategies/test_ctp_sample.py",
+        "backtrader/strategies/性能分析方法及结果/test_backtrader_cs_py-spy性能分析结果.svg",
+        "backtrader/strategies/性能分析方法及结果/test_backtrader_cs_性能分析.html",
+        "backtrader/strategies/性能分析方法及结果/test_backtrader_ts_py-spy性能分析结果.svg",
+        "backtrader/strategies/性能分析方法及结果/test_backtrader_ts_性能分析.html",
+        "backtrader/strategies/性能分析方法及结果/分析方法.txt",
+        "backtrader/studies/__init__.py",
+        "backtrader/studies/backtraderl类图(type+and+object).png",
+        "backtrader/studies/backtrader类图(type and object).xmind",
+        "backtrader/studies/contrib/__init__.py",
+        "backtrader/studies/contrib/fractal.py",
+        "backtrader/utils/__init__.py",
+        "backtrader/utils/cal_performance_indicators/cal_by_cython.cpp",
+        "backtrader/utils/cal_performance_indicators/cal_by_cython.hpp",
+        "backtrader/utils/cal_performance_indicators/cal_by_cython.html",
+        "backtrader/utils/cal_performance_indicators/cal_by_cython.pyx",
+        "backtrader/utils/cal_performance_indicators/cal_by_numba.py",
+        "backtrader/utils/cal_performance_indicators/setup.py",
+        "backtrader/utils/cal_performance_indicators/test_time_consume.py",
+        "backtrader/utils/cal_performance_indicators/绩效指标耗费时间对比.html",
+        "backtrader/utils/cal_return_sharpe_drawdown/cal_return_sharpe_drawdown.cpp",
+        "backtrader/utils/cal_return_sharpe_drawdown/cal_return_sharpe_drawdown.html",
+        "backtrader/utils/cs_cal_value/cal_by_cython.cpp",
+        "backtrader/utils/cs_cal_value/cal_by_cython.html",
+        "backtrader/utils/cs_cal_value/cal_by_cython.pyx",
+        "backtrader/utils/cs_cal_value/setup.py",
+        "backtrader/utils/cs_long_short_signals/cal_by_cython.cpp",
+        "backtrader/utils/cs_long_short_signals/cal_by_cython.html",
+        "backtrader/utils/cs_long_short_signals/cal_by_cython.pyx",
+        "backtrader/utils/cs_long_short_signals/cal_by_numba.py",
+        "backtrader/utils/cs_long_short_signals/setup.py",
+        "backtrader/utils/cython_config.py",
+        "backtrader/utils/my_corr/__init__.py",
+        "backtrader/utils/my_corr/corr.hh",
+        "backtrader/utils/my_corr/my_corr.cpp",
+        "backtrader/utils/my_corr/my_corr.html",
+        "backtrader/utils/my_corr/my_corr.pyx",
+        "backtrader/utils/my_corr/setup.py",
+        "backtrader/utils/python_code.py",
+        "backtrader/utils/test_backtrader.py",
+        "backtrader/utils/test_cython_datetime_func.py",
+        "backtrader/utils/ts_cal_value/cal_by_cython.cpp",
+        "backtrader/utils/ts_cal_value/cal_by_cython.html",
+        "backtrader/utils/ts_cal_value/cal_by_cython.pyx",
+        "backtrader/utils/ts_cal_value/cal_by_numba.py",
+        "backtrader/utils/ts_cal_value/setup.py",
+        "backtrader/utils/ts_cal_value_cython/cal_value.cpp",
+        "backtrader/utils/ts_cal_value_cython/cal_value.html",
+        "backtrader/vectors/__init__.py",
+        "backtrader/vectors/cal_functions.py",
+        "backtrader/vectors/cs.py",
+        "backtrader/vectors/ts.py",
+        "backtrader/vectors/使用说明.md",
+        "pyproject.toml",
+        "requirements.txt",
+        "setup.py",
+        "strategies/__init__.py",
+        "strategies/params_01.json",
+        "strategies/params_02.json",
+        "strategies/sample.py",
+        "strategies/sma_crossover.py",
+        "strategies/test_backtrader_ccxt_okex_sma.py",
+        "strategies/test_backtrader_ctp.py",
+        "strategies/test_ctp_sample.py",
+        "strategies/性能分析方法及结果/test_backtrader_cs_py-spy性能分析结果.svg",
+        "strategies/性能分析方法及结果/test_backtrader_cs_性能分析.html",
+        "strategies/性能分析方法及结果/test_backtrader_ts_py-spy性能分析结果.svg",
+        "strategies/性能分析方法及结果/test_backtrader_ts_性能分析.html",
+        "strategies/性能分析方法及结果/分析方法.txt",
+        "studies/__init__.py",
+        "studies/backtraderl类图(type+and+object).png",
+        "studies/backtrader类图(type and object).xmind",
+        "studies/contrib/__init__.py",
+        "studies/contrib/fractal.py",
+        "sync_to_github.bat",
+        "sync_to_github.sh",
+        "test_python_versions_simple.bat",
+        "test_python_versions_simple.sh"
+      ],
+      "modern_same_name_candidates": {
+        "backtrader/strategies/sample.py": [
+          "examples/sample.py"
+        ],
+        "backtrader/strategies/sma_crossover.py": [
+          "examples/sma_crossover.py"
+        ],
+        "backtrader/studies/contrib/fractal.py": [
+          "backtrader/utils/fractal.py",
+          "studies/contrib/fractal.py"
+        ],
+        "backtrader/utils/cal_performance_indicators/setup.py": [
+          "setup.py"
+        ],
+        "backtrader/utils/cs_cal_value/setup.py": [
+          "setup.py"
+        ],
+        "backtrader/utils/cs_long_short_signals/setup.py": [
+          "setup.py"
+        ],
+        "backtrader/utils/my_corr/setup.py": [
+          "setup.py"
+        ],
+        "backtrader/utils/ts_cal_value/setup.py": [
+          "setup.py"
+        ],
+        "strategies/sample.py": [
+          "examples/sample.py"
+        ],
+        "strategies/sma_crossover.py": [
+          "examples/sma_crossover.py"
+        ]
+      }
+    },
+    {
+      "sha": "040eae9426939bacf19291f778ce69cc21b5bf31",
+      "parents": [
+        "e46256766e0d522c88a30822dcb00c2b3b14663f"
+      ],
+      "subject": "update README.md.",
+      "category": "README",
+      "disposition": "当前版本/安装/三分支说明为准，历史说明保留在rollback tag。",
+      "changed_paths": [
+        "README.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "e46256766e0d522c88a30822dcb00c2b3b14663f",
+      "parents": [
+        "ed6eaeb210e53fdb97ad8515384646c0ecb03e72"
+      ],
+      "subject": "update requirements.txt.",
+      "category": "依赖配置",
+      "disposition": "采用现代 setup/requirements 的可验证兼容组合，不恢复历史整表。",
+      "changed_paths": [
+        "requirements.txt"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "ed6eaeb210e53fdb97ad8515384646c0ecb03e72",
+      "parents": [
+        "1d847948aa04e733da4bb216b8f70bac40f76d92",
+        "cf934902e8b1d264ee4b68d3bc7f3c676b46cf88"
+      ],
+      "subject": "Merge branch 'master' of https://gitee.com/yunjinqi/backtrader",
+      "category": "历史合并",
+      "disposition": "唯一双亲合并；remerge-diff 无额外冲突修复，父提交分别按表审计。",
+      "changed_paths": [],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "cf934902e8b1d264ee4b68d3bc7f3c676b46cf88",
+      "parents": [
+        "937617da009689118f4d489a5474b3987aec11f9"
+      ],
+      "subject": "update requirements.txt.",
+      "category": "依赖配置",
+      "disposition": "采用现代 setup/requirements 的可验证兼容组合，不恢复历史整表。",
+      "changed_paths": [
+        "requirements.txt"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "1d847948aa04e733da4bb216b8f70bac40f76d92",
+      "parents": [
+        "937617da009689118f4d489a5474b3987aec11f9"
+      ],
+      "subject": "fix",
+      "category": "私有配置与旧测试产物",
+      "disposition": "account_config.yaml 必须维持删除；未读取内容。旧crypto测试产物不纳入发布。",
+      "changed_paths": [
+        "backtrader/configs/account_config.yaml",
+        "tests/crypto_tests/TestStrategy_2025-02-01"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "937617da009689118f4d489a5474b3987aec11f9",
+      "parents": [
+        "a1922834353e67764d193a113a33997b11e8e73b"
+      ],
+      "subject": "add install_win.bat",
+      "category": "安装工具与元数据",
+      "disposition": "Resolved for this candidate: setup.py retains author=cloudQuant. Original audit observation remains as initial_disposition; the old Windows installer does not replace platform CI.",
+      "changed_paths": [
+        "install_win.bat",
+        "setup.py"
+      ],
+      "modern_same_name_candidates": {},
+      "initial_disposition": "Modern setup author is cloud, different from old master cloudQuant; recommend restoring author metadata. Old Windows installer does not replace platform CI."
+    },
+    {
+      "sha": "a1922834353e67764d193a113a33997b11e8e73b",
+      "parents": [
+        "d6212acef8b894c818c0e3161b5430a65d44a282"
+      ],
+      "subject": "fix test_ind_envelope",
+      "category": "测试/回归演变",
+      "disposition": "采用现代迁移后的 tests/unit 或 tests/functional/strategies 同名用例与已更新基线；不复活旧导入/目录。此行不声明本轮运行通过。",
+      "changed_paths": [
+        "tests/original_tests/test_ind_envelope.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/original_tests/test_ind_envelope.py": [
+          "tests/unit/indicators/test_ind_envelope.py"
+        ]
+      }
+    },
+    {
+      "sha": "d6212acef8b894c818c0e3161b5430a65d44a282",
+      "parents": [
+        "d3a9e5a570023a828068def28b31fe1c05604cb4"
+      ],
+      "subject": "add new readme",
+      "category": "文档与资金费率测试",
+      "disposition": "资金费率功能/回归保留现代路径，README以本次版本为准。",
+      "changed_paths": [
+        "README.md",
+        "tests/funding_rate_examples/test_base_funding_rate.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/funding_rate_examples/test_base_funding_rate.py": [
+          "tools/crypto_tests/test_base_funding_rate.py"
+        ]
+      }
+    },
+    {
+      "sha": "d3a9e5a570023a828068def28b31fe1c05604cb4",
+      "parents": [
+        "764c07149c9cb9b38ca7aa8dd860df69c21add0e"
+      ],
+      "subject": "add todos",
+      "category": "README待办",
+      "disposition": "历史计划留历史，当前AGENTS/README才定义真实能力。",
+      "changed_paths": [
+        "README.md"
+      ],
+      "modern_same_name_candidates": {}
+    },
+    {
+      "sha": "764c07149c9cb9b38ca7aa8dd860df69c21add0e",
+      "parents": [
+        "d4159c49389ff6f8b50194b5e908805a028e1fff"
+      ],
+      "subject": "update crypto funding rate strategy",
+      "category": "资金费率功能",
+      "disposition": "ComminfoFundingRate 已在现代版本保留及强化；fallback/数值回归存在。",
+      "changed_paths": [
+        "backtrader/comminfo.py",
+        "tests/datas/fake_kline_gasusdt.csv",
+        "tests/datas/fake_kline_tokenusdt.csv",
+        "tests/datas/merge_kline_gasusdt.csv",
+        "tests/datas/merge_kline_tokenusdt.csv",
+        "tests/funding_rate_examples/test_base_funding_rate.py"
+      ],
+      "modern_same_name_candidates": {
+        "tests/funding_rate_examples/test_base_funding_rate.py": [
+          "tools/crypto_tests/test_base_funding_rate.py"
+        ]
+      }
+    },
+    {
+      "sha": "d4159c49389ff6f8b50194b5e908805a028e1fff",
+      "parents": [
+        "5d6f5a748d638887a4a929e691eb71ba4dbf0699"
+      ],
+      "subject": "update",
+      "category": "Python2兼容及依赖",
+      "disposition": "仅PY2分支items改动；当前支持3.8..3.13无需迁入旧分支，依赖用现代配置。",
+      "changed_paths": [
+        "backtrader/utils/py3.py",
+        "requirements.txt"
+      ],
+      "modern_same_name_candidates": {}
+    }
+  ],
+  "category_counts": {
+    "库行为修复": 3,
+    "库功能与工具": 1,
+    "库修复与基线工具": 1,
+    "测试数据": 1,
+    "测试/回归演变": 22,
+    "分析工具": 5,
+    "库兼容入口": 1,
+    "工具修复": 1,
+    "研究策略与数据": 2,
+    "测试工具与配置": 1,
+    "文档整理": 1,
+    "可选依赖修复": 1,
+    "观察器修复": 1,
+    "安装文档": 1,
+    "修复说明": 1,
+    "策略缺陷修复": 1,
+    "根目录整理": 1,
+    "更新日志": 1,
+    "导出与IDE提示": 1,
+    "项目文档": 1,
+    "格式混合真实功能": 1,
+    "旧CI与页面": 1,
+    "旧CI与同步": 1,
+    "UTC兼容和布局CI": 1,
+    "README": 1,
+    "依赖配置": 2,
+    "历史合并": 1,
+    "私有配置与旧测试产物": 1,
+    "安装工具与元数据": 1,
+    "文档与资金费率测试": 1,
+    "README待办": 1,
+    "资金费率功能": 1,
+    "Python2兼容及依赖": 1
+  },
+  "tests": {
+    "macd_red": "4 failed at lines.me1 AttributeError before fix",
+    "macd_focused": "6 passed in 2.46s",
+    "pyfolio_initial": "9 passed in 2.10s",
+    "final_combined": "17 passed in 5.66s",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m pytest tests/unit/analyzers/test_pyfolio_master_compatibility.py tests/unit/analyzers/test_analyzer_pyfolio.py tests/unit/indicators/test_macd_master_aliases.py tests/unit/indicators/test_ind_macd.py tests/unit/indicators/test_ind_macdhisto.py -q --tb=short -n 0",
+    "scanner": "4 passed in 0.72s",
+    "ruff": "All six owned files pass"
+  },
+  "restore_forbidden": [
+    ".github/workflows/publish.yml",
+    ".github/workflows/release.yml",
+    ".github/workflows/sync.yml",
+    "backtrader/configs/account_config.yaml"
+  ],
+  "evidence_scope": "Source audit against frozen branch SHAs plus specifically authorized local compatibility edits; master comparison is historical only, promotion is dev -> development, and this is not final release acceptance.",
+  "compatibility_file_sha256": {
+    "backtrader/indicators/macd.py": "9fd73fbd901ea8c7eedb9cafed0582062ba3f5085693a7c61837c7bbd949972f",
+    "backtrader/analyzers/pyfolio.py": "385ef6b7f1dd07ec523a898bd10af4b4c8c5733a87f516a738037ee498402fe1",
+    "tests/unit/indicators/test_macd_master_aliases.py": "e6f03a607165888c7a0876f7d8e94d34022080e9221aa265973b65219a84b116",
+    "tests/unit/analyzers/test_pyfolio_master_compatibility.py": "810f514259dee32acb25ab444df7a858c1f8003376373d8554c62794531a0c5c"
+  },
+  "compatibility_gaps_closed": [
+    "MACD lines.me1/me2 aliases",
+    "PyFolio five legacy report entry points"
+  ],
+  "compatibility_limits": [
+    "Modern light/normal indicator exports replace old hardcoded __all__",
+    "DataTrades keeps modern fixed aliases rather than old metaclass dynamic labels",
+    "Legacy research/CI/config layout remains deleted",
+    "PyFolio fixes invalid report arithmetic and exposes unknown commission/statistics as NaN"
+  ],
+  "post_compatibility_test_changes": "Equivalent dict.fromkeys construction in two test fixtures only; library sources unchanged",
+  "scanner_file_sha256": {
+    "scripts/scan_logging_baseline.py": "7962de155296b589ee3ea42f7ae497e38f21508650198083ad8bf6c2ca6d08be",
+    "tests/unit/scripts/test_scan_logging_baseline.py": "dc6c377b2650e9689a19a7e782fa973b911c06f9a938fbebcaa070c017f71514"
+  },
+  "ci_second_review": "No newly confirmed wiring blockers; core matrix without SDK plus mandatory Ubuntu3.11 SDK/performance/wheel jobs, all included in summary; runtime CI pending.",
+  "post_scanner_test_changes": "Renamed preexisting e/l/p local bindings to excepts/logcalls/prints for Ruff E741; no behavior change.",
+  "post_audit_metadata_correction": {
+    "file": "setup.py",
+    "author": "cloudQuant",
+    "source_sha256": "0e9b29e25603b6e4f0301aa140ac48a89e769e145cd203d58e6a23ae44a8e242",
+    "scope": "Current local source inspection; not wheel metadata or remote release evidence."
+  }
+}

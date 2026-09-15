@@ -246,6 +246,13 @@ Backtrader is part of the CloudQuant quantitative-research ecosystem:
    tutorials/examples/strategies
    tutorials/examples/cookbook
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Strategy Series
+   :glob:
+
+   strategies-series/en/*
+
 .. only:: not offline
 
    .. toctree::

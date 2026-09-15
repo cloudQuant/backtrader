@@ -5,7 +5,7 @@ name: Documentation CI Checks
 
 on:
   pull_request:
-    branches: [development, master]
+    branches: [dev, development, master]
     paths:
       - 'docs/**'
       - 'backtrader/**/*.py'

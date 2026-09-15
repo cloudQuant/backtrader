@@ -22,6 +22,7 @@
 
 # 引擎 / 策略 / 经纪商 / 数据源（R2）
 /backtrader/cerebro.py   @cloudQuant
+/backtrader/_cerebro/    @cloudQuant
 /backtrader/strategy.py  @cloudQuant
 /backtrader/broker.py    @cloudQuant
 /backtrader/brokers/     @cloudQuant

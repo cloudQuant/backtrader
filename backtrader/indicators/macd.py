@@ -78,6 +78,9 @@ class MACD(Indicator):
         # Store the EMAs as sub-indicators
         self.me1 = self.p.movav(self.data, period=self.p.period_me1)
         self.me2 = self.p.movav(self.data, period=self.p.period_me2)
+        # Preserve master's aliases without adding extra indicator output lines.
+        self.lines.me1 = self.me1
+        self.lines.me2 = self.me2
 
         # Calculate minperiod
         self.macd_minperiod = max(self.p.period_me1, self.p.period_me2)

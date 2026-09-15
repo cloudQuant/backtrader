@@ -16,7 +16,7 @@ import collections
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase
-from ..utils.log_message import get_logger
+from ..utils.log_message import get_logger, throttled_warning
 
 logger = get_logger(__name__)
 
@@ -179,6 +179,12 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
                 raise ValueError(f"invalid log return value: {log_return}")
             self.rets[self.dtkey] = log_return
         except (TypeError, ValueError, ZeroDivisionError, OverflowError) as e:
-            logger.debug("Log return calculation failed: %s", e)
+            throttled_warning(
+                logger,
+                "rolling_log_return",
+                "Log return calculation failed: %s",
+                e,
+                exc_info=False,
+            )
             self.rets[self.dtkey] = 0.0
         self._lastvalue = self._value  # keep last value

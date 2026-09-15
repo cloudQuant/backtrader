@@ -25,6 +25,10 @@ from backtrader.channels.orderbook import OrderBookChannel
 from backtrader.channels.tick import TickChannel
 from backtrader.order import Order
 
+from ...utils.log_message import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass(frozen=True)
 class ComparisonFill:
@@ -795,6 +799,7 @@ def _run_hftbacktest_strategy(
         from hftbacktest import BacktestAsset, HashMapMarketDepthBacktest
         from hftbacktest.order import BUY, GTX, LIMIT, PARTIALLY_FILLED, SELL
     except Exception as exc:
+        logger.error("binance_bbo_compare:800 re-raising Exception", exc_info=True)
         raise RuntimeError("hftbacktest is required to run this comparison") from exc
 
     asset = (
@@ -968,6 +973,7 @@ def _create_depth_probe(market_data_path, tick_size: float, lot_size: float):
     try:
         from hftbacktest import BacktestAsset, HashMapMarketDepthBacktest
     except Exception:
+        logger.warning("binance_bbo_compare:974 fallback on Exception")
         return None
 
     asset = (
@@ -1337,6 +1343,7 @@ def _market_data_exchange_anchor_ns(market_data_path) -> Optional[int]:
                 return None
             return int(np.min(data["exch_ts"]))
     except Exception:
+        logger.warning("binance_bbo_compare:1343 fallback on Exception")
         return None
 
 
@@ -1374,6 +1381,7 @@ def _market_data_exchange_book(market_data_path):
                 return None
             return (exch_ts, best_bids, best_asks)
     except Exception:
+        logger.warning("binance_bbo_compare:1380 fallback on Exception")
         return None
 
 

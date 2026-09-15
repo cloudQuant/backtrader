@@ -5,7 +5,10 @@ Analyzer tab.
 Displays results of all analyzers.
 """
 
+from ...utils.log_message import get_logger
 from ..tab import BokehTab
+
+logger = get_logger(__name__)
 
 try:
     from bokeh.layouts import column
@@ -54,6 +57,7 @@ class AnalyzerTab(BokehTab):
             try:
                 analysis = analyzer.get_analysis()
             except Exception:
+                logger.warning("analyzer:56 fallback on Exception")
                 analysis = {}
 
             # Create title

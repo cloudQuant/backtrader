@@ -4,7 +4,6 @@ from pathlib import Path
 
 from setuptools import find_packages, setup
 
-
 BASE_DIR = Path(__file__).resolve().parent
 ABOUT = {}
 exec((BASE_DIR / "backtrader" / "version.py").read_text(encoding="utf-8"), ABOUT)
@@ -13,9 +12,26 @@ README = (BASE_DIR / "README.md").read_text(encoding="utf-8")
 setup(
     name="backtrader",  # Project name
     version=ABOUT["__version__"],  # Version number
-    packages=find_packages(exclude=["strategies", "studies", "examples", "examples.*"]),
-    # package_data={'bt_alpha': ['bt_alpha/utils/*', 'utils/*']},
-    author="cloud",  # Author name
+    packages=find_packages(
+        exclude=[
+            "strategies",
+            "studies",
+            "studies.*",
+            "examples",
+            "examples.*",
+            "tests",
+            "tests.*",
+            "scripts",
+            "scripts.*",
+            "docs",
+            "docs.*",
+        ]
+    ),
+    # Keep the tracked, credential-free account configuration template available
+    # to installed consumers.  The real account_config.yaml is intentionally
+    # ignored and is never included in a distribution.
+    package_data={"backtrader": ["configs/account_config_example.yaml"]},
+    author="cloudQuant",  # Author name (retained from master)
     author_email="yunjinqi@qq.com",  # Author email
     description="Python Algorithmic Trading Backtesting Framework",  # Project description
     long_description=README,  # Long description (usually README file content)
@@ -39,6 +55,7 @@ setup(
     extras_require={
         "dev": [
             "pytest",
+            "pytest-cov",
             "pytest-xdist",
             "pytest-html",
             "pytest-timeout",
@@ -56,8 +73,12 @@ setup(
             "hmmlearn>=0.3.3",
             "mysql-connector-python",
             "python-dotenv",
+            "psutil",
+            "PyYAML",
+            "python-docx>=0.8.11",
             "websockets",
             "aiohttp",
+            "cryptography>=3.4",
         ],
         "plotting": [
             "plotly",
@@ -66,6 +87,7 @@ setup(
             "pyecharts",
         ],
         "cryptohftdata": ["cryptohftdata>=0.4.0,<1.0.0"],
+        "live": ["cryptography>=3.4"],
     },  # List of project dependencies
     python_requires=">=3.8",
     classifiers=[

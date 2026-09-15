@@ -2,11 +2,12 @@
   "projectId": "0",
   "managedEntries": [
     "demo",
+    "未经授权禁止动已有代码",
     "specx",
     "opsx",
-    "devwiki",
     "jcdb",
     "markitdown",
+    "jccb",
     "grill-with-docs"
   ]
 }

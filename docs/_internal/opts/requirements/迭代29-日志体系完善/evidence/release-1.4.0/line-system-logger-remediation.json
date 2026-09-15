@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "record_type": "line_system_logger_remediation",
+  "recorded_at_utc": "2026-09-15T11:12:35.618220+00:00",
+  "status": "SOURCE_BOUND_FOCUSED_PASS_PENDING_FINAL_GATES",
+  "scope": {
+    "files": [
+      "backtrader/linebuffer.py",
+      "backtrader/lineiterator.py",
+      "backtrader/lineroot.py",
+      "backtrader/lineseries.py"
+    ],
+    "purpose": "Final four-file line-system logger remediation: retain silence for expected EAFP/protocol probes and make genuine recovered failures bounded, visible, and redacted.",
+    "additional_iteration29_logging_fix": {
+      "file": "backtrader/plot/locator.py",
+      "purpose": "Document the two matplotlib date-locator compatibility fallbacks added after the four-file line-system repair."
+    }
+  },
+  "source_binding": {
+    "kind": "working_tree_source_snapshot",
+    "base_head": "404383b7e92690374f33563e90c70497c98860b9",
+    "final_commit": null,
+    "note": "The hashes bind this record to the current working-tree source snapshot, not to a release commit, package, remote branch, tag, or release artifact.",
+    "files": [
+      {
+        "path": "backtrader/linebuffer.py",
+        "sha256": "7f182cf61a5e137c3e0dc2504b597b5a6de4f7b5a471df707c2e92c586b1cded",
+        "ast_except_handlers": 64,
+        "true_recovery_handlers": 30,
+        "startup_importerror_warning_exclusions": 0,
+        "logger_debug_calls": 0,
+        "calls_with_literal_exc_info_true": 0,
+        "source_text_exc_info_true_occurrences": 0,
+        "unique_throttled_recovery_calls": 30,
+        "static_safe_unique_throttled_recovery_calls": 30
+      },
+      {
+        "path": "backtrader/lineiterator.py",
+        "sha256": "afcf6faa5fbd78952d2a839cb02f1b54d8eb4100ec3af00cf10dab9c9d39641d",
+        "ast_except_handlers": 101,
+        "true_recovery_handlers": 23,
+        "startup_importerror_warning_exclusions": 9,
+        "logger_debug_calls": 0,
+        "calls_with_literal_exc_info_true": 0,
+        "source_text_exc_info_true_occurrences": 0,
+        "unique_throttled_recovery_calls": 22,
+        "static_safe_unique_throttled_recovery_calls": 22
+      },
+      {
+        "path": "backtrader/lineroot.py",
+        "sha256": "cb192bf65e1ea4ed28a8ae78b26f953ce32961d91562fffeaff9c48967a30f90",
+        "ast_except_handlers": 24,
+        "true_recovery_handlers": 14,
+        "startup_importerror_warning_exclusions": 1,
+        "logger_debug_calls": 0,
+        "calls_with_literal_exc_info_true": 0,
+        "source_text_exc_info_true_occurrences": 0,
+        "unique_throttled_recovery_calls": 14,
+        "static_safe_unique_throttled_recovery_calls": 14
+      },
+      {
+        "path": "backtrader/lineseries.py",
+        "sha256": "492ca9ee5a88057e821e41401d8954a5d5e9a645847ba852553a879875e02249",
+        "ast_except_handlers": 87,
+        "true_recovery_handlers": 13,
+        "startup_importerror_warning_exclusions": 0,
+        "logger_debug_calls": 0,
+        "calls_with_literal_exc_info_true": 0,
+        "source_text_exc_info_true_occurrences": 0,
+        "unique_throttled_recovery_calls": 12,
+        "static_safe_unique_throttled_recovery_calls": 12
+      }
+    ],
+    "additional_files": [
+      {
+        "path": "backtrader/plot/locator.py",
+        "sha256": "749f44ae1cc1748d87cafd66e41b87ef36d0f5c60e4df0b8f392a22a3edee000",
+        "ast_except_handlers": 2,
+        "throttled_warning_calls": 2,
+        "logger_debug_calls": 0,
+        "calls_with_literal_exc_info_true": 0,
+        "source_text_exc_info_true_occurrences": 0
+      }
+    ]
+  },
+  "static_verification": {
+    "method": "Python AST counted ExceptHandler nodes and inspected throttled calls nested in each handler; a textual check also counted exc_info=True occurrences.",
+    "aggregate": {
+      "except_handlers": 276,
+      "true_recovery_handlers": 80,
+      "startup_importerror_warning_exclusions": 10,
+      "logger_debug_calls": 0,
+      "calls_with_literal_exc_info_true": 0,
+      "source_text_exc_info_true_occurrences": 0,
+      "unique_throttled_recovery_calls": 78,
+      "static_safe_unique_throttled_recovery_calls": 78
+    },
+    "recovery_contract": {
+      "true_recovery_handlers": 80,
+      "requirement": "Each recovery handler has at least one throttled_warning or throttled_error call with a literal stable key, a literal fixed message, and exc_info=False.",
+      "counting_convention": "A recovery handler is counted when its AST handler subtree contains a qualifying throttled recovery call; nested compatibility handlers can therefore share one call.",
+      "unique_throttled_recovery_calls": 78
+    },
+    "startup_importerror_warning_exclusions": {
+      "count": 10,
+      "lineiterator_indicator_alias_registration": {
+        "count": 9,
+        "aliases": [
+          "EMA",
+          "SMA",
+          "WMA",
+          "HMA",
+          "DEMA",
+          "TEMA",
+          "TSI",
+          "BBands",
+          "CCI"
+        ]
+      },
+      "lineroot_strategy_patch_import": {
+        "count": 1
+      },
+      "reason": "These are startup/import-compatibility paths, not per-bar recovery handlers; their fixed WARNING calls are excluded from the 80 throttled-recovery count."
+    },
+    "negative_checks": {
+      "logger_debug_calls": 0,
+      "calls_with_literal_exc_info_true": 0,
+      "source_text_exc_info_true_occurrences": 0
+    },
+    "additional_locator_static_verification": {
+      "ast_except_handlers": 2,
+      "throttled_warning_calls": 2,
+      "negative_checks": {
+        "logger_debug_calls": 0,
+        "calls_with_literal_exc_info_true": 0,
+        "source_text_exc_info_true_occurrences": 0
+      },
+      "fallbacks": [
+        {
+          "key": "plot.locator.legacy_interval_api_fallback",
+          "message": "AutoDateLocator legacy interval API unavailable; using axis interval fallback",
+          "behavior": "The pre-3.6 locator interval API failed, so the axis interval API is attempted and the locator is returned."
+        },
+        {
+          "key": "plot.locator.axis_interval_sync_recovery",
+          "message": "AutoDateLocator axis interval synchronization failed; retaining locator fallback",
+          "behavior": "The axis interval synchronization also failed, so the already-created locator is retained and returned."
+        }
+      ],
+      "contract": "Both warnings use fixed messages, independent stable keys, throttling, and exc_info=False."
+    }
+  },
+  "runtime_focused_evidence": {
+    "status": "PASS",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests/unit/core/test_linebuffer_logging_recovery.py tests/unit/core/test_linesystem_logging_recovery.py tests/unit/plot/test_locator_logging.py",
+    "result": "59 passed in 5.93s",
+    "scope": "Final frozen-source focused regression: expected line protocol silence, recovered fallback behavior, redaction, bounded repeated diagnostics, the lineiterator orphan _once capability guard, and both matplotlib locator compatibility fallbacks.",
+    "locator_runtime_contract": "The Agg tests call each fallback 250 times, assert independent warning keys, fixed messages, no exception payload/traceback, three throttled records per key, and a usable returned locator."
+  },
+  "compatibility_caveat": {
+    "status": "MANUAL_REPATCH_PATH_COVERED_WITH_LIMIT",
+    "detail": "lineroot._apply_strategy_patch and lineseries._patch_strategy_clk_update retain legacy module-import compatibility closures that dynamically repatch Strategy._clk_update. Their attachment depends on import order; focused tests manually repatch a controlled Strategy target to exercise the closures. This record proves the stated logging and fallback behavior for those paths, but does not prove which implementation is active for every external import sequence."
+  },
+  "supersession": {
+    "supersedes_for_this_four_file_scope": [
+      "logging-exemptions.json",
+      "logging-exemptions.md",
+      "post-fix-local-closeout.json",
+      "post-fix-local-closeout.md"
+    ],
+    "reason": "Earlier hashes, functional results, and performance samples predate the final logger repairs. They remain historical evidence only and cannot prove the current source snapshot."
+  },
+  "unexecuted_final_gates": {
+    "full_functional_with_public_sdk": "PENDING_RERUN_AFTER_FINAL_LOGGER_REPAIRS",
+    "full_functional_without_sdk": "PENDING_RERUN_AFTER_FINAL_LOGGER_REPAIRS",
+    "serial_performance_and_paired_comparison": "PENDING_RERUN_AFTER_FINAL_LOGGER_REPAIRS",
+    "documentation_build": "PENDING_RERUN_AFTER_FINAL_LOGGER_DOCUMENTATION_UPDATE",
+    "exact_commit_wheel_sdist_and_out_of_tree_consumer": "PENDING",
+    "dev_to_development_remote_ci_tag_release": "PENDING",
+    "master": "NOT_TOUCHED"
+  },
+  "lineiterator_capability_guard": {
+    "file": "backtrader/lineiterator.py",
+    "sha256": "afcf6faa5fbd78952d2a839cb02f1b54d8eb4100ec3af00cf10dab9c9d39641d",
+    "location": "_ensure_lineactions_inputs_computed",
+    "behavior": "Before explicit orphan scheduling, inspect src._once and continue silently unless it is callable. A LineBuffer may expose once for direct vectorized operations but has no _once LineIterator lifecycle hook; a callable hook still runs and propagates its own failure.",
+    "logging_policy": "Missing lifecycle capability is an expected protocol probe and emits no log."
+  },
+  "historical_runtime_focused_evidence": {
+    "status": "HISTORICAL_PRE_CAPABILITY_GUARD",
+    "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python -m pytest -q tests/unit/core/test_linebuffer_logging_recovery.py tests/unit/core/test_linesystem_logging_recovery.py",
+    "result": "56 passed in 9.37s",
+    "scope": "Focused recovery regression only. It exercises expected-probe silence, recovered fallback behavior, redaction, and bounded repeated diagnostics in the four-file scope.",
+    "note": "The current source-bound recheck completed while other validation was active; elapsed time is environment-dependent and is not a performance claim.",
+    "lineiterator_sha256": "5e2c3bb9dcc6f71a803d68cb601ce959a898eb0c670c06dcfe53dcd53826de1e"
+  }
+}

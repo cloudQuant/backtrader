@@ -1,0 +1,1078 @@
+{
+  "historical_snapshot": true,
+  "superseded_by": "post-fix-local-closeout.json",
+  "environment": "Python 3.11 conda base; import hook blocks bt_api_py/base/ctp/binance/okx and metadata.distribution reports those distributions missing in all inherited subprocesses",
+  "command": "python -m pytest tests -m 'not performance' -n 8 -q -r fEs -o addopts=''",
+  "total": {
+    "skipped": 203,
+    "passed": 5079,
+    "failed": 1
+  },
+  "sections": {
+    "bench": {
+      "passed": 7
+    },
+    "collection": {
+      "skipped": 1
+    },
+    "functional": {
+      "passed": 1271
+    },
+    "integration": {
+      "passed": 264,
+      "skipped": 14
+    },
+    "performance": {
+      "passed": 1
+    },
+    "test_midfreq_context": {
+      "passed": 3
+    },
+    "test_midfreq_integration": {
+      "passed": 1
+    },
+    "test_mixbroker_midfreq": {
+      "passed": 3
+    },
+    "test_mixbroker_multi_symbol": {
+      "passed": 2
+    },
+    "test_mixed_channel": {
+      "passed": 2
+    },
+    "unit": {
+      "passed": 3525,
+      "skipped": 188,
+      "failed": 1
+    }
+  },
+  "skip_reasons": {
+    "collection skipped": 1,
+    "optional SDK distribution bt_api_py is not installed": 186,
+    "abs() of indicator chain in runonce=True crashes worker via infinite recursion in LineOwnOperation.once()": 1,
+    "optional SDK distribution bt_api_ctp is not installed": 15
+  },
+  "skipped_cases": [
+    {
+      "classname": "",
+      "name": "tests.integration.test_btapi_execution_session",
+      "reason": "collection skipped"
+    },
+    {
+      "classname": "tests.integration.test_btapi_ctp_reconciliation_idle",
+      "name": "test_idle_queries_run_off_thread_and_drive_strategy_reconciliation_lifecycle",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.brokers.test_btapibroker_source_reconciliation",
+      "name": "test_normalized_ctp_store_and_native_feed_keep_order_alive_until_deals_arrive[completed]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.brokers.test_btapibroker_source_reconciliation",
+      "name": "test_normalized_ctp_store_and_native_feed_keep_order_alive_until_deals_arrive[canceled]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.core.test_core_unit_coverage.TestExactBarsModes",
+      "name": "test_runonce_true_with_indicator_chain",
+      "reason": "abs() of indicator chain in runonce=True crashes worker via infinite recursion in LineOwnOperation.once()"
+    },
+    {
+      "classname": "tests.unit.feeds.test_btapifeed_arbitrage",
+      "name": "test_normalized_sdk_ctp_book_uses_native_feed_broker_and_strategy",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_create_ctp_wrapper_patches_missing_spi_callbacks",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_accepts_dict_snapshots_from_trader_client",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_positions_accept_float_string_ctp_codes",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_positions_use_contract_multiplier_and_exchange_fields",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_polls_order_insert_error_events_with_order_ref",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_order_submit_reject_status_overrides_unknown_order_status",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_trade_callback_accepts_float_string_ctp_codes",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_fetch_open_orders_converts_ctp_rows",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_fetch_open_orders_accepts_float_string_ctp_codes",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserves_order_ref",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_submit_order_rejects_non_integer_lots[0]",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_submit_order_rejects_non_integer_lots[1.5]",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore",
+      "name": "test_ctp_wrapper_submit_order_rejects_non_integer_lots[bad]",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sync_funding_api_remains_compatible_and_seeds_typed_cache",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_cached_getter_coalesces_refreshes_and_never_reads_sdk_on_caller_thread",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_slow_funding_refresh_does_not_delay_order_command_lane",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_transport_error_keeps_only_unexpired_last_good_snapshot",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_typed_transport_unavailable_retains_only_an_unexpired_last_good_snapshot",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_non_transport_refresh_failure_invalidates_last_good_snapshot",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_funding_identity_mismatch_or_omission_invalidates_last_good[exchange_name-BINANCE___USDT_FUTURE-funding_exchange_name_mismatch]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_funding_identity_mismatch_or_omission_invalidates_last_good[symbol-ETH-USDT-SWAP-funding_symbol_mismatch]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_funding_identity_mismatch_or_omission_invalidates_last_good[exchange_name-None-funding_exchange_name_missing]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_funding_identity_mismatch_or_omission_invalidates_last_good[symbol-None-funding_symbol_missing]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_explicit_sdk_unavailable_or_invalid_schedule_replaces_last_good_immediately",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_stale_snapshot_is_never_treated_as_last_good",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_cache_fails_closed_at_funding_schedule_boundary",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_caller_max_age_cannot_extend_store_configured_cache_deadline",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_source_observation_age_reduces_ttl_and_is_reported_as_cache_age",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_available_funding_rejects_invalid_or_expired_source_time[missing-funding_observed_at_missing]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_available_funding_rejects_invalid_or_expired_source_time[timezone_missing-funding_observed_at_timezone_missing]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_available_funding_rejects_invalid_or_expired_source_time[invalid-funding_observed_at_invalid]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_available_funding_rejects_invalid_or_expired_source_time[future-funding_observed_at_in_future]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_sdk_available_funding_rejects_invalid_or_expired_source_time[expired-funding_cache_ttl_expired]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_funding_refresh",
+      "name": "test_restart_fences_late_refresh_completion_from_previous_generation",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_market_data_only_store_rejects_direct_submit_and_cancel_without_transport",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_unknown_submit_mapping_freezes_and_rejects_queued_opening_before_transport",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_wait_for_commands_includes_unsent_completion_publication",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_public_execution_latch_reserves_purged_opening_publication",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_sdk_session_never_falls_back_to_synchronous_write_after_async_rejection",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_priority_queue_preserves_reserved_risk_capacity_and_order",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_causal_fields_and_gap_health_are_observable_and_fail_closed",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_sdk_event_without_causal_provenance_is_dropped_and_marks_stream_stale",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_snapshot_sequences_may_jump_without_assuming_plus_one_continuity",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_gap_remains_stale_until_a_verified_snapshot_recovers_the_book",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_owns_lifecycle_and_returns_typed_contracts",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_fails_closed_when_sdk_state_cannot_verify_disarm",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_fails_closed_without_an_active_sdk_session",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_rechecks_raw_sdk_state_after_connect",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_checks_post_connect_state_before_balance_read",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_fails_closed_after_typed_query_error",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_fails_closed_for_untyped_or_incomplete_result",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_times_out_without_concurrent_close",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_bounded_read_only_metadata_probe_rejects_an_incomplete_shutdown",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_sdk_broker_preflight_fails_before_any_write[net]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_sdk_broker_preflight_fails_before_any_write[unknown]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_sdk_broker_startup_rejects_nonzero_remote_position",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_keeps_submitted_until_private_order_event",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_reconciles_unknown_result_mapping_with_original_client_id",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_unclassified_submit_transport_error_stays_live_and_reconciles_original_id",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_shutdown_flattens_only_known_leg_and_requires_remote_flat_proof",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_flat_proof_rejects_unknown_or_non_numeric_position_quantity[position_row0]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_flat_proof_rejects_unknown_or_non_numeric_position_quantity[position_row1]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_flat_proof_rejects_unknown_or_non_numeric_position_quantity[position_row2]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_flat_proof_rejects_unknown_or_non_numeric_position_quantity[not-a-position-mapping]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_sdk_reconcile_filters_only_proven_zero_query_position_snapshots",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_shutdown_deadline_discards_unsent_commands_and_isolates_late_completion",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_update_queue_records_evicted_identity_and_conserves_updates",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_stale_reconcile_cannot_clear_a_newer_risk_incident",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_reconcile_completion_cannot_clear_while_a_different_command_is_inflight",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_orderbook_queue_overflow_records_evicted_causal_identity",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_feed_drain_does_not_mark_gap_live_until_verified_recovery[_load]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_feed_drain_does_not_mark_gap_live_until_verified_recovery[_check]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_cancel_unknown_query_live_allows_retry_but_blocks_new_opening",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_next_without_bar_enforces_execution_and_cancel_deadlines",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_cancel_confirmation_before_deadline_stays_definitive",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_sdk_write_contract_rejects_sync_named_methods_and_non_mapping_results",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_invalid_recovery_snapshot_remains_stale_and_is_conserved",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_unverified_orderbook_identity_is_dropped_and_latches_stale[event_changes0-orderbook_sequence_missing_or_invalid]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_unverified_orderbook_identity_is_dropped_and_latches_stale[event_changes1-orderbook_sequence_missing_or_invalid]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_unverified_orderbook_identity_is_dropped_and_latches_stale[event_changes2-orderbook_continuity_missing_or_invalid]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_unverified_orderbook_identity_is_dropped_and_latches_stale[event_changes3-orderbook_continuity_missing_or_invalid]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_unverified_orderbook_identity_is_dropped_and_latches_stale[event_changes4-orderbook_snapshot_kind_missing_or_invalid]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_polled_book_has_terminal_drop_evidence_when_strategy_dispatch_is_unavailable",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_close_timeout_blocks_restart_until_close_generation_exits",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_broker_pass_requires_complete_sdk_evidence_and_store_pass",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_reconcile_snapshot_is_complete_public_copy_and_redacted",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_required_account_risk_refresh_precedes_and_binds_reconcile_summary",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_required_account_risk_refresh_failure_is_sanitized_and_fails_reconcile_closed",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_required_account_risk_expected_prebaseline_defers_to_execution_latch",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_required_account_risk_prebaseline_does_not_relax_extra_evidence[blocked_reason]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_required_account_risk_prebaseline_does_not_relax_extra_evidence[provider_error]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_order_query_enqueue_rejection_and_timeout_retry_with_same_identity",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_store_restart_resets_market_identity_and_increments_generation",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_public_reconcile_and_execution_summary_are_safe_read_only_views",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_identity_mismatch_cannot_mutate_account_risk_baseline",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_execution_identity_fence_must_advance_across_store_generations",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_execution_identity_accepts_strictly_newer_fence_after_restart",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_owned_sdk_stop_preserves_validated_redacted_account_risk_snapshot[async]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_owned_sdk_stop_preserves_validated_redacted_account_risk_snapshot[sync]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_owned_sdk_stop_reuses_current_account_risk_cache_without_remote_read",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration21",
+      "name": "test_owned_sdk_restart_does_not_reuse_previous_account_risk_snapshot",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_store_holds_the_supplied_sdk_directly_and_configures_execution",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_stopped_owned_sdk_summary_does_not_reconnect_and_returns_a_copy",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_owned_sdk_start_failure_retains_execution_audit_without_reconnecting",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_owned_sdk_account_readiness_failure_records_safe_local_close",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_owned_sdk_partial_connect_failure_is_boundedly_closed_by_stop",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_owned_sdk_partial_connect_failure_close_error_is_failed_and_not_reused",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_owned_sdk_partial_connect_failure_close_timeout_blocks_reuse",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_explicit_restart_replaces_previous_execution_summary",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_owned_sdk_restart_discards_session_local_order_bindings_and_queues",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_close_failure_keeps_original_execution_audit_readable",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_owned_sdk_close_failure_discards_half_closed_api_and_can_restart",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_store_constructs_the_only_sdk_with_public_execution_configuration",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_broker_cash_validation_uses_the_order_venue_instead_of_portfolio_cash",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_sdk_account_query_attribute_errors_fail_closed[get_position-get_positions-positions]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_sdk_account_query_attribute_errors_fail_closed[get_open_orders-fetch_open_orders-open orders]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_broker_start_account_failure_rolls_back_live_state_and_can_retry",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_order_conversion_preserves_native_units_and_all_position_fields[OKX___SWAP-BTC-USDT-SWAP-2-contracts]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_order_conversion_preserves_native_units_and_all_position_fields[BINANCE___SWAP-BTCUSDT-0.02-base]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_order_conversion_preserves_native_units_and_all_position_fields[CTP___FUTURE-IF2609-2-contracts]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_order_conversion_preserves_native_units_and_all_position_fields[MT5___FOREX-EURUSD-0.2-lots]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_sdk_allocated_client_id_is_bound_before_sending_and_unknown_is_unchanged",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_sdk_allocated_client_id_is_attached_before_unknown_exception",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_ctp_order_ref_session_and_front_are_preserved_for_cancel_without_exchange_id",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_two_venues_can_share_a_client_and_exchange_order_id_without_cross_routing",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_broker_start_ignores_unrouted_zero_positions_before_feeds_start[net]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_broker_start_ignores_unrouted_zero_positions_before_feeds_start[dual_side]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_interpretation",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_noncrypto_mixed_events_become_native_objects_and_keep_queue_order",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_open_order_identity_supports_native_cancellation_without_local_order",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_constructor_defaults_debug_off_without_overriding_an_explicit_choice",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_orderbook_sequence_and_drop_count_survive_sdk_drain",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_sdk_batch_poll_drains_snapshot_and_requests_orderbook_coalescing",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_account_push_refreshes_venue_balance_cache_without_rest",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_normalized",
+      "name": "test_position_push_is_audited_without_touching_order_or_book_queues",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves_manifest[shadow-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves_manifest[shadow-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves_manifest[demo-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves_manifest[demo-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_runner_and_strategy_import_normally_without_dynamic_loader[012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_runner_and_strategy_import_normally_without_dynamic_loader[012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_runner_binds_account_maximum_loss_threshold_into_sdk_config[012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_runner_binds_account_maximum_loss_threshold_into_sdk_config[012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[profitable-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[profitable-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[loss-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[loss-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[no_edge-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[no_edge-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[partial-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[partial-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[unknown-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[unknown-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[gap-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_mechanics_fixtures_have_stable_report_contract[gap-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetry[012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetry[012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension[strategy0-TradeLogger final report is unavailable-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension[strategy0-TradeLogger final report is unavailable-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension[strategy1-TradeLogger final report is unavailable-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension[strategy1-TradeLogger final report is unavailable-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension[strategy2-TradeLogger final report is missing cross_venue evidence-012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension[strategy2-TradeLogger final report is missing cross_venue evidence-012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_post_run_reconciliation_is_a_hash_bound_revision_of_frozen_trade_logger_evidence[012_1_midfreq_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_cross_exchange_pair_examples",
+      "name": "test_post_run_reconciliation_is_a_hash_bound_revision_of_frozen_trade_logger_evidence[012_2_event_driven_cross_exchange]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration22",
+      "name": "test_native_ctp_wrapper_rejects_market_before_req_order_insert",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.stores.test_btapistore_iteration22",
+      "name": "test_native_ctp_wrapper_defaults_to_read_only_and_rejects_implicit_settlement_write",
+      "reason": "optional SDK distribution bt_api_ctp is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_options_lowfreq_engineering_observation",
+      "name": "test_idle_sdk_command_worker_is_valid_for_store_transfer",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_profile_endpoints_are_frozen_and_receipt_cannot_follow_an_override",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_receipt_requires_operator_hmac_and_is_opaque",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_receipt_rejects_critical_runtime_identity_drift",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_run_network_rejects_untrusted_receipt_before_side_effects[True]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_run_network_rejects_untrusted_receipt_before_side_effects[False]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_research_rejected_blocks_every_order_purpose[engineering_smoke]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_research_rejected_blocks_every_order_purpose[natural_signal]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_receipt_binds_the_configured_session_calendar",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_receipt_requires_bound_engineering_trigger_or_natural_preregistration",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_evidence[flat_completed]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_startup_recovery_monitor_holds_store_and_account_lock_until_terminal_evidence[forced_termination]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_native_replay_is_deterministic_real_cerebro_path_without_pnl",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_sa_trade_logger_extension_is_visible_in_a_live_cerebro_snapshot",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_sa_trade_logger_update_failure_is_diagnosed_and_fails_closed",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.unit.test_ctp_sa_midfreq_example",
+      "name": "test_sa_stale_trade_logger_extension_is_rejected_without_per_tick_retries",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_runner_uses_fixed_trust_root_and_canonical_manifest[runner0]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_runner_uses_fixed_trust_root_and_canonical_manifest[runner1]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_runtime_source_collector_covers_every_required_framework_sdk_and_venue_file",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_demo_noncanonical_manifest_stops_before_store[runner0]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_demo_noncanonical_manifest_stops_before_store[runner1]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_invalid_signature_stops_before_store_or_write[runner0]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_invalid_signature_stops_before_store_or_write[runner1]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_runtime_source_change_stops_before_store_or_write[runner0]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_runtime_source_change_stops_before_store_or_write[runner1]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_candidate_source_or_config_tamper_stops_before_store[strategy_sha256-strategy source fingerprint mismatch-runner0]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_candidate_source_or_config_tamper_stops_before_store[strategy_sha256-strategy source fingerprint mismatch-runner1]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_candidate_source_or_config_tamper_stops_before_store[config_sha256-candidate config fingerprint mismatch-runner0]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    },
+    {
+      "classname": "tests.integration.test_cross_exchange_demo_contract",
+      "name": "test_candidate_source_or_config_tamper_stops_before_store[config_sha256-candidate config fingerprint mismatch-runner1]",
+      "reason": "optional SDK distribution bt_api_py is not installed"
+    }
+  ],
+  "failures": [
+    {
+      "classname": "tests.unit.test_ctp_options_midfreq_engineering_observation",
+      "name": "test_engineering_observation_reports_lifecycle_deadline_exhausted_before_full_watchdog"
+    }
+  ]
+}

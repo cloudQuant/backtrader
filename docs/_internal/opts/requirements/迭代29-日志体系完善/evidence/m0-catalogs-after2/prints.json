@@ -1,0 +1,197 @@
+[
+ {
+  "exempt": false,
+  "file": "backtrader/analyzer.py",
+  "line": 371
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/strategy.py",
+  "line": 398
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2022
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2024
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2036
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2174
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/utils/autodict.py",
+  "line": 249
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/utils/autodict.py",
+  "line": 251
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/utils/log_message.py",
+  "line": 425
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 342
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 343
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 344
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 658
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 723
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 349
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 350
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 351
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 649
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 650
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 714
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 715
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 639
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 640
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 641
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 643
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 644
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 645
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 646
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 647
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 649
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 650
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 651
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 652
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 654
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 655
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 656
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 657
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 658
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 660
+ }
+]

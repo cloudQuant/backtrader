@@ -23,7 +23,7 @@ import functools
 import math
 
 from .linebuffer import LineActions
-from .utils.log_message import get_logger
+from .utils.log_message import get_logger, throttled_warning
 from .utils.py3 import cmp, range
 
 logger = get_logger(__name__)
@@ -127,7 +127,9 @@ class Logic(LineActions):
                     return
             except Exception:  # nosec B110
                 # Clock without a comparable length; proceed to advance below.
-                pass
+                throttled_warning(
+                    logger, "logic_clock_advance", "functions:130 suppressed Exception"
+                )
 
         target_len = len(self) + 1
         for arg in getattr(self, "args", ()):
@@ -521,7 +523,7 @@ class If(Logic):
                 self.cond.once(start, end)
             except Exception:  # nosec B110
                 # Operand already (partially) computed or not once()-able; continue.
-                pass
+                logger.warning("functions:524 suppressed Exception")
 
         # The 'a' operand (could be constant or LinesOperation)
         if hasattr(self.a, "once") and len(getattr(self.a, "array", [])) < end:
@@ -529,7 +531,7 @@ class If(Logic):
                 self.a.once(start, end)
             except Exception:  # nosec B110
                 # Operand already (partially) computed or not once()-able; continue.
-                pass
+                logger.warning("functions:532 suppressed Exception")
 
         # The 'b' operand - for self-referencing, this is typically another bt.If
         # We need to compute it BUT it contains the self-reference, so we handle it specially
@@ -544,7 +546,7 @@ class If(Logic):
                     self.b.once(start, end)
                 except Exception:  # nosec B110
                     # Operand already (partially) computed or not once()-able; continue.
-                    pass
+                    logger.warning("functions:547 suppressed Exception")
 
         # Get arrays for direct access where possible
         cond_array = getattr(self.cond, "array", [])
@@ -560,7 +562,7 @@ class If(Logic):
                 a_is_constant = True
             except Exception:  # nosec B110
                 # 'a' is neither array-backed nor a constant scalar; leave defaults.
-                pass
+                logger.warning("functions:563 suppressed Exception")
 
         b_array = getattr(self.b, "array", [])
         b_has_array = len(b_array) >= end
@@ -603,6 +605,9 @@ class If(Logic):
                     try:
                         val = self._eval_operand_at(self.b, i)
                     except Exception:
+                        throttled_warning(
+                            logger, "if_sequential_operand", "functions:605 fallback on Exception"
+                        )
                         val = 0.0
 
             val = _sanitize_div_value(val)
@@ -654,6 +659,7 @@ class If(Logic):
         try:
             return operand[0]
         except Exception:
+            throttled_warning(logger, "if_operand_scalar", "functions:656 fallback on Exception")
             return 0.0
 
     def _once_batch(self, start, end):
@@ -672,7 +678,7 @@ class If(Logic):
                     a_is_constant = True
                 except Exception:  # nosec B110
                     # 'a' has an empty array and no scalar value; not a constant.
-                    pass
+                    logger.warning("functions:675 suppressed Exception")
         except (AttributeError, TypeError):
             srca = []
             a_has_array = False
@@ -681,7 +687,7 @@ class If(Logic):
                 a_is_constant = True
             except Exception:  # nosec B110
                 # 'a' is neither array-backed nor a scalar constant.
-                pass
+                logger.warning("functions:684 suppressed Exception")
 
         b_is_constant = False
         b_constant_val = None
@@ -694,7 +700,7 @@ class If(Logic):
                     b_is_constant = True
                 except Exception:  # nosec B110
                     # 'b' has an empty array and no scalar value; not a constant.
-                    pass
+                    logger.warning("functions:697 suppressed Exception")
         except (AttributeError, TypeError):
             srcb = []
             b_has_array = False
@@ -703,7 +709,7 @@ class If(Logic):
                 b_is_constant = True
             except Exception:  # nosec B110
                 # 'b' is neither array-backed nor a scalar constant.
-                pass
+                logger.warning("functions:706 suppressed Exception")
 
         try:
             cond = self.cond.array
@@ -726,6 +732,9 @@ class If(Logic):
                 try:
                     cond_val = self.cond[i] if hasattr(self.cond, "__getitem__") else 0.0
                 except Exception:
+                    throttled_warning(
+                        logger, "if_batch_condition", "functions:728 fallback on Exception"
+                    )
                     cond_val = 0.0
 
             cond_bool = (cond_val != 0.0) and (
@@ -743,6 +752,9 @@ class If(Logic):
                 try:
                     a_val = self.a[i]
                 except Exception:
+                    throttled_warning(
+                        logger, "if_batch_true_operand", "functions:745 fallback on Exception"
+                    )
                     a_val = 0.0
             else:
                 a_val = 0.0
@@ -758,6 +770,9 @@ class If(Logic):
                 try:
                     b_val = self.b[i]
                 except Exception:
+                    throttled_warning(
+                        logger, "if_batch_false_operand", "functions:760 fallback on Exception"
+                    )
                     b_val = 0.0
             else:
                 b_val = 0.0

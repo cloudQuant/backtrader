@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""B01: 验证系统支持将多笔部分成交报单进行批量撤单"""
+"""B01: Verify that the system supports batch canceling multiple partially-filled orders"""
 from __future__ import annotations
 
 import sys

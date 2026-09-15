@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""E03: 验证系统能接收并展示柜台返回的市场状态错误码"""
+"""E03: Verify that the system can receive and display the market-state error code returned by the counter"""
 from __future__ import annotations
 
 import sys

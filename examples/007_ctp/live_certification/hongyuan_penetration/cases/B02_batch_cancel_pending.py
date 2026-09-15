@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""B02: 验证系统支持将多笔已报单进行批量撤单"""
+"""B02: Verify that the system supports batch canceling multiple submitted orders"""
 from __future__ import annotations
 
 import datetime as dt

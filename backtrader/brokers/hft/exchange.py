@@ -196,7 +196,10 @@ class SimpleExchangeModel(ExchangeModel):
             one level matched, otherwise ``"PENDING"``.
         """
         levels = ob_snapshot.asks if order.isbuy() else ob_snapshot.bids
-        remaining = abs(getattr(order, "size", 0.0))
+        remaining = getattr(getattr(order, "executed", None), "remsize", None)
+        if remaining is None:
+            remaining = getattr(order, "size", 0.0)
+        remaining = abs(remaining)
         fills = []
         for price, qty in levels:
             if order.exectype == Order.Limit:

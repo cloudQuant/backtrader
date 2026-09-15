@@ -9,6 +9,7 @@ class MovingAverageCross(bt.Strategy):
     """Trade when the fast moving average crosses the slow average."""
 
     def __init__(self):
+        """Build fast/slow SMAs and the crossover signal driving entries/exits."""
         fast = bt.indicators.SMA(self.data.close, period=10)
         slow = bt.indicators.SMA(self.data.close, period=30)
         self.cross = bt.indicators.CrossOver(fast, slow)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""O01: 验证能统计重复开仓单报单笔数（选测）"""
+"""O01: Verify that the number of repeated open order submissions can be counted (optional)"""
 from __future__ import annotations
 
 import sys

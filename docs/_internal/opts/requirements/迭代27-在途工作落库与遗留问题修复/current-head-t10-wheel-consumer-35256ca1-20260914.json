@@ -1,0 +1,112 @@
+{
+  "schema_version": "iteration27.clean-head-t10-verification.v1",
+  "recorded_on": "2026-09-14",
+  "status": "PASS_LOCAL_ARTIFACT_AND_REPLAY_ONLY",
+  "scope": "Current-head five-wheel build, external consumer import/native-load/parity validation, and four offline example replays.",
+  "source_result": {
+    "path": "/tmp/iter27-t10-current-head.GBhCBl/results/t10-result.json",
+    "sha256": "c1a7198b5a002dc44a170e62e9356007864954da2491d2667d5cb29f20481951",
+    "retention_boundary": "The volatile non-secret result summary records commands and assertions. The tracked verifier keeps only its path, digest and non-sensitive outcomes; it excludes credentials, environment-file contents, account data, endpoints and raw execution reports."
+  },
+  "sources": {
+    "backtrader": "35256ca177097c753ffac447348bcbb6f018235c",
+    "bt_api_py": "b22a678521278de23cf6a86fe8dd755e7052fa74",
+    "gitlinks": {
+      "bt_api_base": "74be52d8432c348c93304e9f3b5774bb4dbc766c",
+      "bt_api_binance": "12f2a667be0e8988559cb836c3fd439f6c131ec6",
+      "bt_api_ctp": "b371098d5f7f91c8843da1ff6ded6da568ac8f4e"
+    },
+    "postbuild_status_porcelain": {
+      "backtrader": "",
+      "bt_api_py": ""
+    }
+  },
+  "consumer": {
+    "minimal_venv": {
+      "five_local_wheels_installed_with_no_index_no_deps": true,
+      "external_cwd_import_result": "BLOCKED_MISSING_PYTZ"
+    },
+    "final_venv": {
+      "system_site_packages": true,
+      "local_wheel_install_flags": ["--no-index", "--no-deps", "--force-reinstall"],
+      "target_import_origins_under_consumer_site_packages": true,
+      "source_paths_after_guard": [],
+      "ctp_native_loaded": true
+    },
+    "boundary": "The final venv allows dependencies from the Anaconda base environment. Its five target package imports resolve from the locally installed wheels, not any checkout."
+  },
+  "wheels": {
+    "backtrader-1.3.0-py3-none-any.whl": {
+      "raw_sha256": "e370d6c70139af1e21e31391ceda5a7a7bb03e0d4f3d2bfeab7d9e6144dfafaa",
+      "source_python_file_count": 450
+    },
+    "bt_api_base-0.15.3-py3-none-any.whl": {
+      "raw_sha256": "b86b24992029593eb4161a7cbdfc3e99f06e915924d615a85093273663383c8e",
+      "source_python_file_count": 104
+    },
+    "bt_api_binance-2.0.1-py3-none-any.whl": {
+      "raw_sha256": "58c96e1d3905de174b718263dc3599f68109c862f1f05aa91dbd791e070b269c",
+      "source_python_file_count": 65
+    },
+    "bt_api_ctp-2.0.0-cp311-cp311-macosx_11_0_arm64.whl": {
+      "raw_sha256": "5e242e883985e4d55109eac7367f797242d81c9f0a73ec652fa862d6b06025d9",
+      "source_python_file_count": 39,
+      "native_extension": "bt_api_ctp/ctp/_ctp.cpython-311-darwin.so"
+    },
+    "bt_api_py-0.15.3-py3-none-any.whl": {
+      "raw_sha256": "c248ea7fa9b148fa4d76434ac30312ce2005f581a42559d0f51eb3c43060849f",
+      "source_python_file_count": 127
+    }
+  },
+  "parity": {
+    "source_to_wheel_missing": [],
+    "source_to_wheel_mismatched": [],
+    "source_to_installed_missing": [],
+    "source_to_installed_mismatched": [],
+    "native_wheel_to_installed_mismatched": []
+  },
+  "offline_replays": {
+    "013_3_sa_midfreq_simnow": {
+      "exit_code": 0,
+      "status": "PASS_REPLAY_PATH",
+      "sdk_write_requests": 0,
+      "pnl_fields_emitted": false,
+      "g4_gate_status": "NOT_RUN",
+      "manifest_sha256": "1f952175f4dd5fdc49ca0d4e65dacabb25f88ffdb023535ca14661437d1cd8c0"
+    },
+    "014_1_ctp_options_lowfreq": {
+      "exit_code": 0,
+      "status": "LOCAL_REPLAY_PASS",
+      "external_network_requests": 0,
+      "external_order_writes": 0,
+      "local_hypothetical_backbroker_orders": 6,
+      "report_sha256": "d4f55a1236abfbb04dd5903bebe88c439e497393b53edd8b60bc261028e95192"
+    },
+    "014_2_ctp_options_midfreq": {
+      "exit_code": 0,
+      "status": "LOCAL_REPLAY_PASS",
+      "evidence_retention": "The command emitted its self-contained report to the controlled execution transcript; no credential or source checkout was used."
+    },
+    "015_ctp_options_highfreq": {
+      "exit_code": 0,
+      "status": "LOCAL_REPLAY_PASS",
+      "external_network_requests": 0,
+      "external_write_requests": 0,
+      "actual_fills": 0,
+      "hft_status": "NOT_ADMITTED",
+      "report_sha256": "6227be3fa6121051a784d6c89a6c18bab48065689b5facec6b17e4f32fcf3953"
+    }
+  },
+  "safety": {
+    "copied_dotenv_paths": [],
+    "guard_event_count": 0,
+    "guard": "The local T10 replay guard blocks .env opens plus DNS and socket connection calls.",
+    "live_session_invoked": false
+  },
+  "limits": [
+    "This record proves current-source package contents, installed target origins, native loading, and offline replay paths only.",
+    "The final consumer uses --system-site-packages because a minimal venv lacks pytz; it is not a closed third-party-dependency publication proof.",
+    "It proves no CTP/SimNow account or session, live orders, fills, PnL, profitability, HFT admission, release, or production readiness.",
+    "The SDK bundle consumes its recorded gitlinks, not any newer standalone sibling target outside those gitlinks."
+  ]
+}

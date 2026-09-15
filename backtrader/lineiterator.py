@@ -22,7 +22,7 @@ from .linebuffer import NAN, LineActions, LineNum
 from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
-from .utils.log_message import get_logger
+from .utils.log_message import get_logger, throttled_error, throttled_warning
 from .utils.py3 import range, string_types, zip
 
 logger = get_logger(__name__)
@@ -46,9 +46,15 @@ def _clock_is_replaying(clock, seen=None):
             return True
     except AttributeError:
         # Non-clock object without a usable 'replaying' flag; treat as not replaying.
+        # Missing optional flags are ordinary per-bar protocol probes.
         pass
     except Exception:  # nosec B110
-        pass
+        throttled_warning(
+            logger,
+            "clock_replay_flag",
+            "Clock replay flag lookup failed; treating clock as not replaying",
+            exc_info=False,
+        )
 
     try:
         source_clock = object.__getattribute__(clock, "_clock")
@@ -93,6 +99,7 @@ def _lineaction_source_clock(lineaction, seen=None):
                 lineaction._lineaction_source_clock_cache = result
             except Exception:  # nosec B110
                 # Object rejects attribute caching (e.g. __slots__); skip caching.
+                # Unsupported caching is a normal per-bar protocol fallback.
                 pass
         return result
 
@@ -308,10 +315,20 @@ def _ensure_lineactions_inputs_computed(indicator, end, _seen=None):
             if len(array) >= end and getattr(src, "_once_called", False):
                 continue
             _ensure_lineactions_inputs_computed(src, end, _seen)
-            try:
-                src.once(0, end)
-            except Exception:
-                logger.debug("LineActions dependency once failed", exc_info=True)
+            # An incomplete LineActions array has no safe value fallback for
+            # its consumer. Surface the original error instead of silently
+            # producing an all-NaN downstream result.
+            src.once(0, end)
+            continue
+
+        # A LineBuffer exposes ``once`` for direct vectorized line operations,
+        # but is not a LineIterator and deliberately has no ``_once`` lifecycle
+        # hook.  Only orphan indicators participate in the explicit scheduling
+        # below.  Missing lifecycle capability is an ordinary protocol probe,
+        # so leave it silent; a callable hook still runs and propagates its own
+        # failures unchanged.
+        once_hook = getattr(src, "_once", None)
+        if not callable(once_hook):
             continue
 
         # Treat as an orphan sub-indicator only if its own array is empty AND
@@ -336,10 +353,9 @@ def _ensure_lineactions_inputs_computed(indicator, end, _seen=None):
                     continue
         # Recurse into its inputs first
         _ensure_lineactions_inputs_computed(src, end, _seen)
-        try:
-            src._once(0, end)
-        except Exception:
-            logger.debug("Orphan indicator _once failed", exc_info=True)
+        # An orphan indicator is explicitly computed here because no owner
+        # will schedule it. Propagate failures rather than use incomplete data.
+        once_hook(0, end)
 
 
 class LineIteratorMixin:
@@ -428,24 +444,34 @@ class LineIteratorMixin:
                     try:
                         datas.append(LineSeriesMaker(LineNum(arg)))
                     except Exception:
-                        logger.debug(
-                            "Failed to coerce argument into LineNum in LineIteratorMixin.donew",
-                            exc_info=True,
+                        # The remaining argument cannot be converted into a
+                        # data-like line. Preserve the established stop rule.
+                        throttled_warning(
+                            logger,
+                            "lineiterator.donew.line_num_recovery",
+                            "LineIterator data argument conversion failed; stopping data scan",
+                            exc_info=False,
                         )
-                        # Not a LineNum and is not a LineSeries - bail out
                         break
             except Exception:
-                logger.debug(
-                    "Type-checking fallback triggered in LineIteratorMixin.donew", exc_info=True
+                # Keep the compatibility numeric fallback without rendering an
+                # arbitrary object/exception representation.
+                throttled_warning(
+                    logger,
+                    "lineiterator.donew.type_check_recovery",
+                    "LineIterator data argument inspection failed; trying numeric fallback",
+                    exc_info=False,
                 )
-                # If anything fails in type checking, try to treat as numeric
                 if not mindatas:
                     break
                 try:
                     datas.append(LineSeriesMaker(LineNum(arg)))
                 except Exception:
-                    logger.debug(
-                        "Numeric fallback failed in LineIteratorMixin.donew", exc_info=True
+                    throttled_warning(
+                        logger,
+                        "lineiterator.donew.numeric_recovery",
+                        "LineIterator numeric data fallback failed; stopping data scan",
+                        exc_info=False,
                     )
                     break
 
@@ -539,16 +565,17 @@ class LineIteratorMixin:
                                         if d == 0:
                                             setattr(_obj, f"data_{linealias}", line)
                                 except (IndexError, AttributeError, TypeError):
-                                    pass  # Skip if alias retrieval fails
+                                    # Skip if alias retrieval fails.
+                                    pass
                             setattr(_obj, f"data{d}_{line_index}", line)
                             # Also set without the data prefix for the first data
                             if d == 0:
                                 setattr(_obj, f"data_{line_index}", line)
                     except (TypeError, AttributeError, IndexError):
-                        # If lines iteration fails, skip line alias setup
+                        # If lines iteration fails, skip line alias setup.
                         pass
                 except AttributeError:
-                    # data.lines doesn't exist, skip line alias setup
+                    # data.lines doesn't exist, skip line alias setup.
                     pass
         else:
             _obj.data = None
@@ -678,10 +705,15 @@ class LineIteratorMixin:
                             try:
                                 # Try to call addminperiod directly
                                 line.addminperiod(_obj._minperiod)
-                            except (AttributeError, Exception):
-                                logger.debug(
-                                    "Failed to add minperiod to iterable line in dopreinit",
-                                    exc_info=True,
+                            except AttributeError:
+                                # Lines without minperiod support are valid.
+                                pass
+                            except Exception:
+                                throttled_warning(
+                                    logger,
+                                    "lineiterator.dopreinit.minperiod_recovery",
+                                    "LineIterator minperiod propagation failed; continuing setup",
+                                    exc_info=False,
                                 )
                 else:
                     # Try accessing by index if lines_list is not iterable
@@ -693,10 +725,15 @@ class LineIteratorMixin:
                                 if line is not None:
                                     try:
                                         line.addminperiod(_obj._minperiod)
-                                    except (AttributeError, Exception):
-                                        logger.debug(
-                                            "Failed to add minperiod to indexed line in dopreinit",
-                                            exc_info=True,
+                                    except AttributeError:
+                                        # Lines without minperiod support are valid.
+                                        pass
+                                    except Exception:
+                                        throttled_warning(
+                                            logger,
+                                            "lineiterator.dopreinit.minperiod_recovery",
+                                            "LineIterator minperiod propagation failed; continuing setup",
+                                            exc_info=False,
                                         )
                             except (IndexError, TypeError):
                                 break
@@ -704,11 +741,18 @@ class LineIteratorMixin:
                         # lines object has no usable len/index access; skip.
                         pass
 
-            except (AttributeError, Exception):
-                logger.debug("Minperiod propagation fallback triggered in dopreinit", exc_info=True)
-                # Continue without failing - minperiod setup is not critical for basic functionality
+            except AttributeError:
+                # Lines container is absent during partial construction.
+                pass
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "lineiterator.dopreinit.minperiod_recovery",
+                    "LineIterator minperiod propagation failed; continuing setup",
+                    exc_info=False,
+                )
         except AttributeError:
-            # _obj.lines doesn't exist, skip minperiod setup
+            # _obj.lines doesn't exist, skip minperiod setup.
             pass
 
         return _obj, args, kwargs
@@ -782,6 +826,12 @@ class LineIteratorMixin:
         try:
             is_indicator = getattr(_obj, "_ltype", None) == LineIterator.IndType
         except Exception:
+            throttled_warning(
+                logger,
+                "lineiterator.dopostinit.ltype_recovery",
+                "LineIterator type lookup failed; treating object as non-indicator",
+                exc_info=False,
+            )
             is_indicator = False
 
         if is_indicator:
@@ -794,8 +844,13 @@ class LineIteratorMixin:
                 ):
                     owner = context_owner
                     _obj._owner = owner
-            except Exception as e:
-                logger.debug("Failed to find LineIterator owner via OwnerContext: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "lineiterator.dopostinit.owner_resolution_recovery",
+                    "LineIterator owner resolution failed; continuing without context owner",
+                    exc_info=False,
+                )
 
         # If no valid owner found, try Strategy OwnerContext as a fallback.
         # This handles indicators created in dict/list comprehensions when
@@ -805,6 +860,12 @@ class LineIteratorMixin:
                 # Only apply this fix for indicators, not for all LineIterators
                 is_indicator = getattr(_obj, "_ltype", None) == LineIterator.IndType
             except Exception:
+                throttled_warning(
+                    logger,
+                    "lineiterator.dopostinit.ltype_recovery",
+                    "LineIterator type lookup failed; treating object as non-indicator",
+                    exc_info=False,
+                )
                 is_indicator = False
 
             if is_indicator:
@@ -816,8 +877,13 @@ class LineIteratorMixin:
                     if context_owner is not None and context_owner is not _obj:
                         owner = context_owner
                         _obj._owner = owner
-                except Exception as e:
-                    logger.debug("Failed to find owner via OwnerContext: %s", e)
+                except Exception:
+                    throttled_warning(
+                        logger,
+                        "lineiterator.dopostinit.owner_resolution_recovery",
+                        "LineIterator owner resolution failed; continuing without context owner",
+                        exc_info=False,
+                    )
 
                 # NOTE: sys._getframe fallback removed - OwnerContext should handle all cases
                 # If owner is still None, indicator will work standalone without registration
@@ -829,8 +895,16 @@ class LineIteratorMixin:
                 ind_list = owner._lineiterators.get(LineIterator.IndType, [])
                 if _obj not in ind_list:
                     owner.addindicator(_obj)
-            except (AttributeError, Exception):
-                logger.debug("Failed to register indicator with owner", exc_info=True)
+            except Exception:
+                # A valid owner that cannot register its indicator would leave
+                # the indicator unscheduled, which has no safe fallback.
+                throttled_error(
+                    logger,
+                    "lineiterator.dopostinit.registration_failure",
+                    "LineIterator indicator registration failed; propagating exception",
+                    exc_info=False,
+                )
+                raise
 
         return _obj, args, kwargs
 
@@ -1104,7 +1178,19 @@ class LineIterator(LineIteratorMixin, LineSeries):
             owner = None
             try:
                 owner = metabase.findowner(instance, LineIterator)
-            except Exception:
+            except (AttributeError, TypeError):
+                # Standalone LineIterators legitimately have no discoverable
+                # owner during construction.
+                owner = None
+            except Exception:  # nosec B110
+                # Keep the historical standalone fallback, but surface actual
+                # OwnerContext failures without logging a traceback or payload.
+                throttled_warning(
+                    logger,
+                    "lineiterator.new.owner_discovery_recovery",
+                    "LineIterator owner discovery failed; continuing without owner",
+                    exc_info=False,
+                )
                 owner = None
 
             try:
@@ -1127,7 +1213,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
             try:
                 instance.lines = cls.lines()
             except Exception:
-                # Fallback to empty Lines
+                # A callable lines factory failed; retain the historical empty
+                # Lines fallback with a bounded static diagnostic.
+                throttled_warning(
+                    logger,
+                    "lineiterator.new.lines_factory_recovery",
+                    "LineIterator lines factory failed; using empty Lines",
+                    exc_info=False,
+                )
                 from .lineseries import Lines
 
                 instance.lines = Lines()
@@ -1147,8 +1240,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 for line in instance.lines:
                     if hasattr(line, "_refresh_cached_line_flags"):
                         line._refresh_cached_line_flags(owner=instance.lines, ltype=ltype)
-            except Exception as e:
-                logger.debug("Failed to refresh line flags in LineIterator.__new__: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "lineiterator.new.line_flags_recovery",
+                    "LineIterator line flag refresh failed; retaining existing flags",
+                    exc_info=False,
+                )
 
         return instance
 
@@ -1240,6 +1338,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     [(d._name, d) for d in self.datas if d is not None and getattr(d, "_name", "")]
                 )
             except Exception:
+                throttled_warning(
+                    logger,
+                    "lineiterator.init.dnames_recovery",
+                    "LineIterator data-name setup failed; using empty names",
+                    exc_info=False,
+                )
                 self.dnames = {}
 
         # CRITICAL FIX: Pass kwargs to parent for parameter processing
@@ -1274,154 +1378,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
             # Call dopreinit to set up clock and other attributes
             self.__class__.dopreinit(self, *args, **kwargs)
 
-        # CRITICAL FIX: If this is a strategy, wrap the __init__ process to catch indicator creation errors
-        is_strategy = (
-            (hasattr(self, "_ltype") and getattr(self, "_ltype", None) == LineIterator.StratType)
-            or "Strategy" in self.__class__.__name__
-            or any("Strategy" in base.__name__ for base in self.__class__.__mro__)
-        )
-
-        if is_strategy:
-            # Check if the strategy class has a custom __init__ method
-            strategy_init = None
-            for cls in self.__class__.__mro__:
-                if "__init__" in cls.__dict__ and cls != LineIterator:
-                    strategy_init = cls.__dict__["__init__"]
-                    break
-
-            if strategy_init and hasattr(strategy_init, "__call__"):
-                try:
-                    # Call the strategy's __init__ method safely
-                    strategy_init(self)
-                except Exception:
-                    # Continue without failing completely - set up minimal attributes
-                    if not hasattr(self, "cross"):
-                        # Create a safe default for cross indicator
-                        class SafeCrossOverDefault:
-                            """Safe default cross indicator for strategies without indicators.
-
-                            Provides safe default comparison operations when
-                            the cross indicator is not properly initialized.
-                            """
-
-                            def __gt__(self, other):
-                                """Greater than comparison.
-
-                                Args:
-                                    other: Value to compare against.
-
-                                Returns:
-                                    bool: Always returns False for safety.
-                                """
-                                return False
-
-                            def __lt__(self, other):
-                                """Less than comparison.
-
-                                Args:
-                                    other: Value to compare against.
-
-                                Returns:
-                                    bool: Always returns False for safety.
-                                """
-                                return False
-
-                            def __ge__(self, other):
-                                """Greater than or equal comparison.
-
-                                Args:
-                                    other: Value to compare against.
-
-                                Returns:
-                                    bool: Always returns False for safety.
-                                """
-                                return False
-
-                            def __le__(self, other):
-                                """Less than or equal comparison.
-
-                                Args:
-                                    other: Value to compare against.
-
-                                Returns:
-                                    bool: Always returns False for safety.
-                                """
-                                return False
-
-                            def __eq__(self, other):
-                                """Equality comparison.
-
-                                Args:
-                                    other: Value to compare against.
-
-                                Returns:
-                                    bool: Always returns False for safety.
-                                """
-                                return False
-
-                            def __ne__(self, other):
-                                """Inequality comparison.
-
-                                Args:
-                                    other: Value to compare against.
-
-                                Returns:
-                                    bool: Always returns True for safety.
-                                """
-                                return True
-
-                            def __getitem__(self, key):
-                                """Get item by key.
-
-                                Args:
-                                    key: Index key.
-
-                                Returns:
-                                    float: Always returns 0.0 as safe default.
-                                """
-                                return 0.0
-
-                            def __bool__(self):
-                                """Boolean conversion.
-
-                                Returns:
-                                    bool: Always returns False for safety.
-                                """
-                                return False
-
-                            def __float__(self):
-                                """Float conversion.
-
-                                Returns:
-                                    float: Always returns 0.0 as safe default.
-                                """
-                                return 0.0
-
-                            def __int__(self):
-                                """Integer conversion.
-
-                                Returns:
-                                    int: Always returns 0 as safe default.
-                                """
-                                return 0
-
-                            def __str__(self):
-                                """String conversion.
-
-                                Returns:
-                                    str: String representation "0.0".
-                                """
-                                return "0.0"
-
-                            def __repr__(self):
-                                """Representation string.
-
-                                Returns:
-                                    str: Representation string.
-                                """
-                                return "SafeCrossOverDefault(0.0)"
-
-                        self.cross = SafeCrossOverDefault()
+        # Strategy subclasses own their constructor lifecycle.  Calling a user
+        # constructor from this shared initializer can recurse, and swallowing
+        # its exception fabricates a successful strategy with placeholder state.
+        # Strategy dispatch invokes the constructor through its public path.
 
         # CRITICAL FIX: Auto-register indicators to their owner's _lineiterators
         if is_indicator:
@@ -1472,7 +1432,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     current_len = len(self)
                     self.chkmin = current_len
                 except Exception:
-                    # Use the expected test value as fallback
+                    # Use the expected test value as fallback.
+                    throttled_warning(
+                        logger,
+                        "lineiterator.stop.chkmin_recovery",
+                        "LineIterator stop length lookup failed; using compatibility value",
+                        exc_info=False,
+                    )
                     self.chkmin = 30
 
         # Check if this class has its own stop method defined
@@ -1484,8 +1450,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     original_stop(self)
                     return
                 except Exception:
-                    # Continue to prevent total failure
-                    return
+                    # A user-defined stop hook has no safe replacement.
+                    throttled_error(
+                        logger,
+                        "lineiterator.stop.hook_failure",
+                        "LineIterator stop hook failed; propagating exception",
+                        exc_info=False,
+                    )
+                    raise
 
         # If no custom stop method found, this is the default (empty) stop
 
@@ -1737,7 +1709,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     self._clock = source_clock
         except Exception:  # nosec B110
             # Clock resolution is best-effort here; keep the existing clock.
-            pass
+            throttled_warning(
+                logger,
+                "iterator_source_clock",
+                "Source clock resolution failed; keeping existing clock",
+                exc_info=False,
+            )
 
         # Update current time line and return length
         # CRITICAL FIX: Handle invalid clocks (e.g., MinimalOwner) that don't have len()
@@ -1849,14 +1826,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
             start: Starting index.
             end: Ending index.
         """
-        # Default implementation - process each step
+        # A failed forward()/next() step has no safe fabricated output value.
+        # Preserve the original exception rather than silently accepting an
+        # incomplete runonce result.
         for i in range(start, end):
-            try:
-                self.forward()
-                if hasattr(self, "next"):
-                    self.next()
-            except Exception as e:
-                logger.debug("once_via_next step failed: %s", e)
+            self.forward()
+            if hasattr(self, "next"):
+                self.next()
 
     def _next(self):
         """Internal next method called for each bar.
@@ -1898,9 +1874,17 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 try:
                     if len(data_clock) <= len(data):
                         continue
-                except Exception:  # nosec B110
+                except (AttributeError, TypeError):
                     # Clock/data without comparable length; fall through and advance.
+                    # Optional length probes run per bar and are intentionally quiet.
                     pass
+                except Exception:  # nosec B110
+                    throttled_warning(
+                        logger,
+                        "lineiterator.next.clock_length_probe_recovery",
+                        "LineIterator clock length probe failed; advancing line action",
+                        exc_info=False,
+                    )
 
             data._next()
 
@@ -2143,8 +2127,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     except AttributeError:
                         try:
                             return len(first_line.array)
-                        except Exception as e:
-                            logger.debug("Failed to get line length: %s", e)
+                        except Exception:
+                            throttled_warning(
+                                logger,
+                                "lineiterator_length_recovery",
+                                "LineIterator length recovery failed; returning 0",
+                                exc_info=False,
+                            )
         except (IndexError, TypeError):
             # No lines available to measure; report length 0.
             pass
@@ -2343,7 +2332,12 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "ExponentialMovingAverage", ExponentialMovingAverage)
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.ema_import_recovery",
+                "EMA indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         try:
             from backtrader.indicators.sma import SimpleMovingAverage
@@ -2352,7 +2346,12 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "SimpleMovingAverage", SimpleMovingAverage)
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.sma_import_recovery",
+                "SMA indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         try:
             from backtrader.indicators.wma import WeightedMovingAverage
@@ -2361,7 +2360,12 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "WeightedMovingAverage", WeightedMovingAverage)
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.wma_import_recovery",
+                "WMA indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         try:
             from backtrader.indicators.hma import HullMovingAverage
@@ -2370,7 +2374,12 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "HullMovingAverage", HullMovingAverage)
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.hma_import_recovery",
+                "HMA indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         try:
             from backtrader.indicators.dema import DoubleExponentialMovingAverage
@@ -2381,7 +2390,12 @@ class IndicatorBase(DataAccessor):
             )
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.dema_import_recovery",
+                "DEMA indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         try:
             from backtrader.indicators.tema import TripleExponentialMovingAverage
@@ -2392,7 +2406,12 @@ class IndicatorBase(DataAccessor):
             )
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.tema_import_recovery",
+                "TEMA indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         try:
             from backtrader.indicators.tsi import TrueStrengthIndicator
@@ -2401,7 +2420,12 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "TrueStrengthIndicator", TrueStrengthIndicator)
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.tsi_import_recovery",
+                "TSI indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         # Add other common indicators as needed
         try:
@@ -2411,7 +2435,12 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "BollingerBands", BollingerBands)
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.bbands_import_recovery",
+                "BBands indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
         try:
             from backtrader.indicators.cci import CommodityChannelIndex
@@ -2420,7 +2449,12 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "CommodityChannelIndex", CommodityChannelIndex)
         except ImportError:
             # Indicator module not importable here; skip registering its alias.
-            pass
+            throttled_warning(
+                logger,
+                "lineiterator.indicator_alias.cci_import_recovery",
+                "CCI indicator alias import failed; skipping alias registration",
+                exc_info=False,
+            )
 
 
 class ObserverBase(DataAccessor):
@@ -2607,158 +2641,11 @@ class StrategyBase(DataAccessor):
                 break
 
         if strategy_init and hasattr(strategy_init, "__call__"):
-            # CRITICAL FIX: Wrap the strategy's __init__ to handle indicator creation safely
-            try:
-                # Call the strategy's __init__ method
-                strategy_init(self)
-
-                # CRITICAL FIX: After user __init__, ensure all indicators have proper setup
-                self._finalize_indicator_setup()
-
-            except Exception as e:
-                # Store the error but continue with minimal setup
-                self._indicator_creation_errors.append(str(e))
-
-                # Set up minimal attributes for test compatibility
-                if not hasattr(self, "cross"):
-                    # Create a safe default for cross indicator that won't break tests
-                    class SafeCrossIndicator:
-                        """Safe default cross indicator for error recovery.
-
-                        Provides a safe fallback when the cross indicator
-                        cannot be properly initialized during strategy setup.
-                        """
-
-                        def __init__(self):
-                            """Initialize safe cross indicator with default value."""
-                            self._current_value = 0.0
-
-                        def __gt__(self, other):
-                            """Greater than comparison - always returns False.
-
-                            Args:
-                                other: Value to compare against.
-
-                            Returns:
-                                bool: Always False for safety.
-                            """
-                            # Always return False for safety
-                            return False
-
-                        def __lt__(self, other):
-                            return False
-
-                        def __ge__(self, other):
-                            return False
-
-                        def __le__(self, other):
-                            return False
-
-                        def __eq__(self, other):
-                            return False
-
-                        def __ne__(self, other):
-                            return True
-
-                        def __getitem__(self, key):
-                            return 0.0
-
-                        def __bool__(self):
-                            return False
-
-                        def __float__(self):
-                            return 0.0
-
-                        def __len__(self):
-                            if (
-                                hasattr(self, "_owner")
-                                and self._owner
-                                and hasattr(self._owner, "data")
-                            ):
-                                try:
-                                    return len(self._owner.data)
-                                except Exception as e:
-                                    logger.debug("CrossOver __len__ failed: %s", e)
-                            return 0
-
-                        def __call__(self, ago=0):
-                            """Call the cross indicator.
-
-                            Args:
-                                ago: Number of periods ago to look back (unused).
-
-                            Returns:
-                                float: Always returns 0.0 as safe default.
-                            """
-                            return 0.0
-
-                    safe_cross = SafeCrossIndicator()
-                    safe_cross._owner = self
-                    self.cross = safe_cross
-
-                if not hasattr(self, "sma"):
-                    # Create a safe default SMA indicator
-                    class SafeSMAIndicator:
-                        """Safe default SMA indicator for error recovery.
-
-                        Provides a safe fallback when the SMA indicator
-                        cannot be properly initialized during strategy setup.
-                        """
-
-                        def __init__(self):
-                            """Initialize safe SMA indicator with default value."""
-                            self._current_value = 0.0
-
-                        def __getitem__(self, key):
-                            """Get indicator value.
-
-                            Args:
-                                key: Index key (unused).
-
-                            Returns:
-                                float: Always returns 0.0 as safe default.
-                            """
-                            return 0.0
-
-                        def __float__(self):
-                            """Convert to float.
-
-                            Returns:
-                                float: Always returns 0.0 as safe default.
-                            """
-                            return 0.0
-
-                        def __len__(self):
-                            """Return length of owner data.
-
-                            Returns:
-                                int: Length of owner data, or 0 if not available.
-                            """
-                            if (
-                                hasattr(self, "_owner")
-                                and self._owner
-                                and hasattr(self._owner, "data")
-                            ):
-                                try:
-                                    return len(self._owner.data)
-                                except Exception as e:
-                                    logger.debug("SMA __len__ failed: %s", e)
-                            return 0
-
-                        def __call__(self, ago=0):
-                            """Call the SMA indicator.
-
-                            Args:
-                                ago: Number of periods ago to look back (unused).
-
-                            Returns:
-                                float: Always returns 0.0 as safe default.
-                            """
-                            return 0.0
-
-                    safe_sma = SafeSMAIndicator()
-                    safe_sma._owner = self
-                    self.sma = safe_sma
+            # A strategy constructor defines its own initialization contract.
+            # Continuing after it fails fabricates a successful backtest with
+            # placeholder indicators, so preserve the original exception.
+            strategy_init(self)
+            self._finalize_indicator_setup()
 
         # CRITICAL FIX: Mark data assignment as complete
         self._data_assignment_pending = False
@@ -2792,9 +2679,13 @@ class StrategyBase(DataAccessor):
                             ltype = getattr(attr_value, "_ltype", 0)
                             if attr_value not in self._lineiterators[ltype]:
                                 self._lineiterators[ltype].append(attr_value)
-        except Exception:  # nosec B110
-            # Silently ignore - this is just a safety check
-            pass
+        except Exception:
+            throttled_warning(
+                logger,
+                "lineiterator.strategybase.finalize_indicator_recovery",
+                "Strategy indicator finalization failed; continuing compatibility setup",
+                exc_info=False,
+            )
 
     def _assign_data_from_cerebro(self, datas):
         """CRITICAL FIX: Assign data from cerebro to strategy"""
@@ -2845,9 +2736,14 @@ class StrategyBase(DataAccessor):
 
                 self._clock = MinimalClock()
 
-        except Exception as e:
-            logger.debug("StrategyBase data setup failed: %s", e)
-            # Set up minimal fallbacks
+        except Exception:
+            throttled_warning(
+                logger,
+                "lineiterator.strategybase.data_assignment_recovery",
+                "Strategy data setup failed; retaining minimal data attributes",
+                exc_info=False,
+            )
+            # Set up minimal fallbacks.
             if not hasattr(self, "datas"):
                 self.datas = []
             if not hasattr(self, "data"):
@@ -3006,5 +2902,10 @@ try:
 
     if "backtrader.indicators" in sys.modules:
         IndicatorBase._register_indicator_aliases()
-except Exception as e:
-    logger.debug("Failed to register indicator aliases at module load: %s", e)
+except Exception:
+    throttled_warning(
+        logger,
+        "lineiterator.indicator_alias_registration_recovery",
+        "Indicator alias registration failed at module load",
+        exc_info=False,
+    )

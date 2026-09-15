@@ -52,6 +52,7 @@ class TestMultiLevelInheritance:
                 param1: First integer parameter with default value 10.
                 param2: String parameter with default value "base".
             """
+
             param1 = ParameterDescriptor(default=10, type_=int, doc="Base parameter 1")
             param2 = ParameterDescriptor(default="base", type_=str, doc="Base parameter 2")
 
@@ -63,6 +64,7 @@ class TestMultiLevelInheritance:
             Attributes:
                 param3: Float parameter with default value 20.0.
             """
+
             param3 = ParameterDescriptor(default=20.0, type_=float, doc="Child parameter 3")
 
         # Test base class
@@ -103,6 +105,7 @@ class TestMultiLevelInheritance:
                 grandparent_param: Integer parameter unique to grandparent level.
                 shared_param: String parameter that will be overridden by child classes.
             """
+
             grandparent_param = ParameterDescriptor(
                 default=1, type_=int, doc="Grandparent parameter"
             )
@@ -117,6 +120,7 @@ class TestMultiLevelInheritance:
                 parent_param: Integer parameter unique to parent level.
                 shared_param: Overrides the grandparent's shared_param.
             """
+
             parent_param = ParameterDescriptor(default=2, type_=int, doc="Parent parameter")
             shared_param = ParameterDescriptor(
                 default="parent", type_=str, doc="Parent overrides shared"
@@ -128,6 +132,7 @@ class TestMultiLevelInheritance:
             Attributes:
                 child_param: Integer parameter unique to child level.
             """
+
             child_param = ParameterDescriptor(default=3, type_=int, doc="Child parameter")
 
         child_obj = ChildClass()
@@ -163,6 +168,7 @@ class TestMultiLevelInheritance:
                 level1_param: Unique integer parameter for level 1.
                 cascade_param: String parameter overridden at multiple levels.
             """
+
             level1_param = ParameterDescriptor(default=1, type_=int)
             cascade_param = ParameterDescriptor(default="level1", type_=str)
 
@@ -173,6 +179,7 @@ class TestMultiLevelInheritance:
                 level2_param: Unique integer parameter for level 2.
                 cascade_param: Overrides level1's cascade_param.
             """
+
             level2_param = ParameterDescriptor(default=2, type_=int)
             cascade_param = ParameterDescriptor(default="level2", type_=str)
 
@@ -183,6 +190,7 @@ class TestMultiLevelInheritance:
                 level3_param: Unique integer parameter for level 3.
                 cascade_param: Overrides level2's cascade_param (final override).
             """
+
             level3_param = ParameterDescriptor(default=3, type_=int)
             cascade_param = ParameterDescriptor(default="level3", type_=str)
 
@@ -192,6 +200,7 @@ class TestMultiLevelInheritance:
             Attributes:
                 level4_param: Unique integer parameter for level 4.
             """
+
             level4_param = ParameterDescriptor(default=4, type_=int)
 
         obj = Level4()
@@ -233,6 +242,7 @@ class TestMultiLevelInheritance:
                 base_param: String parameter unique to the base class.
                 shared_param: String parameter overridden by both Left and Right.
             """
+
             base_param = ParameterDescriptor(default="base", type_=str)
             shared_param = ParameterDescriptor(default="base_shared", type_=str)
 
@@ -243,6 +253,7 @@ class TestMultiLevelInheritance:
                 left_param: String parameter unique to the left branch.
                 shared_param: Overrides base's shared_param (should win in MRO).
             """
+
             left_param = ParameterDescriptor(default="left", type_=str)
             shared_param = ParameterDescriptor(default="left_shared", type_=str)
 
@@ -253,6 +264,7 @@ class TestMultiLevelInheritance:
                 right_param: String parameter unique to the right branch.
                 shared_param: Overrides base's shared_param (loses in MRO to Left).
             """
+
             right_param = ParameterDescriptor(default="right", type_=str)
             shared_param = ParameterDescriptor(default="right_shared", type_=str)
 
@@ -262,6 +274,7 @@ class TestMultiLevelInheritance:
             Attributes:
                 diamond_param: String parameter unique to the diamond class.
             """
+
             diamond_param = ParameterDescriptor(default="diamond", type_=str)
 
         obj = Diamond()
@@ -311,6 +324,7 @@ class TestParameterOverrides:
                 number_param: Integer parameter with base default of 10.
                 string_param: String parameter with base default of "base".
             """
+
             number_param = ParameterDescriptor(default=10, type_=int, doc="Base number")
             string_param = ParameterDescriptor(default="base", type_=str, doc="Base string")
 
@@ -321,6 +335,7 @@ class TestParameterOverrides:
                 number_param: Integer parameter with child default of 20.
                 string_param: String parameter with child default of "child".
             """
+
             number_param = ParameterDescriptor(default=20, type_=int, doc="Child number")
             string_param = ParameterDescriptor(default="child", type_=str, doc="Child string")
 
@@ -351,6 +366,7 @@ class TestParameterOverrides:
             Attributes:
                 flexible_param: Integer parameter that child will change to float.
             """
+
             flexible_param = ParameterDescriptor(default=10, type_=int, doc="Integer parameter")
 
         class ChildClass(BaseClass):
@@ -359,6 +375,7 @@ class TestParameterOverrides:
             Attributes:
                 flexible_param: Float parameter overriding base's integer parameter.
             """
+
             flexible_param = ParameterDescriptor(default=10.5, type_=float, doc="Float parameter")
 
         base_obj = BaseClass()
@@ -391,6 +408,7 @@ class TestParameterOverrides:
             Attributes:
                 range_param: Integer parameter with base validation range of 0-10.
             """
+
             range_param = ParameterDescriptor(
                 default=5, type_=int, validator=Int(min_val=0, max_val=10), doc="Base range 0-10"
             )
@@ -401,6 +419,7 @@ class TestParameterOverrides:
             Attributes:
                 range_param: Integer parameter with child validation range of 0-100.
             """
+
             range_param = ParameterDescriptor(
                 default=50,
                 type_=int,
@@ -441,6 +460,7 @@ class TestParameterOverrides:
             Attributes:
                 documented_param: String parameter with base documentation.
             """
+
             documented_param = ParameterDescriptor(default="base", doc="Base documentation")
 
         class ChildClass(BaseClass):
@@ -449,6 +469,7 @@ class TestParameterOverrides:
             Attributes:
                 documented_param: String parameter with child documentation.
             """
+
             documented_param = ParameterDescriptor(
                 default="child", doc="Child documentation overrides base"
             )
@@ -480,6 +501,7 @@ class TestParameterOverrides:
             Attributes:
                 complex_param: Integer parameter with base validation range 0-20.
             """
+
             complex_param = ParameterDescriptor(
                 default=10,
                 type_=int,
@@ -493,6 +515,7 @@ class TestParameterOverrides:
             Attributes:
                 complex_param: Integer parameter with child validation range 5-25.
             """
+
             # Only override default and validator, keep type and doc
             complex_param = ParameterDescriptor(
                 default=15,
@@ -542,6 +565,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 child_param: Integer parameter with default value 42.
             """
+
             child_param = ParameterDescriptor(default=42, type_=int)
 
         obj = ChildWithParams()
@@ -565,6 +589,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 base_param: String parameter with default value "base".
             """
+
             base_param = ParameterDescriptor(default="base", type_=str)
 
         class EmptyChild(BaseWithParams):
@@ -592,6 +617,7 @@ class TestInheritanceEdgeCases:
                 common_param: String parameter that conflicts with Mixin2 (should win).
                 mixin1_param: Unique integer parameter for Mixin1.
             """
+
             common_param = ParameterDescriptor(default="mixin1", type_=str)
             mixin1_param = ParameterDescriptor(default=1, type_=int)
 
@@ -602,6 +628,7 @@ class TestInheritanceEdgeCases:
                 common_param: String parameter that conflicts with Mixin1 (loses).
                 mixin2_param: Unique integer parameter for Mixin2.
             """
+
             common_param = ParameterDescriptor(default="mixin2", type_=str)
             mixin2_param = ParameterDescriptor(default=2, type_=int)
 
@@ -611,6 +638,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 combined_param: Unique string parameter for the combined class.
             """
+
             combined_param = ParameterDescriptor(default="combined", type_=str)
 
         obj = Combined()
@@ -638,6 +666,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 conflict_param: String parameter with base value that will be overridden.
             """
+
             conflict_param = ParameterDescriptor(default="base", type_=str, doc="Base version")
 
         class Child(Base):
@@ -646,6 +675,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 conflict_param: String parameter overriding base's parameter.
             """
+
             conflict_param = ParameterDescriptor(default="child", type_=str, doc="Child version")
             # This should override the base parameter completely
 
@@ -676,6 +706,7 @@ class TestInheritanceEdgeCases:
                 base_param: Integer parameter with default value 10.
                 shared_param: String parameter overridden by child with default "base".
             """
+
             base_param = ParameterDescriptor(default=10, type_=int)
             shared_param = ParameterDescriptor(default="base", type_=str)
 
@@ -686,6 +717,7 @@ class TestInheritanceEdgeCases:
                 child_param: Integer parameter with default value 20.
                 shared_param: String parameter overriding base's shared_param with default "child".
             """
+
             child_param = ParameterDescriptor(default=20, type_=int)
             shared_param = ParameterDescriptor(default="child", type_=str)
 
@@ -718,6 +750,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 base_param: String parameter whose descriptor should be inherited unchanged.
             """
+
             base_param = ParameterDescriptor(default="base", type_=str)
 
         class ChildClass(BaseClass):
@@ -726,6 +759,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 child_param: String parameter unique to the child class.
             """
+
             child_param = ParameterDescriptor(default="child", type_=str)
 
         base_obj = BaseClass()
@@ -740,6 +774,7 @@ class TestInheritanceEdgeCases:
         assert base_descriptor.type_ == child_base_descriptor.type_
         assert base_descriptor.doc == child_base_descriptor.doc
 
+    @pytest.mark.performance
     def test_complex_inheritance_chain_performance(self):
         """Test performance with complex inheritance chains.
 
@@ -758,6 +793,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 param0: Integer parameter with default value 0.
             """
+
             param0 = ParameterDescriptor(default=0, type_=int)
 
         class Level1(Level0):
@@ -766,6 +802,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 param1: Integer parameter with default value 1.
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
 
         class Level2(Level1):
@@ -774,6 +811,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 param2: Integer parameter with default value 2.
             """
+
             param2 = ParameterDescriptor(default=2, type_=int)
 
         class Level3(Level2):
@@ -782,6 +820,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 param3: Integer parameter with default value 3.
             """
+
             param3 = ParameterDescriptor(default=3, type_=int)
 
         class Level4(Level3):
@@ -790,6 +829,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 param4: Integer parameter with default value 4.
             """
+
             param4 = ParameterDescriptor(default=4, type_=int)
 
         class Level5(Level4):
@@ -798,6 +838,7 @@ class TestInheritanceEdgeCases:
             Attributes:
                 param5: Integer parameter with default value 5.
             """
+
             param5 = ParameterDescriptor(default=5, type_=int)
 
         # This should not take excessive time
@@ -852,6 +893,7 @@ class TestInheritanceWithAdvancedFeatures:
             Attributes:
                 lockable_param: Integer parameter that will be locked by the test.
             """
+
             lockable_param = ParameterDescriptor(default=10, type_=int)
 
         class ChildClass(BaseClass):
@@ -860,6 +902,7 @@ class TestInheritanceWithAdvancedFeatures:
             Attributes:
                 child_param: Integer parameter that remains unlocked.
             """
+
             child_param = ParameterDescriptor(default=20, type_=int)
 
         obj = ChildClass()
@@ -892,6 +935,7 @@ class TestInheritanceWithAdvancedFeatures:
                 base_param1: First integer parameter from base class.
                 base_param2: Second integer parameter from base class.
             """
+
             base_param1 = ParameterDescriptor(default=1, type_=int)
             base_param2 = ParameterDescriptor(default=2, type_=int)
 
@@ -902,6 +946,7 @@ class TestInheritanceWithAdvancedFeatures:
                 child_param1: First integer parameter from child class.
                 child_param2: Second integer parameter from child class.
             """
+
             child_param1 = ParameterDescriptor(default=3, type_=int)
             child_param2 = ParameterDescriptor(default=4, type_=int)
 
@@ -935,6 +980,7 @@ class TestInheritanceWithAdvancedFeatures:
             Attributes:
                 tracked_param: String parameter whose changes will be tracked.
             """
+
             tracked_param = ParameterDescriptor(default="base", type_=str)
 
         class ChildClass(BaseClass):
@@ -943,6 +989,7 @@ class TestInheritanceWithAdvancedFeatures:
             Attributes:
                 child_tracked: String parameter unique to child class for tracking.
             """
+
             child_tracked = ParameterDescriptor(default="child", type_=str)
 
         obj = ChildClass()

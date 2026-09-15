@@ -22,6 +22,7 @@ pd = pytest.importorskip("pandas")
 # P0: orderstatus — index() returns int, not order object
 # ---------------------------------------------------------------------------
 
+
 class TestOrderStatus:
     """Verify orderstatus returns valid status, not int.status crash."""
 
@@ -67,9 +68,25 @@ class TestOrderStatus:
         assert result == Order.Completed
 
 
+def test_backbroker_cached_report_state_exposes_local_dual_side_legs():
+    """Runtime reports can retain gross legs without broker refresh calls."""
+    broker = BackBroker(position_mode="dual_side")
+    data = type("Data", (), {"_name": "asset"})()
+    broker.long_positions[data] = Position(size=3.0, price=100.0)
+    broker.short_positions[data] = Position(size=1.0, price=101.0)
+
+    report_state = broker.get_cached_report_state()
+    report_legs = report_state["position_legs"][data]
+
+    assert report_state["positions"][data].size == pytest.approx(2.0)
+    assert report_legs["long"] is broker.long_positions[data]
+    assert report_legs["short"] is broker.short_positions[data]
+
+
 # ---------------------------------------------------------------------------
 # P0: _get_value — division by zero on _fundshares / _fundval
 # ---------------------------------------------------------------------------
+
 
 class TestGetValueDivByZero:
     """Verify _get_value handles zero _fundshares without crashing."""
@@ -93,7 +110,7 @@ class TestGetValueDivByZero:
         broker.positions = collections.defaultdict(Position)
 
         # Should not raise ZeroDivisionError
-        result = broker._get_value()
+        _ = broker._get_value()
         # _fundval should fall back to fundstartval parameter (100.0)
         assert broker._fundval == broker.get_param("fundstartval")
 
@@ -123,6 +140,7 @@ class TestGetValueDivByZero:
 # ---------------------------------------------------------------------------
 # P1: fundstartval=0 — division by zero in init and cash addition
 # ---------------------------------------------------------------------------
+
 
 class TestFundstartvalZero:
     """Verify broker survives fundstartval=0.0 without ZeroDivisionError."""
@@ -245,16 +263,21 @@ class TestSubmittedOcoCancellation:
         def notify_order(self, order):
             """Record order notifications and place submitted OCO exits."""
             label = (
-                "entry" if order == self.entry_order else
-                "stop" if order == self.stop_order else
-                "limit" if order == self.limit_order else
-                "unknown"
+                "entry"
+                if order == self.entry_order
+                else (
+                    "stop"
+                    if order == self.stop_order
+                    else "limit" if order == self.limit_order else "unknown"
+                )
             )
             self.order_events.append((label, order.getstatusname()))
 
             if order == self.entry_order and order.status == Order.Completed:
                 self.stop_order = self.sell(size=1, exectype=bt.Order.Stop, price=90.0)
-                self.limit_order = self.sell(size=1, exectype=bt.Order.Limit, price=110.0, oco=self.stop_order)
+                self.limit_order = self.sell(
+                    size=1, exectype=bt.Order.Limit, price=110.0, oco=self.stop_order
+                )
 
     def test_cancel_submitted_oco_member_cancels_submitted_sibling(self):
         """Canceling a submitted OCO stop should cancel its submitted limit sibling."""

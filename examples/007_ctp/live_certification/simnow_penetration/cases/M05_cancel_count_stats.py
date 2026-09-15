@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""M05: 验证能正常统计撤单笔数"""
+"""M05: Verify that the number of canceled orders is counted correctly"""
 from __future__ import annotations
 
 import sys

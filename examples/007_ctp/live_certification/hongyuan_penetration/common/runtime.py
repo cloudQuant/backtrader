@@ -1,4 +1,4 @@
-"""Store / Broker / Feed initialisation helpers and subprocess entry-point (宏源期货)."""
+"""Store / Broker / Feed initialisation helpers and subprocess entry-point (Hongyuan Futures)."""
 from __future__ import annotations
 
 import argparse

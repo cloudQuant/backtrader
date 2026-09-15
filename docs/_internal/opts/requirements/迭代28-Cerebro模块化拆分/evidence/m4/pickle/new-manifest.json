@@ -1,0 +1,46 @@
+{
+ "summary": [
+  [
+   {
+    "period": 10,
+    "movav": null,
+    "_movav": null,
+    "lookback": 1,
+    "upperband": 70.0,
+    "lowerband": 30.0,
+    "safediv": false,
+    "safepct": false,
+    "fast": 5,
+    "slow": 34,
+    "signal": 9,
+    "mult": 2.0,
+    "matype": 0
+   }
+  ],
+  [
+   {
+    "period": 20,
+    "movav": null,
+    "_movav": null,
+    "lookback": 1,
+    "upperband": 70.0,
+    "lowerband": 30.0,
+    "safediv": false,
+    "safepct": false,
+    "fast": 5,
+    "slow": 34,
+    "signal": 9,
+    "mult": 2.0,
+    "matype": 0
+   }
+  ]
+ ],
+ "types": [
+  "backtrader.cerebro.OptReturn",
+  "backtrader.cerebro.OptReturn"
+ ],
+ "spawn_order": [
+  10,
+  20
+ ]
+}

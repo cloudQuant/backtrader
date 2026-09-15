@@ -334,7 +334,9 @@ class PerformanceCalculator:
                                     dates.append(num2date(dt_num))
                                     values.append(value_line[idx])
                                 except (AttributeError, IndexError, TypeError, ValueError) as e:
-                                    logger.debug("Failed to get equity data at idx %d: %s", idx, e)
+                                    logger.warning(
+                                        "Failed to get equity data at idx %d: %s", idx, e
+                                    )
                         break
 
         if not values:
@@ -413,9 +415,9 @@ class PerformanceCalculator:
                     # Normalize to 100
                     values.append(100 * price / first_price if first_price else 100)
                 except (AttributeError, IndexError, TypeError, ValueError, ZeroDivisionError) as e:
-                    logger.debug("Failed to get benchmark data at idx %d: %s", idx, e)
+                    logger.warning("Failed to get benchmark data at idx %d: %s", idx, e)
         except (AttributeError, IndexError, TypeError, ValueError) as e:
-            logger.debug("Failed to calculate benchmark curve: %s", e)
+            logger.warning("Failed to calculate benchmark curve: %s", e)
 
         return dates, values
 
@@ -470,7 +472,7 @@ class PerformanceCalculator:
         except Exception as e:
             # Broker is a pluggable object that may raise any error type;
             # report generation must degrade gracefully (see edge-case tests).
-            logger.debug("Failed to get starting cash: %s", e)
+            logger.warning("Failed to get starting cash: %s", e)
         return None
 
     def _get_end_value(self):
@@ -482,7 +484,7 @@ class PerformanceCalculator:
         except Exception as e:
             # Broker is a pluggable object that may raise any error type;
             # report generation must degrade gracefully (see edge-case tests).
-            logger.debug("Failed to get end value: %s", e)
+            logger.warning("Failed to get end value: %s", e)
         return None
 
     def _get_backtest_days(self):
@@ -505,7 +507,7 @@ class PerformanceCalculator:
             delta = end_dt - start_dt
             return delta.days
         except (AttributeError, IndexError, TypeError, ValueError) as e:
-            logger.debug("Failed to calculate backtest days: %s", e)
+            logger.warning("Failed to calculate backtest days: %s", e)
             return None
 
     def _get_analyzer_result(self, name):
@@ -532,7 +534,7 @@ class PerformanceCalculator:
                 try:
                     return analyzer.get_analysis()
                 except (AttributeError, KeyError, TypeError, ValueError, IndexError) as e:
-                    logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
+                    logger.warning("Failed to get analysis from %s: %s", analyzer_name, e)
 
         # Second pass: substring match (less precise, used as fallback)
         for analyzer in self._analyzers:
@@ -543,7 +545,7 @@ class PerformanceCalculator:
                 try:
                     return analyzer.get_analysis()
                 except (AttributeError, KeyError, TypeError, ValueError, IndexError) as e:
-                    logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
+                    logger.warning("Failed to get analysis from %s: %s", analyzer_name, e)
 
         return None
 
@@ -564,7 +566,7 @@ class PerformanceCalculator:
             try:
                 param_items = params.items()
             except (AttributeError, TypeError) as e:
-                logger.debug("Failed to enumerate strategy parameters: %s", e)
+                logger.warning("Failed to enumerate strategy parameters: %s", e)
                 param_items = None
 
             if param_items is not None:
@@ -577,7 +579,7 @@ class PerformanceCalculator:
                             if not callable(value):
                                 info["params"][name] = value
                         except (AttributeError, TypeError) as e:
-                            logger.debug("Failed to get param '%s': %s", name, e)
+                            logger.warning("Failed to get param '%s': %s", name, e)
 
         return info
 
@@ -613,6 +615,6 @@ class PerformanceCalculator:
                 info["start_date"] = num2date(data.datetime[1 - length])
                 info["end_date"] = num2date(data.datetime[0])
         except (AttributeError, IndexError, TypeError, ValueError) as e:
-            logger.debug("Failed to get data info: %s", e)
+            logger.warning("Failed to get data info: %s", e)
 
         return info

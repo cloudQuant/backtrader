@@ -1,0 +1,514 @@
+{
+  "schema_version": "backtrader.iter27.mf-t1-case-manifest.v1",
+  "cases": [
+    {
+      "id": "ROOT-MFT1-01",
+      "contracts": [
+        "C02"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-02",
+      "contracts": [
+        "C02"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-03",
+      "contracts": [
+        "C02"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-04",
+      "contracts": [
+        "C02",
+        "C03"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-05",
+      "contracts": [
+        "C02"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-06",
+      "contracts": [
+        "C02",
+        "C03"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-07",
+      "contracts": [
+        "C02"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-08",
+      "contracts": [
+        "C05",
+        "C06",
+        "C10"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-09",
+      "contracts": [
+        "C04",
+        "C05"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-10",
+      "contracts": [
+        "C06"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-11",
+      "contracts": [
+        "C01"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-12",
+      "contracts": [
+        "C01",
+        "C10"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-13",
+      "contracts": [
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-14",
+      "contracts": [
+        "C03"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-15",
+      "contracts": [
+        "C07"
+      ]
+    },
+    {
+      "id": "ROOT-MFT1-16",
+      "contracts": [
+        "C08"
+      ]
+    },
+    {
+      "id": "S01-ns-True",
+      "contracts": [
+        "C04"
+      ]
+    },
+    {
+      "id": "S01-ns-1.0",
+      "contracts": [
+        "C04"
+      ]
+    },
+    {
+      "id": "S01-ns-1",
+      "contracts": [
+        "C04"
+      ]
+    },
+    {
+      "id": "S01-ns-nan",
+      "contracts": [
+        "C04"
+      ]
+    },
+    {
+      "id": "S01-clock_untrusted",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-facts_untrusted",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-clock_unknown_source",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-facts_unknown_source",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-mapping_unknown_source",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-expired_facts",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-missing_facts_expiry",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-minute_foreign_symbols",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-minute_illegal_barrier",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-minute_future_end",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-minute_before_start",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-complete_missing_z",
+      "contracts": [
+        "C01",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S01-uncertain-now-upper-reaches-deadline",
+      "contracts": [
+        "C04"
+      ]
+    },
+    {
+      "id": "S01-uncertain-now-lower-before-minhold",
+      "contracts": [
+        "C04",
+        "C05"
+      ]
+    },
+    {
+      "id": "S01-regression-latch-audit",
+      "contracts": [
+        "C04"
+      ]
+    },
+    {
+      "id": "S01-cross-domain-no-subtraction",
+      "contracts": [
+        "C04"
+      ]
+    },
+    {
+      "id": "S02-idle-cannot-ordinary-exit",
+      "contracts": [
+        "C05",
+        "C06",
+        "C10"
+      ]
+    },
+    {
+      "id": "S02-idle-original-deadlines",
+      "contracts": [
+        "C02",
+        "C06",
+        "C10"
+      ]
+    },
+    {
+      "id": "S03-exit-0.5-False",
+      "contracts": [
+        "C01",
+        "C05"
+      ]
+    },
+    {
+      "id": "S03-exit-0.5001-False",
+      "contracts": [
+        "C01",
+        "C05"
+      ]
+    },
+    {
+      "id": "S03-exit-0.9-True",
+      "contracts": [
+        "C01",
+        "C05"
+      ]
+    },
+    {
+      "id": "S03-complete-terminal-legs-stop-entry-deadlines",
+      "contracts": [
+        "C02",
+        "C03",
+        "C05"
+      ]
+    },
+    {
+      "id": "S03-cancel-only-expiry-requires-risk",
+      "contracts": [
+        "C02",
+        "C03"
+      ]
+    },
+    {
+      "id": "S04-token-expiry--1",
+      "contracts": [
+        "C01"
+      ]
+    },
+    {
+      "id": "S04-token-expiry-0",
+      "contracts": [
+        "C01"
+      ]
+    },
+    {
+      "id": "S04-token-expiry-1",
+      "contracts": [
+        "C01"
+      ]
+    },
+    {
+      "id": "S04-config30-cannot-extend-to60",
+      "contracts": [
+        "C01",
+        "C09"
+      ]
+    },
+    {
+      "id": "S04-retention-old-not-revived-new-works",
+      "contracts": [
+        "C01",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-event_future",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-event_foreign_leg",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-event_unknown_source",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-fill_before_exposure",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-flat_with_confirmed_fill",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-same_version_conflict",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-same_event_conflict_across_snapshots",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-origin_renewal",
+      "contracts": [
+        "C02",
+        "C03",
+        "C04",
+        "C09"
+      ]
+    },
+    {
+      "id": "S05-freeze-duplicate-consistency",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-leg_timeout_seconds-6",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-basket_timeout_seconds-16",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-cancel_timeout_seconds-6",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-recovery_timeout_seconds-61",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-minimum_hold_seconds-59",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-maximum_hold_seconds-901",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-idle_interval_ms-251",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-leg_timeout_seconds-True",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-leg_timeout_seconds-5",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-config-minimum_hold_seconds-nan",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-stricter-and-unknown",
+      "contracts": [
+        "C09"
+      ]
+    },
+    {
+      "id": "S06-calendar-missing-five-four-rules",
+      "contracts": [
+        "C07"
+      ]
+    },
+    {
+      "id": "S06-delivery-cutoff-earlier-than-session",
+      "contracts": [
+        "C07"
+      ]
+    },
+    {
+      "id": "S06-actual-callback-has-no-calendar-entry",
+      "contracts": [
+        "C07",
+        "C10"
+      ]
+    },
+    {
+      "id": "S08-output-explicit-synthetic-basis",
+      "contracts": [
+        "C08",
+        "C10"
+      ]
+    },
+    {
+      "id": "S10-trace-original-occurrence-receipt-processing",
+      "contracts": [
+        "C10"
+      ]
+    }
+  ]
+}

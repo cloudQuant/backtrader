@@ -396,6 +396,51 @@ cerebro.addobserver(bt.observers.TradeLogger,
 - `mysql_user` (default: `'root'`) - MySQL user
 - `mysql_password` (default: `''`) - MySQL password
 - `mysql_database` (default: `'backtrader'`) - MySQL database
+- `report_max_records` (default: `100`) - Maximum in-memory order and trade
+  summaries retained by the generic report; `0` retains counters only
+
+#### In-memory report API
+
+`TradeLogger` also owns a broker-neutral, in-memory report. `snapshot()` returns a
+deep-copied real-time status without scanning or writing log files. `final_report()`
+returns `None` before shutdown and an immutable (to callers) final snapshot after the
+observer stops. `report()` returns the current snapshot for callers that do not need to
+distinguish the lifecycle phase.
+
+Cash, value, and positions are read only from the broker's local
+`get_cached_report_state()` contract; `TradeLogger` never calls `getcash()`, `getvalue()`,
+or `getposition()` while building its report. Core brokers implement that contract. A custom
+live broker can provide the same no-I/O method and return a mapping with `cash`, `value`, and
+`positions`; when it does not, those fields remain unavailable rather than causing a provider
+request. For channel-only data that has no close line, a custom broker may also implement
+the no-I/O `get_cached_mark_price(data)` hook. Dual-side brokers may expose local long/short
+legs through the optional `position_legs` entry.
+
+This no-I/O guarantee applies to the in-memory report API. Legacy file/MySQL sinks retain
+their existing behavior: when enabled, options such as `log_value`, `log_positions`,
+`log_bars`, or `log_position_snapshot` can use normal broker getters and therefore may refresh
+a live account. Disable those legacy sinks when a status-only observer must avoid such reads.
+Regardless of a legacy sink failure during shutdown, `TradeLogger` freezes its final in-memory
+report and records an observer error.
+
+The snapshot contains its schema version, run and strategy metadata, cash/value,
+positions, generic event counts, monitoring state, bounded order/trade summaries, and
+named extensions. A dual-side position retains its normalized net fields plus
+`position_mode: "dual_side"` and a `position_legs.long` / `position_legs.short` view, so
+zero net size does not hide gross exposure. A strategy can supply JSON-safe business fields
+before shutdown:
+
+```python
+def stop(self):
+    self.stats.trade_logger.update_report_context(
+        {"state": "flat", "risk": {"halted": False}},
+        namespace="my_strategy",
+    )
+```
+
+Updates are rejected atomically for invalid JSON values, non-string mapping keys,
+cycles, non-finite floats, or after finalization. The observer does not interpret an
+extension, so this API applies equally to backtests, live feeds, CTP, and other stores.
 
 - *Generated Files**:
 - `order.log` - Order status changes

@@ -76,7 +76,7 @@ class ConfigTab(BokehTab):
                         if not callable(value):
                             params[name] = value
                     except Exception as e:
-                        logger.debug("Failed to get param '%s': %s", name, e)
+                        logger.warning("Failed to get param '%s': %s", name, e)
 
         if params:
             source = ColumnDataSource(

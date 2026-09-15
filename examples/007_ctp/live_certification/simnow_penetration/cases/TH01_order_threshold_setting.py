@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""TH01: 验证提供报单笔数统计阈值设置功能"""
+"""TH01: Verify that a threshold setting for order submission count statistics is provided"""
 from __future__ import annotations
 
 import sys

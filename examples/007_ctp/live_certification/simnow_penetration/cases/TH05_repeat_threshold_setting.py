@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""TH05: 验证提供重复报单笔数统计与阈值设置功能（选测）"""
+"""TH05: Verify that repeated order submission count statistics with threshold settings are provided (optional)"""
 from __future__ import annotations
 
 import sys

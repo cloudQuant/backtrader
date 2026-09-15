@@ -205,6 +205,7 @@ class Strategy(StrategyBase):
             try:
                 instance._params_instance = params_cls()
             except Exception as exc:
+                logger.error("strategy:208 re-raising Exception", exc_info=True)
                 raise TypeError(
                     f"Failed to create params instance for {cls.__name__}: {exc}"
                 ) from exc
@@ -273,6 +274,21 @@ class Strategy(StrategyBase):
         instance._tradespending = []
 
         return instance
+
+    def __reduce_ex__(self, protocol):
+        """Restore saved state without re-entering the run-time owner setup.
+
+        Optimization results are unpickled outside an active OwnerContext.
+        Calling Strategy.__new__ there would request a new strategy ID from
+        a nonexistent Cerebro and kill the multiprocessing result thread.
+        Keep the default state/slot handling and any user-defined reducer,
+        changing only the allocation of an otherwise ordinary instance.
+        ``object.__new__`` also resolves in older framework installations.
+        """
+        reduced = super().__reduce_ex__(protocol)
+        if type(self).__reduce__ is not object.__reduce__:
+            return reduced
+        return (object.__new__, (type(self),), *reduced[2:])
 
     def __init__(self, *args, **kwargs):
         """Initialize with functionality from MetaStrategy methods"""
@@ -545,7 +561,7 @@ class Strategy(StrategyBase):
                     mark_registered(child)
         except AttributeError:
             # No sub-iterator registry yet; nothing to pre-mark as registered.
-            pass
+            logger.debug("strategy:548 ignored AttributeError")
 
         def visit(value):
             value_id = id(value)
@@ -558,6 +574,7 @@ class Strategy(StrategyBase):
                     try:
                         dependency = getattr(value, attr_name)
                     except AttributeError:
+                        logger.debug("strategy:561 ignored AttributeError")
                         continue
                     yield from visit(dependency)
 
@@ -606,7 +623,7 @@ class Strategy(StrategyBase):
             return object.__getattribute__(self, "_strategy_next_lineactions_cache")
         except AttributeError:
             # Cache not built yet; compute and store it below.
-            pass
+            logger.debug("strategy:609 ignored AttributeError")
 
         cache = tuple(
             (lineaction, getattr(lineaction, "_clock", None))
@@ -684,6 +701,7 @@ class Strategy(StrategyBase):
                 try:
                     children = lineiter._lineiterators[LineIterator.IndType]
                 except (AttributeError, KeyError):
+                    logger.debug("strategy:687 ignored AttributeError,KeyError")
                     continue
                 stack.extend(children)
 
@@ -723,7 +741,7 @@ class Strategy(StrategyBase):
                     _line_to_feed[id(_ln)] = _data
             except TypeError:
                 # Feed lines not iterable; skip mapping this feed's lines.
-                pass
+                logger.debug("strategy:726 ignored TypeError")
 
         def _feed_of(node, _seen=None):
             """Resolve a data node to the concrete feed it ultimately follows."""
@@ -739,6 +757,7 @@ class Strategy(StrategyBase):
             try:
                 src = _llsc(node)
             except Exception:
+                logger.warning("strategy:745 fallback on Exception")
                 src = None
             if src is not None and src is not node:
                 if id(src) in dataids:
@@ -943,7 +962,7 @@ class Strategy(StrategyBase):
                         )
                 except (AttributeError, TypeError):
                     # Attribute access/typecheck failed; skip this attribute.
-                    pass
+                    logger.debug("strategy:946 ignored AttributeError,TypeError")
 
     def _addwriter(self, writer):
         """Add a writer to the strategy.
@@ -1838,7 +1857,16 @@ class Strategy(StrategyBase):
 
         return wrinfo
 
+    def nextstart(self):
+        # Iteration 29 lifecycle INFO: minperiod first satisfied (once).
+        logger.info(
+            "strategy nextstart: strategy=%s minperiod=%d", type(self).__name__, self._minperiod
+        )
+        super().nextstart()
+
     def _stop(self):
+        # Iteration 29 lifecycle INFO (once per strategy).
+        logger.info("strategy stopping: strategy=%s", type(self).__name__)
         # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
         # This must be done BEFORE calling user's stop() method, as tests check len(indicator) == len(strategy)
         try:
@@ -1860,7 +1888,7 @@ class Strategy(StrategyBase):
                                 # This ensures len(indicator) == len(strategy) for test assertions
                                 line.lencount = strategy_len
         except Exception:
-            logger.debug("Failed to update indicator lencount in _stop", exc_info=True)
+            logger.warning("Failed to update indicator lencount in _stop", exc_info=True)
 
         # CRITICAL FIX: Restore last valid datetime before calling user's stop()
         # This ensures datetime[0] is valid for logging in stop() method
@@ -2204,6 +2232,15 @@ class Strategy(StrategyBase):
             when: The scheduled time when the timer was triggered
             *args: Additional positional arguments passed to add_timer
             **kwargs: Additional keyword arguments passed to add_timer
+        """
+
+    def notify_idle(self):
+        """Receive a live-engine poll when no data bar or tick was produced.
+
+        Live brokers may still need strategies to advance execution deadlines,
+        reconciliation and risk controls while market data is silent.  The
+        default hook is intentionally empty and is only dispatched for strategy
+        classes that override it.
         """
 
     def notify_cashvalue(self, cash, value):

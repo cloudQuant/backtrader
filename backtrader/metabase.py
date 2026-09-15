@@ -201,6 +201,7 @@ def patch_strategy_clk_update():
                     else:
                         clk_len = 1
                 except Exception:
+                    logger.debug("metabase:203 fallback on Exception")
                     clk_len = 1
 
                 # CRITICAL FIX: Only set datetime if we have valid data sources with length
@@ -220,6 +221,7 @@ def patch_strategy_clk_update():
                                 ):
                                     valid_data_times.append(dt_val)
                         except (IndexError, AttributeError, TypeError):
+                            logger.debug("metabase:223 ignored IndexError,AttributeError,TypeError")
                             continue
 
                     if (
@@ -253,6 +255,7 @@ def patch_strategy_clk_update():
                     try:
                         newdlens.append(len(d) if hasattr(d, "__len__") else 0)
                     except Exception:
+                        logger.debug("metabase:256 fallback on Exception")
                         newdlens.append(0)
             else:
                 newdlens = []
@@ -298,6 +301,7 @@ def patch_strategy_clk_update():
                             ):
                                 valid_data_times.append(dt_val)
                     except (IndexError, AttributeError, TypeError):
+                        logger.debug("metabase:301 ignored IndexError,AttributeError,TypeError")
                         continue
 
                 if valid_data_times:
@@ -315,6 +319,7 @@ def patch_strategy_clk_update():
             try:
                 return len(self)
             except Exception:
+                logger.debug("metabase:319 fallback on Exception")
                 return 0
 
         # Monkey patch the Strategy class
@@ -322,10 +327,10 @@ def patch_strategy_clk_update():
 
     except ImportError:
         # Silently ignore - Strategy already has _clk_update method
-        pass
+        logger.warning("metabase:325 suppressed ImportError")
     except Exception:  # nosec B110
         # Silently ignore - Strategy already has _clk_update method
-        pass
+        logger.warning("metabase:328 suppressed Exception")
 
 
 def findbases(kls, topclass):
@@ -861,7 +866,7 @@ class ParameterManager:
                 setattr(clsmod, alias, pmod)
             except ImportError:
                 # Optional linked package not installed; skip aliasing it.
-                pass
+                logger.warning("metabase:864 suppressed ImportError")
 
         for packageitems in frompackages:
             if len(packageitems) != 2:
@@ -883,7 +888,7 @@ class ParameterManager:
                     setattr(clsmod, alias, pattr)
                 except (ImportError, AttributeError):
                     # Optional linked symbol unavailable; skip aliasing it.
-                    pass
+                    logger.warning("metabase:886 suppressed ImportError,AttributeError")
 
 
 class ParamsMixin(BaseMixin):
@@ -1032,6 +1037,7 @@ class ParamsMixin(BaseMixin):
                         try:
                             self.p = cls._params(**param_kwargs)
                         except Exception:
+                            logger.debug("metabase:1036 fallback on Exception")
                             from .utils import DotDict
 
                             self.p = DotDict(param_kwargs)
@@ -1307,6 +1313,7 @@ class ParamsMixin(BaseMixin):
             try:
                 instance._params_instance = params_cls()
             except Exception:
+                logger.debug("metabase:1311 fallback on Exception")
                 instance._params_instance = make_legacy_parameter_accessor(name="ParamsInstance")
 
             # Set all parameter values - first defaults, then custom values
@@ -1740,6 +1747,7 @@ def _initialize_indicator_aliases():
                             _convert_plotlines_dict_to_object(attr)
 
                 except Exception:  # nosec B112
+                    logger.warning("metabase:1743 suppressed Exception")
                     continue
 
         # CRITICAL FIX: Patch specific indicator classes that are known to be problematic
@@ -1750,7 +1758,7 @@ def _initialize_indicator_aliases():
                 MovingAverageSimple._plotinit = universal_plotinit
         except ImportError:
             # SMA module not importable in this context; nothing to patch.
-            pass
+            logger.warning("metabase:1753 suppressed ImportError")
 
         # CRITICAL FIX: Search for any loaded indicator classes and ensure they have _plotinit
         for module_name, module in sys.modules.items():
@@ -1781,6 +1789,7 @@ def _initialize_indicator_aliases():
                             _convert_plotlines_dict_to_object(attr_value)
 
                     except Exception:  # nosec B112
+                        logger.warning("metabase:1784 suppressed Exception")
                         continue
 
     except Exception as e:

@@ -1,0 +1,36 @@
+{
+  "schema_version": "backtrader.iter27.hf-t1-frozen-fixture-provenance.v1",
+  "purpose": "Tracked, hash-pinned inputs for the local HF-T1 independent-attempt harness; not live-trading evidence.",
+  "copies": [
+    {
+      "tracked_path": "contract.v1.json",
+      "tracked_sha256": "116ec5111dd7236284af5460656a6973833ef1b960d37d8426b2a3074cac4517",
+      "legacy_observation_path": "logs/iteration23-25/20260910-q_rhtzc4/logs/astra-hf-t1-plan-20260911-01/contract.json",
+      "legacy_observation_sha256": "116ec5111dd7236284af5460656a6973833ef1b960d37d8426b2a3074cac4517",
+      "copy_normalization": "byte-identical"
+    },
+    {
+      "tracked_path": "timing-oracles.v1.json",
+      "tracked_sha256": "e4ee9e39f0917237037a34f9ca4d126c30f60e1610045e3e4a8b37dc16d61b04",
+      "legacy_observation_path": "logs/iteration23-25/20260910-q_rhtzc4/logs/root-hf-t1-timing-oracles-20260911.json",
+      "legacy_observation_sha256": "0c23b264581fc4d0d12b19db44d75d7d39ff49a899a3fb2cdf9bb58e4376a858",
+      "copy_normalization": "one terminal LF was added by repository patch tooling; parsed JSON content is otherwise unchanged"
+    },
+    {
+      "tracked_path": "source-observations.v2.json",
+      "tracked_sha256": "5ae4a84983e27dcca31568949d2ff6ce0da4583db6da35edba0cd3149651eedc",
+      "legacy_observation_path": "logs/iteration23-25/20260910-q_rhtzc4/logs/root-hf-t1-source-observations-20260911-v2.json",
+      "legacy_observation_sha256": "c46ce3ec1e97ded945b5f0bcca62732dd89c9c6a8a54c99d0f1b47372a0edfe9",
+      "copy_normalization": "one terminal LF was added by repository patch tooling; parsed JSON content is otherwise unchanged"
+    },
+    {
+      "tracked_path": "source-observations.v3.json",
+      "tracked_sha256": "3e4da00ef1122e037bfdf1e3e9483fba4c0b757c7fac6f7b40ff80a77ceab944",
+      "legacy_observation_path": null,
+      "legacy_observation_sha256": null,
+      "copy_normalization": "v3 is a new current-source observation after the rejected-tick risk-clock repair; v2 remains the byte-normalized historical copy"
+    }
+  ],
+  "historical_source_line_policy": "A frozen source-observation line is historical provenance, not a claim that the current dirty checkout has identical line numbers or file hashes. Current source behavior is separately asserted by the harness and selected JUnit nodes.",
+  "acceptance_boundary": "These files support one same-checkout local timing-projection attempt only. They do not attest a sealed build, CTP/SimNow connectivity, native API behavior, orders, fills, latency, queue position, profitability, or HFT admission."
+}

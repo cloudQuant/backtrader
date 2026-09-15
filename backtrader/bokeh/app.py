@@ -41,7 +41,7 @@ try:
     Panel = _Panel
 except ImportError:
     # Bokeh is an optional dependency; BOKEH_AVAILABLE stays False when missing.
-    pass
+    logger.warning("app:44 suppressed ImportError")
 
 from . import tabs as default_tabs  # noqa: E402
 from .schemes import Tradimo  # noqa: E402
@@ -327,6 +327,7 @@ class BacktraderBokeh:
         try:
             df_dict["datetime"] = [data.datetime.datetime(-length + i + 1) for i in range(length)]
         except Exception:
+            logger.warning("app:329 fallback on Exception")
             df_dict["datetime"] = list(range(length))
 
         # Add OHLCV data
@@ -336,6 +337,7 @@ class BacktraderBokeh:
                 try:
                     df_dict[name] = [line[-length + i + 1] for i in range(length)]
                 except Exception:
+                    logger.warning("app:338 fallback on Exception")
                     df_dict[name] = [0] * length
 
         df = pd.DataFrame(df_dict)

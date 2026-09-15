@@ -13,17 +13,15 @@ Tests cover:
 - _base_event structure
 """
 
+import collections
 import datetime as dt
 import json
 import logging
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
-
 import pytest
 
 from backtrader.observers.trade_logger import TradeLogger
 from backtrader.utils import AutoOrderedDict
-
 
 # ===========================================================================
 # Helpers
@@ -86,6 +84,138 @@ def _make_bare_logger(**overrides):
     return tl
 
 
+def test_startup_report_uses_cached_positions_without_reading_preloaded_close():
+    """An initial cache snapshot must not expose a preloaded future price."""
+
+    class ExplodingData:
+        _name = "SA610"
+
+        def __init__(self):
+            self.close_reads = 0
+
+        @property
+        def close(self):
+            self.close_reads += 1
+            raise AssertionError("TradeLogger.start must not read data.close")
+
+    class CacheOnlyBroker:
+        def __init__(self):
+            self.cached_state_calls = 0
+
+        def get_cached_report_state(self):
+            self.cached_state_calls += 1
+            return {
+                "cash": 100.0,
+                "value": 120.0,
+                "positions": {"SA610": SimpleNamespace(size=2.0, price=10.0)},
+            }
+
+    class StartupOwner:
+        def __init__(self, data, broker):
+            self.datas = (data,)
+            self.broker = broker
+
+        def __len__(self):
+            return 0
+
+    authoritative_observation = {
+        "source": "test_preflight",
+        "scope": "account_wide",
+        "positions": [{"instrument": "OTHER701", "position_lots": 2}],
+    }
+    tl = _make_bare_logger(startup_account_observation=authoritative_observation)
+    tl._init_report_state()
+    data = ExplodingData()
+    broker = CacheOnlyBroker()
+    tl._owner = StartupOwner(data, broker)
+
+    TradeLogger._start_report(tl)
+    report = TradeLogger.snapshot(tl)
+
+    assert data.close_reads == 0
+    assert broker.cached_state_calls == 2
+    assert report["positions"] == {
+        "SA610": {
+            "size": 2.0,
+            "price": 10.0,
+            "value": None,
+            "current_price": None,
+            "multiplier": None,
+            "position_source": "broker_local_cache",
+            "market_data_status": "unmarked",
+        }
+    }
+    assert report["startup_account_observation"] == {
+        "source": "caller_supplied",
+        "scope": "authoritative_startup_account_observation",
+        "read_only": True,
+        "market_data_status": "unmarked",
+        "observation": authoritative_observation,
+    }
+    assert data.close_reads == 0
+    json.dumps(report, allow_nan=False)
+
+
+def test_stop_removes_and_closes_per_run_file_handlers(tmp_path):
+    """TradeLogger must release file handles before a Windows temp directory is removed."""
+    trade_logger = _make_bare_logger(log_monitoring=False)
+    file_logger = logging.Logger("trade-logger-test-file-handler")
+    file_handler = logging.FileHandler(tmp_path / "order.log", encoding="utf-8")
+    file_logger.addHandler(file_handler)
+    trade_logger._order_logger = file_logger
+    trade_logger._refresh_report_state = lambda: None
+    trade_logger._log_event = lambda *_args, **_kwargs: None
+    trade_logger._freeze_report = lambda: None
+
+    TradeLogger.stop(trade_logger)
+
+    assert file_logger.handlers == []
+    assert file_handler.stream is None
+    assert trade_logger._order_logger is None
+    (tmp_path / "order.log").unlink()
+
+
+def test_file_handler_cleanup_failures_are_reported_at_warning_level(bt_caplog):
+    """Cleanup failures must remain visible before references are discarded."""
+
+    class BrokenHandler:
+        def close(self):
+            raise OSError("close failed")
+
+    class BrokenLogger:
+        handlers = [BrokenHandler()]
+
+        @staticmethod
+        def removeHandler(_handler):
+            raise OSError("remove failed")
+
+    with bt_caplog.at_level(logging.WARNING):
+        TradeLogger._close_logger_handlers(BrokenLogger())
+
+    messages = [record.getMessage() for record in bt_caplog.records]
+    assert "Failed to remove TradeLogger file handler" in messages
+    assert "Failed to close TradeLogger file handler" in messages
+
+
+@pytest.mark.parametrize(
+    "observation",
+    [
+        {"api_secret": "must-not-be-retained"},
+        {"nested": {"authorization": "must-not-be-retained"}},
+        {"positions": [{"instrument": "SA610", "position_lots": float("nan")}]},
+    ],
+)
+def test_startup_account_observation_requires_credential_free_json_mapping(observation):
+    """Invalid or credential-bearing caller evidence is absent from the report."""
+    tl = _make_bare_logger(startup_account_observation=observation)
+    tl._init_report_state()
+
+    report = TradeLogger.snapshot(tl)
+
+    assert "startup_account_observation" not in report
+    assert "must-not-be-retained" not in json.dumps(report, allow_nan=False)
+
+
 # ===========================================================================
 # _collect_indicators logging tests
 # ===========================================================================
@@ -94,7 +224,7 @@ def _make_bare_logger(**overrides):
 class TestCollectIndicatorsLogging:
     """Verify _collect_indicators logs errors instead of silently skipping."""
 
-    def test_attr_access_failure_logged(self, caplog):
+    def test_attr_access_failure_logged(self, bt_caplog):
         """When getattr raises, a debug log should be emitted."""
         tl = _make_bare_logger()
 
@@ -119,17 +249,17 @@ class TestCollectIndicatorsLogging:
 
         tl._owner = BadOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = tl._collect_indicators()
 
-        assert any("Failed to read indicator attr" in r.message for r in caplog.records)
+        assert any("Failed to read indicator attr" in r.message for r in bt_caplog.records)
         assert isinstance(result, dict)
 
 
 class TestExtractIndicatorValuesLogging:
     """Verify _extract_indicator_values logs on line read failure."""
 
-    def test_line_read_failure_logged(self, caplog):
+    def test_line_read_failure_logged(self, bt_caplog):
         """When reading a line value raises, a debug log should be emitted."""
         tl = _make_bare_logger()
 
@@ -159,13 +289,14 @@ class TestExtractIndicatorValuesLogging:
 
         class FakeIndicator:
             """Mock indicator with FakeLines."""
+
             lines = FakeLines()
 
         indicators_dict = {}
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             tl._extract_indicator_values(FakeIndicator(), indicators_dict)
 
-        assert any("Failed to read indicator line" in r.message for r in caplog.records)
+        assert any("Failed to read indicator line" in r.message for r in bt_caplog.records)
 
 
 # ===========================================================================
@@ -219,7 +350,7 @@ class TestDefensiveAccessors:
         result = TradeLogger._get_strategy_name(tl)
         assert result == "Unknown"
 
-    def test_store_provider_failure_logged(self, caplog):
+    def test_store_provider_failure_logged(self, bt_caplog):
         """Store provider accessor failures should emit a debug log."""
         tl = _make_bare_logger()
 
@@ -233,13 +364,15 @@ class TestDefensiveAccessors:
 
         tl._owner = BadOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._store_provider(tl)
 
         assert result == ""
-        assert any("Failed to read store provider" in record.message for record in caplog.records)
+        assert any(
+            "Failed to read store provider" in record.message for record in bt_caplog.records
+        )
 
-    def test_session_id_failure_logged(self, caplog):
+    def test_session_id_failure_logged(self, bt_caplog):
         """Session id accessor failures should emit a debug log."""
         tl = _make_bare_logger()
 
@@ -253,26 +386,32 @@ class TestDefensiveAccessors:
 
         tl._owner = BadOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._session_id(tl)
 
         assert result == ""
-        assert any("Failed to read session id" in record.message for record in caplog.records)
+        assert any("Failed to read session id" in record.message for record in bt_caplog.records)
 
-    def test_get_datetime_failure_logged(self, caplog):
+    def test_get_datetime_failure_logged(self, bt_caplog):
         """Datetime accessor failures should emit a debug log and return a fallback string."""
         tl = _make_bare_logger()
-        tl._owner = SimpleNamespace(datetime=SimpleNamespace(datetime=lambda: (_ for _ in ()).throw(RuntimeError("dt boom"))))
+        tl._owner = SimpleNamespace(
+            datetime=SimpleNamespace(
+                datetime=lambda: (_ for _ in ()).throw(RuntimeError("dt boom"))
+            )
+        )
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._get_datetime_str(tl)
 
         assert isinstance(result, str)
         parsed = dt.datetime.fromisoformat(result)
         assert parsed.tzinfo is not None
-        assert any("Failed to read strategy datetime" in record.message for record in caplog.records)
+        assert any(
+            "Failed to read strategy datetime" in record.message for record in bt_caplog.records
+        )
 
-    def test_get_strategy_name_failure_logged(self, caplog):
+    def test_get_strategy_name_failure_logged(self, bt_caplog):
         """Strategy name accessor failures should emit a debug log and return Unknown."""
         tl = _make_bare_logger()
 
@@ -286,11 +425,11 @@ class TestDefensiveAccessors:
 
         tl._owner = BrokenOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._get_strategy_name(tl)
 
         assert result == "Unknown"
-        assert any("Failed to read strategy name" in record.message for record in caplog.records)
+        assert any("Failed to read strategy name" in record.message for record in bt_caplog.records)
 
 
 # ===========================================================================
@@ -323,17 +462,20 @@ class TestSafeOrderInfo:
 
     def test_broken_get_returns_default(self):
         """Test that broken get() returns default value."""
+
         class BrokenInfo:
             """Mock info that raises on get()."""
 
             def get(self, key, default=None):
                 """Raise TypeError."""
                 raise TypeError("broken")
+
         order = SimpleNamespace(info=BrokenInfo())
         assert TradeLogger._safe_order_info(order, "key", "safe") == "safe"
 
     def test_broken_attr_access_falls_back_to_get(self):
         """Test that broken attr access falls back to get()."""
+
         class BrokenAttrInfo:
             """Mock info that raises on attr access but get() works."""
 
@@ -569,3 +711,57 @@ class TestMarketEventTimeFields:
         local_time = dt.datetime.fromisoformat(payload["local_time"])
         assert local_time.tzinfo is not None
         assert local_time.timestamp() == pytest.approx(1782329081.1869645, abs=0.002)
+
+
+class TestGenericReportBarIdentity:
+    """Regression coverage for feed callback / LineSeries bar deduplication."""
+
+    def test_data_alias_matches_feed_transport_name(self):
+        """A Cerebro display alias must not double-count a completed BtApiFeed bar."""
+
+        timestamp = dt.datetime(2026, 9, 10, 9, 1, tzinfo=dt.timezone.utc)
+        data = SimpleNamespace(
+            _name="display-alias",
+            _dataname="BTC-USDT-SWAP",
+            datetime=SimpleNamespace(datetime=lambda index=0: timestamp),
+        )
+        identity = (
+            "BTC-USDT-SWAP",
+            TradeLogger._report_timestamp_key(timestamp),
+        )
+        logger = _make_bare_logger()
+        logger._report_dispatched_line_bars = collections.OrderedDict({identity: None})
+        owner = SimpleNamespace(datas=[data])
+
+        assert TradeLogger._report_data_bar_identities(data) == {
+            identity,
+            ("display-alias", identity[1]),
+        }
+        assert TradeLogger._consume_dispatched_line_bar(logger, owner) is True
+        assert logger._report_dispatched_line_bars == {}
+
+    def test_foreign_or_unconsumed_bar_identities_cannot_grow_unbounded(self):
+        """Diagnostic bars cannot leak pending dedup state during a live run."""
+
+        timestamp = dt.datetime(2026, 9, 10, 9, 1, tzinfo=dt.timezone.utc)
+        data = SimpleNamespace(
+            _name="subscribed",
+            datetime=SimpleNamespace(datetime=lambda index=0: timestamp),
+        )
+        logger = _make_bare_logger()
+        logger._owner = SimpleNamespace(datas=[data])
+        logger._report_dispatched_line_bars = collections.OrderedDict()
+
+        for index in range(1034):
+            TradeLogger.notify_bar_event(
+                logger,
+                SimpleNamespace(symbol="foreign", datetime=index, complete=True),
+            )
+        assert logger._report_dispatched_line_bars == {}
+
+        for index in range(1034):
+            TradeLogger.notify_bar_event(
+                logger,
+                SimpleNamespace(symbol="subscribed", datetime=index, complete=True),
+            )
+        assert len(logger._report_dispatched_line_bars) == 1024

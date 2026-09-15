@@ -1,0 +1,114 @@
+{
+  "schema_version": "iteration20.p2_6.public-rule-snapshot-replay.v1",
+  "recorded_on": "2026-09-14",
+  "status": "LOCAL_PUBLIC_RULE_SNAPSHOT_REPLAY_PASS",
+  "scope": "Unauthenticated public instrument-rule capture, frozen selected-record projection, and formula-only replay of both Iter21 cross-exchange runners.",
+  "implementation": {
+    "backtrader_commit": "d0b25f4757c84c00bc04cef9a9671ea05df438e8",
+    "rule_loader": {
+      "path": "examples/cross_exchange_replay_rules.py",
+      "sha256": "97121f822f0aa4875bfb29064838f4e6a66f4713daec6b92618f27b708c83b87"
+    },
+    "integration_test": {
+      "path": "tests/integration/test_cross_exchange_real_rule_replay.py",
+      "sha256": "187f7f098923c28894c1144e8f0b4b9d1510225b2a4a2729dc73b327cc461f43"
+    },
+    "runner_sources": {
+      "012_1": "9e94966f1580d32ce488edec14c45413edd750180ccfa3c1e12c044688a99152",
+      "012_2": "3b53b6cd42ed6d5a6c9080280ea4c96b1c361e4b4cb973e1a48fb4ce93303e32"
+    },
+    "sdk": {
+      "bt_api_py": "b22a678521278de23cf6a86fe8dd755e7052fa74",
+      "bt_api_binance": "12f2a667be0e8988559cb836c3fd439f6c131ec6",
+      "bt_api_okx": "d407ba69f40f775f4d6aa4d07c9a96f94ddb5263"
+    }
+  },
+  "capture": {
+    "response_date_utc": "2026-09-13T23:08:41Z",
+    "collector": "curl 8.7.1",
+    "authentication": "none",
+    "cookies": "none",
+    "request_class": "public HTTPS GET only",
+    "sources": {
+      "okx": {
+        "url": "https://openapi.okx.com/api/v5/public/instruments?instType=SWAP&instId=BTC-USDT-SWAP",
+        "http_status": 200,
+        "body_bytes": 1117,
+        "body_sha256": "1a6eeb4c4cc625067010d0110718feaee4a6f03becc60f661b800acb4f5ac4e2",
+        "selected_record": {
+          "instId": "BTC-USDT-SWAP",
+          "state": "live",
+          "ctType": "linear",
+          "ctVal": "0.01",
+          "ctMult": "1",
+          "lotSz": "0.01",
+          "minSz": "0.01",
+          "tickSz": "0.1"
+        }
+      },
+      "binance": {
+        "url": "https://fapi.binance.com/fapi/v1/exchangeInfo?symbol=BTCUSDT",
+        "http_status": 200,
+        "body_bytes": 1113532,
+        "body_sha256": "27ceb67d0afca04694ae0ae46d9352b5a1ca1415dd1cf5eefaec72cf2011ac95",
+        "selected_record": {
+          "symbol": "BTCUSDT",
+          "status": "TRADING",
+          "contractType": "PERPETUAL",
+          "price_tick": "0.10",
+          "lot_size_step": "0.001",
+          "lot_size_min": "0.001",
+          "market_lot_size_step": "0.001",
+          "market_lot_size_min": "0.001",
+          "min_notional": "50"
+        }
+      }
+    },
+    "raw_body_retention": {
+      "tracked_content": "Only selected records plus whole-body digests are tracked in tests/fixtures/cross_exchange_rules/p2_6_public_rule_snapshot.json.",
+      "local_owner_only_directory": "examples/state/iteration20-p2-6-real-rule-replay-20260914",
+      "directory_mode": "0700",
+      "raw_file_mode": "0600",
+      "version_control": "ignored",
+      "limitation": "This is local owner-only evidence, not a durable external archive or an independent access-audit record."
+    }
+  },
+  "snapshot_fixture": {
+    "path": "tests/fixtures/cross_exchange_rules/p2_6_public_rule_snapshot.json",
+    "sha256": "7f3fce2c47ad680c7e1e667f3e021709d5dbda133d1a9ad01fc6b23287b6b526",
+    "schema_policy": "The pure loader rejects unknown, missing, or changed v1 values; the selected record intentionally cannot masquerade as a complete live exchange response."
+  },
+  "validation": {
+    "command": [
+      "/Users/yunjinqi/opt/anaconda3/bin/conda",
+      "run",
+      "--no-capture-output",
+      "-n",
+      "base",
+      "python",
+      "-m",
+      "pytest",
+      "tests/unit/test_cross_exchange_pair_examples.py",
+      "tests/unit/strategies/test_012_1_midfreq_cross_exchange.py",
+      "tests/unit/strategies/test_012_2_event_cross_exchange.py",
+      "tests/integration/test_cross_exchange_native_replay.py",
+      "tests/integration/test_cross_exchange_real_rule_replay.py",
+      "-q",
+      "--maxfail=0"
+    ],
+    "exit_status": 0,
+    "result": "186 passed in 42.26s",
+    "assertions": [
+      "Both unpatched current runners first reject on frozen runner-source binding before test-only formula injection.",
+      "The selected public projection exactly matches the current formula fixture at the captured timestamp.",
+      "OKX ctVal=0.01 and lotSz=minSz=0.01 produce base step/minimum 0.0001 BTC; the combined lattice accepts 0.002 BTC but rejects 0.00001 BTC.",
+      "Test-only DNS, socket, HTTP, urllib, requests, Store, Broker, and Strategy buy/sell guards observe zero calls during both formula replays.",
+      "Both reports remain R0 formula/local with zero external orders, fills, and PnL."
+    ]
+  },
+  "disposition": {
+    "p2_6": "LOCAL_PUBLIC_RULE_SNAPSHOT_REPLAY_PASS",
+    "finding": "The capture disproves the historical lotSz=minSz=1 assumption for this timestamp. It does not prove historic exchange rules, price-dependent notional eligibility, account permissions, fee schedules, demo eligibility, live execution, fills, PnL, or profitability.",
+    "governance": "No candidate manifest, qualification artifact, source binding, research status, approval, strategy configuration, Store, Broker, or execution path was changed."
+  }
+}

@@ -26,7 +26,7 @@ Example:
 import operator
 
 from . import metabase
-from .utils.log_message import get_logger
+from .utils.log_message import get_logger, throttled_warning
 from .utils.py3 import range
 
 logger = get_logger(__name__)
@@ -218,7 +218,12 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 return operation(other, 0)  # Use 0 as default value
             return operation(0, other)  # Use 0 as default value
         except Exception:
-            logger.debug("Fallback operation failed in LineRoot._makeoperation", exc_info=True)
+            throttled_warning(
+                logger,
+                "lineroot.line_root.makeoperation_recovery",
+                "LineRoot operation fallback failed; returning safe default",
+                exc_info=False,
+            )
             # If operation fails, return False for bool operations
             if operation is bool:
                 return False
@@ -255,8 +260,11 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                                 return bool(value)
                     return False
                 except Exception:
-                    logger.debug(
-                        "Boolean operation failed in LineRoot._makeoperationown", exc_info=True
+                    throttled_warning(
+                        logger,
+                        "lineroot.line_root.makeoperationown_boolean_recovery",
+                        "LineRoot boolean operation fallback failed; returning False",
+                        exc_info=False,
                     )
                     return False
             elif hasattr(self, "__getitem__") and hasattr(self, "__len__"):
@@ -277,9 +285,11 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                         return bool(value)
                     return False
                 except Exception:
-                    logger.debug(
-                        "Direct boolean operation failed in LineRoot._makeoperationown",
-                        exc_info=True,
+                    throttled_warning(
+                        logger,
+                        "lineroot.line_root.makeoperationown_boolean_recovery",
+                        "LineRoot boolean operation fallback failed; returning False",
+                        exc_info=False,
                     )
                     return False
             else:
@@ -295,8 +305,11 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         try:
             return operation(0)  # Use 0 as default value
         except Exception:
-            logger.debug(
-                "Fallback self-operation failed in LineRoot._makeoperationown", exc_info=True
+            throttled_warning(
+                logger,
+                "lineroot.line_root.makeoperationown_recovery",
+                "LineRoot self-operation fallback failed; returning 0",
+                exc_info=False,
             )
             # If operation fails, return 0 for most operations
             return 0
@@ -378,7 +391,12 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                     return 0.0
             return result
         except Exception:
-            logger.debug("Stage2 operation failed in LineRoot._operation_stage2", exc_info=True)
+            throttled_warning(
+                logger,
+                "lineroot.line_root.operation_stage2_recovery",
+                "LineRoot stage-2 operation failed; returning safe default",
+                exc_info=False,
+            )
             # If operation fails, return appropriate default
             if operation in [
                 operator.__lt__,
@@ -645,7 +663,12 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             # Fallback: if no data available, return False
             return False
         except Exception:
-            logger.debug("Boolean evaluation failed in LineRoot.__nonzero__", exc_info=True)
+            throttled_warning(
+                logger,
+                "lineroot.line_root.nonzero_recovery",
+                "LineRoot boolean evaluation failed; returning False",
+                exc_info=False,
+            )
             # If any error occurs during boolean evaluation, return False
             # This prevents crashes in strategies when doing "if self.cross > 0:"
             return False
@@ -786,7 +809,12 @@ class LineMultiple(LineRoot):
                 return operation(other, 0)  # Use 0 as default value
             return operation(0, other)  # Use 0 as default value
         except Exception:
-            logger.debug("Fallback operation failed in LineMultiple._makeoperation", exc_info=True)
+            throttled_warning(
+                logger,
+                "lineroot.line_multiple.makeoperation_recovery",
+                "LineMultiple operation fallback failed; returning safe default",
+                exc_info=False,
+            )
             # If operation fails, return False for bool operations
             if operation is bool:
                 return False
@@ -807,8 +835,11 @@ class LineMultiple(LineRoot):
                         return False
                     return bool(value)
                 except Exception:
-                    logger.debug(
-                        "Boolean operation failed in LineMultiple._makeoperationown", exc_info=True
+                    throttled_warning(
+                        logger,
+                        "lineroot.line_multiple.makeoperationown_boolean_recovery",
+                        "LineMultiple boolean operation fallback failed; returning False",
+                        exc_info=False,
                     )
                     return False
             else:
@@ -824,9 +855,11 @@ class LineMultiple(LineRoot):
         try:
             return operation(0)  # Use 0 as default value
         except Exception:
-            logger.debug(
-                "Fallback self-operation failed in LineMultiple._makeoperationown",
-                exc_info=True,
+            throttled_warning(
+                logger,
+                "lineroot.line_multiple.makeoperationown_recovery",
+                "LineMultiple self-operation fallback failed; returning 0",
+                exc_info=False,
             )
             # If operation fails, return 0 for most operations
             return 0
@@ -904,8 +937,11 @@ def _apply_strategy_patch():
                     else:
                         clk_len = 1
                 except Exception:
-                    logger.debug(
-                        "Fallback _clk_update path triggered in safe_clk_update", exc_info=True
+                    throttled_warning(
+                        logger,
+                        "lineroot.strategy_patch.oldsync_clock_recovery",
+                        "Strategy compatibility clock update failed; using length 1",
+                        exc_info=False,
                     )
                     clk_len = 1
 
@@ -959,7 +995,12 @@ def _apply_strategy_patch():
                     try:
                         newdlens.append(len(d) if hasattr(d, "__len__") else 0)
                     except Exception:
-                        logger.debug("Failed to read data length in safe_clk_update", exc_info=True)
+                        throttled_warning(
+                            logger,
+                            "lineroot.strategy_patch.data_length_recovery",
+                            "Strategy compatibility data length lookup failed; using length 0",
+                            exc_info=False,
+                        )
                         newdlens.append(0)
             else:
                 newdlens = []
@@ -977,8 +1018,13 @@ def _apply_strategy_patch():
                 try:
                     if hasattr(self, "forward"):
                         self.forward()
-                except Exception as e:
-                    logger.debug("Failed to forward in _clk_update: %s", e)
+                except Exception:
+                    throttled_warning(
+                        logger,
+                        "lineroot.strategy_patch.forward_recovery",
+                        "Strategy compatibility clock forward failed; continuing update",
+                        exc_info=False,
+                    )
 
             # Update _dlens
             self._dlens = newdlens
@@ -1024,7 +1070,12 @@ def _apply_strategy_patch():
             try:
                 return len(self)
             except Exception:
-                logger.debug("Failed to read strategy length in safe_clk_update", exc_info=True)
+                throttled_warning(
+                    logger,
+                    "lineroot.strategy_patch.length_recovery",
+                    "Strategy compatibility length lookup failed; returning 0",
+                    exc_info=False,
+                )
                 return 0
 
         # Import Strategy and patch it
@@ -1035,10 +1086,20 @@ def _apply_strategy_patch():
             Strategy._clk_update = safe_clk_update
         except ImportError:
             # Strategy not imported yet, try to patch later when it's imported
-            pass
+            throttled_warning(
+                logger,
+                "lineroot.strategy_patch.import_recovery",
+                "Strategy compatibility patch deferred because Strategy is not importable",
+                exc_info=False,
+            )
 
-    except Exception as e:
-        logger.debug("Failed to apply strategy patch: %s", e)
+    except Exception:
+        throttled_warning(
+            logger,
+            "lineroot.strategy_patch.apply_recovery",
+            "Strategy compatibility patch installation failed; continuing without patch",
+            exc_info=False,
+        )
 
 
 # Apply the patch when this module is imported

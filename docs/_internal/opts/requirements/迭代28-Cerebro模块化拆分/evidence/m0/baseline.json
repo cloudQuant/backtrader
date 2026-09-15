@@ -1,0 +1,40 @@
+{
+  "head": "e2259a1e0d34fc070d4f4e1f8a013f8791695e6",
+  "branch": "dev",
+  "dirty_outside_iter28": false,
+  "python": "/Users/yunjinqi/opt/anaconda3/bin/python (3.11.8, conda base)",
+  "interpreter_note": "conda run wrapper deadlocks multiprocessing spawn; spawn-bearing commands use the absolute anaconda python directly (same conda base env).",
+  "cerebro_py_sha256": "13cd075a585aa8464dd9e19c9f8363c7de56b441959c5dbb2cab0bc85ec3ee4d",
+  "star_export_count": 40,
+  "star_exports_identical_across_modes": true,
+  "identity": {
+    "bt_Cerebro_is_module_Cerebro": true,
+    "cerebro_module": "backtrader.cerebro",
+    "optreturn_module": "backtrader.cerebro"
+  },
+  "api_entries": 103,
+  "descriptors": 19,
+  "collected_tests": 5437,
+  "loop_feature_tests": "tests/unit/core/test_cerebro_loop_features.py (13 cases, baseline iter28_loop_baseline.json; loop2a fastpath=True)",
+  "pickle_payloads": ["cerebro-instance.pkl", "optreturn-results.pkl (spawn maxcpus=2)", "optreturn-serial.pkl (maxcpus=1)"],
+  "perf": {
+    "loads_pairs": 7,
+    "files": ["perf-baseline.json", "cold-import-baseline.json", "rss-baseline.json"],
+    "cold_import_default_median_s": 1.5229,
+    "cold_import_light_median_s": 0.0915,
+    "rss_runnext_multi_peak_kb": 222199808
+  },
+  "quality_tools_available": ["black 26.1.0", "pylint 3.3.9", "mypy 1.16.1", "bandit 1.9.2", "safety 3.7.0", "ruff 0.16.2"],
+  "path_consumers": {
+    "examples/strategy_candidate_approval.py": "RUNTIME_SOURCE_MODULES lists backtrader.cerebro (module artifact hash); must extend with _cerebro modules (D28-10)",
+    "scripts/run_iter27_hf_t1_independent_acceptance.py:92": "static source list contains backtrader/cerebro.py; historical reports stay frozen, new-run list extension documented",
+    "scripts/run_iter27_fq3_independent_acceptance.py:54": "same as above",
+    "scripts/ci/classify_pr_risk.py": "_R2_PREFIXES contains backtrader/cerebro.py; add backtrader/_cerebro/ prefix",
+    ".github/CODEOWNERS:24": "backtrader/cerebro.py @cloudQuant; add backtrader/_cerebro/ line",
+    "tests/integration/test_cross_exchange_demo_contract.py": "expected set == RUNTIME_SOURCE_MODULES labels; subset assertion unaffected by additions",
+    "examples/013_3_sa_midfreq_simnow/run.py": "runtime_component_identities lacks Cerebro entry (pre-existing coverage gap, tracked separately per D28-10)"
+  },
+  "known_preexisting": [
+    "run_exception initialized inside `if runstrats:` branch (cerebro.py:2149) but read outside (2188): UnboundError when all strategies skipped via StrategySkipError AND an exception occurs; not reproduced this round, not fixed by the split (design D28-01)"
+  ]
+}

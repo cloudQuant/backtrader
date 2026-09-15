@@ -28,6 +28,7 @@ backtrader`` resolves to ``site-packages/backtrader``.
 Note: in either case, the test code itself does not change. The active
 package is reported once at session start so you can confirm the source.
 """
+
 from __future__ import annotations
 
 import glob
@@ -36,7 +37,6 @@ import shutil
 import stat
 import sys
 from pathlib import Path
-
 
 _REPO_ROOT = Path(__file__).resolve().parent
 _LOCAL_BACKTRADER = _REPO_ROOT / "backtrader"
@@ -94,8 +94,8 @@ def pytest_addoption(parser):
         action="store_true",
         default=False,
         help="Resolve `import backtrader` against the installed site-packages "
-             "copy instead of the local repository copy. Equivalent to "
-             "BACKTRADER_USE_INSTALLED=1.",
+        "copy instead of the local repository copy. Equivalent to "
+        "BACKTRADER_USE_INSTALLED=1.",
     )
 
 
@@ -158,15 +158,34 @@ def _load_slow_threshold():
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-tag the slowest strategy regression tests with the ``slow`` marker.
+    """Apply dynamic slow markers and isolate wall-clock microbenchmarks.
 
     No test source is modified; the marker is applied dynamically based on the
     test's file path and its recorded duration. Run ``pytest -m "not slow"``
     (or ``make test-fast``) for a fast development loop that still exercises
     the faster half of the strategy suite. Run the full ``pytest`` (or
     ``make test-all``) for complete regression coverage.
+
+    Tests marked ``performance`` use short wall-clock measurements or
+    time-bounded latency contracts. They are skipped under xdist or coverage
+    tracing because either environment makes the measurements non-deterministic.
+    ``make test-performance`` runs them in the required serial lane, and
+    ``make test-all`` invokes that lane after its parallel functional suite.
     """
     import pytest
+
+    xdist_workers = getattr(config.option, "numprocesses", None)
+    xdist_active = hasattr(config, "workerinput") or xdist_workers not in (None, 0, "0")
+    coverage_active = bool(os.environ.get("COV_CORE_SOURCE"))
+    if xdist_active or coverage_active:
+        if xdist_active:
+            reason = "CPU-contended wall-clock test; run `make test-performance` without xdist"
+        else:
+            reason = "coverage tracing makes wall-clock test timing unreliable"
+        skip_performance = pytest.mark.skip(reason=reason)
+        for item in items:
+            if item.get_closest_marker("performance") is not None:
+                item.add_marker(skip_performance)
 
     repo_root = str(_REPO_ROOT)
     durations, threshold = _load_slow_threshold()

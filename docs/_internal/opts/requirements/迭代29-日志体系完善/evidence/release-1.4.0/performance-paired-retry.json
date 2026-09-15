@@ -1,0 +1,1591 @@
+{
+  "interpreter": "/Users/yunjinqi/opt/anaconda3/bin/python",
+  "pairs": 9,
+  "executions_per_sample": 5,
+  "probe_sha256": "90a1641653b2cb9cef6491b83dd4379669a2bf75f44a636d2d56b71f3128a87c",
+  "raw": {
+    "pre28": [
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.014323074999265373,
+          "runnext_multi": 0.027549933199770747,
+          "runonce_multi_tf": 0.030858174996683373,
+          "channel_iterable": 0.03767659160075709,
+          "construct_300": 0.0062325829931069165
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227196928
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.014186425000661983,
+          "runnext_multi": 0.02762382500222884,
+          "runonce_multi_tf": 0.030790691601578147,
+          "channel_iterable": 0.03733008340350352,
+          "construct_300": 0.005935583001701161
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227786752
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.014653124997857958,
+          "runnext_multi": 0.030734150001080707,
+          "runonce_multi_tf": 0.03178846660302952,
+          "channel_iterable": 0.03747303340351209,
+          "construct_300": 0.005856749980011955
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227983360
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.01439676660229452,
+          "runnext_multi": 0.04398736659786664,
+          "runonce_multi_tf": 0.03100069999927655,
+          "channel_iterable": 0.03798944160225801,
+          "construct_300": 0.006014459009747952
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227295232
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.014221191796241327,
+          "runnext_multi": 0.02744480819674209,
+          "runonce_multi_tf": 0.03559215819695964,
+          "channel_iterable": 0.037749799998709935,
+          "construct_300": 0.005627917009405792
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228884480
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.01386651659850031,
+          "runnext_multi": 0.027197649999288843,
+          "runonce_multi_tf": 0.03034119160147384,
+          "channel_iterable": 0.037105075002182276,
+          "construct_300": 0.0057848329888656735
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 229261312
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.014242508198367431,
+          "runnext_multi": 0.02749494159943424,
+          "runonce_multi_tf": 0.030349966796347872,
+          "channel_iterable": 0.03750900839804672,
+          "construct_300": 0.0056078330089803785
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227442688
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.014308491599513218,
+          "runnext_multi": 0.027556016598828136,
+          "runonce_multi_tf": 0.030396874999860303,
+          "channel_iterable": 0.036818300001323225,
+          "construct_300": 0.005688290984835476
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227622912
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre28",
+        "samples_s": {
+          "fastpath_runnext": 0.014513349998742342,
+          "runnext_multi": 0.028456308197928593,
+          "runonce_multi_tf": 0.030667133198585363,
+          "channel_iterable": 0.03716661660000682,
+          "construct_300": 0.006040124979335815
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226983936
+      }
+    ],
+    "pre29": [
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.014298450003843754,
+          "runnext_multi": 0.02749729999923147,
+          "runonce_multi_tf": 0.03045609180117026,
+          "channel_iterable": 0.03729166659759357,
+          "construct_300": 0.005648958001984283
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226918400
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.014330808399245143,
+          "runnext_multi": 0.027851458400255068,
+          "runonce_multi_tf": 0.030425149999791755,
+          "channel_iterable": 0.03839334999793209,
+          "construct_300": 0.006095542019465938
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227082240
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.014430316805373877,
+          "runnext_multi": 0.027665625000372528,
+          "runonce_multi_tf": 0.03113235000055283,
+          "channel_iterable": 0.037976941600209105,
+          "construct_300": 0.0060682499897666276
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227704832
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.014300133398501202,
+          "runnext_multi": 0.027440016600303353,
+          "runonce_multi_tf": 0.03165360820130445,
+          "channel_iterable": 0.039733291801530866,
+          "construct_300": 0.006279124994762242
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227753984
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.014007150003453716,
+          "runnext_multi": 0.02742275840137154,
+          "runonce_multi_tf": 0.03206850840360857,
+          "channel_iterable": 0.040321883198339493,
+          "construct_300": 0.00595920899650082
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228032512
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.013865341601194814,
+          "runnext_multi": 0.027526975004002453,
+          "runonce_multi_tf": 0.030387783399783076,
+          "channel_iterable": 0.03728073320235126,
+          "construct_300": 0.00590258400188759
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227639296
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.013849924999522045,
+          "runnext_multi": 0.0272343582008034,
+          "runonce_multi_tf": 0.029854466597316786,
+          "channel_iterable": 0.03680468340171501,
+          "construct_300": 0.005610249994788319
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 225787904
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.01375889999908395,
+          "runnext_multi": 0.026743091602111236,
+          "runonce_multi_tf": 0.02976617499953136,
+          "channel_iterable": 0.037166816799435766,
+          "construct_300": 0.00566383299883455
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227704832
+      },
+      {
+        "source": "/private/tmp/backtrader-release140.zbR30K/baseline-pre29",
+        "samples_s": {
+          "fastpath_runnext": 0.014115966600365936,
+          "runnext_multi": 0.02741006660507992,
+          "runonce_multi_tf": 0.029793199995765463,
+          "channel_iterable": 0.03707972499541938,
+          "construct_300": 0.005910500010941178
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227033088
+      }
+    ],
+    "candidate": [
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.015014199999859557,
+          "runnext_multi": 0.028902716794982554,
+          "runonce_multi_tf": 0.031013699999311937,
+          "channel_iterable": 0.039144666597712784,
+          "construct_300": 0.006083332991693169
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227278848
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01532719160313718,
+          "runnext_multi": 0.028934916597791016,
+          "runonce_multi_tf": 0.03182352500152774,
+          "channel_iterable": 0.039397374994587155,
+          "construct_300": 0.006365125009324402
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228540416
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.015358124999329448,
+          "runnext_multi": 0.029505091597093268,
+          "runonce_multi_tf": 0.03200480819796212,
+          "channel_iterable": 0.0404380084015429,
+          "construct_300": 0.006170582986669615
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227672064
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.014763616601703689,
+          "runnext_multi": 0.02889439180144109,
+          "runonce_multi_tf": 0.03210438319947571,
+          "channel_iterable": 0.04003608340281062,
+          "construct_300": 0.005683958006557077
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226492416
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.014561166800558568,
+          "runnext_multi": 0.02764828340150416,
+          "runonce_multi_tf": 0.030708958400646226,
+          "channel_iterable": 0.038987750001251695,
+          "construct_300": 0.00572666697553359
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227934208
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.014336166600696743,
+          "runnext_multi": 0.02845182499731891,
+          "runonce_multi_tf": 0.03109965000185184,
+          "channel_iterable": 0.0386456667969469,
+          "construct_300": 0.0058274999901186675
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227082240
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.014665700000477955,
+          "runnext_multi": 0.027425550000043587,
+          "runonce_multi_tf": 0.030366549995960668,
+          "channel_iterable": 0.038405333401169625,
+          "construct_300": 0.005719542008591816
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226574336
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.0141584582044743,
+          "runnext_multi": 0.02777132499613799,
+          "runonce_multi_tf": 0.0301418749964796,
+          "channel_iterable": 0.03827685000142082,
+          "construct_300": 0.005614207999315113
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227737600
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.014447324996581301,
+          "runnext_multi": 0.027812858199467883,
+          "runonce_multi_tf": 0.030675699998391794,
+          "channel_iterable": 0.03874299180461094,
+          "construct_300": 0.005668999976478517
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227033088
+      }
+    ]
+  },
+  "comparisons": {
+    "pre28": {
+      "fastpath_runnext": {
+        "paired_deltas": [
+          0.048252557542959984,
+          0.0804125494916419,
+          0.048112604074185494,
+          0.025481416038980687,
+          0.023906224540695353,
+          0.03386935708476524,
+          0.029713291803408204,
+          -0.010485619255912404,
+          -0.004549259968702146
+        ],
+        "median_delta": 0.029713291803408204,
+        "within_5_percent": true
+      },
+      "runnext_multi": {
+        "paired_deltas": [
+          0.04910297188027535,
+          0.04746234800779359,
+          -0.03998999171749407,
+          -0.3431206722240461,
+          0.007413978021031387,
+          0.04611335898737057,
+          -0.0025237951184475804,
+          0.007813480462158351,
+          -0.022611857939729085
+        ],
+        "median_delta": 0.007413978021031387,
+        "within_5_percent": true
+      },
+      "runonce_multi_tf": {
+        "paired_deltas": [
+          0.00503999353964657,
+          0.03354368954468878,
+          0.006805663124121564,
+          0.03560187996480435,
+          -0.13719875511034751,
+          0.024997647104313403,
+          0.0005463992670591278,
+          -0.00838902036416167,
+          0.000279347917881978
+        ],
+        "median_delta": 0.00503999353964657,
+        "within_5_percent": true
+      },
+      "channel_iterable": {
+        "paired_deltas": [
+          0.038965175313952605,
+          0.05537870271379064,
+          0.07912289795447758,
+          0.053873963770790345,
+          0.03279355129256478,
+          0.04151970571880037,
+          0.023896259629448968,
+          0.03961481111417897,
+          0.042413739770001735
+        ],
+        "median_delta": 0.04151970571880037,
+        "within_5_percent": true
+      },
+      "construct_300": {
+        "paired_deltas": [
+          -0.02394673309265427,
+          0.0723672817817782,
+          0.053584839327052824,
+          -0.054951077504263424,
+          0.017546450305283345,
+          0.0073756669095057514,
+          0.019920172271989278,
+          -0.013023768600773478,
+          -0.06144326551635482
+        ],
+        "median_delta": 0.0073756669095057514,
+        "within_5_percent": true
+      },
+      "rss": {
+        "baseline_bytes": 227622912,
+        "candidate_bytes": 227278848,
+        "within_budget": true
+      }
+    },
+    "pre29": {
+      "fastpath_runnext": {
+        "paired_deltas": [
+          0.050057873113756646,
+          0.06952735506145769,
+          0.06429576054837915,
+          0.03241111046216294,
+          0.03955242836467443,
+          0.03395697077245874,
+          0.058901041051418135,
+          0.029039981787566838,
+          0.02347401390187298
+        ],
+        "median_delta": 0.03955242836467443,
+        "within_5_percent": true
+      },
+      "runnext_multi": {
+        "paired_deltas": [
+          0.05111108348057303,
+          0.03890130929466973,
+          0.06648924781912458,
+          0.0530019796388046,
+          0.008224008570973718,
+          0.033597952306128054,
+          0.007020242512435937,
+          0.038448561195728814,
+          0.014695024284009373
+        ],
+        "median_delta": 0.038448561195728814,
+        "within_5_percent": true
+      },
+      "runonce_multi_tf": {
+        "paired_deltas": [
+          0.018308593294962705,
+          0.045961153905422325,
+          0.02802416770317051,
+          0.014240872487727207,
+          -0.04239517428909667,
+          0.023426078588997923,
+          0.017152656101713903,
+          0.012621708934861697,
+          0.029620853172930728
+        ],
+        "median_delta": 0.018308593294962705,
+        "within_5_percent": true
+      },
+      "channel_iterable": {
+        "paired_deltas": [
+          0.049689385570093725,
+          0.026151013045466076,
+          0.06480423903646426,
+          0.007620601957476936,
+          -0.03308707558437496,
+          0.03661230553559913,
+          0.04349038903510927,
+          0.029866243535871195,
+          0.04485650336934888
+        ],
+        "median_delta": 0.03661230553559913,
+        "within_5_percent": true
+      },
+      "construct_300": {
+        "paired_deltas": [
+          0.07689471041496576,
+          0.0442262540390268,
+          0.016863675207112294,
+          -0.09478501999906452,
+          -0.039022296600736195,
+          -0.012720532523537331,
+          0.01948077428011663,
+          -0.008761734240689822,
+          -0.040859493108131195
+        ],
+        "median_delta": -0.008761734240689822,
+        "within_5_percent": true
+      },
+      "rss": {
+        "baseline_bytes": 227639296,
+        "candidate_bytes": 227278848,
+        "within_budget": true
+      }
+    }
+  },
+  "cold_import": {
+    "default": {
+      "raw_s": {
+        "pre28": [
+          1.5110520000162069,
+          1.5024483749875799,
+          1.527243707998423,
+          1.525679415994091,
+          1.4870082499983255,
+          1.5185090840095654,
+          1.4923761250101961,
+          1.6106576670135837,
+          1.6241621660010424,
+          1.4953678750025574
+        ],
+        "pre29": [
+          1.4897340830066241,
+          1.5194399999745656,
+          1.5268081660033204,
+          1.5383269579906482,
+          1.5040529170073569,
+          1.5189038339885883,
+          1.5026737500156742,
+          1.618543624994345,
+          1.903530417010188,
+          1.5708861659804825
+        ],
+        "candidate": [
+          1.5061706250126008,
+          1.5088837500079535,
+          1.6040618749975692,
+          1.5221305000013672,
+          1.5260502499877475,
+          1.5324546250049025,
+          1.5112679169978946,
+          1.8871042089886032,
+          1.5882532919931691,
+          1.5104224160022568
+        ]
+      },
+      "median_s": {
+        "pre28": 1.5147805420128861,
+        "pre29": 1.523124082988943,
+        "candidate": 1.5240903749945574
+      },
+      "within_budget": {
+        "pre28": true,
+        "pre29": true
+      }
+    },
+    "light": {
+      "raw_s": {
+        "pre28": [
+          0.08845224999822676,
+          0.08635433399467729,
+          0.08609570798580535,
+          0.0863619580049999,
+          0.08693633301299997,
+          0.08701462499448098,
+          0.08641875002649613,
+          0.08609654201427475,
+          0.08721483399858698,
+          0.08708641599514522
+        ],
+        "pre29": [
+          0.08669512500637211,
+          0.08659429202089086,
+          0.08851812497596256,
+          0.08774816599907354,
+          0.0869859580125194,
+          0.08680854199337773,
+          0.08714229200268164,
+          0.08727295801509172,
+          0.08612225000979379,
+          0.08648374999756925
+        ],
+        "candidate": [
+          0.08928187499986961,
+          0.08730733298580162,
+          0.08967200000188313,
+          0.08849900000495836,
+          0.08719754201592878,
+          0.08866774998023175,
+          0.0873000829888042,
+          0.08642874998622574,
+          0.08703079199767672,
+          0.08625866699730977
+        ]
+      },
+      "median_s": {
+        "pre28": 0.08667754151974805,
+        "pre29": 0.08689725000294857,
+        "candidate": 0.08730370798730291
+      },
+      "within_budget": {
+        "pre28": true,
+        "pre29": true
+      }
+    }
+  },
+  "configured_backends": {
+    "stdlib": [
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01913643319858238,
+          "runnext_multi": 0.03317866679863073,
+          "runonce_multi_tf": 0.03494805819937028,
+          "channel_iterable": 0.03877082499675453,
+          "construct_300": 0.005756166996434331
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227573760
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.018659308401402085,
+          "runnext_multi": 0.031885625002905725,
+          "runonce_multi_tf": 0.033979608403751624,
+          "channel_iterable": 0.03831535000354051,
+          "construct_300": 0.005641124997055158
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226820096
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.0180577581981197,
+          "runnext_multi": 0.03078487500315532,
+          "runonce_multi_tf": 0.03356947500142269,
+          "channel_iterable": 0.03812525819521397,
+          "construct_300": 0.005679207999492064
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228622336
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.0180336499994155,
+          "runnext_multi": 0.0309496333997231,
+          "runonce_multi_tf": 0.033509250002680346,
+          "channel_iterable": 0.03788433339796029,
+          "construct_300": 0.005632124986732379
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227622912
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.018263033404946328,
+          "runnext_multi": 0.03102729999809526,
+          "runonce_multi_tf": 0.03374884999939241,
+          "channel_iterable": 0.03808464999892749,
+          "construct_300": 0.005683916999259964
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228048896
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.018202233198098838,
+          "runnext_multi": 0.03084583319723606,
+          "runonce_multi_tf": 0.03348566660424694,
+          "channel_iterable": 0.0379399167955853,
+          "construct_300": 0.0056277090043295175
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226000896
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.018335808400297537,
+          "runnext_multi": 0.03142456660280004,
+          "runonce_multi_tf": 0.034025216603185984,
+          "channel_iterable": 0.03771304999827407,
+          "construct_300": 0.00572104100137949
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226885632
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.018099183397134767,
+          "runnext_multi": 0.030783241800963878,
+          "runonce_multi_tf": 0.03353477500495501,
+          "channel_iterable": 0.03868711660034023,
+          "construct_300": 0.005683249997673556
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228655104
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01841275839833543,
+          "runnext_multi": 0.030924608395434917,
+          "runonce_multi_tf": 0.03340470840339549,
+          "channel_iterable": 0.03734782499959692,
+          "construct_300": 0.005652291001752019
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226967552
+      }
+    ],
+    "spdlog": [
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01808595840120688,
+          "runnext_multi": 0.03026854179915972,
+          "runonce_multi_tf": 0.033454050001455474,
+          "channel_iterable": 0.03837829160038382,
+          "construct_300": 0.005621666990919039
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226181120
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.018119266798021273,
+          "runnext_multi": 0.030353333201492205,
+          "runonce_multi_tf": 0.03344899999792687,
+          "channel_iterable": 0.03785427500260994,
+          "construct_300": 0.005716709012631327
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228556800
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.02017777499859221,
+          "runnext_multi": 0.03227784159826115,
+          "runonce_multi_tf": 0.0354910583992023,
+          "channel_iterable": 0.03788358320016414,
+          "construct_300": 0.0055922920000739396
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228753408
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.018087991600623354,
+          "runnext_multi": 0.030379116599215196,
+          "runonce_multi_tf": 0.033386549999704584,
+          "channel_iterable": 0.03857949159573763,
+          "construct_300": 0.005541916994843632
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228605952
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01813685820088722,
+          "runnext_multi": 0.03058748340117745,
+          "runonce_multi_tf": 0.03331789159565233,
+          "channel_iterable": 0.03733879160135985,
+          "construct_300": 0.005629582999972627
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228229120
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01805220840033144,
+          "runnext_multi": 0.03054658340406604,
+          "runonce_multi_tf": 0.03326236660359427,
+          "channel_iterable": 0.03763029999681748,
+          "construct_300": 0.00554308298160322
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 226934784
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.017999974999111146,
+          "runnext_multi": 0.03044976679957472,
+          "runonce_multi_tf": 0.033408066595438865,
+          "channel_iterable": 0.03780799160012975,
+          "construct_300": 0.005540375015698373
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 228278272
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01892452499596402,
+          "runnext_multi": 0.03088131659897044,
+          "runonce_multi_tf": 0.03395183340180665,
+          "channel_iterable": 0.03904413319542073,
+          "construct_300": 0.0056273749796673656
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227999744
+      },
+      {
+        "source": "/Users/yunjinqi/Documents/new_projects/backtrader",
+        "samples_s": {
+          "fastpath_runnext": 0.01819507500040345,
+          "runnext_multi": 0.03062824999797158,
+          "runonce_multi_tf": 0.033578575000865384,
+          "channel_iterable": 0.03812529999995604,
+          "construct_300": 0.0055505829805042595
+        },
+        "results": {
+          "fastpath_runnext": [
+            255,
+            10249.739999999998
+          ],
+          "runnext_multi": [
+            250,
+            10219.239999999998
+          ],
+          "runonce_multi_tf": [
+            251,
+            10219.239999999998
+          ],
+          "channel_iterable": [
+            4000,
+            4000
+          ]
+        },
+        "rss_bytes": 227704832
+      }
+    ]
+  }
+}

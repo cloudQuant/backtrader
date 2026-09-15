@@ -19,9 +19,14 @@ from typing import Iterable, Iterator, Optional
 
 import numpy as np
 
+from ...utils.log_message import get_logger
+
+logger = get_logger(__name__)
+
 try:
     from hftbacktest import FuseMarketDepth
 except Exception:
+    logger.warning("binance_bbo:24 fallback on Exception")
     FuseMarketDepth = None
 
 EXCH_EVENT = 1 << 31

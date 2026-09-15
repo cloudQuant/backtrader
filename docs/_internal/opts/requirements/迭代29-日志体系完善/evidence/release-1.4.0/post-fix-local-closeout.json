@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "recorded_at_local": "2026-09-15",
+  "status": "HISTORICAL_PRE_FINAL_LOGGER_REPAIRS",
+  "scope": "Historical pre-line-system-remediation local candidate evidence only. The final logger repairs changed source after these results; use line-system-logger-remediation.json for current source binding. This is not an exact-commit package, remote-CI, tag, Release, live-trading, SimNow, or profitability record.",
+  "branch_boundary": {
+    "promotion": "dev -> development",
+    "master": "NOT_TOUCHED"
+  },
+  "source_candidate": {
+    "backtrader_python_files": 459,
+    "tree_sha256": "ab5189364dc082d3180f0074d5dc6c68d1aa5c9dacc5975f4726c699f86432d4",
+    "exact_commit_package": "PENDING",
+    "status": "HISTORICAL_SOURCE_STALE_AFTER_LINE_SYSTEM_REMEDIATION"
+  },
+  "quality": {
+    "status": "HISTORICAL_SOURCE_STALE",
+    "checks": [
+      "ruff",
+      "black",
+      "isort",
+      "mypy on 459 backtrader source files",
+      "bandit Medium/High"
+    ]
+  },
+  "framework_functional_no_sdk": {
+    "status": "HISTORICAL_SOURCE_STALE",
+    "command": "python -m pytest tests -m 'not performance' -n 8 -q -r fEs -o addopts=''",
+    "passed": 5102,
+    "skipped": 203,
+    "failed": 0,
+    "junit": {
+      "testcases": 5305,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 203
+    },
+    "skip_breakdown": {
+      "bt_api_py_absent": 187,
+      "bt_api_ctp_absent": 15,
+      "known_abs_runonce_recursion": 1
+    },
+    "isolation": "The import and distribution-metadata guard blocked bt_api_py, bt_api_base, bt_api_ctp, bt_api_okx, and bt_api_binance in inherited subprocesses.",
+    "raw_artifacts": [
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/functional-without-sdk-postfix.log",
+        "sha256": "6f2f269e3a308cf647a25bb3b02348b8994e2bb73b077cc7eb23463ef6710834"
+      },
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/functional-without-sdk-postfix.xml",
+        "sha256": "6aa195c6cf97b0935f96597bf040f976c764edbbf2dd530406fa6c2faa621b64"
+      },
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/no-sdk-site/sitecustomize.py",
+        "sha256": "e65fab6377d0b94bd9c35f3faf234c01d8de3e4f68b7d9c2e59149c3f9062368"
+      }
+    ]
+  },
+  "paired_performance": {
+    "status": "HISTORICAL_SOURCE_STALE",
+    "policy": "9 paired samples per baseline, 5 executions per sample; all declared median, RSS, and cold-import budgets passed.",
+    "raw_artifacts": [
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/performance-paired-fixed-source-current.json",
+        "sha256": "9f20aafce06caa2af48ce5f0e33e492fb6a7147e53820a8ec4f8a2e85f130b90"
+      },
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/performance-paired-fixed-source-current-summary.json",
+        "sha256": "0067ad072713cf9cbd8e122d750881794b66cac6e3299001201be6e9b61ae8a3"
+      }
+    ],
+    "median_delta_percent": {
+      "pre28": {
+        "fastpath_runnext": 2.291274980379443,
+        "runnext_multi": 3.380358145704632,
+        "runonce_multi_tf": 3.391147816043594,
+        "channel_iterable": -22.806660442437366,
+        "construct_300": -1.6391016983519968
+      },
+      "pre29": {
+        "fastpath_runnext": 2.991944231754129,
+        "runnext_multi": 1.837969515755122,
+        "runonce_multi_tf": 2.99781157941581,
+        "channel_iterable": -23.470078997903656,
+        "construct_300": -3.6351542896219566
+      }
+    },
+    "rss": {
+      "pre28_delta_bytes": 901120,
+      "pre29_delta_bytes": 245760,
+      "within_budget": true
+    },
+    "cold_import": {
+      "default_within_budget": true,
+      "light_within_budget": true
+    }
+  },
+  "external_sdk_releases": {
+    "status": "PASS_PUBLISHED",
+    "bt_api_base": "0.15.4",
+    "bt_api_ctp": "2.0.2",
+    "bt_api_py": "0.15.3",
+    "note": "The three independent SDK publication and isolated-install acceptance records are complete. Their historical pre-publication audit and proposal remain archived in this directory."
+  },
+  "framework_functional_public_sdk": {
+    "status": "HISTORICAL_SOURCE_STALE",
+    "command": "python -m pytest tests -m 'not performance' -n 8 -q -r fEs -o addopts=''",
+    "passed": 5581,
+    "skipped": 1,
+    "failed": 0,
+    "junit": {
+      "testcases": 5582,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1,
+      "seconds": 315.137
+    },
+    "seconds": 315.69,
+    "raw_artifacts": [
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/functional-with-sdk-postfix.log",
+        "sha256": "a3b1cb7ff2a8cc1282e6473ef7518413e9746c7cbc699701e2c8e887005afd82"
+      },
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/functional-with-sdk-postfix.xml",
+        "sha256": "3b0191e89ecded8194d9ccdb752c972bd5322dcc564b17d876fcac478d8454ef"
+      },
+      {
+        "path": "/tmp/backtrader-release140.zbR30K/functional-with-sdk-postfix-provenance.json",
+        "sha256": "b99881fa06dc962cc59268aa48904c10977f1594f1da032671f7d64854fd125a"
+      }
+    ]
+  },
+  "remaining_release_gates": {
+    "exact_commit_wheel_sdist_and_out_of_tree_consumer": "PENDING",
+    "dev_to_development_promotion": "PENDING",
+    "remote_ci": "PENDING",
+    "tag": "PENDING",
+    "release": "PENDING",
+    "master_final_independent_readback": "PENDING; scope remains NOT_TOUCHED",
+    "quality_after_four_file_repair": "PENDING_RERUN",
+    "full_functional_public_sdk_after_four_file_repair": "PENDING_RERUN",
+    "full_functional_no_sdk_after_four_file_repair": "PENDING_RERUN",
+    "serial_and_paired_performance_after_four_file_repair": "PENDING_RERUN",
+    "documentation_build_after_documentation_update": "PENDING_RERUN"
+  },
+  "historical_evidence": {
+    "acceptance_snapshot": "acceptance-snapshot.json",
+    "pre_close_artifact_manifest": "artifact-manifest.json",
+    "prior_no_sdk_summary": "functional-without-sdk-summary.json",
+    "prior_paired_samples": [
+      "performance-paired-round1.json",
+      "performance-paired-retry.json"
+    ]
+  },
+  "superseded_by": {
+    "record": "line-system-logger-remediation.json",
+    "reason": "The final logger source files changed after this evidence was recorded. Quality, functional, and performance results below are historical and require rerun against the final frozen source."
+  }
+}

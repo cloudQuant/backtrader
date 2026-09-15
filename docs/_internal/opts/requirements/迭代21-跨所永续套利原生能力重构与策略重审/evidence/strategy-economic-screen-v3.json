@@ -1,0 +1,45 @@
+{
+  "schema_version": 3,
+  "status": "RESEARCH_REJECTED_CALIBRATION_ECONOMIC_SCREEN",
+  "source_role": "calibration_training_only",
+  "source_sha256": "5d1a0b2e902acc23dcf6461eb1bcda855c4a4e1356d27dd917908c2a2bde8add",
+  "full_local_report_sha256": "631b9b0771b5e0ef824bc7d3f3fdf0b4050963ccacbae8800fd0fc7af1d04d10",
+  "rows": 17533,
+  "causal_paired_states": 12469,
+  "evaluated_round_trips": 149387,
+  "quantity_base": "0.01",
+  "taker_fee_per_fill": "0.0006",
+  "fill_count_per_round_trip": 4,
+  "horizons_ms": [10, 50, 100, 500, 1000, 2500],
+  "positive_after_four_taker_fees": 0,
+  "positive_ratio": "0",
+  "best_net_after_four_taker_fees_quote": "-1.14246520",
+  "method": "causal latest-opposite L2; executable entry and future exit VWAP; four taker fees",
+  "omitted_adverse_costs": [
+    "funding",
+    "network_latency",
+    "failed_leg_loss",
+    "model_error_reserve"
+  ],
+  "decisions": {
+    "012_1_midfreq_cross_exchange": {
+      "status": "RESEARCH_REJECTED",
+      "demo_pair_eligible": false,
+      "reason": "No positive four-fill taker round trip at the qualified basis half-life horizons."
+    },
+    "012_2_event_driven_cross_exchange": {
+      "status": "RESEARCH_REJECTED",
+      "demo_pair_eligible": false,
+      "reason": "No positive four-fill taker round trip at any frozen execution horizon."
+    }
+  },
+  "holdout": {
+    "status": "NOT_CONSUMED_TRAINING_SCREEN_FAILED",
+    "reason": "A holdout cannot approve a candidate that already fails its optimistic calibration cost screen."
+  },
+  "limitations": [
+    "The capture is about 15 minutes and does not cover multiple regimes or a funding cycle.",
+    "Public books do not prove private ACKs, fills, queue position, or production latency.",
+    "This rejects the frozen candidates and does not reject every possible cross-venue design."
+  ]
+}

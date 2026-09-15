@@ -5,6 +5,7 @@ functionality to ensure all requirements from Day 29-31 are met.
 """
 
 import os
+import pickle
 import sys
 
 import backtrader as bt
@@ -736,6 +737,16 @@ class TestLegacyParamsSchema:
         params.name = "custom"
         assert params["name"] == "custom"
         assert dict(params.items()) == {"period": 20, "name": "custom"}
+
+    @pytest.mark.parametrize("protocol", [0, pickle.HIGHEST_PROTOCOL])
+    def test_schema_instances_pickle_on_legacy_python_protocols(self, protocol):
+        """Parameter state remains pickleable where ``object.__getstate__`` is absent."""
+        params = LegacyParamsSchema("DemoParams", (("period", 14),))(runtime_flag=True)
+
+        restored = pickle.loads(pickle.dumps(params, protocol=protocol))
+        assert restored.params is restored
+        assert restored.to_dict() == {"period": 14, "runtime_flag": True}
+        assert restored.unknown_parameter is None
 
     def test_schema_instances_preserve_default_introspection_api(self):
         schema = LegacyParamsSchema("DemoParams", (("period", 14), ("name", "demo")))

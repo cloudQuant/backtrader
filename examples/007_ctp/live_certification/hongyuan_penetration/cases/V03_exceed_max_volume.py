@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""V03: 验证订单委托数量超过单笔最大委托数量时系统能检查并拒绝报单"""
+"""V03: Verify that the system checks and rejects order submission when the order quantity exceeds the maximum quantity per order"""
 from __future__ import annotations
 
 import datetime as dt

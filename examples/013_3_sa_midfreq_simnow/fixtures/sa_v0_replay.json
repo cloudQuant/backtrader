@@ -1,0 +1,22 @@
+{
+  "schema_version": "iter22.synthetic-quote-fixture.v1",
+  "description": "Deterministic formula and framework fixture; not market evidence or profitability evidence",
+  "instrument": "SA701",
+  "exchange": "CZCE",
+  "trading_day": "20260909",
+  "sessions": [
+    ["2026-09-09T09:00:00+08:00", "2026-09-09T10:15:00+08:00"],
+    ["2026-09-09T10:30:00+08:00", "2026-09-09T11:20:00+08:00"]
+  ],
+  "tick_interval_seconds": 1,
+  "base_price": 1500,
+  "price_tick": 1,
+  "volume_multiple": 20,
+  "lower_limit": 1200,
+  "upper_limit": 2200,
+  "bid_size": 20,
+  "ask_size": 5,
+  "starting_cumulative_volume": 1000,
+  "connection_generation": 1,
+  "source": "local_synthetic_fixture"
+}

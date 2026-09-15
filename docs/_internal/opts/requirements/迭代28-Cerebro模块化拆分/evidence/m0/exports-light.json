@@ -1,0 +1,953 @@
+{
+ "cerebro_api": {
+  "__call__": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, iterstrat)"
+  },
+  "__getstate__": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "__init__": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, **kwargs)"
+  },
+  "__setstate__": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, state)"
+  },
+  "_add_timer": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, owner, when, offset=datetime.timedelta(0), repeat=datetime.timedelta(0), weekdays=None, weekcarry=False, monthdays=None, monthcarry=True, allow=None, tzdata=None, strats=False, cheat=False, *args, **kwargs)"
+  },
+  "_advance_channel_strategy_clock": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, strat, event)"
+  },
+  "_begin_run": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_brokernotify": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_build_optreturn_results": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_check_timers": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats, dt0, cheat=False)"
+  },
+  "_datanotify": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_disable_runonce": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_end_run": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, token)"
+  },
+  "_end_run_if_started_by_current_thread": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, previous_token)"
+  },
+  "_get_channel_data_ref": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, event)"
+  },
+  "_has_metaparams_heritage": {
+   "kind": "bool"
+  },
+  "_init_stcount": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_instantiate_channel_strategies": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_maybe_add_store": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, candidate)"
+  },
+  "_next_stid": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_next_writers": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_notify_data": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, data, status, *args, **kwargs)"
+  },
+  "_notify_store": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, msg, *args, **kwargs)"
+  },
+  "_open_run_scope": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_parameter_descriptors": {
+   "kind": "NoneType"
+  },
+  "_parameter_descriptors_computed": {
+   "kind": "bool"
+  },
+  "_prepare_run": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, predata=False)"
+  },
+  "_resolve_run_flags": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_retain_external_channel_scope": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, token, runstrats)"
+  },
+  "_retire_run_scope_locked": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_run_channel": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, channel, **kwargs)"
+  },
+  "_runnext": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_runnext_old": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_runonce": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_runonce_old": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_start_channel_strategy": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, strat)"
+  },
+  "_step_channel_strategy": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, strat)"
+  },
+  "_stop_channel_strategy": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, strat)"
+  },
+  "_storenotify": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "_teardown_channel": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "_wire_channel_strategies": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "add_order_history": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, orders, notify=True)"
+  },
+  "add_report_analyzers": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, riskfree_rate=0.01)"
+  },
+  "add_signal": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, sigtype, sigcls, *sigargs, **sigkwargs)"
+  },
+  "add_timer": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, when, offset=datetime.timedelta(0), repeat=datetime.timedelta(0), weekdays=None, weekcarry=False, monthdays=None, monthcarry=True, allow=None, tzdata=None, strats=False, cheat=False, *args, **kwargs)"
+  },
+  "addanalyzer": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, ancls: type, *args, **kwargs) -> None"
+  },
+  "addcalendar": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, cal)"
+  },
+  "adddata": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, data, name: str = None)"
+  },
+  "adddatacb": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, callback)"
+  },
+  "addindicator": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, indcls, *args, **kwargs)"
+  },
+  "addobserver": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, obscls: type, *args, **kwargs) -> None"
+  },
+  "addobservermulti": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, obscls, *args, **kwargs)"
+  },
+  "addsizer": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, sizercls, *args, **kwargs)"
+  },
+  "addsizer_byidx": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, idx, sizercls, *args, **kwargs)"
+  },
+  "addstore": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, store)"
+  },
+  "addstorecb": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, callback)"
+  },
+  "addstrategy": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, strategy: type, *args, **kwargs) -> int"
+  },
+  "addtz": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, tz)"
+  },
+  "addwriter": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, wrtcls, *args, **kwargs)"
+  },
+  "broker": {
+   "fget_module": "backtrader.cerebro",
+   "kind": "property"
+  },
+  "broker_coo": {
+   "kind": "ParameterDescriptor"
+  },
+  "chaindata": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, *args, **kwargs)"
+  },
+  "cheat_on_open": {
+   "kind": "ParameterDescriptor"
+  },
+  "close_channel": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "dispatch_channel_event": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, event)"
+  },
+  "exactbars": {
+   "kind": "ParameterDescriptor"
+  },
+  "generate_report": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, output_path, format='html', template='default', user=None, memo=None, **kwargs)"
+  },
+  "getbroker": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "iterize": {
+   "decorator": "staticmethod",
+   "kind": "staticmethod",
+   "module": "backtrader.cerebro",
+   "signature": "(iterable)"
+  },
+  "live": {
+   "kind": "ParameterDescriptor"
+  },
+  "lookahead": {
+   "kind": "ParameterDescriptor"
+  },
+  "maxcpus": {
+   "kind": "ParameterDescriptor"
+  },
+  "notify_data": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, data, status, *args, **kwargs)"
+  },
+  "notify_store": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, msg, *args, **kwargs)"
+  },
+  "notify_timer": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, timer, when, *args, **kwargs)"
+  },
+  "objcache": {
+   "kind": "ParameterDescriptor"
+  },
+  "oldbuysell": {
+   "kind": "ParameterDescriptor"
+  },
+  "oldsync": {
+   "kind": "ParameterDescriptor"
+  },
+  "oldtrades": {
+   "kind": "ParameterDescriptor"
+  },
+  "optcallback": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, cb)"
+  },
+  "optdatas": {
+   "kind": "ParameterDescriptor"
+  },
+  "optreturn": {
+   "kind": "ParameterDescriptor"
+  },
+  "optstrategy": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, strategy, *args, **kwargs)"
+  },
+  "plot": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, plotter=None, numfigs=1, iplot=True, start=None, end=None, width=16, height=9, dpi=300, tight=True, use=None, backend='bokeh', **kwargs)"
+  },
+  "preload": {
+   "kind": "ParameterDescriptor"
+  },
+  "quicknotify": {
+   "kind": "ParameterDescriptor"
+  },
+  "replaydata": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, dataname, name=None, **kwargs)"
+  },
+  "resampledata": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, dataname, name=None, **kwargs)"
+  },
+  "rolloverdata": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, *args, **kwargs)"
+  },
+  "run": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, **kwargs) -> list"
+  },
+  "runonce": {
+   "kind": "ParameterDescriptor"
+  },
+  "runstop": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self)"
+  },
+  "runstrategies": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, iterstrat, predata=False)"
+  },
+  "set_fund_history": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, fund)"
+  },
+  "setbroker": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, broker)"
+  },
+  "signal_accumulate": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, onoff)"
+  },
+  "signal_concurrent": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, onoff)"
+  },
+  "signal_strategy": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, stratcls, *args, **kwargs)"
+  },
+  "stdstats": {
+   "kind": "ParameterDescriptor"
+  },
+  "stop_writers": {
+   "kind": "function",
+   "module": "backtrader.cerebro",
+   "signature": "(self, runstrats)"
+  },
+  "tradehistory": {
+   "kind": "ParameterDescriptor"
+  },
+  "tz": {
+   "kind": "ParameterDescriptor"
+  },
+  "writer": {
+   "kind": "ParameterDescriptor"
+  }
+ },
+ "cerebro_star": [
+  "AbstractDataBase",
+  "BackBroker",
+  "Cerebro",
+  "ChannelDataRef",
+  "Dict",
+  "OptReturn",
+  "OrderedDict",
+  "OwnerContext",
+  "PandasMarketCalendar",
+  "ParameterDescriptor",
+  "ParameterizedBase",
+  "SignalStrategy",
+  "Strategy",
+  "TimeFrame",
+  "Timer",
+  "TradingCalendarBase",
+  "UTC",
+  "WriterFile",
+  "collections",
+  "collectionsAbc",
+  "date2num",
+  "datetime",
+  "errors",
+  "feeds",
+  "functools",
+  "get_logger",
+  "indicator",
+  "integer_types",
+  "itertools",
+  "linebuffer",
+  "logger",
+  "map",
+  "multiprocessing",
+  "observers",
+  "range",
+  "string_types",
+  "threading",
+  "timezone",
+  "tzparse",
+  "zip"
+ ],
+ "descriptors": {
+  "broker_coo": {
+   "default": "True",
+   "doc": "Auto-activate broker cheat-on-open",
+   "type": "bool"
+  },
+  "cheat_on_open": {
+   "default": "False",
+   "doc": "Enable cheat-on-open execution",
+   "type": "bool"
+  },
+  "exactbars": {
+   "default": "False",
+   "doc": "Memory usage control for lines objects",
+   "type": null
+  },
+  "live": {
+   "default": "False",
+   "doc": "Run in live mode",
+   "type": "bool"
+  },
+  "lookahead": {
+   "default": "0",
+   "doc": "Lookahead parameter",
+   "type": "int"
+  },
+  "maxcpus": {
+   "default": "None",
+   "doc": "How many cores to use for optimization",
+   "type": null
+  },
+  "objcache": {
+   "default": "False",
+   "doc": "Cache lines objects to reduce memory",
+   "type": "bool"
+  },
+  "oldbuysell": {
+   "default": "False",
+   "doc": "Use old BuySell observer behavior",
+   "type": "bool"
+  },
+  "oldsync": {
+   "default": "False",
+   "doc": "Use old synchronization behavior",
+   "type": "bool"
+  },
+  "oldtrades": {
+   "default": "False",
+   "doc": "Use old Trades observer behavior",
+   "type": "bool"
+  },
+  "optdatas": {
+   "default": "True",
+   "doc": "Optimize data preloading during optimization",
+   "type": "bool"
+  },
+  "optreturn": {
+   "default": "True",
+   "doc": "Return simplified objects during optimization",
+   "type": "bool"
+  },
+  "preload": {
+   "default": "True",
+   "doc": "Whether to preload the different data feeds",
+   "type": "bool"
+  },
+  "quicknotify": {
+   "default": "False",
+   "doc": "Deliver broker notifications quickly",
+   "type": "bool"
+  },
+  "runonce": {
+   "default": "True",
+   "doc": "Run Indicators in vectorized mode",
+   "type": "bool"
+  },
+  "stdstats": {
+   "default": "True",
+   "doc": "Add default Observers",
+   "type": "bool"
+  },
+  "tradehistory": {
+   "default": "False",
+   "doc": "Activate trade history logging",
+   "type": "bool"
+  },
+  "tz": {
+   "default": "None",
+   "doc": "Global timezone for strategies",
+   "type": null
+  },
+  "writer": {
+   "default": "False",
+   "doc": "Add a default WriterFile",
+   "type": "bool"
+  }
+ },
+ "identity": {
+  "bt_Cerebro_is_module_Cerebro": true,
+  "bt_Strategy_is_cerebro_Strategy": true,
+  "bt_Timer_is_cerebro_Timer": true,
+  "bt_feeds_is_cerebro_feeds": true,
+  "cerebro_file": "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader/cerebro.py",
+  "cerebro_module": "backtrader.cerebro",
+  "cerebro_qualname": "Cerebro",
+  "optreturn_module": "backtrader.cerebro",
+  "optreturn_qualname": "OptReturn"
+ },
+ "mode": "light",
+ "root_namespace": [
+  "AbstractDataBase",
+  "All",
+  "And",
+  "Any",
+  "AutoDictList",
+  "AutoInfoClass",
+  "AutoOrderedDict",
+  "BackBroker",
+  "BacktraderError",
+  "BoolParam",
+  "BrokerAliasMixin",
+  "BrokerBase",
+  "BrokerError",
+  "BtApiStrategy",
+  "BuyOrder",
+  "CSVDataBase",
+  "CSVFeedBase",
+  "Cerebro",
+  "ChannelDataRef",
+  "Cmp",
+  "CmpEx",
+  "CommInfoBase",
+  "ComminfoDC",
+  "ComminfoFundingRate",
+  "ComminfoFuturesFixed",
+  "ComminfoFuturesInverse",
+  "ComminfoFuturesMixed",
+  "ComminfoFuturesPercent",
+  "CommissionInfo",
+  "ConfigError",
+  "DataAccessor",
+  "DataBase",
+  "DataClone",
+  "DataError",
+  "DataSeries",
+  "Dict",
+  "DivByZero",
+  "DivZeroByZero",
+  "DotDict",
+  "FeedBase",
+  "FixedSize",
+  "Float",
+  "INF",
+  "If",
+  "Indicator",
+  "IndicatorBase",
+  "IndicatorRegistry",
+  "ItemCollection",
+  "LineActions",
+  "LineActionsCache",
+  "LineActionsMixin",
+  "LineAlias",
+  "LineBuffer",
+  "LineCoupler",
+  "LineDelay",
+  "LineIterator",
+  "LineIteratorMixin",
+  "LineMultiple",
+  "LineNum",
+  "LineOwnOperation",
+  "LinePlotterIndicator",
+  "LinePlotterIndicatorBase",
+  "LineRoot",
+  "LineRootMixin",
+  "LineSeries",
+  "LineSeriesMaker",
+  "LineSeriesMixin",
+  "LineSeriesStub",
+  "LineSingle",
+  "Lines",
+  "LinesCoupler",
+  "LinesManager",
+  "LinesOperation",
+  "Lines_lines",
+  "Lines_lines1",
+  "Lines_lines12",
+  "Lines_lines123",
+  "Lines_lines1234",
+  "Lines_lines12345",
+  "Lines_lines123456",
+  "Lines_lines1234567",
+  "Lines_lines12345678",
+  "Lines_lines123456789",
+  "Lines_lines12345678910",
+  "Lines_lines1234567891011",
+  "Lines_lines123456789101112",
+  "Lines_lines12345678910111213",
+  "Lines_lines1234567891011121314",
+  "Lines_lines123456789101112131415",
+  "Lines_lines12345678910111213141516",
+  "Lines_lines1234567891011121314151617",
+  "Lines_lines123456789101112131415161718",
+  "Lines_lines12345678910111213141516171819",
+  "Lines_lines1234567891011121314151617181920",
+  "Lines_lines123456789101112131415161718192021",
+  "Lines_lines12345678910111213141516171819202122",
+  "Lines_lines1234567891011121314151617181920212223",
+  "Lines_lines123456789101112131415161718192021222324",
+  "Lines_lines12345678910111213141516171819202122232425",
+  "Lines_lines1234567891011121314151617181920212223242526",
+  "Lines_lines123456789101112131415161718192021222324252627",
+  "Lines_lines12345678910111213141516171819202122232425262728",
+  "Lines_lines1234567891011121314151617181920212223242526272829",
+  "Lines_lines123456789101112131415161718192021222324252627282930",
+  "Lines_lines12345678910111213141516171819202122232425262728293031",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970717273",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071727374",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970717273747576",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071727374757677",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970717273747576777879",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071727374757677787980",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081",
+  "Lines_lines12345678910111213141516171819202122232425262728293031323334353637383940414243444546474849505152535455565758596061626364656667686970717273747576777879808182",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647484950515253545556575859606162636465666768697071727374757677787980818283",
+  "Lines_lines123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566_lines",
+  "Lines_lines1234567891011121314151617181920212223242526272829303132333435363738394041424344454647_lines",
+  "Lines_lines1_lines",
+  "List",
+  "Localizer",
+  "Logic",
+  "MAXINT",
+  "Max",
+  "Min",
+  "MinimalClock",
+  "MinimalData",
+  "MinimalOwner",
+  "MultiCoupler",
+  "MultiLogic",
+  "MultiLogicReduce",
+  "NAN",
+  "NEG_INF",
+  "OHLC",
+  "OHLCDateTime",
+  "Observer",
+  "ObserverBase",
+  "OptReturn",
+  "Optional",
+  "Or",
+  "Order",
+  "OrderBase",
+  "OrderData",
+  "OrderError",
+  "OrderExecutionBit",
+  "OrderParams",
+  "OrderedDict",
+  "OwnerContext",
+  "POSITION_MODE_DUAL_SIDE",
+  "POSITION_OFFSET_CLOSE",
+  "POSITION_SIDE_LONG",
+  "POSITION_SIDE_SHORT",
+  "PandasMarketCalendar",
+  "ParameterDescriptor",
+  "ParameterizedBase",
+  "Position",
+  "PseudoArray",
+  "Reduce",
+  "Replayer",
+  "Resampler",
+  "SESSION_END",
+  "SESSION_START",
+  "SESSION_TIME",
+  "SIGNAL_LONG",
+  "SIGNAL_LONGEXIT",
+  "SIGNAL_LONGEXIT_ANY",
+  "SIGNAL_LONGEXIT_INV",
+  "SIGNAL_LONGSHORT",
+  "SIGNAL_LONG_ANY",
+  "SIGNAL_LONG_INV",
+  "SIGNAL_NONE",
+  "SIGNAL_SHORT",
+  "SIGNAL_SHORTEXIT",
+  "SIGNAL_SHORTEXIT_ANY",
+  "SIGNAL_SHORTEXIT_INV",
+  "SIGNAL_SHORT_ANY",
+  "SIGNAL_SHORT_INV",
+  "SellOrder",
+  "Signal",
+  "SignalStrategy",
+  "SignalTypes",
+  "SimpleFilterWrapper",
+  "SingleCoupler",
+  "SpdLogManager",
+  "StopBuyOrder",
+  "StopLimitBuyOrder",
+  "StopLimitSellOrder",
+  "StopSellOrder",
+  "Strategy",
+  "StrategyBase",
+  "StrategySkipError",
+  "Sum",
+  "TimeFrame",
+  "Timer",
+  "Trade",
+  "TradeHistory",
+  "TradingCalendarBase",
+  "UTC",
+  "WriterFile",
+  "absolute_import",
+  "array",
+  "broker",
+  "brokers",
+  "cerebro",
+  "channel",
+  "cmp",
+  "collections",
+  "collectionsAbc",
+  "comminfo",
+  "configure_logging",
+  "copy",
+  "dataseries",
+  "date2num",
+  "datetime",
+  "division",
+  "errors",
+  "events",
+  "feed",
+  "feeds",
+  "filter",
+  "findowner",
+  "functions",
+  "functools",
+  "get_logger",
+  "ind",
+  "indicator",
+  "indicators",
+  "inspect",
+  "integer_types",
+  "islice",
+  "iteritems",
+  "itertools",
+  "keys",
+  "linebuffer",
+  "lineiterator",
+  "lineroot",
+  "lineseries",
+  "logger",
+  "make_legacy_parameter_accessor",
+  "map",
+  "math",
+  "metabase",
+  "multiprocessing",
+  "normalize_position_mode",
+  "normalize_position_side",
+  "num2date",
+  "num2dt",
+  "num2time",
+  "obs",
+  "observer",
+  "observers",
+  "operator",
+  "order",
+  "os",
+  "parameters",
+  "position",
+  "position_modes",
+  "print_function",
+  "range",
+  "repeat",
+  "resamplerfilter",
+  "reset_logging",
+  "set_level",
+  "signal",
+  "sizer",
+  "sizers",
+  "stores",
+  "strategy",
+  "string_types",
+  "sys",
+  "threading",
+  "time2num",
+  "timer",
+  "timezone",
+  "trade",
+  "trade_key_from_order",
+  "tradingcal",
+  "tzparse",
+  "unicode_literals",
+  "utils",
+  "version",
+  "writer",
+  "zip"
+ ]
+}
+

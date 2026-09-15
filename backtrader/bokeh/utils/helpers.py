@@ -95,7 +95,7 @@ def get_indicator_label(indicator):
                     if not callable(value):
                         params.append(f"{name}={value}")
                 except Exception as e:
-                    logger.debug("Failed to get indicator param '%s': %s", name, e)
+                    logger.warning("Failed to get indicator param '%s': %s", name, e)
         if params:
             label += f" ({', '.join(params[:3])})"  # Show max 3 parameters
 
@@ -118,6 +118,7 @@ def format_datetime(dt, fmt="%Y-%m-%d %H:%M"):
     try:
         return dt.strftime(fmt)
     except Exception:
+        logger.warning("helpers:120 fallback on Exception")
         return str(dt)
 
 

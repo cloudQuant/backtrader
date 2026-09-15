@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""TH06: 验证重复报单笔数达到或超过阈值时会预警（选测）"""
+"""TH06: Verify that an alert is triggered when the repeated order submission count reaches or exceeds the threshold (optional)"""
 from __future__ import annotations
 
 import datetime as dt

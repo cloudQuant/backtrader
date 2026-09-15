@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""TH03: 验证提供报撤单总数统计与阈值设置功能"""
+"""TH03: Verify that total order and cancel count statistics with threshold settings are provided"""
 from __future__ import annotations
 
 import sys

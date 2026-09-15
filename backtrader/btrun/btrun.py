@@ -44,7 +44,10 @@ from ..feeds.yahoounreversed import YahooFinanceCSVData as YahooFinanceCSVDataUn
 from ..indicator import Indicator
 from ..observer import Observer
 from ..strategy import Strategy
+from ..utils.log_message import get_logger
 from ..writer import WriterFile
+
+logger = get_logger(__name__)
 
 try:
     from ..feeds.btapifeed import BtApiFeed
@@ -107,7 +110,7 @@ def _safe_parse_kwargs(kwtext: str) -> dict:
             return parsed
     except (ValueError, SyntaxError, TypeError):
         # Not a clean dict literal; fall back to manual key=value parsing below.
-        pass
+        logger.debug("btrun:112 ignored ValueError,SyntaxError,TypeError")
 
     # Fall back to manual parsing
     # Handle nested parentheses and quoted strings properly
@@ -186,7 +189,7 @@ def _convert_value(value: str):
         return ast.literal_eval(value)
     except (ValueError, SyntaxError):
         # Not a Python literal; try the explicit conversions below.
-        pass
+        logger.debug("btrun:191 ignored ValueError,SyntaxError")
 
     # Handle boolean values (case-insensitive)
     if value.lower() == "true":
@@ -201,14 +204,14 @@ def _convert_value(value: str):
         return int(value)
     except ValueError:
         # Not an integer; try float next.
-        pass
+        logger.debug("btrun:206 ignored ValueError")
 
     # Handle floats
     try:
         return float(value)
     except ValueError:
         # Not a float; treat as a (possibly quoted) string below.
-        pass
+        logger.debug("btrun:213 ignored ValueError")
 
     # Remove surrounding quotes if present
     if len(value) >= 2:
@@ -559,6 +562,7 @@ def loadmodule(modpath, modname=""):
     try:
         mod = _load_module_from_path(modpath, modname)
     except Exception as e:
+        logger.warning("btrun:564 fallback on Exception")
         return None, e
 
     return mod, None

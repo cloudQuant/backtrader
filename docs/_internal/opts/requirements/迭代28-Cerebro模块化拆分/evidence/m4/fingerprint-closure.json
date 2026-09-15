@@ -1,0 +1,77 @@
+{
+ "per_file": {
+  "backtrader/cerebro.py": {
+   "status": "PASS",
+   "label": "backtrader.cerebro",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/__init__.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/registry.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.registry",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/notifications.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.notifications",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/lifecycle.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.lifecycle",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/channel.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.channel",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/execution.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.execution",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/runnext.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.runnext",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/runonce.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.runonce",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  },
+  "backtrader/_cerebro/presentation.py": {
+   "status": "PASS",
+   "label": "backtrader._cerebro.presentation",
+   "runtime_hash_changed": true,
+   "source_hash_changed": true,
+   "fingerprint_changed": true
+  }
+ },
+ "all_pass": true,
+ "restored_equal": true,
+ "note": "bt_api_py labels excluded: no installed wheel with VCS attestation on this machine (fail-closed), full collector verified by test_cross_exchange_demo_contract.py where environment allows"
+}

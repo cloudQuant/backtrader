@@ -23,6 +23,7 @@ class CertificationScenario:
     )
 
     def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-safe copy with set/tuple fields rendered as lists."""
         payload = asdict(self)
         payload["required_events"] = list(self.required_events)
         payload["evidence_fields"] = list(self.evidence_fields)

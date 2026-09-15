@@ -1,4 +1,5 @@
 """Tests for dual-side BtApiBroker functionality."""
+
 import pytest
 
 import backtrader as bt
@@ -27,10 +28,18 @@ def test_btapibroker_dual_side_getposition_keeps_clone_compatibility_before_star
     assert cached_long.size == pytest.approx(2.0)
     assert cached_short.size == pytest.approx(1.0)
 
+    report_state = broker.get_cached_report_state()
+    report_legs = report_state["position_legs"][DEFAULT_SYMBOL]
+    assert report_state["positions"][DEFAULT_SYMBOL].size == pytest.approx(1.0)
+    assert report_legs["long"] is cached_long
+    assert report_legs["short"] is cached_short
+
 
 def test_btapibroker_dual_side_start_requires_provider_capability():
     """Test BtApiBroker dual side start requires provider capability."""
-    client = FakeBtApiClient(positions=[{"instrument": DEFAULT_SYMBOL, "volume": 2, "direction": "long"}])
+    client = FakeBtApiClient(
+        positions=[{"instrument": DEFAULT_SYMBOL, "volume": 2, "direction": "long"}]
+    )
     store = make_store(api=client)
     broker = store.getbroker(position_mode="dual_side")
 
@@ -109,3 +118,76 @@ def test_btapibroker_dual_side_remote_trade_updates_keep_legs_separate():
         assert broker.getposition(data, clone=False, side="short").size == pytest.approx(0.0)
     finally:
         broker.stop()
+
+
+def test_dual_side_sync_aggregates_distinct_position_rows_without_losing_gross():
+    # CTP may split today/yesterday; MT5 may have multiple position tickets.
+    client = FakeBtApiClient(
+        positions=[
+            {
+                "instrument": DEFAULT_SYMBOL,
+                "volume": 2,
+                "direction": "long",
+                "price": 100,
+                "position_id": "a",
+            },
+            {
+                "instrument": DEFAULT_SYMBOL,
+                "volume": 1,
+                "direction": "long",
+                "price": 106,
+                "position_id": "b",
+            },
+            {
+                "instrument": DEFAULT_SYMBOL,
+                "volume": 3,
+                "direction": "short",
+                "price": 110,
+                "position_id": "c",
+            },
+        ]
+    )
+    store = make_store(api=client, supports_dual_side=True)
+    broker = store.getbroker(position_mode="dual_side")
+    data = type("LiveData", (), {"_name": DEFAULT_SYMBOL})()
+    broker.start()
+    try:
+        assert broker.getposition(data, side="long").size == 3
+        assert broker.getposition(data, side="long").price == pytest.approx(102)
+        assert broker.getposition(data, side="short").size == 3
+        assert broker.getposition(data, side="short").price == 110
+        assert broker.getposition(data).size == 0
+    finally:
+        broker.stop()
+
+
+@pytest.mark.parametrize("offset", ["close_today", "close_yesterday"])
+@pytest.mark.parametrize("side", ["long", "short"])
+def test_dated_dual_side_closes_preserve_offset_and_cannot_exceed_leg(offset, side):
+    client = FakeBtApiClient(
+        positions=[{"instrument": DEFAULT_SYMBOL, "volume": 1, "direction": side, "price": 100}],
+        history={DEFAULT_SYMBOL: [make_bar(0, 100, 101, 99, 100)]},
+    )
+    store = make_store(api=client, supports_dual_side=True)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    data._start()
+    assert data.load()
+    broker = store.getbroker(position_mode="dual_side")
+    broker.start()
+    try:
+        method = broker.sell if side == "long" else broker.buy
+        order = method(
+            owner=None,
+            data=data,
+            size=2,
+            price=100,
+            exectype=bt.Order.Limit,
+            position_side=side,
+            offset=offset,
+        )
+        assert order.info["offset"] == offset
+        assert order.status == bt.Order.Rejected
+        assert not client.submitted_orders
+    finally:
+        broker.stop()
+        data.stop()

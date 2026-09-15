@@ -1,0 +1,275 @@
+{
+  "scope": "ITERATION25_FUTURE_TIMING_SLICE_INDEPENDENT_PREPARATION",
+  "status": "PREPARED_REQUIRES_ASTRA_CONTRACT_NOT_IMPLEMENTATION_AUTHORIZATION",
+  "source_hashes": {
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代25-CTP期权期货高频套利策略/需求文档.md": "6046a396ca6970fa08be16a97856751c043b2d1060dfa7e4360bdd65880a22f0",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代25-CTP期权期货高频套利策略/设计文档.md": "36d5fd7719439c2b30c27021f860e8990abda0a8cec24f314f582fda2d7c4bb6",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代25-CTP期权期货高频套利策略/验收文档.md": "0436f1be830b84a1da9fbfe441af02f31bb6f4967f58ed0f0c844eb688107604",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/docs/_internal/opts/requirements/迭代23-CTP期权期货低频套利策略/公共架构与基线.md": "21a3828f04d1081a4cbb6169f85ffe9e73d76c568a6e64c0e754e6503e499c90"
+  },
+  "cases": [
+    {
+      "id": "ROOT-HFT1-01",
+      "source": "D25-06/FR25-07",
+      "inputs": {
+        "callbacks": [
+          "next",
+          "notify_bar",
+          "notify_idle"
+        ],
+        "fresh_entry_signal_cached": true
+      },
+      "expected": {
+        "new_ordinary_entries_each": [
+          0,
+          0,
+          0
+        ],
+        "normal_entry_and_normal_opportunity_exit_only_from_eligible_causal_tick": true,
+        "idle_can_project_risk_without_quotes": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-02",
+      "source": "D25-08",
+      "inputs": {
+        "intent_lower_ns": 100000000000,
+        "proven_same_domain_native_send_lower_ns": 100200000000,
+        "leg_timeout_ns": 1000000000
+      },
+      "expected": {
+        "deadline_with_proven_send_ns": 101200000000,
+        "deadline_if_send_unavailable_ns": 101000000000,
+        "ACK_cannot_reset": true,
+        "SDK_acceptance_is_not_native_send": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-03",
+      "source": "D25-08/AC25-14",
+      "inputs": {
+        "earliest_basket_possible_exposure_lower_ns": 100000000000,
+        "last_leg_send_ns": 102900000000,
+        "confirmed_hedged": false,
+        "basket_timeout_ns": 3000000000
+      },
+      "expected": {
+        "proposed_unhedged_deadline_ns": 103000000000,
+        "later_ACK_fill_query_does_not_extend": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": true
+    },
+    {
+      "id": "ROOT-HFT1-04",
+      "source": "D25-06/13/AC25-14",
+      "inputs": {
+        "first_possible_exposure_lower_ns": 100000000000,
+        "complete_basket_fill_upper_ns": 102000000000,
+        "maximum_hold_ns": 60000000000
+      },
+      "expected": {
+        "proposed_maximum_hold_deadline_ns": 160000000000,
+        "never_move_to_162_seconds": true,
+        "trigger_without_next_tick": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": true
+    },
+    {
+      "id": "ROOT-HFT1-05",
+      "source": "D25-10/AC25-14",
+      "inputs": {
+        "original_monotonic_deadline_ns": 103000000000,
+        "wall_jump_seconds": [
+          -3600,
+          3600
+        ],
+        "same_domain_and_monotonic_valid": true
+      },
+      "expected": {
+        "deadline_ns_each": [
+          103000000000,
+          103000000000
+        ],
+        "no_relative_deadline_shift": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-06",
+      "source": "D25-09/10/AC25-13/14",
+      "inputs": {
+        "faults": [
+          "monotonic_regression",
+          "foreign_domain",
+          "new_boot_unknown_mapping"
+        ],
+        "pending_order_possible_fill": 1
+      },
+      "expected": {
+        "ordinary_permission": false,
+        "cross_domain_subtraction": false,
+        "pending_possible_fill_retained": 1,
+        "must_reconcile_before_reentry": true,
+        "flat_claim": false
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-07",
+      "source": "D25-10/AC25-14",
+      "inputs": {
+        "idle_gaps_ns": [
+          49999999,
+          50000000,
+          50000001
+        ],
+        "tick_and_bar_count": 0,
+        "parallel_read_only_query_duration_ns": 2000000000
+      },
+      "expected": {
+        "cadence_limit_satisfied": [
+          true,
+          true,
+          false
+        ],
+        "risk_clock_must_continue_despite_query": true,
+        "synthetic_functional_check_not_live_SLA": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-08",
+      "source": "D25-08/AC25-11",
+      "inputs": {
+        "protection_leg_confirmed_quantities": [
+          0,
+          1
+        ],
+        "ACK_only": true,
+        "production_lots": 1
+      },
+      "expected": {
+        "next_leg_max_quantity": [
+          0,
+          1
+        ],
+        "no_next_leg_based_on_ACK_alone": true,
+        "offline_two_lot_partial_fixture_is_not_valid_production_config": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-09",
+      "source": "D25-09/AC25-12",
+      "inputs": {
+        "events": [
+          "cancel_ACK",
+          "late_trade_1",
+          "duplicate_trade_1"
+        ],
+        "terminal_quantity_complete": false
+      },
+      "expected": {
+        "cancel_ACK_releases_uncertainty": false,
+        "late_trade_applied_once": true,
+        "identity_includes": [
+          "account",
+          "exchange",
+          "TradingDay",
+          "TradeID"
+        ],
+        "missing_detail_not_synthetic_fill": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-10",
+      "source": "D25-05/08",
+      "inputs": {
+        "cohort_age_ns": [
+          250000000,
+          250000001
+        ],
+        "cohort_skew_ns": [
+          100000000,
+          100000001
+        ],
+        "all_other_facts_valid": true
+      },
+      "expected": {
+        "age_subgate": [
+          true,
+          false
+        ],
+        "skew_subgate": [
+          true,
+          false
+        ],
+        "recheck_each_leg": true,
+        "fresh_new_cohort_does_not_extend_basket_deadline": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-11",
+      "source": "D25-03/13/AC25-17",
+      "inputs": {
+        "seconds_until_segment_close": [
+          1800,
+          600,
+          180
+        ],
+        "calendar_missing_or_only_weekdays": true
+      },
+      "expected": {
+        "independent_obligations": [
+          "STOP_ENTRY",
+          "RISK_EXIT",
+          "HANDOVER_IF_PENDING"
+        ],
+        "calendar_missing_prevents_admission": true,
+        "no_executable_quote_keeps_unresolved_exposure": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    },
+    {
+      "id": "ROOT-HFT1-12",
+      "source": "D25-13/AC25-29",
+      "inputs": {
+        "stop_requested": true,
+        "cancel_pending": true,
+        "late_fill_not_fully_reconciled": true,
+        "parent_stop_deadline_expired": true
+      },
+      "expected": {
+        "status": "STOP_INCOMPLETE/UNRESOLVED_EXPOSURE",
+        "zero_new_ordinary_intents": true,
+        "clear_positions_or_claim_flat": false,
+        "original_journal_and_later_append_revision_retained": true
+      },
+      "status": "PREPARED_NOT_RUN",
+      "requires_Astra_explicit_interpretation_freeze": false
+    }
+  ],
+  "explicit_specification_gaps_for_Astra": [
+    "D25 explicitly fixes leg1s/unhedged3s/maximum-hold60s and idle50ms; it does not in the read sections separately specify a cancel-terminal timeout or a controlled-recovery-window default. Do not copy MF5s cancel or60s recovery into HF silently: HF60s here is maximum holding time.",
+    "Exact deadline comparator at equality and basket/holding origins should be explicitly frozen in the next Astra contract. Proposal is fail-closed now_upper>=origin_lower+timeout and earliest possible exposure for basket/holding; these strengthening interpretations are not misrepresented as a verbatim existing formula.",
+    "With valid SDK native-send proof the leg origin follows proven send; lacking that proof use earlier durable intent. Do not pretend SDK acceptance/callback timestamp is native send.",
+    "This preparation neither admits current candidate nor establishes actual grants/O2/native send/real fills/latency/HFT. Existing accepted FQ1 and cohort evidence must be preserved."
+  ],
+  "source_only_no_candidate_market_data_read": true,
+  "product_files_modified": false
+}

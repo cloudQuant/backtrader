@@ -1,0 +1,29 @@
+{
+  "schema_version": "iteration27.current-head-t1-verification.v1",
+  "recorded_on": "2026-09-14",
+  "status": "PASS_CURRENT_HEAD_FULL_REGRESSION",
+  "scope": "One full regression on the clean current dev checkout before this documentation-only batch.",
+  "source_result": {
+    "path": "/tmp/iter27-t1-current-head.eAutXu/result.json",
+    "sha256": "ba6ad9a724f731f15486be94e7884e4697a10c001954d0de063fe8996921eb13",
+    "retention_boundary": "The detailed terminal transcript remains in controlled task execution history. The volatile result pointer is non-secret and records revision, clean-state boundary, command, exit code and segment results."
+  },
+  "source": {
+    "repository": "backtrader",
+    "branch": "dev",
+    "head": "35256ca177097c753ffac447348bcbb6f018235c",
+    "pre_run_status_porcelain": "",
+    "post_run_status_porcelain": ""
+  },
+  "command": "/Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base make test-all",
+  "exit_code": 0,
+  "result_summary": {
+    "nonperformance": "5290 passed, 1 skipped in 414.30s",
+    "performance": "19 passed, 5292 deselected in 31.65s",
+    "isolated_ctp_rss": "1 passed in 0.49s"
+  },
+  "limits": [
+    "This is one current-code regression run, not a CTP/SimNow, exchange-demo, fill, PnL, profitability or release acceptance.",
+    "The later documentation-only batch did not participate in this test run and does not alter runtime code."
+  ]
+}

@@ -43,7 +43,7 @@ from itertools import islice, repeat
 from . import metabase
 from .lineroot import LineRoot, LineRootMixin, LineSingle
 from .utils import num2date
-from .utils.log_message import get_logger
+from .utils.log_message import get_logger, throttled_error, throttled_warning
 from .utils.py3 import range, string_types
 
 logger = get_logger(__name__)
@@ -135,6 +135,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         try:
             self._is_indicator = (self._ltype == 0) or ("Indicator" in str(self.__class__.__name__))
         except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.init.indicator_classification_recovery",
+                "LineBuffer indicator classification failed; using non-indicator defaults",
+                exc_info=False,
+            )
             self._is_indicator = False
 
         # Performance optimization: pre-calculate whether this is a datetime line
@@ -148,6 +154,12 @@ class LineBuffer(LineSingle, LineRootMixin):
                 class_str = str(self.__class__.__name__).lower()
                 self._is_datetime_line = "datetime" in class_str
         except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.init.datetime_classification_recovery",
+                "LineBuffer datetime classification failed; using non-datetime defaults",
+                exc_info=False,
+            )
             self._is_datetime_line = False
 
         # Pre-calculate default value to avoid repeated checks in __setitem__
@@ -200,6 +212,12 @@ class LineBuffer(LineSingle, LineRootMixin):
                 "Indicator" in str(self.__class__.__name__)
             )
         except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.refresh.indicator_classification_recovery",
+                "LineBuffer cached indicator classification failed; using non-indicator defaults",
+                exc_info=False,
+            )
             self._is_indicator = False
 
         try:
@@ -210,6 +228,12 @@ class LineBuffer(LineSingle, LineRootMixin):
                 class_str = str(self.__class__.__name__).lower()
                 self._is_datetime_line = "datetime" in class_str
         except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.refresh.datetime_classification_recovery",
+                "LineBuffer cached datetime classification failed; using non-datetime defaults",
+                exc_info=False,
+            )
             self._is_datetime_line = False
 
         if self._is_datetime_line:
@@ -279,8 +303,13 @@ class LineBuffer(LineSingle, LineRootMixin):
                         array_len = len(self.array)
                         if array_len > 0:
                             preserve_array = True
-        except Exception as e:
-            logger.debug("Failed to check runonce array preservation: %s", e)
+        except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.reset.runonce_preservation_recovery",
+                "LineBuffer runonce array preservation check failed; resetting normally",
+                exc_info=False,
+            )
 
         if preserve_array:
             # In runonce mode with populated arrays, preserve the precomputed
@@ -410,6 +439,8 @@ class LineBuffer(LineSingle, LineRootMixin):
                     return 0.0
                 return value
             except IndexError:
+                # An unpopulated buffer is an expected EAFP probe. Preserve the
+                # historical slow-path fallback without adding hot-path noise.
                 pass
 
         # PERFORMANCE OPTIMIZATION: Fast path for common case (ago <= 0)
@@ -424,7 +455,8 @@ class LineBuffer(LineSingle, LineRootMixin):
                 return 0.0
             return value
         except IndexError:
-            # Index out of buffer range; fall through to the slow-path handling.
+            # Index out of buffer range is an expected protocol probe; fall
+            # through to the existing slow-path handling without logging.
             pass
 
         # Slow path: handle special cases
@@ -679,8 +711,16 @@ class LineBuffer(LineSingle, LineRootMixin):
                     try:
                         if self.lencount >= len(clock):
                             return
-                    except Exception as e:
-                        logger.debug("Failed to check clock length in forward: %s", e)
+                    except Exception:
+                        # A broken optional clock must not block the line from
+                        # advancing. Keep the established recovery semantics
+                        # without rendering arbitrary exception data.
+                        throttled_warning(
+                            logger,
+                            "linebuffer.forward.clock_length_recovery",
+                            "LineBuffer clock length lookup failed; continuing forward",
+                            exc_info=False,
+                        )
 
             if self.mode == self.QBuffer:
                 self.idx = self._idx + 1
@@ -718,8 +758,14 @@ class LineBuffer(LineSingle, LineRootMixin):
                         size = max_advance
                     if size <= 0:
                         return
-                except Exception as e:
-                    logger.debug("Failed to check clock length in forward: %s", e)
+                except Exception:
+                    # Keep the requested size when a clock cannot be measured.
+                    throttled_warning(
+                        logger,
+                        "linebuffer.forward.clock_length_recovery",
+                        "LineBuffer clock length lookup failed; continuing forward",
+                        exc_info=False,
+                    )
 
         # CRITICAL FIX: Ensure we have a valid size
         if size <= 0:
@@ -1031,7 +1077,8 @@ class LineBuffer(LineSingle, LineRootMixin):
         try:
             dt = self.datetime(ago, tz, naive)
         except IndexError:
-            # Re-raise IndexError to allow strategy to detect end of data
+            # This is the normal end-of-data signal. Preserve the exception
+            # exactly and keep repeated protocol probes silent.
             raise
         if dt is None:
             return None
@@ -1506,6 +1553,12 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 [(d._name, d) for d in instance.datas if getattr(d, "_name", "")]
             )
         except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.lineactions.dnames_recovery",
+                "LineActions data-name setup failed; using empty names",
+                exc_info=False,
+            )
             instance.dnames = {}
 
         return instance
@@ -1545,8 +1598,13 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             from .lineiterator import LineIterator
 
             self._owner = metabase.findowner(self, LineIterator)
-        except Exception as e:
-            logger.debug("Failed to find LineIterator owner: %s", e)
+        except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.lineactions.lineiterator_owner_recovery",
+                "LineActions LineIterator owner lookup failed; continuing owner resolution",
+                exc_info=False,
+            )
 
         # If no LineIterator found, try Strategy specifically
         try:
@@ -1554,8 +1612,13 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
             if self._owner is None:
                 self._owner = metabase.findowner(self, Strategy)
-        except Exception as e:
-            logger.debug("Failed to find Strategy owner: %s", e)
+        except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.lineactions.strategy_owner_recovery",
+                "LineActions Strategy owner lookup failed; continuing owner resolution",
+                exc_info=False,
+            )
 
         # If still no owner, try a broader search
         # findowner() uses OwnerContext for owner lookup
@@ -1676,7 +1739,14 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                     # Forward one step to match the clock
                     self.forward()
             except Exception:
-                # If clock access fails, just forward once
+                # Clock access changes the recovery path: keep advancing once,
+                # but make recurring broken clocks visible without a log storm.
+                throttled_warning(
+                    logger,
+                    "linebuffer.lineactions.next_old.clock_failure",
+                    "LineActions clock access failed; forcing one forward step",
+                    exc_info=False,
+                )
                 self.forward()
         else:
             # No clock, just forward once
@@ -1712,7 +1782,16 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         if hasattr(self, "_clock") and self._clock and hasattr(self._clock, "buflen"):
             clock_class_name = getattr(self._clock, "__class__", type(None)).__name__
             if "MinimalClock" not in clock_class_name:
-                max_len = self._clock.buflen()
+                try:
+                    max_len = self._clock.buflen()
+                except Exception:
+                    throttled_error(
+                        logger,
+                        "linebuffer.lineactions.once.clock_preflight_failure",
+                        "LineActions clock buffer length lookup failed; propagating exception",
+                        exc_info=False,
+                    )
+                    raise
                 if max_len > 0 and end > max_len:
                     end = max_len
 
@@ -1725,15 +1804,33 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 try:
                     if hasattr(indicator, "_once"):
                         indicator._once(start, end)
-                except Exception as e:
-                    logger.debug("Indicator _once failed: %s", e)
+                except Exception:
+                    # A child owns data consumed by this action's batch hook.
+                    # Continuing would fabricate a partial result with no
+                    # defined recovery value, so make the dependency failure
+                    # visible and preserve the original exception.
+                    throttled_error(
+                        logger,
+                        "linebuffer.lineactions.once.child_failure",
+                        "LineActions child batch computation failed; propagating exception",
+                        exc_info=False,
+                    )
+                    raise
 
         # CRITICAL FIX: Call preonce before main processing
         try:
             if hasattr(self, "preonce"):
                 self.preonce(start, end)
-        except Exception as e:
-            logger.debug("preonce failed: %s", e)
+        except Exception:
+            # A custom preonce hook can alter indicator state. Continuing
+            # would fabricate an incomplete runonce result, so surface it.
+            throttled_error(
+                logger,
+                "linebuffer.lineactions.once.preonce_failure",
+                "LineActions preonce hook failed; propagating exception",
+                exc_info=False,
+            )
+            raise
 
         # CRITICAL FIX: Ensure operand arrays are computed before once()
         # For Logic subclasses (bt.If, bt.And, etc.), operands (args, cond) need
@@ -1744,26 +1841,48 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                     try:
                         arg.once(0, end)
                     except Exception:  # nosec B110
-                        # Operand may already be computed or not once()-able; continue.
-                        pass
+                        # This operand is shorter than the requested batch and
+                        # the parent once() may read it. There is no safe
+                        # generic fallback, so do not continue with stale data.
+                        throttled_error(
+                            logger,
+                            "linebuffer.lineactions.once.argument_failure",
+                            "LineActions operand batch computation failed; propagating exception",
+                            exc_info=False,
+                        )
+                        raise
         if hasattr(self, "cond"):
             cond = self.cond
             if hasattr(cond, "once") and hasattr(cond, "array") and len(cond.array) < end:
                 try:
                     cond.once(0, end)
                 except Exception:  # nosec B110
-                    # Condition may already be computed or not once()-able; continue.
-                    pass
+                    # A Logic condition controls which operand is read. A
+                    # failed batch update leaves it stale, so preserving the
+                    # exception is safer than selecting with invalid state.
+                    throttled_error(
+                        logger,
+                        "linebuffer.lineactions.once.condition_failure",
+                        "LineActions condition batch computation failed; propagating exception",
+                        exc_info=False,
+                    )
+                    raise
 
         # CRITICAL FIX: Process the main once calculation
         # Try to call once method if it exists
         try:
             if hasattr(self, "once") and callable(self.once):
                 self.once(start, end)
-        except Exception as e:
-            # If once fails or doesn't exist, skip it
-            # The indicator will be calculated via next() calls during strategy execution
-            logger.debug("once() failed: %s", e)
+        except Exception:
+            # A custom once hook owns the batch result. Do not silently accept
+            # an incomplete array when it fails.
+            throttled_error(
+                logger,
+                "linebuffer.lineactions.once.main_failure",
+                "LineActions once hook failed; propagating exception",
+                exc_info=False,
+            )
+            raise
 
         # CRITICAL FIX: Update lencount after once processing to match the data length
         # In runonce mode, lencount should equal the number of data points processed
@@ -1774,25 +1893,50 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             if hasattr(self, "_clock") and self._clock:
                 try:
                     actual_data_len = self._clock.buflen()
-                except Exception as e:
-                    logger.debug("clock.buflen() failed: %s", e)
+                except Exception:
+                    throttled_warning(
+                        logger,
+                        "linebuffer.lineactions.once.clock_length_recovery",
+                        "LineActions clock length lookup failed; using fallback length",
+                        exc_info=False,
+                    )
                     try:
                         actual_data_len = len(self._clock)
-                    except Exception as e2:
-                        logger.debug("len(clock) failed: %s", e2)
+                    except Exception:
+                        throttled_warning(
+                            logger,
+                            "linebuffer.lineactions.once.clock_length_recovery",
+                            "LineActions clock length lookup failed; using fallback length",
+                            exc_info=False,
+                        )
             elif hasattr(self, "datas") and self.datas and len(self.datas) > 0:
                 try:
                     actual_data_len = self.datas[0].buflen()
-                except Exception as e:
-                    logger.debug("datas[0].buflen() failed: %s", e)
+                except Exception:
+                    throttled_warning(
+                        logger,
+                        "linebuffer.lineactions.once.data_length_recovery",
+                        "LineActions data length lookup failed; using fallback length",
+                        exc_info=False,
+                    )
                     try:
                         actual_data_len = len(self.datas[0])
-                    except Exception as e2:
-                        logger.debug("len(datas[0]) failed: %s", e2)
+                    except Exception:
+                        throttled_warning(
+                            logger,
+                            "linebuffer.lineactions.once.data_length_recovery",
+                            "LineActions data length lookup failed; using fallback length",
+                            exc_info=False,
+                        )
             # Use the maximum of end and actual_data_len to ensure we don't truncate
             final_len = max(end, actual_data_len) if actual_data_len > 0 else end
-        except Exception as e:
-            logger.debug("Failed to determine actual data length: %s", e)
+        except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.lineactions.once.length_recovery",
+                "LineActions batch length recovery failed; using requested range",
+                exc_info=False,
+            )
             final_len = end
 
         if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:
@@ -2028,184 +2172,53 @@ class _LineDelay(LineActions):
 
 
 class _LineForward(LineActions):
-    """Forward line object for positive ago values (lookahead).
+    """Forward a line by a positive offset (lookahead).
 
-    This class represents a line that accesses future values
-    from another line. For example, data(1) returns the
-    next bar's value.
-
-    Attributes:
-        a: The source line object.
-        ago: Number of periods to look ahead (positive value).
+    ``a(ago)`` is a time shift, not a unary or binary operation.  A source
+    value observed at position ``i`` belongs at position ``i - ago`` in the
+    result, so the final ``ago`` positions remain unavailable.
     """
 
     def __init__(self, a, ago):
-        """Initialize the forward line.
-
-        Args:
-            a: Source line object.
-            ago: Number of periods to look ahead (positive value).
-        """
         super().__init__()
         self.a = self.arrayize(a)
         self.ago = ago
 
-        # Need to add the delay to the period
-        if hasattr(a, "_minperiod"):
-            self.addminperiod(ago)
+        # Keep the original lookahead-period rule: the source's own
+        # warm-up already covers a smaller offset, while a larger offset must
+        # extend the destination just enough to make that source position
+        # available.  Sources without a period retain the baseline minimum 1.
+        source_minperiod = getattr(self.a, "_minperiod", 1)
+        if ago > source_minperiod:
+            self.addminperiod(ago - source_minperiod + 1)
 
     def next(self):
-        """Calculate and set the forwarded value for the current bar.
+        """Write today's source value into the earlier shifted output slot."""
+        self[-self.ago] = self.a[0]
 
-        Gets the value from the source line at the forward position
-        and stores it at position 0.
-        """
-        # operation(float, other) ... expecting other to be a float
-        # CRITICAL FIX: Ensure we get valid numeric values for indicator calculations
-        try:
-            # Get operand values with proper type checking
-            if hasattr(self.a, "__getitem__"):
-                # LineBuffer-like object - get current value
-                try:
-                    a_val = self.a[0]
-                except (IndexError, TypeError):
-                    a_val = float("nan")
-            else:
-                # Direct value
-                a_val = self.a
-
-            if hasattr(self.b, "__getitem__"):
-                # LineBuffer-like object - get current value
-                try:
-                    b_val = self.b[0]
-                except (IndexError, TypeError):
-                    b_val = float("nan")
-            else:
-                # Direct value
-                b_val = self.b
-
-            # Preserve indicator warmup semantics. NaN/None operands must
-            # remain NaN instead of becoming valid trading signals.
-            if a_val is None or (isinstance(a_val, float) and a_val != a_val):
-                self[0] = float("nan")
-                return
-            if isinstance(a_val, float) and not math.isfinite(a_val):
-                a_val = 0.0
-            elif not isinstance(a_val, (int, float)):
-                try:
-                    a_val = float(a_val)
-                except (ValueError, TypeError):
-                    self[0] = float("nan")
-                    return
-
-            if b_val is None or (isinstance(b_val, float) and b_val != b_val):
-                self[0] = float("nan")
-                return
-            if isinstance(b_val, float) and not math.isfinite(b_val):
-                b_val = 0.0
-            elif not isinstance(b_val, (int, float)):
-                try:
-                    b_val = float(b_val)
-                except (ValueError, TypeError):
-                    self[0] = float("nan")
-                    return
-
-            # CRITICAL FIX: Actually perform the operation and store the result
-            # Handle both normal and reverse operations
-            if hasattr(self, "operation") and self.operation:
-                # CRITICAL FIX: Handle reverse operations properly
-                if getattr(self, "r", False):
-                    result = self.operation(b_val, a_val)  # Reverse: b op a
-                else:
-                    result = self.operation(a_val, b_val)  # Normal: a op b
-
-                # Ensure result is a valid number
-                if result is None:
-                    result = float("nan")
-                elif isinstance(result, float) and not math.isfinite(result):
-                    if result != result:
-                        result = float("nan")
-                    else:
-                        result = 0.0
-                elif not isinstance(result, (int, float)):
-                    try:
-                        result = float(result)
-                    except (ValueError, TypeError):
-                        result = float("nan")
-
-                # Store the result in the current position
-                self[0] = result
-            else:
-                # Fallback: store a_val if no operation is defined
-                self[0] = a_val
-
-        except Exception:
-            logger.debug("LineOwnOperation.next fallback triggered", exc_info=True)
-            # If anything fails, store 0.0 to prevent crashes
-            self[0] = 0.0
+    def _next(self):
+        """Run the normal LineActions lifecycle when scheduled by an owner."""
+        self._next_old()
 
     def once(self, start, end):
-        """Calculate forwarded values in batch mode (runonce).
+        """Populate the same offset mapping used by :meth:`next`.
 
-        Args:
-            start: Starting index.
-            end: Ending index.
+        A direct ``once(0, end)`` call must not use Python's negative indexing
+        to wrap the first source sample onto the tail of the output array.
+        Actual Cerebro scheduling starts at the lookahead minperiod, but the
+        guard also makes standalone callers deterministic.
         """
-        # cache python dictionary lookups
         dst = self.array
-        srca = self.a.array
-        op = self.operation
+        src = self.a.array
+        ago = self.ago
 
-        # CRITICAL FIX: Ensure destination array is properly sized
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(NAN)
 
-        # CRITICAL FIX: Ensure source array has required data
-        if len(srca) < end:
-            # If source array is shorter than required range, only process available data
-            end = min(end, len(srca))
-
-        # Fast path: process the whole range under a single try. The per-element
-        # try/except below is only entered if something raises, preserving the
-        # exact per-element 0.0 fallback semantics while avoiding per-element
-        # exception-handler setup in the common (no-error) case (R2-S4: PERF203).
-        try:
-            for i in range(start, end):
-                a_val = srca[i] if i < len(srca) else 0.0
-                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
-                    a_val = 0.0
-                result = op(a_val)
-                if result is None or (isinstance(result, float) and not math.isfinite(result)):
-                    result = 0.0
-                dst[i] = result
-            return
-        except Exception:
-            logger.debug(
-                "LineOwnOperation.once fast path failed; per-element fallback", exc_info=True
-            )
-
-        for i in range(start, end):
-            try:
-                # CRITICAL FIX: Bounds checking for source array
-                a_val = srca[i] if i < len(srca) else 0.0
-
-                # Ensure value is numeric
-                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
-                    a_val = 0.0
-
-                result = op(a_val)
-
-                # Ensure result is valid
-                if result is None or (isinstance(result, float) and not math.isfinite(result)):
-                    result = 0.0
-
-                dst[i] = result
-            except Exception:
-                logger.debug(
-                    "LineOwnOperation.once fallback triggered at index %d", i, exc_info=True
-                )
-                # If operation fails, store 0.0
-                dst[i] = 0.0
+        valid_start = max(start, ago)
+        valid_end = min(end, len(src))
+        for i in range(valid_start, valid_end):
+            dst[i - ago] = src[i]
 
 
 class LinesOperation(LineActions):
@@ -2314,9 +2327,17 @@ class LinesOperation(LineActions):
                 target_len = len(operand) + ago
                 if target_len < minperiod:
                     return float("nan")
-            except Exception:  # nosec B110
+            except (AttributeError, TypeError):
                 # Operand without a usable length; skip the warmup guard.
+                # This optional protocol probe runs per sample, so stay quiet.
                 pass
+            except Exception:  # nosec B110
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.operand_minperiod_probe_recovery",
+                    "LinesOperation operand length probe failed; skipping warmup guard",
+                    exc_info=False,
+                )
 
         if hasattr(operand, "__getitem__"):
             return operand[ago]
@@ -2340,9 +2361,17 @@ class LinesOperation(LineActions):
             try:
                 if len(clock) <= len(operand):
                     return
-            except Exception:  # nosec B110
+            except (AttributeError, TypeError):
                 # Clock without a comparable length; advance the operand anyway.
+                # This optional protocol probe runs per bar, so stay quiet.
                 pass
+            except Exception:  # nosec B110
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.operand_clock_probe_recovery",
+                    "LinesOperation operand clock length probe failed; advancing operand",
+                    exc_info=False,
+                )
 
         operand._next()
 
@@ -2428,9 +2457,17 @@ class LinesOperation(LineActions):
             try:
                 if len(clock) <= len(self):
                     return
-            except Exception:  # nosec B110
+            except (AttributeError, TypeError):
                 # Clock without a comparable length; proceed to advance operands.
+                # This optional protocol probe runs per bar, so stay quiet.
                 pass
+            except Exception:  # nosec B110
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.clock_probe_recovery",
+                    "LinesOperation clock length probe failed; advancing operation",
+                    exc_info=False,
+                )
 
         for operand in self._next_operands:
             self._next_operand_if_due(operand)
@@ -2493,6 +2530,12 @@ class LinesOperation(LineActions):
                 self[0] = a_val
 
         except Exception:
+            throttled_warning(
+                logger,
+                "linebuffer.lines_operation.next.nan_recovery",
+                "LinesOperation.next failed; storing NaN recovery value",
+                exc_info=False,
+            )
             self[0] = float("nan")
 
     def once(self, start, end):
@@ -2511,14 +2554,24 @@ class LinesOperation(LineActions):
         if self._parent_a is not None and hasattr(self._parent_a, "once"):
             try:
                 self._parent_a.once(nested_start, end)
-            except Exception as e:
-                logger.debug("parent_a.once() failed: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.parent_recovery",
+                    "LinesOperation parent batch computation failed; continuing",
+                    exc_info=False,
+                )
 
         if self._parent_b is not None and hasattr(self._parent_b, "once"):
             try:
                 self._parent_b.once(nested_start, end)
-            except Exception as e:
-                logger.debug("parent_b.once() failed: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.parent_recovery",
+                    "LinesOperation parent batch computation failed; continuing",
+                    exc_info=False,
+                )
 
         # CRITICAL FIX: Call once() on operands that have it, but ONLY for LineActions
         # instances (like _LineDelay, LinesOperation). Never call once() on full Indicators
@@ -2528,14 +2581,24 @@ class LinesOperation(LineActions):
         if isinstance(self.a, LineActions) and hasattr(self.a, "once"):
             try:
                 self.a.once(nested_start, end)
-            except Exception as e:
-                logger.debug("operand a.once() failed: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.operand_recovery",
+                    "LinesOperation operand batch computation failed; continuing",
+                    exc_info=False,
+                )
 
         if isinstance(self.b, LineActions) and hasattr(self.b, "once"):
             try:
                 self.b.once(nested_start, end)
-            except Exception as e:
-                logger.debug("operand b.once() failed: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.operand_recovery",
+                    "LinesOperation operand batch computation failed; continuing",
+                    exc_info=False,
+                )
 
         # CRITICAL FIX: Always process from 0 to populate historical values
         if hasattr(self.b, "array") and type(self.b).__name__ != "PseudoArray":
@@ -2559,8 +2622,13 @@ class LinesOperation(LineActions):
         if isinstance(self.b, LineActions) and hasattr(self.b, "once") and len(self.b.array) < end:
             try:
                 self.b.once(start, end)
-            except Exception as e:
-                logger.debug("b.once() in _once_op failed: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.operand_recovery",
+                    "LinesOperation operand batch computation failed; continuing",
+                    exc_info=False,
+                )
 
         # cache python dictionary lookups
         dst = self.array
@@ -2712,10 +2780,10 @@ class LinesOperation(LineActions):
                             dst[i] = result
                 return
             except Exception:
-                logger.debug(
-                    "LinesOperation._once_op numeric fast path failed; generic fallback",
-                    exc_info=True,
-                )
+                # The generic and per-element paths below preserve the existing
+                # NaN recovery. Only the recovered values are diagnosed so a
+                # failed fast-path selection cannot duplicate log records.
+                pass
 
         # Fast path under a single try; the per-element try/except below is only
         # entered on error, preserving NaN-on-failure semantics while removing
@@ -2739,9 +2807,8 @@ class LinesOperation(LineActions):
                 dst[i] = result
             return
         except Exception:
-            logger.debug(
-                "LinesOperation._once_op fast path failed; per-element fallback", exc_info=True
-            )
+            # Per-element recovery below emits the bounded diagnostic.
+            pass
 
         for i in range(actual_start, end):
             try:
@@ -2773,10 +2840,13 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug(
-                    "LinesOperation._once_op fallback triggered at index %d", i, exc_info=True
+                # If operation fails, store NaN for indicator semantics.
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.nan_recovery",
+                    "LinesOperation batch computation failed; storing NaN recovery value",
+                    exc_info=False,
                 )
-                # If operation fails, store NaN for indicator semantics
                 dst[i] = float("nan")
 
     def _once_time_op(self, start, end):
@@ -2818,8 +2888,11 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug(
-                    "LinesOperation._once_time_op fallback triggered at index %d", i, exc_info=True
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.nan_recovery",
+                    "LinesOperation batch computation failed; storing NaN recovery value",
+                    exc_info=False,
                 )
                 dst[i] = float("nan")
 
@@ -2858,8 +2931,11 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug(
-                    "LinesOperation._once_val_op fallback triggered at index %d", i, exc_info=True
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.nan_recovery",
+                    "LinesOperation batch computation failed; storing NaN recovery value",
+                    exc_info=False,
                 )
                 dst[i] = float("nan")
 
@@ -2898,8 +2974,11 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug(
-                    "LinesOperation._once_val_op_r fallback triggered at index %d", i, exc_info=True
+                throttled_warning(
+                    logger,
+                    "linebuffer.lines_operation.once.nan_recovery",
+                    "LinesOperation batch computation failed; storing NaN recovery value",
+                    exc_info=False,
                 )
                 dst[i] = float("nan")
 
@@ -3000,8 +3079,13 @@ class LineOwnOperation(LineActions):
         if self._parent_a is not None and hasattr(self._parent_a, "_once"):
             try:
                 self._parent_a._once(start, end)
-            except Exception as e:
-                logger.debug("parent_a._once() in LineOwnOperation failed: %s", e)
+            except Exception:
+                throttled_warning(
+                    logger,
+                    "linebuffer.line_own_operation.once.parent_recovery",
+                    "LineOwnOperation parent batch computation failed; continuing",
+                    exc_info=False,
+                )
 
         # cache python dictionary lookups
         dst = self.array
@@ -3030,7 +3114,10 @@ class LineOwnOperation(LineActions):
                 dst[i] = result
             return
         except Exception:
-            logger.debug("unary once fast path failed; per-element fallback", exc_info=True)
+            # The per-element loop below records the actual recovered values.
+            # Do not emit a duplicate diagnostic for this implementation
+            # transition, and never attach its exception traceback.
+            pass
 
         for i in range(start, end):
             try:
@@ -3049,7 +3136,14 @@ class LineOwnOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                # If operation fails, store 0.0
+                # One stable throttled key bounds a broken operation across all
+                # elements of this batch while retaining the 0.0 recovery value.
+                throttled_warning(
+                    logger,
+                    "linebuffer.line_own_operation.once.zero_recovery",
+                    "LineOwnOperation.once element failed; storing 0.0 recovery value",
+                    exc_info=False,
+                )
                 dst[i] = 0.0
 
     def size(self):

@@ -45,6 +45,7 @@ import sys
 import argparse
 import io
 import os
+import tokenize
 from pathlib import Path
 from typing import List, Tuple, Dict, Any, Optional
 
@@ -204,30 +205,79 @@ def count_lines(filepath: str) -> int:
 
 
 def find_chinese_comments(filepath: str) -> List[Tuple[int, str]]:
-    """Find lines containing Chinese characters in comments.
-    
+    """Find Chinese characters only in real comments and docstrings.
+
+    Uses ``tokenize`` to inspect COMMENT tokens and ``ast`` to locate
+    docstrings; Chinese inside ordinary string literals (print output,
+    dict values, report text, ...) is business content and is ignored.
+
     Args:
         filepath: Path to the Python file.
-        
+
     Returns:
-        List of tuples (line_number, line_content) containing Chinese.
+        List of tuples (line_number, line_content) containing Chinese in
+        ``#`` comments or docstrings.
     """
     chinese_pattern = re.compile(r'[\u4e00-\u9fa5]')
-    chinese_lines = []
-    
-    with open(filepath, 'r', encoding='utf-8') as f:
-        for line_num, line in enumerate(f, 1):
-            # Check if line contains Chinese characters
-            if chinese_pattern.search(line):
-                # Skip if it's inside a docstring (we handle those separately)
-                stripped = line.strip()
-                if stripped.startswith('#') or '"""' in line or "'''" in line:
+    chinese_lines: List[Tuple[int, str]] = []
+    seen_lines = set()
+
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            source = f.read()
+    except (OSError, UnicodeDecodeError):
+        return chinese_lines
+
+    # 1) ``#`` comments: exact COMMENT tokens from tokenize.
+    try:
+        for tok in tokenize.generate_tokens(io.StringIO(source).readline):
+            if tok.type == tokenize.COMMENT and chinese_pattern.search(tok.string):
+                if tok.start[0] not in seen_lines:
+                    seen_lines.add(tok.start[0])
+                    chinese_lines.append((tok.start[0], tok.string))
+    except (tokenize.TokenError, SyntaxError, IndentationError):
+        # Fall back to a line-based comment scan for files tokenize cannot read.
+        for line_num, line in enumerate(source.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith('#') and chinese_pattern.search(stripped):
+                if line_num not in seen_lines:
+                    seen_lines.add(line_num)
                     chinese_lines.append((line_num, line.rstrip()))
-                elif chinese_pattern.search(line):
-                    # Could be inline comment or string
-                    chinese_lines.append((line_num, line.rstrip()))
-    
-    return chinese_lines
+        return chinese_lines
+
+    # 2) Docstrings: AST nodes whose docstring text contains Chinese. Their
+    #    STRING tokens are excluded below via these line numbers, so only
+    #    genuine docstrings count (not other string literals).
+    docstring_lines = set()
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError):
+        tree = None
+    if tree is not None:
+        for node in ast.walk(tree):
+            if isinstance(
+                node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+            ):
+                doc_node = node.body[0].value if (
+                    node.body
+                    and isinstance(node.body[0], ast.Expr)
+                    and isinstance(node.body[0].value, ast.Constant)
+                    and isinstance(node.body[0].value.value, str)
+                ) else None
+                if doc_node is None:
+                    continue
+                text = doc_node.value or ""
+                if chinese_pattern.search(text):
+                    docstring_lines.update(
+                        range(doc_node.lineno, doc_node.end_lineno + 1)
+                    )
+                    if doc_node.lineno not in seen_lines:
+                        seen_lines.add(doc_node.lineno)
+                        chinese_lines.append(
+                            (doc_node.lineno, source.splitlines()[doc_node.lineno - 1].rstrip())
+                        )
+
+    return sorted(chinese_lines, key=lambda item: item[0])
 
 
 def analyze_ast(filepath: str) -> Dict[str, Any]:

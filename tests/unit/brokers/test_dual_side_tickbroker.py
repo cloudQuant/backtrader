@@ -1,4 +1,5 @@
 """Tests for dual-side TickBroker functionality."""
+
 import pytest
 
 from backtrader.brokers.tickbroker import TickBroker
@@ -62,6 +63,14 @@ def test_tickbroker_dual_side_positions_keep_net_view_compatible():
     assert close_short.info.offset == "close"
     assert broker.order_history[-1]["position_side"] == "short"
     assert broker.order_history[-1]["offset"] == "close"
+
+    cached_state = broker.get_cached_report_state()
+    cached_legs = cached_state["position_legs"][data.symbol]
+    assert cached_state["positions"][data.symbol].size == pytest.approx(2.0)
+    assert cached_legs["long"] is broker.long_positions[data.symbol]
+    assert cached_legs["short"] is broker.short_positions[data.symbol]
+    assert cached_legs["long"].size == pytest.approx(2.0)
+    assert cached_legs["short"].size == pytest.approx(0.0)
 
 
 def test_tickbroker_net_mode_still_accepts_offset_metadata_without_orderparam_regression():

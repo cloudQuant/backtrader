@@ -1,0 +1,63 @@
+{
+  "schema_version": "iter27.set2-ctp-revalidation.v1",
+  "record_date": "2026-09-14",
+  "runtime_code_commit": "35256ca177097c753ffac447348bcbb6f018235c",
+  "scope": "direct external read-only revalidation; no strategy result claimed",
+  "credential_boundary": {
+    "operator_directly_read_credentials": false,
+    "operator_printed_or_committed_credentials": false,
+    "runner_loaded_existing_ignored_environment_configuration": true
+  },
+  "runs": [
+    {
+      "id": "iter22-set2-api-diagnostic",
+      "command_shape": "ITER22_SIMNOW_PROFILE=simnow_second_7x24 run.py --mode shadow --purpose observation --api-diagnostic",
+      "exit_code": 2,
+      "status": "FAIL_CLOSED",
+      "failure_stage": "live_store_construction",
+      "strategy_status": "NOT_RUN",
+      "g3_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+      "g4_gate_status": "NOT_RUN_API_DIAGNOSTIC",
+      "evidence_counts": {
+        "quotes": 0,
+        "bars": 0,
+        "signals": 0,
+        "orders": 0,
+        "trades": 0
+      },
+      "source_evidence": [
+        {
+          "owner_local_path": "/private/tmp/iter22-set2-api-diagnostic.2WSPwF/result/api_diagnostic.json",
+          "sha256": "8edbe4849359fb098f954aab321ab141689a5fb1650aad7fd611b89d240ab7dc"
+        },
+        {
+          "owner_local_path": "/private/tmp/iter22-set2-api-diagnostic.2WSPwF/result/manifest.json",
+          "sha256": "46b499cd41c0441cb11b3f34ff7d44a4b9b1f7fb17cfa79417b82ec751d53cb0"
+        }
+      ]
+    },
+    {
+      "id": "iter23-25-set2-operator-diagnostic",
+      "command_shape": "ctp_options_simnow_operator --environment second_7x24 --query-timeout 20",
+      "exit_code": 2,
+      "status": "BLOCKED",
+      "reason": "FRONT_PROBE_FAILED:RuntimeError",
+      "external_request_counts": {
+        "order_write": 0
+      },
+      "source_evidence": [
+        {
+          "owner_local_path": "/private/tmp/ctp-set2-operator-diagnostic.CiVvRS/result.json",
+          "sha256": "3ceada229edff093de92e06f4f04dfdec0a3f48fd0c11c204155e30410e505d1"
+        }
+      ]
+    }
+  ],
+  "disposition": {
+    "one_hour_engineering_observation": "NOT_STARTED",
+    "reason": "Neither inspected entry reached strategy execution; a fresh current-session MANUAL_VALIDATED contract configuration is also absent.",
+    "g3_or_g4_advanced": false,
+    "order_writes": 0,
+    "claim": "This receipt preserves redacted terminal facts only; it does not diagnose a common root cause or prove a SimNow strategy run."
+  }
+}

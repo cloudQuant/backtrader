@@ -500,6 +500,7 @@ class TestCommInfoCompatibilityLogic:
         assert comm2.get_param("commission") == 0.05  # Should remain 0.05
 
 
+@pytest.mark.performance
 class TestCommInfoPerformance:
     """Test performance characteristics of refactored CommInfo.
 
@@ -727,6 +728,7 @@ class TestCommInfoDocumentationAndUsage:
         assert cost == 5000.0  # 5 * 1000.0
 
 
+@pytest.mark.performance
 def test_comprehensive_compatibility():
     """Run comprehensive compatibility test suite.
 

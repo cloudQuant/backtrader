@@ -86,6 +86,72 @@ if logger.isEnabledFor(logging.DEBUG):
 
 ## print 的去留 (print vs logging)
 
-- 面向用户的 CLI 输出（如 `btrun`）**保留 `print()` / `click.echo()`**，不要改成
+- 面向用户的 CLI 输出（如 `btrun`、`reports/reporter.py`）**保留 `print()`**，不要改成
   日志——那是程序的正常输出，不是诊断信息。
 - 库内部的进度/诊断 `print()` → 迁移到 `logger.info()` / `logger.debug()`。
+- 公共 API（`Analyzer.print()`、`Strategy.log()`）保持原样。
+
+## 分级分天日志（迭代 29）
+
+一次调用即可按 **运行脚本 → 日期 → 级别** 落盘：
+
+```python
+bt.configure_logging(level="INFO", log_dir="logs")
+# 运行 `python examples/xxx/run.py` 后产出：
+#   logs/examples_xxx_run/2026_09_15/error.log    (ERROR+CRITICAL)
+#   logs/examples_xxx_run/2026_09_15/warning.log  (仅 WARNING)
+#   logs/examples_xxx_run/2026_09_15/info.log     (仅 INFO)
+#   logs/examples_xxx_run/2026_09_15/debug.log    (仅 DEBUG, level=DEBUG 时)
+```
+
+- **脚本名**自动取自 `sys.argv[0]`（`xxx/run.py` → `xxx_run`），可用 `script_name=`
+  显式覆盖；交互式/`-c`/`<stdin>` 回退 `backtrader`。显式名称同样规范化为单个
+  安全路径组件；脚本/日期目录及级别文件不接受符号链接。
+- **配置即建文件**：当日无事件也创建空文件，保证每次运行可查询。
+- **跨午夜滚动**：午夜后首条日志自动切到新日期目录。
+- **保留期**：`retention_days=30`（默认）只清理本脚本目录下的超期真实日期目录，
+  跳过符号链接和同名普通文件；`None` 禁用清理，负数或非整数无效。
+- **写入后端**：`backend="auto"`（默认）优先使用可选包 `spdlog`（性能好，
+  `pip install spdlog`；macOS 实测可用，Linux 需源码构建），不可用自动回退标准库
+  并提示一次；`backend="spdlog"` 强制（不可用抛 `ImportError`）；`backend="stdlib"`
+  纯标准库。`log_dir` 与旧的 `log_file` 互斥。
+- **多进程**：Cerebro optimize 序列化仅传递已启用的 `log_dir` 配置，不传递
+  handler、文件对象或锁。spawn worker 恢复配置，fork worker 切换到本进程文件，
+  文件名带 `.p{pid}` 后缀；未配置时 worker 保持静默。旧 `log_file` 单文件模式
+  不自动传播到 spawn worker。
+- **重复配置**：配置调用串行化，新配置验证和 handler 创建成功后才替换已有
+  配置；调用失败保留原 handler。旧的位置参数仍然有效，新增选项仅按关键字传入。
+- **写入故障**：分级文件的写入/午夜切换失败不外抛，stderr 只给一次不含原始
+  日志或异常载荷的诊断；保留期清理失败同样不影响回测。
+- **凭证保护**：框架管理的格式化器在消息和堆栈中遮蔽常见 password、passphrase、
+  API key/secret、token、Authorization 及 URL 密码字段。调用方仍须避免记录完整
+  请求、账号或未知命名的敏感载荷；自定义宿主 handler 的脱敏由宿主负责。
+
+### 级别判定边界（错误分级规范）
+
+| 级别 | 判定边界 |
+| --- | --- |
+| ERROR | 数据损坏、下单失败、连接断开、资金状态不一致、run 异常终止 |
+| WARNING | 可恢复降级、重试、兼容性回退、预期外但已处理 |
+| INFO | 生命周期节点（run 开始/结束、feed 加载完成、策略相位切换、订单提交/成交） |
+| DEBUG | 过程细节、探测性成功/失败、每 bar 级追踪（须 isEnabledFor 门控） |
+
+### 异常风暴抑制
+
+热循环内同类重复异常用 throttled 系列（首次全量，后续计数 + 周期摘要）：
+
+```python
+from backtrader.utils.log_message import throttled_error
+
+for item in many:
+    try:
+        process(item)
+    except ValueError as e:
+        throttled_error(logger, "batch-parse", "parse failed: %s", e,
+                        every=100, window=60.0)
+```
+
+`set_throttle(False)` 进入诊断模式（逐条输出）；进程退出时自动输出各 key 的
+累计摘要并刷新文件。计数按 logger、key、级别和异常类型隔离，摘要保留原级别且
+只计算被抑制的重复记录；`reset_logging()` 丢弃本轮未输出的计数。与 `TradeLogger`
+（JSON 结构化交易日志）互补，不互相替代。

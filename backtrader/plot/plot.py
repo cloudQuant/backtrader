@@ -516,7 +516,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(long_line)
         except Exception as e:
-            logger.debug("Failed to create long line overlay: %s", e)
+            logger.warning("Failed to create long line overlay: %s", e)
 
     sk_df = df[df.index.isin([str(i[0]) for i in sk_list])]
     sk_c = (
@@ -587,7 +587,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(short_line)
         except Exception as e:
-            logger.debug("Failed to create short line overlay: %s", e)
+            logger.warning("Failed to create short line overlay: %s", e)
 
     # Bar-1
     bar_1 = (
@@ -1335,7 +1335,7 @@ class Plot_OldSync(ParameterizedBase):
                 plottedline = plottedline[0]
             except (TypeError, IndexError):
                 # Possibly a container of artists (when plotting bars)
-                pass
+                logger.debug("plot:1338 ignored TypeError,IndexError")
 
             self.pinf.zorder[ax] = plottedline.get_zorder()
 
@@ -1965,6 +1965,7 @@ def get_rate_sharpe_drawdown(data):
         """
         return sharpe_ratio, average_rate, max_drawdown
     except Exception as e:
+        logger.warning("plot:1967 fallback on Exception")
         traceback.format_exception(type(e), e, e.__traceback__)
         return np.nan, np.nan, np.nan
 
@@ -2135,6 +2136,7 @@ def run_cerebro_and_plot(
                     round(float(i), 4) for i in list(df03["Long/short trading indicator value"])
                 ]
             except Exception as e:
+                logger.warning("plot:2137 fallback on Exception")
                 traceback.format_exception(type(e), e, e.__traceback__)
                 df00["Performance indicator"] = df01.index
                 df00["Performance indicator value"] = df01["Performance indicator value"]
@@ -2258,6 +2260,7 @@ def run_cerebro_and_plot(
                 long_trade_len = trade_info["len"]["long"]["total"]
                 short_trade_len = trade_info["len"]["short"]["total"]
             except Exception as e:
+                logger.warning("plot:2260 fallback on Exception")
                 traceback.format_exception(type(e), e, e.__traceback__)
                 total_trade_num = np.nan
                 total_trade_opened = np.nan
@@ -2280,6 +2283,7 @@ def run_cerebro_and_plot(
                 lost_average_pnl = trade_info["lost"]["pnl"]["average"]
                 lost_max_pnl = trade_info["lost"]["pnl"]["max"]
             except Exception as e:
+                logger.warning("plot:2282 fallback on Exception")
                 traceback.format_exception(type(e), e, e.__traceback__)
                 longest_win_num = np.nan
                 longest_lost_num = np.nan
@@ -2334,6 +2338,7 @@ def run_cerebro_and_plot(
                 short_lost_total_pnl = trade_info["short"]["pnl"]["lost"]["total"]
                 short_lost_max_pnl = trade_info["short"]["pnl"]["lost"]["max"]
             except Exception as e:
+                logger.warning("plot:2336 fallback on Exception")
                 traceback.format_exception(type(e), e, e.__traceback__)
                 long_num = np.nan
                 long_win_num = np.nan
@@ -2396,6 +2401,7 @@ def run_cerebro_and_plot(
                     round(float(i), 4) for i in list(df03["Long/short trading indicator value"])
                 ]
             except Exception as e:
+                logger.warning("plot:2398 fallback on Exception")
                 traceback.format_exception(type(e), e, e.__traceback__)
                 df00["Performance indicator"] = df01.index
                 df00["Performance indicator value"] = df01["Performance indicator value"]

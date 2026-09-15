@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "record_kind": "selected_public_instrument_rule_records",
+  "capture": {
+    "captured_at": "2026-09-13T23:08:41Z",
+    "authentication": "none",
+    "repository_content": "SELECTED_RECORDS_ONLY_NO_COMPLETE_RAW_BODIES",
+    "raw_body_retention": "OUTSIDE_REPOSITORY_OWNER_ONLY_LOCAL_EVIDENCE"
+  },
+  "projection_policy": {
+    "taker_fee": "CONSERVATIVE_REPLAY_BOUND_NOT_ACCOUNT_FEE",
+    "okx_minimum_notional": "ZERO_NO_NOTIONAL_FLOOR_IN_SELECTED_RECORD_FORMULA_ONLY"
+  },
+  "sources": {
+    "okx": {
+      "method": "GET",
+      "transport": "HTTPS",
+      "url": "https://openapi.okx.com/api/v5/public/instruments?instType=SWAP&instId=BTC-USDT-SWAP",
+      "http_status": 200,
+      "body_sha256": "1a6eeb4c4cc625067010d0110718feaee4a6f03becc60f661b800acb4f5ac4e2",
+      "selected_record_scope": "BTC-USDT-SWAP_SELECTED_ROW_ONLY"
+    },
+    "binance": {
+      "method": "GET",
+      "transport": "HTTPS",
+      "url": "https://fapi.binance.com/fapi/v1/exchangeInfo?symbol=BTCUSDT",
+      "http_status": 200,
+      "body_sha256": "27ceb67d0afca04694ae0ae46d9352b5a1ca1415dd1cf5eefaec72cf2011ac95",
+      "selected_record_scope": "BTCUSDT_SELECTED_ROW_ONLY_NOT_COMPLETE_EXCHANGE_INFO_BODY"
+    }
+  },
+  "selected_records": {
+    "okx": {
+      "instId": "BTC-USDT-SWAP",
+      "state": "live",
+      "ctType": "linear",
+      "ctVal": "0.01",
+      "ctMult": "1",
+      "lotSz": "0.01",
+      "minSz": "0.01",
+      "tickSz": "0.1"
+    },
+    "binance": {
+      "symbol": "BTCUSDT",
+      "status": "TRADING",
+      "contractType": "PERPETUAL",
+      "priceFilter": {
+        "minPrice": "556.80",
+        "maxPrice": "4529764",
+        "tickSize": ".10"
+      },
+      "lotSize": {
+        "minQty": ".001",
+        "maxQty": "1000",
+        "stepSize": ".001"
+      },
+      "marketLotSize": {
+        "minQty": ".001",
+        "maxQty": "120",
+        "stepSize": ".001"
+      },
+      "minNotional": {
+        "notional": "50"
+      }
+    }
+  }
+}

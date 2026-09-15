@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""E01: 验证系统能接收并展示柜台返回的资金不足错误码"""
+"""E01: Verify that the system can receive and display the insufficient-funds error code returned by the counter"""
 from __future__ import annotations
 
 import sys
@@ -98,6 +98,7 @@ def run(report_dir):
                     """Strategy that freezes margin until the counter rejects."""
 
                     def __init__(self):
+                        """Init the case counters, order ledger and rejection latch."""
                         self.bar_count = 0
                         self.orders = []
                         self.store_events = []
@@ -108,6 +109,7 @@ def run(report_dir):
                         self.limit_price = None
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Record store events; on remote reject start cancelling leftovers."""
                         event = kwargs.get("event")
                         if isinstance(event, dict):
                             self.store_events.append(event)
@@ -119,6 +121,7 @@ def run(report_dir):
                                         self.cancel(order)
 
                     def notify_order(self, order):
+                        """Log every order transition; stop Cerebro on the first Rejected."""
                         status = order.getstatusname()
                         self.order_statuses.append({"ref": order.ref, "status": status})
                         print(f"  order_notify: ref={order.ref} status={status}")
@@ -137,6 +140,7 @@ def run(report_dir):
                             self.cerebro.runstop()
 
                     def next(self):
+                        """Submit the margin-holding order once; stop after reject or completion."""
                         self.bar_count += 1
                         if self.rejected or self.completed:
                             self.cerebro.runstop()

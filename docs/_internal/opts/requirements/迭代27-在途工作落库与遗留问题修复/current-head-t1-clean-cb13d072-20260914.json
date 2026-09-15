@@ -1,0 +1,35 @@
+{
+  "schema_version": "iteration27.clean-head-t1-verification.v1",
+  "recorded_on": "2026-09-14",
+  "scope": "post-run verification of the current-HEAD clean-worktree T1 execution",
+  "worktree": {
+    "path": "/tmp/backtrader-current-head-clean-t1-cb13d072a8d3e9f9d1243e9b012eb84d9d8438b0",
+    "git_head": "cb13d0722b42fc87ebdbb0e6e45c5002e19987ed",
+    "detached": true,
+    "status_porcelain_v1_after_run": "",
+    "clean_after_run": true
+  },
+  "command": [
+    "/Users/yunjinqi/opt/anaconda3/bin/conda",
+    "run",
+    "--no-capture-output",
+    "-n",
+    "base",
+    "make",
+    "test-all"
+  ],
+  "exit_status": 0,
+  "result_summary": {
+    "functional": "5267 passed, 1 skipped in 293.16s",
+    "performance": "19 passed, 5269 deselected in 26.70s",
+    "isolated_ctp_benchmark": "1 passed in 0.46s"
+  },
+  "output_retention": {
+    "retained_log": false,
+    "reason": "The command output was captured by the controlled execution transcript, but no separate durable /tmp log was written. This verifier deliberately does not invent a path, digest, or byte count."
+  },
+  "limits": [
+    "This is local regression evidence only; it is not release, network, CTP/SimNow, order, fill, PnL, or profitability evidence.",
+    "The clean worktree and post-run status bind the result to cb13d0722b42fc87ebdbb0e6e45c5002e19987ed. It does not replace an atomic external attestation of the test invocation."
+  ]
+}

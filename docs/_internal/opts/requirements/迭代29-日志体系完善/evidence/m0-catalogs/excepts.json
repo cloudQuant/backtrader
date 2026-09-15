@@ -1,0 +1,11518 @@
+[
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/broker.py",
+  "line": 148,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/broker.py",
+  "line": 157,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/cerebro.py",
+  "line": 714,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/channel.py",
+  "line": 487,
+  "logged": false,
+  "types": [
+   "StopIteration"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/channel.py",
+  "line": 521,
+  "logged": false,
+  "types": [
+   "StopIteration"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/channel.py",
+  "line": 415,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/channel.py",
+  "line": 422,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/comminfo.py",
+  "line": 21,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/comminfo.py",
+  "line": 649,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/comminfo.py",
+  "line": 661,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/comminfo.py",
+  "line": 335,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/comminfo.py",
+  "line": 652,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 608,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feed.py",
+  "line": 692,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 748,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feed.py",
+  "line": 154,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feed.py",
+  "line": 164,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feed.py",
+  "line": 603,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 627,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 862,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 910,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 918,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 638,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 656,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 688,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 786,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 795,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 766,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feed.py",
+  "line": 871,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 59,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 656,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 676,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 698,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 711,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 62,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 128,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 522,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 530,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 561,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/functions.py",
+  "line": 138,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/functions.py",
+  "line": 501,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 545,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 577,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 673,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 682,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 695,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/functions.py",
+  "line": 704,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 723,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 728,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/functions.py",
+  "line": 808,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 605,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 740,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 755,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 593,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 745,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/functions.py",
+  "line": 760,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicator.py",
+  "line": 74,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicator.py",
+  "line": 76,
+  "logged": false,
+  "types": [
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicator.py",
+  "line": 263,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicator.py",
+  "line": 278,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicator.py",
+  "line": 292,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicator.py",
+  "line": 302,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicator.py",
+  "line": 151,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 137,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 150,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 202,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 212,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 282,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 426,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 538,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1012,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/linebuffer.py",
+  "line": 1033,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1040,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1059,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1277,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1508,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1548,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1557,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1735,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1763,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1794,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1919,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1944,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2142,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2182,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2334,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2416,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2495,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2741,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2973,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 3032,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 412,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 766,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1006,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1443,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1452,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1678,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2203,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 2317,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 2343,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 2431,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2514,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2520,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2531,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2537,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2562,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2714,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2775,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2820,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2860,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 2900,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 3003,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 3051,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 595,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 649,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 721,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 1227,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1728,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 1754,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1777,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1996,
+  "logged": false,
+  "types": [
+   "StopIteration",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2071,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2081,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 682,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 1289,
+  "logged": false,
+  "types": [
+   "StopIteration",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/linebuffer.py",
+  "line": 1746,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1786,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2097,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2109,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1781,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 564,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/linebuffer.py",
+  "line": 1790,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2133,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/linebuffer.py",
+  "line": 2486,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 3009,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 47,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 50,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 55,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 64,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 106,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 141,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 163,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 210,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 215,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 228,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 2963,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 82,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/lineiterator.py",
+  "line": 120,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 130,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 152,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 174,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 198,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/lineiterator.py",
+  "line": 290,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 341,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 565,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 604,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 627,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 710,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 742,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 755,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 774,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 784,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 1738,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1746,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1786,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1883,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2148,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 2182,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2344,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2353,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2362,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2371,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2382,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2393,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2402,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2412,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2421,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2795,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 2848,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 94,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 218,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 240,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 252,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 313,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 327,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 437,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 498,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 615,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 638,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 707,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 797,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 807,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 832,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1107,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1112,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 1150,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1242,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 1858,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1875,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1919,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1927,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1939,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 2128,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 2618,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 550,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 625,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 663,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 819,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1129,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1296,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1474,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1486,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 1765,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1886,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 1901,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 2185,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 2456,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 406,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 446,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 482,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 527,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 547,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 703,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 1943,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 2143,
+  "logged": true,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 2471,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 430,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 495,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 1758,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 411,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 681,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineiterator.py",
+  "line": 701,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 2146,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 541,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 1762,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineiterator.py",
+  "line": 419,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 696,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 2680,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineiterator.py",
+  "line": 2744,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 1040,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 220,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 297,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 380,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 647,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineroot.py",
+  "line": 741,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 788,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 826,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineroot.py",
+  "line": 1036,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineroot.py",
+  "line": 485,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineroot.py",
+  "line": 518,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineroot.py",
+  "line": 551,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineroot.py",
+  "line": 584,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 1026,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 257,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 809,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 906,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 980,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 279,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineroot.py",
+  "line": 961,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/lineroot.py",
+  "line": 1007,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineroot.py",
+  "line": 1015,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/lineroot.py",
+  "line": 928,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineroot.py",
+  "line": 938,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 68,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 86,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 92,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 103,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 112,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 120,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 135,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 166,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 182,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 197,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 263,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 304,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 320,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 353,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 358,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2502,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 58,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 175,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 191,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 227,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 248,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/lineseries.py",
+  "line": 256,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 336,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 375,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 429,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 799,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 832,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 844,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 890,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 914,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineseries.py",
+  "line": 1064,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1263,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1306,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1839,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1904,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1945,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1971,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1994,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2496,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2499,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 95,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 207,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 236,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 386,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 393,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1297,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1303,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1836,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1916,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1943,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2115,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 793,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 918,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "IndexError",
+   "KeyError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 956,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineseries.py",
+  "line": 1081,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1225,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1256,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1261,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1277,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1295,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1788,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1805,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1954,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1976,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2396,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineseries.py",
+  "line": 2463,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 98,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1232,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1275,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1447,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1922,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1952,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2445,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2482,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineseries.py",
+  "line": 1105,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1802,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineseries.py",
+  "line": 2145,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/lineseries.py",
+  "line": 2419,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 2425,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 983,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 998,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1350,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/lineseries.py",
+  "line": 1379,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1385,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1401,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1412,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/lineseries.py",
+  "line": 1437,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/lineseries.py",
+  "line": 1046,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/mathsupport.py",
+  "line": 33,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/metabase.py",
+  "line": 1794,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/metabase.py",
+  "line": 323,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/metabase.py",
+  "line": 326,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/metabase.py",
+  "line": 1786,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 1367,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/metabase.py",
+  "line": 1751,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 317,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/metabase.py",
+  "line": 862,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/metabase.py",
+  "line": 901,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 1309,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 203,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/metabase.py",
+  "line": 273,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/metabase.py",
+  "line": 884,
+  "logged": false,
+  "types": [
+   "ImportError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 1141,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/metabase.py",
+  "line": 1153,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/metabase.py",
+  "line": 1742,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 255,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/metabase.py",
+  "line": 300,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 306,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/metabase.py",
+  "line": 1001,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/metabase.py",
+  "line": 1783,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/metabase.py",
+  "line": 222,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 232,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "IndexError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/metabase.py",
+  "line": 1034,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/order.py",
+  "line": 492,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/order.py",
+  "line": 506,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/order.py",
+  "line": 680,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/order.py",
+  "line": 689,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 209,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 1073,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 1649,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/parameters.py",
+  "line": 1667,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/parameters.py",
+  "line": 1674,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 1686,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/parameters.py",
+  "line": 1738,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 1575,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 1609,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/parameters.py",
+  "line": 124,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 351,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/parameters.py",
+  "line": 879,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/parameters.py",
+  "line": 887,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/parameters.py",
+  "line": 1747,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/parameters.py",
+  "line": 1799,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/parameters.py",
+  "line": 1557,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 174,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 181,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/parameters.py",
+  "line": 201,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/position_modes.py",
+  "line": 119,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 90,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 101,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 111,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 517,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/strategy.py",
+  "line": 546,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 585,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 601,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/strategy.py",
+  "line": 607,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1173,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/strategy.py",
+  "line": 1195,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1205,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1216,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1223,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1274,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1279,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1283,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1288,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1367,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1472,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1533,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1537,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1543,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1679,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1692,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/strategy.py",
+  "line": 1862,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 2033,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 2058,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 2064,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 2071,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/strategy.py",
+  "line": 207,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 535,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/strategy.py",
+  "line": 624,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/strategy.py",
+  "line": 632,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/strategy.py",
+  "line": 724,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 741,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1294,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1337,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/strategy.py",
+  "line": 1880,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/strategy.py",
+  "line": 1894,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 566,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/strategy.py",
+  "line": 658,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/strategy.py",
+  "line": 686,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/strategy.py",
+  "line": 944,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1299,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1316,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1320,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1350,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1400,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1404,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/strategy.py",
+  "line": 560,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1260,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1486,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1490,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/strategy.py",
+  "line": 1875,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/strategy.py",
+  "line": 648,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1328,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1417,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/strategy.py",
+  "line": 1505,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/talib.py",
+  "line": 43,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/test_helpers.py",
+  "line": 76,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/trade.py",
+  "line": 266,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/trade.py",
+  "line": 354,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/trade.py",
+  "line": 359,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/tradingcal.py",
+  "line": 235,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/writer.py",
+  "line": 141,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/writer.py",
+  "line": 273,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 112,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 242,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 166,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 210,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 677,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 125,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 135,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/commissions/ctpoption.py",
+  "line": 521,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 47,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 525,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 565,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 680,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 1224,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 888,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 1327,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 2352,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/bbroker.py",
+  "line": 2265,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 46,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 545,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 606,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 646,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1456,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1524,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1691,
+  "logged": false,
+  "types": [
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1802,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1887,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1920,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1976,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2147,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2161,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "KeyError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2264,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2293,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2376,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2398,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2612,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2703,
+  "logged": false,
+  "types": [
+   "TimeoutError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2708,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2811,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3018,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3197,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3287,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3342,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3890,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3949,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4052,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4121,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4264,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5112,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5126,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5161,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5174,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5197,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5208,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5427,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5542,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5616,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6031,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6433,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6597,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6619,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6843,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6954,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6967,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7033,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7084,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7091,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7239,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7284,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7548,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7634,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7741,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8042,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8071,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8084,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8086,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8165,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 674,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 714,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 876,
+  "logged": false,
+  "types": [
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 879,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 967,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1103,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1201,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1320,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1340,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1646,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2422,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3181,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3193,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3219,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3253,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3279,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3339,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3378,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3732,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3885,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3926,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4108,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4196,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4203,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4256,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4743,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 4787,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5488,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5513,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5757,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6017,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6027,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6410,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6839,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7447,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7451,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7679,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7706,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8061,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8063,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 754,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1111,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1391,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2010,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 2986,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 3718,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 5569,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6131,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6167,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6329,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6942,
+  "logged": false,
+  "types": [
+   "OptionAccountingError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7862,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 7909,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 8150,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 1396,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 6998,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/btapibroker.py",
+  "line": 554,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/mixbroker.py",
+  "line": 25,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/mixbroker.py",
+  "line": 160,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/mixbroker.py",
+  "line": 264,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/mixbroker.py",
+  "line": 339,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/mixbroker.py",
+  "line": 440,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/mixbroker.py",
+  "line": 301,
+  "logged": false,
+  "types": [
+   "FileNotFoundError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/tickbroker.py",
+  "line": 371,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/tickbroker.py",
+  "line": 602,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/tickbroker.py",
+  "line": 1956,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/brokers/tickbroker.py",
+  "line": 1965,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/hft/binance_bbo.py",
+  "line": 24,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/brokers/hft/binance_bbo_compare.py",
+  "line": 797,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/hft/binance_bbo_compare.py",
+  "line": 970,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/hft/binance_bbo_compare.py",
+  "line": 1339,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/hft/binance_bbo_compare.py",
+  "line": 1376,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/hft/matching_core.py",
+  "line": 274,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/brokers/hft/matching_core.py",
+  "line": 298,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/annualreturn.py",
+  "line": 135,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/annualreturn.py",
+  "line": 144,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/analyzers/annualreturn.py",
+  "line": 97,
+  "logged": true,
+  "types": [
+   "ValueError",
+   "TypeError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/annualreturn.py",
+  "line": 207,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/annualreturn.py",
+  "line": 216,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/calmar.py",
+  "line": 148,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/calmar.py",
+  "line": 153,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/drawdown.py",
+  "line": 272,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/leverage.py",
+  "line": 106,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/analyzers/logreturnsrolling.py",
+  "line": 181,
+  "logged": true,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "ZeroDivisionError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/periodstats.py",
+  "line": 113,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/positions.py",
+  "line": 27,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/returns.py",
+  "line": 162,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sharpe.py",
+  "line": 179,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sharpe.py",
+  "line": 186,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sharpe.py",
+  "line": 240,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sharpe.py",
+  "line": 267,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError",
+   "ZeroDivisionError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sharpe.py",
+  "line": 292,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sharpe_ratio_stats.py",
+  "line": 29,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sharpe_ratio_stats.py",
+  "line": 36,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/analyzers/sharpe_ratio_stats.py",
+  "line": 384,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/sqn.py",
+  "line": 99,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/timereturn.py",
+  "line": 186,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/total_value.py",
+  "line": 27,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/vwr.py",
+  "line": 205,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/vwr.py",
+  "line": 187,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/analyzers/vwr.py",
+  "line": 214,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError",
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/__init__.py",
+  "line": 73,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/app.py",
+  "line": 20,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/bokeh/app.py",
+  "line": 42,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/app.py",
+  "line": 36,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/app.py",
+  "line": 329,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/app.py",
+  "line": 367,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/app.py",
+  "line": 371,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/app.py",
+  "line": 455,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/app.py",
+  "line": 39,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/app.py",
+  "line": 499,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/app.py",
+  "line": 338,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/app.py",
+  "line": 488,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/app.py",
+  "line": 438,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/app.py",
+  "line": 476,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/plot_adapter.py",
+  "line": 17,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/plot_adapter.py",
+  "line": 194,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/plot_adapter.py",
+  "line": 198,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tab.py",
+  "line": 19,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tab.py",
+  "line": 26,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/bokeh/tab.py",
+  "line": 32,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/webapp.py",
+  "line": 16,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/analyzer.py",
+  "line": 16,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/analyzer.py",
+  "line": 56,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/config.py",
+  "line": 20,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/tabs/config.py",
+  "line": 78,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/live.py",
+  "line": 14,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/log.py",
+  "line": 19,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/metadata.py",
+  "line": 22,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/tabs/metadata.py",
+  "line": 89,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/tabs/metadata.py",
+  "line": 69,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/performance.py",
+  "line": 20,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/tabs/performance.py",
+  "line": 175,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/tabs/performance.py",
+  "line": 188,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/source.py",
+  "line": 17,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/tabs/source.py",
+  "line": 58,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/analyzers/plot.py",
+  "line": 18,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/analyzers/recorder.py",
+  "line": 159,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/analyzers/recorder.py",
+  "line": 102,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/analyzers/recorder.py",
+  "line": 124,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/utils/helpers.py",
+  "line": 120,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/utils/helpers.py",
+  "line": 139,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/utils/helpers.py",
+  "line": 165,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/bokeh/utils/helpers.py",
+  "line": 97,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/live/client.py",
+  "line": 15,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/bokeh/live/datahandler.py",
+  "line": 21,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/bokeh/live/datahandler.py",
+  "line": 212,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/bokeh/live/datahandler.py",
+  "line": 226,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/bokeh/live/datahandler.py",
+  "line": 333,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/bokeh/live/datahandler.py",
+  "line": 340,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/plot/__init__.py",
+  "line": 21,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/__init__.py",
+  "line": 27,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/locator.py",
+  "line": 292,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/locator.py",
+  "line": 299,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/plot.py",
+  "line": 1967,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/plot/plot.py",
+  "line": 518,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/plot/plot.py",
+  "line": 589,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/plot/plot.py",
+  "line": 1336,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/plot.py",
+  "line": 2137,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/plot.py",
+  "line": 2260,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/plot.py",
+  "line": 2282,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/plot.py",
+  "line": 2336,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/plot.py",
+  "line": 2398,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/plot/plot_plotly.py",
+  "line": 331,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/plot/plot_plotly.py",
+  "line": 1023,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/plot/plot_plotly.py",
+  "line": 957,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/indicators/basicops.py",
+  "line": 162,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/basicops.py",
+  "line": 106,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/basicops.py",
+  "line": 153,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/crossover.py",
+  "line": 244,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/directionalmove.py",
+  "line": 257,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/directionalmove.py",
+  "line": 400,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/directionalmove.py",
+  "line": 526,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/indicators/ema.py",
+  "line": 95,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/envelope.py",
+  "line": 454,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "IndexError",
+   "KeyError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/envelope.py",
+  "line": 446,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "StopIteration",
+   "TypeError",
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/hurst.py",
+  "line": 141,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError",
+   "FloatingPointError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/ichimoku.py",
+  "line": 30,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/macd.py",
+  "line": 104,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/macd.py",
+  "line": 122,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/macd.py",
+  "line": 158,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/macd.py",
+  "line": 173,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/macd.py",
+  "line": 142,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicators/oscillator.py",
+  "line": 51,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/indicators/oscillator.py",
+  "line": 91,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/rsi.py",
+  "line": 325,
+  "logged": false,
+  "types": [
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/indicators/sma.py",
+  "line": 88,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "ValueError",
+   "TypeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/indicators/sma.py",
+  "line": 136,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/indicators/sma.py",
+  "line": 99,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/indicators/stochastic.py",
+  "line": 88,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 85,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 93,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 145,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 322,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 639,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 873,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 913,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 966,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1555,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1699,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1732,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 2865,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 865,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 898,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1092,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1592,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1609,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1627,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1689,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3805,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3810,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3895,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4059,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4078,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4112,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4257,
+  "logged": false,
+  "types": [
+   "BaseException"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4649,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 5213,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 5283,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 5289,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 5433,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 5439,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6043,
+  "logged": false,
+  "types": [
+   "CancelledError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6051,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6152,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6214,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6457,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6627,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6979,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7061,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7529,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7595,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7795,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8763,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9299,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9303,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9411,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9424,
+  "logged": false,
+  "types": [
+   "BtApiStoreError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9447,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9462,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9628,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10482,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10535,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10589,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10883,
+  "logged": false,
+  "types": [
+   "BtApiStoreError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10887,
+  "logged": false,
+  "types": [
+   "BtApiStoreError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10893,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10915,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11587,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11691,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11747,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11807,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11814,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11827,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11839,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12018,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12084,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12154,
+  "logged": false,
+  "types": [
+   "CancelledError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12159,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12554,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12773,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13179,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13438,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13611,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14339,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14801,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14835,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14866,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 775,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 886,
+  "logged": false,
+  "types": [
+   "UnicodeDecodeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1450,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1742,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1849,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 2173,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 2180,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3180,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3710,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3759,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3871,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4214,
+  "logged": false,
+  "types": [
+   "TimeoutError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4216,
+  "logged": false,
+  "types": [
+   "BaseException"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4883,
+  "logged": false,
+  "types": [
+   "BaseException"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 5182,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 5701,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6092,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6209,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6364,
+  "logged": false,
+  "types": [
+   "BtApiStoreError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6377,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6384,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6398,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 6830,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7210,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7228,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7880,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8181,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8229,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8400,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8561,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8584,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8801,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8842,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8987,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9271,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9294,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9500,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9541,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9569,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9609,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10335,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10393,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10454,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10602,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10617,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 10700,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 11940,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12235,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12270,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12743,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12760,
+  "logged": false,
+  "types": [
+   "BtApiStoreError",
+   "TypeError",
+   "ValueError",
+   "InvalidOperation"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13598,
+  "logged": false,
+  "types": [
+   "BtApiStoreError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13666,
+  "logged": false,
+  "types": [
+   "BtApiStoreError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13755,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13780,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13813,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13853,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14381,
+  "logged": false,
+  "types": [
+   "BtApiStoreError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14389,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14395,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14830,
+  "logged": false,
+  "types": [
+   "BtApiStoreError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 15097,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 15224,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 1501,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 3027,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4229,
+  "logged": false,
+  "types": [
+   "BaseException"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 4559,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7478,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8068,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8435,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9033,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9792,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 12462,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 13741,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 2177,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7413,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7426,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 7449,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8822,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8835,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9518,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 9534,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14843,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 8351,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14575,
+  "logged": false,
+  "types": [
+   "KeyError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/btapistore.py",
+  "line": 14615,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/vchartfile.py",
+  "line": 67,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/stores/vchartfile.py",
+  "line": 74,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/utils/autodict.py",
+  "line": 131,
+  "logged": false,
+  "types": [
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/utils/autodict.py",
+  "line": 189,
+  "logged": false,
+  "types": [
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/utils/dateintern.py",
+  "line": 177,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/utils/dateintern.py",
+  "line": 186,
+  "logged": false,
+  "types": [
+   "UnknownTimeZoneError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/utils/dateintern.py",
+  "line": 304,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/utils/log_message.py",
+  "line": 91,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/utils/py3.py",
+  "line": 32,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 131,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 890,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 901,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 917,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 211,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 1300,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 1793,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 1893,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 106,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 1612,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 1619,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 1640,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 1764,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/feeds/barrier.py",
+  "line": 111,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/blaze.py",
+  "line": 86,
+  "logged": false,
+  "types": [
+   "StopIteration"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 32,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 54,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 70,
+  "logged": false,
+  "types": [
+   "OSError",
+   "OverflowError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 75,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 131,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 146,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 158,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 326,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 962,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 1390,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 1431,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 312,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btapifeed.py",
+  "line": 411,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btcsv.py",
+  "line": 44,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/btcsv.py",
+  "line": 76,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/btcsv.py",
+  "line": 178,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/feeds/cryptohftdata.py",
+  "line": 78,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/cryptohftdata.py",
+  "line": 142,
+  "logged": false,
+  "types": [
+   "StopIteration"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 482,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 499,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 520,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 565,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 632,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 697,
+  "logged": false,
+  "types": [
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 710,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 768,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 784,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 512,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 819,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 1173,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 1188,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 793,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 1146,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 847,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 1047,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 888,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 1080,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 881,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 927,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 981,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/csvgeneric.py",
+  "line": 1000,
+  "logged": false,
+  "types": [
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/ctpcohort.py",
+  "line": 447,
+  "logged": false,
+  "types": [
+   "InvalidOperation",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/ctpcohort.py",
+  "line": 456,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/ctpcohort.py",
+  "line": 420,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/ctpcohort.py",
+  "line": 427,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/ctpcohort.py",
+  "line": 433,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/influxfeed.py",
+  "line": 32,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/influxfeed.py",
+  "line": 95,
+  "logged": true,
+  "types": [
+   "InfluxDBClientError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/influxfeed.py",
+  "line": 135,
+  "logged": true,
+  "types": [
+   "InfluxDBClientError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/influxfeed.py",
+  "line": 146,
+  "logged": false,
+  "types": [
+   "StopIteration"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/pandafeed.py",
+  "line": 78,
+  "logged": false,
+  "types": [
+   "StopIteration"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/pandafeed.py",
+  "line": 305,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/pandafeed.py",
+  "line": 333,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/pandafeed.py",
+  "line": 317,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/pandafeed.py",
+  "line": 264,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/pandafeed.py",
+  "line": 327,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/quandl.py",
+  "line": 237,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/vchartfile.py",
+  "line": 95,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/feeds/vchartfile.py",
+  "line": 113,
+  "logged": false,
+  "types": [
+   "OSError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/vchartfile.py",
+  "line": 123,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/yahoo.py",
+  "line": 148,
+  "logged": true,
+  "types": [
+   "ValueError",
+   "TypeError",
+   "IndexError",
+   "StopIteration"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/feeds/yahoo.py",
+  "line": 280,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/feeds/yahoo.py",
+  "line": 372,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/channel.py",
+  "line": 111,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/channel.py",
+  "line": 146,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/channel.py",
+  "line": 175,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/_cerebro/channel.py",
+  "line": 289,
+  "logged": false,
+  "types": [
+   "StrategySkipError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/channel.py",
+  "line": 130,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/channel.py",
+  "line": 135,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/channel.py",
+  "line": 144,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/_cerebro/execution.py",
+  "line": 105,
+  "logged": false,
+  "types": [
+   "StrategySkipError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/execution.py",
+  "line": 203,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "raise",
+  "file": "backtrader/_cerebro/lifecycle.py",
+  "line": 38,
+  "logged": false,
+  "types": [
+   "BaseException"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/_cerebro/presentation.py",
+  "line": 106,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/_cerebro/registry.py",
+  "line": 321,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/_cerebro/runnext.py",
+  "line": 556,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/_cerebro/runnext.py",
+  "line": 188,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/_cerebro/runnext.py",
+  "line": 199,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/_cerebro/runnext.py",
+  "line": 374,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/_cerebro/runnext.py",
+  "line": 437,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/btrun/btrun.py",
+  "line": 51,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/btrun/btrun.py",
+  "line": 108,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "SyntaxError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/btrun/btrun.py",
+  "line": 187,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "SyntaxError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/btrun/btrun.py",
+  "line": 202,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/btrun/btrun.py",
+  "line": 209,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/btrun/btrun.py",
+  "line": 561,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/buysell.py",
+  "line": 70,
+  "logged": false,
+  "types": [
+   "IndexError",
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 89,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 97,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 236,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 314,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "RecursionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 422,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 443,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 456,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 469,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 488,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 531,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 664,
+  "logged": false,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 670,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 726,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 882,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 946,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1231,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1241,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1257,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1260,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1342,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1522,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1639,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1668,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1692,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1698,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1729,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1740,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1751,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1803,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1817,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1830,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1832,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1844,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1855,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1904,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2075,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2090,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2130,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2258,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2337,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2562,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2611,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2656,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2761,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2798,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2825,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2850,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2878,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2909,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 397,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 409,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 418,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 522,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 658,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "continue",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 783,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 802,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1155,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1273,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1869,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1877,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2037,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2573,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2916,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 480,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError",
+   "OverflowError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 769,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1196,
+  "logged": false,
+  "types": [
+   "OverflowError",
+   "OSError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1684,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "pass",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1783,
+  "logged": false,
+  "types": [
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1946,
+  "logged": false,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2558,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1205,
+  "logged": false,
+  "types": [
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2608,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trades.py",
+  "line": 172,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/observers/trades.py",
+  "line": 175,
+  "logged": false,
+  "types": [
+   "AttributeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/reports/charts.py",
+  "line": 22,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/reports/charts.py",
+  "line": 29,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/charts.py",
+  "line": 174,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "KeyError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/charts.py",
+  "line": 327,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "IndexError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 417,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "IndexError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 470,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 482,
+  "logged": true,
+  "types": [
+   "Exception"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 507,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "IndexError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 615,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "IndexError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 566,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 415,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "IndexError",
+   "TypeError",
+   "ValueError",
+   "ZeroDivisionError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 534,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "KeyError",
+   "TypeError",
+   "ValueError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 545,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "KeyError",
+   "TypeError",
+   "ValueError",
+   "IndexError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 579,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/reports/performance.py",
+  "line": 336,
+  "logged": true,
+  "types": [
+   "AttributeError",
+   "IndexError",
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/reports/reporter.py",
+  "line": 21,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/reports/reporter.py",
+  "line": 29,
+  "logged": false,
+  "types": [
+   "ImportError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/reports/reporter.py",
+  "line": 630,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/channels/funding.py",
+  "line": 237,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/channels/funding.py",
+  "line": 165,
+  "logged": true,
+  "types": [
+   "ValueError",
+   "KeyError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/channels/funding.py",
+  "line": 205,
+  "logged": true,
+  "types": [
+   "ValueError",
+   "KeyError",
+   "JSONDecodeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/channels/live_validator.py",
+  "line": 228,
+  "logged": false,
+  "types": [
+   "TypeError",
+   "ValueError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/channels/orderbook.py",
+  "line": 174,
+  "logged": true,
+  "types": [
+   "ValueError",
+   "KeyError",
+   "JSONDecodeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/channels/orderbook.py",
+  "line": 217,
+  "logged": true,
+  "types": [
+   "ValueError",
+   "KeyError",
+   "JSONDecodeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "other",
+  "file": "backtrader/channels/tick.py",
+  "line": 191,
+  "logged": false,
+  "types": [
+   "ValueError",
+   "TypeError"
+  ]
+ },
+ {
+  "bare": false,
+  "disposition": "logged",
+  "file": "backtrader/channels/tick.py",
+  "line": 159,
+  "logged": true,
+  "types": [
+   "ValueError",
+   "KeyError"
+  ]
+ }
+]

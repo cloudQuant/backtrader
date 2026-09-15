@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""L04: 验证系统日志中会记录错误提示信息"""
+"""L04: Verify that error messages are recorded in the system log"""
 from __future__ import annotations
 
 import sys
