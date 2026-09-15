@@ -254,7 +254,11 @@ jobs:
           PYTEST_ADDOPTS: ''
         run: |
           python -c "import bt_api_py, bt_api_base, bt_api_binance, bt_api_okx, bt_api_ctp, spdlog; print('All required SDK adapters present')"
-          python -m pytest tests -m 'not performance' -n auto --tb=short --timeout=300 -q
+          # GitHub hosted Ubuntu runners expose only two logical CPUs to
+          # xdist's ``auto`` mode.  The complete SDK contract suite then
+          # cannot finish within this job's 40-minute timeout.  Eight workers
+          # are the validated release-gate profile and keep this bounded.
+          python -m pytest tests -m 'not performance' -n 8 --tb=short --timeout=300 -q
 
   performance:
     name: Serial Performance
