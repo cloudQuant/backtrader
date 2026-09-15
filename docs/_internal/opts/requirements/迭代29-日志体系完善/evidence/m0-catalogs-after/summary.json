@@ -1,0 +1,23 @@
+{
+ "except_by_disposition": {
+  "continue": 15,
+  "logged": 426,
+  "other": 630,
+  "pass": 6,
+  "raise": 38
+ },
+ "except_total": 1115,
+ "files_scanned": 459,
+ "generated": "2026-09-15T00:25:46.819338+00:00",
+ "logger_calls_by_level": {
+  "debug": 257,
+  "error": 52,
+  "exception": 2,
+  "info": 11,
+  "warning": 137
+ },
+ "logger_calls_total": 459,
+ "package_root": "/Users/yunjinqi/Documents/new_projects/backtrader/backtrader",
+ "print_exempt": 4,
+ "print_total": 39
+}

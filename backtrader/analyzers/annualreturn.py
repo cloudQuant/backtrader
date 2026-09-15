@@ -95,7 +95,7 @@ class AnnualReturn(Analyzer):
             try:
                 dt = num2date(dt_val)
             except (ValueError, TypeError, OverflowError) as e:
-                logger.debug("Failed to convert date value %s: %s", dt_val, e)
+                logger.warning("Failed to convert date value %s: %s", dt_val, e)
                 continue
 
             # If the year at index i is greater than current year, if current year > 0, calculate return and save to self.ret, and start value equals end value

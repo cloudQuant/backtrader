@@ -9,6 +9,10 @@ external channel scope retention and runstop publication.
 # on the assembled class; it cannot be seen from this partial class alone.
 import threading
 
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
+
 
 class RunLifecycleMixin:
     """Run-scope lifecycle half of Cerebro (see module docstring)."""
@@ -39,6 +43,7 @@ class RunLifecycleMixin:
             # A subclass can call ``super()._begin_run()`` and then fail. Only
             # retire a scope created by this thread after the snapshot; never
             # clear another thread's active run after a rejected re-entry.
+            logger.error("lifecycle:41 exception before re-raise (BaseException)", exc_info=True)
             self._end_run_if_started_by_current_thread(previous_token)
             raise
 

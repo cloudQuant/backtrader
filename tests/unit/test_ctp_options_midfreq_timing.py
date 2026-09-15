@@ -7,6 +7,7 @@ from dataclasses import replace
 import importlib.util
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ import backtrader as bt
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
-CONDA_PYTHON = "/Users/yunjinqi/opt/anaconda3/bin/python"
+CONDA_PYTHON = sys.executable
 execution_timing = __import__("examples.014_2_ctp_options_midfreq.execution_timing", fromlist=["*"])
 ClockMapping = execution_timing.ClockMapping
 ClockObservation = execution_timing.ClockObservation

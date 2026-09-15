@@ -2,15 +2,15 @@
 
 For each split file (facade + 8 private modules + package init):
   1. mutate a byte in a temp copy of the repo file,
-  2. collect provenance via the approval module,
+  2. hash the copied runtime/source inputs via the approval module,
   3. assert the mutated file's hash changed and is present in the fingerprint
      inputs,
-  4. assert a stale fingerprint (computed pre-mutation) no longer verifies.
+  4. assert the fingerprint changes and a missing copied file is rejected.
 
-Runs entirely on local copies; no receipts are produced or altered.
+Runs entirely on temporary copies; the active checkout is never mutated.
+This restricted hash probe does not verify signed receipts or SDK provenance.
 """
-import hashlib
-import importlib
+
 import json
 import shutil
 import sys
@@ -34,10 +34,6 @@ SPLIT_FILES = [
 ]
 
 
-def sha(p):
-    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
-
-
 def load_module():
     sys.path.insert(0, str(REPO))
     import examples.strategy_candidate_approval as mod
@@ -45,7 +41,29 @@ def load_module():
     return mod
 
 
-def partial_provenance(mod):
+def snapshot_inputs(mod, directory):
+    """Copy each distinct input once, preserving runtime/source aliasing."""
+    copied = {}
+    inputs = {}
+    for label, module_name, distribution in mod.RUNTIME_SOURCE_MODULES:
+        if distribution != "backtrader":
+            continue
+        runtime = Path(mod._module_artifact(module_name)).resolve()
+        source_root = mod._git_root(runtime.parent)
+        source = source_root / runtime.relative_to(source_root) if source_root else runtime
+        pair = []
+        for original in (runtime, source):
+            original = original.resolve()
+            if original not in copied:
+                target = Path(directory) / f"{len(copied)}.py"
+                shutil.copyfile(original, target)
+                copied[original] = target
+            pair.append(copied[original])
+        inputs[label] = (runtime, *pair)
+    return inputs
+
+
+def partial_provenance(mod, inputs):
     """Provenance restricted to the backtrader distribution labels.
 
     The full collector fail-closes without an installed bt_api_py wheel on
@@ -55,64 +73,74 @@ def partial_provenance(mod):
     """
     runtime_files = {}
     source_files = {}
-    for label, module_name, _dist in mod.RUNTIME_SOURCE_MODULES:
-        if _dist != "backtrader":
-            continue
-        runtime_path = mod._module_artifact(module_name)
+    for label, (_original, runtime_path, source_path) in inputs.items():
         runtime_files[label] = mod._file_sha256(runtime_path, label)
-        source_root = mod._git_root(runtime_path.parent)
-        if source_root is not None:
-            rel = runtime_path.relative_to(source_root)
-            source_files[label] = mod._file_sha256(source_root / rel, label)
-        else:
-            source_files[label] = runtime_files[label]
+        source_files[label] = mod._file_sha256(source_path, label)
     payload = {"runtime_files": runtime_files, "source_files": source_files}
     payload["fingerprint_sha256"] = mod.canonical_sha256(payload)
     return payload
 
 
-def main():
-    mod = load_module()
+def probe_snapshot(mod, inputs):
+    """Mutate only the copied inputs; callers retain the temporary directory."""
     results = {}
-    prov_before = partial_provenance(mod)
+    prov_before = partial_provenance(mod, inputs)
     for rel in SPLIT_FILES:
-        target = REPO / rel
-        original = target.read_bytes()
+        label = next(
+            (label for label, paths in inputs.items() if paths[0] == (REPO / rel).resolve()),
+            None,
+        )
+        if label is None:
+            results[rel] = {"status": "FAIL", "reason": "not covered by RUNTIME_SOURCE_MODULES"}
+            continue
+        targets = {path: path.read_bytes() for path in inputs[label][1:]}
         try:
-            target.write_bytes(original + b"\n# iter28 fingerprint probe mutation\n")
-            prov_after = partial_provenance(mod)
-            label = None
-            for lbl, module_name, _dist in mod.RUNTIME_SOURCE_MODULES:
-                if Path(mod._module_artifact(module_name)) == target:
-                    label = lbl
-                    break
-            if label is None:
-                results[rel] = {"status": "FAIL", "reason": "not covered by RUNTIME_SOURCE_MODULES"}
-                continue
+            for target, original in targets.items():
+                target.write_bytes(original + b"\n# iter28 fingerprint probe mutation\n")
+            prov_after = partial_provenance(mod, inputs)
             changed = prov_before["runtime_files"][label] != prov_after["runtime_files"][label]
             source_changed = prov_before["source_files"][label] != prov_after["source_files"][label]
             fp_changed = prov_before["fingerprint_sha256"] != prov_after["fingerprint_sha256"]
+            inputs[label][1].unlink()
+            missing_rejected = False
+            try:
+                partial_provenance(mod, inputs)
+            except mod.DemoApprovalVerificationError:
+                missing_rejected = True
             results[rel] = {
-                "status": "PASS" if (changed and source_changed and fp_changed) else "FAIL",
+                "status": (
+                    "PASS"
+                    if all((changed, source_changed, fp_changed, missing_rejected))
+                    else "FAIL"
+                ),
                 "label": label,
                 "runtime_hash_changed": changed,
                 "source_hash_changed": source_changed,
                 "fingerprint_changed": fp_changed,
+                "missing_file_rejected": missing_rejected,
             }
         finally:
-            target.write_bytes(original)
+            for target, original in targets.items():
+                target.write_bytes(original)
 
     ok = all(v["status"] == "PASS" for v in results.values())
-    prov_restored = partial_provenance(mod)
+    prov_restored = partial_provenance(mod, inputs)
     restored_equal = prov_restored["fingerprint_sha256"] == prov_before["fingerprint_sha256"]
     out = {
         "per_file": results,
         "all_pass": ok,
         "restored_equal": restored_equal,
-        "note": "bt_api_py labels excluded: no installed wheel with VCS attestation on this machine (fail-closed), full collector verified by test_cross_exchange_demo_contract.py where environment allows",
+        "scope": "temporary copies of backtrader hash inputs only; SDK provenance and signed receipts are not verified by this probe",
     }
+    return out
+
+
+def main():
+    mod = load_module()
+    with tempfile.TemporaryDirectory(prefix="iter28-fingerprint-") as directory:
+        out = probe_snapshot(mod, snapshot_inputs(mod, directory))
     print(json.dumps(out, indent=1))
-    return 0 if ok and restored_equal else 1
+    return 0 if out["all_pass"] and out["restored_equal"] else 1
 
 
 if __name__ == "__main__":

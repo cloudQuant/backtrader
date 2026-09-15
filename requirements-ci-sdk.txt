@@ -1,0 +1,9 @@
+# Optional SDK acceptance environment (Python 3.11+).
+# Install released SDKs from PyPI; the remaining unpublished adapters stay
+# pinned to public immutable commits, never local wheels.
+bt_api_py==0.15.3
+bt_api_okx @ https://github.com/cloudQuant/bt_api_okx/archive/d407ba69f40f775f4d6aa4d07c9a96f94ddb5263.tar.gz
+bt_api_base==0.15.4
+bt_api_binance @ https://github.com/cloudQuant/bt_api_binance/archive/9985d13d32ce4080d8d1c2da36f404800f9a6675.tar.gz
+bt_api_ctp==2.0.2
+spdlog==2.0.6

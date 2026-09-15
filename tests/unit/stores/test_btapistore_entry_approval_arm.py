@@ -10,7 +10,11 @@ from pathlib import Path
 
 import pytest
 
-from bt_api_py import CtpExecutionApprovalCapability
+from tests.test_utils.optional_sdk import optional_sdk
+
+CtpExecutionApprovalCapability = optional_sdk(
+    allow_module_level=True
+).CtpExecutionApprovalCapability
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_btapistore_iteration22 import (  # noqa: E402
@@ -31,19 +35,23 @@ class EntryApprovalClient(ManagedBtApiClient):
 
     def arm_execution_from_approval(self, approval_capability):
         self.entry_approval_arms.append(approval_capability)
-        proof = self.armed_proofs[0] if self.armed_proofs else {
-            "account_fingerprint": "acct_0123456789abcdef",
-            "trading_day": "20260909",
-            "instrument": "CZCE.SA609",
-            "connection_generation": 3,
-            "environment_profile": "simnow_demo",
-            "receipt_sha256": "1" * 64,
-            "native_sha256": "2" * 64,
-            "ctp_package_sha256": "3" * 64,
-            "source_hashes_sha256": "4" * 64,
-            "dependency_hashes_sha256": "5" * 64,
-            "preflight_sha256": "6" * 64,
-        }
+        proof = (
+            self.armed_proofs[0]
+            if self.armed_proofs
+            else {
+                "account_fingerprint": "acct_0123456789abcdef",
+                "trading_day": "20260909",
+                "instrument": "CZCE.SA609",
+                "connection_generation": 3,
+                "environment_profile": "simnow_demo",
+                "receipt_sha256": "1" * 64,
+                "native_sha256": "2" * 64,
+                "ctp_package_sha256": "3" * 64,
+                "source_hashes_sha256": "4" * 64,
+                "dependency_hashes_sha256": "5" * 64,
+                "preflight_sha256": "6" * 64,
+            }
+        )
         self.armed_proofs.append(dict(proof))
         self.armed = True
         self.arm_proof_sha256 = hashlib.sha256(

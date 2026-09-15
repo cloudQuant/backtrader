@@ -8,6 +8,7 @@ import backtrader as bt
 from backtrader.brokers.btapibroker import BtApiBroker
 from tests.fixtures.fake_btapi import make_store
 from tests.unit.brokers.test_btapibroker_iteration22 import ManagedAsyncCtpClient
+from tests.test_utils.optional_sdk import optional_sdk
 
 
 class SilentLiveFeed(bt.feed.DataBase):
@@ -71,6 +72,7 @@ class ReconciliationLifecycleStrategy(bt.Strategy):
 
 
 def test_idle_queries_run_off_thread_and_drive_strategy_reconciliation_lifecycle():
+    optional_sdk()
     main_thread = threading.get_ident()
     client = ManagedAsyncCtpClient()
     store = make_store(

@@ -10,6 +10,9 @@ import pandas as pd
 from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..utils import date2num
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = ["CryptoHFTData"]
 
@@ -76,6 +79,7 @@ class CryptoHFTData(DataBase):
         try:
             from cryptohftdata import CryptoHFTDataClient
         except ImportError as exc:
+            logger.error("cryptohftdata:81 re-raising ImportError", exc_info=True)
             raise ImportError(
                 "CryptoHFTData feed requires the optional dependency; "
                 "install backtrader[cryptohftdata]"

@@ -19,8 +19,9 @@ import pytest
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import BtApiStore
+from tests.test_utils.optional_sdk import optional_sdk
 
-sdk = pytest.importorskip("bt_api_py")
+sdk = optional_sdk(allow_module_level=True)
 
 OKX = "OKX___SWAP"
 BINANCE = "BINANCE___SWAP"

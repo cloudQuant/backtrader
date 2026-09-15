@@ -4,7 +4,11 @@ from importlib import import_module
 
 import pytest
 
-from bt_api_py.cross_venue import (
+from tests.test_utils.optional_sdk import optional_sdk
+
+optional_sdk(allow_module_level=True)
+
+from bt_api_py.cross_venue import (  # noqa: E402
     CrossVenueLeg as InstrumentRule,
     CrossVenueValueError as CrossExchangeValueError,
     InsufficientDepth,

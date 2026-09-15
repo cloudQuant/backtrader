@@ -15,6 +15,7 @@ import pytest
 from backtrader.order import OrderBase
 from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
 from tests.fixtures.fake_btapi import make_bar
+from tests.test_utils.optional_sdk import optional_sdk
 
 OKX = "OKX___SWAP"
 BINANCE = "BINANCE___SWAP"
@@ -338,6 +339,7 @@ def test_public_source_stop_callback_hook_does_not_expose_the_private_client():
 
 
 def test_store_holds_the_supplied_sdk_directly_and_configures_execution(tmp_path):
+    optional_sdk()
     sdk = FakeSdk()
     journal = str(tmp_path / "orders.jsonl")
     store = store_for(sdk, order_journal=journal, account_currency="USDT")
@@ -350,6 +352,7 @@ def test_store_holds_the_supplied_sdk_directly_and_configures_execution(tmp_path
 
 
 def test_stopped_owned_sdk_summary_does_not_reconnect_and_returns_a_copy():
+    optional_sdk()
     store = store_for()
     store.start()
     api = store._api
@@ -363,6 +366,7 @@ def test_stopped_owned_sdk_summary_does_not_reconnect_and_returns_a_copy():
 
 
 def test_owned_sdk_start_failure_retains_execution_audit_without_reconnecting():
+    optional_sdk()
     expected = {
         "submit_calls": 0,
         "cancel_calls": 0,
@@ -417,6 +421,8 @@ def test_owned_sdk_start_failure_retains_execution_audit_without_reconnecting():
 
 
 def test_owned_sdk_account_readiness_failure_records_safe_local_close():
+    optional_sdk()
+
     class RegionMismatchSdk(FakeSdk):
         instances = []
 
@@ -450,6 +456,8 @@ def test_owned_sdk_account_readiness_failure_records_safe_local_close():
 
 
 def test_owned_sdk_partial_connect_failure_is_boundedly_closed_by_stop():
+    optional_sdk()
+
     class ConnectFailureSdk(FakeSdk):
         instances = []
 
@@ -491,6 +499,8 @@ def test_owned_sdk_partial_connect_failure_is_boundedly_closed_by_stop():
 
 
 def test_owned_sdk_partial_connect_failure_close_error_is_failed_and_not_reused():
+    optional_sdk()
+
     class CloseFailureSdk(FakeSdk):
         instances = []
 
@@ -534,6 +544,7 @@ def test_owned_sdk_partial_connect_failure_close_error_is_failed_and_not_reused(
 
 
 def test_owned_sdk_partial_connect_failure_close_timeout_blocks_reuse():
+    optional_sdk()
     close_started = threading.Event()
     release_close = threading.Event()
 
@@ -592,6 +603,7 @@ def test_owned_sdk_partial_connect_failure_close_timeout_blocks_reuse():
 
 
 def test_explicit_restart_replaces_previous_execution_summary():
+    optional_sdk()
     store = store_for()
     store.start()
     first_api = store._api
@@ -612,6 +624,7 @@ def test_explicit_restart_replaces_previous_execution_summary():
 
 
 def test_owned_sdk_restart_discards_session_local_order_bindings_and_queues():
+    optional_sdk()
     store = store_for()
     first = command_response(store, store.submit_order(order(client_id=None, ref=1)))
     assert first["client_order_id"] == "101" and first["bt_order_ref"] == 1
@@ -638,6 +651,7 @@ def test_owned_sdk_restart_discards_session_local_order_bindings_and_queues():
 
 
 def test_close_failure_keeps_original_execution_audit_readable(monkeypatch):
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk)
     store.start()
@@ -659,6 +673,7 @@ def test_close_failure_keeps_original_execution_audit_readable(monkeypatch):
 
 
 def test_owned_sdk_close_failure_discards_half_closed_api_and_can_restart(monkeypatch):
+    optional_sdk()
     store = store_for()
     store.start()
     failed_api = store._api
@@ -683,6 +698,7 @@ def test_owned_sdk_close_failure_discards_half_closed_api_and_can_restart(monkey
 
 
 def test_store_constructs_the_only_sdk_with_public_execution_configuration(tmp_path):
+    optional_sdk()
     journal = str(tmp_path / "orders.jsonl")
     store = store_for(
         order_journal=journal,
@@ -720,6 +736,7 @@ def test_broker_and_venue_accounts_share_one_sdk_snapshot():
 
 
 def test_broker_cash_validation_uses_the_order_venue_instead_of_portfolio_cash():
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk)
     store._account_cache_ttl = 60
@@ -786,6 +803,8 @@ def test_broker_cash_validation_uses_the_order_venue_instead_of_portfolio_cash()
     ],
 )
 def test_sdk_account_query_attribute_errors_fail_closed(sdk_method, store_method, error_text):
+    optional_sdk()
+
     def broken_adapter(*_args, **_kwargs):
         raise AttributeError("normalized adapter bug")
 
@@ -815,6 +834,7 @@ def test_sdk_account_query_attribute_errors_fail_closed(sdk_method, store_method
 
 
 def test_broker_start_account_failure_rolls_back_live_state_and_can_retry():
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk)
     store.start()
@@ -894,6 +914,7 @@ def test_order_readiness_is_a_thin_routed_sdk_call():
 def test_order_conversion_preserves_native_units_and_all_position_fields(
     venue, symbol, quantity, unit
 ):
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk, exchange_kwargs={venue: {}}, symbol_routes={symbol: venue})
     result = command_response(
@@ -919,6 +940,7 @@ def test_order_conversion_preserves_native_units_and_all_position_fields(
 
 
 def test_sdk_allocated_client_id_is_bound_before_sending_and_unknown_is_unchanged():
+    optional_sdk()
     sdk = FakeSdk()
     sdk.submit_result = {
         "order_id": None,
@@ -945,6 +967,8 @@ def test_sdk_allocated_client_id_is_bound_before_sending_and_unknown_is_unchange
 
 
 def test_sdk_allocated_client_id_is_attached_before_unknown_exception():
+    optional_sdk()
+
     class UnknownSubmitError(RuntimeError):
         code = "transport_timeout"
         execution_unknown = True
@@ -972,6 +996,7 @@ def test_sdk_allocated_client_id_is_attached_before_unknown_exception():
 
 
 def test_ctp_order_ref_session_and_front_are_preserved_for_cancel_without_exchange_id():
+    optional_sdk()
     sdk = FakeSdk()
     sdk.submit_result = {
         "order_id": None,
@@ -995,6 +1020,7 @@ def test_ctp_order_ref_session_and_front_are_preserved_for_cancel_without_exchan
 
 
 def test_two_venues_can_share_a_client_and_exchange_order_id_without_cross_routing():
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk)
     command_response(store, store.submit_order(order("BTC-USDT-SWAP", ref=1)))
@@ -1112,6 +1138,7 @@ def test_explicit_ctp_execution_arm_requires_account_fingerprint_authority():
 
 @pytest.mark.parametrize("position_mode", ["net", "dual_side"])
 def test_broker_start_ignores_unrouted_zero_positions_before_feeds_start(position_mode):
+    optional_sdk()
     sdk = FakeSdk()
     if position_mode == "dual_side":
         sdk.get_account_config = lambda venue, normalized=False: {
@@ -1168,6 +1195,7 @@ def test_unrouted_nonzero_position_remains_visible_to_account_preflight():
 
 
 def test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_interpretation():
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk, exchange_kwargs={CTP: {}}, symbol_routes={"IF2609": CTP})
     command_response(store, store.submit_order(order("IF2609", client_id="123")))
@@ -1207,6 +1235,7 @@ def test_framework_retains_sdk_trade_source_state_and_canonical_fee_without_inte
 
 
 def test_noncrypto_mixed_events_become_native_objects_and_keep_queue_order():
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(
         sdk, exchange_kwargs={MT5: {}}, symbol_routes={"EURUSD": MT5}, book_queue_size=1
@@ -1268,6 +1297,7 @@ def test_noncrypto_mixed_events_become_native_objects_and_keep_queue_order():
 
 
 def test_open_order_identity_supports_native_cancellation_without_local_order():
+    optional_sdk()
     sdk = FakeSdk()
     sdk.open_orders[CTP] = [
         {
@@ -1294,6 +1324,7 @@ def test_open_order_identity_supports_native_cancellation_without_local_order():
 
 
 def test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it():
+    optional_sdk()
     execution = {"order_journal": "existing-session.orders", "account_currency": "CNY"}
     sdk = FakeSdk(exchange_kwargs={CTP: {}}, execution_config=execution)
     store = BtApiStore(provider="btapi", api=sdk)
@@ -1305,6 +1336,7 @@ def test_supplied_sdk_configuration_is_preserved_when_store_does_not_override_it
 
 
 def test_constructor_defaults_debug_off_without_overriding_an_explicit_choice():
+    optional_sdk()
     default = store_for()
     default.start()
     assert default._api.kwargs["debug"] is False
@@ -1314,6 +1346,7 @@ def test_constructor_defaults_debug_off_without_overriding_an_explicit_choice():
 
 
 def test_orderbook_sequence_and_drop_count_survive_sdk_drain():
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk, book_queue_size=1)
     store.start()
@@ -1350,6 +1383,7 @@ def test_orderbook_sequence_and_drop_count_survive_sdk_drain():
 
 
 def test_sdk_batch_poll_drains_snapshot_and_requests_orderbook_coalescing():
+    optional_sdk()
     sdk = FakeSdk()
     calls = []
 
@@ -1392,6 +1426,7 @@ def test_sdk_batch_poll_drains_snapshot_and_requests_orderbook_coalescing():
 
 
 def test_account_push_refreshes_venue_balance_cache_without_rest():
+    optional_sdk()
     sdk = FakeSdk()
     # account_cache_ttl is a store constructor argument, not a config entry.
     store = BtApiStore(
@@ -1431,6 +1466,7 @@ def test_account_push_refreshes_venue_balance_cache_without_rest():
 
 
 def test_position_push_is_audited_without_touching_order_or_book_queues():
+    optional_sdk()
     sdk = FakeSdk()
     store = store_for(sdk)
     store.start()

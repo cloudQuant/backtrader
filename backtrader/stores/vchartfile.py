@@ -17,6 +17,9 @@ import os.path
 import traceback
 
 from ..store import Store
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class VChartFile(Store):

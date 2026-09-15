@@ -5,11 +5,13 @@ preparation, runstrategies orchestration, writers and shared helpers.
 """
 
 import itertools
+import logging
+import time
 
 from .. import errors, observers
 from ..metabase import OwnerContext
 from ..utils import OrderedDict, tzparse
-from ..utils.log_message import get_logger
+from ..utils.log_message import _is_output_enabled_for, get_logger
 from ..utils.py3 import integer_types
 
 # Keep the historical logger name (D28-04.6): routing/filters must not change.
@@ -18,6 +20,41 @@ logger = get_logger("backtrader.cerebro")
 
 class ExecutionMixin:
     """Run orchestration half of Cerebro (see module docstring)."""
+
+    def _read_broker_lifecycle_value(self, accessor):
+        """Read an optional broker summary without changing the run outcome.
+
+        Lifecycle INFO logging is opt-in.  A custom broker can legitimately
+        expose cash/value only after ``start()`` or before ``stop()``.  The
+        summary is diagnostic data, so an unavailable accessor must not make
+        a backtest fail.
+        """
+        try:
+            return getattr(self._broker, accessor)()
+        except Exception:
+            # Broker implementations can raise third-party exceptions carrying
+            # account or transport details.  This optional summary must never
+            # copy that unknown payload into a framework log.
+            logger.warning("broker %s unavailable for lifecycle logging", accessor)
+            return None
+
+    def _read_data_lifecycle_length(self, data):
+        """Read a data length only while its lifecycle is still active."""
+        try:
+            return len(data)
+        except Exception:
+            # ``data`` can be a live feed whose ``stop()`` releases buffers.
+            # Keep the event useful without writing a third-party traceback.
+            logger.warning("data length unavailable for lifecycle logging")
+            return None
+
+    @staticmethod
+    def _read_lifecycle_count(values):
+        """Read an optional count without consuming iterable strategy input."""
+        try:
+            return len(values)
+        except Exception:
+            return None
 
     # Initialize count
     def _init_stcount(self):
@@ -82,12 +119,37 @@ class ExecutionMixin:
         """
         Internal method invoked by ``run``` to run a set of strategies
         """
+        # Lifecycle diagnostics are opt-in and must not probe broker state
+        # before start()/after stop().  Some live/custom brokers deliberately
+        # reject those accessors outside their active lifecycle window.
+        log_lifecycle = _is_output_enabled_for(logging.INFO)
+        t0 = time.time() if log_lifecycle else None
+        initial_cash = None
         self._init_stcount()
         # Initialize running strategy as empty list
         self.runningstrats = runstrats = []
         # Start stores/broker/feeds, apply fund + order history, write headers
         # and (optionally) preload data. Extracted for readability.
         self._prepare_run(predata)
+        if log_lifecycle:
+            initial_cash = self._read_broker_lifecycle_value("getcash")
+            strategy_count = self._read_lifecycle_count(iterstrat)
+            logger.info(
+                "run starting: runonce=%s oldsync=%s strategies=%s datas=%d initial cash=%s",
+                self.p.runonce,
+                self.p.oldsync,
+                strategy_count if strategy_count is not None else "unavailable",
+                len(self.datas),
+                initial_cash if initial_cash is not None else "unavailable",
+            )
+            for data in self.datas:
+                name = getattr(data, "_name", "")
+                bars = self._read_data_lifecycle_length(data)
+                logger.info(
+                    "data loaded: name=%s bars=%s",
+                    name,
+                    bars if bars is not None else "unavailable",
+                )
         # Loop through strategies
         for stratcls, sargs, skwargs in iterstrat:
             # Add data to strategy parameters
@@ -103,6 +165,7 @@ class ExecutionMixin:
                         # Fallback to direct instantiation
                         strat = stratcls(*sargs, **skwargs)
             except errors.StrategySkipError:
+                logger.warning("execution:122 suppressed bare")
                 continue  # do not add strategy to the mix
             # Old data synchronization method
             if self.p.oldsync:
@@ -118,6 +181,8 @@ class ExecutionMixin:
             tz = self.datas[tz]._tz
         else:
             tz = tzparse(tz)
+        # StrategySkipError may exclude every strategy; cleanup still runs.
+        run_exception = None
         # If runstrats is not empty list
         if runstrats:
             # loop separated for clarity
@@ -184,7 +249,6 @@ class ExecutionMixin:
                     self._timers.append(timer)
             # Run the main loop; keep cleanup deterministic, but never turn a
             # strategy/runtime exception into a successful empty backtest.
-            run_exception = None
             try:
                 # If _dopreload and _dorunonce are True
                 if self._dopreload and self._dorunonce:
@@ -207,6 +271,14 @@ class ExecutionMixin:
                 # Iterate strategies and stop running (always runs)
                 for strat in runstrats:
                     strat._stop()
+        # Capture the final value while the broker is still active.  This is
+        # only diagnostic data, so a custom broker may decline the accessor.
+        final_value = None
+        final_bars = None
+        if run_exception is None and log_lifecycle:
+            final_value = self._read_broker_lifecycle_value("getvalue")
+            final_bars = self._read_data_lifecycle_length(self.datas[0]) if self.datas else 0
+
         # Stop broker
         self._broker.stop()
         # If predata is False, iterate data and stop each data
@@ -223,6 +295,22 @@ class ExecutionMixin:
             store.stop()
         # Stop writer
         self.stop_writers(runstrats)
+        if run_exception is None and log_lifecycle:
+            if final_value is None or initial_cash is None:
+                pnl = "unavailable"
+            else:
+                try:
+                    pnl = final_value - initial_cash
+                except Exception:
+                    logger.warning("broker pnl unavailable for lifecycle logging")
+                    pnl = "unavailable"
+            logger.info(
+                "run finished: final value=%s pnl=%s bars=%d elapsed=%.2fs",
+                final_value if final_value is not None else "unavailable",
+                pnl,
+                final_bars if final_bars is not None else 0,
+                time.time() - t0,
+            )
         if run_exception is not None:
             raise run_exception
         # If doing parameter optimization and optreturn is True, build lightweight

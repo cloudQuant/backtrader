@@ -12,7 +12,10 @@ in backtrader, managing line data, minimum periods, and calculation logic.
 from .lineiterator import IndicatorBase, LineIterator
 from .lineseries import Lines
 from .metabase import AutoInfoClass, OwnerContext
+from .utils.log_message import get_logger
 from .utils.py3 import range
+
+logger = get_logger(__name__)
 
 
 class IndicatorRegistry:
@@ -74,7 +77,8 @@ class IndicatorRegistry:
         except TypeError:  # something is not hashable
             return indicator_cls(*args, **kwargs)
         except KeyError:
-            pass  # hashable but not in the cache
+            logger.debug("indicator:79 ignored KeyError")
+            # hashable but not in the cache
 
         _obj = indicator_cls(*args, **kwargs)
         return cls._icache.setdefault(ckey, _obj)
@@ -150,7 +154,7 @@ class Indicator(IndicatorBase):
                                     indicators.remove(self)
                         except Exception:  # nosec B110
                             # Best-effort detach from a previous owner; ignore failures.
-                            pass
+                            logger.warning("indicator:155 suppressed Exception")
                         self._owner = parent_owner
                         parent_owner.addindicator(self)
 
@@ -262,7 +266,7 @@ class Indicator(IndicatorBase):
                         self._minperiod = data_max
         except (AttributeError, TypeError):
             # No usable datas to derive a minperiod from; keep current value.
-            pass
+            logger.debug("indicator:267 ignored AttributeError,TypeError")
 
         # Step 1: Calculate minperiod from lines
         try:
@@ -277,7 +281,7 @@ class Indicator(IndicatorBase):
                         self._minperiod = lines_max
         except (AttributeError, TypeError):
             # Lines not iterable yet; keep current minperiod.
-            pass
+            logger.debug("indicator:282 ignored AttributeError,TypeError")
 
         # Step 2: Calculate minperiod from sub-indicators
         try:
@@ -291,7 +295,7 @@ class Indicator(IndicatorBase):
                             self._minperiod = ind_max
         except (AttributeError, TypeError):
             # No sub-indicator registry available; keep current minperiod.
-            pass
+            logger.debug("indicator:296 ignored AttributeError,TypeError")
 
         # Step 3: Update minperiod on all lines
         try:
@@ -301,7 +305,7 @@ class Indicator(IndicatorBase):
                         line.updateminperiod(self._minperiod)
         except (AttributeError, TypeError):
             # Lines not iterable; minperiod propagation is best-effort.
-            pass
+            logger.debug("indicator:306 ignored AttributeError,TypeError")
 
     def advance(self, size=1):
         """Advance indicator lines when data length is less than clock length.

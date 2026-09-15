@@ -5,6 +5,7 @@ import pytest
 
 from backtrader.order import SellOrder
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
+from tests.test_utils.optional_sdk import optional_sdk
 
 CTP = "CTP___FUTURE"
 
@@ -498,6 +499,7 @@ def test_trade_source_partial_deal_before_terminal_waits_only_for_missing_quanti
 
 @pytest.mark.parametrize("status", ["completed", "canceled"])
 def test_normalized_ctp_store_and_native_feed_keep_order_alive_until_deals_arrive(tmp_path, status):
+    optional_sdk()
     from tests.unit.stores.test_btapistore_normalized import CTP, FakeSdk, store_for
 
     sdk = FakeSdk()

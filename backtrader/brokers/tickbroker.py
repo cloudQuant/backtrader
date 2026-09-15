@@ -1955,7 +1955,7 @@ class TickBroker(BrokerBase):
             self._pending_orders.remove(order)
         except ValueError:
             # Order already removed from the pending list; idempotent removal.
-            pass
+            logger.debug("tickbroker:1958 ignored ValueError")
 
         data_name = self._get_data_name(order.data)
         bucket = self._orders_by_symbol.get(data_name)
@@ -1964,7 +1964,7 @@ class TickBroker(BrokerBase):
                 bucket.remove(order)
             except ValueError:
                 # Order not in this symbol bucket; idempotent removal.
-                pass
+                logger.debug("tickbroker:1967 ignored ValueError")
             if not bucket:
                 del self._orders_by_symbol[data_name]
 

@@ -14,12 +14,15 @@ from pathlib import Path
 import socket
 import urllib.request
 
-from bt_api_py import CrossVenueLeg as InstrumentRule
-from bt_api_py import quantity_lattice
 import pytest
 import requests
 
-from examples.cross_exchange_replay_rules import (
+from tests.test_utils.optional_sdk import optional_sdk
+
+sdk = optional_sdk(allow_module_level=True)
+InstrumentRule, quantity_lattice = sdk.CrossVenueLeg, sdk.quantity_lattice
+
+from examples.cross_exchange_replay_rules import (  # noqa: E402
     PublicRuleSnapshotError,
     load_selected_public_rules,
 )

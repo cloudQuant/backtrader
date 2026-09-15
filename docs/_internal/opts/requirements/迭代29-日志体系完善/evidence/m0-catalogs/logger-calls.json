@@ -1,0 +1,1047 @@
+[
+ {
+  "file": "backtrader/channel.py",
+  "level": "debug",
+  "line": 606
+ },
+ {
+  "file": "backtrader/channel.py",
+  "level": "debug",
+  "line": 213
+ },
+ {
+  "file": "backtrader/channel.py",
+  "level": "debug",
+  "line": 615
+ },
+ {
+  "file": "backtrader/channel.py",
+  "level": "warning",
+  "line": 416
+ },
+ {
+  "file": "backtrader/channel.py",
+  "level": "warning",
+  "line": 423
+ },
+ {
+  "file": "backtrader/feed.py",
+  "level": "debug",
+  "line": 693
+ },
+ {
+  "file": "backtrader/feed.py",
+  "level": "debug",
+  "line": 155
+ },
+ {
+  "file": "backtrader/feed.py",
+  "level": "debug",
+  "line": 165
+ },
+ {
+  "file": "backtrader/functions.py",
+  "level": "debug",
+  "line": 139
+ },
+ {
+  "file": "backtrader/functions.py",
+  "level": "debug",
+  "line": 502
+ },
+ {
+  "file": "backtrader/functions.py",
+  "level": "debug",
+  "line": 809
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 283
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1549
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1558
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1736
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1766
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1795
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2143
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2183
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2742
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 3033
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2204
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2515
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2521
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2532
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2538
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2563
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2715
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2776
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2821
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2861
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 2901
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 3004
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 722
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1729
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1778
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 683
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1787
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1782
+ },
+ {
+  "file": "backtrader/linebuffer.py",
+  "level": "debug",
+  "line": 1791
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 3010
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 342
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 2849
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 314
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 438
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 708
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 798
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 833
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 1151
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 1859
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 820
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 447
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 431
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 682
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 2147
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 697
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 2681
+ },
+ {
+  "file": "backtrader/lineiterator.py",
+  "level": "debug",
+  "line": 2745
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 1041
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 221
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 298
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 381
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 648
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 789
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 827
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 1027
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 258
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 810
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 907
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 981
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 280
+ },
+ {
+  "file": "backtrader/lineroot.py",
+  "level": "debug",
+  "line": 962
+ },
+ {
+  "file": "backtrader/lineseries.py",
+  "level": "debug",
+  "line": 1065
+ },
+ {
+  "file": "backtrader/lineseries.py",
+  "level": "debug",
+  "line": 1082
+ },
+ {
+  "file": "backtrader/lineseries.py",
+  "level": "debug",
+  "line": 2464
+ },
+ {
+  "file": "backtrader/lineseries.py",
+  "level": "debug",
+  "line": 1106
+ },
+ {
+  "file": "backtrader/lineseries.py",
+  "level": "debug",
+  "line": 2146
+ },
+ {
+  "file": "backtrader/lineseries.py",
+  "level": "debug",
+  "line": 1047
+ },
+ {
+  "file": "backtrader/metabase.py",
+  "level": "debug",
+  "line": 1795
+ },
+ {
+  "file": "backtrader/metabase.py",
+  "level": "debug",
+  "line": 1787
+ },
+ {
+  "file": "backtrader/metabase.py",
+  "level": "debug",
+  "line": 902
+ },
+ {
+  "file": "backtrader/metabase.py",
+  "level": "debug",
+  "line": 274
+ },
+ {
+  "file": "backtrader/metabase.py",
+  "level": "debug",
+  "line": 1002
+ },
+ {
+  "file": "backtrader/parameters.py",
+  "level": "debug",
+  "line": 880
+ },
+ {
+  "file": "backtrader/parameters.py",
+  "level": "debug",
+  "line": 888
+ },
+ {
+  "file": "backtrader/parameters.py",
+  "level": "debug",
+  "line": 1748
+ },
+ {
+  "file": "backtrader/parameters.py",
+  "level": "debug",
+  "line": 1800
+ },
+ {
+  "file": "backtrader/strategy.py",
+  "level": "debug",
+  "line": 1196
+ },
+ {
+  "file": "backtrader/strategy.py",
+  "level": "debug",
+  "line": 1863
+ },
+ {
+  "file": "backtrader/strategy.py",
+  "level": "debug",
+  "line": 625
+ },
+ {
+  "file": "backtrader/strategy.py",
+  "level": "debug",
+  "line": 633
+ },
+ {
+  "file": "backtrader/strategy.py",
+  "level": "debug",
+  "line": 1881
+ },
+ {
+  "file": "backtrader/strategy.py",
+  "level": "warning",
+  "line": 1895
+ },
+ {
+  "file": "backtrader/strategy.py",
+  "level": "debug",
+  "line": 1876
+ },
+ {
+  "file": "backtrader/test_helpers.py",
+  "level": "warning",
+  "line": 77
+ },
+ {
+  "file": "backtrader/analyzers/annualreturn.py",
+  "level": "debug",
+  "line": 98
+ },
+ {
+  "file": "backtrader/analyzers/logreturnsrolling.py",
+  "level": "debug",
+  "line": 182
+ },
+ {
+  "file": "backtrader/bokeh/app.py",
+  "level": "debug",
+  "line": 456
+ },
+ {
+  "file": "backtrader/bokeh/app.py",
+  "level": "debug",
+  "line": 500
+ },
+ {
+  "file": "backtrader/bokeh/app.py",
+  "level": "debug",
+  "line": 489
+ },
+ {
+  "file": "backtrader/bokeh/app.py",
+  "level": "debug",
+  "line": 442
+ },
+ {
+  "file": "backtrader/bokeh/app.py",
+  "level": "debug",
+  "line": 477
+ },
+ {
+  "file": "backtrader/bokeh/plot_adapter.py",
+  "level": "warning",
+  "line": 50
+ },
+ {
+  "file": "backtrader/bokeh/plot_adapter.py",
+  "level": "warning",
+  "line": 91
+ },
+ {
+  "file": "backtrader/bokeh/plot_adapter.py",
+  "level": "warning",
+  "line": 93
+ },
+ {
+  "file": "backtrader/bokeh/plot_adapter.py",
+  "level": "warning",
+  "line": 99
+ },
+ {
+  "file": "backtrader/bokeh/tabs/config.py",
+  "level": "debug",
+  "line": 79
+ },
+ {
+  "file": "backtrader/bokeh/tabs/metadata.py",
+  "level": "debug",
+  "line": 90
+ },
+ {
+  "file": "backtrader/bokeh/tabs/metadata.py",
+  "level": "debug",
+  "line": 70
+ },
+ {
+  "file": "backtrader/bokeh/tabs/performance.py",
+  "level": "debug",
+  "line": 176
+ },
+ {
+  "file": "backtrader/bokeh/tabs/performance.py",
+  "level": "debug",
+  "line": 189
+ },
+ {
+  "file": "backtrader/bokeh/analyzers/recorder.py",
+  "level": "debug",
+  "line": 103
+ },
+ {
+  "file": "backtrader/bokeh/utils/helpers.py",
+  "level": "debug",
+  "line": 98
+ },
+ {
+  "file": "backtrader/plot/plot.py",
+  "level": "debug",
+  "line": 519
+ },
+ {
+  "file": "backtrader/plot/plot.py",
+  "level": "debug",
+  "line": 590
+ },
+ {
+  "file": "backtrader/plot/plot_plotly.py",
+  "level": "debug",
+  "line": 1024
+ },
+ {
+  "file": "backtrader/indicators/basicops.py",
+  "level": "debug",
+  "line": 163
+ },
+ {
+  "file": "backtrader/indicators/ema.py",
+  "level": "debug",
+  "line": 96
+ },
+ {
+  "file": "backtrader/indicators/sma.py",
+  "level": "debug",
+  "line": 89
+ },
+ {
+  "file": "backtrader/indicators/sma.py",
+  "level": "debug",
+  "line": 137
+ },
+ {
+  "file": "backtrader/indicators/sma.py",
+  "level": "debug",
+  "line": 100
+ },
+ {
+  "file": "backtrader/feeds/influxfeed.py",
+  "level": "error",
+  "line": 96
+ },
+ {
+  "file": "backtrader/feeds/influxfeed.py",
+  "level": "error",
+  "line": 136
+ },
+ {
+  "file": "backtrader/feeds/pandafeed.py",
+  "level": "debug",
+  "line": 306
+ },
+ {
+  "file": "backtrader/feeds/pandafeed.py",
+  "level": "debug",
+  "line": 334
+ },
+ {
+  "file": "backtrader/feeds/pandafeed.py",
+  "level": "debug",
+  "line": 318
+ },
+ {
+  "file": "backtrader/feeds/pandafeed.py",
+  "level": "debug",
+  "line": 328
+ },
+ {
+  "file": "backtrader/feeds/vchartfile.py",
+  "level": "warning",
+  "line": 124
+ },
+ {
+  "file": "backtrader/feeds/yahoo.py",
+  "level": "debug",
+  "line": 150
+ },
+ {
+  "file": "backtrader/feeds/yahoo.py",
+  "level": "warning",
+  "line": 373
+ },
+ {
+  "file": "backtrader/_cerebro/channel.py",
+  "level": "debug",
+  "line": 112
+ },
+ {
+  "file": "backtrader/_cerebro/channel.py",
+  "level": "debug",
+  "line": 147
+ },
+ {
+  "file": "backtrader/_cerebro/channel.py",
+  "level": "warning",
+  "line": 176
+ },
+ {
+  "file": "backtrader/_cerebro/channel.py",
+  "level": "debug",
+  "line": 131
+ },
+ {
+  "file": "backtrader/_cerebro/channel.py",
+  "level": "debug",
+  "line": 136
+ },
+ {
+  "file": "backtrader/_cerebro/channel.py",
+  "level": "debug",
+  "line": 145
+ },
+ {
+  "file": "backtrader/_cerebro/execution.py",
+  "level": "exception",
+  "line": 205
+ },
+ {
+  "file": "backtrader/_cerebro/runnext.py",
+  "level": "exception",
+  "line": 557
+ },
+ {
+  "file": "backtrader/_cerebro/runnext.py",
+  "level": "warning",
+  "line": 395
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "info",
+  "line": 1318
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 352
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 355
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "info",
+  "line": 1300
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "warning",
+  "line": 1506
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 727
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 883
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1232
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1242
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1264
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "error",
+  "line": 1343
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "error",
+  "line": 1523
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1640
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1669
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1699
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1730
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1741
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1752
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1833
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1845
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1856
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1905
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2563
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2612
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2657
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2762
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2799
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2826
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2851
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2879
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 803
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1156
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2038
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2574
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2917
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 770
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 1685
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2559
+ },
+ {
+  "file": "backtrader/observers/trade_logger.py",
+  "level": "debug",
+  "line": 2609
+ },
+ {
+  "file": "backtrader/reports/charts.py",
+  "level": "debug",
+  "line": 189
+ },
+ {
+  "file": "backtrader/reports/charts.py",
+  "level": "debug",
+  "line": 175
+ },
+ {
+  "file": "backtrader/reports/charts.py",
+  "level": "debug",
+  "line": 328
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 85
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 104
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 139
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 157
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 198
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 250
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 418
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 473
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 485
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 508
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 616
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 567
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 348
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 404
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 416
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 535
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 546
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 580
+ },
+ {
+  "file": "backtrader/reports/performance.py",
+  "level": "debug",
+  "line": 337
+ },
+ {
+  "file": "backtrader/channels/funding.py",
+  "level": "warning",
+  "line": 166
+ },
+ {
+  "file": "backtrader/channels/funding.py",
+  "level": "warning",
+  "line": 206
+ },
+ {
+  "file": "backtrader/channels/live_validator.py",
+  "level": "warning",
+  "line": 96
+ },
+ {
+  "file": "backtrader/channels/live_validator.py",
+  "level": "warning",
+  "line": 219
+ },
+ {
+  "file": "backtrader/channels/live_validator.py",
+  "level": "warning",
+  "line": 108
+ },
+ {
+  "file": "backtrader/channels/live_validator.py",
+  "level": "warning",
+  "line": 191
+ },
+ {
+  "file": "backtrader/channels/orderbook.py",
+  "level": "warning",
+  "line": 175
+ },
+ {
+  "file": "backtrader/channels/orderbook.py",
+  "level": "warning",
+  "line": 218
+ },
+ {
+  "file": "backtrader/channels/tick.py",
+  "level": "warning",
+  "line": 160
+ }
+]

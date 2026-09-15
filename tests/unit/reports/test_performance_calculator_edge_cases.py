@@ -482,26 +482,26 @@ class TestProfitFactor:
 class TestBrokerAccessFailures:
     """Test broker access failures degrade gracefully."""
 
-    def test_get_pnl_metrics_handles_broker_getvalue_failure(self, caplog):
+    def test_get_pnl_metrics_handles_broker_getvalue_failure(self, bt_caplog):
         """Broker getvalue failure should not crash PnL metric calculation."""
         strategy = _make_strategy()
         strategy.broker.getvalue.side_effect = RuntimeError("broker offline")
         calc = PerformanceCalculator(strategy)
 
-        with caplog.at_level("DEBUG"):
+        with bt_caplog.at_level("DEBUG"):
             metrics = calc.get_pnl_metrics()
 
         assert metrics["start_cash"] == 100000.0
         assert metrics["end_value"] is None
         assert metrics["rpl"] is None
-        assert any("Failed to get end value" in record.message for record in caplog.records)
+        assert any("Failed to get end value" in record.message for record in bt_caplog.records)
 
-    def test_get_pnl_metrics_skips_invalid_broker_values(self, caplog):
+    def test_get_pnl_metrics_skips_invalid_broker_values(self, bt_caplog):
         """NaN/inf broker values should not poison rpl or total_return."""
         strategy = _make_strategy(starting_cash=float("nan"), broker_value=float("inf"))
         calc = PerformanceCalculator(strategy)
 
-        with caplog.at_level("DEBUG"):
+        with bt_caplog.at_level("DEBUG"):
             metrics = calc.get_pnl_metrics()
 
         assert math.isnan(metrics["start_cash"])
@@ -510,10 +510,10 @@ class TestBrokerAccessFailures:
         assert metrics["total_return"] is None
         assert any(
             "Skipping basic PnL metric calculation for invalid broker values" in record.message
-            for record in caplog.records
+            for record in bt_caplog.records
         )
 
-    def test_get_equity_curve_handles_startingcash_access_failure(self, caplog):
+    def test_get_equity_curve_handles_startingcash_access_failure(self, bt_caplog):
         """Starting cash access failure should fall back to the default curve base."""
         analyzer = _make_analyzer("TimeReturn", {1: 0.1})
 
@@ -533,12 +533,12 @@ class TestBrokerAccessFailures:
         strategy.broker = BrokenBroker()
         calc = PerformanceCalculator(strategy)
 
-        with caplog.at_level("DEBUG"):
+        with bt_caplog.at_level("DEBUG"):
             dates, values = calc.get_equity_curve()
 
         assert dates == [1]
         assert values == pytest.approx([110000.0])
-        assert any("Failed to get starting cash" in record.message for record in caplog.records)
+        assert any("Failed to get starting cash" in record.message for record in bt_caplog.records)
 
 
 class TestBuyAndHoldCurveEdgeCases:

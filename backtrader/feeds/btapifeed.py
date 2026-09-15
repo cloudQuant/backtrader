@@ -30,6 +30,8 @@ def _safe_log(level, message, *args):
     try:
         getattr(logger, level)(_redact_diagnostic(message), *map(_redact_diagnostic, args))
     except Exception:
+        # The sink itself failed. Calling it again would escape this guard
+        # before its health counter is incremented and disrupt feed callbacks.
         _LOGGING_HEALTH["logging_errors"] += 1
 
 
@@ -129,7 +131,7 @@ def _tick_timestamp(tick):
                 _dt.datetime.fromisoformat(dt_value.replace("Z", "+00:00"))
             )
         except ValueError:
-            pass
+            _safe_log("debug", "btapifeed:132 ignored ValueError")
 
     return _coerce_epoch_seconds(_tick_value(tick, "local_time", "LocalTime", default=0.0) or 0.0)
 
@@ -144,7 +146,7 @@ def _tick_datetime(tick):
         try:
             ts = _coerce_epoch_seconds(timestamp_value)
         except (TypeError, ValueError):
-            pass
+            _safe_log("debug", "btapifeed:147 ignored TypeError,ValueError")
         else:
             if ts > 0:
                 return _dt.datetime.fromtimestamp(ts, _UTC).replace(tzinfo=None)
@@ -156,7 +158,7 @@ def _tick_datetime(tick):
         try:
             return _datetime_to_utc_naive(_dt.datetime.fromisoformat(value.replace("Z", "+00:00")))
         except ValueError:
-            pass
+            _safe_log("debug", "btapifeed:159 ignored ValueError")
     return _dt.datetime.fromtimestamp(_tick_timestamp(tick), _UTC).replace(tzinfo=None)
 
 
@@ -310,6 +312,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     self._history.extend(bars)
                     self._history_backfilled = True
                 except Exception as e:
+                    _safe_log("warning", "btapifeed:312 fallback on Exception")
                     _safe_log("debug", "Failed to backfill history: %s", e)
 
             claim = getattr(self.store, "claim_tick_consumer", None)
@@ -324,6 +327,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             self.store.subscribe(self._dataname)
             self._session_active = True
         except Exception:
+            _safe_log("error", "btapifeed:326 exception before re-raise (Exception)")
             if claimed_this_start and self.store is not None:
                 release = getattr(self.store, "release_tick_consumer", None)
                 if callable(release):
@@ -409,6 +413,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     if bool(getattr(api, capability)(dataname)):
                         return True
                 except Exception as e:
+                    _safe_log("warning", "btapifeed:411 fallback on Exception")
                     _safe_log("debug", "%s check failed: %s", capability, e)
 
         live_ticks = getattr(api, "live_ticks", None)
@@ -1388,6 +1393,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         try:
             env.dispatch_channel_event(event)
         except Exception:
+            _safe_log("error", "btapifeed:1390 exception before re-raise (Exception)")
             self._mark_event_dropped(event_data, "strategy_dispatch_failed")
             raise
         finally:
@@ -1429,6 +1435,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         try:
             now = provider(tick)
         except Exception:
+            _safe_log("warning", "btapifeed:1431 fallback on Exception")
             return
         if not isinstance(now, CtpCohortNow):
             return

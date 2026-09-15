@@ -30,6 +30,7 @@ try:
     from influxdb import InfluxDBClient as idbclient
     from influxdb.exceptions import InfluxDBClientError
 except Exception:  # pragma: no cover - optional dependency, handled at runtime
+    logger.warning("influxfeed:32 fallback on Exception")
     idbclient = None
 
     class InfluxDBClientError(Exception):  # type: ignore[no-redef]

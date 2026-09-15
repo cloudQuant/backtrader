@@ -158,6 +158,9 @@ class MixBroker(TickBroker):
         try:
             result = Decimal(str(value))
         except (InvalidOperation, TypeError, ValueError) as exc:
+            logger.error(
+                "mixbroker:161 re-raising InvalidOperation,TypeError,ValueError", exc_info=True
+            )
             raise ValueError(f"invalid_{name}") from exc
         if not result.is_finite():
             raise ValueError(f"invalid_{name}")
@@ -262,6 +265,7 @@ class MixBroker(TickBroker):
             self._account_risk_failed = False
             self._persist_account_risk_snapshot(force=True)
         except Exception as exc:
+            logger.warning("mixbroker:267 fallback on Exception")
             code = "account_risk_ledger_locked" if isinstance(exc, BlockingIOError) else str(exc)
             if not code.startswith("account_risk_"):
                 code = "account_risk_ledger_start_failed"
@@ -299,7 +303,7 @@ class MixBroker(TickBroker):
             try:
                 temporary.unlink()
             except FileNotFoundError:
-                pass
+                logger.warning("mixbroker:302 suppressed FileNotFoundError")
 
     def _persist_account_risk_snapshot(self, *, force=False, session_state="active"):
         if self._account_risk_lock_handle is None or self._account_risk_failed:
@@ -337,6 +341,7 @@ class MixBroker(TickBroker):
             self._account_risk_last_persist_ns = now_ns
             return True
         except Exception:
+            logger.warning("mixbroker:342 fallback on Exception")
             self._account_risk_failed = True
             self._account_risk_snapshot = {
                 **self._unavailable_account_risk_snapshot("account_risk_ledger_persist_failed"),
@@ -438,6 +443,7 @@ class MixBroker(TickBroker):
             if len(self._order_history) > history_start:
                 self._persist_account_risk_snapshot(force=True)
         except Exception:
+            logger.warning("mixbroker:443 fallback on Exception")
             self._account_risk_failed = True
             self._account_risk_snapshot = self._unavailable_account_risk_snapshot(
                 "account_risk_fill_accounting_failed"

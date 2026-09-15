@@ -7,10 +7,13 @@ import importlib
 import json
 from pathlib import Path
 import subprocess
+from types import SimpleNamespace
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 import pytest
+
+from tests.test_utils.optional_sdk import optional_sdk
 
 import examples.strategy_candidate_approval as demo_approval
 from examples.strategy_candidate_approval import (
@@ -27,10 +30,16 @@ from examples.strategy_candidate_approval import (
 )
 
 RUNNERS = [
-    importlib.import_module("examples.012_1_midfreq_cross_exchange.run"),
-    importlib.import_module("examples.012_2_event_driven_cross_exchange.run"),
+    SimpleNamespace(STRATEGY_ID="012_1_midfreq_cross_exchange"),
+    SimpleNamespace(STRATEGY_ID="012_2_event_driven_cross_exchange"),
 ]
 NOW = datetime(2026, 9, 8, 4, 0, tzinfo=timezone.utc)
+
+
+def _runtime_runner(runner):
+    """Load the SDK only for tests exercising the real example entry point."""
+    optional_sdk()
+    return importlib.import_module(f"examples.{runner.STRATEGY_ID}.run")
 
 
 def _zulu(value):
@@ -293,6 +302,7 @@ def test_signed_maximum_duration_must_fit_receipt_validity_window(runner, tmp_pa
 
 @pytest.mark.parametrize("runner", RUNNERS)
 def test_runner_uses_fixed_trust_root_and_canonical_manifest(runner, monkeypatch, tmp_path):
+    runner = _runtime_runner(runner)
     current = datetime.now(timezone.utc)
     artifact = _approval_artifact(
         runner,
@@ -485,6 +495,7 @@ def test_any_bound_runtime_or_dirty_source_change_fails_closed(runner, tmp_path,
 
 
 def test_runtime_source_collector_covers_every_required_framework_sdk_and_venue_file():
+    optional_sdk()
     try:
         provenance = collect_runtime_source_provenance()
     except DemoApprovalVerificationError as exc:
@@ -649,6 +660,7 @@ def test_receipt_path_cannot_escape_examples_boundary(runner, tmp_path):
 
 @pytest.mark.parametrize("runner", RUNNERS)
 def test_demo_noncanonical_manifest_stops_before_store(runner, monkeypatch, tmp_path):
+    runner = _runtime_runner(runner)
     manifest_path = tmp_path / "strategy-candidate-manifest.json"
     manifest_path.write_text("{}", encoding="utf-8")
     calls = []
@@ -662,6 +674,7 @@ def test_demo_noncanonical_manifest_stops_before_store(runner, monkeypatch, tmp_
 
 @pytest.mark.parametrize("runner", RUNNERS)
 def test_invalid_signature_stops_before_store_or_write(runner, monkeypatch, tmp_path):
+    runner = _runtime_runner(runner)
     config_sha = hashlib.sha256(Path(runner.DEFAULT_CONFIG).read_bytes()).hexdigest()
     current = datetime.now(timezone.utc)
     artifact = _approval_artifact(
@@ -697,6 +710,7 @@ def test_invalid_signature_stops_before_store_or_write(runner, monkeypatch, tmp_
 
 @pytest.mark.parametrize("runner", RUNNERS)
 def test_runtime_source_change_stops_before_store_or_write(runner, monkeypatch, tmp_path):
+    runner = _runtime_runner(runner)
     config_sha = hashlib.sha256(Path(runner.DEFAULT_CONFIG).read_bytes()).hexdigest()
     current = datetime.now(timezone.utc)
     artifact = _approval_artifact(
@@ -740,6 +754,7 @@ def test_runtime_source_change_stops_before_store_or_write(runner, monkeypatch, 
 def test_candidate_source_or_config_tamper_stops_before_store(
     runner, monkeypatch, tmp_path, field, message
 ):
+    runner = _runtime_runner(runner)
     manifest = json.loads(Path(runner.MANIFEST_PATH).read_text(encoding="utf-8"))
     candidate = next(
         row for row in manifest["candidates"] if row["strategy_id"] == runner.STRATEGY_ID

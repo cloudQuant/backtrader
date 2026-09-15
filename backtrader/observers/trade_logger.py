@@ -349,7 +349,7 @@ class TradeLogger(Observer):
 
         normalized = self._normalize_report_context(raw_observation)
         if normalized is None:
-            logger.debug("Ignoring invalid startup account observation")
+            logger.warning("Ignoring invalid startup account observation")
             return None
         if self._startup_observation_has_sensitive_key(normalized):
             logger.debug("Ignoring startup account observation containing a credential-like key")
@@ -395,6 +395,7 @@ class TradeLogger(Observer):
                     for key, item in value.items()
                 }
             except Exception:
+                logger.warning("trade_logger:397 fallback on Exception")
                 return "<unavailable-mapping>"
             finally:
                 active.remove(value_id)
@@ -407,6 +408,7 @@ class TradeLogger(Observer):
             try:
                 return [cls._report_json_safe_value(item, active) for item in value]
             except Exception:
+                logger.warning("trade_logger:409 fallback on Exception")
                 return ["<unavailable-sequence>"]
             finally:
                 active.remove(value_id)
@@ -416,10 +418,11 @@ class TradeLogger(Observer):
             try:
                 return cls._report_json_safe_value(item_method(), active)
             except Exception:
-                pass
+                logger.warning("trade_logger:419 suppressed Exception")
         try:
             return str(value)
         except Exception:
+            logger.warning("trade_logger:422 fallback on Exception")
             return f"<{type(value).__name__}>"
 
     def _report_touch(self, event_time=None):
@@ -441,6 +444,7 @@ class TradeLogger(Observer):
         try:
             strategy_module = owner.__class__.__module__ if owner is not None else None
         except Exception:
+            logger.warning("trade_logger:443 fallback on Exception")
             strategy_module = None
 
         self._report_strategy = {
@@ -454,6 +458,7 @@ class TradeLogger(Observer):
                 self._configured_risk_thresholds()
             )
         except Exception:
+            logger.warning("trade_logger:456 fallback on Exception")
             self._report_monitoring_thresholds = {}
 
     def _has_active_report_bar(self, owner):
@@ -467,6 +472,7 @@ class TradeLogger(Observer):
         try:
             return owner is not None and len(owner) > 0
         except Exception:
+            logger.warning("trade_logger:469 fallback on Exception")
             return False
 
     @staticmethod
@@ -520,7 +526,7 @@ class TradeLogger(Observer):
                 if timestamp is not None:
                     return {(name, timestamp) for name in names}
             except Exception:
-                pass
+                logger.warning("trade_logger:523 suppressed Exception")
         try:
             numeric = data_datetime[0]
             to_datetime = getattr(data, "num2date", None)
@@ -529,7 +535,7 @@ class TradeLogger(Observer):
                 if timestamp is not None:
                     return {(name, timestamp) for name in names}
         except Exception:
-            pass
+            logger.warning("trade_logger:532 suppressed Exception")
         return set()
 
     def _consume_dispatched_line_bar(self, owner):
@@ -656,19 +662,19 @@ class TradeLogger(Observer):
                 if data in positions:
                     return positions[data]
             except (TypeError, KeyError):
-                pass
+                logger.debug("trade_logger:659 ignored TypeError,KeyError")
         try:
             direct = positions.get(data_name)
             if direct is not None:
                 return direct
         except (AttributeError, TypeError):
-            pass
+            logger.debug("trade_logger:665 ignored AttributeError,TypeError")
         try:
             for key, value in positions.items():
                 if cls._report_data_names(key).intersection(accepted_names):
                     return value
         except Exception:
-            pass
+            logger.warning("trade_logger:671 suppressed Exception")
         return None
 
     def _cached_position_legs_for_data(self, position_legs, data, data_name):
@@ -781,6 +787,7 @@ class TradeLogger(Observer):
             try:
                 cache_keys.extend(cached_map.keys())
             except Exception:
+                logger.warning("trade_logger:784 suppressed Exception")
                 continue
         for cache_key in cache_keys:
             cache_names = self._report_data_names(cache_key)
@@ -882,7 +889,7 @@ class TradeLogger(Observer):
         except Exception as exc:
             logger.debug("Failed to save startup position snapshot: %s", exc)
             if self.p.log_to_console:
-                print(f"[TradeLogger] Failed to save startup position snapshot: {exc}")
+                logger.warning(f"[TradeLogger] Failed to save startup position snapshot: {exc}")
 
     def _record_report_event(self, event_name, payload=None, record_kind=None):
         """Record a generic callback count and optionally a bounded summary."""
@@ -944,6 +951,7 @@ class TradeLogger(Observer):
         try:
             triggered_values = sorted("|".join(map(str, value)) for value in triggered)
         except Exception:
+            logger.warning("trade_logger:947 fallback on Exception")
             triggered_values = []
         return {
             "counts": self._report_json_safe_value(dict(counts)),
@@ -1256,7 +1264,7 @@ class TradeLogger(Observer):
             return value
         except AttributeError:
             # No attribute named `key`; try the dict-style .get() path below.
-            pass
+            logger.debug("trade_logger:1259 ignored AttributeError")
         except Exception:
             # Attribute access raised unexpectedly; this is a best-effort read
             # for logging only, so fall back to the .get() path below. Logged
@@ -1271,6 +1279,7 @@ class TradeLogger(Observer):
                     return default
                 return value
             except Exception:
+                logger.warning("trade_logger:1274 fallback on Exception")
                 return default
 
         return default
@@ -1505,7 +1514,9 @@ class TradeLogger(Observer):
         if not MYSQL_AVAILABLE:
             logger.warning("pymysql not installed, MySQL logging disabled")
             if self.p.log_to_console:
-                print("[TradeLogger] Warning: pymysql not installed, MySQL logging disabled")
+                logger.warning(
+                    "[TradeLogger] Warning: pymysql not installed, MySQL logging disabled"
+                )
             return
 
         try:
@@ -1522,7 +1533,7 @@ class TradeLogger(Observer):
         except Exception as e:
             logger.error("MySQL connection failed: %s", e)
             if self.p.log_to_console:
-                print(f"[TradeLogger] MySQL connection failed: {e}")
+                logger.warning(f"[TradeLogger] MySQL connection failed: {e}")
             self._mysql_conn = None
 
     def _create_mysql_tables(self):
@@ -1690,6 +1701,7 @@ class TradeLogger(Observer):
         try:
             numeric_dt = data_datetime[0]
         except Exception:
+            logger.warning("trade_logger:1695 fallback on Exception")
             return None
 
         try:
@@ -1781,7 +1793,7 @@ class TradeLogger(Observer):
                 for data in placeholder_data:
                     add(data)
             except TypeError:
-                pass
+                logger.debug("trade_logger:1784 ignored TypeError")
 
         # Channel-only strategies receive these stable references from Cerebro
         # before their event callbacks.  They are required when a strategy
@@ -1815,7 +1827,7 @@ class TradeLogger(Observer):
         try:
             return float(data.close[0])
         except Exception:
-            pass
+            logger.warning("trade_logger:1818 suppressed Exception")
 
         # TickBroker and compatible brokers expose this explicit local-cache
         # hook. Do not fall back to a generic broker getter here: live
@@ -1828,7 +1840,7 @@ class TradeLogger(Observer):
                 if value is not None:
                     return float(value)
         except (TypeError, ValueError):
-            pass
+            logger.debug("trade_logger:1831 ignored TypeError,ValueError")
         except Exception as exc:
             logger.debug("Failed to read cached broker mark price: %s", exc)
         return float(getattr(position, "price", 0.0) or 0.0)
@@ -1842,7 +1854,7 @@ class TradeLogger(Observer):
                 name = getattr(data, "_name", None) or getattr(data, "_dataname", None)
                 return comminfo.get(name, comminfo.get(None))
         except Exception as exc:
-            logger.debug("Failed to read commission info: %s", exc)
+            logger.warning("Failed to read commission info: %s", exc)
         return None
 
     def _commission_info_for_data(self, data):
@@ -1867,7 +1879,7 @@ class TradeLogger(Observer):
                 if value is not None:
                     return value
             except Exception:
-                pass
+                logger.warning("trade_logger:1870 suppressed Exception")
         params = getattr(comminfo, "p", None)
         if params is not None:
             try:
@@ -1875,7 +1887,7 @@ class TradeLogger(Observer):
                 if value is not None:
                     return value
             except Exception:
-                pass
+                logger.warning("trade_logger:1878 suppressed Exception")
         return getattr(comminfo, name, default)
 
     def _contract_metadata_for_data(self, data, data_name):
@@ -1944,6 +1956,7 @@ class TradeLogger(Observer):
                 try:
                     margin_value = abs(float(position.size)) * float(margin_getter(current_price))
                 except Exception:
+                    logger.warning("trade_logger:1949 fallback on Exception")
                     margin_value = None
             if margin_value is None and margin_rate is not None:
                 margin_value = abs(float(position.size)) * current_price * multiplier * margin_rate
@@ -2077,7 +2090,7 @@ class TradeLogger(Observer):
             if self.p.log_to_console:
                 import traceback
 
-                print(f"[TradeLogger] Error in next(): {e}")
+                logger.error(f"[TradeLogger] Error in next(): {e}")
                 traceback.print_exc()
 
     def notify_order(self, order):
@@ -2088,6 +2101,7 @@ class TradeLogger(Observer):
             log_data = self._format_order(order)
             self._record_report_event("orders", log_data, record_kind="orders")
         except Exception as exc:
+            logger.warning("trade_logger:2093 fallback on Exception")
             self._record_report_event("orders")
             self._log_internal_error("notify_order", exc)
             return
@@ -2128,6 +2142,7 @@ class TradeLogger(Observer):
             log_data = self._format_trade(trade)
             self._record_report_event("trades", log_data, record_kind="trades")
         except Exception as exc:
+            logger.warning("trade_logger:2133 fallback on Exception")
             self._record_report_event("trades")
             self._log_internal_error("notify_trade", exc)
             return
@@ -2256,6 +2271,7 @@ class TradeLogger(Observer):
                 ),
             )
         except Exception as e:
+            logger.warning("trade_logger:2261 fallback on Exception")
             self._log_internal_error("notify_tick_event", e)
 
     def notify_bar_event(self, bar):
@@ -2335,6 +2351,7 @@ class TradeLogger(Observer):
                 ),
             )
         except Exception as e:
+            logger.warning("trade_logger:2340 fallback on Exception")
             self._log_internal_error("notify_bar_event", e)
 
     def notify_store_event(self, msg, *args, **kwargs):
@@ -2656,7 +2673,7 @@ class TradeLogger(Observer):
         except Exception as e:
             logger.debug("Failed to save position snapshot: %s", e)
             if self.p.log_to_console:
-                print(f"[TradeLogger] Failed to save position snapshot: {e}")
+                logger.warning(f"[TradeLogger] Failed to save position snapshot: {e}")
 
     def _format_order(self, order):
         """Format order data for logging."""
@@ -2761,7 +2778,7 @@ class TradeLogger(Observer):
         except Exception as e:
             logger.debug("MySQL insert order failed: %s", e)
             if self.p.log_to_console:
-                print(f"[TradeLogger] MySQL insert order failed: {e}")
+                logger.warning(f"[TradeLogger] MySQL insert order failed: {e}")
 
     def _insert_trade_mysql(self, log_data):
         """Insert trade record into MySQL."""
@@ -2798,7 +2815,7 @@ class TradeLogger(Observer):
         except Exception as e:
             logger.debug("MySQL insert trade failed: %s", e)
             if self.p.log_to_console:
-                print(f"[TradeLogger] MySQL insert trade failed: {e}")
+                logger.warning(f"[TradeLogger] MySQL insert trade failed: {e}")
 
     def _insert_position_mysql(self, log_data):
         """Insert position record into MySQL."""
@@ -2825,7 +2842,7 @@ class TradeLogger(Observer):
         except Exception as e:
             logger.debug("MySQL insert position failed: %s", e)
             if self.p.log_to_console:
-                print(f"[TradeLogger] MySQL insert position failed: {e}")
+                logger.warning(f"[TradeLogger] MySQL insert position failed: {e}")
 
     def _insert_indicator_mysql(self, indicator_name, indicator_value):
         """Insert indicator record into MySQL."""
@@ -2850,7 +2867,7 @@ class TradeLogger(Observer):
         except Exception as e:
             logger.debug("MySQL insert indicator failed: %s", e)
             if self.p.log_to_console:
-                print(f"[TradeLogger] MySQL insert indicator failed: {e}")
+                logger.warning(f"[TradeLogger] MySQL insert indicator failed: {e}")
 
     def _insert_signal_mysql(self, log_data):
         """Insert signal record into MySQL."""
@@ -2878,7 +2895,7 @@ class TradeLogger(Observer):
         except Exception as e:
             logger.debug("MySQL insert signal failed: %s", e)
             if self.p.log_to_console:
-                print(f"[TradeLogger] MySQL insert signal failed: {e}")
+                logger.warning(f"[TradeLogger] MySQL insert signal failed: {e}")
 
     def stop(self):
         """Called at the end of the backtest/live run."""
@@ -2907,6 +2924,7 @@ class TradeLogger(Observer):
             if self.p.log_position_snapshot:
                 self._save_position_snapshot()
         except Exception as exc:
+            logger.warning("trade_logger:2912 fallback on Exception")
             self._log_internal_error("stop", exc)
         finally:
             # Close MySQL connection and always freeze the generic report.

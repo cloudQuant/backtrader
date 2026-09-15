@@ -122,6 +122,7 @@ class ParameterDescriptor:
                     # Attempt type conversion
                     value = self.type_(value)
                 except (ValueError, TypeError) as e:
+                    logger.error("parameters:125 re-raising ValueError,TypeError", exc_info=True)
                     raise TypeError(
                         f"Parameter '{self.name}' expects {self.type_.__name__}, "
                         f"got {type(value).__name__}. Conversion failed: {e}"
@@ -350,6 +351,7 @@ class ParameterManager:
                     return computed_value
                 except Exception:
                     # If lazy evaluation fails, use descriptor default
+                    logger.debug("parameters:352 fallback on Exception")
                     desc = self._descriptors.get(name, _MISSING)
                     if desc is not _MISSING:
                         default_val = desc.default
@@ -1556,7 +1558,7 @@ class ParameterizedBase:
                                 self._inheritance_sources[param_name] = base
                     except (AttributeError, TypeError):
                         # Skip if _getitems() doesn't work as expected
-                        pass
+                        logger.debug("parameters:1559 ignored AttributeError,TypeError")
 
         # Separate parameter kwargs from other kwargs
         param_kwargs = {}
@@ -1573,6 +1575,7 @@ class ParameterizedBase:
             try:
                 self._param_manager.update(param_kwargs)
             except Exception as e:
+                logger.debug("parameters:1576 fallback on Exception")
                 self._handle_initialization_error(e)
 
         # Return other kwargs for parent class initialization
@@ -1607,6 +1610,7 @@ class ParameterizedBase:
             try:
                 self._param_manager.update(param_kwargs)
             except Exception as e:
+                logger.debug("parameters:1610 fallback on Exception")
                 self._handle_initialization_error(e)
 
         # Return other kwargs for parent class initialization
@@ -1665,6 +1669,7 @@ class ParameterizedBase:
         try:
             param_manager = object.__getattribute__(self, "_param_manager")
         except AttributeError:
+            logger.debug("parameters: param manager not initialized, re-raising")
             raise AttributeError(
                 f"Parameter manager not initialized for {self.__class__.__name__}"
             ) from None
@@ -1672,6 +1677,7 @@ class ParameterizedBase:
         try:
             param_manager.set(name, value, skip_validation=not validate)
         except Exception as e:
+            logger.error("parameters:1675 re-raising Exception", exc_info=True)
             raise ValueError(f"Failed to set parameter '{name}' to {value}: {e}") from e
 
     def get_param_info(self) -> Dict[str, Dict[str, Any]]:
@@ -1736,6 +1742,7 @@ class ParameterizedBase:
         try:
             self._param_manager.reset(name)
         except Exception as e:
+            logger.error("parameters:1739 re-raising Exception", exc_info=True)
             raise ValueError(f"Failed to reset parameter '{name}': {e}") from e
 
     def reset_all_params(self) -> None:

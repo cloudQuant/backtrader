@@ -8,8 +8,11 @@ dependencies are imported only when needed.
 import sys
 import traceback
 
+from ..utils.log_message import get_logger
 from .plot_plotly import PlotlyPlot
 from .scheme import PlotScheme
+
+logger = get_logger(__name__)
 
 __all__ = ["Plot", "Plot_OldSync", "PlotlyPlot", "PlotScheme"]
 
@@ -27,6 +30,7 @@ def _load_matplotlib_plotter():
     except Exception as e:
         # if another backend has already been loaded, an exception will be
         # generated and this can be skipped
+        logger.warning("__init__:27 fallback on Exception")
         traceback.format_exception(type(e), e, e.__traceback__)
 
     from . import plot

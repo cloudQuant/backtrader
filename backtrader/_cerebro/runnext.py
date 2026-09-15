@@ -197,7 +197,7 @@ class RunNextMixin:
                         single_runstrat_next = single_runstrat._next_fast_simple_direct_clock
                         object.__setattr__(single_runstrat, "_next", single_runstrat_next)
                 except AttributeError:
-                    pass
+                    logger.debug("runnext:200 ignored AttributeError")
             # Number of non-cloned data
             ldatas_noclones = ldatas - clonecount
             # Default dt0 at max time

@@ -8,7 +8,7 @@ Records data during strategy execution for subsequent plotting or analysis.
 from collections import OrderedDict
 
 import backtrader as bt
-from backtrader.utils.log_message import get_logger
+from backtrader.utils.log_message import get_logger, throttled_warning
 
 logger = get_logger(__name__)
 
@@ -100,7 +100,14 @@ class RecorderAnalyzer(bt.Analyzer):
                         data.volume[0] if hasattr(data, "volume") else 0
                     )
                 except Exception as e:
-                    logger.debug("Failed to record data '%s': %s", name, e)
+                    throttled_warning(
+                        logger,
+                        "recorder_data",
+                        "Failed to record data '%s': %s",
+                        name,
+                        e,
+                        exc_info=False,
+                    )
 
     def _record_lineiterators(self, store, ltype):
         """Append the current value of every line of each line-iterator of the
@@ -122,6 +129,7 @@ class RecorderAnalyzer(bt.Analyzer):
                     value = line[0] if len(line) > 0 else None
                     store[obj_name][line_name].append(value)
                 except Exception:
+                    logger.warning("recorder:124 fallback on Exception")
                     store[obj_name][line_name].append(None)
 
     def stop(self):

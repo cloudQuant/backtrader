@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-09-15T02:51:33.126640+00:00",
+  "source_root": "/tmp/backtrader-release140.zbR30K",
+  "status": "HISTORICAL_PRE_CLOSE_ARCHIVE",
+  "historical_status": "BLOCKED_RELEASE_PENDING",
+  "superseded_by": "post-fix-local-closeout.json and ../../1.4.0联合验收与发布记录.md",
+  "files": [
+    {
+      "file": "merge-audit.json",
+      "source": "/tmp/backtrader-release140.zbR30K/merge-audit.json",
+      "source_sha256": "308d2798a4256ae96f54665571974a6b2f55091a9564c9d7a20247c91d27351d",
+      "source_size": 145174,
+      "source_modified_at_utc": "2026-09-15T02:04:25.149487+00:00",
+      "archive_note": "Annotated author metadata correction and main-repository branch boundary correction; initial disposition retained in JSON",
+      "archive_sha256": "f292697e8d0203d2a5e28c6c756af3a063e89f3e65ee629aa4453e014c959020",
+      "archive_size": 146042
+    },
+    {
+      "file": "merge-audit.md",
+      "source": "/tmp/backtrader-release140.zbR30K/merge-audit.md",
+      "source_sha256": "6d5e54e2a0bc27e0702addcafd666fb1b4da0f5ac4197ec90aa3262db808d312",
+      "source_size": 29097,
+      "source_modified_at_utc": "2026-09-15T02:03:50.869781+00:00",
+      "archive_note": "Annotated author metadata correction and main-repository branch boundary correction; initial disposition retained in JSON",
+      "archive_sha256": "2892493917652a6000c189e550bba2110562051f7b723fef97feb36983b5b550",
+      "archive_size": 29881
+    },
+    {
+      "file": "logging-exemptions.json",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-exemptions.json",
+      "source_sha256": "801f748d5b62b4058473a4660ffb7b13ed8f924cfbbbe0b0173bbb226775ec12",
+      "source_size": 42590,
+      "source_modified_at_utc": "2026-09-15T02:19:37.967551+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "801f748d5b62b4058473a4660ffb7b13ed8f924cfbbbe0b0173bbb226775ec12",
+      "archive_size": 42590
+    },
+    {
+      "file": "logging-exemptions.md",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-exemptions.md",
+      "source_sha256": "147ae5003f19974f80da8eead5342c408b11f5bae0929e415c95f958428af6a3",
+      "source_size": 9169,
+      "source_modified_at_utc": "2026-09-15T02:19:37.967839+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "147ae5003f19974f80da8eead5342c408b11f5bae0929e415c95f958428af6a3",
+      "archive_size": 9169
+    },
+    {
+      "file": "final-source-hashes.json",
+      "source": "/tmp/backtrader-release140.zbR30K/final-source-hashes.json",
+      "source_sha256": "a2d4dc3c1c63405e405f5727837173825701264e5fe38004d611e23dbf9c3f79",
+      "source_size": 52560,
+      "source_modified_at_utc": "2026-09-15T02:21:16.269262+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "a2d4dc3c1c63405e405f5727837173825701264e5fe38004d611e23dbf9c3f79",
+      "archive_size": 52560
+    },
+    {
+      "file": "logging-catalog-summary.json",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-catalog-final/summary.json",
+      "source_sha256": "d81217cc4e11fe15ab7eaa37687c72572b33c58f85793ed6f1d9d02b576d1e83",
+      "source_size": 469,
+      "source_modified_at_utc": "2026-09-15T02:19:18.277548+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "d81217cc4e11fe15ab7eaa37687c72572b33c58f85793ed6f1d9d02b576d1e83",
+      "archive_size": 469
+    },
+    {
+      "file": "performance-paired-round1.json",
+      "source": "/tmp/backtrader-release140.zbR30K/performance-paired.json",
+      "source_sha256": "029f9fd6df92b759df2c1c1e4a56e917bde568755e3c43683cc026dd72b93476",
+      "source_size": 43309,
+      "source_modified_at_utc": "2026-09-15T02:26:06.062673+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "029f9fd6df92b759df2c1c1e4a56e917bde568755e3c43683cc026dd72b93476",
+      "archive_size": 43309
+    },
+    {
+      "file": "performance-paired-retry.json",
+      "source": "/tmp/backtrader-release140.zbR30K/performance-paired-retry.json",
+      "source_sha256": "f96283bd372ff6116a02f8baa3ce2d64b2cad8b5197bf1492ba479699df10f27",
+      "source_size": 43319,
+      "source_modified_at_utc": "2026-09-15T02:32:18.340825+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "f96283bd372ff6116a02f8baa3ce2d64b2cad8b5197bf1492ba479699df10f27",
+      "archive_size": 43319
+    },
+    {
+      "file": "performance-suite.log",
+      "source": "/tmp/backtrader-release140.zbR30K/performance-suite.log",
+      "source_sha256": "246e449ad38c019568b36164b08238225fc2aecc146e159989e5fe826f24b09d",
+      "source_size": 661,
+      "source_modified_at_utc": "2026-09-15T02:21:48.426425+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "246e449ad38c019568b36164b08238225fc2aecc146e159989e5fe826f24b09d",
+      "archive_size": 661
+    },
+    {
+      "file": "logging-close-final.log",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-close-final.log",
+      "source_sha256": "235f3b6944e81d0306d0b855cf5fc93f21405db4ef5e9036bd90c3f55e1bcdf4",
+      "source_size": 181,
+      "source_modified_at_utc": "2026-09-15T02:17:22.377376+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "235f3b6944e81d0306d0b855cf5fc93f21405db4ef5e9036bd90c3f55e1bcdf4",
+      "archive_size": 181
+    },
+    {
+      "file": "logging-close-black.log",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-close-black.log",
+      "source_sha256": "54197452aedc891d45c99b29e4789eca10dbaa03227ec6ef122902cb2ee1808d",
+      "source_size": 125,
+      "source_modified_at_utc": "2026-09-15T02:16:50.433509+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "54197452aedc891d45c99b29e4789eca10dbaa03227ec6ef122902cb2ee1808d",
+      "archive_size": 125
+    },
+    {
+      "file": "logging-close-ruff.log",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-close-ruff.log",
+      "source_sha256": "98733c3446b52dc3e6b6943142b19a142025d9727521f6abc3783a20e4b6d3c6",
+      "source_size": 20,
+      "source_modified_at_utc": "2026-09-15T02:17:13.693384+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "98733c3446b52dc3e6b6943142b19a142025d9727521f6abc3783a20e4b6d3c6",
+      "archive_size": 20
+    },
+    {
+      "file": "logging-close-mypy.log",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-close-mypy.log",
+      "source_sha256": "54a4342c1ae024ddbaea41764f6b8eebc3bde567302652e595f17d8291e31859",
+      "source_size": 43,
+      "source_modified_at_utc": "2026-09-15T02:17:16.301886+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "54a4342c1ae024ddbaea41764f6b8eebc3bde567302652e595f17d8291e31859",
+      "archive_size": 43
+    },
+    {
+      "file": "logging-close-bandit.log",
+      "source": "/tmp/backtrader-release140.zbR30K/logging-close-bandit.log",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "source_size": 0,
+      "source_modified_at_utc": "2026-09-15T02:17:16.336527+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "archive_size": 0
+    },
+    {
+      "file": "ruff-final.log",
+      "source": "/tmp/backtrader-release140.zbR30K/ruff-final.log",
+      "source_sha256": "98733c3446b52dc3e6b6943142b19a142025d9727521f6abc3783a20e4b6d3c6",
+      "source_size": 20,
+      "source_modified_at_utc": "2026-09-15T02:04:11.480730+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "98733c3446b52dc3e6b6943142b19a142025d9727521f6abc3783a20e4b6d3c6",
+      "archive_size": 20
+    },
+    {
+      "file": "black-final.log",
+      "source": "/tmp/backtrader-release140.zbR30K/black-final.log",
+      "source_sha256": "3a4f5f0059d0635842f4d20561508f4e6bfdff317cb89096249dc88c7b2c7cbb",
+      "source_size": 59,
+      "source_modified_at_utc": "2026-09-15T02:04:15.282033+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "3a4f5f0059d0635842f4d20561508f4e6bfdff317cb89096249dc88c7b2c7cbb",
+      "archive_size": 59
+    },
+    {
+      "file": "isort-final.log",
+      "source": "/tmp/backtrader-release140.zbR30K/isort-final.log",
+      "source_sha256": "3c745703e42b4d968b55ba6ee02b87e5c4e728daade8e702e5ac6ccbcbdcfca6",
+      "source_size": 17,
+      "source_modified_at_utc": "2026-09-15T02:02:02.006233+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "3c745703e42b4d968b55ba6ee02b87e5c4e728daade8e702e5ac6ccbcbdcfca6",
+      "archive_size": 17
+    },
+    {
+      "file": "mypy-final.log",
+      "source": "/tmp/backtrader-release140.zbR30K/mypy-final.log",
+      "source_sha256": "52e0e5c5ed695de133f8de09099bec230cdbef39542b1f4d3cd5cd568b353cff",
+      "source_size": 46,
+      "source_modified_at_utc": "2026-09-15T02:02:07.560237+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "52e0e5c5ed695de133f8de09099bec230cdbef39542b1f4d3cd5cd568b353cff",
+      "archive_size": 46
+    },
+    {
+      "file": "bandit-final.log",
+      "source": "/tmp/backtrader-release140.zbR30K/bandit-final.log",
+      "source_sha256": "891f6be05c3efb3985d4ac1650ab0b029e76faa3ee58cd93eb4d2baa49f66e2d",
+      "source_size": 1486,
+      "source_modified_at_utc": "2026-09-15T02:02:12.068658+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "891f6be05c3efb3985d4ac1650ab0b029e76faa3ee58cd93eb4d2baa49f66e2d",
+      "archive_size": 1486
+    },
+    {
+      "file": "functional-with-sdk.log",
+      "source": "/tmp/backtrader-release140.zbR30K/final-functional.log",
+      "source_sha256": "5e7f45e727b3a168c8ba9eddbd209b57d806223f07468d2d37ca34b944190663",
+      "source_size": 11561,
+      "source_modified_at_utc": "2026-09-15T02:16:16.311612+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "5e7f45e727b3a168c8ba9eddbd209b57d806223f07468d2d37ca34b944190663",
+      "archive_size": 11561
+    },
+    {
+      "file": "functional-without-sdk.log",
+      "source": "/tmp/backtrader-release140.zbR30K/functional-without-sdk-final.log",
+      "source_sha256": "505994cfb864315a98f3d7b7e0dc8d4a2120de49a4380b42609391245839ad87",
+      "source_size": 9673,
+      "source_modified_at_utc": "2026-09-15T02:16:02.696645+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "505994cfb864315a98f3d7b7e0dc8d4a2120de49a4380b42609391245839ad87",
+      "archive_size": 9673
+    },
+    {
+      "file": "functional-without-sdk-summary.json",
+      "source": "/tmp/backtrader-release140.zbR30K/functional-without-sdk-final-summary.json",
+      "source_sha256": "052f8201a0ce93ef5f1ebec7ada51a4a6c20a3432536d12954963fa4ec9dcf89",
+      "source_size": 52304,
+      "source_modified_at_utc": "2026-09-15T02:16:24.308634+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "052f8201a0ce93ef5f1ebec7ada51a4a6c20a3432536d12954963fa4ec9dcf89",
+      "archive_size": 52304
+    },
+    {
+      "file": "wheel-consumer-pre-close.json",
+      "source": "/tmp/backtrader-release140.zbR30K/wheel-consumer.json",
+      "source_sha256": "4cbd41e30028f7e598c52f1d809ad882a1b5c374515e1ae6cb3a0198eaba712e",
+      "source_size": 54402,
+      "source_modified_at_utc": "2026-09-15T02:10:02.606199+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "4cbd41e30028f7e598c52f1d809ad882a1b5c374515e1ae6cb3a0198eaba712e",
+      "archive_size": 54402
+    },
+    {
+      "file": "wheel-consumer-pre-close.log",
+      "source": "/tmp/backtrader-release140.zbR30K/wheel-consumer.log",
+      "source_sha256": "e801dc0dfc13377790ce3f2cb79b3e5750502037b1351c39e072808a6cfb72ba",
+      "source_size": 719,
+      "source_modified_at_utc": "2026-09-15T02:10:02.606380+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "e801dc0dfc13377790ce3f2cb79b3e5750502037b1351c39e072808a6cfb72ba",
+      "archive_size": 719
+    },
+    {
+      "file": "sdist-verification-pre-close.json",
+      "source": "/tmp/backtrader-release140.zbR30K/sdist-verification.json",
+      "source_sha256": "fe4d471b221d9b23e1369b46cb1a46337b899655082ddea40efe301b3d4a479c",
+      "source_size": 54083,
+      "source_modified_at_utc": "2026-09-15T02:12:44.796405+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "fe4d471b221d9b23e1369b46cb1a46337b899655082ddea40efe301b3d4a479c",
+      "archive_size": 54083
+    },
+    {
+      "file": "build-source-hashes-pre-close.json",
+      "source": "/tmp/backtrader-release140.zbR30K/build-source-hashes.json",
+      "source_sha256": "7bd0a6e671a310f497408372a2e2c31b9f2e47aaa610b52983faa66775cd4ba1",
+      "source_size": 53108,
+      "source_modified_at_utc": "2026-09-15T02:08:13.585164+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "7bd0a6e671a310f497408372a2e2c31b9f2e47aaa610b52983faa66775cd4ba1",
+      "archive_size": 53108
+    },
+    {
+      "file": "external-release-readiness.md",
+      "source": "/tmp/backtrader-release140.zbR30K/external-release-readiness.md",
+      "source_sha256": "14eb89ff6fb1862e86f0136f311a7543889fdaa77c0bb71a581eebfa5e0b426f",
+      "source_size": 9006,
+      "source_modified_at_utc": "2026-09-15T02:39:00.587399+00:00",
+      "archive_note": "verbatim historical SDK readiness snapshot with main-repository branch-boundary clarification",
+      "archive_sha256": "11cce091407d44d2fc17e01bca6c4a16a33bb3d1b4e7049b9cd76a7b156c6675",
+      "archive_size": 9371
+    },
+    {
+      "file": "sdk-publication-proposal.md",
+      "source": "/tmp/backtrader-release140.zbR30K/sdk-publication-proposal.md",
+      "source_sha256": "5756956a54f57539be1b26f71e5d04b12f5c696cc842812483216b2bb7127c2e",
+      "source_size": 6998,
+      "source_modified_at_utc": "2026-09-15T02:26:33.583983+00:00",
+      "archive_note": "historical SDK proposal with main-repository branch-boundary clarification",
+      "archive_sha256": "bff5d4e9afe398e8a4f0d0475f74f9e370b5f5cc585bbe3641c72aa1c9c94ca7",
+      "archive_size": 7306
+    },
+    {
+      "file": "sdk-base-initial.log",
+      "source": "/tmp/backtrader-release140.zbR30K/bt_api_base-release-pytest.log",
+      "source_sha256": "89392deef1159cdcc0e995108d0008db47b8f4dbba745b54e1dbd095db4d76af",
+      "source_size": 1408,
+      "source_modified_at_utc": "2026-09-15T02:39:26.660748+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "89392deef1159cdcc0e995108d0008db47b8f4dbba745b54e1dbd095db4d76af",
+      "archive_size": 1408
+    },
+    {
+      "file": "sdk-base-version-check.log",
+      "source": "/tmp/backtrader-release140.zbR30K/bt_api_base-release-pytest-final.log",
+      "source_sha256": "45dae7db18858e976b20285d411d89b74c555959a45dd924809e1e4b133aa631",
+      "source_size": 2144,
+      "source_modified_at_utc": "2026-09-15T02:41:23.900030+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "45dae7db18858e976b20285d411d89b74c555959a45dd924809e1e4b133aa631",
+      "archive_size": 2144
+    },
+    {
+      "file": "sdk-ctp-local.log",
+      "source": "/tmp/backtrader-release140.zbR30K/bt_api_ctp-release-pytest-final.log",
+      "source_sha256": "1c2176eb55ed8c24fa1c906df90e5abfd02c8e979a8b882449a22c7c32c01963",
+      "source_size": 831,
+      "source_modified_at_utc": "2026-09-15T02:41:18.932600+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "1c2176eb55ed8c24fa1c906df90e5abfd02c8e979a8b882449a22c7c32c01963",
+      "archive_size": 831
+    },
+    {
+      "file": "sdk-root-import-collision.log",
+      "source": "/tmp/backtrader-release140.zbR30K/bt_api_py-release-pytest-offline.log",
+      "source_sha256": "b9990a4105510f053c83c333873c23d13559a3a51ecb62e8a7ca514449914a0f",
+      "source_size": 1580,
+      "source_modified_at_utc": "2026-09-15T02:41:20.142898+00:00",
+      "archive_note": "verbatim snapshot",
+      "archive_sha256": "b9990a4105510f053c83c333873c23d13559a3a51ecb62e8a7ca514449914a0f",
+      "archive_size": 1580
+    },
+    {
+      "file": "acceptance-snapshot.json",
+      "source": "assembled from archived evidence and explicitly identified parent-confirmed status",
+      "archive_sha256": "f3479fc8b12e9ccb55d35f1006b26ad590f5021f33f9e7f1efad2822ed6c0876",
+      "archive_size": 3736,
+      "archive_note": "derived documentation snapshot with main-repository branch boundary correction"
+    },
+    {
+      "file": "README.md",
+      "source": "assembled from archived evidence and explicitly identified parent-confirmed status",
+      "archive_sha256": "5f1a69fb63c3ede68ed08fcc1aa324d92646770eb81382799cfba8c714cb0d8c",
+      "archive_size": 3307,
+      "archive_note": "derived documentation snapshot with main-repository branch boundary correction"
+    }
+  ]
+}

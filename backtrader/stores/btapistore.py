@@ -83,6 +83,7 @@ def _redact_diagnostic(value: Any) -> Any:
     try:
         return BtApiStore._masked_copy(value)
     except Exception:
+        # Redaction must not invoke a sink while handling an unsafe object.
         return type(value).__name__
 
 
@@ -91,6 +92,8 @@ def _safe_log(level: str, message: str, *args: Any) -> None:
     try:
         getattr(logger, level)(_redact_diagnostic(message), *map(_redact_diagnostic, args))
     except Exception:
+        # No logging here by design: the sink itself just failed; calling the
+        # logger again would raise before the health counter is incremented.
         _LOGGING_HEALTH["logging_errors"] += 1
 
 
@@ -320,6 +323,7 @@ def _sdk_cross_venue_contracts():
             normalize_orderbook_evidence,
         )
     except ImportError as exc:
+        _safe_log("error", "btapistore:323 re-raising ImportError")
         raise BtApiMissingDependencyError(
             "BtApiStore cross-venue validation requires bt_api_py"
         ) from exc
@@ -773,6 +777,7 @@ def _materialize_account_payload(raw: Any) -> Any:
             try:
                 return method()
             except Exception:
+                _safe_log("warning", "btapistore:776 fallback on Exception")
                 return raw
     return raw
 
@@ -884,6 +889,7 @@ def _coerce_text(value: Any, default: str = "") -> str:
             try:
                 return value.decode(encoding).strip()
             except UnicodeDecodeError:
+                _safe_log("debug", "btapistore:887 ignored UnicodeDecodeError")
                 continue
         return value.decode("utf-8", errors="ignore").strip()
 
@@ -896,6 +902,7 @@ def _coerce_text(value: Any, default: str = "") -> str:
         try:
             return str(value).strip()
         except Exception as e:
+            _safe_log("warning", "btapistore:900 fallback on Exception")
             _safe_log("debug", "Failed to coerce value to text: %s", e)
             return default
 
@@ -964,6 +971,7 @@ def _safe_field_attr(obj: Any, attr: str, default: Any = None) -> Any:
     try:
         return getattr(obj, attr, default)
     except Exception as e:
+        _safe_log("warning", "btapistore:968 fallback on Exception")
         _safe_log("debug", "Failed to get attr %s from %s: %s", attr, type(obj).__name__, e)
         return default
 
@@ -1090,6 +1098,7 @@ def _materialize_contract_payload(raw: Any) -> Any:
         try:
             payload = method()
         except Exception:
+            _safe_log("warning", "btapistore:1093 suppressed Exception")
             continue
         if payload not in (None, "") and payload is not raw:
             return payload
@@ -1448,6 +1457,7 @@ def _query_contract_fee_metadata(api: Any, aliases: List[str], symbol: Any) -> D
             try:
                 payload = method(query_symbol)
             except Exception:
+                _safe_log("warning", "btapistore:1451 suppressed Exception")
                 continue
             metadata = _normalise_contract_metadata(payload, symbol, source=method_name)
             if any(
@@ -1499,6 +1509,7 @@ def _query_contract_metadata_from_api(api: Any, aliases: List[str], symbol: Any)
                 try:
                     payload = method(*args, **kwargs)
                 except Exception:
+                    _safe_log("warning", "btapistore:1502 suppressed Exception")
                     continue
                 metadata = _normalise_contract_metadata(payload, symbol, source=method_name)
                 if _contract_metadata_has_rules(metadata):
@@ -1553,6 +1564,7 @@ def _positive_int_lot(value: Any, field_name: str) -> int:
     try:
         lot = Decimal(str(value).strip())
     except (InvalidOperation, ValueError) as exc:
+        _safe_log("error", "btapistore:1556 re-raising InvalidOperation,ValueError")
         raise BtApiStoreError(f"CTP order {field_name} must be a positive integer lot") from exc
     if not lot.is_finite() or lot <= 0 or lot != lot.to_integral_value():
         raise BtApiStoreError(f"CTP order {field_name} must be a positive integer lot")
@@ -1590,6 +1602,7 @@ def _build_ctp_tick_datetime(payload: Any) -> _dt.datetime:
             dt_value = _dt.datetime.strptime(f"{day_value} {update_time}", "%Y%m%d %H:%M:%S")
             return dt_value.replace(microsecond=millisec * 1000, tzinfo=_CTP_TZ)
         except ValueError:
+            _safe_log("debug", "btapistore:1593 ignored ValueError")
             continue
 
     return _dt.datetime.now(_CTP_TZ)
@@ -1607,6 +1620,7 @@ def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
         try:
             value = getattr(field, attr)
         except Exception as e:
+            _safe_log("warning", "btapistore:1616 fallback on Exception")
             _safe_log("debug", "Failed to read CTP field attr %s: %s", attr, e)
             continue
         if callable(value):
@@ -1625,6 +1639,7 @@ def _ctp_extract_fields(field: Any, attrs: Iterable[str]) -> Dict[str, Any]:
         try:
             value = getattr(field, attr)
         except Exception as e:
+            _safe_log("warning", "btapistore:1634 fallback on Exception")
             _safe_log("debug", "Failed to read CTP field attr %s: %s", attr, e)
             continue
         if callable(value):
@@ -1687,6 +1702,7 @@ def _normalize_datetime(value: Any) -> _dt.datetime:
         try:
             return _datetime_to_utc_naive(_dt.datetime.fromisoformat(value.replace("Z", "+00:00")))
         except ValueError as exc:
+            _safe_log("error", "btapistore:1690 re-raising ValueError")
             raise ValueError(f"Unsupported datetime string: {value!r}") from exc
 
     raise ValueError(f"Unsupported datetime value: {value!r}")
@@ -1697,6 +1713,7 @@ def _resolve_bt_api_client(provider: str = "btapi"):
     try:
         module = importlib.import_module("bt_api_py")
     except ImportError as exc:
+        _safe_log("error", "btapistore:1700 re-raising ImportError")
         raise BtApiMissingDependencyError(
             "bt_api_py is required for BtApiStore when no api/api_cls is provided"
         ) from exc
@@ -1740,6 +1757,7 @@ def _create_ctp_wrapper_class():
             )
             from bt_api_py.ctp.ctp_trader_api import CThostFtdcTraderSpi
         except ImportError as fallback_exc:
+            _safe_log("error", "btapistore:1743 re-raising ImportError")
             raise BtApiMissingDependencyError("CTP support is not available") from fallback_exc
 
     def _noop_spi_method(self, *args, **kwargs):
@@ -2175,9 +2193,11 @@ def _create_ctp_wrapper_class():
                 try:
                     return method(*args, **kwargs)
                 except Exception as exc:
+                    _safe_log("warning", "btapistore:2187 fallback on Exception")
                     _safe_log("debug", "CTP %s failed: %s", method_name, exc)
                     return None
             except Exception as exc:
+                _safe_log("warning", "btapistore:2190 fallback on Exception")
                 _safe_log("debug", "CTP %s failed: %s", method_name, exc)
                 return None
 
@@ -2863,6 +2883,7 @@ def _create_ctp_gateway_wrapper_class():
     try:
         from bt_api_py.gateway.client import GatewayClient
     except ImportError as exc:
+        _safe_log("error", "btapistore:2866 re-raising ImportError")
         raise BtApiMissingDependencyError("bt_api_py gateway support is not available") from exc
 
     class CtpGatewayClientWrapper:
@@ -3178,6 +3199,7 @@ def _create_ctp_gateway_wrapper_class():
                 if tf_val == bt.TimeFrame.Months:
                     return "MN1"
             except Exception as e:
+                _safe_log("warning", "btapistore:3191 fallback on Exception")
                 _safe_log("debug", "Failed to resolve timeframe: %s", e)
             return "M1"
 
@@ -3803,12 +3825,12 @@ class BtApiStore(LiveStoreBase):
         try:
             exc.args = tuple(self.redact_runtime_value(item) for item in exc.args)
         except Exception:
-            pass
+            _safe_log("warning", "btapistore:3806 suppressed Exception")
         try:
             for key, value in vars(exc).items():
                 setattr(exc, key, self.redact_runtime_value(value))
         except Exception:
-            pass
+            _safe_log("warning", "btapistore:3811 suppressed Exception")
         return exc
 
     @classmethod
@@ -3869,6 +3891,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 disarm(str(reason or "store_market_data_only"))
             except Exception as exc:
+                _safe_log("warning", "btapistore:3882 fallback on Exception")
                 self.sanitize_exception(exc)
                 self._command_last_error = self._safe_exception_code(exc, "execution_disarm_failed")
             else:
@@ -3893,6 +3916,7 @@ class BtApiStore(LiveStoreBase):
         try:
             result = prepare(reason=str(reason or "execution_authorization_reconfigured"))
         except Exception as exc:
+            _safe_log("error", "btapistore:3906 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             raise BtApiStoreError("SDK execution-authorization preparation failed") from None
         if not isinstance(result, Mapping) or not (
@@ -4057,6 +4081,7 @@ class BtApiStore(LiveStoreBase):
             # capability, approval, or authorization setting.
             configure_execution({"market_data_only": True})
         except Exception as exc:
+            _safe_log("error", "btapistore:4070 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             raise BtApiStoreError(
                 "bounded read-only metadata probe could not configure SDK market-data-only mode"
@@ -4076,6 +4101,7 @@ class BtApiStore(LiveStoreBase):
         try:
             summary = get_execution_summary()
         except Exception as exc:
+            _safe_log("error", "btapistore:4089 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             raise BtApiStoreError(
                 "bounded read-only metadata probe cannot verify SDK market-data-only mode"
@@ -4110,6 +4136,7 @@ class BtApiStore(LiveStoreBase):
         try:
             timeout_seconds_value = float(timeout_seconds)
         except (OverflowError, ValueError):
+            _safe_log("error", "btapistore:4113 re-raising OverflowError,ValueError")
             raise BtApiStoreError("bounded read-only metadata probe timeout is invalid") from None
         if (
             not math.isfinite(timeout_seconds_value)
@@ -4214,6 +4241,7 @@ class BtApiStore(LiveStoreBase):
             except TimeoutError:
                 state["timed_out"] = True
             except BaseException as exc:
+                _safe_log("warning", "btapistore:4228 fallback on BaseException")
                 self.sanitize_exception(exc)
                 state["failure"] = exc
             finally:
@@ -4227,6 +4255,7 @@ class BtApiStore(LiveStoreBase):
                         shutdown_timeout = self._command_shutdown_timeout
                     self.stop(timeout=shutdown_timeout)
                 except BaseException as exc:
+                    _safe_log("warning", "btapistore:4241 fallback on BaseException")
                     self.sanitize_exception(exc)
                     if state["failure"] is None:
                         state["failure"] = exc
@@ -4255,6 +4284,7 @@ class BtApiStore(LiveStoreBase):
         try:
             worker.start()
         except BaseException:
+            _safe_log("error", "btapistore:4269 exception before re-raise (BaseException)")
             with self._read_only_metadata_probe_condition:
                 self._read_only_metadata_probe_active = False
                 self._read_only_metadata_probe_thread = None
@@ -4557,6 +4587,7 @@ class BtApiStore(LiveStoreBase):
                         if can_read:
                             snapshot = self._read_funding_snapshot_from_api(api, dataname)
                 except Exception as exc:
+                    _safe_log("warning", "btapistore:4571 fallback on Exception")
                     self.sanitize_exception(exc)
                     error = exc
 
@@ -4647,6 +4678,7 @@ class BtApiStore(LiveStoreBase):
         try:
             asyncio.run(self._command_worker(generation))
         except Exception as exc:
+            _safe_log("warning", "btapistore:4661 fallback on Exception")
             self._command_health["worker_failures"] += 1
             self._command_last_error = self._safe_exception_code(exc, type(exc).__name__)
         finally:
@@ -4881,6 +4913,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 callback()
             except BaseException as exc:  # preserve shutdown evidence without escaping the thread
+                _safe_log("warning", "btapistore:4895 fallback on BaseException")
                 outcome[0] = exc
 
         thread = threading.Thread(target=invoke, name="BtApiStoreClose", daemon=True)
@@ -5180,6 +5213,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 return bool(self._api.supports_position_mode(mode))
             except Exception:
+                _safe_log("warning", "btapistore:5194 fallback on Exception")
                 return False
 
         return bool(
@@ -5211,6 +5245,7 @@ class BtApiStore(LiveStoreBase):
             else:
                 return {"cash": self._cash, "value": self._value}
         except Exception:
+            _safe_log("error", "btapistore:5225 exception before re-raise (Exception)")
             if not raise_errors and self._last_balance_refresh > 0.0:
                 return {"cash": self._cash, "value": self._value}
             raise
@@ -5287,6 +5322,7 @@ class BtApiStore(LiveStoreBase):
                 ) from exc
             positions = []
         except Exception:
+            _safe_log("error", "btapistore:5301 exception before re-raise (Exception)")
             if not raise_errors and self._last_positions_refresh > 0.0:
                 return deepcopy(self._positions_cache)
             raise
@@ -5437,6 +5473,7 @@ class BtApiStore(LiveStoreBase):
                 ) from exc
             orders = []
         except Exception:
+            _safe_log("error", "btapistore:5451 exception before re-raise (Exception)")
             if not raise_errors and self._last_open_orders_refresh > 0.0:
                 return deepcopy(self._open_orders_cache)
             raise
@@ -6049,6 +6086,7 @@ class BtApiStore(LiveStoreBase):
                         self._account_risk_refresh_pending = False
             raise
         except Exception as exc:
+            _safe_log("warning", "btapistore:6063 fallback on Exception")
             self.sanitize_exception(exc)
             definite_reject = bool(getattr(exc, "definite_reject", False))
             # Once submit/cancel enters the SDK transport, an unclassified
@@ -6090,6 +6128,7 @@ class BtApiStore(LiveStoreBase):
                     "execution_recovery_dispatch_failed",
                 )
             except Exception as exc:
+                _safe_log("warning", "btapistore:6104 fallback on Exception")
                 self.sanitize_exception(exc)
                 completion["recovery_abort_error_code"] = self._safe_exception_code(
                     exc, "execution_recovery_abort_failed"
@@ -6150,6 +6189,7 @@ class BtApiStore(LiveStoreBase):
         try:
             parsed_expiry = _dt.datetime.fromisoformat(expires_at[:-1] + "+00:00")
         except ValueError:
+            _safe_log("error", "btapistore:6153 re-raising ValueError")
             raise _ApprovalLeaseRejected("demo_approval_expiry_invalid") from None
         operation_count = fields["operation_count"]
         maximum_count = fields["maximum_count"]
@@ -6207,11 +6247,13 @@ class BtApiStore(LiveStoreBase):
             try:
                 raw_identity = getter(venue)
             except Exception as exc:
+                _safe_log("error", "btapistore:6222 exception before re-raise (Exception)")
                 self.sanitize_exception(exc)
                 raise BtApiStoreError("execution_identity_unavailable") from None
         try:
             identity = _contract_mapping(raw_identity, f"execution identity for {venue}")
         except Exception as exc:
+            _safe_log("error", "btapistore:6227 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             raise BtApiStoreError("execution_identity_invalid") from None
 
@@ -6382,6 +6424,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 epoch = int(identity.get("fencing_epoch"))
             except (TypeError, ValueError):
+                _safe_log("debug", "btapistore:6385 ignored TypeError,ValueError")
                 continue
             if epoch > 0:
                 fencing_epochs.add(epoch)
@@ -6625,6 +6668,7 @@ class BtApiStore(LiveStoreBase):
         try:
             receipt = self._enqueue_order_command(order)
         except Exception:
+            _safe_log("error", "btapistore:6641 exception before re-raise (Exception)")
             if recovery_exit:
                 self.abort_execution_recovery("execution_recovery_dispatch_failed")
             raise
@@ -6828,6 +6872,7 @@ class BtApiStore(LiveStoreBase):
                     self._ctp_execution_recovery_completion_receipt = dict(receipt)
                 return dict(receipt)
             except Exception:
+                _safe_log("error", "btapistore:6844 exception before re-raise (Exception)")
                 with self._command_condition:
                     receipt = self._ctp_execution_recovery_completion_receipt
                     if (
@@ -6977,6 +7022,7 @@ class BtApiStore(LiveStoreBase):
                     "Underlying bt_api_py client does not support order submission"
                 )
         except Exception as exc:
+            _safe_log("error", "btapistore:6993 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             execution_unknown = bool(getattr(exc, "execution_unknown", False)) or isinstance(
                 exc, TimeoutError
@@ -7059,6 +7105,7 @@ class BtApiStore(LiveStoreBase):
                     "Underlying bt_api_py client does not support order cancellation"
                 )
         except Exception as exc:
+            _safe_log("error", "btapistore:7075 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             execution_unknown = bool(getattr(exc, "execution_unknown", False)) or isinstance(
                 exc, TimeoutError
@@ -7208,6 +7255,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 state = getter(exchange_name=self._ctp_sdk_exchange_name())
             except Exception as exc:
+                _safe_log("warning", "btapistore:7224 fallback on Exception")
                 _safe_log("debug", "Failed to read CTP SDK session state: %s", exc)
                 return {}
             return dict(state) if isinstance(state, Mapping) else {}
@@ -7226,6 +7274,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 state = getter()
             except Exception as exc:
+                _safe_log("warning", "btapistore:7242 fallback on Exception")
                 _safe_log("debug", "Failed to read CTP session state: %s", exc)
                 continue
             if isinstance(state, dict):
@@ -7411,6 +7460,7 @@ class BtApiStore(LiveStoreBase):
                 try:
                     initialized = initializer()
                 except Exception:
+                    _safe_log("warning", "btapistore:7427 fallback on Exception")
                     initialized = None
                 if initialized is not None and initialized is not record:
                     return BtApiStore._ctp_query_record_to_public(initialized)
@@ -7424,6 +7474,7 @@ class BtApiStore(LiveStoreBase):
                 try:
                     public_data = all_data()
                 except Exception:
+                    _safe_log("warning", "btapistore:7440 fallback on Exception")
                     public_data = None
                 if isinstance(public_data, Mapping):
                     value.update(dict(public_data))
@@ -7447,6 +7498,7 @@ class BtApiStore(LiveStoreBase):
                 try:
                     item = getter()
                 except Exception:
+                    _safe_log("warning", "btapistore:7450 suppressed Exception")
                     continue
                 enum_value = getattr(item, "value", item)
                 if enum_value not in (None, ""):
@@ -7593,6 +7645,7 @@ class BtApiStore(LiveStoreBase):
         try:
             raw_legs = list(legs)
         except TypeError as exc:
+            _safe_log("error", "btapistore:7596 re-raising TypeError")
             raise BtApiStoreError("CTP bundle legs must be an iterable of raw leg records") from exc
         if len(raw_legs) not in {2, 3}:
             raise BtApiStoreError("CTP bundle must contain exactly two or three legs")
@@ -8349,6 +8402,7 @@ class BtApiStore(LiveStoreBase):
                                 name,
                             )
                         except Exception as exc:
+                            _safe_log("warning", "btapistore:8367 fallback on Exception")
                             result = self._ctp_query_failure(
                                 name, session_before, type(exc).__name__
                             )
@@ -8559,6 +8613,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 candidate_summary = summary_getter()
             except Exception:
+                _safe_log("warning", "btapistore:8577 fallback on Exception")
                 candidate_summary = None
             if isinstance(candidate_summary, Mapping):
                 execution_summary = dict(candidate_summary)
@@ -8761,6 +8816,7 @@ class BtApiStore(LiveStoreBase):
         try:
             total_timeout = float(timeout)
         except (TypeError, ValueError) as exc:
+            _safe_log("error", "btapistore:8764 re-raising TypeError,ValueError")
             raise ValueError("CTP bundle query timeout must be finite and nonnegative") from exc
         if not math.isfinite(total_timeout) or total_timeout < 0:
             raise ValueError("CTP bundle query timeout must be finite and nonnegative")
@@ -8833,6 +8889,7 @@ class BtApiStore(LiveStoreBase):
                             request_type,
                         )
                     except Exception as exc:
+                        _safe_log("warning", "btapistore:8852 fallback on Exception")
                         result = self._ctp_query_failure(
                             request_type, session_before, type(exc).__name__
                         )
@@ -9269,6 +9326,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 candidate_summary = summary_getter()
             except Exception:
+                _safe_log("warning", "btapistore:9288 fallback on Exception")
                 candidate_summary = None
             if isinstance(candidate_summary, Mapping):
                 execution_summary = dict(candidate_summary)
@@ -9409,6 +9467,7 @@ class BtApiStore(LiveStoreBase):
         try:
             total_timeout = float(timeout)
         except (TypeError, ValueError) as exc:
+            _safe_log("error", "btapistore:9412 re-raising TypeError,ValueError")
             raise ValueError("CTP bundle quote timeout must be finite and nonnegative") from exc
         if not math.isfinite(total_timeout) or total_timeout < 0:
             raise ValueError("CTP bundle quote timeout must be finite and nonnegative")
@@ -9532,6 +9591,7 @@ class BtApiStore(LiveStoreBase):
                             "depth_market_data",
                         )
                     except Exception as exc:
+                        _safe_log("warning", "btapistore:9552 fallback on Exception")
                         result = self._ctp_query_failure(
                             "depth_market_data", session_before, type(exc).__name__
                         )
@@ -9790,6 +9850,7 @@ class BtApiStore(LiveStoreBase):
                         request_type,
                     )
                 except Exception as exc:
+                    _safe_log("warning", "btapistore:9810 fallback on Exception")
                     result = self._ctp_query_failure(
                         request_type, before_session, type(exc).__name__
                     )
@@ -10333,6 +10394,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 success = bool(method(**kwargs))
             except Exception as exc:
+                _safe_log("warning", "btapistore:10353 fallback on Exception")
                 error_code = type(exc).__name__
         after = self._read_ctp_session_state()
         after_counts = self._ctp_request_counts(after)
@@ -10391,6 +10453,7 @@ class BtApiStore(LiveStoreBase):
                     method(**kwargs), "settlement_confirmation"
                 )
             except Exception as exc:
+                _safe_log("warning", "btapistore:10411 fallback on Exception")
                 result = self._ctp_query_failure(
                     "settlement_confirmation", before, type(exc).__name__
                 )
@@ -11585,6 +11648,7 @@ class BtApiStore(LiveStoreBase):
         try:
             proof_sha256 = self._sha256_json(normalized)
         except (TypeError, ValueError):
+            _safe_log("error", "btapistore:11588 re-raising TypeError,ValueError")
             raise BtApiStoreError("SDK execution recovery proof is not canonical JSON") from None
         grant = self._ctp_execution_authorization
         if not isinstance(grant, Mapping) or not self._ctp_execution_authorization_sha256:
@@ -11689,6 +11753,7 @@ class BtApiStore(LiveStoreBase):
         try:
             grant_sha256 = self._sha256_json(grant)
         except (TypeError, ValueError):
+            _safe_log("error", "btapistore:11692 re-raising TypeError,ValueError")
             raise BtApiStoreError("CTP execution authorization is not canonical JSON") from None
 
         if grant.get("authorization_kind") != "hmac_sha256":
@@ -11745,6 +11810,7 @@ class BtApiStore(LiveStoreBase):
             with open(sys.executable, "rb") as executable_file:
                 runtime_sha256 = hashlib.sha256(executable_file.read()).hexdigest()
         except OSError:
+            _safe_log("error", "btapistore:11748 re-raising OSError")
             raise BtApiStoreError("CTP execution authorization runtime is unavailable") from None
         if grant["runtime_executable_sha256"] != runtime_sha256:
             raise BtApiStoreError("CTP execution authorization runtime hash mismatch")
@@ -11805,6 +11871,7 @@ class BtApiStore(LiveStoreBase):
         try:
             normalized, _proof_sha256 = self._validate_recovery_proof(proof)
         except Exception:
+            _safe_log("error", "btapistore:11828 exception before re-raise (Exception)")
             self._force_sdk_market_data_only(
                 "execution_recovery_prepare_rejected", clear_authorization=False
             )
@@ -11812,6 +11879,7 @@ class BtApiStore(LiveStoreBase):
         try:
             api = self._ensure_api_ready()
         except Exception:
+            _safe_log("error", "btapistore:11835 exception before re-raise (Exception)")
             self._force_sdk_market_data_only(
                 "execution_recovery_prepare_api_unavailable", clear_authorization=False
             )
@@ -11825,6 +11893,7 @@ class BtApiStore(LiveStoreBase):
         try:
             raw = prepare(proof=normalized)
         except Exception as exc:
+            _safe_log("error", "btapistore:11848 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             self._force_sdk_market_data_only(
                 "execution_recovery_prepare_failed", clear_authorization=False
@@ -11837,6 +11906,7 @@ class BtApiStore(LiveStoreBase):
                 strategy_id=str(self._sdk_execution_config.get("strategy_id") or ""),
             )
         except Exception:
+            _safe_log("error", "btapistore:11860 exception before re-raise (Exception)")
             self._force_sdk_market_data_only(
                 "execution_recovery_prepare_invalid", clear_authorization=False
             )
@@ -11938,6 +12008,7 @@ class BtApiStore(LiveStoreBase):
                 if not valid:
                     raise BtApiStoreError("SDK execution recovery abort was not proven")
             except Exception as exc:
+                _safe_log("error", "btapistore:11961 exception before re-raise (Exception)")
                 self.sanitize_exception(exc)
                 with self._command_condition:
                     self._command_stop_requested = True
@@ -12016,6 +12087,7 @@ class BtApiStore(LiveStoreBase):
             self._ctp_execution_recovery_armed = True
             return deepcopy(result)
         except Exception:
+            _safe_log("error", "btapistore:12039 exception before re-raise (Exception)")
             if sdk_call_started:
                 self._force_sdk_market_data_only(
                     "execution_recovery_arm_post_commit_failure",
@@ -12082,6 +12154,7 @@ class BtApiStore(LiveStoreBase):
                     raise BtApiStoreError("SDK execution recovery cancellation was not queued")
                 receipts.append(dict(receipt))
         except Exception:
+            _safe_log("error", "btapistore:12105 exception before re-raise (Exception)")
             self._force_sdk_market_data_only(
                 "execution_recovery_cancel_failed", clear_authorization=False
             )
@@ -12157,6 +12230,7 @@ class BtApiStore(LiveStoreBase):
             )
             raise
         except Exception as exc:
+            _safe_log("error", "btapistore:12180 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             self._force_sdk_market_data_only(
                 "execution_recovery_completion_failed", clear_authorization=False
@@ -12233,6 +12307,7 @@ class BtApiStore(LiveStoreBase):
             try:
                 expected_hash = self._sha256_json(proof)
             except (TypeError, ValueError):
+                _safe_log("error", "btapistore:12236 re-raising TypeError,ValueError")
                 raise BtApiStoreError("SDK execution arming proof is not canonical JSON") from None
 
             grant = self._ctp_execution_authorization
@@ -12268,6 +12343,7 @@ class BtApiStore(LiveStoreBase):
                 with open(sys.executable, "rb") as executable_file:
                     runtime_hash = hashlib.sha256(executable_file.read()).hexdigest()
             except OSError:
+                _safe_log("error", "btapistore:12271 re-raising OSError")
                 raise BtApiStoreError("SDK execution arming runtime is unavailable") from None
             if runtime_hash != grant.get("runtime_executable_sha256"):
                 raise BtApiStoreError("SDK execution arming runtime changed")
@@ -12460,6 +12536,7 @@ class BtApiStore(LiveStoreBase):
                             proof_sha256=expected_hash,
                         )
                 except Exception:
+                    _safe_log("error", "btapistore:12485 exception before re-raise (Exception)")
                     self._force_sdk_market_data_only(
                         "execution_arm_post_commit_failure", clear_authorization=False
                     )
@@ -12552,6 +12629,7 @@ class BtApiStore(LiveStoreBase):
         try:
             api = self._ensure_api_ready()
         except Exception:
+            _safe_log("warning", "btapistore:12577 fallback on Exception")
             return {}
 
         if self._sdk_mode:
@@ -13177,6 +13255,7 @@ class BtApiStore(LiveStoreBase):
         try:
             snapshot = self._read_funding_snapshot(dataname)
         except Exception as exc:
+            _safe_log("error", "btapistore:13202 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             with self._funding_condition:
                 if generation == self._funding_generation and (
@@ -13438,6 +13517,7 @@ class BtApiStore(LiveStoreBase):
         except Exception as exc:
             # Shutdown must still close a synchronous compatibility client if
             # its optional risk diagnostic violates the public contract.
+            _safe_log("warning", "btapistore:13461 fallback on Exception")
             self.sanitize_exception(exc)
             return
         self._cache_account_risk_snapshot(snapshot)
@@ -13609,6 +13689,7 @@ class BtApiStore(LiveStoreBase):
             risk_read_finished_ns = time.monotonic_ns()
             snapshot = _contract_mapping(raw_snapshot, "account risk snapshot")
         except Exception as exc:
+            _safe_log("warning", "btapistore:13634 fallback on Exception")
             self.sanitize_exception(exc)
             return unavailable(self._safe_exception_code(exc, "account_risk_snapshot_failed"))
 
@@ -14799,6 +14880,7 @@ class BtApiStore(LiveStoreBase):
             elif hasattr(self._api, "start"):
                 self._api.start()
         except Exception as exc:
+            _safe_log("error", "btapistore:14824 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
             if ctp_session_provider:
                 self._emit_ctp_session_events(emit_success=False)
@@ -14843,7 +14925,7 @@ class BtApiStore(LiveStoreBase):
                 except Exception:
                     # Execution auditing is best effort while preserving the
                     # original account-readiness failure for the caller.
-                    pass
+                    _safe_log("warning", "btapistore:14846 suppressed Exception")
                 if api is not None:
                     closed, close_error = self._bounded_sdk_close(
                         api, self._command_shutdown_timeout
@@ -14864,6 +14946,7 @@ class BtApiStore(LiveStoreBase):
         try:
             from bt_api_py.forwarding import ForwardingClient, ZmqForwardingClient
         except ImportError as exc:
+            _safe_log("error", "btapistore:14867 re-raising ImportError")
             raise BtApiMissingDependencyError(
                 "bt_api_py.forwarding is required for BtApiStore backend='forwarding'"
             ) from exc

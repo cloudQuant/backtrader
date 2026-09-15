@@ -490,6 +490,10 @@ class OrderBase:
             p = object.__getattribute__(self, "p")
             return getattr(p, name)
         except AttributeError:
+            # ``copy.copy`` legitimately probes ``__setstate__`` here for
+            # every order clone. This is an expected protocol miss, not a
+            # recoverable runtime failure, so keep the compatibility fallback
+            # silent on the hot path.
             raise AttributeError(
                 f"'{self.__class__.__name__}' object has no attribute '{name}'"
             ) from None
@@ -504,7 +508,10 @@ class OrderBase:
                 setattr(p, name, value)
                 return
         except AttributeError:
-            pass  # p doesn't exist yet, fall through to normal assignment
+            # ``p`` is deliberately absent during early construction.
+            # Logging that expected state once per new order adds avoidable
+            # work before the parameter object exists.
+            pass
 
         super().__setattr__(name, value)
 

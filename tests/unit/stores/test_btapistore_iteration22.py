@@ -11,6 +11,8 @@ import time
 
 import pytest
 
+from tests.test_utils.optional_sdk import optional_sdk
+
 from backtrader.stores.btapistore import BtApiStore, BtApiStoreError, _create_ctp_wrapper_class
 from tests.fixtures.fake_btapi import FakeBtApiClient, make_store
 
@@ -620,9 +622,30 @@ class ExecutionReferenceBundleClient(BundleQueryClient):
         super().__init__()
         self.depth_requests = []
         self.rows["depth_market_data"] = [
-            {"InstrumentID": "m2701", "ExchangeID": "DCE", "BidPrice1": 3400.0, "AskPrice1": 3400.0, "BidVolume1": 10, "AskVolume1": 10},
-            {"InstrumentID": "m2701-C-3400", "ExchangeID": "DCE", "BidPrice1": 100.0, "AskPrice1": 101.0, "BidVolume1": 10, "AskVolume1": 10},
-            {"InstrumentID": "m2701-P-3400", "ExchangeID": "DCE", "BidPrice1": 99.0, "AskPrice1": 99.0, "BidVolume1": 10, "AskVolume1": 10},
+            {
+                "InstrumentID": "m2701",
+                "ExchangeID": "DCE",
+                "BidPrice1": 3400.0,
+                "AskPrice1": 3400.0,
+                "BidVolume1": 10,
+                "AskVolume1": 10,
+            },
+            {
+                "InstrumentID": "m2701-C-3400",
+                "ExchangeID": "DCE",
+                "BidPrice1": 100.0,
+                "AskPrice1": 101.0,
+                "BidVolume1": 10,
+                "AskVolume1": 10,
+            },
+            {
+                "InstrumentID": "m2701-P-3400",
+                "ExchangeID": "DCE",
+                "BidPrice1": 99.0,
+                "AskPrice1": 99.0,
+                "BidVolume1": 10,
+                "AskVolume1": 10,
+            },
         ]
 
     def _result(self, name):
@@ -967,9 +990,7 @@ def test_ctp_bundle_execution_reference_uses_real_quote_inputs_and_no_writes():
     client = ExecutionReferenceBundleClient()
     store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
 
-    snapshot = store.get_ctp_bundle_execution_reference_snapshot(
-        _dce_bundle_legs(), timeout=0
-    )
+    snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
     assert snapshot["schema_version"] == "backtrader.ctp.bundle-execution-reference.v1"
     assert snapshot["evidence_complete"] is True
@@ -993,7 +1014,9 @@ def test_ctp_bundle_execution_reference_uses_real_quote_inputs_and_no_writes():
     ]
     assert len(cost_requests) == 4
     extra_cost_requests = cost_requests[-2:]
-    assert {(request["input_price"], request["underlying_price"]) for request in extra_cost_requests} == {
+    assert {
+        (request["input_price"], request["underlying_price"]) for request in extra_cost_requests
+    } == {
         (101.0, 3400.0),
         (99.0, 3400.0),
     }
@@ -1003,15 +1026,18 @@ def test_ctp_bundle_execution_reference_uses_real_quote_inputs_and_no_writes():
     )
 
 
-@pytest.mark.parametrize("quote_change", [
-    {"LastPrice": 0.0},
-    {"LastPrice": float("nan")},
-    {"LastPrice": float("inf")},
-    {"LastPrice": 1.7976931348623157e308},
-    {"BidPrice1": None, "AskPrice1": None},
-    {"BidPrice1": 100.0},
-    {"BidPrice1": 100.0, "AskPrice1": 101.0, "BidVolume1": 0, "AskVolume1": 10},
-])
+@pytest.mark.parametrize(
+    "quote_change",
+    [
+        {"LastPrice": 0.0},
+        {"LastPrice": float("nan")},
+        {"LastPrice": float("inf")},
+        {"LastPrice": 1.7976931348623157e308},
+        {"BidPrice1": None, "AskPrice1": None},
+        {"BidPrice1": 100.0},
+        {"BidPrice1": 100.0, "AskPrice1": 101.0, "BidVolume1": 0, "AskVolume1": 10},
+    ],
+)
 def test_ctp_bundle_execution_reference_rejects_unsafe_depth_quote(quote_change):
     client = ExecutionReferenceBundleClient()
     client.rows["depth_market_data"][1].clear()
@@ -1023,7 +1049,10 @@ def test_ctp_bundle_execution_reference_rejects_unsafe_depth_quote(quote_change)
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
     assert snapshot["evidence_complete"] is False
-    assert any("price_required" in error or "volume_positive_required" in error for error in snapshot["evidence_errors"])
+    assert any(
+        "price_required" in error or "volume_positive_required" in error
+        for error in snapshot["evidence_errors"]
+    )
     assert snapshot["execution_eligible"] is False
 
 
@@ -1035,7 +1064,10 @@ def test_ctp_bundle_execution_reference_rejects_foreign_or_duplicate_depth_ident
     snapshot = store.get_ctp_bundle_execution_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
     assert snapshot["evidence_complete"] is False
-    assert any("record_not_exactly_one" in error or "instrument_identity_mismatch" in error for error in snapshot["evidence_errors"])
+    assert any(
+        "record_not_exactly_one" in error or "instrument_identity_mismatch" in error
+        for error in snapshot["evidence_errors"]
+    )
 
 
 def test_ctp_bundle_execution_reference_rejects_query_identity_generation_shift():
@@ -1158,7 +1190,11 @@ def test_ctp_bundle_quote_reference_rejects_current_generation_drift_without_dep
 @pytest.mark.parametrize(
     "field, value, expected_error",
     [
-        ("session_fingerprint", "different-account", "bundle_quote_current_account_fingerprint_mismatch"),
+        (
+            "session_fingerprint",
+            "different-account",
+            "bundle_quote_current_account_fingerprint_mismatch",
+        ),
         ("trading_day", "20260910", "bundle_quote_current_trading_day_mismatch"),
     ],
 )
@@ -1209,7 +1245,9 @@ def test_ctp_bundle_quote_reference_rejects_requested_leg_scope_drift_without_qu
         ({"AskPrice1": None}, "ask_price_required"),
     ],
 )
-def test_ctp_bundle_quote_reference_rejects_foreign_or_incomplete_depth_quote(change, expected_error):
+def test_ctp_bundle_quote_reference_rejects_foreign_or_incomplete_depth_quote(
+    change, expected_error
+):
     client, store, _before_counts = _frozen_quote_reference_store()
     client.rows["depth_market_data"][1].update(change)
 
@@ -1228,7 +1266,9 @@ def test_ctp_bundle_quote_reference_rejects_depth_timeout_without_other_queries(
     snapshot = store.get_ctp_bundle_quote_reference_snapshot(_dce_bundle_legs(), timeout=0)
 
     assert snapshot["evidence_complete"] is False
-    assert any("depth_market_data_query_incomplete" in error for error in snapshot["evidence_errors"])
+    assert any(
+        "depth_market_data_query_incomplete" in error for error in snapshot["evidence_errors"]
+    )
     assert [request["name"] for request in client.reference_requests] == [
         "depth_market_data",
         "depth_market_data",
@@ -1306,9 +1346,7 @@ def test_ctp_bundle_preflight_rejects_duplicate_exact_prefix_match():
 def test_ctp_bundle_preflight_rejects_missing_exact_prefix_target():
     client = PrefixInstrumentBundleClient()
     client.rows["instruments"] = [
-        row
-        for row in client.rows["instruments"]
-        if row["InstrumentID"] != "m2701-C-3400"
+        row for row in client.rows["instruments"] if row["InstrumentID"] != "m2701-C-3400"
     ]
     store = make_store(
         api=client,
@@ -3504,7 +3542,7 @@ def test_ctp_query_timeout_is_one_total_deadline_for_the_group():
 
 
 def test_native_ctp_wrapper_rejects_market_before_req_order_insert():
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeApi:
@@ -3542,7 +3580,7 @@ def test_native_ctp_wrapper_rejects_market_before_req_order_insert():
 def test_native_ctp_wrapper_defaults_to_read_only_and_rejects_implicit_settlement_write():
     """A direct wrapper cannot connect with the legacy auto-write switch enabled."""
 
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     default_client = wrapper_cls()

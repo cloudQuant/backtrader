@@ -15,6 +15,9 @@ from backtrader.comminfo import ComminfoFuturesPercent
 from backtrader.events import OrderBookSnapshot
 from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import BtApiStore
+from tests.test_utils.optional_sdk import optional_sdk
+
+optional_sdk(allow_module_level=True)
 
 EXAMPLES = (
     pytest.param(

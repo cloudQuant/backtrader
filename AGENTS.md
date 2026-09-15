@@ -13,7 +13,7 @@ trading. This repo is a performance-oriented fork of the original
 metaprogramming** in favor of explicit mixin + factory initialization while
 keeping the public API compatible.
 
-- **Version**: `1.3.0` (see `backtrader/version.py`)
+- **Version**: `1.4.0` (see `backtrader/version.py`)
 - **License**: GPLv3
 - **Python**: 3.8–3.13 (classifiers in `setup.py`; 3.11 recommended)
 - **Not on PyPI** — install from source only.
@@ -201,7 +201,7 @@ Access patterns: `data.close[0]` (current bar), `data.close[-1]` (previous).
 - `feed.py` + `feeds/` (17 files) — CSV, pandas, IB, CCXT, etc.;
   `resamplerfilter.py` for resample/replay.
 - `broker.py` + `brokers/` — order matching and portfolio state.
-- `cerebro.py` (~810 lines, public facade) + `_cerebro/` private mixin package
+- `cerebro.py` (~830 lines, public facade) + `_cerebro/` private mixin package
   (9 files, iteration 28 split) — orchestrator. The facade keeps the `Cerebro`
   class definition (params/descriptors/`__init__`/`run`/pickle protocol) and
   `OptReturn`; `registry/notifications/lifecycle/channel/execution` hold
@@ -384,6 +384,34 @@ that the strategy is profitable.
   and compare runonce vs runnext output (the branch-compare harness in
   `studies/branch_compare/` + `scripts/run_strategy_branch_compare.py` with
   `TradeLogger` is the established way to localize divergences).
+
+## Logging (iteration 29)
+
+- Single entry point `backtrader/utils/log_message.py` (`get_logger`,
+  `configure_logging`, throttled storm suppression). See
+  `docs/LOGGING_GUIDELINES.md`; baseline catalogs are regenerable via
+  `python scripts/scan_logging_baseline.py --out <dir>`.
+- Default silence: nothing is emitted or written until
+  `configure_logging(...)` is called (protected by tests).
+- Split-file layout (opt-in): `configure_logging(level="INFO",
+  log_dir="logs")` writes `logs/<script>/<YYYY_MM_DD>/{error,warning,info}.log`
+  (level-exact routing, `debug.log` at DEBUG level). `<script>` auto-detects
+  from `sys.argv[0]` (`xxx/run.py` -> `xxx_run`); `script_name=` overrides;
+  `retention_days=30` prunes only that script's expired date dirs;
+  child processes (cerebro optimize) get `.p{pid}` suffixes.
+- Write backend: `backend="auto"` prefers the optional `spdlog` package
+  (PyPI `spdlog` 2.0.6, sdist build — macOS/Python 3.11 verified working)
+  and silently falls back to stdlib; `"spdlog"` raises ImportError if
+  unavailable; `"stdlib"` forces pure stdlib. `get_logger()` always returns
+  a stdlib `Logger` — spdlog is mounted as a `logging.Handler`.
+- Silent-exception policy: no new `except: pass/continue` without a log
+  line; bare re-raises log an ERROR first; hot-loop repeats use
+  `throttled_error`/`throttled_warning`. CLI tools (`btrun`,
+  `reports/reporter.py`) and public APIs (`Analyzer.print`, `Strategy.log`)
+  keep `print` on purpose.
+- Key lifecycle INFO (run start/finish, feed load, strategy nextstart/stop,
+  order submit/fill/reject in `bbroker`) is per-run/per-order — never per
+  bar; keep it that way in hot paths.
 
 ## Code style & constraints
 

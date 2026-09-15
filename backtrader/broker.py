@@ -19,6 +19,9 @@ The broker system supports:
 
 from .comminfo import CommInfoBase
 from .parameters import ParameterDescriptor, ParameterizedBase
+from .utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 # from . import fillers as fillers
 # from . import fillers as filler
@@ -146,6 +149,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
             try:
                 hash(value)
             except TypeError:
+                logger.debug("broker:151 ignored TypeError")
                 continue
             text = str(value)
             for key in (value, text, text.upper(), text.lower()):

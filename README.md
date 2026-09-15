@@ -4,7 +4,7 @@
 
 **Professional Python Algorithmic Trading Backtesting Framework**
 
-[![Version](https://img.shields.io/badge/Version-1.3.0-blue.svg)](https://github.com/cloudQuant/backtrader)
+[![Version](https://img.shields.io/badge/Version-1.4.0-blue.svg)](https://github.com/cloudQuant/backtrader)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#)
@@ -124,9 +124,12 @@ high-frequency** strategy development, backtesting, and live trading.
 
 ### Project Branches
 
-- **`master`**: Stable release branch
-- **`dev`**: Active development branch carrying performance optimizations and new features
-- **`development`**: Integration/release-candidate branch used by CI/CD before promotion
+- **`master`**: Original Backtrader baseline; only original-baseline bug, compatibility, and
+  security hotfixes belong here
+- **`dev`**: Daily development entry for routine features, fixes, tests, documentation, and
+  refactors
+- **`development`**: Improved and optimized release branch; controlled `dev` promotions and
+  CI/CD run here
 
 ---
 
@@ -270,7 +273,7 @@ pip install -U .
 ```python
 import backtrader as bt
 print(f"Backtrader version: {bt.__version__}")
-# Output: Backtrader version: 1.3.0
+# Output: Backtrader version: 1.4.0
 ```
 
 ### Run Tests
@@ -1013,9 +1016,9 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 
 ### 项目分支
 
-- **`master`**：稳定发布分支
-- **`dev`**：活跃开发分支，承载性能优化与新特性
-- **`development`**：集成 / 候选发布分支，用于 CI/CD 验证后再晋级
+- **`master`**：原始 Backtrader 基线；仅接收可在原始基线复现的 bug、兼容性与安全热修复
+- **`dev`**：日常开发入口，承载常规功能、修复、测试、文档与重构
+- **`development`**：改进与优化版本的发布分支；受控的 `dev` 提升和 CI/CD 在此执行
 
 ---
 

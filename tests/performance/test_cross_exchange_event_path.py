@@ -3,7 +3,9 @@ import gc
 from importlib import import_module
 import time
 
-from bt_api_py import CrossVenueLeg as InstrumentRule
+from tests.test_utils.optional_sdk import optional_sdk
+
+InstrumentRule = optional_sdk(allow_module_level=True).CrossVenueLeg
 
 event_strategy = import_module("examples.012_2_event_driven_cross_exchange.strategy")
 D = Decimal

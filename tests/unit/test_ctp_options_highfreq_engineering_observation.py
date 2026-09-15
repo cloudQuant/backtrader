@@ -12,12 +12,13 @@ import dataclasses
 import datetime as dt
 import hashlib
 import importlib
-import time
+import threading
+from types import SimpleNamespace
 from typing import Any, Iterable, Mapping
 
-import backtrader as bt
 import pytest
 
+import backtrader as bt
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.feeds import ClockMapping, CtpCohortNow
 from backtrader.feeds.btapifeed import BtApiFeed
@@ -163,9 +164,107 @@ def _mapping(
     )
 
 
+def _install_controlled_runner_clock(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """Make one observation's runner-owned watchdogs deterministic."""
+
+    state = SimpleNamespace(now=0.0, timers=[])
+
+    class ControlledTimer:
+        def __init__(self, interval: float, function: Any) -> None:
+            self.interval = interval
+            self.function = function
+            self.deadline: float | None = None
+            self.fired = False
+            self.cancelled = False
+            self.started = False
+            self.joined = False
+            state.timers.append(self)
+
+        def start(self) -> None:
+            if self.started:
+                raise AssertionError("controlled timer started more than once")
+            self.started = True
+            self.deadline = state.now + self.interval
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+        def join(self, timeout: float | None = None) -> None:
+            assert self.started
+            assert self.cancelled or self.fired
+            self.joined = True
+
+        def is_alive(self) -> bool:
+            return (
+                self.started and self.deadline is not None and not self.fired and not self.cancelled
+            )
+
+    def advance(seconds: float) -> None:
+        state.now += seconds
+        for timer in tuple(state.timers):
+            if timer.is_alive() and state.now >= timer.deadline:
+                timer.fired = True
+                timer.function()
+
+    monkeypatch.setattr(runner, "time", SimpleNamespace(monotonic=lambda: state.now))
+    monkeypatch.setattr(
+        runner,
+        "threading",
+        SimpleNamespace(Timer=ControlledTimer, Event=threading.Event, Lock=threading.Lock),
+    )
+    return state, advance
+
+
+def _assert_controlled_watchdogs_closed(state: Any, *, active_interval: float) -> None:
+    assert [timer.name for timer in state.timers] == [
+        "iter25-engineering-observation-lifecycle-deadline",
+        "iter25-engineering-observation-watchdog",
+    ]
+    assert state.timers[0].interval == pytest.approx(3600.0)
+    assert state.timers[1].interval == pytest.approx(active_interval)
+    assert all(timer.started and timer.joined for timer in state.timers)
+    assert (
+        state.timers[0].cancelled and not state.timers[0].fired and not state.timers[0].is_alive()
+    )
+    assert state.timers[1].cancelled and state.timers[1].fired and not state.timers[1].is_alive()
+
+
+def _assert_lifecycle_deadline_closed(state: Any, *, interval: float) -> None:
+    assert [timer.name for timer in state.timers] == [
+        "iter25-engineering-observation-lifecycle-deadline"
+    ]
+    assert state.timers[0].interval == pytest.approx(interval)
+    assert state.timers[0].started and state.timers[0].joined
+    assert state.timers[0].fired and state.timers[0].cancelled and not state.timers[0].is_alive()
+
+
+def _provider_then_trigger_deadline(
+    provider: LiveNowProvider,
+    state: Any,
+    advance: Any,
+    *,
+    after_calls: int,
+    duration: float,
+) -> Any:
+    """Stop only after a Feed has invoked the provider enough times."""
+
+    def bounded_provider(tick: Any) -> CtpCohortNow:
+        value = provider(tick)
+        if len(provider.calls) == after_calls:
+            assert len(state.timers) == 2
+            advance(duration)
+        return value
+
+    return bounded_provider
+
+
 def _run_observation(
-    *, wrong_domain: bool = False, session_state: Any = None
-) -> tuple[dict[str, Any], ObservationApi, LiveNowProvider]:
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    wrong_domain: bool = False,
+    session_state: Any = None,
+) -> tuple[dict[str, Any], ObservationApi, LiveNowProvider, Any]:
+    state, advance = _install_controlled_runner_clock(monkeypatch)
     ticks, bundle = _live_ticks()
     clock = LiveClock()
     mapping = _mapping(ticks, bundle)
@@ -178,13 +277,21 @@ def _run_observation(
         run_seconds=0.05,
         feed_clock=clock,
         clock_mapping=mapping,
-        live_now_provider=provider,
+        live_now_provider=_provider_then_trigger_deadline(
+            provider,
+            state,
+            advance,
+            after_calls=6,
+            duration=0.05,
+        ),
     )
-    return report, api, provider
+    return report, api, provider, state
 
 
-def test_engineering_observation_runs_actual_highfreq_strategy_on_real_native_chain() -> None:
-    report, api, provider = _run_observation()
+def test_engineering_observation_runs_actual_highfreq_strategy_on_real_native_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    report, api, provider, state = _run_observation(monkeypatch)
 
     assert report["status"] == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
     assert report["mode"] == "shadow"
@@ -215,8 +322,7 @@ def test_engineering_observation_runs_actual_highfreq_strategy_on_real_native_ch
     }
     assert report["duration"]["requested_seconds"] == 0.05
     assert report["duration"]["strategy_started"] is True
-    assert report["duration"]["active_window_elapsed_seconds"] >= 0.04
-    assert report["duration"]["active_window_elapsed_seconds"] < 1.0
+    assert report["duration"]["active_window_elapsed_seconds"] == pytest.approx(0.05)
     assert report["duration"]["deadline_stop_requested"] is True
     assert report["duration"]["lifecycle_deadline_stop_requested"] is False
     assert report["duration"]["elapsed_within_maximum"] is True
@@ -243,6 +349,8 @@ def test_engineering_observation_runs_actual_highfreq_strategy_on_real_native_ch
     assert set(api.session_state_calls) == {"CTP___FUTURE"}
     assert api.session_state_connected_at_call
     assert all(api.session_state_connected_at_call)
+    assert state.now == pytest.approx(0.05)
+    _assert_controlled_watchdogs_closed(state, active_interval=0.05)
     assert report["shutdown"] == {
         "status": "OBSERVATION_ONLY",
         "market_data_only": True,
@@ -263,6 +371,7 @@ def test_engineering_observation_reuses_one_explicitly_transferred_store_without
 ) -> None:
     """A preflight-owned Store must be the graph's only lifecycle root."""
 
+    state, advance = _install_controlled_runner_clock(monkeypatch)
     ticks, bundle = _live_ticks()
     clock = LiveClock()
     api = ObservationApi(ticks, clock=clock)
@@ -298,7 +407,13 @@ def test_engineering_observation_reuses_one_explicitly_transferred_store_without
         run_seconds=0.05,
         feed_clock=clock,
         clock_mapping=mapping,
-        live_now_provider=provider,
+        live_now_provider=_provider_then_trigger_deadline(
+            provider,
+            state,
+            advance,
+            after_calls=6,
+            duration=0.05,
+        ),
     )
 
     assert report["status"] == "PASS_ENGINEERING_STRATEGY_OBSERVATION"
@@ -321,6 +436,8 @@ def test_engineering_observation_reuses_one_explicitly_transferred_store_without
     assert api.connect_calls == 1
     assert api.disconnect_calls == 1
     assert api.connected is False
+    assert state.now == pytest.approx(0.05)
+    _assert_controlled_watchdogs_closed(state, active_interval=0.05)
 
 
 def test_store_transfer_rejects_an_overridden_write_audit_recorder() -> None:
@@ -571,11 +688,18 @@ def test_engineering_observation_rejects_synthetic_mapping_before_api_start() ->
     assert api.connect_calls == 0
 
 
-def test_engineering_observation_rejects_wrong_domain_provider_and_still_shuts_down() -> None:
+def test_engineering_observation_rejects_wrong_domain_provider_and_still_shuts_down(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The provider enters before this test advances the active watchdog.
+    # Freeze only the runner's lifecycle references so
+    # Store/Feed/Cerebro still exercise their normal local teardown paths.
+    state, advance = _install_controlled_runner_clock(monkeypatch)
     ticks, bundle = _live_ticks()
     clock = LiveClock()
     mapping = _mapping(ticks, bundle)
     api = ObservationApi(ticks, clock=clock)
+    provider = LiveNowProvider(mapping, wrong_domain=True)
 
     with pytest.raises(adapter.EngineeringObservationBlocked) as error:
         runner.run_engineering_observation(
@@ -585,19 +709,30 @@ def test_engineering_observation_rejects_wrong_domain_provider_and_still_shuts_d
             run_seconds=0.05,
             feed_clock=clock,
             clock_mapping=mapping,
-            live_now_provider=LiveNowProvider(mapping, wrong_domain=True),
+            live_now_provider=_provider_then_trigger_deadline(
+                provider,
+                state,
+                advance,
+                after_calls=1,
+                duration=0.05,
+            ),
         )
 
     assert error.value.code == "TRUSTED_COHORT_NOW_DOMAIN"
+    assert provider.calls
+    assert state.now == pytest.approx(0.05)
+    _assert_controlled_watchdogs_closed(state, active_interval=0.05)
     assert api.submitted_orders == []
     assert api.cancelled_orders == []
     assert api.connected is False
     assert api.disconnect_calls == 1
 
 
-def test_engineering_observation_rejects_mapping_that_cannot_cover_full_observation_window() -> (
-    None
-):
+def test_engineering_observation_rejects_mapping_that_cannot_cover_full_observation_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The provider enters before this test advances the active watchdog.
+    state, advance = _install_controlled_runner_clock(monkeypatch)
     ticks, bundle = _live_ticks()
     clock = LiveClock()
     last_tick_ns = max(int(tick.recv_monotonic_ns) for stream in ticks.values() for tick in stream)
@@ -608,6 +743,7 @@ def test_engineering_observation_rejects_mapping_that_cannot_cover_full_observat
         valid_until_mono_ns=last_tick_ns + 1_000_000,
     )
     api = ObservationApi(ticks, clock=clock)
+    provider = LiveNowProvider(mapping)
 
     with pytest.raises(adapter.EngineeringObservationBlocked) as error:
         runner.run_engineering_observation(
@@ -617,10 +753,19 @@ def test_engineering_observation_rejects_mapping_that_cannot_cover_full_observat
             run_seconds=0.1,
             feed_clock=clock,
             clock_mapping=mapping,
-            live_now_provider=LiveNowProvider(mapping),
+            live_now_provider=_provider_then_trigger_deadline(
+                provider,
+                state,
+                advance,
+                after_calls=1,
+                duration=0.1,
+            ),
         )
 
     assert error.value.code == "LIVE_CLOCK_MAPPING_DURATION_REQUIRED"
+    assert provider.calls
+    assert state.now == pytest.approx(0.1)
+    _assert_controlled_watchdogs_closed(state, active_interval=0.1)
     assert api.submitted_orders == []
     assert api.cancelled_orders == []
     assert api.connected is False
@@ -739,6 +884,7 @@ def test_engineering_observation_rejecting_session_runs_broker_and_data_shutdown
 def test_engineering_observation_rejects_lifecycle_overrun_during_session_binding(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    state, advance = _install_controlled_runner_clock(monkeypatch)
     ticks, bundle = _live_ticks()
     clock = LiveClock()
     mapping = _mapping(ticks, bundle)
@@ -746,7 +892,7 @@ def test_engineering_observation_rejects_lifecycle_overrun_during_session_bindin
     original_binding = runner._require_ctp_session_binding
 
     def slow_binding(*args: Any, **kwargs: Any) -> dict[str, Any]:
-        time.sleep(0.06)
+        advance(0.06)
         return original_binding(*args, **kwargs)
 
     monkeypatch.setattr(adapter, "ENGINEERING_OBSERVATION_MAX_SECONDS", 0.05)
@@ -764,6 +910,8 @@ def test_engineering_observation_rejects_lifecycle_overrun_during_session_bindin
         )
 
     assert error.value.code == "OBSERVATION_LIFECYCLE_DURATION_EXCEEDED"
+    assert state.now == pytest.approx(0.06)
+    _assert_lifecycle_deadline_closed(state, interval=0.05)
     assert api.submitted_orders == []
     assert api.cancelled_orders == []
     assert api.connected is False
@@ -773,6 +921,7 @@ def test_engineering_observation_rejects_lifecycle_overrun_during_session_bindin
 def test_engineering_observation_lifecycle_budget_covers_partial_feed_construction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    state, advance = _install_controlled_runner_clock(monkeypatch)
     ticks, bundle = _live_ticks()
     clock = LiveClock()
     mapping = _mapping(ticks, bundle)
@@ -787,7 +936,7 @@ def test_engineering_observation_lifecycle_budget_covers_partial_feed_constructi
 
     def slow_first_feed(self: Any, *args: Any, **kwargs: Any) -> Any:
         feed = original_getdata(self, *args, **kwargs)
-        time.sleep(0.06)
+        advance(0.06)
         return feed
 
     def capture_broker_stop(self: BtApiBroker, *args: Any, **kwargs: Any) -> Any:
@@ -822,6 +971,8 @@ def test_engineering_observation_lifecycle_budget_covers_partial_feed_constructi
         )
 
     assert error.value.code == "OBSERVATION_LIFECYCLE_DURATION_EXCEEDED"
+    assert state.now == pytest.approx(0.06)
+    _assert_lifecycle_deadline_closed(state, interval=0.05)
     assert broker_stops == [{"status": "NOT_STARTED"}]
     assert stopped_datanames == [next(iter(ticks))]
     assert store_stops[-1]["shutdown_state"] == "NOT_STARTED"
@@ -1066,15 +1217,18 @@ def test_engineering_observation_construction_cleanup_failure_takes_precedence(
     assert api.connected is False
 
 
-def test_engineering_observation_accepts_concrete_second_set_session_profile_variant() -> None:
-    report, api, _ = _run_observation(
+def test_engineering_observation_accepts_concrete_second_set_session_profile_variant(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    report, api, _, state = _run_observation(
+        monkeypatch,
         session_state={
             "environment_profile": "set2_7x24_future_public_route",
             "read_only_ready": True,
             "execution_gate_armed": False,
             "account_fingerprint": "iter25-observation-account",
             "connection_generation": 1,
-        }
+        },
     )
 
     assert report["session_binding"]["actual_environment_profile"] == (
@@ -1082,6 +1236,8 @@ def test_engineering_observation_accepts_concrete_second_set_session_profile_var
     )
     assert len(api.session_state_calls) >= 2
     assert set(api.session_state_calls) == {"CTP___FUTURE"}
+    assert state.now == pytest.approx(0.05)
+    _assert_controlled_watchdogs_closed(state, active_interval=0.05)
 
 
 def test_engineering_observation_rejects_unavailable_connected_session_identity() -> None:

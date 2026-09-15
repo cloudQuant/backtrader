@@ -17,6 +17,7 @@ from backtrader.events import BarEvent, FundingEvent, OrderBookSnapshot, TickEve
 from backtrader.feeds import btapifeed as feed_module
 from backtrader.order import OrderBase
 from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
+from tests.test_utils.optional_sdk import optional_sdk
 
 VENUE = "OKX___SWAP"
 SYMBOL = "BTC-USDT-SWAP"
@@ -407,7 +408,7 @@ def make_trusted_owned_metadata_probe_store(
 ):
     """Replace the installed SDK only at the unit-test dependency boundary."""
 
-    import bt_api_py
+    bt_api_py = optional_sdk()
 
     MetadataProbeTypedSdk.instances.clear()
     monkeypatch.setattr(bt_api_py, "BtApi", api_cls)
@@ -524,6 +525,7 @@ def test_async_submit_returns_receipt_without_waiting_for_transport():
 
 def test_market_data_only_store_rejects_direct_submit_and_cancel_without_transport():
     """A caller with a Store reference cannot bypass Broker's MDO guard."""
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api)
     store.start()
@@ -556,6 +558,8 @@ def test_market_data_only_store_rejects_direct_submit_and_cancel_without_transpo
 
 
 def test_unknown_submit_mapping_freezes_and_rejects_queued_opening_before_transport():
+    optional_sdk()
+
     class UnknownFirstSdk(AsyncSdk):
         async def async_make_order(self, venue, request, *, normalized=False):
             assert normalized
@@ -608,6 +612,7 @@ def test_unknown_submit_mapping_freezes_and_rejects_queued_opening_before_transp
 
 
 def test_wait_for_commands_includes_unsent_completion_publication(monkeypatch):
+    optional_sdk()
     api = AsyncSdk(block_first=True)
     store = make_store(api)
     store.start()
@@ -649,6 +654,7 @@ def test_wait_for_commands_includes_unsent_completion_publication(monkeypatch):
 
 
 def test_public_execution_latch_reserves_purged_opening_publication(monkeypatch):
+    optional_sdk()
     api = AsyncSdk(block_first=True)
     store = make_store(api)
     store.start()
@@ -706,6 +712,8 @@ def test_public_execution_latch_reserves_purged_opening_publication(monkeypatch)
 
 
 def test_sdk_session_never_falls_back_to_synchronous_write_after_async_rejection():
+    optional_sdk()
+
     class UnsupportedAsyncSdk(AsyncSdk):
         async def async_make_order(self, venue, request, *, normalized=False):
             raise NotImplementedError("typed async write unavailable")
@@ -730,6 +738,7 @@ def test_sdk_session_never_falls_back_to_synchronous_write_after_async_rejection
 
 
 def test_priority_queue_preserves_reserved_risk_capacity_and_order():
+    optional_sdk()
     api = AsyncSdk(block_first=True)
     store = make_store(api, command_queue_size=5, command_reserved_capacity=2)
     store.start()
@@ -761,6 +770,7 @@ def test_priority_queue_preserves_reserved_risk_capacity_and_order():
 
 
 def test_causal_fields_and_gap_health_are_observable_and_fail_closed():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api, book_queue_size=4)
     store.start()
@@ -817,6 +827,7 @@ def test_causal_fields_and_gap_health_are_observable_and_fail_closed():
 
 
 def test_sdk_event_without_causal_provenance_is_dropped_and_marks_stream_stale():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api)
     store.start()
@@ -845,6 +856,7 @@ def test_sdk_event_without_causal_provenance_is_dropped_and_marks_stream_stale()
 
 
 def test_snapshot_sequences_may_jump_without_assuming_plus_one_continuity():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api, book_queue_size=4)
     store.start()
@@ -895,6 +907,7 @@ def test_snapshot_sequences_may_jump_without_assuming_plus_one_continuity():
 
 
 def test_gap_remains_stale_until_a_verified_snapshot_recovers_the_book():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api, book_queue_size=4)
     store.start()
@@ -1380,6 +1393,7 @@ def test_causal_event_fields_preserve_legacy_positional_constructor_order():
 
 @pytest.mark.parametrize("position_mode", ["net", "unknown"])
 def test_sdk_broker_preflight_fails_before_any_write(position_mode):
+    optional_sdk()
     api = AsyncSdk(position_mode=position_mode)
     store = make_store(api)
     broker = store.getbroker(position_mode="dual_side")
@@ -1392,6 +1406,7 @@ def test_sdk_broker_preflight_fails_before_any_write(position_mode):
 
 
 def test_sdk_broker_startup_rejects_nonzero_remote_position():
+    optional_sdk()
     api = AsyncSdk()
     api.positions = [
         {
@@ -1462,6 +1477,7 @@ def _started_broker(api):
 
 
 def test_broker_keeps_submitted_until_private_order_event():
+    optional_sdk()
     api = AsyncSdk()
     store, broker, data = _started_broker(api)
     try:
@@ -1495,6 +1511,8 @@ def test_broker_keeps_submitted_until_private_order_event():
 
 
 def test_broker_reconciles_unknown_result_mapping_with_original_client_id():
+    optional_sdk()
+
     class UnknownResultSdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -1557,6 +1575,8 @@ def test_broker_reconciles_unknown_result_mapping_with_original_client_id():
 
 
 def test_unclassified_submit_transport_error_stays_live_and_reconciles_original_id():
+    optional_sdk()
+
     class UnclassifiedTransportSdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -1607,6 +1627,7 @@ def test_unclassified_submit_transport_error_stays_live_and_reconciles_original_
 
 
 def test_shutdown_flattens_only_known_leg_and_requires_remote_flat_proof():
+    optional_sdk()
     api = AsyncSdk()
     store, broker, data = _started_broker(api)
     order = broker.buy(
@@ -1721,6 +1742,7 @@ def test_broker_flat_proof_rejects_unsettled_or_unfenced_execution_summary(summa
     ],
 )
 def test_broker_flat_proof_rejects_unknown_or_non_numeric_position_quantity(position_row):
+    optional_sdk()
     store = make_store(AsyncSdk())
     store.start()
     try:
@@ -1734,6 +1756,7 @@ def test_broker_flat_proof_rejects_unknown_or_non_numeric_position_quantity(posi
 
 
 def test_sdk_reconcile_filters_only_proven_zero_query_position_snapshots():
+    optional_sdk()
     api = AsyncSdk()
     api.positions = [
         {
@@ -1794,6 +1817,7 @@ def test_logger_sink_failure_only_increments_health(monkeypatch):
 
 
 def test_shutdown_deadline_discards_unsent_commands_and_isolates_late_completion():
+    optional_sdk()
     api = AsyncSdk(block_first=True)
     store = make_store(api, command_shutdown_timeout=0.01)
     store.start()
@@ -1831,6 +1855,7 @@ def test_shutdown_deadline_discards_unsent_commands_and_isolates_late_completion
 
 
 def test_broker_update_queue_records_evicted_identity_and_conserves_updates():
+    optional_sdk()
     store = make_store(AsyncSdk(), broker_update_queue_size=2)
     store.start()
     try:
@@ -1866,6 +1891,7 @@ def test_broker_update_queue_records_evicted_identity_and_conserves_updates():
 
 
 def test_stale_reconcile_cannot_clear_a_newer_risk_incident():
+    optional_sdk()
     store = make_store(AsyncSdk())
     store.start()
     try:
@@ -1892,6 +1918,7 @@ def test_stale_reconcile_cannot_clear_a_newer_risk_incident():
 
 
 def test_reconcile_completion_cannot_clear_while_a_different_command_is_inflight():
+    optional_sdk()
     store = make_store(AsyncSdk())
     store.start()
     try:
@@ -1921,6 +1948,7 @@ def test_reconcile_completion_cannot_clear_while_a_different_command_is_inflight
 
 
 def test_orderbook_queue_overflow_records_evicted_causal_identity():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api, book_queue_size=1)
     store.start()
@@ -2075,6 +2103,7 @@ def test_feed_emits_one_live_transition_per_stale_recovery():
 
 @pytest.mark.parametrize("operation", ("_load", "_check"))
 def test_feed_drain_does_not_mark_gap_live_until_verified_recovery(operation):
+    optional_sdk()
     store = make_store(AsyncSdk())
     feed = store.getdata(dataname=SYMBOL, timeframe=bt.TimeFrame.Ticks)
     feed._start()
@@ -2110,6 +2139,8 @@ def test_feed_drain_does_not_mark_gap_live_until_verified_recovery(operation):
 
 
 def test_cancel_unknown_query_live_allows_retry_but_blocks_new_opening():
+    optional_sdk()
+
     class CancelUnknownSdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -2187,6 +2218,8 @@ def test_cancel_unknown_query_live_allows_retry_but_blocks_new_opening():
 
 
 def test_next_without_bar_enforces_execution_and_cancel_deadlines():
+    optional_sdk()
+
     class BlockingCancelSdk(AsyncSdk):
         async def async_cancel_order(self, venue, request, *, normalized=False):
             assert normalized
@@ -2235,6 +2268,8 @@ def test_next_without_bar_enforces_execution_and_cancel_deadlines():
 
 
 def test_cancel_confirmation_before_deadline_stays_definitive():
+    optional_sdk()
+
     class DefinitiveCancelSdk(AsyncSdk):
         async def async_query_order(self, venue, request, *, normalized=False):
             assert normalized
@@ -2276,6 +2311,8 @@ def test_cancel_confirmation_before_deadline_stays_definitive():
 
 
 def test_sdk_write_contract_rejects_sync_named_methods_and_non_mapping_results():
+    optional_sdk()
+
     class SyncNamedSdk(AsyncSdk):
         def async_make_order(self, *_args, **_kwargs):
             return {}
@@ -2314,6 +2351,7 @@ def test_sdk_write_contract_rejects_sync_named_methods_and_non_mapping_results()
 
 
 def test_invalid_recovery_snapshot_remains_stale_and_is_conserved():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api)
     store.start()
@@ -2375,6 +2413,7 @@ def test_invalid_recovery_snapshot_remains_stale_and_is_conserved():
     ],
 )
 def test_unverified_orderbook_identity_is_dropped_and_latches_stale(event_changes, expected_reason):
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api)
     store.start()
@@ -2404,6 +2443,7 @@ def test_unverified_orderbook_identity_is_dropped_and_latches_stale(event_change
 
 
 def test_polled_book_has_terminal_drop_evidence_when_strategy_dispatch_is_unavailable():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api)
     store.start()
@@ -2441,6 +2481,7 @@ def test_polled_book_has_terminal_drop_evidence_when_strategy_dispatch_is_unavai
 
 
 def test_close_timeout_blocks_restart_until_close_generation_exits():
+    optional_sdk()
     release = threading.Event()
     close_started = threading.Event()
 
@@ -2484,6 +2525,8 @@ def test_close_timeout_blocks_restart_until_close_generation_exits():
 
 
 def test_broker_pass_requires_complete_sdk_evidence_and_store_pass(monkeypatch):
+    optional_sdk()
+
     class UnknownSdk(AsyncSdk):
         def get_execution_summary(self):
             return {
@@ -2521,6 +2564,7 @@ def test_broker_pass_requires_complete_sdk_evidence_and_store_pass(monkeypatch):
 
 
 def test_reconcile_snapshot_is_complete_public_copy_and_redacted():
+    optional_sdk()
     store = make_store(AsyncSdk())
     store.start()
     broker = store.getbroker(position_mode="dual_side", sdk_preflight=False)
@@ -2556,6 +2600,8 @@ def test_reconcile_snapshot_is_complete_public_copy_and_redacted():
 
 
 def test_required_account_risk_refresh_precedes_and_binds_reconcile_summary():
+    optional_sdk()
+
     class RiskRefreshSdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -2606,6 +2652,8 @@ def test_required_account_risk_refresh_precedes_and_binds_reconcile_summary():
 
 
 def test_required_account_risk_refresh_failure_is_sanitized_and_fails_reconcile_closed():
+    optional_sdk()
+
     class RiskReadError(RuntimeError):
         code = "account_risk_read_failed"
 
@@ -2635,6 +2683,8 @@ def test_required_account_risk_refresh_failure_is_sanitized_and_fails_reconcile_
 
 
 def test_required_account_risk_expected_prebaseline_defers_to_execution_latch():
+    optional_sdk()
+
     class PreBaselineRiskSdk(AsyncSdk):
         def get_account_risk_snapshot(self):
             return account_risk_prebaseline_payload(self)
@@ -2669,6 +2719,8 @@ def test_required_account_risk_expected_prebaseline_defers_to_execution_latch():
 
 @pytest.mark.parametrize("extra_evidence", ["blocked_reason", "provider_error"])
 def test_required_account_risk_prebaseline_does_not_relax_extra_evidence(extra_evidence):
+    optional_sdk()
+
     class InvalidPreBaselineRiskSdk(AsyncSdk):
         def get_account_risk_snapshot(self):
             snapshot = account_risk_prebaseline_payload(self)
@@ -2704,6 +2756,8 @@ def test_required_account_risk_prebaseline_does_not_relax_extra_evidence(extra_e
 
 
 def test_order_query_enqueue_rejection_and_timeout_retry_with_same_identity(monkeypatch):
+    optional_sdk()
+
     class RetryQuerySdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -2787,6 +2841,7 @@ def test_order_query_enqueue_rejection_and_timeout_retry_with_same_identity(monk
 
 
 def test_store_restart_resets_market_identity_and_increments_generation():
+    optional_sdk()
     api = AsyncSdk()
     store = make_store(api)
     store.start()
@@ -2858,6 +2913,7 @@ def test_sdk_reconcile_rejects_non_list_account_collections(attribute, expected_
 
 
 def test_public_reconcile_and_execution_summary_are_safe_read_only_views():
+    optional_sdk()
     store, broker, _data = _started_broker(AsyncSdk())
     try:
         receipt = broker.request_reconcile()
@@ -3068,6 +3124,8 @@ def test_account_risk_contract_rejects_contradictory_or_unbound_evidence(mutatio
 
 
 def test_identity_mismatch_cannot_mutate_account_risk_baseline():
+    optional_sdk()
+
     class WrongIdentityRiskSdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -3153,6 +3211,7 @@ def test_execution_identity_first_binding_is_atomic_across_threads():
 
 
 def test_execution_identity_fence_must_advance_across_store_generations():
+    optional_sdk()
     first = AsyncSdk()
     second = AsyncSdk()
     sessions = deque((first, second))
@@ -3178,6 +3237,7 @@ def test_execution_identity_fence_must_advance_across_store_generations():
 
 
 def test_execution_identity_accepts_strictly_newer_fence_after_restart():
+    optional_sdk()
     first = AsyncSdk()
     second = AsyncSdk()
     second.fencing_epoch = 2
@@ -3201,6 +3261,8 @@ def test_execution_identity_accepts_strictly_newer_fence_after_restart():
 
 @pytest.mark.parametrize("async_commands", [True, False], ids=["async", "sync"])
 def test_owned_sdk_stop_preserves_validated_redacted_account_risk_snapshot(async_commands):
+    optional_sdk()
+
     class RiskSdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -3245,6 +3307,8 @@ def test_owned_sdk_stop_preserves_validated_redacted_account_risk_snapshot(async
 
 
 def test_owned_sdk_stop_reuses_current_account_risk_cache_without_remote_read():
+    optional_sdk()
+
     class CountingRiskSdk(AsyncSdk):
         def __init__(self):
             super().__init__()
@@ -3275,6 +3339,8 @@ def test_owned_sdk_stop_reuses_current_account_risk_cache_without_remote_read():
 
 
 def test_owned_sdk_restart_does_not_reuse_previous_account_risk_snapshot():
+    optional_sdk()
+
     class FirstRiskSdk(AsyncSdk):
         def get_account_risk_snapshot(self):
             return {**account_risk_payload(self), "realized_net": Decimal("-0.50")}

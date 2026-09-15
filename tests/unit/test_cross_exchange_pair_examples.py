@@ -1,7 +1,6 @@
 import ast
 import copy
 from dataclasses import replace
-import hashlib
 import importlib
 import json
 from pathlib import Path
@@ -10,19 +9,22 @@ from types import SimpleNamespace
 import pytest
 import yaml
 
+from tests.test_utils.optional_sdk import optional_sdk
+
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
 MID = EXAMPLES / "012_1_midfreq_cross_exchange"
 EVENT = EXAMPLES / "012_2_event_driven_cross_exchange"
 MANIFEST = EXAMPLES / "strategy-candidate-manifest.json"
 MODULES = {
-    "012_1_midfreq_cross_exchange": importlib.import_module(
-        "examples.012_1_midfreq_cross_exchange.run"
-    ),
-    "012_2_event_driven_cross_exchange": importlib.import_module(
-        "examples.012_2_event_driven_cross_exchange.run"
-    ),
+    "012_1_midfreq_cross_exchange": "examples.012_1_midfreq_cross_exchange.run",
+    "012_2_event_driven_cross_exchange": "examples.012_2_event_driven_cross_exchange.run",
 }
+
+
+def _runner(strategy_id):
+    optional_sdk()
+    return importlib.import_module(MODULES[strategy_id])
 
 
 def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
@@ -101,7 +103,9 @@ def test_event_strategy_neither_imports_nor_inherits_mid_strategy():
     assert not any("012_1" in name for name in names)
     classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
     hft_strategy = classes["CrossExchangeArbitrageStrategy"]
-    assert [ast.unparse(base) for base in hft_strategy.bases] == ["bt.Strategy"]
+    assert [ast.dump(base) for base in hft_strategy.bases] == [
+        ast.dump(ast.parse("bt.Strategy", mode="eval").body)
+    ]
     assert "RobustBasisWindow" not in classes
 
 
@@ -110,7 +114,7 @@ def test_event_strategy_neither_imports_nor_inherits_mid_strategy():
 def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves_manifest(
     strategy_id, mode, monkeypatch
 ):
-    runner = MODULES[strategy_id]
+    runner = _runner(strategy_id)
     manifest_before = MANIFEST.read_bytes()
     interactions = []
 
@@ -136,7 +140,7 @@ def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 def test_runner_and_strategy_import_normally_without_dynamic_loader(strategy_id):
-    runner = MODULES[strategy_id]
+    runner = _runner(strategy_id)
     strategy = importlib.import_module(f"examples.{strategy_id}.strategy")
 
     assert strategy_id == runner.STRATEGY_ID
@@ -145,7 +149,7 @@ def test_runner_and_strategy_import_normally_without_dynamic_loader(strategy_id)
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 def test_runner_binds_account_maximum_loss_threshold_into_sdk_config(strategy_id, monkeypatch):
-    runner = MODULES[strategy_id]
+    runner = _runner(strategy_id)
     risk = replace(
         runner.risk_from_config(runner.load_config()),
         account_maximum_loss_bps="17.125",
@@ -166,7 +170,7 @@ def test_runner_binds_account_maximum_loss_threshold_into_sdk_config(strategy_id
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 @pytest.mark.parametrize("scenario", ("profitable", "loss", "no_edge", "partial", "unknown", "gap"))
 def test_replay_mechanics_fixtures_have_stable_report_contract(strategy_id, scenario, monkeypatch):
-    runner = MODULES[strategy_id]
+    runner = _runner(strategy_id)
     _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner)
     report = runner.run_replay(scenario)
 
@@ -205,7 +209,7 @@ def test_replay_mechanics_fixtures_have_stable_report_contract(strategy_id, scen
 def test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetry(
     strategy_id, monkeypatch
 ):
-    runner = MODULES[strategy_id]
+    runner = _runner(strategy_id)
     _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner)
     first = runner.run_replay("no_edge")
     second = runner.run_replay("no_edge")
@@ -264,15 +268,15 @@ def test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetr
 def test_trade_logger_report_fails_closed_without_a_frozen_cross_venue_extension(
     strategy_id, strategy, message
 ):
-    with pytest.raises(MODULES[strategy_id].RunnerConfigurationError, match=message):
-        MODULES[strategy_id]._trade_logger_report(strategy)
+    with pytest.raises(_runner(strategy_id).RunnerConfigurationError, match=message):
+        _runner(strategy_id)._trade_logger_report(strategy)
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 def test_post_run_reconciliation_is_a_hash_bound_revision_of_frozen_trade_logger_evidence(
     strategy_id,
 ):
-    runner = MODULES[strategy_id]
+    runner = _runner(strategy_id)
     frozen = {
         "reconciliation_required": True,
         "remote_flat_proven": False,

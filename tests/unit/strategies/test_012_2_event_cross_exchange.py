@@ -1,5 +1,5 @@
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from importlib import import_module
 import os
@@ -7,8 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from bt_api_py import CrossVenueLeg as InstrumentRule
-from bt_api_py import Freshness, FundingSnapshot
+from tests.test_utils.optional_sdk import optional_sdk
+
+sdk = optional_sdk(allow_module_level=True)
+InstrumentRule = sdk.CrossVenueLeg
+Freshness, FundingSnapshot = sdk.Freshness, sdk.FundingSnapshot
+UTC = timezone.utc
 
 hft = import_module("examples.012_2_event_driven_cross_exchange.strategy")
 D = Decimal

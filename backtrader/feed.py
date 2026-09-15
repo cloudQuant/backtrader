@@ -152,7 +152,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     if hasattr(line, "__dict__"):
                         line._is_data_feed_line = True
             except Exception as e:
-                logger.debug("Failed to mark data feed lines: %s", e)
+                logger.warning("Failed to mark data feed lines: %s", e)
 
         # CRITICAL FIX: Also explicitly mark the datetime line
         # The datetime line might be accessed separately (e.g., self.datas[0].datetime)
@@ -162,7 +162,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 if hasattr(self.datetime, "__dict__"):
                     self.datetime._is_data_feed_line = True
             except Exception as e:
-                logger.debug("Failed to mark datetime line: %s", e)
+                logger.warning("Failed to mark datetime line: %s", e)
 
         # Original content from __init__
         self._env = None
@@ -601,7 +601,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 if object.__getattribute__(self, "_tick_direct_filled"):
                     return
             except AttributeError:
-                pass
+                logger.debug("feed:604 ignored AttributeError")
 
         try:
             tick_line_cache = self._tick_line_cache

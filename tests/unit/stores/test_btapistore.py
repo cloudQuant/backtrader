@@ -7,6 +7,8 @@ import types
 
 import pytest
 
+from tests.test_utils.optional_sdk import optional_sdk
+
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import (
@@ -2713,7 +2715,7 @@ def test_create_ctp_wrapper_patches_missing_spi_callbacks():
     """Test that create CTP wrapper patches missing SPI callbacks."""
     # Optional live-trading dependency: skip when bt_api_py CTP support is absent
     # (e.g. CI images without the proprietary package) instead of erroring.
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     _create_ctp_wrapper_class()
 
     import bt_api_ctp.ctp.client as ctp_client_module
@@ -2726,7 +2728,7 @@ def test_create_ctp_wrapper_patches_missing_spi_callbacks():
 
 def test_ctp_wrapper_accepts_dict_snapshots_from_trader_client():
     """CTP query callbacks return dict snapshots; wrapper must read them directly."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeTraderClient:
@@ -2766,7 +2768,7 @@ def test_ctp_wrapper_accepts_dict_snapshots_from_trader_client():
 
 def test_ctp_wrapper_positions_accept_float_string_ctp_codes():
     """CTP position fields may arrive as float-like strings from upstream containers."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeTraderClient:
@@ -2802,7 +2804,7 @@ def test_ctp_wrapper_positions_accept_float_string_ctp_codes():
 
 def test_ctp_wrapper_positions_use_contract_multiplier_and_exchange_fields():
     """Direct CTP wrapper should expose exchange PnL/margin and undo cost multiplier."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeTraderClient:
@@ -3036,7 +3038,7 @@ def test_store_broker_runtime_trade_event_preserves_fee_and_liquidity_fields():
 
 def test_ctp_wrapper_polls_order_insert_error_events_with_order_ref():
     """CTP order-insert errors must retain OrderRef for broker reconciliation."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeTraderClient:
@@ -3081,7 +3083,7 @@ def test_ctp_wrapper_polls_order_insert_error_events_with_order_ref():
 
 def test_ctp_wrapper_order_submit_reject_status_overrides_unknown_order_status():
     """CTP submit rejection callbacks must not leave broker orders accepted forever."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeTraderClient:
@@ -3145,7 +3147,7 @@ def test_ctp_wrapper_order_submit_reject_status_overrides_unknown_order_status()
 
 def test_ctp_wrapper_trade_callback_accepts_float_string_ctp_codes():
     """CTP trade callbacks may expose direction, offset and volume as float-like strings."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     client = wrapper_cls(
@@ -3197,7 +3199,7 @@ def test_ctp_wrapper_trade_callback_accepts_float_string_ctp_codes():
 
 def test_ctp_wrapper_fetch_open_orders_converts_ctp_rows():
     """Direct CTP wrapper should expose queryable remote open orders."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     from bt_api_ctp.containers.ctp.ctp_order import CtpOrderData
 
     wrapper_cls = _create_ctp_wrapper_class()
@@ -3332,7 +3334,7 @@ def test_ctp_wrapper_fetch_open_orders_converts_ctp_rows():
 
 def test_ctp_wrapper_fetch_open_orders_accepts_float_string_ctp_codes():
     """CTP open-order rows may expose enum and volume fields as float-like strings."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeRequest:
@@ -3402,7 +3404,7 @@ def test_ctp_wrapper_fetch_open_orders_accepts_float_string_ctp_codes():
 
 def test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserves_order_ref():
     """Direct CTP submit must not swap instrument/exchange for exchange-prefixed symbols."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeApi:
@@ -3463,7 +3465,7 @@ def test_ctp_wrapper_submit_order_supports_exchange_prefixed_symbol_and_preserve
 @pytest.mark.parametrize("size", [0, 1.5, "bad"])
 def test_ctp_wrapper_submit_order_rejects_non_integer_lots(size):
     """CTP direct wrapper must not truncate fractional or invalid lots."""
-    pytest.importorskip("bt_api_ctp.ctp.client")
+    optional_sdk("bt_api_ctp.ctp.client")
     wrapper_cls = _create_ctp_wrapper_class()
 
     class FakeApi:

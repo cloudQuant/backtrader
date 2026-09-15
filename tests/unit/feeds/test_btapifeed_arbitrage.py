@@ -16,6 +16,7 @@ from tests.fixtures.fake_btapi import (
     make_orderbook,
     make_store,
 )
+from tests.test_utils.optional_sdk import optional_sdk
 
 
 def run_bounded(cerebro):
@@ -204,6 +205,7 @@ def test_orderbook_only_idle_loop_polls_live_broker_without_spinning(monkeypatch
 
 def test_normalized_sdk_ctp_book_uses_native_feed_broker_and_strategy():
     """A standard non-crypto SDK event follows the same native Cerebro path."""
+    optional_sdk()
     from collections import deque
 
     from backtrader.stores.btapistore import BtApiStore

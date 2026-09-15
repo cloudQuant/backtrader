@@ -12,7 +12,10 @@ import itertools
 from .. import feeds
 from ..timer import Timer
 from ..tradingcal import PandasMarketCalendar, TradingCalendarBase
+from ..utils.log_message import get_logger
 from ..utils.py3 import map, string_types, zip  # noqa: F401
+
+logger = get_logger(__name__)
 
 collectionsAbc = collections.abc
 
@@ -319,7 +322,7 @@ class RegistryMixin:
                 if issubclass(cal, TradingCalendarBase):
                     cal = cal()
             except TypeError:  # already an instance
-                pass
+                logger.debug("registry:324 ignored TypeError")
         self._tradingcal = cal
 
     def add_signal(self, sigtype, sigcls, *sigargs, **sigkwargs):

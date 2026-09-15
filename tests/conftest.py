@@ -44,6 +44,30 @@ def _load_backtrader():
     return importlib.import_module("backtrader")
 
 
+@pytest.fixture
+def bt_caplog(caplog):
+    """Explicitly observe the library namespace without changing default silence.
+
+    Pytest's ordinary caplog handler lives on the process root logger. Backtrader
+    deliberately does not propagate there until configured. Tests asserting an
+    internal diagnostic opt in to a namespace handler instead; tests of default
+    silence continue to use ordinary caplog and are unaffected.
+    """
+    import logging
+
+    namespace = logging.getLogger("backtrader")
+    level, propagate = namespace.level, namespace.propagate
+    namespace.setLevel(logging.NOTSET)
+    namespace.propagate = False
+    namespace.addHandler(caplog.handler)
+    try:
+        yield caplog
+    finally:
+        namespace.removeHandler(caplog.handler)
+        namespace.setLevel(level)
+        namespace.propagate = propagate
+
+
 # =============================================================================
 # Priority Marker Helpers
 # =============================================================================

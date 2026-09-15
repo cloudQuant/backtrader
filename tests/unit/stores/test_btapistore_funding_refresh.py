@@ -10,6 +10,7 @@ import pytest
 
 from backtrader.stores import btapistore as store_module
 from backtrader.stores.btapistore import BtApiStore, BtApiStoreError
+from tests.test_utils.optional_sdk import optional_sdk
 
 VENUE = "OKX___SWAP"
 SYMBOL = "BTC-USDT-SWAP"
@@ -129,6 +130,8 @@ class FundingSdk:
 
 
 def _store(api, **config):
+    # Funding cache validity uses the SDK cross-venue funding contract.
+    optional_sdk()
     return BtApiStore(
         provider="btapi",
         api=api,

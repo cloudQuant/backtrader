@@ -20,6 +20,7 @@ from types import SimpleNamespace
 import backtrader as bt
 import pytest
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
+from tests.test_utils.optional_sdk import optional_sdk
 
 REPO = Path(__file__).resolve().parents[2]
 EXAMPLE = REPO / "examples" / "013_3_sa_midfreq_simnow"
@@ -183,6 +184,8 @@ def _signed_receipt(
     purpose: str = "engineering_smoke",
     mutate: dict | None = None,
 ) -> tuple[Path, dict]:
+    # These receipts bind real installed SDK artifact identities.
+    optional_sdk()
     key_id = "test-operator-key"
     approval_key = "test-approval-key-material-at-least-32-bytes"
     monkeypatch.setenv("ITER22_APPROVAL_KEY_ID", key_id)
@@ -3928,6 +3931,7 @@ def test_retention_deletes_only_released_unprotected_runs_and_audits_protection(
 
 
 def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
+    optional_sdk()  # The manifest fingerprints the actual SDK artifacts.
     assert not hasattr(strategy_module.SAMidFrequencyStrategy, "report")
     config = _config()
     first = runner.run_replay(
@@ -4003,6 +4007,7 @@ def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
 
 
 def test_sa_trade_logger_extension_is_visible_in_a_live_cerebro_snapshot(monkeypatch, tmp_path):
+    optional_sdk()  # run_replay includes the installed SDK provenance manifest.
     snapshots = []
     original_attach = runner._attach_trade_logger
 
@@ -4064,6 +4069,8 @@ def test_attach_trade_logger_keeps_authoritative_startup_observation_separate_fr
 
 
 def test_sa_trade_logger_update_failure_is_diagnosed_and_fails_closed(monkeypatch, tmp_path):
+    optional_sdk()
+
     def reject_context(_self, _mapping, namespace="strategy"):
         assert namespace == "sa_midfreq"
         raise RuntimeError("observer test rejection")
@@ -4101,6 +4108,7 @@ def test_sa_stale_trade_logger_extension_is_rejected_without_per_tick_retries(
     monkeypatch, tmp_path
 ):
     """A later publication failure cannot export the earlier live snapshot."""
+    optional_sdk()
     original_update = bt.observers.TradeLogger.update_report_context
     calls = []
 

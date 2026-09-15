@@ -183,7 +183,7 @@ def test_startup_account_observation_requires_credential_free_json_mapping(obser
 class TestCollectIndicatorsLogging:
     """Verify _collect_indicators logs errors instead of silently skipping."""
 
-    def test_attr_access_failure_logged(self, caplog):
+    def test_attr_access_failure_logged(self, bt_caplog):
         """When getattr raises, a debug log should be emitted."""
         tl = _make_bare_logger()
 
@@ -208,17 +208,17 @@ class TestCollectIndicatorsLogging:
 
         tl._owner = BadOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = tl._collect_indicators()
 
-        assert any("Failed to read indicator attr" in r.message for r in caplog.records)
+        assert any("Failed to read indicator attr" in r.message for r in bt_caplog.records)
         assert isinstance(result, dict)
 
 
 class TestExtractIndicatorValuesLogging:
     """Verify _extract_indicator_values logs on line read failure."""
 
-    def test_line_read_failure_logged(self, caplog):
+    def test_line_read_failure_logged(self, bt_caplog):
         """When reading a line value raises, a debug log should be emitted."""
         tl = _make_bare_logger()
 
@@ -252,10 +252,10 @@ class TestExtractIndicatorValuesLogging:
             lines = FakeLines()
 
         indicators_dict = {}
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             tl._extract_indicator_values(FakeIndicator(), indicators_dict)
 
-        assert any("Failed to read indicator line" in r.message for r in caplog.records)
+        assert any("Failed to read indicator line" in r.message for r in bt_caplog.records)
 
 
 # ===========================================================================
@@ -309,7 +309,7 @@ class TestDefensiveAccessors:
         result = TradeLogger._get_strategy_name(tl)
         assert result == "Unknown"
 
-    def test_store_provider_failure_logged(self, caplog):
+    def test_store_provider_failure_logged(self, bt_caplog):
         """Store provider accessor failures should emit a debug log."""
         tl = _make_bare_logger()
 
@@ -323,13 +323,13 @@ class TestDefensiveAccessors:
 
         tl._owner = BadOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._store_provider(tl)
 
         assert result == ""
-        assert any("Failed to read store provider" in record.message for record in caplog.records)
+        assert any("Failed to read store provider" in record.message for record in bt_caplog.records)
 
-    def test_session_id_failure_logged(self, caplog):
+    def test_session_id_failure_logged(self, bt_caplog):
         """Session id accessor failures should emit a debug log."""
         tl = _make_bare_logger()
 
@@ -343,13 +343,13 @@ class TestDefensiveAccessors:
 
         tl._owner = BadOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._session_id(tl)
 
         assert result == ""
-        assert any("Failed to read session id" in record.message for record in caplog.records)
+        assert any("Failed to read session id" in record.message for record in bt_caplog.records)
 
-    def test_get_datetime_failure_logged(self, caplog):
+    def test_get_datetime_failure_logged(self, bt_caplog):
         """Datetime accessor failures should emit a debug log and return a fallback string."""
         tl = _make_bare_logger()
         tl._owner = SimpleNamespace(
@@ -358,17 +358,17 @@ class TestDefensiveAccessors:
             )
         )
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._get_datetime_str(tl)
 
         assert isinstance(result, str)
         parsed = dt.datetime.fromisoformat(result)
         assert parsed.tzinfo is not None
         assert any(
-            "Failed to read strategy datetime" in record.message for record in caplog.records
+            "Failed to read strategy datetime" in record.message for record in bt_caplog.records
         )
 
-    def test_get_strategy_name_failure_logged(self, caplog):
+    def test_get_strategy_name_failure_logged(self, bt_caplog):
         """Strategy name accessor failures should emit a debug log and return Unknown."""
         tl = _make_bare_logger()
 
@@ -382,11 +382,11 @@ class TestDefensiveAccessors:
 
         tl._owner = BrokenOwner()
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             result = TradeLogger._get_strategy_name(tl)
 
         assert result == "Unknown"
-        assert any("Failed to read strategy name" in record.message for record in caplog.records)
+        assert any("Failed to read strategy name" in record.message for record in bt_caplog.records)
 
 
 # ===========================================================================

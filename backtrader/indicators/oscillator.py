@@ -24,7 +24,10 @@ Example:
 
 import sys
 
+from ..utils.log_message import get_logger
 from . import Indicator, MovingAverage
+
+logger = get_logger(__name__)
 
 
 class OscillatorMixIn(Indicator):
@@ -50,7 +53,7 @@ class OscillatorMixIn(Indicator):
             self.plotlines._0._name = lname + "_osc"
         except AttributeError:
             # No line alias available; keep the default plot label.
-            pass
+            logger.debug("oscillator:55 ignored AttributeError")
 
     def __init__(self):
         """Initialize the oscillator by subtracting the base line from data."""
@@ -90,7 +93,7 @@ class Oscillator(Indicator):
             self.plotlines._0._name = lname + "_osc"
         except AttributeError:
             # No line alias available; keep the default plot label.
-            pass
+            logger.debug("oscillator:95 ignored AttributeError")
 
     def __init__(self):
         """Initialize the oscillator with data source and oscillator data.

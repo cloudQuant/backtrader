@@ -23,6 +23,7 @@ from backtrader.feeds import BarEvidence, ClockMapping
 from backtrader.feeds.btapifeed import BtApiFeed
 from backtrader.stores.btapistore import BtApiStore
 from tests.fixtures.fake_btapi import FakeBtApiClient
+from tests.test_utils.optional_sdk import optional_sdk
 
 runner = importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
 adapter = importlib.import_module("examples.014_1_ctp_options_lowfreq.simnow_adapter")
@@ -618,6 +619,7 @@ def test_busy_preflight_store_is_not_transferred_or_stopped(
 
 def test_idle_sdk_command_worker_is_valid_for_store_transfer() -> None:
     """A real idle SDK command worker is part of a live Store, not foreign work."""
+    optional_sdk()
 
     class AsyncSdkObservationApi:
         exchange_kwargs = {"BINANCE": {}}

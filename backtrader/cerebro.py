@@ -49,20 +49,6 @@ from datetime import timezone
 from typing import Dict
 
 from . import errors, feeds, indicator, linebuffer, observers
-from .brokers import BackBroker
-from .channel import ChannelDataRef
-from .dataseries import TimeFrame
-from .feed import AbstractDataBase
-from .metabase import OwnerContext
-from .parameters import ParameterDescriptor, ParameterizedBase
-from .strategy import SignalStrategy, Strategy
-from .timer import Timer
-from .tradingcal import PandasMarketCalendar, TradingCalendarBase
-from .utils import OrderedDict, date2num, tzparse
-from .utils.dateintern import _num2date_cached
-from .utils.log_message import get_logger
-from .utils.py3 import integer_types, map, range, string_types, zip
-from .writer import WriterFile
 
 # Iteration 28: implementation mixins (imported under private aliases so the
 # star-export namespace of ``backtrader.cerebro`` stays unchanged).
@@ -74,6 +60,24 @@ from ._cerebro.presentation import PresentationMixin as _PresentationMixin
 from ._cerebro.registry import RegistryMixin as _RegistryMixin
 from ._cerebro.runnext import RunNextMixin as _RunNextMixin
 from ._cerebro.runonce import RunOnceMixin as _RunOnceMixin
+from .brokers import BackBroker
+from .channel import ChannelDataRef
+from .dataseries import TimeFrame
+from .feed import AbstractDataBase
+from .metabase import OwnerContext
+from .parameters import ParameterDescriptor, ParameterizedBase
+from .strategy import SignalStrategy, Strategy
+from .timer import Timer
+from .tradingcal import PandasMarketCalendar, TradingCalendarBase
+from .utils import OrderedDict, date2num, tzparse
+from .utils.dateintern import _num2date_cached
+from .utils.log_message import (
+    _get_logging_config_snapshot,
+    _restore_logging_config,
+    get_logger,
+)
+from .utils.py3 import integer_types, map, range, string_types, zip
+from .writer import WriterFile
 
 logger = get_logger(__name__)
 
@@ -581,10 +585,18 @@ class Cerebro(
         rv.pop("_external_channel_token", None)
         rv.pop("_external_channel_runstrats", None)
         rv.pop("_external_channel_closing", None)
+        # Iteration 29: propagate only opt-in configuration, never handlers.
+        logging_config = _get_logging_config_snapshot()
+        if logging_config is not None:
+            rv["_logging_config"] = logging_config
+        else:
+            rv.pop("_logging_config", None)
         return rv
 
     def __setstate__(self, state):
         """Restore process-local run-stop state after multiprocessing pickle."""
+        state = state.copy()
+        logging_config = state.pop("_logging_config", None)
         self.__dict__.update(state)
         self._event_stop = _RunStopEvent()
         self._runstop_lock = threading.RLock()
@@ -594,6 +606,7 @@ class Cerebro(
         self._external_channel_token = None
         self._external_channel_runstrats = None
         self._external_channel_closing = False
+        _restore_logging_config(logging_config)
 
     # Core method for backtesting. Any passed kwargs affect cerebro standard parameters.
     # If no data added, will stop immediately. Return value differs based on optimization.
@@ -712,7 +725,8 @@ class Cerebro(
                 try:
                     signalst, sargs, skwargs = self.strats.pop(0)
                 except IndexError:
-                    pass  # Nothing there
+                    logger.debug("cerebro:715 ignored IndexError")
+                    # Nothing there
                 else:
                     if not isinstance(signalst, SignalStrategy):
                         # no signal ... reinsert at the beginning

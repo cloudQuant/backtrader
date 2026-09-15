@@ -44,6 +44,8 @@ def _safe_log(level, message, *args):
     try:
         getattr(logger, level)(_redact_diagnostic(message), *map(_redact_diagnostic, args))
     except Exception:
+        # No logging here by design: the sink itself just failed; calling the
+        # logger again would raise before the health counter is incremented.
         _LOGGING_HEALTH["logging_errors"] += 1
 
 
@@ -545,6 +547,7 @@ class BtApiBroker(BrokerBase):
         except Exception:
             # A partially hydrated broker must not look live.  The Store may
             # remain connected so a transient account query can be retried.
+            _safe_log("error", "btapibroker:545 exception before re-raise (Exception)")
             self._live_started = False
             self._startup_ready = False
             if is_sdk:
@@ -552,6 +555,7 @@ class BtApiBroker(BrokerBase):
                     try:
                         self.abort_execution_recovery("execution_recovery_startup_failed")
                     except Exception as exc:
+                        _safe_log("warning", "btapibroker:554 fallback on Exception")
                         self._sanitize_exception(exc)
                 self._trading_enabled = False
                 self._positions_snapshot_loaded = False
@@ -604,6 +608,7 @@ class BtApiBroker(BrokerBase):
         try:
             self.abort_execution_recovery(reason)
         except Exception as exc:
+            _safe_log("warning", "btapibroker:606 fallback on Exception")
             self._sanitize_exception(exc)
             self._emit_runtime_event(
                 "execution_recovery_abort_failed",
@@ -644,6 +649,7 @@ class BtApiBroker(BrokerBase):
         try:
             self.abort_execution_recovery(error_code)
         except Exception as exc:
+            _safe_log("warning", "btapibroker:646 fallback on Exception")
             self._sanitize_exception(exc)
         return {"queued": False, "error_code": error_code}
 
@@ -672,6 +678,7 @@ class BtApiBroker(BrokerBase):
             try:
                 receipt = enqueue(recovery_token_sha256=recovery_token_sha256)
             except Exception as exc:
+                _safe_log("warning", "btapibroker:674 fallback on Exception")
                 self._sanitize_exception(exc)
                 return self._reject_execution_recovery_completion(
                     self._safe_exception_code(exc, "recovery_completion_failed")
@@ -712,6 +719,7 @@ class BtApiBroker(BrokerBase):
             try:
                 actual_mode = normalize_position_mode(raw_mode)
             except Exception as exc:
+                _safe_log("error", "btapibroker:715 re-raising Exception")
                 raise ValueError(f"Account position mode is not proven for {venue!r}") from exc
             if actual_mode != expected_mode:
                 raise ValueError(
@@ -752,6 +760,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     readiness_mode = normalize_position_mode(returned_mode)
                 except Exception as exc:
+                    _safe_log("error", "btapibroker:755 re-raising Exception")
                     raise ValueError(f"Order readiness mode is invalid for {venue!r}") from exc
                 if readiness_mode != expected_mode:
                     raise ValueError(f"Order readiness position mode mismatches for {venue!r}")
@@ -877,6 +886,7 @@ class BtApiBroker(BrokerBase):
                 missing.append(key)
                 continue
             except Exception:
+                _safe_log("warning", "btapibroker:881 fallback on Exception")
                 malformed.append(f"unreadable_{key}")
                 continue
             if raw_value is None:
@@ -965,6 +975,7 @@ class BtApiBroker(BrokerBase):
             try:
                 return bool(self.store.supports_position_mode(mode))
             except Exception as exc:
+                _safe_log("warning", "btapibroker:969 fallback on Exception")
                 _safe_log("debug", "Failed to query store position mode capability: %s", exc)
         broker_meta = self._contract_metadata.get("__broker__", {})
         return bool(
@@ -1101,6 +1112,7 @@ class BtApiBroker(BrokerBase):
             try:
                 self.abort_execution_recovery("execution_recovery_broker_stop")
             except Exception:
+                _safe_log("warning", "btapibroker:1105 fallback on Exception")
                 summary.update(status="FAIL", reason="execution_recovery_abort_failed")
         active = list(self.get_orders_open())
         if not recovery_session:
@@ -1109,6 +1121,7 @@ class BtApiBroker(BrokerBase):
                     self.cancel(order)
                     summary["cancel_requested"] += 1
                 except Exception:
+                    _safe_log("warning", "btapibroker:1113 fallback on Exception")
                     summary["reason"] = "cancel_request_failed"
 
         if self._wait_and_drain(deadline):
@@ -1199,6 +1212,7 @@ class BtApiBroker(BrokerBase):
             try:
                 store_health = self.store.stop(timeout=max(deadline - time.monotonic(), 0.0))
             except Exception as exc:
+                _safe_log("warning", "btapibroker:1203 fallback on Exception")
                 self._sanitize_exception(exc)
                 summary.update(status="FAIL", reason="store_shutdown_failed")
         store_state = store_health.get("shutdown_state") if isinstance(store_health, dict) else None
@@ -1318,6 +1332,7 @@ class BtApiBroker(BrokerBase):
             try:
                 terminal_state = terminal_getter()
             except Exception as exc:
+                _safe_log("warning", "btapibroker:1322 fallback on Exception")
                 self._sanitize_exception(exc)
                 terminal_session_capture_status = "ERROR"
             else:
@@ -1338,6 +1353,7 @@ class BtApiBroker(BrokerBase):
             try:
                 store_health = self.store.stop(timeout=timeout)
             except Exception as exc:
+                _safe_log("warning", "btapibroker:1342 fallback on Exception")
                 self._sanitize_exception(exc)
                 summary.update(status="FAIL", reason="store_shutdown_failed")
 
@@ -1800,6 +1816,7 @@ class BtApiBroker(BrokerBase):
         try:
             receipt = method()
         except Exception as exc:
+            _safe_log("warning", "btapibroker:1804 fallback on Exception")
             self._sanitize_exception(exc)
             return {
                 "queued": False,
@@ -2262,6 +2279,7 @@ class BtApiBroker(BrokerBase):
         try:
             snapshot = method(timeout=timeout)
         except Exception:
+            _safe_log("warning", "btapibroker:2266 fallback on Exception")
             self._reset_ctp_reconciliation_rounds("query_failed")
             return self.get_ctp_reconciliation_state()
         state = self.record_ctp_reconciliation(snapshot)
@@ -2291,6 +2309,7 @@ class BtApiBroker(BrokerBase):
         try:
             receipt = method(timeout=max(float(timeout), 0.0))
         except Exception as exc:
+            _safe_log("warning", "btapibroker:2295 fallback on Exception")
             self._sanitize_exception(exc)
             self._ctp_reconciliation_callbacks.clear()
             return {
@@ -2374,6 +2393,7 @@ class BtApiBroker(BrokerBase):
         try:
             summary = method()
         except Exception as exc:
+            _safe_log("warning", "btapibroker:2378 fallback on Exception")
             self._sanitize_exception(exc)
             return {
                 "unknown_ids": ["execution_summary_failed"],
@@ -2420,6 +2440,7 @@ class BtApiBroker(BrokerBase):
             try:
                 snapshot = method()
             except Exception as exc:
+                _safe_log("warning", "btapibroker:2424 fallback on Exception")
                 self._sanitize_exception(exc)
                 snapshot = None
             if isinstance(snapshot, dict):
@@ -2610,6 +2631,7 @@ class BtApiBroker(BrokerBase):
                 code, message = validation_error
                 return self._reject_order(order, code, message)
         except Exception as exc:
+            _safe_log("warning", "btapibroker:2614 fallback on Exception")
             return self._reject_order(
                 order,
                 "pre_trade_state_refresh_failed",
@@ -2706,6 +2728,7 @@ class BtApiBroker(BrokerBase):
             # its identity alive for read-only reconciliation; never resubmit.
             return self._accept_unknown_submission(order, exc, "submit_timeout")
         except Exception as exc:
+            _safe_log("error", "btapibroker:2710 exception before re-raise (Exception)")
             self._sanitize_exception(exc)
             if bool(getattr(exc, "execution_unknown", False)) or (
                 bool(getattr(self.store, "_sdk_mode", False))
@@ -2809,6 +2832,7 @@ class BtApiBroker(BrokerBase):
         try:
             response = self.store.cancel_order(order)
         except Exception as exc:
+            _safe_log("warning", "btapibroker:2813 fallback on Exception")
             self._sanitize_exception(exc)
             if not bool(getattr(exc, "execution_unknown", False)) and not isinstance(
                 exc, TimeoutError
@@ -2984,6 +3008,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     action_quantity = int(action.get("quantity"))
                 except (TypeError, ValueError):
+                    _safe_log("debug", "btapibroker:2987 ignored TypeError,ValueError")
                     continue
                 action_matches = bool(
                     action.get("execution_cycle_id") == cycle_id
@@ -3016,6 +3041,7 @@ class BtApiBroker(BrokerBase):
         try:
             parsed = _dt.datetime.fromisoformat(value[:-1] + "+00:00")
         except ValueError as exc:
+            _safe_log("error", "btapibroker:3019 re-raising ValueError")
             raise ValueError("approval_expires_at_utc must be an RFC3339 UTC timestamp") from exc
         if parsed.utcoffset() != _dt.timedelta(0):
             raise ValueError("approval_expires_at_utc must be an RFC3339 UTC timestamp")
@@ -3179,7 +3205,7 @@ class BtApiBroker(BrokerBase):
                 if int(existing) > 0:
                     return int(existing)
             except (TypeError, ValueError):
-                pass
+                _safe_log("debug", "btapibroker:3182 ignored TypeError,ValueError")
 
         timeout_ns = self._order_info_get(order, "cancel_confirmation_timeout_ns")
         if timeout_ns in (None, ""):
@@ -3251,6 +3277,7 @@ class BtApiBroker(BrokerBase):
             try:
                 cancel_deadline = int(cancel_deadline)
             except (TypeError, ValueError):
+                _safe_log("debug", "btapibroker:3254 ignored TypeError,ValueError")
                 continue
             if now_ns < cancel_deadline:
                 continue
@@ -3340,6 +3367,7 @@ class BtApiBroker(BrokerBase):
                 rows = self.store.get_positions()
             mismatches = self._position_audit_diff(rows)
         except Exception as exc:
+            _safe_log("warning", "btapibroker:3347 fallback on Exception")
             self._position_audit_error = str(self._redact_runtime_value(exc))
             self._position_audit_blocked = True
             self._emit_runtime_event(
@@ -3376,6 +3404,7 @@ class BtApiBroker(BrokerBase):
             try:
                 self._sync_one_position(item, synced, long_synced, short_synced, key=key)
             except ValueError as exc:
+                _safe_log("error", "btapibroker:3379 re-raising ValueError")
                 raise ValueError("Remote position audit returned an unusable row") from exc
         local_maps = (
             [
@@ -3716,6 +3745,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     self.cancel(order)
                 except Exception as exc:
+                    _safe_log("warning", "btapibroker:3724 fallback on Exception")
                     details = self._order_runtime_details(order)
                     details.update(
                         error_code=type(exc).__name__,
@@ -3730,6 +3760,7 @@ class BtApiBroker(BrokerBase):
             try:
                 self._cancel_remote_open_order(item)
             except Exception as exc:
+                _safe_log("warning", "btapibroker:3738 fallback on Exception")
                 details = self._remote_order_details(item)
                 details.update(
                     error_code=type(exc).__name__,
@@ -3888,6 +3919,7 @@ class BtApiBroker(BrokerBase):
             self._value = float(balance.get("value", self._value))
             self._last_account_refresh = time.monotonic()
         except Exception as e:
+            _safe_log("warning", "btapibroker:3896 fallback on Exception")
             _safe_log("debug", "Failed to refresh account: %s", e)
             if raise_errors:
                 raise
@@ -3947,6 +3979,7 @@ class BtApiBroker(BrokerBase):
             self._last_positions_refresh = time.monotonic()
             self._positions_snapshot_loaded = True
         except Exception as e:
+            _safe_log("warning", "btapibroker:3955 fallback on Exception")
             _safe_log("debug", "Failed to sync positions: %s", e)
             if raise_errors:
                 raise
@@ -4119,6 +4152,7 @@ class BtApiBroker(BrokerBase):
             )
             return deepcopy(self._remote_open_orders_snapshot)
         except Exception as e:
+            _safe_log("warning", "btapibroker:4127 fallback on Exception")
             _safe_log("debug", "Failed to sync remote open orders: %s", e)
             self._emit_runtime_event(
                 "open_orders_sync_failed",
@@ -4194,6 +4228,7 @@ class BtApiBroker(BrokerBase):
             try:
                 names.update(str(key) for key in container.keys() if key not in (None, ""))
             except Exception:
+                _safe_log("warning", "btapibroker:4197 suppressed Exception")
                 continue
 
         data_feeds = getattr(self.store, "_data_feeds", []) if self.store is not None else []
@@ -4201,6 +4236,7 @@ class BtApiBroker(BrokerBase):
             try:
                 names.add(str(self._position_key(data)))
             except Exception:
+                _safe_log("warning", "btapibroker:4204 suppressed Exception")
                 continue
 
         routes = {}
@@ -4254,6 +4290,7 @@ class BtApiBroker(BrokerBase):
             try:
                 number = float(value)
             except (TypeError, ValueError):
+                _safe_log("debug", "btapibroker:4257 ignored TypeError,ValueError")
                 continue
             if math.isfinite(number):
                 return number
@@ -4741,6 +4778,7 @@ class BtApiBroker(BrokerBase):
             try:
                 number = float(value)
             except (TypeError, ValueError) as exc:
+                _safe_log("error", "btapibroker:4744 re-raising TypeError,ValueError")
                 raise OptionAccountingError(
                     code,
                     f"{code}: {key} must be a finite non-negative number",
@@ -4785,6 +4823,7 @@ class BtApiBroker(BrokerBase):
             try:
                 number = float(value)
             except (TypeError, ValueError) as exc:
+                _safe_log("error", "btapibroker:4788 re-raising TypeError,ValueError")
                 raise OptionAccountingError(
                     "option_multiplier_invalid",
                     f"option_multiplier_invalid: {key} must be positive and finite",
@@ -5110,6 +5149,7 @@ class BtApiBroker(BrokerBase):
         try:
             number = float(value)
         except (TypeError, ValueError) as exc:
+            _safe_log("error", "btapibroker:5113 re-raising TypeError,ValueError")
             raise OptionAccountingError(code, f"{code}: expected a finite numeric value") from exc
         if not math.isfinite(number) or (positive and number <= 0.0):
             raise OptionAccountingError(code, f"{code}: expected a positive finite number")
@@ -5206,6 +5246,7 @@ class BtApiBroker(BrokerBase):
         try:
             offset_text = str(offset).strip().lower().replace("-", "_")
         except Exception:
+            _safe_log("warning", "btapibroker:5220 fallback on Exception")
             return None, (
                 "option_offset_unknown",
                 "option_offset_unknown: CTP option offset is not a recognized value",
@@ -5425,6 +5466,7 @@ class BtApiBroker(BrokerBase):
         try:
             return str(order.getordername() or "").strip().lower()
         except Exception:
+            _safe_log("warning", "btapibroker:5439 fallback on Exception")
             return ""
 
     def _supported_order_types_for(self, order, rules):
@@ -5486,6 +5528,7 @@ class BtApiBroker(BrokerBase):
             try:
                 price = float(close[0])
             except Exception:
+                _safe_log("warning", "btapibroker:5500 fallback on Exception")
                 price = 0.0
             if price > 0:
                 return price
@@ -5567,6 +5610,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     venue_balance = cached_balance(self._position_key(order.data))
                 except Exception:
+                    _safe_log("warning", "btapibroker:5581 fallback on Exception")
                     return (
                         "account_cache_unavailable",
                         "Opening order requires a preflighted local account cache",
@@ -6015,7 +6059,7 @@ class BtApiBroker(BrokerBase):
             try:
                 return sanitizer(value)
             except Exception:
-                pass
+                _safe_log("warning", "btapibroker:6018 suppressed Exception")
         return _redact_diagnostic(value)
 
     def _sanitize_exception(self, exc):
@@ -6025,11 +6069,11 @@ class BtApiBroker(BrokerBase):
             try:
                 return sanitizer(exc)
             except Exception:
-                pass
+                _safe_log("warning", "btapibroker:6028 suppressed Exception")
         try:
             exc.args = tuple(_redact_diagnostic(item) for item in exc.args)
         except Exception:
-            pass
+            _safe_log("warning", "btapibroker:6032 suppressed Exception")
         return exc
 
     def _order_runtime_details(self, order):
@@ -6129,6 +6173,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     callback(deepcopy(notification))
                 except Exception as exc:
+                    _safe_log("warning", "btapibroker:6143 fallback on Exception")
                     self._sanitize_exception(exc)
                     self._emit_runtime_event(
                         "execution_recovery_completion_callback_failed",
@@ -6165,6 +6210,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     callback(deepcopy(notification))
                 except Exception as exc:
+                    _safe_log("warning", "btapibroker:6179 fallback on Exception")
                     self._sanitize_exception(exc)
                     self._emit_runtime_event(
                         "ctp_reconciliation_callback_failed",
@@ -6327,6 +6373,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     mismatches = self._position_audit_diff(rows)
                 except Exception as exc:
+                    _safe_log("warning", "btapibroker:6341 fallback on Exception")
                     self._position_audit_error = type(exc).__name__
                     self._position_audit_blocked = True
                 else:
@@ -6408,7 +6455,7 @@ class BtApiBroker(BrokerBase):
                 if time.monotonic_ns() < int(due):
                     return
             except (TypeError, ValueError):
-                pass
+                _safe_log("debug", "btapibroker:6411 ignored TypeError,ValueError")
         attempts = int(self._order_info_get(order, "reconcile_attempts", 0) or 0)
         maximum = max(int(self.p.reconcile_retry_max_attempts or 0), 1)
         if attempts >= maximum:
@@ -6431,6 +6478,7 @@ class BtApiBroker(BrokerBase):
         try:
             receipt = method(order.ref, dataname=self._position_key(order.data))
         except Exception:
+            _safe_log("warning", "btapibroker:6445 fallback on Exception")
             self._schedule_order_reconcile_retry(order, "query_enqueue_failed")
             return
         if isinstance(receipt, dict) and receipt.get("queued") is True:
@@ -7237,6 +7285,7 @@ class BtApiBroker(BrokerBase):
                     * (fill_price - old_price if old_size > 0 else old_price - fill_price)
                 )
         except Exception as exc:
+            _safe_log("error", "btapibroker:7251 exception before re-raise (Exception)")
             if is_option:
                 error_code = getattr(exc, "code", "option_fill_accounting_failed")
                 return self._quarantine_option_fill(order, update, error_code, str(exc))
@@ -7282,6 +7331,7 @@ class BtApiBroker(BrokerBase):
         try:
             raw_evidence = deepcopy(update)
         except Exception:
+            _safe_log("warning", "btapibroker:7296 fallback on Exception")
             raw_evidence = dict(update) if isinstance(update, Mapping) else update
         order.addinfo(
             execution_unknown=True,
@@ -7546,6 +7596,7 @@ class BtApiBroker(BrokerBase):
             )
             pnl = comminfo.profitandloss(-closed, pprice_orig, fill_price) if closed else 0.0
         except Exception as exc:
+            _safe_log("error", "btapibroker:7560 exception before re-raise (Exception)")
             if is_option:
                 error_code = getattr(exc, "code", "option_fill_accounting_failed")
                 return self._quarantine_option_fill(order, update, error_code, str(exc))
@@ -7632,6 +7683,7 @@ class BtApiBroker(BrokerBase):
         try:
             return str(resolver(self._position_key(order.data)))
         except Exception:
+            _safe_log("warning", "btapibroker:7646 fallback on Exception")
             return None
 
     def _remember_client_ref(self, order, order_ref, update=None):
@@ -7860,6 +7912,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     commission = float(value)
                 except (TypeError, ValueError):
+                    _safe_log("debug", "btapibroker:7863 ignored TypeError,ValueError")
                     continue
                 if not math.isfinite(commission):
                     continue
@@ -8059,8 +8112,10 @@ class BtApiBroker(BrokerBase):
             try:
                 return abs(float(comminfo.getpremiumvalue(size, price) or 0.0))
             except OptionAccountingError:
+                _safe_log("error", "btapibroker:8062 re-raising OptionAccountingError")
                 raise
             except Exception as exc:
+                _safe_log("error", "btapibroker:8064 re-raising Exception")
                 raise OptionAccountingError(
                     "option_execution_value_invalid",
                     "option_execution_value_invalid: option transaction value is unavailable",
@@ -8069,6 +8124,7 @@ class BtApiBroker(BrokerBase):
             size = float(size or 0.0)
             price = float(price or 0.0)
         except Exception as exc:
+            _safe_log("error", "btapibroker:8086 exception before re-raise (Exception)")
             if isinstance(comminfo, CtpOptionPremium):
                 raise OptionAccountingError(
                     "option_execution_value_invalid",
@@ -8082,8 +8138,10 @@ class BtApiBroker(BrokerBase):
         try:
             return abs(float(comminfo.getoperationcost(size, price) or 0.0))
         except OptionAccountingError:
+            _safe_log("error", "btapibroker:8085 re-raising OptionAccountingError")
             raise
         except Exception as exc:
+            _safe_log("warning", "btapibroker:8102 fallback on Exception")
             if isinstance(comminfo, CtpOptionPremium):
                 raise OptionAccountingError(
                     "option_execution_value_invalid",
@@ -8148,6 +8206,7 @@ class BtApiBroker(BrokerBase):
                 try:
                     parsed = _dt.datetime.strptime(stamp, fmt)
                 except ValueError:
+                    _safe_log("debug", "btapibroker:8151 ignored ValueError")
                     continue
                 if fmt == "%H:%M:%S":
                     return _dt.datetime.combine(today, parsed.time())
@@ -8163,5 +8222,6 @@ class BtApiBroker(BrokerBase):
             if len(order.data):
                 return order.data.datetime[0]
         except Exception as e:
+            _safe_log("warning", "btapibroker:8182 fallback on Exception")
             _safe_log("debug", "Failed to get order execution datetime: %s", e)
         return 0.0

@@ -10,7 +10,11 @@ import time
 
 import pytest
 import yaml
-from bt_api_py import FeeSchedule, Freshness, FundingSnapshot, InstrumentSpec
+from tests.test_utils.optional_sdk import optional_sdk
+
+sdk = optional_sdk(allow_module_level=True)
+FeeSchedule, Freshness = sdk.FeeSchedule, sdk.Freshness
+FundingSnapshot, InstrumentSpec = sdk.FundingSnapshot, sdk.InstrumentSpec
 
 RUNNERS = [
     importlib.import_module("examples.012_1_midfreq_cross_exchange.run"),

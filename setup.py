@@ -31,7 +31,7 @@ setup(
     # to installed consumers.  The real account_config.yaml is intentionally
     # ignored and is never included in a distribution.
     package_data={"backtrader": ["configs/account_config_example.yaml"]},
-    author="cloud",  # Author name
+    author="cloudQuant",  # Author name (retained from master)
     author_email="yunjinqi@qq.com",  # Author email
     description="Python Algorithmic Trading Backtesting Framework",  # Project description
     long_description=README,  # Long description (usually README file content)
@@ -55,6 +55,7 @@ setup(
     extras_require={
         "dev": [
             "pytest",
+            "pytest-cov",
             "pytest-xdist",
             "pytest-html",
             "pytest-timeout",
@@ -72,6 +73,8 @@ setup(
             "hmmlearn>=0.3.3",
             "mysql-connector-python",
             "python-dotenv",
+            "psutil",
+            "PyYAML",
             "websockets",
             "aiohttp",
             "cryptography>=3.4",

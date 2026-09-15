@@ -6,14 +6,16 @@ channel strategy wiring and the channel run loop.
 
 import datetime
 import itertools
+import logging
 from datetime import timezone
 from typing import Dict
 
 from .. import errors
 from ..channel import ChannelDataRef
+from ..lineseries import LineSeries
 from ..metabase import OwnerContext
 from ..utils import date2num
-from ..utils.log_message import get_logger
+from ..utils.log_message import _is_output_enabled_for, get_logger, throttled_warning
 
 UTC = timezone.utc
 
@@ -109,7 +111,12 @@ class ChannelMixin:
         try:
             strat.forward()
         except Exception:
-            logger.debug("Channel strategy forward() failed", exc_info=True)
+            throttled_warning(
+                logger,
+                "channel_strategy_forward",
+                "Channel strategy forward() failed",
+                exc_info=False,
+            )
 
         timestamp = getattr(event, "timestamp", None)
         if timestamp is None:
@@ -120,7 +127,23 @@ class ChannelMixin:
             event_num = date2num(event_dt)
             strat.lines.datetime[0] = event_num
             strat._last_valid_datetime = event_num
-            placeholder_map = getattr(strat, "placeholder_data", None)
+            # `placeholder_data` is an optional strategy-owned mapping. A
+            # normal lookup for the standard Strategy path sends its missing
+            # case through LineSeries fallback resolution on every event.
+            # Bypass only that known fallback; a custom accessor may provide
+            # the mapping dynamically and must retain normal getattr() rules.
+            strategy_type = type(strat)
+            strategy_getattribute = getattr(strategy_type, "__getattribute__", None)
+            if (
+                strategy_getattribute is object.__getattribute__
+                and getattr(strategy_type, "__getattr__", None) is LineSeries.__getattr__
+            ):
+                try:
+                    placeholder_map = object.__getattribute__(strat, "placeholder_data")
+                except AttributeError:
+                    placeholder_map = None
+            else:
+                placeholder_map = getattr(strat, "placeholder_data", None)
             if isinstance(placeholder_map, dict):
                 symbol = getattr(getattr(event, "data", None), "symbol", None)
                 placeholder = placeholder_map.get(str(symbol)) if symbol is not None else None
@@ -128,12 +151,22 @@ class ChannelMixin:
                     try:
                         placeholder._len = max(int(getattr(placeholder, "_len", 0)), len(strat))
                     except Exception:
-                        logger.debug("Channel placeholder length update failed", exc_info=True)
+                        throttled_warning(
+                            logger,
+                            "channel_placeholder_length",
+                            "Channel placeholder length update failed",
+                            exc_info=False,
+                        )
 
                     try:
                         placeholder.datetime[0] = event_num
                     except Exception:
-                        logger.debug("Channel placeholder datetime update failed", exc_info=True)
+                        throttled_warning(
+                            logger,
+                            "channel_placeholder_datetime",
+                            "Channel placeholder datetime update failed",
+                            exc_info=False,
+                        )
 
                     try:
                         last_price = getattr(event.data, "price", None)
@@ -142,9 +175,19 @@ class ChannelMixin:
                         if last_price is not None:
                             placeholder.close[0] = float(last_price)
                     except Exception:
-                        logger.debug("Channel placeholder price update failed", exc_info=True)
+                        throttled_warning(
+                            logger,
+                            "channel_placeholder_price",
+                            "Channel placeholder price update failed",
+                            exc_info=False,
+                        )
         except Exception:
-            logger.debug("Channel strategy datetime update failed", exc_info=True)
+            throttled_warning(
+                logger,
+                "channel_strategy_datetime",
+                "Channel strategy datetime update failed",
+                exc_info=False,
+            )
 
     def _step_channel_strategy(self, strat):
         """Run channel-mode analyzers and observers once per event."""
@@ -209,6 +252,22 @@ class ChannelMixin:
 
         # Start broker
         self._broker.start()
+
+        # The optional lifecycle summary must only read a broker after it has
+        # entered its active state.  Do not make a channel run depend on an
+        # informational accessor being available.
+        if _is_output_enabled_for(logging.INFO):
+            try:
+                cash = self._broker.getcash()
+            except Exception:
+                logger.warning("channel broker cash unavailable for lifecycle logging")
+                cash = "unavailable"
+            logger.info(
+                "channel run starting: strategies=%d datas=%d cash=%s",
+                len(self.strats),
+                len(self.datas),
+                cash,
+            )
 
         self._instantiate_channel_strategies(runstrats)
         self._wire_channel_strategies(runstrats)
@@ -287,6 +346,7 @@ class ChannelMixin:
                         else:
                             strat = stratcls(*sargs, **skwargs)
                 except errors.StrategySkipError:
+                    logger.warning("channel:297 suppressed bare")
                     continue  # user requested skip, same as standard run() path
                 if self.p.oldsync:
                     strat._oldsync = True

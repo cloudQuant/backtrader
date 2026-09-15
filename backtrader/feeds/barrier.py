@@ -23,7 +23,10 @@ from datetime import datetime, timedelta, timezone
 from types import MappingProxyType
 from typing import Any, Deque, Dict, Iterable, List, Optional, Tuple
 
+from ..utils.log_message import get_logger
 from .ctpcohort import CtpQuoteEvidence
+
+logger = get_logger(__name__)
 
 UTC = timezone.utc
 _GOOD_QUALITY = frozenset({"GOOD", "OK", "COMPLETE", "VALID"})
@@ -104,11 +107,13 @@ def _datetime(value: Any, field: str) -> datetime:
         try:
             parsed = datetime.fromtimestamp(float(value), UTC)
         except (OverflowError, OSError, ValueError) as error:
+            logger.error("barrier:109 re-raising OverflowError,OSError,ValueError", exc_info=True)
             raise ValueError(f"{field} must be a valid UTC time") from error
     elif isinstance(value, str):
         try:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError as error:
+            logger.error("barrier:114 re-raising ValueError", exc_info=True)
             raise ValueError(f"{field} must be a valid UTC time") from error
     else:
         raise ValueError(f"{field} must be a valid UTC time")

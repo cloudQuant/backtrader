@@ -13,8 +13,7 @@ import datetime as dt
 import hashlib
 import importlib
 import threading
-import time
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import Any, Dict, Iterable, Mapping
 
 import pytest
@@ -1074,40 +1073,71 @@ def test_engineering_observation_construction_shutdown_failure_takes_precedence(
 def test_engineering_observation_global_deadline_starts_before_slow_feed_construction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A blocking graph build consumes the same lifecycle ceiling as runtime."""
+    """A slow second Feed consumes the timer started before graph construction."""
+
+    # Keep this construction-boundary test deterministic under xdist load.
+    # Only the adapter's lifecycle clock/timer are virtualized: Store, Feed,
+    # Cerebro and graph teardown continue to use their production references.
+    now = 0.0
+    timers: list[Any] = []
+
+    class ControlledTimer:
+        def __init__(self, interval: float, function: Any) -> None:
+            self.interval = interval
+            self.function = function
+            self.deadline: float | None = None
+            self.fired = False
+            self.cancelled = False
+            timers.append(self)
+
+        def start(self) -> None:
+            self.deadline = now + self.interval
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+        def join(self, timeout: float | None = None) -> None:
+            assert self.cancelled or self.fired
+
+        def is_alive(self) -> bool:
+            return self.deadline is not None and not self.fired and not self.cancelled
+
+    def advance(seconds: float) -> None:
+        nonlocal now
+        now += seconds
+        for timer in tuple(timers):
+            if timer.is_alive() and now >= timer.deadline:
+                timer.fired = True
+                timer.function()
 
     monkeypatch.setattr(adapter, "ENGINEERING_OBSERVATION_MAX_SECONDS", 0.05)
+    monkeypatch.setattr(adapter, "time", SimpleNamespace(monotonic=lambda: now))
+    monkeypatch.setattr(
+        adapter,
+        "threading",
+        SimpleNamespace(Timer=ControlledTimer, Event=threading.Event, Lock=threading.Lock),
+    )
     source = _ticks()
     api = LiveFixtureApi(live_ticks=copy.deepcopy(source))
     provider = LiveEvidenceProvider(source, _live_mapping())
-    lifecycle_timer_started = threading.Event()
     stopped_datanames: list[str] = []
     store_stop_calls: list[dict[str, Any]] = []
     broker_stop_calls = 0
-    original_timer = adapter.threading.Timer
     original_getdata = adapter.BtApiStore.getdata
     original_broker_stop = BtApiBroker.stop
     original_feed_stop = BtApiFeed.stop
     original_store_stop = adapter.BtApiStore.stop
     getdata_calls = 0
 
-    def recording_timer(*args: Any, **kwargs: Any) -> threading.Timer:
-        timer = original_timer(*args, **kwargs)
-        original_start = timer.start
-
-        def start() -> None:
-            lifecycle_timer_started.set()
-            original_start()
-
-        timer.start = start
-        return timer
-
     def slow_second_getdata(instance: Any, *args: Any, **kwargs: Any) -> Any:
         nonlocal getdata_calls
         getdata_calls += 1
         if getdata_calls == 2:
-            assert lifecycle_timer_started.is_set()
-            time.sleep(0.06)
+            # The lifecycle timer has already started before this slow Feed is
+            # constructed.  Advance past its budget while construction blocks.
+            assert len(timers) == 1
+            assert timers[0].is_alive()
+            advance(0.06)
         return original_getdata(instance, *args, **kwargs)
 
     def capture_broker_stop(instance: BtApiBroker, *args: Any, **kwargs: Any) -> Any:
@@ -1123,7 +1153,6 @@ def test_engineering_observation_global_deadline_starts_before_slow_feed_constru
         store_stop_calls.append(dict(kwargs))
         return original_store_stop(instance, *args, **kwargs)
 
-    monkeypatch.setattr(adapter.threading, "Timer", recording_timer)
     monkeypatch.setattr(adapter.BtApiStore, "getdata", slow_second_getdata)
     monkeypatch.setattr(BtApiBroker, "stop", capture_broker_stop)
     monkeypatch.setattr(BtApiFeed, "stop", capture_feed_stop)
@@ -1141,7 +1170,11 @@ def test_engineering_observation_global_deadline_starts_before_slow_feed_constru
         )
 
     assert error.value.code == "OBSERVATION_LIFECYCLE_DURATION_EXCEEDED"
-    assert lifecycle_timer_started.is_set()
+    assert len(timers) == 1
+    assert timers[0].name == "iter24-engineering-observation-lifecycle-deadline"
+    assert timers[0].interval == pytest.approx(0.05)
+    assert timers[0].fired and timers[0].cancelled
+    assert not timers[0].is_alive()
     assert broker_stop_calls == 1
     assert stopped_datanames == [FUTURE, CALL]
     assert store_stop_calls == [{"timeout": 2.0}]
@@ -1154,12 +1187,56 @@ def test_engineering_observation_global_deadline_starts_before_slow_feed_constru
 def test_engineering_observation_reports_lifecycle_deadline_exhausted_before_full_watchdog(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Freeze setup time and deliver the real lifecycle callback only when the
+    # injected connection consumes its budget. Real scheduler delays must not
+    # turn this runtime/report case into the separate construction-failure case.
+    now = 0.0
+    timers: list[Any] = []
+
+    class ControlledTimer:
+        def __init__(self, interval: float, function: Any) -> None:
+            self.interval = interval
+            self.function = function
+            self.deadline: float | None = None
+            self.fired = False
+            self.cancelled = False
+            timers.append(self)
+
+        def start(self) -> None:
+            self.deadline = now + self.interval
+
+        def cancel(self) -> None:
+            self.cancelled = True
+
+        def join(self, timeout: float | None = None) -> None:
+            assert self.cancelled or self.fired
+
+        def is_alive(self) -> bool:
+            return self.deadline is not None and not self.fired and not self.cancelled
+
+    def advance(seconds: float) -> None:
+        nonlocal now
+        now += seconds
+        for timer in tuple(timers):
+            if timer.is_alive() and now >= timer.deadline:
+                timer.fired = True
+                timer.function()
+
     class SlowConnectApi(LiveFixtureApi):
         def connect(self) -> None:
-            time.sleep(0.06)
+            assert now == 0.0
             super().connect()
+            advance(0.06)
 
     monkeypatch.setattr(adapter, "ENGINEERING_OBSERVATION_MAX_SECONDS", 0.05)
+    # Replace only the adapter's references, not the process-wide time/threading
+    # modules used by the real Store/Feed/Cerebro and their shutdown paths.
+    monkeypatch.setattr(adapter, "time", SimpleNamespace(monotonic=lambda: now))
+    monkeypatch.setattr(
+        adapter,
+        "threading",
+        SimpleNamespace(Timer=ControlledTimer, Event=threading.Event, Lock=threading.Lock),
+    )
     source = _ticks()
     api = SlowConnectApi(live_ticks=copy.deepcopy(source))
     provider = LiveEvidenceProvider(source, _live_mapping())
@@ -1179,6 +1256,13 @@ def test_engineering_observation_reports_lifecycle_deadline_exhausted_before_ful
     assert report["duration"]["elapsed_within_maximum"] is False
     assert report["duration"]["lifecycle_deadline_stop_requested"] is True
     assert "OBSERVATION_LIFECYCLE_DURATION_EXCEEDED" in report["failure_codes"]
+    assert report["duration"]["elapsed_seconds"] == pytest.approx(0.06)
+    assert api.connect_calls == 1
+    assert len(timers) == 1  # No fresh post-connect runtime watchdog was granted.
+    assert timers[0].name == "iter24-engineering-observation-lifecycle-deadline"
+    assert timers[0].interval == pytest.approx(0.05)
+    assert timers[0].fired and timers[0].cancelled
+    assert not timers[0].is_alive()
     assert api.submitted_orders == []
     assert api.cancelled_orders == []
     assert api.connected is False

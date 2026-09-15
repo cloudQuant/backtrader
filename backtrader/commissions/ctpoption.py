@@ -19,6 +19,9 @@ from typing import Any
 
 from ..comminfo import CommInfoBase
 from ..parameters import ParameterDescriptor
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class OptionAccountingError(ValueError):
@@ -110,6 +113,7 @@ def _finite_number(value: Any, code: str, *, positive: bool = False) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError) as exc:
+        logger.error("ctpoption:115 re-raising TypeError,ValueError", exc_info=True)
         raise OptionAccountingError(code, f"{code}: expected a finite number") from exc
     if not math.isfinite(number) or (positive and number <= 0.0):
         raise OptionAccountingError(code, f"{code}: expected a positive finite number")
@@ -123,6 +127,7 @@ def _as_utc(value: Any, code: str) -> _dt.datetime:
         try:
             parsed = _dt.datetime.fromtimestamp(float(value), tz=_dt.timezone.utc)
         except (OverflowError, OSError, ValueError) as exc:
+            logger.error("ctpoption:128 re-raising OverflowError,OSError,ValueError", exc_info=True)
             raise OptionAccountingError(code, f"{code}: invalid epoch timestamp") from exc
     elif isinstance(value, str):
         text = value.strip()
@@ -133,6 +138,7 @@ def _as_utc(value: Any, code: str) -> _dt.datetime:
         try:
             parsed = _dt.datetime.fromisoformat(text)
         except ValueError as exc:
+            logger.error("ctpoption:138 re-raising ValueError", exc_info=True)
             raise OptionAccountingError(code, f"{code}: invalid ISO timestamp") from exc
     else:
         raise OptionAccountingError(code, f"{code}: unsupported timestamp type")
@@ -164,6 +170,7 @@ def _expiry_date(value: Any) -> _dt.date | None:
         try:
             return _dt.datetime.strptime(text, fmt).date()
         except ValueError:
+            logger.debug("ctpoption:169 ignored ValueError")
             continue
     return None
 
@@ -240,6 +247,7 @@ def _finite_result(value: Any, code: str) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError) as exc:
+        logger.error("ctpoption:245 re-raising TypeError,ValueError", exc_info=True)
         raise OptionAccountingError(code, f"{code}: result is not numeric") from exc
     if not math.isfinite(number):
         raise OptionAccountingError(code, f"{code}: result is not finite")
@@ -519,6 +527,7 @@ def validate_seller_margin_evidence(
                             "seller_margin_price_basis_scope_mismatch: price basis differs",
                         )
                 except (TypeError, ValueError) as exc:
+                    logger.error("ctpoption:524 re-raising TypeError,ValueError", exc_info=True)
                     raise OptionAccountingError(
                         "seller_margin_price_basis_scope_mismatch",
                         "seller_margin_price_basis_scope_mismatch: price basis differs",
