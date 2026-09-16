@@ -1,7 +1,7 @@
-"""
-Backtrader 实盘交易模块
+"""Backtrader live-trading module.
 
-提供实盘交易的抽象接口和基础实现
+Provides the abstract interfaces and base implementations used for live
+trading.
 """
 
 import logging
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class LiveOrderType(str, Enum):
-    """订单类型"""
+    """Order type."""
 
     MARKET = "market"
     LIMIT = "limit"
@@ -23,14 +23,14 @@ class LiveOrderType(str, Enum):
 
 
 class LiveOrderSide(str, Enum):
-    """订单方向"""
+    """Order side."""
 
     BUY = "buy"
     SELL = "sell"
 
 
 class LiveOrderStatus(str, Enum):
-    """订单状态"""
+    """Order status."""
 
     PENDING = "pending"
     PARTIAL_FILLED = "partial_filled"
@@ -41,7 +41,7 @@ class LiveOrderStatus(str, Enum):
 
 
 class LivePositionSide(str, Enum):
-    """持仓方向"""
+    """Position side."""
 
     LONG = "long"
     SHORT = "short"
@@ -49,7 +49,7 @@ class LivePositionSide(str, Enum):
 
 
 class LiveOrder:
-    """实盘订单"""
+    """Live order."""
 
     def __init__(
         self,
@@ -70,6 +70,26 @@ class LiveOrder:
         filled_at: Optional[datetime] = None,
         rejected_reason: Optional[str] = None,
     ):
+        """Create a live order.
+
+        Args:
+            order_id: Unique order identifier.
+            symbol: Instrument symbol.
+            order_type: Order type.
+            side: Order side.
+            size: Order size.
+            price: Order price.
+            stop_price: Trigger price for stop orders.
+            limit_price: Limit price for stop-limit orders.
+            filled_size: Cumulative filled size.
+            avg_fill_price: Average fill price.
+            status: Current order status.
+            commission: Accumulated commission.
+            created_at: Creation timestamp; defaults to now (UTC).
+            updated_at: Last-update timestamp; defaults to now (UTC).
+            filled_at: Fill timestamp, if the order has been filled.
+            rejected_reason: Reason reported when the order was rejected.
+        """
         self.order_id = order_id
         self.symbol = symbol
         self.order_type = order_type
@@ -89,7 +109,7 @@ class LiveOrder:
 
 
 class LivePosition:
-    """实盘持仓"""
+    """Live position."""
 
     def __init__(
         self,
@@ -101,6 +121,17 @@ class LivePosition:
         unrealized_pnl: float,
         unrealized_pnl_pct: float,
     ):
+        """Create a live position snapshot.
+
+        Args:
+            symbol: Instrument symbol.
+            size: Signed position size.
+            avg_price: Average entry price.
+            side: Position side.
+            market_value: Current market value.
+            unrealized_pnl: Unrealized profit and loss in account currency.
+            unrealized_pnl_pct: Unrealized profit and loss as a ratio.
+        """
         self.symbol = symbol
         self.size = size
         self.avg_price = avg_price
@@ -111,7 +142,7 @@ class LivePosition:
 
 
 class LiveTrade:
-    """实盘成交"""
+    """Live trade (fill)."""
 
     def __init__(
         self,
@@ -126,6 +157,20 @@ class LiveTrade:
         pnl_pct: float = 0.0,
         created_at: Optional[datetime] = None,
     ):
+        """Create a live trade record.
+
+        Args:
+            trade_id: Unique trade identifier.
+            order_id: Identifier of the order that produced this trade.
+            symbol: Instrument symbol.
+            side: Trade side.
+            size: Filled size.
+            price: Fill price.
+            commission: Commission charged for this fill.
+            pnl: Realized profit and loss in account currency.
+            pnl_pct: Realized profit and loss as a ratio.
+            created_at: Trade timestamp; defaults to now (UTC).
+        """
         self.trade_id = trade_id
         self.order_id = order_id
         self.symbol = symbol
@@ -139,7 +184,7 @@ class LiveTrade:
 
 
 class LiveAccount:
-    """实盘账户"""
+    """Live account snapshot."""
 
     def __init__(
         self,
@@ -150,6 +195,16 @@ class LiveAccount:
         margin: float = 0.0,
         maintenance_margin: float = 0.0,
     ):
+        """Create a live account snapshot.
+
+        Args:
+            cash: Settled cash balance.
+            total_equity: Total account equity.
+            available_cash: Cash available for new positions.
+            buying_power: Broker-reported buying power.
+            margin: Margin currently in use.
+            maintenance_margin: Maintenance margin requirement.
+        """
         self.cash = cash
         self.total_equity = total_equity
         self.available_cash = available_cash
@@ -159,7 +214,7 @@ class LiveAccount:
 
 
 class LiveTick:
-    """实盘行情"""
+    """Live tick (market data snapshot)."""
 
     def __init__(
         self,
@@ -175,6 +230,21 @@ class LiveTick:
         bid_size: Optional[float] = None,
         ask_size: Optional[float] = None,
     ):
+        """Create a live tick.
+
+        Args:
+            symbol: Instrument symbol.
+            timestamp: Tick timestamp.
+            open: Open price of the bar this tick belongs to.
+            high: High price of the bar this tick belongs to.
+            low: Low price of the bar this tick belongs to.
+            close: Close (last) price.
+            volume: Traded volume.
+            bid: Best bid price, if available.
+            ask: Best ask price, if available.
+            bid_size: Size available at the best bid.
+            ask_size: Size available at the best ask.
+        """
         self.symbol = symbol
         self.timestamp = timestamp
         self.open = open
@@ -189,102 +259,93 @@ class LiveTick:
 
 
 class LiveBroker(ABC):
-    """实盘券商抽象接口"""
+    """Abstract live-broker interface."""
 
     @abstractmethod
     def connect(self, config: Dict[str, Any]) -> bool:
-        """
-        连接券商
+        """Connect to the broker.
 
         Args:
-            config: 连接配置
+            config: Connection configuration.
 
         Returns:
-            bool: 是否连接成功
+            bool: Whether the connection succeeded.
         """
 
     @abstractmethod
     def disconnect(self) -> None:
-        """
-        断开连接
-        """
+        """Disconnect from the broker."""
 
     @abstractmethod
     def get_account(self) -> LiveAccount:
-        """
-        获取账户信息
+        """Fetch the account snapshot.
 
         Returns:
-            LiveAccount: 账户信息
+            LiveAccount: Account snapshot.
         """
 
     @abstractmethod
     def get_position(self, symbol: str) -> Optional[LivePosition]:
-        """
-        获取持仓
+        """Fetch a single position.
 
         Args:
-            symbol: 标的代码
+            symbol: Instrument symbol.
 
         Returns:
-            LivePosition or None: 持仓信息
+            LivePosition or None: Position snapshot, or None if there is no
+            position for the symbol.
         """
 
     @abstractmethod
     def get_positions(self) -> List[LivePosition]:
-        """
-        获取所有持仓
+        """Fetch all open positions.
 
         Returns:
-            List[LivePosition]: 持仓列表
+            List[LivePosition]: Position list.
         """
 
     @abstractmethod
     def place_order(self, order: LiveOrder) -> LiveOrder:
-        """
-        下单
+        """Submit an order.
 
         Args:
-            order: 订单对象
+            order: Order to submit.
 
         Returns:
-            LiveOrder: 订单对象
+            LiveOrder: The order as accepted by the broker.
         """
 
     @abstractmethod
     def cancel_order(self, order_id: str) -> bool:
-        """
-        撤单
+        """Cancel an order.
 
         Args:
-            order_id: 订单 ID
+            order_id: Order identifier.
 
         Returns:
-            bool: 是否撤销成功
+            bool: Whether the cancellation succeeded.
         """
 
     @abstractmethod
     def get_order(self, order_id: str) -> Optional[LiveOrder]:
-        """
-        查询订单
+        """Fetch a single order.
 
         Args:
-            order_id: 订单 ID
+            order_id: Order identifier.
 
         Returns:
-            LiveOrder or None: 订单信息
+            LiveOrder or None: Order snapshot, or None if the order is unknown.
         """
 
     @abstractmethod
     def get_orders(self, status: Optional[LiveOrderStatus] = None) -> List[LiveOrder]:
-        """
-        查询所有订单
+        """Fetch all orders.
 
         Args:
-            status: 订单状态（可选）
+            status: Restrict the result to one order status, if given.
 
         Returns:
-            List[LiveOrder]: 订单列表
+            List[LiveOrder]: Order list.
         """
 
     @abstractmethod
@@ -294,35 +355,32 @@ class LiveBroker(ABC):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
     ) -> List[LiveTrade]:
-        """
-        查询成交
+        """Fetch trade (fill) history.
 
         Args:
-            symbol: 标的代码（可选）
-            start_date: 开始日期（可选）
-            end_date: 结束日期（可选）
+            symbol: Restrict the result to one instrument, if given.
+            start_date: Inclusive lower bound on the trade timestamp, if given.
+            end_date: Inclusive upper bound on the trade timestamp, if given.
 
         Returns:
-            List[LiveTrade]: 成交列表
+            List[LiveTrade]: Trade list.
         """
 
     @abstractmethod
     def subscribe_tick(self, symbols: List[str], callback: Callable[[LiveTick], None]) -> None:
-        """
-        订阅行情
+        """Subscribe to market data.
 
         Args:
-            symbols: 标的代码列表
-            callback: 行情回调函数
+            symbols: Instrument symbols to subscribe to.
+            callback: Callable invoked with each incoming tick.
         """
 
     @abstractmethod
     def unsubscribe_tick(self, symbols: List[str]) -> None:
-        """
-        取消订阅行情
+        """Unsubscribe from market data.
 
         Args:
-            symbols: 标的代码列表
+            symbols: Instrument symbols to unsubscribe from.
         """
 
     @abstractmethod
@@ -333,55 +391,55 @@ class LiveBroker(ABC):
         end_date: datetime,
         frequency: str = "1d",
     ) -> List[LiveTick]:
-        """
-        获取历史行情
+        """Fetch historical market data.
 
         Args:
-            symbol: 标的代码
-            start_date: 开始日期
-            end_date: 结束日期
-            frequency: 频率（1m, 5m, 15m, 30m, 1h, 1d, 1w, 1M）
+            symbol: Instrument symbol.
+            start_date: Inclusive start of the requested range.
+            end_date: Inclusive end of the requested range.
+            frequency: Bar frequency (1m, 5m, 15m, 30m, 1h, 1d, 1w, 1M).
 
         Returns:
-            List[LiveTick]: 历史行情列表
+            List[LiveTick]: Historical bar list.
         """
 
     @abstractmethod
     def is_connected(self) -> bool:
-        """
-        检查是否已连接
+        """Report whether the broker session is currently connected.
 
         Returns:
-            bool: 是否连接
+            bool: Whether the session is connected.
         """
 
 
 class LiveBrokerFactory:
-    """实盘券商工厂"""
+    """Live-broker factory."""
 
     _brokers = {
         "ccxt": "backtrader.live_trading.ccxt_broker.CCXTBroker",
         "ctp": "backtrader.live_trading.ctp_broker.CTPBroker",
-        # 可以添加更多券商
+        # More broker types can be registered here.
     }
 
     @classmethod
     def create_broker(cls, broker_type: str, config: Dict[str, Any]) -> LiveBroker:
-        """
-        创建券商实例
+        """Create a broker instance.
 
         Args:
-            broker_type: 券商类型
-            config: 券商配置
+            broker_type: Broker type key, as registered on this factory.
+            config: Broker configuration.
 
         Returns:
-            LiveBroker: 券商实例
+            LiveBroker: The broker instance.
+
+        Raises:
+            ValueError: If ``broker_type`` has not been registered.
         """
         broker_class_path = cls._brokers.get(broker_type.lower())
         if not broker_class_path:
-            raise ValueError(f"不支持的券商类型: {broker_type}")
+            raise ValueError(f"Unsupported broker type: {broker_type}")
 
-        # 动态导入券商类
+        # Import the broker class dynamically.
         parts = broker_class_path.split(".")
         module_path = ".".join(parts[:-1])
         class_name = parts[-1]
@@ -389,16 +447,15 @@ class LiveBrokerFactory:
         module = __import__(module_path, fromlist=[class_name])
         broker_class = getattr(module, class_name)
 
-        # 创建实例
+        # Create the instance.
         return cast(LiveBroker, broker_class(config))
 
     @classmethod
     def register_broker(cls, broker_type: str, broker_class_path: str):
-        """
-        注册券商类型
+        """Register a broker type.
 
         Args:
-            broker_type: 券商类型
-            broker_class_path: 券商类路径
+            broker_type: Broker type key.
+            broker_class_path: Fully qualified path of the broker class.
         """
         cls._brokers[broker_type.lower()] = broker_class_path

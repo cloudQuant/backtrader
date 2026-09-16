@@ -1,6 +1,4 @@
-"""
-Backtrader 实盘交易模块
-"""
+"""Backtrader live-trading module."""
 
 from .interface import (
     LiveAccount,
