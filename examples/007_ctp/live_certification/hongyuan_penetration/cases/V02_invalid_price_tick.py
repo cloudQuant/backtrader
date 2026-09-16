@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""V02: 验证订单价格最小变动价位错误时系统能检查并拒绝报单"""
+"""V02: Verify that the system checks and rejects order submission when the order's price tick is invalid"""
 from __future__ import annotations
 
 import sys

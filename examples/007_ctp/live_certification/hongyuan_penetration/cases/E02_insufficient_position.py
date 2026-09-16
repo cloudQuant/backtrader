@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""E02: 验证系统能接收并展示柜台返回的持仓不足错误码"""
+"""E02: Verify that the system can receive and display the insufficient-position error code returned by the counter"""
 from __future__ import annotations
 
 import sys
@@ -116,6 +116,7 @@ def run(report_dir):
                         self.order_statuses = []
 
                     def notify_store(self, msg, *args, **kwargs):
+                        """Record store events; stop Cerebro on the first remote reject."""
                         event = kwargs.get("event")
                         if isinstance(event, dict):
                             self.store_events.append(event)

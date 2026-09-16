@@ -39,8 +39,7 @@ class UnifiedProfileStrategy(bt.Strategy):
         self.next_count += 1
         self.bar_closes.append(float(self.datas[0].close[0]))
         profile = getattr(self.cerebro, "live_profile", None)
-        target_next_count = 1 if getattr(profile, "is_live", False) else 2
-        if self.next_count >= target_next_count:
+        if not getattr(profile, "is_live", False) and self.next_count >= 2:
             self.cerebro.runstop()
 
 
@@ -213,5 +212,7 @@ def test_build_cerebro_preserves_broker_query_semantics_between_backtest_and_liv
     finally:
         stop_timer.cancel()
 
-    assert backtest_result.snapshots == [{"cash": 5000.0, "value": 5000.0, "size": 0.0, "price": 0.0}]
+    assert backtest_result.snapshots == [
+        {"cash": 5000.0, "value": 5000.0, "size": 0.0, "price": 0.0}
+    ]
     assert live_result.snapshots == [{"cash": 1250.0, "value": 1450.0, "size": 2.0, "price": 99.5}]

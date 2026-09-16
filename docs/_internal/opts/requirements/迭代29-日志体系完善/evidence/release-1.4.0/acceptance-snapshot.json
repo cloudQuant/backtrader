@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "status": "HISTORICAL_PRE_CLOSE_SNAPSHOT",
+  "historical_status": "BLOCKED",
+  "superseded_by": "post-fix-local-closeout.json and ../../1.4.0联合验收与发布记录.md",
+  "current_status": "PENDING_FINAL_GATES; both functional suites and paired performance passed, SDK releases are published, and the exact package/remote gates remain pending.",
+  "branch_boundary": {
+    "promotion": "dev -> development",
+    "master": "NOT_TOUCHED; historical read-only baseline and not a target for this release CI, tag, or Release."
+  },
+  "framework_functional_public_sdk": {
+    "status": "BLOCKED",
+    "passed": 5554,
+    "skipped": 1,
+    "collection_errors": 8,
+    "seconds": 725.24,
+    "root_cause": "One module requires CtpExecutionApprovalCapability missing from pinned public bt_api_py; each of 8 workers reports it.",
+    "evidence": "functional-with-sdk.log"
+  },
+  "framework_functional_no_sdk": {
+    "status": "FAIL",
+    "passed": 5079,
+    "skipped": 203,
+    "failed": 1,
+    "seconds": 718.82,
+    "failure_node": "tests/unit/test_ctp_options_midfreq_engineering_observation.py::test_engineering_observation_reports_lifecycle_deadline_exhausted_before_full_watchdog",
+    "skips": {
+      "bt_api_py_missing": 187,
+      "bt_api_ctp_missing": 15,
+      "existing_abs_runonce_recursion": 1
+    },
+    "evidence": "functional-without-sdk.log",
+    "subsequent_directed_case": {
+      "passed": 1,
+      "evidence_status": "parent-confirmed result; dedicated final log not yet archived",
+      "scope": "controlled monotonic clock in test only; full rerun NOT_RUN"
+    }
+  },
+  "serial_performance": {
+    "status": "PASS",
+    "main_passed": 19,
+    "main_seconds": 28.03,
+    "rss_passed": 1,
+    "rss_seconds": 0.48,
+    "evidence": "performance-suite.log"
+  },
+  "logging_close": {
+    "status": "PASS",
+    "passed": 51,
+    "seconds": 7.88,
+    "evidence": "logging-close-final.log"
+  },
+  "paired_performance": {
+    "status": "BLOCKED_PENDING_FINAL_ADJUDICATION",
+    "policy": "one predetermined whole-group retry; no cherry-picking",
+    "round1": "performance-paired-round1.json",
+    "retry": "performance-paired-retry.json",
+    "round1_pre29_channel_median_percent": 4.947651216297921,
+    "retry_pre29_channel_median_percent": 3.661230553559913
+  },
+  "framework_package": {
+    "status": "BLOCKED_FINAL_REBUILD_NOT_RUN",
+    "prior_candidate": "PASS, archived as pre-close evidence only",
+    "reason": "Last log_message source change postdates prior wheel/sdist"
+  },
+  "external_sdk": {
+    "bt_api_base": {
+      "target_version": "0.15.4",
+      "local_dev_created": "parent-confirmed",
+      "initial": {
+        "passed": 685,
+        "skipped": 3,
+        "evidence": "sdk-base-initial.log"
+      },
+      "version_check": {
+        "passed": 684,
+        "skipped": 3,
+        "failed": 1,
+        "reason": "installed metadata/runtime mismatch",
+        "evidence": "sdk-base-version-check.log"
+      },
+      "isolated_wheel": "NOT_RUN"
+    },
+    "bt_api_ctp": {
+      "target_version": "2.0.2",
+      "local_dev_created": "parent-confirmed",
+      "local_test": {
+        "passed": 647,
+        "skipped": 2,
+        "seconds": 2.92,
+        "evidence": "sdk-ctp-local.log"
+      },
+      "final_isolated_wheel": "NOT_RUN"
+    },
+    "bt_api_py": {
+      "target_version": "0.15.3",
+      "local_test": {
+        "status": "BLOCKED",
+        "collection_errors": 2,
+        "reason": "scripts.ci package import collision",
+        "evidence": "sdk-root-import-collision.log"
+      },
+      "repair_and_final_test": "pending main task",
+      "final_isolated_wheel": "NOT_RUN"
+    }
+  },
+  "remote_ci_merge_tag_release": {
+    "status": "NOT_RUN",
+    "promotion_target": "development exact commit after final gates",
+    "master": "NOT_TOUCHED; independently read back only."
+  },
+  "evidence_boundary": "Bounded acceptance snapshot; later local and remote results require exact artifacts and hashes. Documentation assembly runs no tests.",
+  "recorded_at_utc": "2026-09-15T02:52:51.621573+00:00"
+}

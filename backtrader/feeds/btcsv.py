@@ -16,6 +16,9 @@ import math
 from datetime import date
 
 from .. import feed
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 _HOURS_PER_DAY = 24.0
 _MINUTES_PER_DAY = 1440.0
@@ -176,7 +179,7 @@ class BacktraderCSVData(feed.CSVDataBase):
                 line_openinterest.array[idx_openinterest] = openinterest_value
                 return True
             except IndexError:
-                pass
+                logger.debug("btcsv:181 ignored IndexError")
 
         # Fallback preserves binding propagation and LineBuffer boundary handling.
         set_current = _set_current_value

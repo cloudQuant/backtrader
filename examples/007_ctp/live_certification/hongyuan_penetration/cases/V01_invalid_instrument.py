@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""V01: 验证订单合约代码错误时系统能检查并拒绝报单"""
+"""V01: Verify that the system checks and rejects order submission when the order's instrument code is invalid"""
 from __future__ import annotations
 
 import sys

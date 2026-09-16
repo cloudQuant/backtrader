@@ -956,7 +956,7 @@ class PlotlyPlot(ParameterizedBase):
                 return f"rgb({gray_int},{gray_int},{gray_int})"
             except ValueError:
                 # Not a numeric gray string (e.g. a named color); return as-is.
-                pass
+                logger.debug("plot_plotly:959 ignored ValueError")
             return color
         if isinstance(color, (tuple, list)):
             if len(color) == 3:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""L03: 验证系统日志中会记录监测信息"""
+"""L03: Verify that monitoring information is recorded in the system log"""
 from __future__ import annotations
 
 import sys

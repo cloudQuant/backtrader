@@ -134,7 +134,7 @@ class TestBokehPlotter:
         assert figpage._data is not None
         assert len(figpage._data) == len(dtime[5:31])
 
-    def test_bokehplotter_plot_parameter_warnings(self, caplog):
+    def test_bokehplotter_plot_parameter_warnings(self, bt_caplog):
         results = _run_strategy(
             start=datetime.datetime(2010, 1, 1), end=datetime.datetime(2010, 6, 30)
         )
@@ -142,18 +142,18 @@ class TestBokehPlotter:
 
         plotter = BokehPlot(style="candle")
 
-        with caplog.at_level(logging.WARNING):
+        with bt_caplog.at_level(logging.WARNING):
             plotter.plot(strategy, numfigs=2, use="some", unknown_arg=1, iplot=False)
 
-        msg = " ".join(rec.getMessage() for rec in caplog.records)
+        msg = " ".join(rec.getMessage() for rec in bt_caplog.records)
         assert "numfigs=2 will be ignored" in msg
         assert "use parameter from cerebro.plot()" in msg
         assert "Unsupported plot() kwargs ignored: unknown_arg" in msg
 
-    def test_bokehplotter_unknown_init_kwargs_warn(self, caplog):
-        with caplog.at_level(logging.WARNING):
+    def test_bokehplotter_unknown_init_kwargs_warn(self, bt_caplog):
+        with bt_caplog.at_level(logging.WARNING):
             BokehPlot(style="bar", unknown_flag=True)
-        msg = " ".join(rec.getMessage() for rec in caplog.records)
+        msg = " ".join(rec.getMessage() for rec in bt_caplog.records)
         assert "Ignoring unsupported BacktraderBokeh kwargs for adapter" in msg
 
     def test_bokehplotter_missing_bokeh_dependency(self, monkeypatch):

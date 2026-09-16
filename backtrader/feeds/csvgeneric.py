@@ -26,7 +26,10 @@ from datetime import date, datetime, timezone
 from .. import feed
 from ..dataseries import TimeFrame
 from ..utils import date2num
+from ..utils.log_message import get_logger
 from ..utils.py3 import integer_types, string_types
+
+logger = get_logger(__name__)
 
 # Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
 UTC = timezone.utc
@@ -480,7 +483,7 @@ class GenericCSVData(feed.CSVDataBase):
         try:
             return object.__getattribute__(self, "_runnext_direct_load_ready_cache")
         except AttributeError:
-            pass
+            logger.debug("csvgeneric:485 ignored AttributeError")
 
         try:
             ready = (
@@ -510,7 +513,7 @@ class GenericCSVData(feed.CSVDataBase):
                         self._load_direct_ymdhms_ohlcv,
                     )
             except AttributeError:
-                pass
+                logger.debug("csvgeneric:515 ignored AttributeError")
         return ready
 
     def _runnext_direct_ymdhms_ohlcv_ready(self):
@@ -518,7 +521,7 @@ class GenericCSVData(feed.CSVDataBase):
         try:
             return object.__getattribute__(self, "_runnext_direct_ymdhms_ohlcv_ready_cache")
         except AttributeError:
-            pass
+            logger.debug("csvgeneric:523 ignored AttributeError")
 
         p = self.p
         try:
@@ -845,7 +848,7 @@ class GenericCSVData(feed.CSVDataBase):
                         minute = int(timefield[3:5])
                         second = int(timefield[6:8])
                     except ValueError:
-                        pass
+                        logger.debug("csvgeneric:850 ignored ValueError")
                     else:
                         year_minus_one = year - 1
                         leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
@@ -925,7 +928,9 @@ class GenericCSVData(feed.CSVDataBase):
                                 close_value = float(linetokens[5] or nullvalue)
                                 volume_value = float(linetokens[6] or nullvalue)
                             except (IndexError, ValueError, TypeError):
-                                pass
+                                logger.debug(
+                                    "csvgeneric:930 ignored IndexError,ValueError,TypeError"
+                                )
                             else:
                                 (
                                     open_line,
@@ -1045,7 +1050,7 @@ class GenericCSVData(feed.CSVDataBase):
                         minute = int(timefield[3:5])
                         second = int(timefield[6:8])
                     except ValueError:
-                        pass
+                        logger.debug("csvgeneric:1050 ignored ValueError")
                     else:
                         year_minus_one = year - 1
                         leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
@@ -1078,7 +1083,7 @@ class GenericCSVData(feed.CSVDataBase):
                         hour = int(timefield[0:2])
                         minute = int(timefield[3:5])
                     except ValueError:
-                        pass
+                        logger.debug("csvgeneric:1083 ignored ValueError")
                     else:
                         year_minus_one = year - 1
                         leap = year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)

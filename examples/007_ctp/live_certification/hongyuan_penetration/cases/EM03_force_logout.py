@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""EM03: 验证系统可通过强制账号退出方式暂停交易"""
+"""EM03: Verify that the system can suspend trading by forcing the account to log out"""
 from __future__ import annotations
 
 import sys

@@ -1,0 +1,242 @@
+[
+ {
+  "exempt": false,
+  "file": "backtrader/analyzer.py",
+  "line": 371
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/strategy.py",
+  "line": 397
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2021
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2023
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2035
+ },
+ {
+  "exempt": true,
+  "file": "backtrader/plot/plot.py",
+  "line": 2172
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/utils/autodict.py",
+  "line": 244
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/utils/autodict.py",
+  "line": 246
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 339
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 340
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 341
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 654
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 719
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 346
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 347
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 348
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 645
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 646
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 710
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/btrun/btrun.py",
+  "line": 711
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1508
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 885
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 1525
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2080
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2659
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2764
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2801
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2828
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2853
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/observers/trade_logger.py",
+  "line": 2881
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 639
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 640
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 641
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 643
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 644
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 645
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 646
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 647
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 649
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 650
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 651
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 652
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 654
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 655
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 656
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 657
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 658
+ },
+ {
+  "exempt": false,
+  "file": "backtrader/reports/reporter.py",
+  "line": 660
+ }
+]

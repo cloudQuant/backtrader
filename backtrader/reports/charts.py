@@ -172,7 +172,7 @@ class ReportChart:
             resampled = series.resample(period_code).last()
             returns = 100 * resampled.pct_change().dropna()
         except (AttributeError, KeyError, TypeError, ValueError) as e:
-            logger.debug("Failed to resample returns with period %s: %s", period_code, e)
+            logger.warning("Failed to resample returns with period %s: %s", period_code, e)
             return None
 
         prev_values = resampled.shift(1).reindex(returns.index)
@@ -325,7 +325,7 @@ class ReportChart:
                 return ("Hourly", "H")
             return ("Per Minute", "T")
         except (AttributeError, IndexError, TypeError, ValueError) as e:
-            logger.debug("Failed to determine periodicity: %s", e)
+            logger.warning("Failed to determine periodicity: %s", e)
             return ("Daily", "D")
 
     def save_to_file(self, fig, filename, format="png"):

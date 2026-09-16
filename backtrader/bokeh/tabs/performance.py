@@ -173,7 +173,7 @@ class PerformanceTab(BokehTab):
                             metrics["total_return"] = (total_return - 1) * 100
 
             except Exception as e:
-                logger.debug("Failed to extract analyzer metrics: %s", e)
+                logger.warning("Failed to extract analyzer metrics: %s", e)
 
         # Get capital info from broker
         if hasattr(strategy, "broker"):
@@ -186,7 +186,7 @@ class PerformanceTab(BokehTab):
                 if "total_return" not in metrics and start_cash > 0:
                     metrics["total_return"] = (end_value - start_cash) / start_cash * 100
             except Exception as e:
-                logger.debug("Failed to get broker capital info: %s", e)
+                logger.warning("Failed to get broker capital info: %s", e)
 
         return metrics
 

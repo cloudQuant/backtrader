@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""T01: 验证能正常下达开仓指令"""
+"""T01: Verify that an open order instruction can be placed normally"""
 from __future__ import annotations
 
 import datetime as dt

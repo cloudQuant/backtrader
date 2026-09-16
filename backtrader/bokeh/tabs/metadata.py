@@ -67,7 +67,7 @@ class MetadataTab(BokehTab):
                     metadata["End Date"] = str(end_dt)
                     metadata["Total Bars"] = len(data)
                 except Exception as e:
-                    logger.debug("Failed to get data range: %s", e)
+                    logger.warning("Failed to get data range: %s", e)
 
         # Indicator info
         if hasattr(strategy, "_lineiterators"):
@@ -87,7 +87,7 @@ class MetadataTab(BokehTab):
                 metadata["Final Value"] = f"{broker.getvalue():.2f}"
                 metadata["Final Cash"] = f"{broker.getcash():.2f}"
             except Exception as e:
-                logger.debug("Failed to get broker info: %s", e)
+                logger.warning("Failed to get broker info: %s", e)
 
         return metadata
 

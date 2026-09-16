@@ -116,7 +116,7 @@ class TestZeroPriceHandling:
 class TestRefreshAccountLogging:
     """Verify _refresh_account logs errors instead of silently swallowing."""
 
-    def test_refresh_account_logs_on_failure(self, caplog):
+    def test_refresh_account_logs_on_failure(self, bt_caplog):
         """Transient balance failure should emit a debug log."""
 
         class FlakyClient(FakeBtApiClient):
@@ -141,15 +141,15 @@ class TestRefreshAccountLogging:
         try:
             client.fail = True
             store._last_balance_refresh = 0.0
-            with caplog.at_level(logging.DEBUG):
+            with bt_caplog.at_level(logging.DEBUG):
                 broker.next()
-            assert any("Failed to refresh account" in r.message for r in caplog.records)
+            assert any("Failed to refresh account" in r.message for r in bt_caplog.records)
             # Cash should remain at old value
             assert broker._cash == pytest.approx(500.0)
         finally:
             broker.stop()
 
-    def test_sync_positions_logs_on_failure(self, caplog):
+    def test_sync_positions_logs_on_failure(self, bt_caplog):
         """Transient positions failure should emit a debug log."""
 
         class FlakyClient(FakeBtApiClient):
@@ -174,13 +174,13 @@ class TestRefreshAccountLogging:
         try:
             client.fail = True
             store._last_positions_refresh = 0.0
-            with caplog.at_level(logging.DEBUG):
+            with bt_caplog.at_level(logging.DEBUG):
                 broker.next()
-            assert any("Failed to sync positions" in r.message for r in caplog.records)
+            assert any("Failed to sync positions" in r.message for r in bt_caplog.records)
         finally:
             broker.stop()
 
-    def test_sync_remote_open_orders_logs_on_failure(self, caplog):
+    def test_sync_remote_open_orders_logs_on_failure(self, bt_caplog):
         """Transient remote open-order sync failure should emit a debug log."""
 
         class FlakyOpenOrdersClient(FakeBtApiClient):
@@ -207,9 +207,9 @@ class TestRefreshAccountLogging:
             store._open_orders_cache_ttl = 0.0
             store._open_orders_cache = []
             store._last_open_orders_refresh = 0.0
-            with caplog.at_level(logging.DEBUG):
+            with bt_caplog.at_level(logging.DEBUG):
                 broker.next()
-            assert any("Failed to sync remote open orders" in r.message for r in caplog.records)
+            assert any("Failed to sync remote open orders" in r.message for r in bt_caplog.records)
         finally:
             broker.stop()
 
@@ -320,6 +320,10 @@ class TestShouldRefresh:
         """Test that zero or negative interval always refreshes."""
         assert BtApiBroker._should_refresh(time.monotonic(), 0) is True
         assert BtApiBroker._should_refresh(time.monotonic(), -1) is True
+
+    def test_uninitialized_refresh_timestamp_always_refreshes(self):
+        """A zero sentinel cannot suppress the first live refresh."""
+        assert BtApiBroker._should_refresh(0.0, 60.0) is True
 
     def test_recent_refresh_is_throttled(self):
         """Test that recent refresh with positive interval is throttled."""

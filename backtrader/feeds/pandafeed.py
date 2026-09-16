@@ -303,7 +303,7 @@ class PandasData(DataBase):
         try:
             self._df_values = df.to_numpy(copy=False)
         except Exception as e:
-            logger.debug("Failed to convert DataFrame to numpy array: %s", e)
+            logger.warning("Failed to convert DataFrame to numpy array: %s", e)
             self._df_values = None
 
         self._dt_dtnum = None
@@ -331,7 +331,7 @@ class PandasData(DataBase):
                     py_dts = [x.to_pydatetime() if hasattr(x, "to_pydatetime") else x for x in ts]
             self._dt_dtnum = [date2num(d) for d in py_dts]
         except Exception as e:
-            logger.debug("Failed to pre-compute datetime numbers: %s", e)
+            logger.warning("Failed to pre-compute datetime numbers: %s", e)
             self._dt_dtnum = None
 
     def _load(self):

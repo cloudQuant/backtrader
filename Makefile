@@ -1,7 +1,9 @@
-.PHONY: help test test-fast test-strategies test-slow test-all test-original lint format type-check security install dev-install clean docs docs-en docs-zh docs-clean docs-offline docs-offline-zh docs-view docs-view-zh
+.PHONY: help test test-fast test-strategies test-slow test-all test-performance test-original lint format type-check security install dev-install clean docs docs-en docs-zh docs-clean docs-offline docs-offline-zh docs-view docs-view-zh
 
 DOCS_BUILD_DIR := docs/_build/html
 DOCS_MPLCONFIGDIR ?= $(CURDIR)/docs/.mplconfig
+BT_CONDA_PYTHON ?= /Users/yunjinqi/opt/anaconda3/bin/conda run --no-capture-output -n base python
+BT_ISOLATED_RSS_STRESS_TEST := tests/unit/test_iteration22_ctp_benchmarks.py::test_short_stress_profile_waits_for_deadline_and_is_incomplete
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -15,34 +17,40 @@ dev-install:  ## Install development dependencies
 	pip install -e .
 
 test:  ## Run all tests
-	python -m pytest tests/original_tests/ -v --tb=short
+	$(BT_CONDA_PYTHON) -m pytest tests/original_tests/ -v --tb=short
 
-test-fast:  ## Fast dev loop (~3.5 min): all non-strategy tests + the fastest ~35% of strategy tests (skips slowest 65%)
-	python -m pytest tests -m "not slow" -n 8 -q
+test-fast:  ## Fast dev loop: parallel functional tests + serial wall-clock microbenchmarks
+	$(BT_CONDA_PYTHON) -m pytest tests -m "not slow and not performance" -n 8 -q
+	$(MAKE) test-performance
 
 test-strategies:  ## Run only the heavy strategy regression suite (~9 min)
-	python -m pytest tests/functional/strategies -n 8 -q
+	$(BT_CONDA_PYTHON) -m pytest tests/functional/strategies -n 8 -q
 
 test-slow:  ## Run only the slowest ~65% of strategy tests (the ones test-fast skips)
-	python -m pytest tests -m slow -n 8 -q
+	$(BT_CONDA_PYTHON) -m pytest tests -m slow -n 8 -q
 
-test-all:  ## Run the entire suite in parallel (~10 min)
-	python -m pytest tests -n 8 -q
+test-all:  ## Run parallel functional tests plus the serial performance gate
+	$(BT_CONDA_PYTHON) -m pytest tests -m "not performance" -n 8 -q
+	$(MAKE) test-performance
+
+test-performance:  ## Run wall-clock microbenchmarks without xdist
+	$(BT_CONDA_PYTHON) -m pytest tests -m performance -n 0 -q --deselect=$(BT_ISOLATED_RSS_STRESS_TEST)
+	$(BT_CONDA_PYTHON) -m pytest $(BT_ISOLATED_RSS_STRESS_TEST) -n 0 -q
 
 test-original:  ## Run only original tests (excluding crypto tests)
-	python -m pytest tests/original_tests/ -v --tb=short --html=tests/report.html
+	$(BT_CONDA_PYTHON) -m pytest tests/original_tests/ -v --tb=short --html=tests/report.html
 
 test-coverage:  ## Run tests with coverage
-	python -m pytest tests/original_tests/ --cov=backtrader --cov-report=html --cov-report=term
+	$(BT_CONDA_PYTHON) -m pytest tests/original_tests/ --cov=backtrader --cov-report=html --cov-report=term
 
 lint:  ## Run pylint
 	pylint backtrader --rcfile=.pylintrc
 
 format:  ## Format code with black
-	black backtrader tests/original_tests --line-length=100
+	$(BT_CONDA_PYTHON) -m black backtrader --line-length=100
 
 format-check:  ## Check if code is formatted
-	black --check backtrader tests/original_tests --line-length=100
+	$(BT_CONDA_PYTHON) -m black --check backtrader --line-length=100
 
 type-check:  ## Run mypy type checking
 	mypy backtrader --config-file=pyproject.toml
@@ -74,7 +82,7 @@ clean:  ## Clean build artifacts
 	find . -type f -name "*.pyc" -delete
 
 benchmark:  ## Run performance benchmarks
-	python -m pytest tests/original_tests/ --benchmark-only
+	$(BT_CONDA_PYTHON) -m pytest tests/original_tests/ --benchmark-only
 
 docs:  ## Generate all documentation (en + zh)
 	$(MAKE) docs-offline

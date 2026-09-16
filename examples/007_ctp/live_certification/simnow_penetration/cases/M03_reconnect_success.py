@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""M03: 验证连接断开后能正常显示重连成功"""
+"""M03: Verify that reconnection success is properly displayed after the connection is broken"""
 from __future__ import annotations
 
 import sys

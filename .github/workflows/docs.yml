@@ -124,7 +124,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/master')
+    # The existing github-pages environment authorizes only development.
+    # Master releases still build both languages and retain the Pages artifact;
+    # publishing a different branch requires a separate environment-policy change.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/development'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

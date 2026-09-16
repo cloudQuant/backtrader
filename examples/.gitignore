@@ -1,0 +1,6 @@
+# SimNow 审批密钥材料：运营者私钥与信任根绝不入库（迭代26 整改新增）
+.simnow-approval-operator-key.json
+.simnow-approval-trust-root.json
+
+# SimNow 运行时证据目录（engineering-smoke / mechanical-cycle 报告等）
+state/

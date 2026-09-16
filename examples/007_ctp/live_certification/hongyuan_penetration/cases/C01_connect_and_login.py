@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""C01: 验证登录测试账号通过柜台认证并完成账号登录"""
+"""C01: Verify that logging in with the test account passes counter authentication and completes account login"""
 from __future__ import annotations
 
 import sys

@@ -14,6 +14,7 @@ Example:
 
 import collections
 import datetime
+import logging
 
 from backtrader.broker import BrokerBase
 
@@ -30,7 +31,10 @@ from backtrader.position_modes import (
     normalize_position_side,
     signed_position_size,
 )
+from backtrader.utils.log_message import _is_output_enabled_for, get_logger
 from backtrader.utils.py3 import integer_types, string_types
+
+logger = get_logger(__name__)
 
 __all__ = ["BackBroker", "BrokerBack"]
 
@@ -566,6 +570,69 @@ class BackBroker(BrokerBase):
             return comminfo.getcommission(size, price)
 
     @staticmethod
+    def _order_log_output_enabled(level):
+        """Return whether an opt-in sink can receive an order lifecycle event."""
+        return logger.isEnabledFor(level) and _is_output_enabled_for(level, logger)
+
+    def _log_order_submitted(self, order):
+        """Record a submitted order only after its status has transitioned."""
+        if not self._order_log_output_enabled(logging.INFO):
+            return
+
+        logger.info(
+            "order submitted: ref=%s side=%s size=%s price=%s data=%s",
+            order.ref,
+            "buy" if order.isbuy() else "sell",
+            order.size,
+            order.price,
+            getattr(order.data, "_name", ""),
+        )
+
+    def _log_order_canceled(self, order):
+        """Record a cancellation only after the order enters its terminal state."""
+        if not self._order_log_output_enabled(logging.INFO):
+            return
+
+        logger.info(
+            "order canceled: ref=%s side=%s size=%s price=%s data=%s",
+            order.ref,
+            "buy" if order.isbuy() else "sell",
+            order.size,
+            order.price,
+            getattr(order.data, "_name", ""),
+        )
+
+    def _log_order_rejected(self, order, reason):
+        """Record an order rejection with a static, caller-supplied reason."""
+        if not self._order_log_output_enabled(logging.WARNING):
+            return
+
+        logger.warning("order rejected: ref=%s reason=%s", order.ref, reason)
+
+    def _log_order_margin(self, order, reason):
+        """Record a terminal insufficient-cash or margin outcome."""
+        if not self._order_log_output_enabled(logging.WARNING):
+            return
+
+        logger.warning("order margin: ref=%s reason=%s", order.ref, reason)
+
+    def _log_order_executed(self, order, *, size, price, commission, cash, data):
+        """Record one execution bit rather than an order's remaining size."""
+        if not self._order_log_output_enabled(logging.INFO):
+            return
+
+        logger.info(
+            "order executed: ref=%s side=%s size=%s price=%s commission=%s cash=%s data=%s",
+            order.ref,
+            "buy" if order.isbuy() else "sell",
+            size,
+            price,
+            commission,
+            cash if cash is not None else "n/a",
+            getattr(data, "_name", ""),
+        )
+
+    @staticmethod
     def _position_storage_key(data):
         return data
 
@@ -659,7 +726,7 @@ class BackBroker(BrokerBase):
     def _validate_close_quantity(self, order, position):
         if not self._is_dual_side_mode():
             return
-        if getattr(order.info, "offset", None) != "close":
+        if getattr(order.info, "offset", None) not in {"close", "close_today", "close_yesterday"}:
             return
         if (
             abs(float(order.executed.remsize or order.size or 0.0))
@@ -678,10 +745,9 @@ class BackBroker(BrokerBase):
         try:
             return self.notifs.popleft()
         except IndexError:
-            # Notification queue is empty; signal "no notification" with None.
-            pass
-
-        return None
+            # An empty queue is the normal per-bar polling result.  Logging it
+            # would turn DEBUG split logs into an O(bar) write path.
+            return None
 
     # Set fund mode
     def set_fundmode(self, fundmode, fundstartval=None):
@@ -886,6 +952,9 @@ class BackBroker(BrokerBase):
             try:
                 queue.remove(order)
             except ValueError:
+                # An order belongs to exactly one queue. A miss in the other
+                # queue is expected cancellation control flow, not a DEBUG
+                # diagnostic.
                 continue
             removed = True
             break
@@ -894,6 +963,7 @@ class BackBroker(BrokerBase):
             return False
 
         order.cancel()
+        self._log_order_canceled(order)
         self.notify(order)
         self._ococheck(order)
         if not bracket:
@@ -1192,6 +1262,24 @@ class BackBroker(BrokerBase):
             return self._sync_net_position(data)
         return self.positions[data]
 
+    def get_cached_report_state(self):
+        """Return the broker's already-computed state without recalculation."""
+        positions = dict(self.positions)
+        position_legs = {}
+        if self._is_dual_side_mode():
+            for data in set(self.long_positions) | set(self.short_positions):
+                positions[data] = self._sync_net_position(data)
+                position_legs[data] = {
+                    "long": self.long_positions.get(data),
+                    "short": self.short_positions.get(data),
+                }
+        return {
+            "cash": self._cash,
+            "value": self._value,
+            "positions": positions,
+            "position_legs": position_legs,
+        }
+
     def orderstatus(self, order):
         """Get the status of an order.
 
@@ -1226,6 +1314,7 @@ class BackBroker(BrokerBase):
             # If parent order ID is not in _pchildren, the order will be rejected and return None
             if pref not in self._pchildren:
                 order.reject()  # parent not there - may have been rejected
+                self._log_order_rejected(order, "parent order missing")
                 self.notify(order)  # reject child, notify
                 return None
         # If they are equal, return parent order ID
@@ -1281,6 +1370,10 @@ class BackBroker(BrokerBase):
         # If either check or checksubmit is False, append order to submit_accept
         else:
             self.submit_accept(order)
+        # ``submit`` can hold an untransmitted bracket child or reject an
+        # invalid child. Emit INFO only after this method has moved the order
+        # through the real Submitted transition.
+        self._log_order_submitted(order)
         # Return order
         return order
 
@@ -1308,6 +1401,7 @@ class BackBroker(BrokerBase):
                 self._validate_close_quantity(order, position)
             except ValueError:
                 order.reject()
+                self._log_order_rejected(order, "close quantity validation failed")
                 self.notify(order)
                 self._ococheck(order)
                 self._bracketize(order, cancel=True)
@@ -1324,6 +1418,7 @@ class BackBroker(BrokerBase):
                 continue
             # If cash is less than 0, insufficient margin, notify order status, call _ococheck and _bracketize
             order.margin()
+            self._log_order_margin(order, "insufficient cash or margin during submission check")
             self.notify(order)
             self._ococheck(order)
             self._bracketize(order, cancel=True)
@@ -1390,6 +1485,7 @@ class BackBroker(BrokerBase):
                     if o is not None and o.ref in ocol:
                         del queue[i]
                         o.cancel()
+                        self._log_order_canceled(o)
                         self.notify(o)
 
     def _ocoize(self, order, oco):
@@ -1769,6 +1865,15 @@ class BackBroker(BrokerBase):
 
             order.addcomminfo(comminfo)
 
+            self._log_order_executed(
+                order,
+                size=execsize,
+                price=price,
+                commission=closedcomm + openedcomm,
+                cash=cash,
+                data=data,
+            )
+
             self.notify(order)
             self._ococheck(order)
 
@@ -1776,6 +1881,7 @@ class BackBroker(BrokerBase):
         if popened and not opened:
             # opened was not executed - not enough cash
             order.margin()
+            self._log_order_margin(order, "insufficient cash or margin at execution")
             self.notify(order)
             self._ococheck(order)
             self._bracketize(order, cancel=True)
@@ -1807,13 +1913,14 @@ class BackBroker(BrokerBase):
         else:
             signed_position = position
 
-        if getattr(order.info, "offset", None) == "close":
+        if getattr(order.info, "offset", None) in {"close", "close_today", "close_yesterday"}:
             available = abs(float(signed_position.size or 0.0))
             required = abs(float(size or 0.0))
             if required > available + 1e-12:
                 if ago is None:
                     return float("-inf")
                 order.reject()
+                self._log_order_rejected(order, "close quantity exceeds available position")
                 self.notify(order)
                 self._ococheck(order)
                 self._bracketize(order, cancel=True)
@@ -1914,11 +2021,21 @@ class BackBroker(BrokerBase):
             )
 
             order.addcomminfo(comminfo)
+
+            self._log_order_executed(
+                order,
+                size=execsize,
+                price=price,
+                commission=closedcomm + openedcomm,
+                cash=cash,
+                data=data,
+            )
             self.notify(order)
             self._ococheck(order)
 
         if popened and not opened:
             order.margin()
+            self._log_order_margin(order, "insufficient cash or margin at execution")
             self.notify(order)
             self._ococheck(order)
             self._bracketize(order, cancel=True)

@@ -13,7 +13,7 @@ trading. This repo is a performance-oriented fork of the original
 metaprogramming** in favor of explicit mixin + factory initialization while
 keeping the public API compatible.
 
-- **Version**: `1.3.0` (see `backtrader/version.py`)
+- **Version**: `1.4.0` (see `backtrader/version.py`)
 - **License**: GPLv3
 - **Python**: 3.8–3.13 (classifiers in `setup.py`; 3.11 recommended)
 - **Not on PyPI** — install from source only.
@@ -74,12 +74,13 @@ tiers by **measured per-file duration**, applied dynamically at collection time
 (no test files are edited):
 
 ```bash
-make test-fast        # ~3.5 min: all non-strategy tests + fastest ~35% of
-                      #   strategy tests. Daily "did I break anything" loop.
-                      #   == pytest tests -m "not slow" -n 8 -q
+make test-fast        # parallel non-performance tests + serial wall-clock
+                      #   microbenchmarks; excludes slowest ~65% of strategy tests.
+                      #   Daily "did I break anything" loop.
 make test-slow        # the slowest ~65% strategy tests test-fast skips
 make test-strategies  # all 1,271 strategy regression tests (~9 min)
-make test-all         # entire suite in parallel (~10 min)
+make test-all         # parallel functional suite + serial wall-clock microbenchmarks
+make test-performance # wall-clock microbenchmarks without xdist
 make test-coverage    # coverage report
 
 # Single test, verbose:
@@ -98,6 +99,15 @@ How the split works:
   `=50` (broader).
 - Refresh timings after adding/removing strategy tests:
   `python scripts/refresh_strategy_durations.py`.
+
+Wall-clock microbenchmarks and time-bounded latency contracts have a separate
+serial lane: those tests are explicitly skipped under xdist or coverage tracing
+and `make test-performance` runs them without either. Its short RSS stress
+profile uses a separate fresh pytest process so suite-import RSS cannot be
+mistaken for the profile's process-tree budget. `make test-fast` and
+`make test-all` include that serial lane after their parallel functional tests,
+preserving each performance contract without treating worker scheduling noise
+as an application regression.
 
 ### Choosing which `backtrader` to test against
 
@@ -191,9 +201,15 @@ Access patterns: `data.close[0]` (current bar), `data.close[-1]` (previous).
 - `feed.py` + `feeds/` (17 files) — CSV, pandas, IB, CCXT, etc.;
   `resamplerfilter.py` for resample/replay.
 - `broker.py` + `brokers/` — order matching and portfolio state.
-- `cerebro.py` (~2,440 lines) — orchestrator. `run()` → `runstrategies()` →
-  `_runonce()` (vectorized) or `_runnext()` (event-driven). Tick-level mode is
-  also supported.
+- `cerebro.py` (~830 lines, public facade) + `_cerebro/` private mixin package
+  (9 files, iteration 28 split) — orchestrator. The facade keeps the `Cerebro`
+  class definition (params/descriptors/`__init__`/`run`/pickle protocol) and
+  `OptReturn`; `registry/notifications/lifecycle/channel/execution` hold
+  configuration, dispatch and orchestration; `runnext`/`runonce` hold the
+  four engine loops (hot paths — verbatim-moved, see
+  `docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/`).
+  `run()` → `runstrategies()` → `_runonce()` (vectorized) or `_runnext()`
+  (event-driven). Tick-level mode is also supported.
 
 ### Indicator registration & multi-data clocks (high-bug-risk area)
 
@@ -237,7 +253,8 @@ Data Feed(s) → Cerebro → Strategy → Indicators / Observers / Analyzers
 
 ```
 backtrader/            core library
-  cerebro.py strategy.py indicator.py analyzer.py observer.py broker.py feed.py
+  cerebro.py (facade) + _cerebro/ (private engine mixins) strategy.py
+  indicator.py analyzer.py observer.py broker.py feed.py
   metabase.py parameters.py
   lineroot.py linebuffer.py lineseries.py lineiterator.py dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/
@@ -253,12 +270,77 @@ docs/                  Sphinx docs (EN + ZH) + design/bug notes
 scripts/               optimize_code.sh, refresh_strategy_durations.py,
                        run_strategy_branch_compare.py, …
 studies/               research/diagnostic scripts (e.g. branch_compare/)
+examples/012_1_midfreq_cross_exchange/  mid-frequency OKX/Binance perpetual example
+examples/012_2_event_driven_cross_exchange/ event-driven OKX/Binance perpetual candidate
+examples/013_3_sa_midfreq_simnow/ controlled CTP/SimNow SA mid-frequency example
+examples/strategy-candidate-manifest.json  hash-bound research/demo admission manifest
+examples/strategy_candidate_approval.py  candidate-specific receipt/provenance policy
 Makefile pyproject.toml setup.py pytest.ini requirements.txt conftest.py
 ```
 
 The three AI products are not vendored and are not Git submodules. Make product
 changes, packaging releases, and product-specific acceptance changes in their
 respective repositories; this repository only links to them from its README.
+
+The cross-exchange arbitrage examples use `BtApiStore.getdata()` / `BtApiFeed`
+with `orderbook_as_ticks=True` and `TimeFrame.Ticks`. Native `notify_orderbook`
+callbacks drive `bt.Strategy.buy/sell` and `notify_order`; `BtApiBroker` routes
+demo orders through public `BtApi` methods with `normalized=True`.
+The SDK owns venue schemas, request mapping and optional execution-session state
+(durable intents, unique client IDs, uncertain-order reconciliation and fees).
+`bt_api_py.cross_venue` owns only provider-neutral, stateless typed execution
+planning: quantity lattices, executable VWAP, cost accounting, funding schedule
+validation and normalized orderbook evidence. It consumes SDK contracts and
+does not own a client, account, order, pair state, alpha, or compensation policy.
+The store holds `BtApi` directly and only maps framework orders, references and
+native market-data objects; there is no second Backtrader trading client.
+`examples/strategy_candidate_approval.py` binds the two example candidates'
+manifest, offline receipt and source provenance. It is example admission policy,
+not a Backtrader utility or SDK protocol.
+OKX endpoint selection belongs to the SDK through
+`api_region=global|eea|us|tr`: REST plus public/private/business WebSockets use
+one atomic region/environment profile. Global/EEA/US support production and
+demo; TR currently supports only production, so `tr+demo` fails before network
+I/O. OKX 50119 proves that the selected credential/domain combination was
+rejected; by itself it does not distinguish region, key, secret, passphrase,
+expiry, or permission causes.
+Funding is a typed SDK read model. `BtApiStore` refreshes it on a separate
+single-concurrency read-only lane with request coalescing, TTL/schedule-boundary
+expiry, and generation fencing; strategy callbacks only read the local cache.
+This snapshot supports entry reserves and settlement-window risk. The SDK does
+not yet expose a unified, pagination-complete, account-bound OKX/Binance funding
+cashflow ledger, so a cycle crossing settlement cannot claim complete realized
+net PnL. The production status is
+`PRODUCTION_BLOCKED_ACTUAL_FUNDING_CASHFLOW_LEDGER`: venue-level single-page raw
+income/bills parsers do not prove pagination coverage, identity, deduplication,
+aggregation, settlement latency, or a complete empty result. Idle risk also
+advances without a new bar through `notify_idle` polling.
+The `exchange_kwargs` and `symbol_routes`
+configuration supports multiple providers in a single broker. Amounts remain native units
+(OKX contracts / Binance BTC); strategy sizing uses metadata multipliers.
+The examples require independently verified dual-side/hedge mode and maintain
+long/short legs separately; no net-position fallback is accepted. `shadow` uses
+public production books with zero orders/fills/PnL, `paper-live` uses public books
+with local hypothetical fills, and only `demo` can submit exchange orders. Demo
+writes additionally require a strategy-specific, hash-bound approval receipt.
+Both Iteration 21 frozen candidates failed their pre-OOS calibration cost screen,
+so their `paper-live` simulated-fill and `demo` order paths remain prohibited;
+read-only shadow and demo preflight remain available. Any new economic attempt
+requires a new candidate ID, preregistration, and untouched holdout.
+Credentials are kept in each example's ignored `.env`. Deterministic `replay`
+reports are formula fixtures with zero orders/fills and no PnL; the native
+Store/Feed/Cerebro/Broker path is tested separately. The second candidate is
+classified as event-driven and remains `HFT FAIL/NOT_ADMITTED` until end-to-end
+latency, queue and real-fill evidence exists.
+
+The Iteration 22 SA example uses one authoritative `BtApiFeed` to dispatch CTP
+quote events and form watermark-closed one-minute bars. CTP trading admission
+requires typed terminal account/position/order/trade/reference queries bound to
+one stable connection generation and account fingerprint. `replay` is an
+offline zero-write path, `shadow` is read-only, and `simnow` additionally
+requires a hash-bound approval receipt plus a complete first-set observation
+gate. The example never treats replay output or a single SimNow day as evidence
+that the strategy is profitable.
 
 ## Tests
 
@@ -302,6 +384,34 @@ respective repositories; this repository only links to them from its README.
   and compare runonce vs runnext output (the branch-compare harness in
   `studies/branch_compare/` + `scripts/run_strategy_branch_compare.py` with
   `TradeLogger` is the established way to localize divergences).
+
+## Logging (iteration 29)
+
+- Single entry point `backtrader/utils/log_message.py` (`get_logger`,
+  `configure_logging`, throttled storm suppression). See
+  `docs/LOGGING_GUIDELINES.md`; baseline catalogs are regenerable via
+  `python scripts/scan_logging_baseline.py --out <dir>`.
+- Default silence: nothing is emitted or written until
+  `configure_logging(...)` is called (protected by tests).
+- Split-file layout (opt-in): `configure_logging(level="INFO",
+  log_dir="logs")` writes `logs/<script>/<YYYY_MM_DD>/{error,warning,info}.log`
+  (level-exact routing, `debug.log` at DEBUG level). `<script>` auto-detects
+  from `sys.argv[0]` (`xxx/run.py` -> `xxx_run`); `script_name=` overrides;
+  `retention_days=30` prunes only that script's expired date dirs;
+  child processes (cerebro optimize) get `.p{pid}` suffixes.
+- Write backend: `backend="auto"` prefers the optional `spdlog` package
+  (PyPI `spdlog` 2.0.6, sdist build — macOS/Python 3.11 verified working)
+  and silently falls back to stdlib; `"spdlog"` raises ImportError if
+  unavailable; `"stdlib"` forces pure stdlib. `get_logger()` always returns
+  a stdlib `Logger` — spdlog is mounted as a `logging.Handler`.
+- Silent-exception policy: no new `except: pass/continue` without a log
+  line; bare re-raises log an ERROR first; hot-loop repeats use
+  `throttled_error`/`throttled_warning`. CLI tools (`btrun`,
+  `reports/reporter.py`) and public APIs (`Analyzer.print`, `Strategy.log`)
+  keep `print` on purpose.
+- Key lifecycle INFO (run start/finish, feed load, strategy nextstart/stop,
+  order submit/fill/reject in `bbroker`) is per-run/per-order — never per
+  bar; keep it that way in hot paths.
 
 ## Code style & constraints
 

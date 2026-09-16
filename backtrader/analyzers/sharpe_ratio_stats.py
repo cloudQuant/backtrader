@@ -17,6 +17,10 @@ import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
 
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
+
 
 def _is_integer_like(value):
     try:
@@ -382,6 +386,7 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
         try:
             p = float(p)
         except (TypeError, ValueError):
+            logger.error("sharpe_ratio_stats:387 re-raising TypeError,ValueError", exc_info=True)
             raise ValueError("num_independent_trials requires scalar p") from None
         if not np.isfinite(p):
             p = 0.0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""EM01: 验证系统可通过限制账号交易权限方式暂停交易"""
+"""EM01: Verify that the system can suspend trading by restricting the account's trading permission"""
 from __future__ import annotations
 
 import sys

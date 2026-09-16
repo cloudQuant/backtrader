@@ -23,7 +23,7 @@ import sys
 from . import metabase
 from .linebuffer import INF, NAN, NEG_INF, LineActions, LineBuffer, LineDelay
 from .lineroot import LineMultiple
-from .utils.log_message import get_logger
+from .utils.log_message import get_logger, throttled_error, throttled_warning
 from .utils.py3 import range, string_types
 
 logger = get_logger(__name__)
@@ -101,6 +101,12 @@ def _propagate_assignment_minperiod(owner, child):
             if child_minperiod > owner_minperiod:
                 owner._minperiod = child_minperiod
     except Exception:
+        throttled_warning(
+            logger,
+            "lineseries.assignment_minperiod.propagation_recovery",
+            "Line assignment minperiod propagation failed; retaining owner period",
+            exc_info=False,
+        )
         return
 
     return
@@ -945,6 +951,7 @@ class Lines:
             value: Value to assign (scalar, indicator, or iterable).
         """
         # CRITICAL FIX: Enhanced line assignment with proper scalar and indicator handling
+        assignment_failure_key = "assignment"
         try:
             # CRITICAL FIX: Get the line index/name first
             if isinstance(line, string_types):
@@ -1044,12 +1051,11 @@ class Lines:
                             line_buffer._idx = line_buffer.lencount - 1
                             self.lines[line] = line_buffer
                         except Exception:
-                            logger.debug(
-                                "Failed to materialize iterable assignment in LineSeries.__setitem__",
-                                exc_info=True,
-                            )
-                            # Fallback: assign directly
-                            self.lines[line] = value
+                            # An iterable assignment must fully materialize into a
+                            # bound line.  Directly replacing it loses that binding,
+                            # so preserve the original failure for the caller.
+                            assignment_failure_key = "iterable"
+                            raise
                     else:
                         # Other types - assign directly and hope for the best
                         self.lines[line] = value
@@ -1062,30 +1068,24 @@ class Lines:
                     setattr(self, str(line), value)
 
         except Exception:
-            logger.debug("Primary assignment failed in LineSeries.__setitem__", exc_info=True)
-            # If assignment fails, try various fallback approaches
-            try:
-                # Fallback 1: direct attribute assignment
-                if isinstance(line, string_types):
-                    setattr(self, line, value)
-                elif isinstance(line, int) and hasattr(self, "lines"):
-                    # Fallback 2: extend lines list if needed
-                    while len(getattr(self, "lines", [])) <= line:
-                        if not hasattr(self, "lines"):
-                            self.lines = []
-                        self.lines.append(None)
-                    self.lines[line] = value
-                else:
-                    # Fallback 3: convert to string and set attribute
-                    setattr(self, str(line), value)
-            except Exception:
-                logger.debug(
-                    "Secondary fallback assignment failed in LineSeries.__setitem__", exc_info=True
+            # A failed assignment cannot be made correct by storing an
+            # unconsumed side value.  Preserve the original exception after
+            # one fixed diagnostic at this propagation boundary.
+            if assignment_failure_key == "iterable":
+                throttled_error(
+                    logger,
+                    "lineseries.lines.setitem.iterable_failure",
+                    "Lines iterable assignment failed; propagating exception",
+                    exc_info=False,
                 )
-                # Final fallback: store in a special dict
-                if not hasattr(self, "_line_assignments"):
-                    self._line_assignments = {}
-                self._line_assignments[line] = value
+            else:
+                throttled_error(
+                    logger,
+                    "lineseries.lines.setitem.assignment_failure",
+                    "Lines assignment failed; propagating exception",
+                    exc_info=False,
+                )
+            raise
 
     def forward(self, value=NAN, size=1):
         """Forward all lines by the specified size.
@@ -1102,8 +1102,13 @@ class Lines:
                         try:
                             if line.lencount >= len(clock):
                                 continue
-                        except Exception as e:
-                            logger.debug("Failed to check clock length in Lines.forward: %s", e)
+                        except Exception:
+                            throttled_warning(
+                                logger,
+                                "lineseries.lines.forward.clock_length_recovery",
+                                "Lines clock length lookup failed; continuing forward",
+                                exc_info=False,
+                            )
 
                 if line.mode == line.QBuffer:
                     line.idx = line._idx + 1
@@ -1259,7 +1264,8 @@ class Lines:
                 try:
                     return class_attr.__get__(self, cls)
                 except AttributeError:
-                    pass  # Not a descriptor
+                    # Not a descriptor
+                    pass
         except (AttributeError, TypeError):
             # No matching class attribute/descriptor; fall through to delegation.
             pass
@@ -1834,10 +1840,12 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 setattr_obj(self, name, result)  # Cache it for next time!
                 return result
             except AttributeError:
-                pass  # Not in lines either
+                # Not in lines either
+                pass
 
         except AttributeError:
-            pass  # No lines attribute
+            # No lines attribute
+            pass
 
         # Not found anywhere
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
@@ -1952,6 +1960,12 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 except AttributeError:
                     return len(line0)
             except Exception:
+                throttled_warning(
+                    logger,
+                    "lineseries_length_recovery",
+                    "LineSeries length recovery failed; returning 0",
+                    exc_info=False,
+                )
                 return 0
 
     def __getitem__(self, key):
@@ -1974,6 +1988,12 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # Cache it for next time
                 object.__setattr__(self, "_line0_cache", line0)
             except Exception:
+                throttled_warning(
+                    logger,
+                    "lineseries_item_recovery",
+                    "LineSeries item recovery failed; returning 0.0",
+                    exc_info=False,
+                )
                 return 0.0
 
         try:
@@ -2142,9 +2162,12 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                         try:
                             if line.lencount >= len(clock):
                                 continue
-                        except Exception as e:
-                            logger.debug(
-                                "Failed to check clock length in LineSeries.forward: %s", e
+                        except Exception:
+                            throttled_warning(
+                                logger,
+                                "lineseries.lineseries.forward.clock_length_recovery",
+                                "LineSeries clock length lookup failed; continuing forward",
+                                exc_info=False,
                             )
 
                 if line.mode == line.QBuffer:
@@ -2394,6 +2417,12 @@ def _patch_strategy_clk_update():
                     else:
                         clk_len = 1
                 except Exception:
+                    throttled_warning(
+                        logger,
+                        "lineseries_strategy_clock_oldsync_recovery",
+                        "Strategy clock recovery failed; using length 1",
+                        exc_info=False,
+                    )
                     clk_len = 1
 
                 # CRITICAL FIX: Set datetime safely
@@ -2443,6 +2472,12 @@ def _patch_strategy_clk_update():
                     try:
                         newdlens.append(len(d) if hasattr(d, "__len__") else 0)
                     except Exception:
+                        throttled_warning(
+                            logger,
+                            "lineseries_strategy_clock_data_length_recovery",
+                            "Strategy data length recovery failed; using length 0",
+                            exc_info=False,
+                        )
                         newdlens.append(0)
             else:
                 newdlens = []
@@ -2460,8 +2495,13 @@ def _patch_strategy_clk_update():
                 try:
                     if hasattr(self, "forward"):
                         self.forward()
-                except Exception as e:
-                    logger.debug("Failed to forward in _clk_update: %s", e)
+                except Exception:
+                    throttled_warning(
+                        logger,
+                        "lineseries.strategy_clock.forward_recovery",
+                        "Strategy compatibility clock forward failed; continuing update",
+                        exc_info=False,
+                    )
 
             self._dlens = newdlens
 
@@ -2497,9 +2537,21 @@ def _patch_strategy_clk_update():
             # Strategy module not loaded yet
             return False
         except Exception:
+            throttled_warning(
+                logger,
+                "lineseries.strategy_clock.patch_recovery",
+                "Strategy compatibility clock patch installation failed; returning False",
+                exc_info=False,
+            )
             return False
 
     except Exception:
+        throttled_warning(
+            logger,
+            "lineseries.strategy_clock.patch_recovery",
+            "Strategy compatibility clock patch installation failed; returning False",
+            exc_info=False,
+        )
         return False
 
 

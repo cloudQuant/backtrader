@@ -1,0 +1,32 @@
+{
+  "schema_version": "iter27.iter23-25-set2-postfix.v1",
+  "record_date": "2026-09-14",
+  "runtime_code_base_commit": "4c398e289a33be586fbeb89bb4aef951e341f7b4",
+  "source_patch_sha256": "25fd7cf4e9a4a6aacfe37809bdb538782b126a29390a58674fa737135f5c48e3",
+  "scope": "post-fix direct external read-only CTP operator; no Iter23/Iter24/Iter25 strategy result is claimed",
+  "credential_boundary": {
+    "operator_directly_read_credentials": false,
+    "operator_printed_or_committed_credentials": false,
+    "runner_loaded_existing_ignored_environment_configuration": true
+  },
+  "run": {
+    "id": "iter23-25-set2-operator-postfix",
+    "command_shape": "ctp_options_simnow_operator --environment second_7x24 --purpose engineering_smoke --query-timeout 60",
+    "status": "BLOCKED",
+    "reason": "BUNDLE_SELECTION_FAILED:BUNDLE_MISSING_OR_AMBIGUOUS",
+    "external_request_counts": {
+      "order_write": 0
+    },
+    "source_evidence": {
+      "owner_local_path": "/tmp/iter23-25-set2-final.T1pylR/result.json",
+      "sha256": "89eb173ced802980953b6eca759fe6ee429062631251581a6d58ae61fa17e9b2"
+    }
+  },
+  "disposition": {
+    "strategy_observation": "NOT_STARTED",
+    "one_hour_engineering_observation": "NOT_STARTED",
+    "g3_or_g4_advanced": false,
+    "hft_admission": "NO_GO",
+    "claim": "The terminal operator record proves only the listed fail-closed status and zero order writes. It does not prove a SimNow strategy run, market-data delivery, logic correctness, or a one-hour observation."
+  }
+}

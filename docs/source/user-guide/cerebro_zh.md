@@ -225,10 +225,34 @@ drawdown = strat.analyzers.drawdown.get_analysis()
 ### runstop
 
 ```python
-cerebro.runstop = False  # 设置为 True 以停止执行
+cerebro.runstop()  # 请求在当前运行的下一个安全检查点停止
 
-```bash
-提前终止的停止标志。
+```
+请求提前终止当前正在执行的 `cerebro.run()` 或外部 Channel 会话。可从策略回调或其他线程（例如
+`threading.Timer`）安全调用。运行开始前或结束后的调用会被忽略。
+
+`run(channel=True)` 会创建外部 Channel 会话：它立即返回策略实例，但 Broker 和策略仍保持活动状态，
+供调用方的外部事件循环驱动。启动该会话的线程必须在停止分发回调后关闭会话：
+
+```python
+strategies = cerebro.run(channel=True)
+try:
+    # 从外部事件循环驱动策略。
+    # 策略回调或其他线程可以调用 cerebro.runstop()。
+    ...
+finally:
+    cerebro.close_channel()
+```
+
+对于这类会话，`runstop()` 只记录停止请求；它绝不会在外部线程中销毁 Broker 或策略。
+`close_channel()` 负责销毁，且必须由启动 `run(channel=True)` 的同一线程调用。相对地，
+`run(channel=iterable)` 仍是同步路径：当 iterable 结束或观察到 `runstop()` 时会自动销毁。
+
+若要复用同一个 Cerebro 实例，请在启动下一次运行前取消或按 generation 绑定上一次运行的 Timer。
+若旧回调在下一次运行已经开始后才触发，它与新的停止请求无法区分，因此会作用于当前活动运行。
+
+`runstop()` 是方法而不是可赋值的停止标志。它只作用于当前进程中的活动运行；不能用作优化 worker
+之间的跨进程停止机制。
 
 ## 绘图
 

@@ -97,7 +97,7 @@ def evaluate(strategy_dir: Path) -> dict | None:
     resolved_paths: list[Path] = []
     for ref in data_files:
         if ref.startswith("../../../datas/"):
-            tail = ref.removeprefix("../../../datas/")
+            tail = ref[len("../../../datas/") :]
             p = DATA_ROOT / tail
         else:
             p = (strategy_dir / ref).resolve()

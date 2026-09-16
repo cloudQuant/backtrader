@@ -1,0 +1,5 @@
+{
+  "endpoint": "https://jc.joyintech.com/jc/mcp/jccb",
+  "timeout": 30,
+  "projectId": "0"
+}

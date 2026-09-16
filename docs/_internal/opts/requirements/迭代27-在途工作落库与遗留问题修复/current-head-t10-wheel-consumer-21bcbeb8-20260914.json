@@ -1,0 +1,60 @@
+{
+  "schema_version": "iteration27.clean-head-t10-verification.v2",
+  "recorded_on": "2026-09-14",
+  "status": "PASS_WHEEL_CONSUMER_CORE_REVALIDATION_REPLAYS_NOT_PACKAGED",
+  "scope": "Current-head five-wheel build and external consumer import/native-load validation; source examples were not copied into the consumer.",
+  "source_result": {
+    "owner_local_path": "/tmp/iter27-t10-21bcbeb8.I7Ie2m/results/t10-result.json",
+    "sha256": "21200b85d7a927ca208b24294a4bbf59839020eb569383c5a83e72f30893afe3",
+    "retention_boundary": "The volatile result contains only non-secret build and assertion facts. This tracked receipt excludes credentials, environment-file contents, account data, endpoints and raw execution reports."
+  },
+  "sources": {
+    "backtrader": "21bcbeb8b48851c1da28f1153418e0585936c1a1",
+    "bt_api_py": "b22a678521278de23cf6a86fe8dd755e7052fa74",
+    "gitlinks": {
+      "bt_api_base": "74be52d8432c348c93304e9f3b5774bb4dbc766c",
+      "bt_api_binance": "12f2a667be0e8988559cb836c3fd439f6c131ec6",
+      "bt_api_ctp": "b371098d5f7f91c8843da1ff6ded6da568ac8f4e"
+    },
+    "source_status_porcelain": {
+      "backtrader": "",
+      "bt_api_py": ""
+    }
+  },
+  "consumer": {
+    "external_cwd": true,
+    "python_isolated_mode": true,
+    "venv_system_site_packages": true,
+    "install_flags": ["--no-index", "--no-deps", "--force-reinstall"],
+    "all_target_import_origins_under_consumer_site_packages": true,
+    "source_paths_after_guard": [],
+    "ctp_native_loader": "ExtensionFileLoader",
+    "ctp_native_import_error": null,
+    "boundary": "The consumer inherits third-party dependencies from Anaconda base, but every target package is loaded from its locally installed wheel."
+  },
+  "wheels": {
+    "backtrader-1.3.0-py3-none-any.whl": "9e1787c263dc8de796ec6098d2c47ce2815c88ba24fb0f827649263e2887f313",
+    "bt_api_base-0.15.3-py3-none-any.whl": "62c07d1a47c46e074792039f28423929309a004bfdde152258e371fb66e6dcef",
+    "bt_api_binance-2.0.1-py3-none-any.whl": "22ffc2a80df23ce1c82c851ec0d8b5a77b364876f2d6ab4a1cf838911b98adc9",
+    "bt_api_ctp-2.0.0-cp311-cp311-macosx_11_0_arm64.whl": "d99e1f5a094e90a233a18c029c95c219821bbd755d308299ee270a56b835f035",
+    "bt_api_py-0.15.3-py3-none-any.whl": "be818c544016000acfef77f78c1d1ea7827781337bfe6da40236b3447a4f33a5",
+    "installed_ctp_native_extension": "b49b009529b197025afe6561285fda428959240b9de515fa76bfa165719971f5"
+  },
+  "offline_replays": {
+    "013_3_sa_midfreq_simnow": "SKIPPED_NOT_WHEEL_PACKAGED",
+    "014_1_ctp_options_lowfreq": "SKIPPED_NOT_WHEEL_PACKAGED",
+    "014_2_ctp_options_midfreq": "SKIPPED_NOT_WHEEL_PACKAGED",
+    "015_ctp_options_highfreq": "SKIPPED_NOT_WHEEL_PACKAGED",
+    "reason": "No wheel contains these source example directories. Copying a checkout into the consumer would not verify package contents."
+  },
+  "safety": {
+    "read_dotenv": false,
+    "live_session_invoked": false,
+    "network_dependency_resolution": false
+  },
+  "limits": [
+    "This receipt proves current-source wheel contents, isolated target origins and CTP native loading only.",
+    "It does not prove wheel-packaged example replays because the examples are not packaged.",
+    "It proves no CTP/SimNow account or session, live orders, fills, PnL, profitability, HFT admission, release or production readiness."
+  ]
+}

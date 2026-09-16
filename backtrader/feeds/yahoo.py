@@ -147,7 +147,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
             v = float(linetokens[next(i)])
         except (ValueError, TypeError, IndexError, StopIteration) as e:
             # cover the case in which volume is "null" / missing
-            logger.debug("volume parse failed, defaulting to 0.0: %s", e)
+            logger.warning("volume parse failed, defaulting to 0.0: %s", e)
             v = 0.0
         # If swapping close price and adjusted close price, perform swap
         if self.p.swapcloses:  # swap closing prices if requested

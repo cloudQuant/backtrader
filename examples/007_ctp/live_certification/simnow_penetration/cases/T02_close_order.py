@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""T02: 验证能正常下达平仓指令"""
+"""T02: Verify that a close order instruction can be placed normally"""
 from __future__ import annotations
 
 import sys

@@ -23,7 +23,10 @@ from typing import List, Optional, Union, cast
 
 from .lineseries import LineSeries
 from .parameters import ParameterizedBase
+from .utils.log_message import get_logger
 from .utils.py3 import integer_types, map, string_types
+
+logger = get_logger(__name__)
 
 
 # WriterBase class - refactored to not use metaclass
@@ -140,7 +143,7 @@ class WriterFile(WriterBase):
                 self.out.close()
             except OSError:
                 # Stream already closed or not closable; nothing more to do.
-                pass
+                logger.warning("writer:145 suppressed OSError")
 
     def __enter__(self):
         """Support context manager protocol."""

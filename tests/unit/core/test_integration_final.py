@@ -35,6 +35,8 @@ import backtrader as bt
 import os
 import sys
 
+import pytest
+
 import backtrader as bt
 from backtrader.brokers.bbroker import BackBroker
 from backtrader.parameters import Bool, Float, ParameterDescriptor
@@ -135,6 +137,7 @@ def test_parameter_validation_integration():
     print("Parameter validation integration test passed!")
 
 
+@pytest.mark.performance
 def test_performance_integration():
     """Test performance of integrated systems.
 

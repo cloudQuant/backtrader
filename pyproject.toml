@@ -66,6 +66,8 @@ module = [
     "backtrader.analyzer",
     "backtrader.utils.fractal",
     "backtrader.profiles",
+    "backtrader._cerebro",
+    "backtrader._cerebro.*",
     "backtrader.commissions.*",
     "backtrader.sizers.*",
     "backtrader.reports.*",

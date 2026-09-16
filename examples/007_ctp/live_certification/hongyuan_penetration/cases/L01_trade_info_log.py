@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""L01: 验证系统日志中会记录交易信息"""
+"""L01: Verify that trading information is recorded in the system log"""
 from __future__ import annotations
 
 import sys

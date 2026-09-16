@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""EM02: 验证系统可通过暂停策略执行方式暂停交易"""
+"""EM02: Verify that the system can suspend trading by pausing strategy execution"""
 from __future__ import annotations
 
 import datetime as dt

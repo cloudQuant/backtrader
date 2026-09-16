@@ -173,6 +173,7 @@ class PerformanceTester:
         )
 
 
+@pytest.mark.performance
 class TestParameterAccessPerformance:
     """Test parameter access performance.
 
@@ -196,6 +197,7 @@ class TestParameterAccessPerformance:
                 param2 (str): Second test parameter.
                 param3 (float): Third test parameter.
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -218,6 +220,7 @@ class TestParameterAccessPerformance:
                 param9 (str): String parameter with OneOf validator.
                 param10 (str): String parameter with String validator (1-50 chars).
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -265,6 +268,7 @@ class TestParameterAccessPerformance:
                 param19 (str): String parameter with OneOf validator.
                 param20 (str): String parameter with String validator (1-100 chars).
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -448,6 +452,9 @@ class TestParameterAccessPerformance:
             AssertionError: If validation overhead is excessive (> 5x).
         """
 
+        if os.environ.get("COV_CORE_SOURCE"):
+            pytest.skip("coverage tracing makes microbenchmark timing unreliable")
+
         # Create objects with and without validation
         class NoValidationClass(ParameterizedBase):
             """Test class without parameter validation for baseline performance.
@@ -455,6 +462,7 @@ class TestParameterAccessPerformance:
             Attributes:
                 simple_param (int): Simple integer parameter without validation.
             """
+
             simple_param = ParameterDescriptor(default=10, type_=int)
 
         class WithValidationClass(ParameterizedBase):
@@ -465,6 +473,7 @@ class TestParameterAccessPerformance:
             Attributes:
                 validated_param (int): Integer parameter with Int validator (0-100).
             """
+
             validated_param = ParameterDescriptor(
                 default=10, type_=int, validator=Int(min_val=0, max_val=100)
             )
@@ -472,19 +481,26 @@ class TestParameterAccessPerformance:
         no_val_obj = NoValidationClass()
         val_obj = WithValidationClass()
 
-        # Test performance difference
-        no_val_result = PerformanceTester.time_operation(
-            "set_no_validation", lambda: no_val_obj.set_param("simple_param", 50), iterations=5000
-        )
+        # Compare paired samples and use the median. A single pair can be distorted
+        # when an xdist worker is descheduled between the baseline and validation
+        # measurements; a sustained validation regression still moves the median.
+        overhead_ratios = []
+        for _ in range(5):
+            no_val_result = PerformanceTester.time_operation(
+                "set_no_validation",
+                lambda: no_val_obj.set_param("simple_param", 50),
+                iterations=5000,
+            )
+            val_result = PerformanceTester.time_operation(
+                "set_with_validation",
+                lambda: val_obj.set_param("validated_param", 50),
+                iterations=5000,
+            )
+            overhead_ratios.append(val_result.avg_time / no_val_result.avg_time)
 
-        val_result = PerformanceTester.time_operation(
-            "set_with_validation", lambda: val_obj.set_param("validated_param", 50), iterations=5000
-        )
-
-        # Validation should not add more than 150% overhead (2.5x slower)
-        # This is adjusted from the original 2.0x to account for varying performance environments
-        # and differing CPU characteristics that may affect relative timing of operations
-        overhead_ratio = val_result.avg_time / no_val_result.avg_time
+        # Validation should not add more than 5x overhead. The median of paired
+        # samples rejects transient scheduler noise without relaxing that contract.
+        overhead_ratio = sorted(overhead_ratios)[len(overhead_ratios) // 2]
         assert overhead_ratio < 5, f"Validation overhead too high: {overhead_ratio:.2f}x"
 
         print("\n=== Validation Performance Impact ===")
@@ -494,7 +510,7 @@ class TestParameterAccessPerformance:
         print(
             f"With validation: {val_result.avg_time*1000:.3f}ms/op, {val_result.ops_per_second:.1f} ops/sec"
         )
-        print(f"Overhead: {overhead_ratio:.2f}x")
+        print(f"Median paired overhead: {overhead_ratio:.2f}x")
 
 
 class TestParameterMemoryUsage:
@@ -522,6 +538,7 @@ class TestParameterMemoryUsage:
                 param1 (int): First test parameter.
                 param2 (str): Second test parameter.
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
 
@@ -535,6 +552,7 @@ class TestParameterMemoryUsage:
                 param4 (bool): Fourth test parameter.
                 param5 (list): Fifth test parameter.
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -582,6 +600,7 @@ class TestParameterMemoryUsage:
                 param2 (str): Second test parameter.
                 param3 (float): Third test parameter.
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -625,6 +644,7 @@ class TestParameterMemoryUsage:
             Attributes:
                 test_param (str): Test parameter for memory leak operations.
             """
+
             test_param = ParameterDescriptor(default="initial", type_=str)
 
         # Measure baseline memory
@@ -664,6 +684,7 @@ class TestParameterMemoryUsage:
         print(f"Growth ratio: {memory_growth_ratio:.2f}x")
 
 
+@pytest.mark.performance
 class TestParameterInheritancePerformance:
     """Test performance of parameter inheritance.
 
@@ -688,6 +709,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 param0 (int): Parameter at level 0.
             """
+
             param0 = ParameterDescriptor(default=0, type_=int)
 
         class Level1(Level0):
@@ -696,6 +718,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 param1 (int): Parameter at level 1.
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
 
         class Level2(Level1):
@@ -704,6 +727,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 param2 (int): Parameter at level 2.
             """
+
             param2 = ParameterDescriptor(default=2, type_=int)
 
         class Level3(Level2):
@@ -712,6 +736,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 param3 (int): Parameter at level 3.
             """
+
             param3 = ParameterDescriptor(default=3, type_=int)
 
         class Level4(Level3):
@@ -720,6 +745,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 param4 (int): Parameter at level 4.
             """
+
             param4 = ParameterDescriptor(default=4, type_=int)
 
         # Test creation performance
@@ -775,6 +801,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 mixin1_param (str): Parameter from first mixin.
             """
+
             mixin1_param = ParameterDescriptor(default="mixin1", type_=str)
 
         class Mixin2(ParameterizedBase):
@@ -783,6 +810,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 mixin2_param (str): Parameter from second mixin.
             """
+
             mixin2_param = ParameterDescriptor(default="mixin2", type_=str)
 
         class Combined(Mixin1, Mixin2):
@@ -794,6 +822,7 @@ class TestParameterInheritancePerformance:
             Attributes:
                 combined_param (str): Parameter specific to this combined class.
             """
+
             combined_param = ParameterDescriptor(default="combined", type_=str)
 
         # Test creation performance
@@ -813,6 +842,7 @@ class TestParameterInheritancePerformance:
         print(f"Creation: {result.avg_time*1000:.3f}ms/op, {result.ops_per_second:.1f} ops/sec")
 
 
+@pytest.mark.performance
 class TestParameterSystemOptimizations:
     """Test parameter system optimizations.
 
@@ -843,6 +873,7 @@ class TestParameterSystemOptimizations:
             Attributes:
                 cached_param (str): Test parameter for caching performance.
             """
+
             cached_param = ParameterDescriptor(default="initial", type_=str)
 
         obj = CacheTestClass()
@@ -918,6 +949,7 @@ class TestParameterSystemOptimizations:
                 param4 (bool): Fourth test parameter.
                 param5 (list): Fifth test parameter.
             """
+
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)

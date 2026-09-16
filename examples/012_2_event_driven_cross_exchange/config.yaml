@@ -1,0 +1,41 @@
+schema_version: 2
+strategy_id: 012_2_event_driven_cross_exchange
+run_timeout_seconds: 180
+okx_api_region: global
+venues:
+  okx: BTC-USDT-SWAP
+  binance: BTCUSDT
+observation:
+  minimum_statistical_seconds: 60
+  shutdown_buffer_seconds: 15
+  require_funding_settlement: false
+funding:
+  refresh_interval_seconds: "5.0"
+  max_age_seconds: "30.0"
+strategy_params:
+  quantity_base: "0.01"
+  maximum_quote_age_seconds: "0.50"
+  maximum_venue_skew_seconds: "0.25"
+  minimum_opportunity_lifetime_seconds: "0.500"
+  # Compatibility/reporting value only. Admission uses a manifest-bound model's
+  # measured signal-to-hedge-terminal p99 and never trusts this fixed value.
+  path_p99_seconds: "0.005"
+  entry_deadline_seconds: "1.0"
+  hedge_deadline_seconds: "1.0"
+  cancel_deadline_seconds: "0.5"
+  pair_deadline_seconds: "2.5"
+  flatten_deadline_seconds: "2.5"
+  maximum_holding_seconds: "2.5"
+  depth_fraction: "0.20"
+  exit_reserve_bps: "1.0"
+  latency_reserve_bps: "2.0"
+  failure_reserve_bps: "3.0"
+  model_buffer_bps: "2.0"
+  minimum_net_edge_bps: "1.0"
+  maximum_loss_bps: "100.0"
+  account_maximum_loss_bps: "50.0"
+  maximum_adverse_markout_bps: "1.0"
+  markout_tail_probability: "0.95"
+  markout_tolerance_seconds: "0.010"
+  minimum_markout_samples: 21
+  maximum_markout_miss_ratio: "0.25"

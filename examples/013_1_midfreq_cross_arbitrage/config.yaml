@@ -1,0 +1,30 @@
+# Mid-frequency cross-product arbitrage: soybean meal vs rapeseed meal dominant.
+strategy: PairArbitrageStrategy
+symbols: [auto]          # auto -> dominant m + dominant RM (run.py resolves)
+simnow_env: new_7x24
+run_timeout_seconds: 600
+broker:
+  position_mode: net
+  position_sync_policy: startup
+# SimNow 7x24 account queries may return empty; margin adequacy is
+# enforced authoritatively by the exchange instead of locally.
+  cash_check_enabled: false
+  force_refresh_queries: false
+  account_refresh_interval: 3600.0
+  open_orders_refresh_interval: 3600.0
+feed:
+  timeframe: ticks
+  compression: 1
+  backfill_start: false
+strategy_params:
+  period: 180
+  entry_z: 2.0
+  exit_z: 0.5
+  confirmations: 3
+  min_interval: 5.0
+  order_lots: 1
+  max_pairs: 3
+  max_loss: 2000.0
+  max_holding_seconds: 1800.0
+  slippage_ticks: 2.0
+  tick_size: 1.0

@@ -5,13 +5,29 @@ Tests:
 - LogReturnsRolling: failed log calculation should log and return 0
 - AnnualReturn: date conversion failure should log and skip
 """
+
 import logging
+from logging.handlers import BufferingHandler
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from backtrader.analyzers.annualreturn import AnnualReturn
 from backtrader.analyzers.leverage import GrossLeverage
+
+
+@pytest.fixture
+def rolling_log_records(monkeypatch):
+    from backtrader.analyzers import logreturnsrolling
+    from backtrader.utils import log_message
+
+    logger = logging.Logger(logreturnsrolling.__name__, logging.WARNING)
+    handler = BufferingHandler(100)
+    logger.addHandler(handler)
+    monkeypatch.setattr(logreturnsrolling, "logger", logger)
+    monkeypatch.setattr(log_message, "_throttle_state", {})
+    monkeypatch.setattr(log_message, "_throttle_enabled", True)
+    return handler.buffer
 
 
 class TestGrossLeverageZeroValue:
@@ -95,28 +111,37 @@ class TestLogReturnsRollingLogging:
         analyzer._lastvalue = None
         return analyzer
 
-    def test_log_return_failure_is_logged(self):
-        """When log calculation fails, it should log a debug message."""
+    def test_log_return_failure_is_logged(self, rolling_log_records):
+        """When log calculation fails, it should log a warning message (iter29 FR29-07 upgrade)."""
         analyzer = self._make_analyzer(value=-100.0, start_value=100.0)
 
         # Mock super().next() to be a no-op
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
-            with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
-                analyzer.next()
+            analyzer.next()
 
         assert analyzer.rets["2021-01-01"] == 0
-        mock_logger.debug.assert_called_once()
+        assert len(rolling_log_records) == 1
+        assert "Log return calculation failed" in rolling_log_records[0].getMessage()
 
-    def test_log_return_nan_ratio_is_logged(self):
+    def test_log_return_nan_ratio_is_logged(self, rolling_log_records):
         """NaN ratios should be treated as invalid and downgraded to 0."""
         analyzer = self._make_analyzer(value=float("nan"), start_value=100.0)
 
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
-            with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
-                analyzer.next()
+            analyzer.next()
 
         assert analyzer.rets["2021-01-01"] == 0
-        mock_logger.debug.assert_called_once()
+        assert len(rolling_log_records) == 1
+        assert "Log return calculation failed" in rolling_log_records[0].getMessage()
+
+    def test_repeated_invalid_returns_are_bounded(self, rolling_log_records):
+        analyzer = self._make_analyzer(value=-100.0, start_value=100.0)
+        with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+            for _ in range(250):
+                analyzer.next()
+                assert analyzer.rets["2021-01-01"] == 0.0
+        assert len(rolling_log_records) == 3
+        assert sum("repeated" in row.getMessage() for row in rolling_log_records) == 2
 
     @pytest.mark.parametrize(
         "value,start_value",
@@ -127,16 +152,16 @@ class TestLogReturnsRollingLogging:
             (100.0, complex(1.0, 1.0)),
         ],
     )
-    def test_invalid_ratio_inputs_are_logged(self, value, start_value):
+    def test_invalid_ratio_inputs_are_logged(self, value, start_value, rolling_log_records):
         """Test that invalid ratio inputs are logged and degrade to zero."""
         analyzer = self._make_analyzer(value=value, start_value=start_value)
 
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
-            with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
-                analyzer.next()
+            analyzer.next()
 
         assert analyzer.rets["2021-01-01"] == 0.0
-        mock_logger.debug.assert_called_once()
+        assert len(rolling_log_records) == 1
+        assert "Log return calculation failed" in rolling_log_records[0].getMessage()
 
 
 class TestAnnualReturnLogging:
@@ -154,15 +179,15 @@ class TestAnnualReturnLogging:
         assert analyzer.rets == []
         assert analyzer.ret == {}
         assert -1 not in analyzer.ret
-        assert mock_logger.debug.call_count == 2
+        assert mock_logger.warning.call_count == 2
 
-    def test_log_return_zero_denominator_is_logged(self):
+    def test_log_return_zero_denominator_is_logged(self, rolling_log_records):
         """Division by zero in log return should be logged."""
         analyzer = TestLogReturnsRollingLogging()._make_analyzer(value=100.0, start_value=0.0)
 
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
-            with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
-                analyzer.next()
+            analyzer.next()
 
         assert analyzer.rets["2021-01-01"] == 0
-        mock_logger.debug.assert_called_once()
+        assert len(rolling_log_records) == 1
+        assert "Log return calculation failed" in rolling_log_records[0].getMessage()

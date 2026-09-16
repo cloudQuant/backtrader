@@ -225,10 +225,38 @@ drawdown = strat.analyzers.drawdown.get_analysis()
 ### runstop
 
 ```python
-cerebro.runstop = False  # Set to True to stop execution
+cerebro.runstop()  # Request that the active run stops at its next safe check
 
-```bash
-Stop flag for early termination.
+```
+Request early termination of the currently active `cerebro.run()` call or external channel
+session. It is safe to call from a strategy callback or another thread (for example, a
+`threading.Timer`). Calls made before a run starts or after it has finished are ignored.
+
+`run(channel=True)` creates an external channel session: it returns its strategies immediately,
+but keeps the broker and strategies active for the caller's external event loop. Its owner thread
+must close that session after it has stopped dispatching callbacks:
+
+```python
+strategies = cerebro.run(channel=True)
+try:
+    # Drive strategies from an external event loop.
+    # A callback or another thread may call cerebro.runstop().
+    ...
+finally:
+    cerebro.close_channel()
+```
+
+For such a session, `runstop()` only latches the stop request; it never tears down brokers or
+strategies from a foreign thread. `close_channel()` performs that teardown and must be called by
+the same thread that started `run(channel=True)`. In contrast, `run(channel=iterable)` remains
+synchronous and tears itself down automatically after the iterable ends or observes `runstop()`.
+
+If reusing a Cerebro instance, cancel or generation-bind a Timer from the prior run before
+starting the next one. A callback that fires only after the next run has already begun is
+indistinguishable from a new stop request and will target the current active run.
+
+`runstop()` is a method, not an assignable flag. It applies only to the active run in the current
+process; it is not a cross-process stop mechanism for optimization workers.
 
 ## Plotting
 

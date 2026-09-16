@@ -1,0 +1,451 @@
+{
+  "scope": "G0_DOCUMENT_STATIC_CHECK_ONLY",
+  "checked_at": "2026-09-14T16:13:34.599264+00:00",
+  "checker_command": "/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python /tmp/iter28-review.gXDBjn/check_docs.py",
+  "checker_sha256": "b9e24bb580f058695eb594b1e0f288d4da6f4d601c130269744731f2367ce838",
+  "repository": "/Users/yunjinqi/Documents/new_projects/backtrader",
+  "head": "e22599a1e0d34fc070d4f4e1f8a013f8791695e6",
+  "source_sha256": "13cd075a585aa8464dd9e19c9f8363c7de56b441959c5dbb2cab0bc85ec3ee4d",
+  "initial_request_sha256": "87c5d9c610c3b290ec1c6b4fae7f7e23c2a8d31b08f5b9cd6d7ba49b510b437d",
+  "source_line_count": 3060,
+  "source_method_count": 80,
+  "strategy_test_file_count": 1152,
+  "pytest_collection": "NOT_RUN",
+  "runtime_tests": "NOT_RUN",
+  "build_install": "NOT_RUN",
+  "performance": "NOT_RUN",
+  "quality_tools": "NOT_RUN",
+  "requirements": [
+    "FR28-01",
+    "FR28-02",
+    "FR28-03",
+    "FR28-04",
+    "FR28-05",
+    "FR28-06",
+    "FR28-07",
+    "FR28-08",
+    "FR28-09",
+    "FR28-10",
+    "FR28-11",
+    "FR28-12",
+    "NFR28-01",
+    "NFR28-02",
+    "NFR28-03",
+    "NFR28-04",
+    "NFR28-05",
+    "NFR28-06"
+  ],
+  "design_sections": [
+    "D28-01",
+    "D28-02",
+    "D28-03",
+    "D28-04",
+    "D28-05",
+    "D28-06",
+    "D28-07",
+    "D28-08",
+    "D28-09",
+    "D28-10"
+  ],
+  "acceptance_cases": [
+    "AC28-01",
+    "AC28-02",
+    "AC28-03",
+    "AC28-04",
+    "AC28-05",
+    "AC28-06",
+    "AC28-07",
+    "AC28-08",
+    "AC28-09",
+    "AC28-10",
+    "AC28-11",
+    "AC28-12",
+    "AC28-13",
+    "AC28-14",
+    "AC28-15",
+    "AC28-16"
+  ],
+  "method_mapping": [
+    {
+      "file": "cerebro.py",
+      "count": 9,
+      "methods": [
+        "__init__",
+        "setbroker",
+        "getbroker",
+        "__call__",
+        "__getstate__",
+        "__setstate__",
+        "_resolve_run_flags",
+        "run",
+        "_build_optreturn_results"
+      ]
+    },
+    {
+      "file": "registry.py",
+      "count": 30,
+      "methods": [
+        "iterize",
+        "set_fund_history",
+        "add_order_history",
+        "notify_timer",
+        "_add_timer",
+        "add_timer",
+        "addtz",
+        "addcalendar",
+        "add_signal",
+        "signal_strategy",
+        "signal_concurrent",
+        "signal_accumulate",
+        "addstore",
+        "_maybe_add_store",
+        "addwriter",
+        "addsizer",
+        "addsizer_byidx",
+        "addindicator",
+        "addanalyzer",
+        "addobserver",
+        "addobservermulti",
+        "adddata",
+        "chaindata",
+        "rolloverdata",
+        "replaydata",
+        "resampledata",
+        "optcallback",
+        "optstrategy",
+        "addstrategy",
+        "_check_timers"
+      ]
+    },
+    {
+      "file": "notifications.py",
+      "count": 9,
+      "methods": [
+        "addstorecb",
+        "_notify_store",
+        "notify_store",
+        "_storenotify",
+        "adddatacb",
+        "_datanotify",
+        "_notify_data",
+        "notify_data",
+        "_brokernotify"
+      ]
+    },
+    {
+      "file": "lifecycle.py",
+      "count": 8,
+      "methods": [
+        "_begin_run",
+        "_open_run_scope",
+        "_end_run_if_started_by_current_thread",
+        "_retire_run_scope_locked",
+        "_end_run",
+        "_retain_external_channel_scope",
+        "close_channel",
+        "runstop"
+      ]
+    },
+    {
+      "file": "channel.py",
+      "count": 10,
+      "methods": [
+        "dispatch_channel_event",
+        "_get_channel_data_ref",
+        "_start_channel_strategy",
+        "_advance_channel_strategy_clock",
+        "_step_channel_strategy",
+        "_stop_channel_strategy",
+        "_run_channel",
+        "_teardown_channel",
+        "_instantiate_channel_strategies",
+        "_wire_channel_strategies"
+      ]
+    },
+    {
+      "file": "execution.py",
+      "count": 7,
+      "methods": [
+        "_init_stcount",
+        "_next_stid",
+        "_prepare_run",
+        "runstrategies",
+        "stop_writers",
+        "_next_writers",
+        "_disable_runonce"
+      ]
+    },
+    {
+      "file": "runnext.py",
+      "count": 2,
+      "methods": [
+        "_runnext_old",
+        "_runnext"
+      ]
+    },
+    {
+      "file": "runonce.py",
+      "count": 2,
+      "methods": [
+        "_runonce_old",
+        "_runonce"
+      ]
+    },
+    {
+      "file": "presentation.py",
+      "count": 3,
+      "methods": [
+        "plot",
+        "add_report_analyzers",
+        "generate_report"
+      ]
+    }
+  ],
+  "traceability": [
+    {
+      "requirement": "FR28-01",
+      "design": [
+        "D28-01",
+        "D28-02",
+        "D28-03"
+      ],
+      "acceptance": [
+        "AC28-02"
+      ]
+    },
+    {
+      "requirement": "FR28-02",
+      "design": [
+        "D28-03"
+      ],
+      "acceptance": [
+        "AC28-02"
+      ]
+    },
+    {
+      "requirement": "FR28-03",
+      "design": [
+        "D28-01",
+        "D28-03",
+        "D28-07"
+      ],
+      "acceptance": [
+        "AC28-03",
+        "AC28-07",
+        "AC28-11"
+      ]
+    },
+    {
+      "requirement": "FR28-04",
+      "design": [
+        "D28-04"
+      ],
+      "acceptance": [
+        "AC28-03",
+        "AC28-04"
+      ]
+    },
+    {
+      "requirement": "FR28-05",
+      "design": [
+        "D28-05"
+      ],
+      "acceptance": [
+        "AC28-05"
+      ]
+    },
+    {
+      "requirement": "FR28-06",
+      "design": [
+        "D28-04"
+      ],
+      "acceptance": [
+        "AC28-03",
+        "AC28-16"
+      ]
+    },
+    {
+      "requirement": "FR28-07",
+      "design": [
+        "D28-02",
+        "D28-07"
+      ],
+      "acceptance": [
+        "AC28-11"
+      ]
+    },
+    {
+      "requirement": "FR28-08",
+      "design": [
+        "D28-08"
+      ],
+      "acceptance": [
+        "AC28-08"
+      ]
+    },
+    {
+      "requirement": "FR28-09",
+      "design": [
+        "D28-09"
+      ],
+      "acceptance": [
+        "AC28-01",
+        "AC28-12"
+      ]
+    },
+    {
+      "requirement": "FR28-10",
+      "design": [
+        "D28-10"
+      ],
+      "acceptance": [
+        "AC28-14",
+        "AC28-15"
+      ]
+    },
+    {
+      "requirement": "FR28-11",
+      "design": [
+        "D28-01",
+        "D28-07",
+        "D28-08"
+      ],
+      "acceptance": [
+        "AC28-06",
+        "AC28-07"
+      ]
+    },
+    {
+      "requirement": "FR28-12",
+      "design": [
+        "D28-05",
+        "D28-08",
+        "D28-10"
+      ],
+      "acceptance": [
+        "AC28-13",
+        "AC28-16"
+      ]
+    },
+    {
+      "requirement": "NFR28-01",
+      "design": [
+        "D28-06"
+      ],
+      "acceptance": [
+        "AC28-09"
+      ]
+    },
+    {
+      "requirement": "NFR28-02",
+      "design": [
+        "D28-02",
+        "D28-03",
+        "D28-07"
+      ],
+      "acceptance": [
+        "AC28-11"
+      ]
+    },
+    {
+      "requirement": "NFR28-03",
+      "design": [
+        "D28-01",
+        "D28-08"
+      ],
+      "acceptance": [
+        "AC28-06",
+        "AC28-07"
+      ]
+    },
+    {
+      "requirement": "NFR28-04",
+      "design": [
+        "D28-03"
+      ],
+      "acceptance": [
+        "AC28-10"
+      ]
+    },
+    {
+      "requirement": "NFR28-05",
+      "design": [
+        "D28-08"
+      ],
+      "acceptance": [
+        "AC28-01",
+        "AC28-08"
+      ]
+    },
+    {
+      "requirement": "NFR28-06",
+      "design": [
+        "D28-08",
+        "D28-10"
+      ],
+      "acceptance": [
+        "AC28-12",
+        "AC28-14",
+        "AC28-15"
+      ]
+    }
+  ],
+  "checks": {
+    "requirement_count": true,
+    "design_count": true,
+    "acceptance_count": true,
+    "trace_requirements_exact": true,
+    "trace_design_exact": true,
+    "trace_acceptance_exact": true,
+    "class_method_count_80": true,
+    "descriptor_count_19": true,
+    "method_mapping_exact": true,
+    "method_row_counts_exact": true,
+    "mapping_has_9_owners": true,
+    "relative_links_valid": true,
+    "code_fences_balanced": true,
+    "source_unchanged": true,
+    "initial_request_unchanged": true,
+    "no_changes_outside_task_documents": true,
+    "no_trailing_whitespace": true
+  },
+  "link_errors": [],
+  "fence_errors": [],
+  "missing_methods": [],
+  "unexpected_methods": [],
+  "documents": {
+    "初始需求.md": {
+      "sha256": "87c5d9c610c3b290ec1c6b4fae7f7e23c2a8d31b08f5b9cd6d7ba49b510b437d",
+      "lines": 1
+    },
+    "设计文档.md": {
+      "sha256": "1b1dbb6eea8f01e2b2e5c98053743882e11833bd410ff569467ab72bfc844042",
+      "lines": 220
+    },
+    "需求文档.md": {
+      "sha256": "db3a14006d63936880852fe4570c11af767b3d1d8f9d0abf62067c4bf0213cac",
+      "lines": 64
+    },
+    "方案评审与优化说明.md": {
+      "sha256": "336a43f9c443af2aed778f9b08842a279e64da21bc69fc028042c006a8f299ad",
+      "lines": 84
+    },
+    "验收文档.md": {
+      "sha256": "5fada52f3c9e8483a68764e7515a70c7d1511d2db88517d66e49a237f56a2e37",
+      "lines": 172
+    }
+  },
+  "tracked_changes": [
+    "docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/初始需求.md",
+    "docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/文档检查记录.json",
+    "docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/方案评审与优化说明.md",
+    "docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/设计文档.md",
+    "docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/需求文档.md",
+    "docs/_internal/opts/requirements/迭代28-Cerebro模块化拆分/验收文档.md"
+  ],
+  "status": "PASS",
+  "limitations": [
+    "Static checks do not certify runtime equivalence, performance, installation or trading admission.",
+    "The JSON record excludes its own hash; the checker is a temporary analysis artifact, not a shipped implementation test."
+  ]
+}

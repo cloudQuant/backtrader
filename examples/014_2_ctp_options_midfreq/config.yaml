@@ -1,0 +1,56 @@
+# Offline-only fixture for the Iteration 24 C/P/F minute-bar example.
+# It contains no account credentials and cannot enable a network session.
+mode: replay
+candidate:
+  candidate_id: ctp-options-midfreq-local-fixture-v1
+  exchange: LOCAL_REPLAY
+  rules_hash: local-fixture-rules-v1
+  option_style: European
+  strike: 1000
+  multiplier: 10
+  discount_factor: 1
+  contracts:
+    future: F_LOCAL_1000
+    call: C_LOCAL_1000
+    put: P_LOCAL_1000
+  quantities:
+    future: 1
+    call: 1
+    put: 1
+  price_ticks:
+    future: 1
+    call: 1
+    put: 1
+budget:
+  capital_limit_cny: 10000
+  working_limit_cny: 8000
+  recovery_reserve_cny: 2000
+  path_requirement_cny: 7600
+signal:
+  bar_minutes: 1
+  history_bars: 60
+  residual_floor_cny: 30
+  z_entry: 2.5
+  minimum_net_edge_cny: 20
+  cost_bound_cny: 20
+features:
+  short_window_seconds: 5
+  long_window_seconds: 60
+  max_segment_seconds: 2
+  max_cross_leg_skew_ms: 500
+  minimum_new_snapshots: 3
+  persistence_ratio: 0.8
+  max_adverse_pressure: 0.5
+replay:
+  initial_cash_cny: 10000
+  scenario: no_edge
+timing:
+  decision_deadline_seconds: 30
+  leg_timeout_seconds: 5
+  basket_timeout_seconds: 15
+  cancel_timeout_seconds: 5
+  recovery_timeout_seconds: 60
+  minimum_hold_seconds: 60
+  maximum_hold_seconds: 900
+  idle_interval_ms: 250
+  history_capacity: 128

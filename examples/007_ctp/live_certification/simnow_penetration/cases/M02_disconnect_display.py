@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""M02: 验证连接断开时能正常显示连接断开"""
+"""M02: Verify that disconnection is properly displayed when the connection is broken"""
 from __future__ import annotations
 
 import sys

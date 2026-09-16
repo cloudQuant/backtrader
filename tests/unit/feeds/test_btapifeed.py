@@ -771,7 +771,7 @@ def test_feed_start_skips_history_backfill_when_history_is_preseeded():
     assert feed.load() is None
 
 
-def test_feed_start_logs_backfill_failure_and_continues(caplog):
+def test_feed_start_logs_backfill_failure_and_continues(bt_caplog):
     """Test that feed start logs backfill failure and continues."""
 
     class FailingHistoryClient(FakeBtApiClient):
@@ -785,11 +785,11 @@ def test_feed_start_logs_backfill_failure_and_continues(caplog):
     store = make_store(api=client)
     feed = store.getdata(dataname=DEFAULT_SYMBOL)
 
-    with caplog.at_level(logging.DEBUG):
+    with bt_caplog.at_level(logging.DEBUG):
         feed._start()
 
     assert client.subscriptions == [DEFAULT_SYMBOL]
-    assert any("Failed to backfill history" in record.message for record in caplog.records)
+    assert any("Failed to backfill history" in record.message for record in bt_caplog.records)
     assert feed.load() is None
 
 

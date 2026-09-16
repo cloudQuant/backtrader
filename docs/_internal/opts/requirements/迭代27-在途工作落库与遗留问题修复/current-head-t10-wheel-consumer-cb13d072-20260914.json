@@ -1,0 +1,103 @@
+{
+  "schema_version": "iteration27.clean-head-t10-verification.v1",
+  "recorded_on": "2026-09-14",
+  "status": "PASS_LOCAL_ARTIFACT_AND_REPLAY_ONLY",
+  "scope": "Clean-source five-wheel isolated consumer build, import, native-load, parity and offline replay validation.",
+  "source_result": {
+    "path": "/tmp/t10-cb13-wheel-consumer.fY9svo/results/result.json",
+    "sha256": "a38bec618f19531edd6ad8f396f9c06fcffd51fbc2bc62a3c90dd17f69f75097",
+    "retention_boundary": "The detailed result is deliberately retained outside the repository in volatile /tmp. This tracked verifier copies only non-secret assertions and digests; it does not copy credentials, environment files, or account data."
+  },
+  "sources": {
+    "backtrader": "cb13d0722b42fc87ebdbb0e6e45c5002e19987ed",
+    "bt_api_py": "b22a678521278de23cf6a86fe8dd755e7052fa74",
+    "gitlinks": {
+      "bt_api_base": "74be52d8432c348c93304e9f3b5774bb4dbc766c",
+      "bt_api_binance": "12f2a667be0e8988559cb836c3fd439f6c131ec6",
+      "bt_api_ctp": "b371098d5f7f91c8843da1ff6ded6da568ac8f4e"
+    },
+    "postbuild_status_porcelain": {
+      "backtrader": "",
+      "bt_api_py": "",
+      "bt_api_base": "",
+      "bt_api_binance": "",
+      "bt_api_ctp": ""
+    }
+  },
+  "consumer": {
+    "venv": "consumer/venv",
+    "system_site_packages": true,
+    "reason": "A no-system-site-packages venv installed all five local wheels but could not import backtrader because pytz was unavailable. The final venv still used --no-index --no-deps for every local-wheel install.",
+    "all_import_origins_under_consumer_site_packages": true,
+    "source_paths_on_sys_path": [],
+    "ctp_native_loaded": true
+  },
+  "wheels": {
+    "backtrader-1.3.0-py3-none-any.whl": {
+      "raw_sha256": "164a05c3b6c1712ca1baf9f31104955ebb1dcb8e159d6549b9b129656fb7c0b1",
+      "source_python_file_count": 450
+    },
+    "bt_api_base-0.15.3-py3-none-any.whl": {
+      "raw_sha256": "9de89f5b2dbd4e6521f4e5e7ffaa24834fd2676759522933687efbc4b43a9d6f",
+      "source_python_file_count": 104
+    },
+    "bt_api_binance-2.0.1-py3-none-any.whl": {
+      "raw_sha256": "f2edf7db42bd593b84b0a9662c4cbbf3cd63dd0184cfa082f6ebe65f80af2525",
+      "source_python_file_count": 65
+    },
+    "bt_api_ctp-2.0.0-cp311-cp311-macosx_11_0_arm64.whl": {
+      "raw_sha256": "62af95fe6226e8967683313415dbfe2dbf2d6041360faedadf815f7000b53cb9",
+      "source_python_file_count": 39,
+      "native_extension": "bt_api_ctp/ctp/_ctp.cpython-311-darwin.so"
+    },
+    "bt_api_py-0.15.3-py3-none-any.whl": {
+      "raw_sha256": "21129d86e6681efd26a66ea45888d9013ed0a4f1682fdfdb5c88b2773508e467",
+      "source_python_file_count": 127
+    }
+  },
+  "parity": {
+    "source_to_wheel_missing": [],
+    "source_to_wheel_mismatched": [],
+    "source_to_installed_missing": [],
+    "source_to_installed_mismatched": [],
+    "native_wheel_to_installed_mismatched": []
+  },
+  "offline_replays": {
+    "013_3_sa_midfreq_simnow": {
+      "exit_code": 0,
+      "status": "PASS_REPLAY_PATH",
+      "sdk_write_requests": 0,
+      "pnl_fields_emitted": false,
+      "g4_gate_status": "NOT_RUN"
+    },
+    "014_1_ctp_options_lowfreq": {
+      "exit_code": 0,
+      "status": "LOCAL_REPLAY_PASS",
+      "external_network_requests": 0,
+      "external_order_writes": 0,
+      "local_hypothetical_backbroker_orders": 6
+    },
+    "014_2_ctp_options_midfreq": {
+      "exit_code": 0,
+      "status": "LOCAL_REPLAY_PASS"
+    },
+    "015_ctp_options_highfreq": {
+      "exit_code": 0,
+      "status": "LOCAL_REPLAY_PASS",
+      "external_network_requests": 0,
+      "external_write_requests": 0,
+      "hft_status": "NOT_ADMITTED"
+    }
+  },
+  "safety": {
+    "copied_dotenv_paths": [],
+    "guard_event_count": 0,
+    "guard": "Blocks .env open attempts plus socket connect/connect_ex/create_connection and DNS resolution.",
+    "live_session_invoked": false
+  },
+  "limits": [
+    "The final isolated consumer uses --system-site-packages because pytz was unavailable in a minimal venv. Local wheels were nevertheless installed with --no-index --no-deps, and all checked imports resolve under the consumer site-packages.",
+    "The SDK bundle intentionally consumes its recorded gitlinks, not the newer standalone Base/Binance/CTP sibling commits listed elsewhere in the acceptance record.",
+    "This is local artifact and offline replay evidence only. It proves no CTP/SimNow account/session, live orders, fills, PnL, profitability, HFT admission, release, or production readiness."
+  ]
+}

@@ -5,6 +5,51 @@ canonical changelog for the repository.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-15
+
+### Changed
+
+- Split Cerebro implementation into eight private responsibility modules while
+  keeping the public `backtrader.cerebro.Cerebro` and `OptReturn` identities,
+  parameter initialization, optimization entry point and serialization facade.
+- Added opt-in logging by script, date and exact level, with configurable
+  retention, an optional spdlog backend, lifecycle events and throttled errors.
+- Updated exception logging across feeds, brokers and line infrastructure while
+  preserving public printing APIs and default silent operation.
+
+### Fixed
+
+- Preserve positional logging configuration compatibility and isolate logging
+  paths, rollover/write failures and multiprocessing output.
+- Verify iteration 28 source fingerprints using isolated copies instead of
+  temporarily modifying the active checkout.
+- Restore optimization results without invoking strategy owner initialization
+  during unpickling; preserve nonempty analyzers and complete all-skipped runs.
+- Keep failing log sinks out of broker startup cleanup and feed/store control
+  flow; throttle recurring hot-loop diagnostics and redact SDK error payloads.
+- Retain master's `MACD.lines.me1/me2` aliases and PyFolio formatted-report
+  interfaces. The report now accounts for partial closes and reversals, uses
+  daily 252-session statistics, and marks unavailable commissions/ratios as NaN.
+  Transaction-level PnL is gross and cannot infer absent futures multipliers.
+
+### Verification and Release
+
+- Added real compatibility and multiprocessing regression checks for the
+  Cerebro split and logging configuration.
+- Added a serial performance CI lane and a wheel consumer that checks packaged
+  source hashes and executes trades outside the source checkout.
+- Kept existing strategy regression expectations and Python 3.8–3.13 CI coverage.
+- Separate optional SDK contracts into a required job with immutable public
+  source pins. Core tests skip only absent optional distributions; broken
+  installed dependencies still fail. Default-silence checks remain unchanged.
+- Keep the existing Pages deployment policy on `development`; the 1.4.0
+  candidate is eligible for promotion only to `development` after final gates
+  pass, while `master` remains an untouched historical baseline.
+- The 1.4.0 release promotion is constrained to `dev` → `development`. The
+  release acceptance record documents that boundary and its verification; no
+  master merge, master CI promotion, master tag, or master release is part of
+  this work.
+
 ## [1.3.0] - 2026-07-26
 
 ### Highlights

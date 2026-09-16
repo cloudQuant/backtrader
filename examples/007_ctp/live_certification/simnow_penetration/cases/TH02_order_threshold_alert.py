@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""TH02: 验证报单笔数达到或超过阈值时会预警"""
+"""TH02: Verify that an alert is triggered when the order submission count reaches or exceeds the threshold"""
 from __future__ import annotations
 
 import sys

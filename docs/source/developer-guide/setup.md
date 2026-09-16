@@ -145,9 +145,9 @@ backtrader/
 
 ### Branches
 
-- `dev` - Active development
-- `master` - Stable releases
-- `development` - Main branch
+- `dev` - Daily development entry for routine features, fixes, tests, and documentation
+- `development` - Improved and optimized version; controlled `dev` promotions and CI/CD run here
+- `master` - Original Backtrader baseline; only original-baseline bug, compatibility, and security hotfixes
 
 ### Commit Format
 

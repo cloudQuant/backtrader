@@ -19,7 +19,10 @@ Example:
 
 from collections import OrderedDict, defaultdict
 
+from ..utils.log_message import get_logger
 from .py3 import values as py3lvalues
+
+logger = get_logger(__name__)
 
 
 def Tree():
@@ -129,6 +132,7 @@ class AutoDict(dict):
         try:
             return self[key]
         except KeyError:
+            logger.debug("autodict: key not found, re-raising KeyError")
             raise AttributeError(key) from None
 
     def __setattr__(self, key, value):
@@ -187,6 +191,7 @@ class AutoOrderedDict(OrderedDict):
         try:
             return self[key]
         except KeyError:
+            logger.debug("autodict: attribute miss, re-raising KeyError")
             raise AttributeError(key) from None
 
     def __setattr__(self, key, value):

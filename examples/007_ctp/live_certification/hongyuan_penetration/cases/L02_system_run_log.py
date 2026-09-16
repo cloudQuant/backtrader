@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""L02: 验证系统日志中会记录系统运行信息"""
+"""L02: Verify that system runtime information is recorded in the system log"""
 from __future__ import annotations
 
 import sys

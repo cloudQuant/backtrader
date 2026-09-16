@@ -119,7 +119,7 @@ class TestColumnAutodetect:
 class TestDatetimeConversionLogging:
     """Test that datetime conversion fallbacks log appropriately."""
 
-    def test_numpy_conversion_failure_logged(self, caplog):
+    def test_numpy_conversion_failure_logged(self, bt_caplog):
         """When to_numpy fails, debug log should be emitted."""
         df = _make_simple_df(3)
 
@@ -131,7 +131,7 @@ class TestDatetimeConversionLogging:
 
         df.to_numpy = broken_to_numpy
 
-        with caplog.at_level(logging.DEBUG):
+        with bt_caplog.at_level(logging.DEBUG):
             cerebro = bt.Cerebro()
             data = PandasData(dataname=df)
             cerebro.adddata(data)
@@ -139,7 +139,7 @@ class TestDatetimeConversionLogging:
 
         assert any(
             "Failed to convert DataFrame to numpy array" in r.message
-            for r in caplog.records
+            for r in bt_caplog.records
         )
 
 

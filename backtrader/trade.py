@@ -23,7 +23,10 @@ import itertools
 
 from .utils import AutoOrderedDict
 from .utils.date import num2date
+from .utils.log_message import get_logger
 from .utils.py3 import range
+
+logger = get_logger(__name__)
 
 
 # Trade history
@@ -352,11 +355,13 @@ class Trade:
         try:
             data_len = len(self.data)
         except Exception:
+            logger.warning("trade:354 fallback on Exception")
             data_len = 0
 
         try:
             data_dt = self.data.datetime[0]
         except Exception:
+            logger.warning("trade:359 fallback on Exception")
             data_dt = 0.0
 
         # Commission can only increase
