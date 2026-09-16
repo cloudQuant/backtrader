@@ -1858,6 +1858,12 @@ class Strategy(StrategyBase):
         return wrinfo
 
     def nextstart(self):
+        """Handle the first bar at which the strategy minperiod is satisfied.
+
+        Logs one lifecycle INFO line, then delegates to the engine
+        implementation so user ``next``/``nextstart`` overrides keep their
+        usual behaviour. Called exactly once per run.
+        """
         # Iteration 29 lifecycle INFO: minperiod first satisfied (once).
         logger.info(
             "strategy nextstart: strategy=%s minperiod=%d", type(self).__name__, self._minperiod

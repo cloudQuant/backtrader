@@ -99,6 +99,15 @@ class _RedactingFormatter(logging.Formatter):
     """Redact common credential fields in messages and rendered tracebacks."""
 
     def format(self, record):
+        """Render ``record`` and strip credentials from the result.
+
+        Args:
+            record: Log record to format.
+
+        Returns:
+            str: The formatted message with bearer tokens, secret values and
+            URL passwords replaced by ``[REDACTED]``.
+        """
         rendered = super().format(record)
         rendered = _BEARER_VALUE.sub(r"\1 [REDACTED]", rendered)
         rendered = _SECRET_VALUE.sub(r"\1[REDACTED]", rendered)
@@ -114,6 +123,11 @@ class _NonFatalHandlerMixin:
     _bt_closed: bool
 
     def handleError(self, record):
+        """Warn once instead of raising when this handler fails to write.
+
+        Args:
+            record: Log record whose emission failed.
+        """
         _warn_once("write", "log write failed; further logging failures are suppressed")
 
 
@@ -660,10 +674,23 @@ class _ExactLevelFilter(logging.Filter):
     """Pass only records whose level *equals* the configured level."""
 
     def __init__(self, level):
+        """Keep only records whose level number equals ``level``.
+
+        Args:
+            level: Numeric logging level to match exactly.
+        """
         super().__init__()
         self.level = level
 
     def filter(self, record):
+        """Return True only for records at exactly ``self.level``.
+
+        Args:
+            record: Candidate log record.
+
+        Returns:
+            bool: Whether the record matches the configured level.
+        """
         return record.levelno == self.level
 
 
@@ -671,10 +698,24 @@ class _NamePrefixFilter(logging.Filter):
     """Pass records from explicitly enabled logger subtrees."""
 
     def __init__(self, prefixes):
+        """Keep only records from the given logger subtrees.
+
+        Args:
+            prefixes: Logger names whose records should pass; each name also
+            matches its dotted children.
+        """
         super().__init__()
         self.prefixes = tuple(prefixes)
 
     def filter(self, record):
+        """Return True for records inside one of the enabled subtrees.
+
+        Args:
+            record: Candidate log record.
+
+        Returns:
+            bool: Whether ``record.name`` equals a prefix or is nested under it.
+        """
         return any(
             record.name == prefix or record.name.startswith(prefix + ".")
             for prefix in self.prefixes
@@ -691,6 +732,15 @@ class _DailyLevelFileHandler(_NonFatalHandlerMixin, logging.FileHandler):
     """
 
     def __init__(self, script_dir, level_name, handler_level, exact_filter, retention_days):
+        """Open the level-exact log file for today's date directory.
+
+        Args:
+            script_dir: Directory holding this script's date directories.
+            level_name: Level name used in the file name (for example ``error``).
+            handler_level: Numeric level this handler accepts.
+            exact_filter: Filter enforcing level-exact routing.
+            retention_days: Age in days after which sibling date dirs are pruned.
+        """
         self._script_dir = script_dir
         self._level_name = level_name
         self._retention_days = retention_days
@@ -711,6 +761,14 @@ class _DailyLevelFileHandler(_NonFatalHandlerMixin, logging.FileHandler):
         return path
 
     def emit(self, record):
+        """Write a record, rotating to a new date directory when needed.
+
+        The handler also re-opens its file when the owning PID changes, so a
+        forked child never appends to the parent's log.
+
+        Args:
+            record: Log record to write.
+        """
         if self._bt_closed:
             return
         try:
@@ -790,6 +848,16 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
     def __init__(
         self, spdlog_mod, script_dir, level_name, handler_level, exact_filter, retention_days
     ):
+        """Mount the optional spdlog package as a ``logging.Handler``.
+
+        Args:
+            spdlog_mod: Imported ``spdlog`` module supplying the logger factory.
+            script_dir: Directory holding this script's date directories and log files.
+            level_name: Level name used in the file name (for example ``error``).
+            handler_level: Numeric level this handler accepts.
+            exact_filter: Filter enforcing level-exact routing.
+            retention_days: Age in days after which sibling date dirs are pruned.
+        """
         super().__init__(level=handler_level)
         self._bt_closed = False
         self._mod = spdlog_mod
@@ -826,6 +894,11 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
         return "debug"
 
     def emit(self, record):
+        """Route a record to the spdlog logger, rotating on date or PID change.
+
+        Args:
+            record: Log record to write.
+        """
         if self._bt_closed:
             return
         try:
@@ -850,6 +923,7 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
         _cleanup_retention(self._script_dir, self._retention_days)
 
     def flush(self):
+        """Flush the underlying spdlog logger if this process still owns it."""
         self.acquire()
         try:
             if getattr(self, "_owner_pid", None) != os.getpid() or self._bt_closed:
@@ -863,6 +937,7 @@ class SpdlogHandler(_NonFatalHandlerMixin, logging.Handler):
             self.release()
 
     def close(self):
+        """Flush and drop the underlying spdlog logger owned by this process."""
         self.acquire()
         try:
             if getattr(self, "_owner_pid", None) == os.getpid() and not self._bt_closed:

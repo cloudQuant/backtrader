@@ -195,6 +195,27 @@ class TickEvent(EventData):
         event_id: Optional[str] = None,
         coalesced_count: int = 1,
     ) -> None:
+        """Build a tick (trade print) event.
+
+        Args:
+            timestamp: Exchange timestamp in seconds.
+            symbol: Trading pair symbol.
+            exchange: Exchange name.
+            asset_type: Asset type (``spot``, ``swap`` or ``futures``).
+            local_time: Local receive timestamp used for latency tracking.
+            price: Trade price.
+            volume: Trade volume.
+            direction: Aggressor side, ``buy`` or ``sell``.
+            trade_id: Venue trade identifier, when published.
+            bid_price: Best bid at the time of the print, if known.
+            ask_price: Best ask at the time of the print, if known.
+            bid_volume: Size resting at the best bid, if known.
+            ask_volume: Size resting at the best ask, if known.
+
+        The keyword-only arguments are the shared event envelope documented on
+        :class:`EventData`; unset receive-clock fields are filled in by
+        ``__post_init__``.
+        """
         EventData.__init__(
             self,
             timestamp,
@@ -302,6 +323,21 @@ class OrderBookSnapshot(EventData):
         event_id: Optional[str] = None,
         coalesced_count: int = 1,
     ) -> None:
+        """Build an order-book depth snapshot event.
+
+        Args:
+            timestamp: Exchange timestamp in seconds.
+            symbol: Trading pair symbol.
+            exchange: Exchange name.
+            asset_type: Asset type (``spot``, ``swap`` or ``futures``).
+            local_time: Local receive timestamp used for latency tracking.
+            bids: Bid levels as ``(price, quantity)`` tuples, descending by price.
+            asks: Ask levels as ``(price, quantity)`` tuples, ascending by price.
+
+        The keyword-only arguments are the shared event envelope documented on
+        :class:`EventData`; unset receive-clock fields are filled in by
+        ``__post_init__``.
+        """
         EventData.__init__(
             self,
             timestamp,
@@ -434,6 +470,23 @@ class FundingEvent(EventData):
         event_id: Optional[str] = None,
         coalesced_count: int = 1,
     ) -> None:
+        """Build a perpetual-contract funding event.
+
+        Args:
+            timestamp: Exchange timestamp in seconds.
+            symbol: Trading pair symbol.
+            exchange: Exchange name.
+            asset_type: Asset type (``spot``, ``swap`` or ``futures``).
+            local_time: Local receive timestamp used for latency tracking.
+            rate: Settled funding rate.
+            mark_price: Mark price the rate applies to.
+            next_funding_time: Unix timestamp of the next settlement.
+            predicted_rate: Exchange-predicted rate for the next interval.
+
+        The keyword-only arguments are the shared event envelope documented on
+        :class:`EventData`; unset receive-clock fields are filled in by
+        ``__post_init__``.
+        """
         EventData.__init__(
             self,
             timestamp,
@@ -541,6 +594,25 @@ class BarEvent(EventData):
         event_id: Optional[str] = None,
         coalesced_count: int = 1,
     ) -> None:
+        """Build an OHLCV bar event.
+
+        Args:
+            timestamp: Exchange timestamp in seconds.
+            symbol: Trading pair symbol.
+            exchange: Exchange name.
+            asset_type: Asset type (``spot``, ``swap`` or ``futures``).
+            local_time: Local receive timestamp used for latency tracking.
+            open: Bar open price.
+            high: Bar high price.
+            low: Bar low price.
+            close: Bar close price.
+            volume: Traded volume over the bar.
+            openinterest: Open interest at the close of the bar.
+
+        The keyword-only arguments are the shared event envelope documented on
+        :class:`EventData`; unset receive-clock fields are filled in by
+        ``__post_init__``.
+        """
         EventData.__init__(
             self,
             timestamp,

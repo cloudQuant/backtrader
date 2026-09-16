@@ -28,6 +28,12 @@ class OptionAccountingError(ValueError):
     """Raised when option cost or evidence cannot be established safely."""
 
     def __init__(self, code: str, message: str | None = None):
+        """Record the rejection code, falling back to it when no message is given.
+
+        Args:
+            code: Stable machine-readable reason code.
+            message: Human-readable detail; defaults to ``code``.
+        """
         self.code = str(code)
         super().__init__(message or self.code)
 
@@ -610,6 +616,22 @@ class CtpOptionPremium(CommInfoBase):
     }
 
     def __init__(self, **kwargs):
+        """Build a premium-style option commission model.
+
+        Resolves the accepted fee aliases to their canonical parameter names,
+        rejects contradictory aliases and non-positive multipliers, and
+        snapshots the seller-margin evidence supplied through parameters.
+
+        Args:
+            **kwargs: Standard ``CommInfoBase`` parameters plus the fee aliases
+                listed in ``_FEE_ALIASES``, ``seller_margin_evidence`` and
+                ``evidence_scope``.
+
+        Raises:
+            OptionAccountingError: If the multiplier is not a positive finite
+                number, fee aliases disagree, or ``premium_style`` is not an
+                explicit premium style.
+        """
         kwargs = dict(kwargs)
         if "mult" in kwargs:
             _finite_number(kwargs["mult"], "option_multiplier_invalid", positive=True)
@@ -655,6 +677,12 @@ class CtpOptionPremium(CommInfoBase):
 
     @property
     def seller_margin_source_kind(self) -> str | None:
+        """Provenance of the configured seller-margin evidence.
+
+        Returns:
+            str | None: Lower-cased source kind, or None when no evidence was
+            supplied or it carries no recognisable provenance field.
+        """
         evidence = self._seller_margin_evidence
         if isinstance(evidence, CtpOptionSellerMarginEvidence):
             return evidence.source_kind.strip().lower()
@@ -669,9 +697,29 @@ class CtpOptionPremium(CommInfoBase):
 
     @property
     def seller_margin_is_synthetic(self) -> bool:
+        """Whether the evidence only proves an offline or synthetic observation.
+
+        Returns:
+            bool: True for the ``synthetic``, ``offline``, ``fixture`` and
+            ``test`` source kinds, none of which is a live verification.
+        """
         return self.seller_margin_source_kind in {"synthetic", "offline", "fixture", "test"}
 
     def validate_seller_margin_evidence(self, *, now: _dt.datetime | None = None) -> dict[str, Any]:
+        """Validate the seller-margin evidence against its declared scope.
+
+        Args:
+            now: Reference instant for freshness checks; defaults to the
+                current time.
+
+        Returns:
+            dict[str, Any]: The validated evidence with its normalised
+            ``source_kind`` and the checks that were applied.
+
+        Raises:
+            OptionAccountingError: If the evidence is missing, malformed,
+                outside its declared scope, or expired.
+        """
         return validate_seller_margin_evidence(
             self._seller_margin_evidence,
             expected_scope=self._evidence_scope,
@@ -679,6 +727,15 @@ class CtpOptionPremium(CommInfoBase):
         )
 
     def seller_margin_status(self) -> str:
+        """Summarise how far the seller-margin evidence has been proven.
+
+        Returns:
+            str: ``BLOCKED_MISSING`` when no evidence was supplied,
+            ``BLOCKED_INVALID`` when it failed validation,
+            ``SYNTHETIC_OFFLINE_ONLY`` when only offline provenance exists, or
+            ``STRUCTURALLY_VALID_UNVERIFIED`` when it is shaped correctly but
+            still unverified against a live account.
+        """
         if self._seller_margin_evidence is None:
             return "BLOCKED_MISSING"
         try:

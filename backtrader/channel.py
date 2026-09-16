@@ -78,6 +78,12 @@ class ChannelDataRef:
     """
 
     def __init__(self, symbol, channel_name=None):
+        """Build the minimal data identity channel strategies expect.
+
+        Args:
+            symbol: Instrument symbol, also used as ``_name`` and ``name``.
+            channel_name: Channel label; defaults to ``symbol``.
+        """
         self._name = str(symbol)
         self.name = str(symbol)
         self.symbol = str(symbol)

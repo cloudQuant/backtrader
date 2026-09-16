@@ -289,6 +289,12 @@ class CtpQuoteValidation:
 
     @property
     def accepted(self) -> bool:
+        """Whether normalization produced usable quote evidence.
+
+        Returns:
+            bool: True when ``quote`` is set; ``reason`` then explains the
+            rejection only when it is not.
+        """
         return self.quote is not None
 
 
@@ -357,6 +363,12 @@ class CtpCohortResult:
 
     @property
     def accepted(self) -> bool:
+        """Whether the ingested quote completed a synchronized cohort.
+
+        Returns:
+            bool: True when ``cohort`` is set; ``reason`` then explains the
+            rejection only when it is not.
+        """
         return self.cohort is not None
 
 
@@ -729,6 +741,19 @@ class CtpQuoteCohortValidator:
         expected_rules_hash: str,
         policy: CtpCohortPolicy,
     ) -> None:
+        """Configure a strict two- or three-leg quote cohort validator.
+
+        Args:
+            expected_legs: Legs every cohort must cover; each entry must be a
+                :class:`CtpCohortLeg`.
+            expected_rules_hash: Rules hash every leg must report.
+            policy: Freshness and skew policy applied to ingested quotes.
+
+        Raises:
+            ValueError: If the leg count is not two or three, or leg symbols
+                are not unique.
+            TypeError: If any leg is not a :class:`CtpCohortLeg`.
+        """
         legs = tuple(expected_legs)
         if len(legs) not in (2, 3):
             raise ValueError("expected_legs must contain exactly two or three CtpCohortLeg values")

@@ -34,6 +34,16 @@ class BokehPlot:
     """
 
     def __init__(self, **kwargs):
+        """Create the adapter and absorb BacktraderBokeh plotter keyword arguments.
+
+        Args:
+            **kwargs: Plotter keyword arguments accepted by ``BacktraderBokeh``.
+                Unknown names are logged and ignored; ``filename`` and the
+                known plotter kwargs are stored on the instance.
+
+        Raises:
+            ImportError: If bokeh or pandas is not installed.
+        """
         if not BOKEH_AVAILABLE:
             raise ImportError("bokeh is required for backend='bokeh'; pip install bokeh")
         if not PANDAS_AVAILABLE:

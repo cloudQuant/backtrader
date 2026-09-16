@@ -194,6 +194,17 @@ class CommInfoBase(ParameterizedBase):
     __getattribute__ = object.__getattribute__
 
     def set_param(self, name, value, validate=True):
+        """Set a parameter and refresh the cached commission attributes.
+
+        Keeps the fast-path caches (``_margin``, ``_automargin``,
+        ``_leverage_param``, ``_interest_long``) in step with the parameter
+        store so hot-path lookups can bypass ``get_param``.
+
+        Args:
+            name: Parameter name.
+            value: New value.
+            validate: Whether the descriptor should validate ``value``.
+        """
         super().set_param(name, value, validate=validate)
         if name == "margin":
             self._margin = value

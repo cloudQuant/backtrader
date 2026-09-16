@@ -633,6 +633,11 @@ class _ApprovalLeaseRejected(BtApiStoreError):
     definite_reject = True
 
     def __init__(self, code: str):
+        """Record the rejection code carried by this error.
+
+        Args:
+            code: Stable machine-readable rejection reason.
+        """
         self.code = code
         super().__init__(code)
 
@@ -1960,18 +1965,68 @@ def _create_ctp_wrapper_class():
             return method(**kwargs)
 
         def query_account_result(self, timeout=5):
+            """Fetch the typed account query result.
+
+            Args:
+                timeout: Seconds to wait for the terminal response.
+
+            Returns:
+                The typed account result. An incomplete query raises instead
+                of degrading to empty data.
+            """
             return self._query_result("query_account_result", timeout=timeout)
 
         def query_positions_result(self, timeout=5):
+            """Fetch the typed position query result.
+
+            Args:
+                timeout: Seconds to wait for the terminal response.
+
+            Returns:
+                The typed position result. An incomplete query raises instead
+                of degrading to empty data.
+            """
             return self._query_result("query_positions_result", timeout=timeout)
 
         def query_orders_result(self, timeout=5, **kwargs):
+            """Fetch the typed order query result.
+
+            Args:
+                timeout: Seconds to wait for the terminal response.
+                **kwargs: Extra filters forwarded to the SDK query.
+
+            Returns:
+                The typed order result. An incomplete query raises instead of
+                degrading to empty data.
+            """
             return self._query_result("query_orders_result", timeout=timeout, **kwargs)
 
         def query_trades_result(self, timeout=5, **kwargs):
+            """Fetch the typed trade query result.
+
+            Args:
+                timeout: Seconds to wait for the terminal response.
+                **kwargs: Extra filters forwarded to the SDK query.
+
+            Returns:
+                The typed trade result. An incomplete query raises instead of
+                degrading to empty data.
+            """
             return self._query_result("query_trades_result", timeout=timeout, **kwargs)
 
         def query_instruments_result(self, instrument_id="", exchange_id="", timeout=5):
+            """Fetch the typed instrument query result.
+
+            Args:
+                instrument_id: Instrument to query; empty means all matching
+                    instruments.
+                exchange_id: Restrict the query to one exchange, if given.
+                timeout: Seconds to wait for the terminal response.
+
+            Returns:
+                The typed instrument result. An incomplete query raises
+                instead of degrading to empty data.
+            """
             return self._query_result(
                 "query_instruments_result",
                 instrument_id=instrument_id,
@@ -1982,6 +2037,18 @@ def _create_ctp_wrapper_class():
         def query_instrument_margin_rate_result(
             self, instrument_id, exchange_id="", hedge_flag="1", timeout=5
         ):
+            """Fetch the typed instrument margin-rate query result.
+
+            Args:
+                instrument_id: Instrument to query.
+                exchange_id: Restrict the query to one exchange, if given.
+                hedge_flag: Hedge flag the requested rate applies to.
+                timeout: Seconds to wait for the terminal response.
+
+            Returns:
+                The typed margin-rate result. An incomplete query raises
+                instead of degrading to empty data.
+            """
             return self._query_result(
                 "query_instrument_margin_rate_result",
                 instrument_id=instrument_id,
@@ -1991,6 +2058,17 @@ def _create_ctp_wrapper_class():
             )
 
         def query_instrument_commission_rate_result(self, instrument_id, exchange_id="", timeout=5):
+            """Fetch the typed instrument commission-rate query result.
+
+            Args:
+                instrument_id: Instrument to query.
+                exchange_id: Restrict the query to one exchange, if given.
+                timeout: Seconds to wait for the terminal response.
+
+            Returns:
+                The typed commission-rate result. An incomplete query raises
+                instead of degrading to empty data.
+            """
             return self._query_result(
                 "query_instrument_commission_rate_result",
                 instrument_id=instrument_id,

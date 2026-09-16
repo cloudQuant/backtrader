@@ -1277,12 +1277,29 @@ class LegacyParamsSchema:
     }
 
     def __init__(self, name: str = "Params", params=(), module: Optional[str] = None):
+        """Build a schema from a legacy ``params`` declaration.
+
+        Args:
+            name: Class-like name exposed as ``__name__``/``__qualname__``.
+            params: Legacy parameter tuples to normalise.
+            module: Value exposed as ``__module__``; defaults to this module.
+        """
         self.__name__ = str(name)
         self.__qualname__ = str(name)
         self.__module__ = module or __name__
         self._pairs = _normalize_legacy_params(params)
 
     def __call__(self, **kwargs):
+        """Build a parameter accessor, adding unknown names as None defaults.
+
+        Args:
+            **kwargs: Parameter values; names absent from the schema are
+                accepted and default to None.
+
+        Returns:
+            ParameterAccessor: Accessor over the resolved parameter set, with
+            history and callbacks disabled.
+        """
         all_pairs = self._pairs.copy()
         for name in kwargs:
             if name not in all_pairs:
@@ -1322,6 +1339,15 @@ class LegacyParamsSchema:
         return self.get(name, default)
 
     def get(self, name, default=None):
+        """Look a parameter up by name, falling back to its known aliases.
+
+        Args:
+            name: Parameter name or one of its entries in ``_ALIASES``.
+            default: Value returned when the name and its aliases are absent.
+
+        Returns:
+            The parameter default, or ``default`` when nothing matched.
+        """
         if name in self._pairs:
             return self._pairs[name]
         for canonical_name, aliases in self._ALIASES.items():
@@ -1348,12 +1374,27 @@ class LegacyParamsSchema:
         return len(self._pairs)
 
     def keys(self):
+        """Return the declared parameter names.
+
+        Returns:
+            list[str]: Parameter names in declaration order.
+        """
         return list(self._pairs.keys())
 
     def items(self):
+        """Return the declared parameter name/default pairs.
+
+        Returns:
+            list[tuple[str, Any]]: Pairs in declaration order.
+        """
         return list(self._pairs.items())
 
     def values(self):
+        """Return the declared parameter defaults.
+
+        Returns:
+            list[Any]: Defaults in declaration order.
+        """
         return list(self._pairs.values())
 
     def __repr__(self):

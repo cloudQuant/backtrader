@@ -305,6 +305,13 @@ class ClockMapping:
         return conservative_ns / 1_000_000_000.0
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return this clock mapping as a JSON-serialisable dict.
+
+        Returns:
+            Dict[str, Any]: Anchor wall/monotonic instants, clock domain,
+            connection generation, source, error bound, validity horizon,
+            rules hash and the synthetic flag.
+        """
         return {
             "mapping_id": self.mapping_id,
             "wall_utc_at_anchor": self.wall_utc_at_anchor.isoformat(),
@@ -593,6 +600,16 @@ class BarEvidence:
         object.__setattr__(self, "bar_id", bar_id)
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return this bar evidence as a JSON-serialisable dict.
+
+        Every field is passed through ``_json_safe`` so the result can be
+        written straight to the run receipt.
+
+        Returns:
+            Dict[str, Any]: Identity, bucket bounds, availability and seal
+            instants, generation and ingest sequence numbers, quality flags
+            and OHLCV values for this bar.
+        """
         return {
             name: _json_safe(getattr(self, name))
             for name in (
@@ -677,6 +694,15 @@ class MinuteDecisionInput:
         object.__setattr__(self, "quality_report", _freeze(dict(self.quality_report)))
 
     def to_dict(self) -> Dict[str, Any]:
+        """Return this decision input as a JSON-serialisable dict.
+
+        Returns:
+            Dict[str, Any]: The bucket key and bounds, the per-leg bar
+            evidence, quote cutoffs, accepted quotes and rejections, source
+            sequences, quality report, identity fields (trading day,
+            generation, rules hash, candidate id) and the clock/deadline
+            instants including the nested clock mapping.
+        """
         return {
             "key": _json_safe(self.key),
             "bars": {symbol: bar.to_dict() for symbol, bar in self.bars.items()},
@@ -713,6 +739,12 @@ class BarBarrierResult:
 
     @property
     def ready(self) -> bool:
+        """Whether this result carries a complete decision input.
+
+        Returns:
+            bool: True when ``decision_input`` was produced, i.e. the barrier
+            had all required legs closed for the bucket.
+        """
         return self.decision_input is not None
 
 
@@ -978,6 +1010,29 @@ class MultiLegBarBarrier:
         clock_mode: Optional[str] = None,
         expected_exchange: str = "",
     ) -> None:
+        """Configure a causal barrier over two or three instrument legs.
+
+        Args:
+            expected_legs: Legs the barrier must wait for; each entry is
+                normalised to a :class:`BarLeg`.
+            legs: Alias for ``expected_legs``, used when only this keyword is
+                supplied.
+            candidate_id: Identifier of the candidate these bars belong to.
+            expected_rules_hash: Rules hash every leg must report, if pinned.
+            clock_mapping: Mapping used to bound quote and bar deadlines.
+            policy: Barrier policy; a default one is built when omitted.
+            timeframe_seconds: Bucket width; required when no policy supplies it.
+            timeout_seconds: Deadline budget for a bucket.
+            expected_clock_domain: Clock domain every leg must report.
+            clock_domain: Alias for ``expected_clock_domain``.
+            clock_mode: Clock mode every leg must report.
+            expected_exchange: Exchange every leg is expected to belong to.
+
+        Raises:
+            ValueError: If no legs are given, the leg count is not two or
+                three, leg symbols are not unique, or required values disagree.
+            TypeError: If ``clock_mapping`` is not a :class:`ClockMapping`.
+        """
         source = expected_legs if expected_legs is not None else legs
         if source is None:
             raise ValueError("expected_legs is required")
@@ -1081,14 +1136,32 @@ class MultiLegBarBarrier:
 
     @property
     def pending_keys(self) -> Tuple[Tuple[Any, ...], ...]:
+        """Bucket keys that are still waiting for at least one leg.
+
+        Returns:
+            Tuple[Tuple[Any, ...], ...]: Pending bucket keys, newest last.
+        """
         return tuple(self._pending)
 
     @property
     def finalized_inputs(self) -> Mapping[Tuple[Any, ...], MinuteDecisionInput]:
+        """Read-only view of the retained completed decision inputs.
+
+        Returns:
+            Mapping[Tuple[Any, ...], MinuteDecisionInput]: Bucket key to the
+            decision input that was produced for it. Only the most recent
+            ``_MAX_RETAINED_INPUTS`` buckets are kept.
+        """
         return MappingProxyType(dict(self._finalized))
 
     @property
     def last_input(self) -> Optional[MinuteDecisionInput]:
+        """Most recent decision input produced by this barrier.
+
+        Returns:
+            Optional[MinuteDecisionInput]: The latest completed decision
+            input, or None when the barrier has not produced one yet.
+        """
         return self._last_input
 
     def reset_scope(

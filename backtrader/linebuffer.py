@@ -2180,6 +2180,12 @@ class _LineForward(LineActions):
     """
 
     def __init__(self, a, ago):
+        """Build a lookahead shift of ``a`` by ``ago`` positions.
+
+        Args:
+            a: Source line or value to shift.
+            ago: Positive number of positions to move each value forward.
+        """
         super().__init__()
         self.a = self.arrayize(a)
         self.ago = ago
