@@ -6,7 +6,8 @@ This script analyzes Python source files to identify:
 1. Missing module-level docstrings
 2. Missing class-level docstrings
 3. Missing method/function docstrings
-4. Chinese comments that need translation
+4. Chinese comments that need translation (Chinese inside a filesystem path
+   is a reference, not prose, and is not reported)
 
 Usage:
     # Check all Python files (excluding docs folder)
@@ -204,12 +205,38 @@ def count_lines(filepath: str) -> int:
         return sum(1 for _ in f)
 
 
+# Chinese inside a path segment (for example
+# ``docs/_internal/opts/requirements/迭代29-日志体系完善/``) is part of a filesystem
+# reference. Translating it would break the reference, so such occurrences are
+# treated as citations rather than as prose that needs translation.
+_PATH_LIKE_TOKEN_RE = re.compile(r'[^\s`\'"()\[\]{}<>,;]*[/\\][^\s`\'"()\[\]{}<>,;]*')
+
+
+def strip_path_like_tokens(text: str) -> str:
+    """Remove whitespace-delimited tokens that look like filesystem paths.
+
+    A token counts as a path when it contains a path separator. Chinese that
+    survives this filter is prose; Chinese removed with its token was a
+    directory or file name and must not be reported as needing translation.
+
+    Args:
+        text: Comment or docstring text to filter.
+
+    Returns:
+        str: ``text`` with every path-like token replaced by a single space.
+    """
+    return _PATH_LIKE_TOKEN_RE.sub(' ', text)
+
+
 def find_chinese_comments(filepath: str) -> List[Tuple[int, str]]:
     """Find Chinese characters only in real comments and docstrings.
 
     Uses ``tokenize`` to inspect COMMENT tokens and ``ast`` to locate
     docstrings; Chinese inside ordinary string literals (print output,
     dict values, report text, ...) is business content and is ignored.
+    Chinese that is part of a filesystem path is also ignored, because it
+    names a real directory or file and translating it would break the
+    reference.
 
     Args:
         filepath: Path to the Python file.
@@ -231,7 +258,9 @@ def find_chinese_comments(filepath: str) -> List[Tuple[int, str]]:
     # 1) ``#`` comments: exact COMMENT tokens from tokenize.
     try:
         for tok in tokenize.generate_tokens(io.StringIO(source).readline):
-            if tok.type == tokenize.COMMENT and chinese_pattern.search(tok.string):
+            if tok.type == tokenize.COMMENT and chinese_pattern.search(
+                strip_path_like_tokens(tok.string)
+            ):
                 if tok.start[0] not in seen_lines:
                     seen_lines.add(tok.start[0])
                     chinese_lines.append((tok.start[0], tok.string))
@@ -239,7 +268,9 @@ def find_chinese_comments(filepath: str) -> List[Tuple[int, str]]:
         # Fall back to a line-based comment scan for files tokenize cannot read.
         for line_num, line in enumerate(source.splitlines(), 1):
             stripped = line.strip()
-            if stripped.startswith('#') and chinese_pattern.search(stripped):
+            if stripped.startswith('#') and chinese_pattern.search(
+                strip_path_like_tokens(stripped)
+            ):
                 if line_num not in seen_lines:
                     seen_lines.add(line_num)
                     chinese_lines.append((line_num, line.rstrip()))
@@ -267,7 +298,7 @@ def find_chinese_comments(filepath: str) -> List[Tuple[int, str]]:
                 if doc_node is None:
                     continue
                 text = doc_node.value or ""
-                if chinese_pattern.search(text):
+                if chinese_pattern.search(strip_path_like_tokens(text)):
                     docstring_lines.update(
                         range(doc_node.lineno, doc_node.end_lineno + 1)
                     )
