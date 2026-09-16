@@ -27,7 +27,10 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: python
-          queries: security-and-quality
+          # Quality findings are owned by ruff/mypy/bandit; CodeQL focuses on
+          # security here. Scope and query exclusions live in codeql-config.yml.
+          queries: security-extended
+          config: .github/codeql-config.yml
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
       - name: Perform CodeQL analysis
