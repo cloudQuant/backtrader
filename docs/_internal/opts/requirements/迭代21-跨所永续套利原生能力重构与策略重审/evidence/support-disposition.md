@@ -56,10 +56,11 @@
 | 活动源码引用与目录 | `PASS` | `examples/cross_exchange_arbitrage_support` 已不存在；活动运行引用为零；历史文档保留路径文字 |
 | source/isolated-install replay parity | `PASS` | v7 五 wheel、隔离安装、base wheel 强制重装、repo 外两 replay 与相关源码/安装态集各 727 passed |
 
-目录已在源码态删除，不再恢复一个已知不合理的 examples 运行框架。v7 G3 收据位于
-`.git/iter21-evidence/2026-09-08-cross-venue-layer-v7/`；Backtrader wheel SHA-256 为
-`689146eb2acb084b2787af5e25de8b61c31697b575c6f5232ab27819200c4621`，bt_api_py wheel SHA-256
-为 `f5e4ceb8442f06d13f231bad05adc06138d1b7a614161ac496216fa1269f7ded`。初始 v5 wheel 的生成目录
-残留已被拒绝，v7 已验证两个旧 Backtrader utils 不可导入。完整收据见
-`evidence/2026-09-08-v7-build-install-receipt.md`。后续若再发现安装态漏包或残留引用，应修复
-正式 SDK/Core/策略归属，不重建 support 兼容包。
+目录已在源码态删除，不再恢复一个已知不合理的 examples 运行框架。v7 G3 收据原位于
+`.git/iter21-evidence/2026-09-08-cross-venue-layer-v7/`，该目录已于 2026-09-16 销毁；Backtrader
+wheel SHA-256 为 `689146eb2acb084b2787af5e25de8b61c31697b575c6f5232ab27819200c4621`，bt_api_py
+wheel SHA-256 为 `f5e4ceb8442f06d13f231bad05adc06138d1b7a614161ac496216fa1269f7ded`，二者为
+当前唯一认定依据，完整收据见 `evidence/2026-09-08-v7-build-install-receipt.md`，销毁范围见
+`evidence/2026-09-16-local-evidence-disposal-record.md`。初始 v5 wheel 的生成目录残留已被拒绝，
+v7 已验证两个旧 Backtrader utils 不可导入。后续若再发现安装态漏包或残留引用，应修复正式
+SDK/Core/策略归属，不重建 support 兼容包。

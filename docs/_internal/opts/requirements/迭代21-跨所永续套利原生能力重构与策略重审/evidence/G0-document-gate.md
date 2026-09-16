@@ -37,7 +37,10 @@
 - Backtrader 基线：`dev`，HEAD `ab1ae150f73199fbd64449eb7c43fd1f45a29c5d`。
 - `bt_api_py` 基线：`master`，HEAD `2be8dbc25b0f49f4734ad337fcd7abe53840c3b9`。
 - 两个 dirty checkout 的 branch、HEAD、submodule、status、diff/name-status/stat 已写入
-  `.git/iter21-evidence/baseline-manifest.json`。
+  当时的 `.git/iter21-evidence/baseline-manifest.json`（SHA-256
+  `1bbe3299984b7620eaf3f79b24f25d29ea4ac32f8c775754de8ca03e99ed8986`）；该文件已于
+  2026-09-16 随目录销毁，明细不可再查，见
+  `evidence/2026-09-16-local-evidence-disposal-record.md`。
 - 两个工作目录已切换到本地分支 `codex/iter21-cross-venue-arbitrage`；没有 reset、checkout
   文件或回滚用户改动。
 - 实施 allowlist 按 SDK、venue plugin、Backtrader Core、两个策略、迁移和验收分组；不相关

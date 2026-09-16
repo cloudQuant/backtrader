@@ -19,8 +19,10 @@
 
 ## 2. v7 制品
 
-所有 wheel 在同一 epoch 使用用户 Anaconda base 的 Python 构建，并保存在本机 ignored 目录
-`.git/iter21-evidence/2026-09-08-cross-venue-layer-v7/wheels/`。
+所有 wheel 在同一 epoch 使用用户 Anaconda base 的 Python 构建，构建时保存在本机
+`.git/iter21-evidence/2026-09-08-cross-venue-layer-v7/wheels/`；该目录已于 2026-09-16 销毁
+（见 `evidence/2026-09-16-local-evidence-disposal-record.md`）。下表 SHA-256 是本收据制品
+的唯一认定依据。
 
 | wheel | SHA-256 |
 |---|---|

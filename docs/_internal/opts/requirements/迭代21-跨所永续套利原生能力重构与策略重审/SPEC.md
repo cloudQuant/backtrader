@@ -63,7 +63,7 @@ paper/demo 写入。
 | `evidence/sdk-v2-adversarial-review.md` | 历史 SDK V2 反例 | 历史快照，保留不回写 |
 | `evidence/strategy-v1-adversarial-review.md` | 历史策略 V1 反例 | 历史快照，保留不回写 |
 | `evidence/strategy-v2-adversarial-review.md` | 历史策略 V2 反例 | 历史快照，保留不回写 |
-| `.git/iter21-evidence/2026-09-08-cross-venue-layer-v7/` | wheel、隔离安装、base 重装的本地原始收据 | 本地 ignored 证据；hash 摘要由 v7 build receipt 固化 |
+| `evidence/2026-09-16-local-evidence-disposal-record.md` | 已销毁本地原始证据的处置记录 | 原始目录 `.git/iter21-evidence/` 已整目录销毁；制品认定依据回退为 v6/v7 receipt 固化的 hash 摘要 |
 | `evidence/final-implementation-review.md` | 当前候选实施、门禁和生产阻断终审 | 总体 `FAIL`，写操作 `PROHIBITED` |
 
 ## Capabilities
