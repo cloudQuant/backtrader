@@ -30,27 +30,27 @@
 
 # 列出所有场景
 
-python examples/live_certification/simnow_penetration/run_case.py --list
+python examples/007_ctp/live_certification/simnow_penetration/run_case.py --list
 
 # 运行单个场景
 
-python examples/live_certification/simnow_penetration/run_case.py C01
+python examples/007_ctp/live_certification/simnow_penetration/run_case.py C01
 
 # 运行多个场景
 
-python examples/live_certification/simnow_penetration/run_case.py C01 T01 T02 T03
+python examples/007_ctp/live_certification/simnow_penetration/run_case.py C01 T01 T02 T03
 
 # 运行全部 33 个场景
 
-python examples/live_certification/simnow_penetration/run_case.py --all
+python examples/007_ctp/live_certification/simnow_penetration/run_case.py --all
 
 # 或使用快捷脚本
 
-python examples/live_certification/simnow_penetration/run_all.py
+python examples/007_ctp/live_certification/simnow_penetration/run_all.py
 
 # 指定报告目录
 
-python examples/live_certification/simnow_penetration/run_case.py --all --report-root ./my_reports
+python examples/007_ctp/live_certification/simnow_penetration/run_case.py --all --report-root ./my_reports
 
 ```bash
 

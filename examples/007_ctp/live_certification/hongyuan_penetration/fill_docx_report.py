@@ -182,7 +182,7 @@ def load_version() -> str:
     """Extract version string from version.py.
 
     Returns:
-        Version string or the Chinese placeholder "to be filled" if not found.
+        Version string or the Chinese placeholder "待补充" if not found.
     """
     version_text = VERSION_FILE.read_text(encoding="utf-8")
     match = re.search(r'__version__\s*=\s*"([^"]+)"', version_text)
