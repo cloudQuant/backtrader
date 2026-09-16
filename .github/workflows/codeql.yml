@@ -28,9 +28,26 @@ jobs:
         with:
           languages: python
           # Quality findings are owned by ruff/mypy/bandit; CodeQL focuses on
-          # security here. Scope and query exclusions live in codeql-config.yml.
+          # security here. The inline config narrows the scan to released
+          # product code (backtrader/) and disables queries that conflict with
+          # the framework design: direct bt.Strategy subclasses deliberately
+          # never call super().__init__() (Strategy.__new__ already performs
+          # base initialization), so py/missing-super-init is a pure false
+          # positive across example strategies.
           queries: security-extended
-          config: .github/codeql-config.yml
+          config: |
+            paths-ignore:
+              - docs
+              - examples
+              - tests
+              - tools
+              - studies
+              - scripts
+              - .joyincode
+              - conftest.py
+            disable:
+              queries:
+                - py/missing-super-init
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
       - name: Perform CodeQL analysis
