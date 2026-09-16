@@ -13,6 +13,14 @@ import examples.ctp_options_simnow_mechanical_operator as mechanical
 
 
 def _context(**changes):
+    """Build an entry-approval context, overriding named fields.
+
+    Args:
+        **changes: Fields merged over the default context values.
+
+    Returns:
+        The resulting context dictionary.
+    """
     context = {
         "candidate_id": "candidate-iter23-25",
         "strategy_id": "iter23-25-options-mechanical",
@@ -46,6 +54,14 @@ def _context(**changes):
 
 
 def _key_material(tmp_path):
+    """Generate an Ed25519 key pair and its encoded key-material document.
+
+    Args:
+        tmp_path: Unused temporary-path argument.
+
+    Returns:
+        A ``(key_material, private_key)`` tuple.
+    """
     cryptography = pytest.importorskip("cryptography.hazmat.primitives.asymmetric.ed25519")
     private = cryptography.Ed25519PrivateKey.generate()
     public_raw = private.public_key().public_bytes_raw()
@@ -61,6 +77,7 @@ def _key_material(tmp_path):
 
 
 def _b64decode(value: str) -> bytes:
+    """Decode unpadded URL-safe base64 material back to bytes."""
     return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
 
 
@@ -197,6 +214,7 @@ def test_build_entry_payload_rejects_missing_context_fields():
 
 
 def _bundle():
+    """Return a CZCE ``SA`` three-leg bundle with one future and two options."""
     from examples.ctp_options_simnow_common import LegIdentity, ThreeLegBundle
 
     future = LegIdentity(
@@ -251,6 +269,7 @@ def _bundle():
 
 
 def _stage_b():
+    """Return complete Stage-B margin and commission query results."""
     def margin_record(instrument, **fields):
         base = {
             "InstrumentID": instrument,
@@ -292,6 +311,7 @@ def _stage_b():
 
 
 def _reference():
+    """Return an executable reference with an entry/exit quote per leg."""
     return {
         "legs": [
             {

@@ -167,12 +167,29 @@ class ChannelTraceStrategy(bt.Strategy):
 
 
 def _make_cerebro(**kwargs):
+    """Return a Cerebro with the shared daily CSV data feed attached.
+
+    Args:
+        **kwargs: Keyword arguments forwarded to ``bt.Cerebro``.
+
+    Returns:
+        bt.Cerebro: The configured engine with one data feed.
+    """
     cerebro = bt.Cerebro(**kwargs)
     cerebro.adddata(bt.feeds.BacktraderCSVData(dataname=DATAPATH, plot=False))
     return cerebro
 
 
 def _run_and_record(name, cerebro, stratcls=TraceStrategy, extra=None, **stratkwargs):
+    """Run ``stratcls`` on ``cerebro`` and compare or record its trace.
+
+    Args:
+        name: Baseline key for the trace.
+        cerebro: Engine to run.
+        stratcls: Strategy class added before running.
+        extra: Optional payload entries merged into the recorded result.
+        **stratkwargs: Keyword arguments forwarded to ``addstrategy``.
+    """
     cerebro.addstrategy(stratcls, **stratkwargs)
     results = cerebro.run()
     strat = results[0]
@@ -188,10 +205,12 @@ def _run_and_record(name, cerebro, stratcls=TraceStrategy, extra=None, **stratkw
 
 
 def _normalize(trace):
+    """Return ``trace`` with float entries rounded to nine decimals."""
     return [[round(v, 9) if isinstance(v, float) else v for v in item] for item in trace]
 
 
 def _compare_or_record(name, payload):
+    """Store ``payload`` when updating the baseline, else assert it matches."""
     if UPDATE:
         _TRACES[name] = payload
         return
@@ -206,6 +225,7 @@ def _compare_or_record(name, payload):
 
 
 def _first_diff(expected, actual):
+    """Return a human-readable description of the first trace difference."""
     et, at = expected.get("trace"), actual.get("trace")
     if len(et) != len(at):
         return f"length {len(et)} != {len(at)}; expected head/tail {et[:2]}{et[-2:]} vs {at[:2]}{at[-2:]}"
@@ -221,6 +241,7 @@ def _fastpath_hit(strat):
 
 
 def teardown_module(module):
+    """Write collected traces back to the baseline file when updating."""
     if UPDATE:
         existing = json.loads(BASELINE_PATH.read_text()) if BASELINE_PATH.exists() else {}
         existing.update(_TRACES)
@@ -250,6 +271,7 @@ def test_loop2a_runnext_fastpath():
 
 
 def _run_and_record_probe(name, trace, extra):
+    """Normalize ``trace``, merge ``extra`` and compare it with the baseline."""
     payload = {"trace": _normalize(trace)}
     payload.update(extra)
     _compare_or_record(name, payload)
@@ -357,6 +379,7 @@ def test_multi_timeframe_resample():
 
 
 def _channel_events(symbol="SYM"):
+    """Return one tick, orderbook and bar event per timestamp for ``symbol``."""
     from backtrader.channel import Event
     from backtrader.events import BarEvent, OrderBookSnapshot, TickEvent
 

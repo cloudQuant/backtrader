@@ -35,6 +35,16 @@ class RecordingHandler(logging.Handler):
 
 
 def install_logger(monkeypatch, module, fail=False):
+    """Install an in-memory logger on ``module`` and return its handler.
+
+    Args:
+        monkeypatch: Pytest fixture used to swap the module logger.
+        module: Module whose ``logger`` attribute is replaced.
+        fail: When True, the handler raises to exercise sink-failure paths.
+
+    Returns:
+        RecordingHandler: The attached handler capturing emitted records.
+    """
     logger = logging.Logger(module.__name__, logging.DEBUG)
     handler = RecordingHandler(fail)
     logger.addHandler(handler)

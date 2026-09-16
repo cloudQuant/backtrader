@@ -59,6 +59,7 @@ def _position_only_samples(orders):
 
 
 def _execution_order(orders):
+    """Flatten a round schedule into per-execution position records."""
     return [
         {
             "round": round_number,

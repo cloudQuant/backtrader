@@ -1,3 +1,9 @@
+"""Offline tests for the Iteration 25 SimNow live runner.
+
+Every test injects fake stores and brokers; no test loads credentials, creates
+a native client, or connects to SimNow.
+"""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -17,6 +23,14 @@ SYMBOLS = ("DCE.m2701", "DCE.m2701-C-3400", "DCE.m2701-P-3400")
 
 
 def _identity(**changes):
+    """Build a flat, write-free preflight identity, overriding named fields.
+
+    Args:
+        **changes: Fields merged over the default identity values.
+
+    Returns:
+        The resulting identity dictionary.
+    """
     value = {
         "account_fingerprint": "acct-test-sha256",
         "trading_day": "20260911",
@@ -36,6 +50,7 @@ def _identity(**changes):
 
 
 def _records():
+    """Return the instrument records for one future and its call/put legs."""
     return [
         {
             "InstrumentID": "m2701",
@@ -80,6 +95,7 @@ def _records():
 
 
 def _bundle():
+    """Build a bundle-preflight snapshot for the configured three-leg symbols."""
     return _identity(
         schema_version="backtrader.ctp.bundle-preflight.v2",
         legs=[
@@ -91,6 +107,15 @@ def _bundle():
 
 
 def _execution_reference(received_monotonic=None, depth_request_ids=(101, 102, 103)):
+    """Build a full read-only execution reference with fresh depth quote legs.
+
+    Args:
+        received_monotonic: Receive timestamp; defaults to 0.1s in the past.
+        depth_request_ids: Per-leg depth query request IDs.
+
+    Returns:
+        A ``backtrader.ctp.bundle-execution-reference.v1`` dictionary.
+    """
     received_monotonic = (
         received_monotonic if received_monotonic is not None else time.monotonic() - 0.1
     )
@@ -147,6 +172,15 @@ def _execution_reference(received_monotonic=None, depth_request_ids=(101, 102, 1
 
 
 def _quote_reference(received_monotonic=None, depth_request_ids=(201, 202, 203)):
+    """Build the quote-only exit reference derived from an execution reference.
+
+    Args:
+        received_monotonic: Receive timestamp forwarded to the source reference.
+        depth_request_ids: Per-leg depth query request IDs.
+
+    Returns:
+        A ``backtrader.ctp.bundle-quote-reference.v1`` dictionary.
+    """
     full = _execution_reference(received_monotonic, depth_request_ids)
     bundle = full["bundle_preflight"]
     primary = next(leg for leg in bundle["legs"] if leg["is_primary"] is True)
@@ -178,6 +212,14 @@ def _quote_reference(received_monotonic=None, depth_request_ids=(201, 202, 203))
 
 
 def _raw_reconciliation(**changes):
+    """Build a raw reconciliation snapshot, overriding named fields.
+
+    Args:
+        **changes: Fields merged over the default reconciliation values.
+
+    Returns:
+        The resulting reconciliation dictionary.
+    """
     value = _identity(
         schema_version="backtrader.ctp.preflight.v1",
         unmatched_trade_count=None,
@@ -195,6 +237,7 @@ def _raw_reconciliation(**changes):
 
 
 def _snapshots():
+    """Assemble the preflight snapshot bundle consumed by the live runner."""
     stage_a = _identity(
         schema_version="backtrader.ctp.preflight.v1",
         exchange_id="DCE",
@@ -302,6 +345,7 @@ class FakeBroker:
 
 
 def _authorization():
+    """Return an armed execution authorization with a configured HMAC grant."""
     return {
         "armed": True,
         "hmac_grant_configured": True,
@@ -312,6 +356,7 @@ def _authorization():
 
 
 def _execution_state():
+    """Return an armed, broker-started execution state matching the identity."""
     return {
         "store_armed": True,
         "broker_started": True,
@@ -322,6 +367,16 @@ def _execution_state():
 
 
 def _runner(broker=None, authorization=None, store=None):
+    """Build a live runner wired to fakes and the frozen snapshot bundle.
+
+    Args:
+        broker: Broker double; a fresh ``FakeBroker`` is used when omitted.
+        authorization: Execution authorization; defaults to ``_authorization()``.
+        store: Store double; a fresh ``FakeStore`` is used when omitted.
+
+    Returns:
+        A ``(runner, broker)`` tuple.
+    """
     broker = broker or FakeBroker()
     store = store or FakeStore()
     return (
@@ -342,6 +397,15 @@ def _runner(broker=None, authorization=None, store=None):
 
 
 def _execute(runner, prices=None):
+    """Preflight a runner, then execute with the given or default leg prices.
+
+    Args:
+        runner: Live runner built by ``_runner``.
+        prices: Symbol-to-price mapping; defaults to 10.0 for every symbol.
+
+    Returns:
+        The started mechanical session.
+    """
     runner.preflight()
     return runner.execute_preflighted(
         prices=prices or dict.fromkeys(SYMBOLS, 10.0),
@@ -350,6 +414,17 @@ def _execute(runner, prices=None):
 
 
 def _native_fill(order, generation=7, trade_id="T1", system_id="SYS1"):
+    """Mark an order as a completed native fill with the given identifiers.
+
+    Args:
+        order: Order double mutated in place.
+        generation: Connection generation to stamp on the fill.
+        trade_id: Native trade identifier.
+        system_id: Native external order identifier.
+
+    Returns:
+        The same ``order`` object.
+    """
     order.status = 4
     order.getstatusname = lambda: "Completed"
     order.info.update(

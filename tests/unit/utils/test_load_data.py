@@ -8,6 +8,7 @@ from backtrader.utils import load_data
 
 
 def _write_mt5_csv(path):
+    """Write a small MT5-format TSV fixture to path."""
     path.write_text(
         "\n".join(
             [

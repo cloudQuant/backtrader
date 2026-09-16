@@ -215,6 +215,7 @@ class TransportBackend:
 
 @pytest.fixture
 def execution_stack(monkeypatch, tmp_path):
+    """Build a transport-free SDK store/broker stack for execution tests."""
     # Empty construction avoids plugin connections. Subscription handlers are
     # also transport boundaries; real BtApi.subscribe still parses/routs topics.
     monkeypatch.setattr("bt_api_py.bt_api._ensure_plugins_loaded", lambda: None)
@@ -319,6 +320,7 @@ def execution_stack(monkeypatch, tmp_path):
 
 
 def submit(stack, venue, position_side, offset):
+    """Submit a limit IOC order for the venue through the stack broker."""
     _, _, quantity, _ = INSTRUMENTS[venue]
     buy = (position_side == "long") == (offset == "open")
     return (stack.broker.buy if buy else stack.broker.sell)(

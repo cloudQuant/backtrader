@@ -114,6 +114,7 @@ def _capture_bbroker_logger(monkeypatch, level=logging.DEBUG):
 
 
 def _messages(handler, *, level=None):
+    """Return captured log messages, optionally filtered to one level."""
     records = handler.records
     if level is not None:
         records = [record for record in records if record.levelno == level]

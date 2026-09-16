@@ -94,6 +94,14 @@ class ResampleTailStrategy(bt.Strategy):
 
 
 def _run_intraday_to_daily_resample(timestamps):
+    """Run a 15-minute to daily resample over bars indexed at ``timestamps``.
+
+    Args:
+        timestamps: Datetime-like values used as the 15-minute bar index.
+
+    Returns:
+        The first strategy instance produced by the resampled run.
+    """
     index = pd.to_datetime(timestamps)
     prices = [float(i + 1) for i in range(len(index))]
     frame = pd.DataFrame(

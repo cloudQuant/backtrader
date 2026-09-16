@@ -14,40 +14,54 @@ O=Path(__file__).resolve().parent;R=O.parent/'source';EX=R/'examples/014_2_ctp_o
 BASE=datetime(2026,9,11,9,30,tzinfo=timezone.utc)
 CASES=[];TRACES=[];PRODUCT_NEGATIVE=[];PRODUCT_NEGATIVE_CONTRACTS=json.loads((O/'product_negative_contracts.json').read_text())['contracts']
 def save():
+ """Persist collected cases, engine traces, and product-negative contracts as JSON files."""
  with (O/'mf-cases.json').open('x') as f:json.dump(CASES,f,indent=2,default=str)
  with (O/'mf-engine-traces.json').open('x') as f:json.dump(TRACES,f,indent=2,default=str)
  with (O/'mf-product-negative-contracts.json').open('x') as f:json.dump(PRODUCT_NEGATIVE,f,indent=2,default=str)
 atexit.register(save)
 def ck(name,contracts,expected,observed):
+ """Record and assert one frozen-contract comparison case."""
  ok=expected==observed
  CASES.append(dict(id=name,contracts=contracts,expected=expected,observed=observed,pass_=ok))
  assert ok, json.dumps({'id':name,'expected':expected,'observed':observed},default=str)
 def env(error=0):
+ """Build a synthetic scope identity and its matching clock mapping."""
  s=ScopeIdentity('candidate','basket','synthetic-account','20260911','day',7,'rules','synthetic-domain','mapping','astra-synthetic-scope',True)
  m=ClockMapping('mapping',BASE,0,s.clock_domain,s.generation,'astra-synthetic-mapping',error,10**15,s.rules_hash,True)
  return s,m
 def clock(s,m,n,**kw):
+ """Build a synthetic trusted clock observation at monotonic time n."""
  # Python datetime stores microseconds; nanosecond residual is explicitly bounded.
  k=dict(monotonic_ns=n,wall_utc=BASE+timedelta(microseconds=(n-m.anchor_monotonic_ns)//1000),clock_domain=s.clock_domain,mapping=m,scope=s,source='astra-synthetic-clock',trusted=True,synthetic=True);k.update(kw)
  return ClockObservation(**k)
 def facts(s,**kw):
+ """Build synthetic execution facts defaulting to a trusted idle scope."""
  k=dict(scope=s,source='astra-synthetic-facts',source_kind='synthetic',trusted=True,reported_phase='IDLE',first_leg_intent_ns=None,first_basket_intent_ns=None,cancel_intent_ns=None,earliest_exposure_lower_ns=None,latest_complete_fill_upper_ns=None,complete_basket=False,authoritative_flat_verified=True,possible_exposure_qty=0,confirmed_qty=0,event_ids=(),collection_version='v1',expiry_ns=10**15)
  k.update(kw);return ExecutionFacts(**k)
 def active(s,**kw):
+ """Build synthetic execution facts for an active leg-pending basket."""
  k=dict(reported_phase='LEG_PENDING',authoritative_flat_verified=False,possible_exposure_qty=3);k.update(kw);return facts(s,**k)
 def complete(s,exposure=61*NS,fill=64*NS,**kw):
+ """Build synthetic execution facts for a completed exposed basket."""
  k=dict(reported_phase='EXPOSED',authoritative_flat_verified=False,possible_exposure_qty=3,confirmed_qty=3,complete_basket=True,earliest_exposure_lower_ns=exposure,latest_complete_fill_upper_ns=fill);k.update(kw);return facts(s,**k)
 def minute(s,end=120*NS,**kw):
+ """Build a synthetic minute input whose bucket ends at the given nanosecond."""
  k=dict(minute_id='m'+str(end),bucket_start_ns=end-60*NS,bucket_end_ns=end,scope=s,bar_ids=tuple(f'{end}-{x}' for x in 'FCP'),quote_cutoffs=tuple((x,i+1) for i,x in enumerate('FCP')),direction='conversion',max_quantity=1,invocation_id='A'+str(end),next_boundary_ns=end+60*NS,decision_deadline_ns=end+30*NS,entry_candidate=True,z_score=.5,legal_barrier=True)
  k.update(kw);return MinuteInput(**k)
 def exact(s,n):
+ """Build an aligned mapping and clock observation that land exactly on nanosecond n."""
  _,m=env();m=replace(m,anchor_monotonic_ns=n%1000);return m,clock(s,m,n)
 def exact_project(s,f,n,mi=None):
+ """Project facts through the exact clock at nanosecond n, optionally with a minute input."""
  m,c=exact(s,n);return projector(s,m).project(f,c,minute=mi)
-def projector(s,m,**kw):return TimingProjector(scope=s,mapping=m,policy=TimingPolicy(30,**kw))
+def projector(s,m,**kw):
+ """Build a timing projector bound to the given scope and mapping."""
+ return TimingProjector(scope=s,mapping=m,policy=TimingPolicy(30,**kw))
 def evt(id='e',kind='fill',leg='F',quantity=1,n=1*NS,terminal=True,source='astra-synthetic-event',**kw):
+ """Build one synthetic execution event."""
  k=dict(event_id=id,kind=kind,leg=leg,quantity=quantity,occurred_lower_ns=n,occurred_upper_ns=n,received_ns=n,terminal=terminal,source=source);k.update(kw);return ExecutionEvent(**k)
 def rejection(contract_id,f):
+ """Assert the frozen negative contract's expected exception or projection outcome."""
  expected=PRODUCT_NEGATIVE_CONTRACTS[contract_id]['expected']
  if expected['kind']=='exception':
   expected_type={'TimingContractError':TimingContractError,'ConfigurationError':ConfigurationError}[expected['exception_class']]
@@ -114,6 +128,7 @@ class SequenceFeed(bt.feed.DataBase):
   self.lines.volume[0]=1.;self.lines.openinterest[0]=0.;return True
 
 def engine(name,s,m,sequence):
+ """Run the real strategy over a synthetic sequence feed and record its trace."""
  provider=SequenceProvider(s,m,sequence);feed=SequenceFeed(provider)
  c=bt.Cerebro(stdstats=False);c.adddata(feed);cfg=yaml.safe_load((EX/'config.yaml').read_text());c.addstrategy(CTPOptionsMidFrequencyStrategy,config=cfg,timing_provider=provider)
  main_thread=threading.get_ident();st=c.run(runonce=False,preload=False)[0];report=st.build_report()

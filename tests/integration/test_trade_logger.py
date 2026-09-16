@@ -201,6 +201,7 @@ def multidata_logs(tmp_path_factory, data_path):
 
 
 def _read_lines(path):
+    """Read a text file and return its lines."""
     with open(path, 'r', encoding='utf-8') as f:
         return f.readlines()
 

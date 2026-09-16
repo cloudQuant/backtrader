@@ -33,6 +33,16 @@ class RecordingHandler(logging.Handler):
 
 
 def _install_logger(monkeypatch, module, level):
+    """Install an in-memory logger at ``level`` and return its handler.
+
+    Args:
+        monkeypatch: Pytest fixture used to swap the module logger.
+        module: Module whose ``logger`` attribute is replaced.
+        level: Logging level assigned to the replacement logger.
+
+    Returns:
+        RecordingHandler: The attached handler capturing emitted records.
+    """
     logger = logging.Logger(module.__name__, level)
     handler = RecordingHandler()
     logger.addHandler(handler)
@@ -41,11 +51,13 @@ def _install_logger(monkeypatch, module, level):
 
 
 def _formatted_records(records):
+    """Return ``records`` rendered with a fixed level/name/message format."""
     formatter = logging.Formatter("%(levelname)s %(name)s %(message)s")
     return [formatter.format(record) for record in records]
 
 
 def _assert_safe_records(records):
+    """Assert ``records`` leak no secret or traceback and return rendered lines."""
     rendered = _formatted_records(records)
     text = "\n".join(rendered)
     assert "synthetic-secret" not in text
@@ -55,6 +67,14 @@ def _assert_safe_records(records):
 
 
 def _assert_bounded_records(handler, key, level=logging.WARNING, expected_total=250):
+    """Assert a throttled failure emitted exactly three records for ``key``.
+
+    Args:
+        handler: Recording handler holding the emitted records.
+        key: Throttle-state key expected in ``log_message._throttle_state``.
+        level: Expected level of every emitted record.
+        expected_total: Total failure count recorded by the throttle.
+    """
     assert len(handler.records) == 3
     assert all(record.levelno == level for record in handler.records)
     assert key in "\n".join(_assert_safe_records(handler.records))
@@ -75,6 +95,7 @@ def _assert_bounded_records(handler, key, level=logging.WARNING, expected_total=
 
 @pytest.fixture(autouse=True)
 def _reset_logging_state():
+    """Reset library logging and throttling state before and after each test."""
     log_message.reset_logging()
     log_message._throttle_state.clear()
     log_message.set_throttle(True)
@@ -430,12 +451,14 @@ def test_forward_clock_recoveries_are_bounded_and_keep_advancing(
 
 
 def _make_lines(line):
+    """Return a ``Lines`` instance exposing ``line`` as its only line."""
     lines = object.__new__(lineseries_module.Lines)
     object.__setattr__(lines, "lines", [line])
     return lines
 
 
 def _make_lineseries(line):
+    """Return a ``LineSeries`` whose lines namespace exposes ``line``."""
     series = object.__new__(lineseries_module.LineSeries)
     object.__setattr__(series, "lines", SimpleNamespace(lines=[line]))
     return series
@@ -580,6 +603,7 @@ class _BrokenRoot:
 
 
 def _broken_operation(*args):
+    """Operation callback that always raises the synthetic secret error."""
     raise RuntimeError("synthetic-secret")
 
 

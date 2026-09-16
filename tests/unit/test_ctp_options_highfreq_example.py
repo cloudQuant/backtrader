@@ -21,6 +21,7 @@ PACKAGE = "iter25_ctp_options_highfreq_example"
 
 
 def _load_example_package() -> None:
+    """Import the example package under its stable module name, once."""
     if PACKAGE in sys.modules:
         return
     spec = importlib.util.spec_from_file_location(
@@ -41,6 +42,7 @@ timing_module = importlib.import_module(f"{PACKAGE}.execution_timing")
 
 
 def _config() -> dict:
+    """Load and return the replay-mode config from the example's ``config.yaml``."""
     raw, _ = runner.load_config(EXAMPLE / "config.yaml")
     return runner.effective_config(raw, mode="replay", purpose="formula")
 
@@ -184,6 +186,14 @@ def test_direction_switch_clears_prior_confirmation(monkeypatch):
 
 
 def _strategy_and_events(scenario="valid_cohort"):
+    """Run the replay strategy and return it with its cohort events.
+
+    Args:
+        scenario: Fixture scenario name passed to the cohort builder.
+
+    Returns:
+        A ``(strategy, events)`` tuple.
+    """
     config = _config()
     fixture, _, _ = runner.load_fixture(config)
     bundle = runner.validate_bundle(fixture, config)
@@ -197,6 +207,17 @@ def _strategy_and_events(scenario="valid_cohort"):
 
 
 def _trusted_now_from_tick(tick, *, monotonic_delta_ns=0, epoch_delta=0.0, domain=None):
+    """Build trusted-now evidence from a tick's receive clock.
+
+    Args:
+        tick: Tick supplying the monotonic, wall, and clock-domain values.
+        monotonic_delta_ns: Monotonic offset added to the tick receive time.
+        epoch_delta: Wall-clock offset added to the tick receive time.
+        domain: Clock domain override; defaults to the tick's own domain.
+
+    Returns:
+        A trusted ``CtpCohortNow`` record.
+    """
     return runner.bt.feeds.CtpCohortNow(
         now_monotonic_ns=tick.recv_monotonic_ns + monotonic_delta_ns,
         now_epoch=runner._iso(float(tick.recv_time_utc and tick.received_wall_time) + epoch_delta),
@@ -694,6 +715,14 @@ def test_replay_cash_cannot_be_lower_than_the_frozen_capital_contract():
 
 
 def _timing_fact(**overrides):
+    """Build a synthetic timing fact, overriding named fields.
+
+    Args:
+        **overrides: Fields merged over the default fact values.
+
+    Returns:
+        The constructed ``TimingFact``.
+    """
     values = {
         "fact_id": "fact-1",
         "fact_type": "durable_intent",
@@ -885,6 +914,14 @@ def test_freshness_and_clock_bounds_cannot_be_widened_past_frozen_limits(
 # confined to the 015 test module: every input is synthetic and no helper has
 # a network, account, SDK, or native CTP dependency.
 def _hf_timing_scope(**overrides):
+    """Build a synthetic HF-T1 timing scope, overriding named fields.
+
+    Args:
+        **overrides: Fields merged over the default synthetic scope values.
+
+    Returns:
+        The constructed ``TimingScope``.
+    """
     values = {
         "provider_id": "hf-t1-synthetic-provider",
         "source_id": "hf-t1-synthetic-source",
@@ -905,6 +942,7 @@ def _hf_timing_scope(**overrides):
 
 
 def _hf_timing_associations():
+    """Return synthetic order associations for the future and option legs."""
     return tuple(
         timing_module.OrderAssociation(
             intent_id="intent-1",
@@ -920,6 +958,16 @@ def _hf_timing_associations():
 
 
 def _hf_timing_context(*, lots_per_leg=1, scope=None, history_capacity=128):
+    """Build a scope, per-leg associations, and a projector over three legs.
+
+    Args:
+        lots_per_leg: Lots traded per leg.
+        scope: Timing scope; a default synthetic scope is built when omitted.
+        history_capacity: Projection history capacity.
+
+    Returns:
+        A ``(scope, associations_by_leg, projector)`` tuple.
+    """
     scope = _hf_timing_scope() if scope is None else scope
     associations = _hf_timing_associations()
     projector = timing_module.TimingProjector(
@@ -933,6 +981,19 @@ def _hf_timing_context(*, lots_per_leg=1, scope=None, history_capacity=128):
 
 
 def _hf_timing_fact(scope, association, *, fact_id, fact_type, origin_lower_ns, **overrides):
+    """Build a synthetic timing fact tied to a scope and order association.
+
+    Args:
+        scope: Timing scope supplying provider, source, and clock identity.
+        association: Order association supplying intent, order, and leg IDs.
+        fact_id: Unique fact identifier.
+        fact_type: Fact kind, e.g. ``durable_intent`` or ``confirmed``.
+        origin_lower_ns: Lower bound of the fact's origin time.
+        **overrides: Fields merged over the derived fact values.
+
+    Returns:
+        The constructed ``TimingFact``.
+    """
     is_confirmation = fact_type in {"confirmed", "fill"}
     values = {
         "fact_id": fact_id,
@@ -967,6 +1028,17 @@ def _hf_timing_fact(scope, association, *, fact_id, fact_type, origin_lower_ns, 
 def _hf_timing_clock(
     scope, now_upper_ns, *, now_lower_ns=None, wall_utc="2026-09-11T01:00:00+00:00"
 ):
+    """Build a trusted synthetic clock over a monotonic time window.
+
+    Args:
+        scope: Timing scope owning the clock.
+        now_upper_ns: Upper monotonic bound.
+        now_lower_ns: Lower monotonic bound; defaults to ``now_upper_ns``.
+        wall_utc: Wall-clock timestamp string.
+
+    Returns:
+        The constructed ``TimingClock``.
+    """
     now_lower_ns = now_upper_ns if now_lower_ns is None else now_lower_ns
     return timing_module.TimingClock(
         scope=scope,
@@ -994,6 +1066,21 @@ def _hf_timing_snapshot(
     stop_requested=False,
     wall_utc="2026-09-11T01:00:00+00:00",
 ):
+    """Build a trusted-clock synthetic snapshot for projection tests.
+
+    Args:
+        scope: Timing scope bound to the snapshot.
+        facts: Timing facts visible to the projection.
+        now_upper_ns: Upper monotonic bound of the trusted clock.
+        now_lower_ns: Lower monotonic bound; defaults to ``now_upper_ns``.
+        legal_executable_quote: Whether a legal executable quote is present.
+        calendar_seconds_until_close: Seconds remaining before the session close.
+        stop_requested: Whether a stop has been requested.
+        wall_utc: Wall-clock timestamp string for the clock.
+
+    Returns:
+        The constructed ``TimingSnapshot``.
+    """
     return timing_module.TimingSnapshot(
         scope=scope,
         clock=_hf_timing_clock(

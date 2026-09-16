@@ -20,6 +20,7 @@ EX2 = REPO / "examples" / "013_2_highfreq_calendar_arbitrage"
 
 
 def load_module(directory, filename, name):
+    """Load one example module from ``directory`` under a caller-chosen name."""
     # Example runners import a top-level ``strategy`` module from their own
     # directory; clear any cached one so the two example families never
     # cross-contaminate inside a single pytest process.
@@ -40,21 +41,25 @@ def load_module(directory, filename, name):
 
 @pytest.fixture(scope="module")
 def ex1():
+    """Return example 013_1's strategy module (module-scoped fixture)."""
     return load_module(EX1, "strategy.py", "ex013_1_strategy")
 
 
 @pytest.fixture(scope="module")
 def ex2():
+    """Return example 013_2's strategy module (module-scoped fixture)."""
     return load_module(EX2, "strategy.py", "ex013_2_strategy")
 
 
 @pytest.fixture(scope="module")
 def run1():
+    """Return example 013_1's runner module (module-scoped fixture)."""
     return load_module(EX1, "run.py", "ex013_1_run")
 
 
 @pytest.fixture(scope="module")
 def run2():
+    """Return example 013_2's runner module (module-scoped fixture)."""
     return load_module(EX2, "run.py", "ex013_2_run")
 
 
@@ -79,6 +84,7 @@ def test_strategies_subclass_backtrader_strategy_and_use_framework_indicator(ex1
 
 
 def _defaults_of(strategy_class):
+    """Return a strategy class's declared parameters as a plain mapping."""
     return dict(strategy_class.params._getpairs())
 
 
@@ -125,6 +131,7 @@ def test_runner_close_offset_follows_exchange_rules(run1, run2):
 
 
 def _replay(run_module, scenario):
+    """Run one replay scenario through ``run_module`` and return its report."""
     report = run_module.run_replay(scenario)
     return report
 

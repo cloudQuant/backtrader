@@ -37,10 +37,20 @@ ReplayQuoteProducer = fixture_module.ReplayQuoteProducer
 
 @pytest.fixture(scope="module")
 def config() -> dict:
+    """Return the validated 014_2 replay config."""
     return validate_config(yaml.safe_load((EXAMPLE / "config.yaml").read_text(encoding="utf-8")))
 
 
 def _producer(config: dict, scenario: str = "edge") -> ReplayQuoteProducer:
+    """Build a replay quote producer for the configured candidate.
+
+    Args:
+        config: Validated replay configuration.
+        scenario: Fixture scenario name.
+
+    Returns:
+        The configured ``ReplayQuoteProducer``.
+    """
     candidate = config["candidate"]
     return ReplayQuoteProducer(
         candidate_id=candidate["candidate_id"],
@@ -55,6 +65,7 @@ def _producer(config: dict, scenario: str = "edge") -> ReplayQuoteProducer:
 
 
 def _policy(config: dict) -> FeaturePolicy:
+    """Build the feature policy derived from the validated replay config."""
     candidate = config["candidate"]
     contracts = candidate["contracts"]
     feature = config["features"]
@@ -83,6 +94,7 @@ def _policy(config: dict) -> FeaturePolicy:
 
 
 def _bar_data(producer: ReplayQuoteProducer, minute_index: int, symbol: str) -> SimpleNamespace:
+    """Build single-value bar lines for one symbol at one replay minute."""
     residual = producer.residual_for_minute(minute_index)
     future = producer.strike
     put = Decimal("9.5")
@@ -105,6 +117,16 @@ def _bar_data(producer: ReplayQuoteProducer, minute_index: int, symbol: str) -> 
 
 
 def _decision_input(config: dict, producer: ReplayQuoteProducer, minute_index: int = 60):
+    """Build a ready three-leg decision input for one replay minute.
+
+    Args:
+        config: Validated replay configuration.
+        producer: Quote producer supplying the bar data.
+        minute_index: Minute bucket to ingest.
+
+    Returns:
+        The barrier's decision input.
+    """
     candidate = config["candidate"]
     contracts = candidate["contracts"]
     barrier = MultiLegBarBarrier(
@@ -130,10 +152,20 @@ def _decision_input(config: dict, producer: ReplayQuoteProducer, minute_index: i
 
 
 def _history() -> tuple[Decimal, ...]:
+    """Return a synthetic 60-point residual history for feature tests."""
     return tuple(Decimal(value) for value in ("-10", "0", "10") * 20)
 
 
 def _with_events(decision_input, events_by_symbol):
+    """Return a decision input whose accepted quotes are replaced.
+
+    Args:
+        decision_input: Decision input to copy and update.
+        events_by_symbol: Replacement accepted-quote mapping.
+
+    Returns:
+        The updated decision input.
+    """
     return replace(
         decision_input,
         accepted_quotes=events_by_symbol,
@@ -142,6 +174,7 @@ def _with_events(decision_input, events_by_symbol):
 
 
 def _events(decision_input) -> dict[str, tuple[dict, ...]]:
+    """Return a copy of the decision input's accepted quotes keyed by symbol."""
     return {
         symbol: tuple(dict(event) for event in values)
         for symbol, values in decision_input.accepted_quotes.items()
@@ -151,6 +184,17 @@ def _events(decision_input) -> dict[str, tuple[dict, ...]]:
 def _shift(
     event: dict, producer: ReplayQuoteProducer, *, event_delta=timedelta(0), receive_delta=None
 ) -> dict:
+    """Return an event copy shifted in event and receive time.
+
+    Args:
+        event: Accepted-quote event dictionary to copy and shift.
+        producer: Quote producer supplying the clock mapping.
+        event_delta: Offset applied to the event time.
+        receive_delta: Offset applied to the receive time; defaults to ``event_delta``.
+
+    Returns:
+        The shifted event dictionary.
+    """
     result = dict(event)
     result["event_time"] = result["event_time"] + event_delta
     result["received_at"] = result["received_at"] + (
@@ -164,6 +208,16 @@ def _shift(
 
 
 def _short_schedule(decision_input, producer: ReplayQuoteProducer, *, gap: bool) -> dict:
+    """Build a shortened accepted-quote schedule for one decision bucket.
+
+    Args:
+        decision_input: Decision input whose events are rescheduled.
+        producer: Quote producer supplying the clock mapping.
+        gap: Introduce a one-millisecond gap at the three-second mark.
+
+    Returns:
+        Symbol-to-event-tuple mapping covering the bucket.
+    """
     end = decision_input.bucket_end
     result = {}
     for symbol, values in _events(decision_input).items():

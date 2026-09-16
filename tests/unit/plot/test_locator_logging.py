@@ -45,6 +45,7 @@ class _RecordingHandler(logging.Handler):
 
 @pytest.fixture(autouse=True)
 def _reset_logging_state():
+    """Reset logging and throttle state around every test."""
     log_message.reset_logging()
     log_message._throttle_state.clear()
     log_message.set_throttle(True)
@@ -56,6 +57,7 @@ def _reset_logging_state():
 
 @pytest.fixture
 def _capture_locator_logging(monkeypatch):
+    """Install a recording WARNING logger on the locator module and return its handler."""
     logger = logging.Logger("backtrader.plot.locator.test", logging.WARNING)
     logger.propagate = False
     handler = _RecordingHandler()
@@ -65,6 +67,7 @@ def _capture_locator_logging(monkeypatch):
 
 
 def _make_agg_locator():
+    """Build an Agg axis, locator and date bounds for locator tests."""
     dmin = datetime.datetime(2024, 1, 1)
     dmax = datetime.datetime(2024, 1, 10)
     dates = [date2num(dmin + datetime.timedelta(days=index)) for index in range(10)]
@@ -77,11 +80,13 @@ def _make_agg_locator():
 
 
 def _records_for_key(handler, key):
+    """Return captured records whose message matches key's canonical text."""
     message = _MESSAGES_BY_KEY[key]
     return [record for record in handler.records if message in record.getMessage()]
 
 
 def _assert_bounded_static_warning(records, key):
+    """Assert exactly three static warnings for key without secret or traceback."""
     assert len(records) == 3
     assert all(record.levelno == logging.WARNING for record in records)
     assert all(not record.exc_info for record in records)
@@ -92,6 +97,7 @@ def _assert_bounded_static_warning(records, key):
 
 
 def _assert_throttle_state(key, expected_total=250):
+    """Assert the throttle state for key recorded expected_total occurrences."""
     states = [
         state
         for (

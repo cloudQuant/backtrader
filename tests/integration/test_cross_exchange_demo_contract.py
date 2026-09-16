@@ -1,3 +1,4 @@
+"""Ed25519 demo-approval receipt contract tests for both cross-exchange examples."""
 import base64
 import builtins
 import copy
@@ -43,10 +44,12 @@ def _runtime_runner(runner):
 
 
 def _zulu(value):
+    """Format an aware datetime as a UTC Zulu string."""
     return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 def _public_key(private_key, path):
+    """Write the private key's PEM public key to path and return its bytes."""
     raw = private_key.public_key().public_bytes(
         serialization.Encoding.PEM,
         serialization.PublicFormat.SubjectPublicKeyInfo,
@@ -56,6 +59,7 @@ def _public_key(private_key, path):
 
 
 def _runtime_source():
+    """Build a synthetic bound runtime-source provenance payload."""
     labels = sorted(label for label, _module, _distribution in RUNTIME_SOURCE_MODULES)
     hashes = {label: hashlib.sha256(f"artifact:{label}".encode()).hexdigest() for label in labels}
     provenance = {
@@ -72,6 +76,7 @@ def _runtime_source():
 
 
 def _candidate(runner, *, config_sha="1" * 64, runtime_source=None):
+    """Build a demo-approved strategy candidate record with all gates passing."""
     runtime_source = runtime_source or _runtime_source()
     candidate = {
         "strategy_id": runner.STRATEGY_ID,
@@ -112,6 +117,7 @@ def _approval_artifact(
     runtime_source=None,
     constraints=None,
 ):
+    """Write a signed demo-approval artifact tree under tmp_path and return its parts."""
     signing_key = signing_key or Ed25519PrivateKey.generate()
     trust_key = trust_key or signing_key
     examples = tmp_path / "examples"
@@ -198,6 +204,7 @@ def _approval_artifact(
 
 
 def _rewrite_receipt(artifact):
+    """Re-serialize and re-hash an artifact's receipt and manifest after mutation."""
     raw = (json.dumps(artifact["receipt"], sort_keys=True) + "\n").encode()
     artifact["receipt_path"].write_bytes(raw)
     artifact["candidate"]["demo_approval"]["receipt_sha256"] = hashlib.sha256(raw).hexdigest()
@@ -207,6 +214,7 @@ def _rewrite_receipt(artifact):
 
 
 def _verify(runner, artifact):
+    """Verify the artifact's demo approval as the given runner."""
     return verify_demo_approval(
         candidate=artifact["candidate"],
         manifest_path=artifact["manifest_path"],
@@ -406,6 +414,7 @@ def test_missing_cryptography_dependency_fails_closed(monkeypatch, tmp_path):
 
 
 def _set_candidate_value(path, value):
+    """Return a mutator that sets a nested candidate field to value."""
     def mutate(candidate):
         target = candidate
         for key in path[:-1]:

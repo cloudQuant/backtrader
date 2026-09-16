@@ -22,6 +22,11 @@ class StubClient:
 
 
 def _trades():
+    """Return a four-trade SDK-shaped fixture spanning two minutes.
+
+    Returns:
+        pandas.DataFrame: Deterministic trades for the stub client.
+    """
     start = datetime(2026, 7, 11, tzinfo=timezone.utc)
     return pd.DataFrame(
         [
@@ -34,6 +39,17 @@ def _trades():
 
 
 def _trade(timestamp, trade_id, price, quantity):
+    """Build one SDK-shaped trade record.
+
+    Args:
+        timestamp: Trade time as a datetime.
+        trade_id: Sequence identifier for the trade.
+        price: Trade price as a string.
+        quantity: Trade quantity as a string.
+
+    Returns:
+        dict: The trade record with a millisecond timestamp.
+    """
     return {
         "trade_time": int(timestamp.timestamp() * 1000),
         "trade_id": trade_id,
@@ -44,6 +60,15 @@ def _trade(timestamp, trade_id, price, quantity):
 
 
 def _load_feed(client, **kwargs):
+    """Start a CryptoHFTData feed and return it with its loaded rows.
+
+    Args:
+        client: Stub client supplying the trades.
+        **kwargs: Extra keyword arguments forwarded to the feed.
+
+    Returns:
+        tuple: The ``(data, rows)`` pair.
+    """
     data = bt.feeds.CryptoHFTData(
         dataname="KAVAUSDT",
         exchange="binance_futures",

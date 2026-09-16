@@ -11,6 +11,7 @@ from backtrader.order import Order
 
 
 def book(price, timestamp):
+    """Build a one-level order-book snapshot at price."""
     return OrderBookSnapshot(
         symbol="BTC-USDT-SWAP",
         timestamp=timestamp,
@@ -22,6 +23,7 @@ def book(price, timestamp):
 
 
 def configured_broker(commission=0, **kwargs):
+    """Return a futures-percent MixBroker and its swap data stub."""
     broker = MixBroker(cash=2000, **kwargs)
     broker.addcommissioninfo(
         ComminfoFuturesPercent(commission=commission, mult=0.01, margin=1),

@@ -11,6 +11,7 @@ from backtrader.order import Order
 
 
 def stack(model=SimpleExchangeModel):
+    """Return a fresh MixBroker and its single swap data stub."""
     data = SimpleNamespace(_name="BTC-USDT-SWAP", symbol="BTC-USDT-SWAP")
     broker = MixBroker(cash=10000, exchange_model=model() if model else None)
     broker.setcommission(commission=0, name=data._name)
@@ -18,6 +19,7 @@ def stack(model=SimpleExchangeModel):
 
 
 def book(data, timestamp=1, qty=1, asks=None, bids=None):
+    """Build a one-level book snapshot for data with optional overrides."""
     return OrderBookSnapshot(
         timestamp=timestamp,
         symbol=data._name,

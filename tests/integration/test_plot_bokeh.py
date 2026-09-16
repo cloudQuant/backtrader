@@ -58,6 +58,7 @@ def _build_nasdaq_data(start=None, end=None):
 
 
 def _run_strategy(start=None, end=None):
+    """Run the smoke strategy over the sample feed and return the results."""
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.adddata(_build_nasdaq_data(start=start, end=end), name="NVDA")
     cerebro.addstrategy(BokehSmokeStrategy)
@@ -65,6 +66,7 @@ def _run_strategy(start=None, end=None):
 
 
 def _run_cerebro_with_bokeh(start=None, end=None):
+    """Run the smoke strategy and return the cerebro for plotting."""
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.adddata(_build_nasdaq_data(start=start, end=end), name="NVDA")
     cerebro.addstrategy(BokehSmokeStrategy)

@@ -1,3 +1,9 @@
+"""Checks that ``import backtrader`` stays light.
+
+A fresh interpreter must expose the live-runner public API without pulling in
+the optional heavy modules, so importing the package stays cheap.
+"""
+
 import os
 import subprocess
 import sys

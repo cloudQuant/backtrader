@@ -21,6 +21,17 @@ _SYNTHETIC_MAPPINGS = {}
 
 
 def _bar(symbol, *, end=BASE, seal=1.0, **overrides):
+    """Build synthetic ``BarEvidence`` for ``symbol`` closing at ``end``.
+
+    Args:
+        symbol: Instrument symbol for the bar.
+        end: Bucket end time and default seal reference.
+        seal: Seal offset in seconds, also driving derived identifiers.
+        **overrides: Field values replacing the generated defaults.
+
+    Returns:
+        BarEvidence: The constructed evidence with a synthetic clock mapping.
+    """
     values = {
         "symbol": symbol,
         "exchange": "CZCE",
@@ -111,6 +122,7 @@ def _bar(symbol, *, end=BASE, seal=1.0, **overrides):
 
 
 def _barrier(timeout=2.0):
+    """Return a three-leg CZCE barrier with the given expiry timeout."""
     return MultiLegBarBarrier(
         expected_legs=(
             BarLeg("F", "CZCE"),
@@ -123,6 +135,17 @@ def _barrier(timeout=2.0):
 
 
 def _quote(symbol="C", *, event_time=None, received_at=None, **overrides):
+    """Build a quote mapping for ``symbol`` with a consistent receive clock.
+
+    Args:
+        symbol: Instrument symbol for the quote.
+        event_time: Source event time; defaults to one second before ``BASE``.
+        received_at: Receipt time; defaults to ``BASE`` plus 500 milliseconds.
+        **overrides: Field values replacing the generated defaults.
+
+    Returns:
+        dict: The quote field mapping.
+    """
     received_was_supplied = received_at is not None
     values = {
         "symbol": symbol,

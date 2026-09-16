@@ -16,6 +16,7 @@ from tests.fixtures.fake_btapi import FakeBtApiClient, make_bar, make_store
 
 
 def _seller_evidence(**overrides):
+    """Return complete seller-margin evidence with overrides applied."""
     evidence = {
         "source_kind": "synthetic",
         "account_fingerprint": "offline-account",
@@ -42,6 +43,7 @@ def _seller_evidence(**overrides):
 
 
 def _option(**overrides):
+    """Build a CtpOptionPremium with premium-style defaults and overrides."""
     params = {
         "mult": 10.0,
         "premium_style": "premium",
@@ -59,6 +61,7 @@ def _option(**overrides):
 
 
 def _broker_stack(*, cash, metadata, broker_kwargs=None, supports_dual_side=False):
+    """Start a one-symbol option broker stack; returns (client, store, data, broker)."""
     symbol = metadata["instrument_id"]
     client = FakeBtApiClient(
         balance={"cash": cash, "value": cash},
@@ -78,6 +81,7 @@ def _broker_stack(*, cash, metadata, broker_kwargs=None, supports_dual_side=Fals
 
 
 def _option_metadata(**overrides):
+    """Return option contract metadata with overrides applied."""
     metadata = {
         "asset_type": "option",
         "premium_style": "premium",

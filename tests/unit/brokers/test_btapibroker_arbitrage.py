@@ -13,6 +13,7 @@ from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar,
 
 @pytest.fixture
 def stack():
+    """Yield a started broker stack backed by FakeBtApiClient."""
     client = FakeBtApiClient(history={DEFAULT_SYMBOL: [make_bar(0, 100, 101, 99, 100)]})
     store = make_store(api=client)
     data = store.getdata(dataname=DEFAULT_SYMBOL)
@@ -32,15 +33,18 @@ def stack():
 
 
 def submit(stack, **kwargs):
+    """Submit a size-2 limit buy for the stack's data and return the order."""
     return stack[3].buy(None, stack[2], size=2, price=120, exectype=bt.Order.Limit, **kwargs)
 
 
 def update(stack, order, **fields):
+    """Push an order update for order and drain the broker."""
     stack[0].broker_updates.append({"kind": "order", "bt_order_ref": order.ref, **fields})
     stack[3].next()
 
 
 def leased_stack(expires_at, maximum_orders):
+    """Return a started stack bound to a demo approval lease."""
     client = FakeBtApiClient(history={DEFAULT_SYMBOL: [make_bar(0, 100, 101, 99, 100)]})
     store = make_store(api=client)
     data = store.getdata(dataname=DEFAULT_SYMBOL)

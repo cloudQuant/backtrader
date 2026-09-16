@@ -21,6 +21,7 @@ class NoOpApi:
 
 
 def _flat_reconciliation(request_id_base: int) -> dict:
+    """Return a flat, complete reconciliation with sequential request IDs."""
     request_ids = {
         "account": request_id_base,
         "positions": request_id_base + 1,

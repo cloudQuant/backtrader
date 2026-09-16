@@ -1,3 +1,5 @@
+"""Cross-venue cost oracle invariants shared by both example strategies."""
+
 from datetime import datetime, timezone
 from decimal import Decimal
 from importlib import import_module
@@ -73,6 +75,7 @@ def test_typed_funding_state_requires_fresh_future_complete_schedule():
 
 
 def _rule(multiplier, step, minimum):
+    """Build a venue rule with fixed tick and taker fee from the given sizing."""
     return InstrumentRule(
         multiplier=D(multiplier),
         quantity_step=D(step),

@@ -29,6 +29,7 @@ PACKAGE = "iter22_sa_midfreq_example"
 
 
 def _load_example_package() -> None:
+    """Import the example package under its stable module name, once."""
     if PACKAGE in sys.modules:
         return
     spec = importlib.util.spec_from_file_location(
@@ -52,6 +53,7 @@ strategy_module = importlib.import_module(f"{PACKAGE}.strategy")
 
 
 def _config() -> dict:
+    """Return the example's first config document loaded from ``config.yaml``."""
     return runner.load_config(EXAMPLE / "config.yaml")[0]
 
 
@@ -64,6 +66,7 @@ def _isolate_example_dotenv(monkeypatch):
 
 
 def _quote(**overrides):
+    """Build a synthetic CTP quote payload, overriding named fields."""
     event = datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc).timestamp()
     value = {
         "schema_version": "ctp.quote.v2",
@@ -105,6 +108,7 @@ def _query(
     generation=7,
     account="0123456789abcdef",
 ):
+    """Build a synthetic CTP query result carrying the given records."""
     return {
         "query_name": name,
         "request_id": request_id,
@@ -123,6 +127,7 @@ def _query(
 
 
 def _instrument(expiry="20260917"):
+    """Return a synthetic SA701 CZCE instrument definition."""
     return {
         "InstrumentID": "SA701",
         "ExchangeID": "CZCE",
@@ -136,6 +141,7 @@ def _instrument(expiry="20260917"):
 
 
 def _calendar(tmp_path: Path, days) -> tuple[Path, str, dict]:
+    """Write a frozen CZCE calendar artifact and return its path, hash and payload."""
     payload = {
         "schema_version": "iter22.czce-trading-calendar.v1",
         "exchange": "CZCE",
@@ -149,6 +155,7 @@ def _calendar(tmp_path: Path, days) -> tuple[Path, str, dict]:
 
 
 def _manual_config(tmp_path: Path, *, trading_day="20260910", expiry="20260917") -> dict:
+    """Return a deep-copied config switched to manual contract selection."""
     config = copy.deepcopy(_config())
     days = [
         "20260909",
@@ -185,6 +192,7 @@ def _signed_receipt(
     purpose: str = "engineering_smoke",
     mutate: dict | None = None,
 ) -> tuple[Path, dict]:
+    """Write an HMAC-signed SimNow admission receipt and return its path and body."""
     # These receipts bind real installed SDK artifact identities.
     optional_sdk()
     key_id = "test-operator-key"
@@ -252,6 +260,7 @@ def _signed_receipt(
 
 
 def _snapshot(config: dict, *, trading_day="20260910", stage_b=False, account_records=None):
+    """Build a read-only, write-free observation snapshot with per-name queries."""
     account_records = (
         [{"Balance": 100000.0, "Available": 90000.0}]
         if account_records is None
@@ -324,10 +333,11 @@ def test_default_config_and_front_profiles_are_fail_closed():
     config = _config()
     assert config["mode"] == "shadow"
     assert config["contract_selection"]["mode"] == "auto"
-    # 2026-09-12 迭代26 T2：默认 config 已接线受控 CZCE 日历（gitignored state/ 下的
-    # 本地 artifact）；缺失该文件时 runner 仍按设计 fail-closed（见
-    # test_trading_calendar_* 与 preflight 日历门用例）。此处只断言接线内容与
-    # 手工冻结证据 hash 一致。
+    # 2026-09-12 iteration 26 T2: the default config already wires in the
+    # controlled CZCE calendar (a local artifact under the gitignored state/);
+    # when that file is missing the runner still fails closed by design (see
+    # test_trading_calendar_* and the preflight calendar gate cases). Here we
+    # only assert the wiring matches the manually frozen evidence hash.
     assert config["trading_calendar"]["artifact"] == (
         "state/iter22-czce-2026-calendar-20260910.json"
     )
@@ -3347,6 +3357,7 @@ def test_residual_partial_close_requotes_exactly_twice_then_enters_unknown():
 
 
 def _reconciliation_snapshot(suffix: int, snapshot_hash="same"):
+    """Build a complete flat reconciliation snapshot distinguished by ``suffix``."""
     queries = {
         name: {
             "request_id": suffix * 10 + index,
@@ -3637,6 +3648,7 @@ def test_bar_identity_accepts_datetime_extensions():
 
 
 def _bare_quote_strategy():
+    """Return a strategy holder with the quote-path state initialised for unit tests."""
     event = datetime(2026, 9, 9, 1, 0, tzinfo=timezone.utc).timestamp()
     holder = object.__new__(strategy_module.SAMidFrequencyStrategy)
     holder.p = SimpleNamespace(
@@ -4865,6 +4877,7 @@ def test_external_unowned_recovery_plan_performs_zero_writes(tmp_path):
 
 
 def _flat_recovery_plan(token="4" * 64):
+    """Return an SDK recovery plan whose positions are already flat."""
     zeros = {
         "long_today": "0",
         "long_yesterday": "0",
@@ -4942,6 +4955,7 @@ def test_flat_recovery_completion_failure_stays_manual_and_read_only(tmp_path):
 
 
 def _manual_recovery_plan(reason="external_position"):
+    """Return an SDK recovery plan that requires manual intervention."""
     return {
         "status": "MANUAL_INTERVENTION",
         "execution_cycle_id": None,
@@ -4962,6 +4976,7 @@ def _monitor_recovery(
     sleep=lambda _seconds: None,
     persist=None,
 ):
+    """Run read-only recovery monitoring against ``store`` with injectable hooks."""
     return runner._monitor_read_only_execution_recovery(
         store,
         {"proof": "bound"},
@@ -5310,6 +5325,7 @@ def test_recovery_cancel_refresh_rejects_changed_nonflat_cycle():
 
 
 def _strategy_recovery_plan():
+    """Return a recoverable SDK plan holding one owned long position to close."""
     return {
         "status": "RECOVERABLE",
         "can_arm_recovery": True,
@@ -5597,6 +5613,7 @@ class _TerminalRecoveryOrder:
 
 
 def _recovery_completion_strategy_holder():
+    """Build a strategy holder plus its order, callback and stop records."""
     callbacks = []
     stopped = []
     order = _TerminalRecoveryOrder()

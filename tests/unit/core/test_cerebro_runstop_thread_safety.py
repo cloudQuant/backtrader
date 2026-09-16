@@ -123,6 +123,16 @@ class _ChannelLifecycleStrategy(bt.Strategy):
 
 
 def _make_cerebro(control, cerebro_class=bt.Cerebro, bar_count=8):
+    """Return a single-threaded Cerebro with the gate strategy attached.
+
+    Args:
+        control: Shared synchronization state passed to the strategy.
+        cerebro_class: Cerebro subclass to instantiate.
+        bar_count: Number of bars the finite feed emits.
+
+    Returns:
+        bt.Cerebro: The configured engine.
+    """
     cerebro = cerebro_class(stdstats=False, preload=False, runonce=False, maxcpus=1)
     cerebro.adddata(_FiniteFeed(bar_count=bar_count))
     cerebro.addstrategy(_GateStrategy, control=control)
@@ -137,6 +147,14 @@ def _make_channel_cerebro(control):
 
 
 def _run_in_thread(cerebro):
+    """Start ``cerebro.run()`` on a background thread and expose its state.
+
+    Args:
+        cerebro: Engine to run in the background.
+
+    Returns:
+        tuple: The ``(thread, outcomes, errors)`` triple used to join and inspect.
+    """
     outcomes = []
     errors = []
 

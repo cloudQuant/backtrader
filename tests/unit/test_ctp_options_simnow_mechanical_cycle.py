@@ -19,6 +19,14 @@ GATE_RECEIPT_NOW = datetime(2026, 9, 13, 1, 0, tzinfo=timezone.utc)
 
 
 def _gate_binding(**changes):
+    """Build a mechanical gate binding, overriding named fields.
+
+    Args:
+        **changes: Fields merged over the default binding values.
+
+    Returns:
+        The resulting binding dictionary.
+    """
     value = {
         "strategy_id": "iter23-25-options-mechanical",
         "environment": "second_7x24",
@@ -48,6 +56,16 @@ def _gate_binding(**changes):
 
 
 def _write_signed_gate_receipt(tmp_path, *, binding=None, payload_changes=None):
+    """Write a signed gate receipt and its matching trust root.
+
+    Args:
+        tmp_path: Directory receiving the two JSON artifacts.
+        binding: Gate binding to sign; defaults to ``_gate_binding()``.
+        payload_changes: Fields merged into the payload before signing.
+
+    Returns:
+        A ``(receipt_file, trust_root_file, binding)`` tuple.
+    """
     tmp_path.mkdir(parents=True, exist_ok=True)
     cryptography = pytest.importorskip("cryptography.hazmat.primitives.asymmetric.ed25519")
     binding = binding or _gate_binding()
@@ -114,6 +132,7 @@ def _write_signed_gate_receipt(tmp_path, *, binding=None, payload_changes=None):
 
 
 def _pin_gate_trust_root(monkeypatch, trust_root_file):
+    """Pin the operator module's trust-root hash to the given file."""
     monkeypatch.setattr(
         operator_module,
         "PINNED_MECHANICAL_GATE_TRUST_ROOT_SHA256",
@@ -155,6 +174,14 @@ class FakeBroker:
 
 
 def snapshot(**changes):
+    """Build a flat, write-free reconciliation snapshot, overriding named fields.
+
+    Args:
+        **changes: Fields merged over the default snapshot values.
+
+    Returns:
+        The resulting snapshot dictionary.
+    """
     value = {
         "evidence_complete": True,
         "read_only_safe": True,
@@ -174,6 +201,7 @@ def snapshot(**changes):
 
 
 def proof():
+    """Return a complete, flat arm proof backed by synthetic snapshots."""
     base = snapshot()
     semantic = cycle_module._semantic_hash(base)
     return {
@@ -190,6 +218,11 @@ def proof():
 
 
 def make_cycle():
+    """Build an armed one-leg cycle over a fake broker.
+
+    Returns:
+        A ``(cycle, broker)`` tuple.
+    """
     broker = FakeBroker()
     cycle = cycle_module.MechanicalCycle(
         broker=broker,
@@ -220,6 +253,16 @@ def test_semantic_hash_keeps_legacy_positions_and_active_orders_distinct():
 
 
 def native_fill(order, *, cycle_id="cycle-23-test", intent_id="intent-open:open:0"):
+    """Mark an order as a completed native fill carrying CTP identities.
+
+    Args:
+        order: Order double mutated in place.
+        cycle_id: Execution cycle ID stamped on the fill.
+        intent_id: Intent ID stamped on the fill.
+
+    Returns:
+        The same ``order`` object.
+    """
     order.status = 4
     order._status_name = "Completed"
     order.info.update(

@@ -1,3 +1,5 @@
+"""Iteration 21 typed SDK submission, causal-event and broker lifecycle oracles."""
+
 import asyncio
 import datetime as dt
 import os
@@ -381,6 +383,16 @@ class MetadataProbeTypedSdk(TypedSdk):
 
 
 def make_store(api, **config):
+    """Build a ``BtApiStore`` around ``api`` using this module's symbol route.
+
+    Args:
+        api: SDK handle the store will hold.
+        **config: Extra store configuration merged over the defaults.
+
+    Returns:
+        BtApiStore: Store configured with ``api``'s exchange kwargs and a
+        single ``symbol_routes`` entry for the test symbol.
+    """
     return BtApiStore(
         provider="btapi",
         api=api,
@@ -393,6 +405,16 @@ def make_store(api, **config):
 
 
 def make_owned_store(api_cls):
+    """Build a store that creates its own SDK client from ``api_cls``.
+
+    Used to exercise the ownership path instead of injecting a ready instance.
+
+    Args:
+        api_cls: Callable the store invokes to construct the SDK client.
+
+    Returns:
+        BtApiStore: Store configured with ``api_cls`` and a demo environment.
+    """
     return BtApiStore(
         provider="btapi",
         api_cls=api_cls,
@@ -422,6 +444,22 @@ def make_trusted_owned_metadata_probe_store(
 
 
 def account_risk_payload(api, *, baseline="10000.00", current="9999.50", loss_limit_bps=None):
+    """Build an account-risk snapshot from a baseline and current equity.
+
+    Derives the loss and its size in basis points, and binds the figures to
+    ``api``'s execution identity.
+
+    Args:
+        api: SDK handle supplying the ledger identity.
+        baseline: Baseline equity as a decimal string.
+        current: Current equity as a decimal string.
+        loss_limit_bps: Configured loss limit in basis points, or None when no
+            limit is in force.
+
+    Returns:
+        dict: Snapshot carrying the schema version, ledger identity and the
+        computed loss figures.
+    """
     identity = api.get_execution_identity(VENUE)
     ledger_identity = {
         key: identity[key]
@@ -465,6 +503,18 @@ def account_risk_payload(api, *, baseline="10000.00", current="9999.50", loss_li
 
 
 def account_risk_prebaseline_payload(api):
+    """Build the pre-baseline variant of the account-risk snapshot.
+
+    Starts from :func:`account_risk_payload` and clears the baseline so the
+    snapshot reports itself non-durable, evidence-incomplete and
+    trading-blocked.
+
+    Args:
+        api: SDK handle supplying the ledger identity.
+
+    Returns:
+        dict: Blocked snapshot listing ``baseline_missing`` among its reasons.
+    """
     snapshot = account_risk_payload(api)
     snapshot.update(
         baseline_equity=None,
@@ -478,6 +528,16 @@ def account_risk_prebaseline_payload(api):
 
 
 def local_order(ref=1, *, offset="open", reduce_only=False):
+    """Build a stand-in order object for store and broker tests.
+
+    Args:
+        ref: Order reference as backtrader assigns it.
+        offset: Position offset flag, for example ``open`` or a close offset.
+        reduce_only: Whether the order may only reduce the position.
+
+    Returns:
+        SimpleNamespace: Minimal order exposing the attributes the store reads.
+    """
     info = {
         "position_side": "long",
         "offset": offset,
@@ -1446,6 +1506,18 @@ def test_sdk_broker_startup_rejects_nonzero_remote_position():
 
 
 def _started_broker(api):
+    """Build a started store, broker and loaded data feed for one symbol.
+
+    Ingests a single historical bar, attaches a zero-cost futures commission
+    info per symbol and starts the broker in dual-side mode.
+
+    Args:
+        api: SDK handle passed through to :func:`make_store`.
+
+    Returns:
+        tuple: ``(store, broker, data)`` with the feed already loaded and the
+        broker started.
+    """
     store = make_store(api)
     data = store.getdata(
         dataname=SYMBOL,

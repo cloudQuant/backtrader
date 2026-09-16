@@ -1,3 +1,4 @@
+"""Source-containment and frozen replay-report contract tests for both cross-exchange examples."""
 import ast
 import copy
 from dataclasses import replace
@@ -23,6 +24,7 @@ MODULES = {
 
 
 def _runner(strategy_id):
+    """Import the example runner module for the given strategy id."""
     optional_sdk()
     return importlib.import_module(MODULES[strategy_id])
 
@@ -58,6 +60,7 @@ def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
 
 
 def imports(path):
+    """Parse a source file and return its import names plus the AST."""
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     result = []
     for node in ast.walk(tree):

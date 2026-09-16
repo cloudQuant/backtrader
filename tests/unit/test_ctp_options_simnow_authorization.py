@@ -29,6 +29,7 @@ NOW = datetime.now(timezone.utc)
 
 
 def _query_results(names, prefix):
+    """Return complete query results with per-name request IDs."""
     return {
         name: {"complete": True, "request_id": f"{prefix}-{index}"}
         for index, name in enumerate(names, 1)
@@ -36,6 +37,16 @@ def _query_results(names, prefix):
 
 
 def _stage(*, instrument_id="", exchange_id="DCE", prefix="a"):
+    """Build a complete preflight stage snapshot.
+
+    Args:
+        instrument_id: Instrument ID; non-empty adds margin/fee query results.
+        exchange_id: Exchange identifier.
+        prefix: Hex character repeated for the snapshot hash.
+
+    Returns:
+        The resulting stage dictionary.
+    """
     return {
         "schema_version": "backtrader.ctp.preflight.v1",
         "instrument_id": instrument_id,
@@ -58,6 +69,16 @@ def _stage(*, instrument_id="", exchange_id="DCE", prefix="a"):
 
 
 def _bundle(*, legs=None, primary="DCE.m2701", prefix="d"):
+    """Build a flat bundle-preflight snapshot.
+
+    Args:
+        legs: Leg dictionaries; defaults to the three-leg DCE bundle.
+        primary: ``exchange.instrument`` of the primary leg.
+        prefix: Hex character repeated for the snapshot hash.
+
+    Returns:
+        The resulting bundle dictionary.
+    """
     legs = legs or [
         {"exchange_id": "DCE", "instrument_id": "m2701", "is_primary": True, "evidence_complete": True},
         {"exchange_id": "DCE", "instrument_id": "m2701-C-3400", "is_primary": False, "evidence_complete": True},
@@ -81,6 +102,14 @@ def _bundle(*, legs=None, primary="DCE.m2701", prefix="d"):
 
 
 def _kwargs(**changes):
+    """Build the full authorization-builder keyword arguments.
+
+    Args:
+        **changes: Keys merged over the default keyword arguments.
+
+    Returns:
+        The resulting keyword-argument dictionary.
+    """
     values = {
         "stage_a": _stage(prefix="a"),
         "stage_b": _stage(instrument_id="m2701", prefix="b"),

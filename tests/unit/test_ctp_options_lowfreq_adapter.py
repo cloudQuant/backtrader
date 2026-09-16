@@ -39,10 +39,12 @@ class MockSimNowApi:
 
 @pytest.fixture(scope="module")
 def runner():
+    """Return the shared 014_1 low-frequency replay-runner module."""
     return importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
 
 
 def _simnow_config(runner):
+    """Return a deep-copied runner config switched to SimNow mode."""
     config = copy.deepcopy(runner.load_config())
     config["mode"] = "simnow"
     return config

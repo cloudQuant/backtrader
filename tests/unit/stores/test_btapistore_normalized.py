@@ -258,6 +258,19 @@ class FakeSdk:
 
 
 def store_for(sdk=None, **config):
+    """Build a ``BtApiStore`` covering every route in this module.
+
+    Derives fixture account ids for the venues that are not OKX or BINANCE
+    unless the caller passes ``account_ids``, and mirrors the exchange kwargs
+    onto ``sdk`` so both sides see the same configuration.
+
+    Args:
+        sdk: Fake SDK whose ``exchange_kwargs`` should match the store config.
+        **config: Extra store configuration merged over the defaults.
+
+    Returns:
+        BtApiStore: Store configured for all routes in ``ROUTES``.
+    """
     settings = {
         "exchange_kwargs": {venue: {"environment": "demo"} for venue in ROUTES.values()},
         "symbol_routes": ROUTES,
@@ -276,6 +289,19 @@ def store_for(sdk=None, **config):
 
 
 def order(symbol="BTC-USDT-SWAP", size=2, client_id="client123", ref=42, **info):
+    """Build a limit-order stand-in for broker normalization tests.
+
+    Args:
+        symbol: Data name the order belongs to.
+        size: Order size.
+        client_id: Client order id exposed through ``info``.
+        ref: Order reference.
+        **info: Extra ``info`` entries merged over the defaults.
+
+    Returns:
+        SimpleNamespace: Order carrying the attributes the broker reads,
+        including IOC time-in-force and reduce-only flags.
+    """
     return SimpleNamespace(
         data=SimpleNamespace(_name=symbol),
         ref=ref,

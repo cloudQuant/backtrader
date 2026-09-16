@@ -122,6 +122,7 @@ def test_rss_windows_require_all_seven_windows_and_valid_samples() -> None:
 
 
 def _rss_sample(elapsed: float) -> dict[str, object]:
+    """Build one healthy RSS sampling record at the given elapsed second."""
     return {
         "elapsed_seconds": elapsed,
         "rss_bytes": 64 * BENCHMARKS.MIB,
@@ -215,6 +216,7 @@ def test_evidence_manifest_hashes_active_and_rotated_segments(tmp_path: Path) ->
 
 
 def _healthy_acceptance_inputs() -> dict[str, bool]:
+    """Return all-passing stress-acceptance gate inputs."""
     return {
         "complete_profile_requested": False,
         "requested_wall_clock_complete": True,

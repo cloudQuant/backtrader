@@ -82,6 +82,7 @@ def capture_linebuffer_logging(level):
 
 
 def _formatted_records(handler):
+    """Return ``handler`` records rendered with a fixed level/name/message format."""
     formatter = logging.Formatter("%(levelname)s %(name)s %(message)s")
     return [formatter.format(record) for record in handler.records]
 
@@ -464,6 +465,7 @@ def test_reset_recovery_is_bounded_and_resets_normally(level):
 
 
 def _shift_values(values):
+    """Return the values produced by forwarding ``values`` through a one-step shift."""
     source = linebuffer_module.LineBuffer()
     shifted = linebuffer_module._LineForward(source, 1)
     for value in values:
@@ -475,6 +477,7 @@ def _shift_values(values):
 
 
 def _assert_forward_values(values):
+    """Assert ``values`` show the expected one-step shift and NaN-filled tail."""
     assert values[:2] == [20.0, 30.0]
     assert math.isnan(values[2])
 
@@ -783,6 +786,7 @@ class _BrokenOperandOnce(linebuffer_module.LineActions):
 
 
 def _make_broken_operand_operation(source):
+    """Build a ``LinesOperation`` whose operand deliberately fails at execution."""
     operation = linebuffer_module.LinesOperation(
         _BrokenOperandOnce(source.array),
         source,

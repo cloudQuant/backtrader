@@ -32,6 +32,16 @@ UTC = timezone.utc
 
 
 def _scope(*, session: str = "day", generation: int = 7, domain: str = "d1"):
+    """Build a synthetic scope identity for the MF-T1 candidate.
+
+    Args:
+        session: Session segment label.
+        generation: Connection generation.
+        domain: Clock domain identifier.
+
+    Returns:
+        The constructed ``ScopeIdentity``.
+    """
     return ScopeIdentity(
         candidate_id="candidate",
         basket_id="basket",
@@ -48,6 +58,15 @@ def _scope(*, session: str = "day", generation: int = 7, domain: str = "d1"):
 
 
 def _mapping(scope, *, error_bound_ns=1_000):
+    """Build a synthetic clock mapping for a scope.
+
+    Args:
+        scope: Scope identity supplying domain, generation, and rules hash.
+        error_bound_ns: Mapping error bound in nanoseconds.
+
+    Returns:
+        The constructed ``ClockMapping``.
+    """
     return ClockMapping(
         mapping_id=scope.mapping_id,
         anchor_wall_utc=datetime(2026, 9, 11, 9, tzinfo=UTC),
@@ -63,6 +82,19 @@ def _mapping(scope, *, error_bound_ns=1_000):
 
 
 def _clock(scope, mapping, mono, *, lower=None, upper=None, trusted=True):
+    """Build a synthetic clock observation anchored on a mapping.
+
+    Args:
+        scope: Scope identity bound to the clock.
+        mapping: Clock mapping supplying the wall anchor.
+        mono: Monotonic reading in nanoseconds.
+        lower: Lower monotonic bound; optional.
+        upper: Upper monotonic bound; optional.
+        trusted: Whether the observation is trusted.
+
+    Returns:
+        The constructed ``ClockObservation``.
+    """
     return ClockObservation(
         monotonic_ns=mono,
         wall_utc=mapping.anchor_wall_utc + timedelta(microseconds=mono / 1000),
@@ -86,6 +118,19 @@ def _facts(
     fill=None,
     leg_intent=None,
 ):
+    """Build a synthetic execution-fact snapshot for one phase.
+
+    Args:
+        scope: Scope identity bound to the facts.
+        phase: Reported execution phase.
+        basket: Whether a complete basket is recorded.
+        exposure: Earliest possible-exposure lower bound in nanoseconds.
+        fill: Latest complete-fill upper bound in nanoseconds.
+        leg_intent: First leg-intent lower bound in nanoseconds.
+
+    Returns:
+        The constructed ``ExecutionFacts``.
+    """
     return ExecutionFacts(
         scope=scope,
         source="synthetic-mf-t1-facts",
@@ -108,6 +153,18 @@ def _facts(
 
 
 def _minute(scope, *, minute_id="m1", now=0, signal=False, z=0.0):
+    """Build a synthetic minute input for one projection bucket.
+
+    Args:
+        scope: Scope identity bound to the minute.
+        minute_id: Bucket identifier.
+        now: Bucket start in monotonic nanoseconds.
+        signal: Whether the minute carries an entry candidate.
+        z: Economic z-score of the bucket.
+
+    Returns:
+        The constructed ``MinuteInput``.
+    """
     return MinuteInput(
         minute_id=minute_id,
         bucket_start_ns=now,

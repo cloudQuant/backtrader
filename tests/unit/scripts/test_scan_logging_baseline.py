@@ -13,6 +13,7 @@ SCANNER_PATH = Path(__file__).resolve().parents[3] / "scripts" / "scan_logging_b
 
 @pytest.fixture
 def scanner():
+    """Load the logging-baseline scanner module from its script path."""
     spec = importlib.util.spec_from_file_location("logging_baseline_fixture", SCANNER_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

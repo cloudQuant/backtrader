@@ -20,6 +20,7 @@ from tests.test_utils.optional_sdk import optional_sdk
 
 
 def run_bounded(cerebro):
+    """Run ``cerebro`` under a two-second stop timer and return its first strategy."""
     timer = threading.Timer(2, cerebro.runstop)
     timer.daemon = True
     timer.start()

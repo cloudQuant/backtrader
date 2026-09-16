@@ -694,6 +694,15 @@ class OpaqueOnlyBundleClient(BundleQueryClient):
 
 
 def _arming_proof(**changes):
+    """Build a valid execution-arming proof with optional field overrides.
+
+    Args:
+        **changes: Proof fields to replace or add over the valid defaults.
+
+    Returns:
+        dict: Proof mapping carrying fingerprints, hashes and the trading day
+        the authorization grant binds to.
+    """
     proof = {
         "account_fingerprint": "acct_0123456789abcdef",
         "trading_day": "20260909",
@@ -716,10 +725,23 @@ _AUTHORIZATION_SECRET = "test-authorization-secret-at-least-32-bytes"
 
 
 def _query_ids(snapshot, names):
+    """Map each named query to its request id inside ``snapshot``."""
     return {name: snapshot["query_results"][name]["request_id"] for name in names}
 
 
 def _authorized_store(client=None):
+    """Build a market-data-only store armed with a signed execution grant.
+
+    Runs both preflight snapshots, signs a grant over their evidence and has
+    the store configure it.
+
+    Args:
+        client: Managed facade client to use, or None to build the default one.
+
+    Returns:
+        tuple: ``(client, store, proof, grant, configured)`` including the
+        proof the grant was signed over and the store's configuration result.
+    """
     client = client or ManagedBtApiClient()
     store = make_store(
         api=client,
@@ -780,6 +802,17 @@ def _authorized_store(client=None):
 
 
 def _recovery_report(*, status="RECOVERABLE", cancels=False):
+    """Build an SDK execution-recovery report for the requested outcome.
+
+    Args:
+        status: One of ``RECOVERABLE``, ``FLAT`` or ``MANUAL_INTERVENTION``.
+        cancels: When True the allowed action becomes ``cancel`` instead of
+            ``close`` and the closes are replaced by cancels.
+
+    Returns:
+        dict: Recovery snapshot with positions, allowed actions and the
+        recovery token for the chosen status.
+    """
     cycle_id = "sdk-cycle-0001"
     remote = {
         "long_today": "1",
@@ -924,6 +957,7 @@ def test_ctp_bundle_preflight_keeps_missing_unmatched_count_unknown_outside_safe
 
 
 def _dce_bundle_legs():
+    """Return a primary DCE future leg plus its call and put option legs."""
     return [
         {"exchange_id": "DCE", "instrument_id": "m2701", "is_primary": True},
         {"exchange_id": "DCE", "instrument_id": "m2701-C-3400"},
@@ -932,6 +966,11 @@ def _dce_bundle_legs():
 
 
 def _dce_bundle_store():
+    """Build a bundle-capable store backed by the DCE bundle query client.
+
+    Returns:
+        tuple: ``(client, store)`` sharing the client's exchange kwargs.
+    """
     client = BundleQueryClient()
     return client, make_store(
         api=client,
@@ -1203,6 +1242,13 @@ def test_ctp_bundle_execution_reference_rejects_incomplete_broker_contract_metad
 
 
 def _frozen_quote_reference_store():
+    """Build a store holding a complete frozen bundle preflight snapshot.
+
+    Returns:
+        tuple: ``(client, store, request_counts)`` where the client's reference
+        and depth requests are cleared and ``request_counts`` is a snapshot
+        taken before any quote-reference query.
+    """
     client = ExecutionReferenceBundleClient()
     store = make_store(api=client, provider="ctp_gateway", auto_settlement_confirm=False)
     frozen = store.get_ctp_bundle_preflight_snapshot(_dce_bundle_legs(), timeout=0)
@@ -1696,6 +1742,17 @@ _BUNDLE_DELETE_FIELD = object()
 
 
 def _bundle_evidence_row(client, table, instrument_id=None):
+    """Return one row from a bundle client's ``table`` fixture data.
+
+    Args:
+        client: Fixture client exposing a ``rows`` mapping.
+        table: Name of the table to read.
+        instrument_id: Instrument to select, or None when the table holds a
+            single row.
+
+    Returns:
+        dict: The selected row.
+    """
     rows = client.rows[table]
     if instrument_id is None:
         assert len(rows) == 1

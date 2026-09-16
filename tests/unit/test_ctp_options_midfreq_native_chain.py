@@ -523,6 +523,7 @@ def _run_chain(
 
 
 def _assert_zero_write(client: FiniteCtpFixtureClient, broker: BtApiBroker) -> None:
+    """Assert the fixture client submitted nothing and the broker is read-only."""
     assert client.submitted_orders == []
     assert client.cancelled_orders == []
     assert broker.get_param("market_data_only") is True

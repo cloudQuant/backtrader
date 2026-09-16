@@ -52,6 +52,7 @@ def _clean_logging():
 
 
 def _configure(tmp_path, backend="stdlib", script_name="testrun", **kwargs):
+    """Configure split-file logging under tmp_path and return the config result."""
     kwargs.setdefault("level", "INFO")
     kwargs.setdefault("console", False)
     return bt.configure_logging(
@@ -60,16 +61,19 @@ def _configure(tmp_path, backend="stdlib", script_name="testrun", **kwargs):
 
 
 def _emit_all(logger):
+    """Emit one info, warning and error line through logger."""
     logger.info("an info line")
     logger.warning("a warning line")
     logger.error("an error line")
 
 
 def _read(path):
+    """Read path as UTF-8 text."""
     return path.read_text(encoding="utf-8")
 
 
 def _managed_handlers(logger):
+    """Return the handlers this package installed on logger."""
     return [
         handler for handler in logger.handlers if getattr(handler, "_backtrader_managed", False)
     ]
@@ -727,6 +731,7 @@ def test_throttle_reset_starts_new_run_and_disabled_level_has_no_state(tmp_path)
 
 
 def _process_log_worker(snapshot):
+    """Restore an optional logging snapshot, log 20 records, then flush."""
     if snapshot is not None:
         log_message._restore_logging_config(snapshot)
     for index in range(20):

@@ -177,6 +177,7 @@ class ManagedAsyncCtpClient(TypedQueryClient):
 
 
 def _terminal_order_row(order_ref):
+    """Build a canceled CTP order row keyed by order_ref."""
     return {
         "OrderRef": str(order_ref),
         "OrderSysID": f"SYS-{order_ref}",
@@ -191,6 +192,7 @@ def _terminal_order_row(order_ref):
 
 
 def _started_typed_ctp_stack(*, require_complete_ctp_evidence=False):
+    """Start a typed-query CTP stack; returns (client, store, data, broker)."""
     client = TypedQueryClient()
     store = make_store(
         api=client,
@@ -222,6 +224,7 @@ def _started_typed_ctp_stack(*, require_complete_ctp_evidence=False):
 
 
 def _started_ctp_stack(*, positions=None, require_complete_ctp_evidence=False):
+    """Start a plain-client CTP stack; returns (client, store, data, broker)."""
     client = FakeBtApiClient(
         balance={"cash": 1_000_000.0, "value": 1_000_000.0},
         positions=positions or [],
@@ -735,6 +738,7 @@ def test_async_ctp_reconciliation_queries_off_thread_and_callbacks_on_broker_nex
 
 
 def _fresh_ctp_quote(*, stale_seconds=0.0, event_age_seconds=0.0, quality="GOOD"):
+    """Build a synthetic CTP quote with controllable staleness and quality."""
     recv_time = dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=stale_seconds)
     return SimpleNamespace(
         schema_version="ctp.quote.v2",
@@ -900,6 +904,7 @@ class _ManagedRecoveryOrder:
 
 
 def _broker_recovery_plan():
+    """Return a recoverable plan allowing one long close of one contract."""
     return {
         "status": "RECOVERABLE",
         "execution_cycle_id": "sdk-cycle-1",
@@ -1061,6 +1066,7 @@ class _AliveRecoveryOrder(_ManagedRecoveryOrder):
 
 
 def _proven_abort(reason):
+    """Return abort evidence for a proven recovery revocation."""
     return {
         "aborted": True,
         "market_data_only": True,

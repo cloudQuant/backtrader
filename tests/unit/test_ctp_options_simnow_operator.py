@@ -103,6 +103,14 @@ def test_operator_module_entrypoint_preserves_package_imports():
 
 
 def _env(**overrides):
+    """Build the credential/front environment map, overriding named keys.
+
+    Args:
+        **overrides: Keys merged over the default SimNow environment values.
+
+    Returns:
+        The resulting environment dictionary.
+    """
     env = {
         "CTP_USER_ID": "simnow-user",
         "CTP_PASSWORD": "simnow-password",
@@ -118,6 +126,14 @@ def _env(**overrides):
 
 
 def _identity(**changes):
+    """Build a flat, write-free preflight identity, overriding named fields.
+
+    Args:
+        **changes: Fields merged over the default identity values.
+
+    Returns:
+        The resulting identity dictionary.
+    """
     value = {
         "account_fingerprint": ACCOUNT,
         "trading_day": TRADING_DAY,
@@ -138,6 +154,7 @@ def _identity(**changes):
 
 
 def _records():
+    """Return the CZCE instrument records for one future and its call/put legs."""
     def row(instrument_id, product_id, product_class, **extra):
         row_value = {
             "InstrumentID": instrument_id,
@@ -161,6 +178,7 @@ def _records():
 
 
 def _legs():
+    """Return the ordered future/call/put legs with the future marked primary."""
     return [
         {
             "exchange_id": "CZCE",
@@ -172,6 +190,7 @@ def _legs():
 
 
 def _bundle_preflight():
+    """Build a bundle-preflight snapshot over the three configured legs."""
     return _identity(
         schema_version="backtrader.ctp.bundle-preflight.v2",
         legs=_legs(),
@@ -180,6 +199,7 @@ def _bundle_preflight():
 
 
 def _execution_reference():
+    """Build a read-only execution reference carrying fresh three-leg quotes."""
     received_monotonic = time.monotonic() - 0.1
     received_at = "2026-09-11T13:00:00+00:00"
     quote_legs = [
@@ -216,6 +236,7 @@ def _execution_reference():
 
 
 def _reconciliation():
+    """Build a complete, flat reconciliation snapshot with query results."""
     return _identity(
         schema_version="backtrader.ctp.reconciliation.v1",
         unmatched_trade_count=0,
@@ -362,6 +383,14 @@ class FakeBroker:
 
 
 def _config(**overrides):
+    """Build an operator configuration for the CZCE ``SA`` bundle.
+
+    Args:
+        **overrides: Fields merged over the default configuration values.
+
+    Returns:
+        The constructed ``OperatorConfiguration``.
+    """
     values = {
         "environment": "second_7x24",
         "product_id": "SA",

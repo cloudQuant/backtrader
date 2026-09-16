@@ -10,11 +10,13 @@ import pytest
 
 @pytest.fixture(scope="module")
 def timing():
+    """Return the shared 014_1 low-frequency execution-timing module."""
     return _load_timing_module()
 
 
 @pytest.fixture(scope="module")
 def strategy_runner():
+    """Return the imported 014_1 low-frequency replay-runner module."""
     import importlib
     from pathlib import Path
 
@@ -941,6 +943,7 @@ def test_actual_foreign_fact_cannot_authorize_next_protection_leg(field, value, 
 
 
 def _load_timing_module():
+    """Return the imported 014_1 low-frequency execution-timing module."""
     import importlib
 
     return importlib.import_module("examples.014_1_ctp_options_lowfreq.execution_timing")

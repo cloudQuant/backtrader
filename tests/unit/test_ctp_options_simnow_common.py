@@ -20,6 +20,7 @@ SPEC.loader.exec_module(MODULE)
 
 
 def _records():
+    """Return the DCE instrument records for one future and its call/put legs."""
     return [
         {
             "InstrumentID": "m2701",
@@ -64,6 +65,7 @@ def _records():
 
 
 def _select(records):
+    """Select the ``m`` bundle on DCE for the frozen trading day."""
     return MODULE.select_three_leg_bundle(
         records, product_id="m", exchange_id="DCE", trading_day="20260911"
     )

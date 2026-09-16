@@ -1,3 +1,9 @@
+"""Idle-notification behaviour of Cerebro against a live but silent data feed.
+
+A feed that is live yet produces no bars must still let Cerebro fire its idle
+notifications instead of spinning or stopping early.
+"""
+
 import backtrader as bt
 from backtrader.brokers.tickbroker import TickBroker
 

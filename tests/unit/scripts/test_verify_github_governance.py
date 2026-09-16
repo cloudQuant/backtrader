@@ -25,6 +25,7 @@ from scripts.ci.verify_github_governance import (  # noqa: E402
 
 
 def _manifests() -> dict:
+    """Load the tracked ruleset manifests keyed by branch."""
     return load_manifests(_REPO_ROOT / ".github" / "governance" / "rulesets")
 
 

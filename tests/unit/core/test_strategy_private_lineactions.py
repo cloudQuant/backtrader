@@ -32,6 +32,7 @@ MONEYNESS_LABELS = {
 
 
 def build_frame(type_code, moneyness_code):
+    """Return a three-row frame carrying ``type_code`` and ``moneyness_code``."""
     idx = pd.date_range("2026-06-10 15:25:39", periods=3, freq="s")
     return pd.DataFrame(
         {
@@ -49,6 +50,7 @@ def build_frame(type_code, moneyness_code):
 
 
 def add_option_feeds(cerebro):
+    """Add call, put, future and index option feeds to ``cerebro``."""
     samples = (
         ("call", 1.0, 1.0),
         ("put", -1.0, -1.0),
@@ -60,6 +62,7 @@ def add_option_feeds(cerebro):
 
 
 def read_line_value(line):
+    """Return ``line[0]``, mapping NaN floats to the string ``"nan"``."""
     value = line[0]
     if isinstance(value, float) and math.isnan(value):
         return "nan"
@@ -67,6 +70,7 @@ def read_line_value(line):
 
 
 def type_code_expr(data):
+    """Return a LineActions expression mapping ``data.type`` to a numeric code."""
     return bt.If(
         bt.Cmp(data.type, 1.0) == 0,
         1.0,
@@ -83,6 +87,7 @@ def type_code_expr(data):
 
 
 def option_type_code_expr(data):
+    """Return a LineActions expression mapping option moneyness to a code."""
     moneyness = data.option_moneyness
     mon_valid = bt.And(moneyness > -2.0, moneyness < 2.0)
     return bt.If(
@@ -101,6 +106,7 @@ def option_type_code_expr(data):
 
 
 def type_string_expr(data):
+    """Return a LineActions expression mapping ``data.type`` to a label string."""
     return bt.If(
         bt.Cmp(data.type, 1.0) == 0,
         "CE",
@@ -158,6 +164,7 @@ class EmptyMultiDataStrategy(bt.Strategy):
 
 
 def run_strategy(strategy, runonce):
+    """Run ``strategy`` over the option feeds and return the first instance."""
     cerebro = bt.Cerebro()
     add_option_feeds(cerebro)
     cerebro.addstrategy(strategy)

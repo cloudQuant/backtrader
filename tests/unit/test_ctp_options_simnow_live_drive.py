@@ -1,3 +1,5 @@
+"""Pure-local contracts for the Iteration 25 SimNow live mechanical drive."""
+
 from types import SimpleNamespace
 
 
@@ -77,6 +79,16 @@ class FakeSession:
 
 
 def _drive(session, broker, **kwargs):
+    """Drive a session with a deterministic clock and an always-flat snapshot.
+
+    Args:
+        session: Mechanical session double to drive.
+        broker: Broker double supplying the notification queue.
+        **kwargs: Extra driver keyword arguments; ``leg_timeout`` defaults to 0.1.
+
+    Returns:
+        The mechanical-drive result dictionary.
+    """
     clock = [0.0]
 
     def monotonic():
@@ -97,6 +109,15 @@ def _drive(session, broker, **kwargs):
 
 
 def _entry_notifications(*, duplicate=False, partial=False):
+    """Build the three entry notifications, optionally repeated or partial.
+
+    Args:
+        duplicate: Append a copy of the final notification when true.
+        partial: Mark every notification as a partial fill when true.
+
+    Returns:
+        List of fake order notifications for ``ref`` 1..3.
+    """
     values = [SimpleNamespace(ref=index, partial=partial) for index in range(1, 4)]
     return values + ([values[-1]] if duplicate else [])
 

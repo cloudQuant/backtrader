@@ -12,6 +12,14 @@ RULES_HASH = "bundle-rules-sha256"
 
 
 def _policy(**overrides):
+    """Return a CTP cohort policy with the test defaults overridden.
+
+    Args:
+        **overrides: Policy field values replacing the defaults.
+
+    Returns:
+        bt.feeds.CtpCohortPolicy: The constructed policy.
+    """
     values = {
         "max_receive_age_ms": 250.0,
         "max_receive_skew_ms": 100.0,
@@ -25,6 +33,15 @@ def _policy(**overrides):
 
 
 def _validator(*, policy=None, symbols=SYMBOLS):
+    """Return a cohort validator expecting ``symbols`` as CZCE legs.
+
+    Args:
+        policy: Optional policy override; a default policy is built when None.
+        symbols: Symbols of the expected legs.
+
+    Returns:
+        bt.feeds.CtpQuoteCohortValidator: The configured validator.
+    """
     return bt.feeds.CtpQuoteCohortValidator(
         expected_legs=tuple(
             bt.feeds.CtpCohortLeg(symbol=symbol, exchange="CZCE", price_tick=0.5)
@@ -44,6 +61,19 @@ def _quote(
     receive_epoch=1_700_000_000.01,
     **overrides,
 ):
+    """Build a complete CTP quote mapping for ``symbol``.
+
+    Args:
+        symbol: Instrument symbol for the quote.
+        sequence: Ingest sequence number.
+        receive_monotonic_ns: Monotonic receive timestamp in nanoseconds.
+        source_epoch: Source event time as a Unix epoch value.
+        receive_epoch: Receive time as a Unix epoch value.
+        **overrides: Field values replacing the generated defaults.
+
+    Returns:
+        dict: The quote field mapping.
+    """
     event = {
         "schema_version": "ctp.quote.v2",
         "volume_semantics": "delta",
@@ -86,6 +116,7 @@ def _quote(
 
 
 def _value(event, *names):
+    """Return the first of ``names`` present on ``event``, or ``None``."""
     if isinstance(event, dict):
         for name in names:
             if name in event:
@@ -98,6 +129,15 @@ def _value(event, *names):
 
 
 def _now_for(event, **overrides):
+    """Build a ``CtpCohortNow`` clock derived from ``event``'s receive fields.
+
+    Args:
+        event: Mapping or object providing receive timing fields.
+        **overrides: Values replacing the inferred clock fields.
+
+    Returns:
+        CtpCohortNow: The clock value passed to the validator.
+    """
     monotonic = _value(event, "recv_monotonic_ns", "received_monotonic_ns")
     epoch = _value(event, "recv_time_utc", "received_wall_time", "local_time")
     clock_domain_id = _value(event, "clock_domain_id")
@@ -130,10 +170,16 @@ def _now_for(event, **overrides):
 
 
 def _ingest(validator, event, *, now=None):
+    """Ingest ``event``, deriving a default clock from it when ``now`` is omitted."""
     return validator.ingest(event, now=_now_for(event) if now is None else now)
 
 
 def _admit_initial(validator):
+    """Feed the first two legs and return the result of the third.
+
+    Returns:
+        The ingest result produced once all three legs have arrived.
+    """
     assert _ingest(validator, _quote(SYMBOLS[0], receive_monotonic_ns=1_000_000_000)).reason == (
         bt.feeds.CtpCohortReason.WAITING_FOR_LEGS
     )

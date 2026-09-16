@@ -1,3 +1,10 @@
+"""Latency diagnostic for the event-driven cross-exchange update path.
+
+Drives 100k synthetic updates through the example's event strategy and reports
+the p99 decision/update cost against a wall-clock budget. This is a diagnostic
+in the serial performance lane, not a correctness gate.
+"""
+
 from decimal import Decimal
 import gc
 from importlib import import_module

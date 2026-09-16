@@ -1,3 +1,5 @@
+"""Funding-snapshot caching and refresh regression tests for BtApiStore."""
+
 import asyncio
 import datetime as dt
 import threading
@@ -17,6 +19,18 @@ SYMBOL = "BTC-USDT-SWAP"
 
 
 def _funding(*, rate="0.0001", available=True, stale=False, seconds=3600, interval=28800):
+    """Build an available funding snapshot for the test venue and symbol.
+
+    Args:
+        rate: Funding rate as a decimal string.
+        available: Whether the snapshot is marked as available.
+        stale: Whether the freshness block reports the snapshot stale.
+        seconds: Seconds from now until the next funding time.
+        interval: Settlement interval in seconds.
+
+    Returns:
+        dict: Snapshot carrying the rate, next funding time and freshness.
+    """
     observed_at = dt.datetime.now(dt.timezone.utc)
     return {
         "exchange_name": VENUE,
@@ -36,6 +50,11 @@ def _funding(*, rate="0.0001", available=True, stale=False, seconds=3600, interv
 
 
 def _transport_unavailable():
+    """Build a funding snapshot representing a failed transport read.
+
+    Returns:
+        dict: Unavailable snapshot carrying the transport failure reason.
+    """
     observed_at = dt.datetime.now(dt.timezone.utc)
     return {
         "exchange_name": VENUE,
@@ -130,6 +149,16 @@ class FundingSdk:
 
 
 def _store(api, **config):
+    """Build a funding-aware ``BtApiStore`` around ``api`` for this symbol.
+
+    Args:
+        api: SDK handle the store will hold.
+        **config: Extra store configuration merged over the defaults.
+
+    Returns:
+        BtApiStore: Store configured with the SDK's exchange kwargs, the test
+        symbol route and short funding cache windows.
+    """
     # Funding cache validity uses the SDK cross-venue funding contract.
     optional_sdk()
     return BtApiStore(

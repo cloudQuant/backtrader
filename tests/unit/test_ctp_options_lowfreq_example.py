@@ -19,11 +19,13 @@ EXAMPLE = REPO / "examples" / "014_1_ctp_options_lowfreq"
 
 
 def _load_runner():
+    """Return the imported 014_1 low-frequency replay-runner module."""
     return importlib.import_module("examples.014_1_ctp_options_lowfreq.run")
 
 
 @pytest.fixture(scope="module")
 def runner():
+    """Return the shared 014_1 low-frequency replay-runner module."""
     return _load_runner()
 
 
@@ -247,6 +249,14 @@ class _CallbackOrder:
 
 
 def _callback_harness(strategy_type):
+    """Build a minimal strategy instance mid-submission for callback tests.
+
+    Args:
+        strategy_type: Strategy class instantiated without ``__init__``.
+
+    Returns:
+        A ``(strategy, submitted)`` tuple tracking leg submissions.
+    """
     strategy = object.__new__(strategy_type)
     strategy._planned_legs = [{"symbol": "P", "side": "buy", "size": 1}]
     strategy._leg_index = 0

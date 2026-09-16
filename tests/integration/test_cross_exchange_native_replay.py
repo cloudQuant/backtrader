@@ -80,6 +80,7 @@ class OfflineOrderBookClient:
 
 
 def _offline_books(rules, venue_symbols):
+    """Build one offline order-book snapshot per venue symbol."""
     wall_time = time.time()
     received_monotonic_ns = time.monotonic_ns()
     prices = {

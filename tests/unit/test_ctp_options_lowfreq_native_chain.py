@@ -82,6 +82,7 @@ class FixedClock:
 
 
 def _tick(symbol, price, ingest_seq):
+    """Build a strict CTP-v2 tick event with the given symbol, price, and sequence."""
     event = TickEvent(
         timestamp=BASE.timestamp(),
         symbol=symbol,

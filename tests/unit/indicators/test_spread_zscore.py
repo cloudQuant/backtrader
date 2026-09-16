@@ -5,6 +5,7 @@ import backtrader.indicators as btind
 
 
 def run_indicator(close0, close1, period):
+    """Run SpreadZScore on two close series and return (index, spread, mean, zscore) rows."""
     cerebro = bt.Cerebro()
 
     from backtrader.feeds import PandasData

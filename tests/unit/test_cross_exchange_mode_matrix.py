@@ -1,3 +1,4 @@
+"""Mode-policy, admission, and shadow-failure contract tests for both cross-exchange examples."""
 import importlib
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -23,6 +24,7 @@ RUNNERS = [
 
 
 def _freshness():
+    """Return a synthetic exchange-sourced freshness timestamp."""
     return Freshness(
         source="exchange",
         observed_at=datetime(2026, 9, 8, tzinfo=timezone.utc),
@@ -30,6 +32,7 @@ def _freshness():
 
 
 def _instrument_spec(symbol="BTC-USDT-SWAP"):
+    """Build a swap instrument spec for the venue implied by the symbol."""
     return InstrumentSpec(
         exchange_name="OKX___SWAP" if "-" in symbol else "BINANCE___SWAP",
         symbol=symbol,
@@ -53,6 +56,7 @@ def _instrument_spec(symbol="BTC-USDT-SWAP"):
 
 
 def _funding_snapshot(symbol="BTC-USDT-SWAP", *, available=True):
+    """Build a funding snapshot that can be marked unavailable."""
     return FundingSnapshot(
         exchange_name="OKX___SWAP" if "-" in symbol else "BINANCE___SWAP",
         symbol=symbol,
@@ -67,6 +71,7 @@ def _funding_snapshot(symbol="BTC-USDT-SWAP", *, available=True):
 
 
 def _fee_schedule(symbol="BTC-USDT-SWAP", *, available=True):
+    """Build an account fee schedule that can be marked unavailable."""
     return FeeSchedule(
         exchange_name="OKX___SWAP" if "-" in symbol else "BINANCE___SWAP",
         symbol=symbol,
@@ -82,6 +87,7 @@ def _fee_schedule(symbol="BTC-USDT-SWAP", *, available=True):
 
 
 def _candidate_for(runner):
+    """Return the runner's manifest and its matching candidate row."""
     manifest = json.loads(Path(runner.MANIFEST_PATH).read_text(encoding="utf-8"))
     candidate = next(
         row for row in manifest["candidates"] if row["strategy_id"] == runner.STRATEGY_ID
@@ -90,6 +96,7 @@ def _candidate_for(runner):
 
 
 def _passing_store_health():
+    """Return a store-health payload reporting a clean shutdown."""
     return {
         "shutdown_state": "PASS",
         "queue_depth": 0,

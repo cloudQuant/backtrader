@@ -19,6 +19,7 @@ CONFIG = EXAMPLE / "config.yaml"
 
 
 def _run(*arguments: str) -> subprocess.CompletedProcess:
+    """Run the example runner in a subprocess with the given CLI arguments."""
     environment = os.environ.copy()
     return subprocess.run(
         [sys.executable, str(RUNNER), *arguments],
@@ -31,6 +32,7 @@ def _run(*arguments: str) -> subprocess.CompletedProcess:
 
 
 def _report(result: subprocess.CompletedProcess) -> dict:
+    """Parse the JSON report emitted on a runner's standard output."""
     assert result.stdout, result.stderr
     return json.loads(result.stdout)
 

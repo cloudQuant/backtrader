@@ -11,6 +11,7 @@ import pytest
 
 
 def optional_sdk(module_name="bt_api_py", *, allow_module_level=False):
+    """Import the optional SDK module, skipping when its distribution is absent."""
     distribution = module_name.split(".", 1)[0]
     try:
         metadata.distribution(distribution)

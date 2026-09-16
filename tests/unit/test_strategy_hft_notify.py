@@ -9,6 +9,7 @@ from backtrader.order import Order
 
 
 def _event(channel_type, data, sequence):
+    """Wrap channel data in an Event carrying its timestamp and sequence."""
     return Event(
         timestamp=data.timestamp,
         sequence=sequence,

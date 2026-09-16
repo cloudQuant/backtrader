@@ -22,6 +22,7 @@ CSV = os.path.join(DATA, "2006-day-001.txt")
 
 @pytest.fixture(autouse=True)
 def _clean_logging():
+    """Reset lifecycle logging before and after each test."""
     log_message.reset_logging()
     yield
     log_message.reset_logging()
@@ -117,6 +118,7 @@ class _StopLenFeed(bt.feeds.GenericCSVData):
 
 
 def _add_csv_strategy(cerebro, strategy=bt.Strategy, feed_cls=bt.feeds.GenericCSVData):
+    """Add the CSV fixture feed and a strategy to a cerebro."""
     cerebro.adddata(
         feed_cls(
             dataname=CSV,

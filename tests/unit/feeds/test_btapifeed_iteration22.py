@@ -33,6 +33,18 @@ class ReplayClock:
 
 
 def ctp_tick(second, *, price=100.0, delta=1.0, cumulative=101.0, ingest_seq=1):
+    """Build a fully attested CTP ``TickEvent`` at ``base + second``.
+
+    Args:
+        second: Offset in seconds from the fixed 2026-09-09 01:00 UTC base.
+        price: Tick price.
+        delta: Declared per-tick volume delta.
+        cumulative: Cumulative volume reported by the source.
+        ingest_seq: Monotonic ingest sequence number.
+
+    Returns:
+        TickEvent: A populated ``ctp.quote.v2`` event.
+    """
     base = dt.datetime(2026, 9, 9, 1, 0, tzinfo=dt.timezone.utc)
     timestamp = (base + dt.timedelta(seconds=second)).timestamp()
     event = TickEvent(
@@ -80,6 +92,15 @@ def ctp_tick(second, *, price=100.0, delta=1.0, cumulative=101.0, ingest_seq=1):
 
 
 def minute_feed(ticks, clock=None):
+    """Return a ``(client, store, one-minute feed)`` triple replaying ``ticks``.
+
+    Args:
+        ticks: Tick events to replay as live data.
+        clock: Optional clock used by the feed.
+
+    Returns:
+        tuple: The ``(client, store, feed)`` triple under test.
+    """
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: ticks})
     store = make_store(api=client)
     feed = store.getdata(
@@ -95,6 +116,16 @@ def minute_feed(ticks, clock=None):
 
 
 def tick_feed(ticks, clock=None, **feed_kwargs):
+    """Return a ``(client, store, tick feed)`` triple with optional feed overrides.
+
+    Args:
+        ticks: Tick events to replay as live data.
+        clock: Optional clock used by the feed.
+        **feed_kwargs: Extra keyword arguments forwarded to ``store.getdata``.
+
+    Returns:
+        tuple: The ``(client, store, feed)`` triple under test.
+    """
     client = FakeBtApiClient(live_ticks={DEFAULT_SYMBOL: ticks})
     store = make_store(api=client)
     feed = store.getdata(

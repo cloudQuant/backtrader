@@ -12,6 +12,7 @@ from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar,
 
 
 def setup_stack(mode="dual_side", policy="startup", initial=0, start_feed=True, audit_interval=0.0):
+    """Start a position-sync broker stack; returns (client, data, broker)."""
     client = FakeBtApiClient(
         history={DEFAULT_SYMBOL: [make_bar(0, 100, 102, 98, 100)]},
         positions=[{"symbol": DEFAULT_SYMBOL, "size": initial, "price": 100, "direction": "long"}],
@@ -44,6 +45,7 @@ def setup_stack(mode="dual_side", policy="startup", initial=0, start_feed=True, 
 
 
 def position(broker, data, side):
+    """Return the broker's position for data on the given side."""
     return (
         broker.getposition(data, side=side)
         if broker.p.position_mode == "dual_side"
