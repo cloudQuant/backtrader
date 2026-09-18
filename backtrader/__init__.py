@@ -85,6 +85,21 @@ if _LIGHT_IMPORT:
     from .trade import *
     from .utils import date2num, num2date, num2dt, num2time, time2num
     from .utils import configure_logging, get_logger, reset_logging, set_level
+    from .notifications import (
+        ERROR_CATEGORIES,
+        bind_qq_bot,
+        bind_wechat_clawbot,
+        configure_notifications,
+        configure_notifications_from_env,
+        default_anchor_path,
+        flush_notifications,
+        load_anchor,
+        notification_stats,
+        poll_clawbot_once,
+        reset_notifications,
+        send_message,
+        update_anchor,
+    )
     from .version import __btversion__, __version__
 else:
     # Load contributed indicators and studies (lazy import to avoid circular dependency)
@@ -135,6 +150,21 @@ else:
     from .trade import *
     from .utils import date2num, num2date, num2dt, num2time, time2num
     from .utils import configure_logging, get_logger, reset_logging, set_level
+    from .notifications import (
+        ERROR_CATEGORIES,
+        bind_qq_bot,
+        bind_wechat_clawbot,
+        configure_notifications,
+        configure_notifications_from_env,
+        default_anchor_path,
+        flush_notifications,
+        load_anchor,
+        notification_stats,
+        poll_clawbot_once,
+        reset_notifications,
+        send_message,
+        update_anchor,
+    )
     from .version import __btversion__, __version__
     from .writer import *
     from .profiles import LiveProfile, build_cerebro

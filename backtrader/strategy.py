@@ -412,6 +412,67 @@ class Strategy(StrategyBase):
         dt = dt or self.datetime.datetime()
         print(f"[{dt}] {txt}")
 
+    def send_message(
+        self,
+        text,
+        *,
+        title=None,
+        level="info",
+        channels=None,
+        wait=None,
+        timeout=None,
+        dedup_key=None,
+    ):
+        """Send a notification (iteration 32); asynchronous unless ``wait=True``.
+
+        Channels are configured once with ``bt.configure_notifications(...)``.
+        The call injects strategy context (class name, data name and the
+        **backtest** timestamp) and never raises for delivery problems: results
+        come back as a ``SendResult`` whose ``outcomes`` classify each channel.
+
+        Args:
+            text: Message body; must be a non-empty string.
+            title: Optional title; defaults to the strategy class name.
+            level: 'info', 'warning', 'error' or 'critical' (case-insensitive).
+            channels: Optional subset of configured channel ids.
+            wait: True sends synchronously and returns delivery results; None
+                uses the configured default. Prefer the default (False) inside
+                ``next()`` - a synchronous send blocks on network I/O.
+            timeout: Per-request timeout in seconds; only used when ``wait``.
+            dedup_key: Optional deduplication key.
+
+        Returns:
+            SendResult: Per-channel outcomes. ``accepted`` is False and
+            ``reason`` explains why when nothing was sent (not configured, no
+            channels, queue full, or a child process suppressing sends).
+
+        Raises:
+            ValueError: On empty ``text``, an invalid ``level`` or an unknown
+                channel id - programming errors surface immediately.
+
+        Example:
+            >>> self.send_message("entry filled", level="warning")
+        """
+        from . import notifications as _notifications
+
+        data = getattr(self, "data", None)
+        try:
+            at_time = self.datetime.datetime()
+        except Exception:  # a strategy without a usable clock still reports the message
+            at_time = None
+        return _notifications.send_message(
+            text,
+            title=title if title is not None else self.__class__.__name__,
+            level=level,
+            channels=channels,
+            wait=wait,
+            timeout=timeout,
+            dedup_key=dedup_key,
+            strategy=self.__class__.__name__,
+            data_name=getattr(data, "_name", None),
+            at_time=at_time,
+        )
+
     def _notify_signal_to_observers(self, action, size, price, data=None, reason=None):
         """Notify all TradeLogger observers about a trading signal.
 

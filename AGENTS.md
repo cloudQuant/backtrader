@@ -259,6 +259,8 @@ backtrader/            core library
   lineroot.py linebuffer.py lineseries.py lineiterator.py dataseries.py
   indicators/ analyzers/ observers/ feeds/ brokers/ filters/ sizers/ signals/
   commissions/ stores/ channels/ mixins/ plot/ bokeh/ reports/ configs/ utils/
+  notifications/  alert delivery: dingtalk/wecom/feishu/telegram/email/slack/
+                  discord/ntfy/gotify/bark/webhook/wechat_clawbot/qq_bot
 AI strategy products are maintained outside this repository:
   cloudQuant/backtrader-skills   standalone author/review/test skills product
   cloudQuant/backtrader-mcp      standalone local-stdio MCP product
@@ -412,6 +414,43 @@ that the strategy is profitable.
 - Key lifecycle INFO (run start/finish, feed load, strategy nextstart/stop,
   order submit/fill/reject in `bbroker`) is per-run/per-order — never per
   bar; keep it that way in hot paths.
+
+## Notifications (iteration 32)
+
+- Single entry point `backtrader/notifications/` (`configure_notifications`,
+  `send_message`, `Strategy.send_message`, `flush_notifications`,
+  `reset_notifications`, `notification_stats`). See
+  `docs/NOTIFICATIONS_GUIDELINES.md`.
+- **Opt-in and silent until configured**: no channel, thread, queue, file or
+  network until `configure_notifications(...)` runs. `send_message` before
+  configuration returns `reason="not_configured"` and warns once on stderr.
+- Asynchronous by default with **one worker thread and one bounded queue per
+  channel instance** — a throttled channel never delays another. `wait=True`
+  sends synchronously (never from `next()`); delivery failures are classified in
+  `SendResult.outcomes` and never raised into strategy code.
+- Failures classify into `bt.ERROR_CATEGORIES`; only
+  network/timeout/tls/server/rate_limit are retried. Credentials are masked in
+  every log and result (`notifications/security.py`).
+- Zero new dependencies: HTTP goes through `backtrader.utils.py3.urlopen`
+  (the network layer - `urllib.request`/`urllib.error` - is imported inside
+  `notifications/transport.py` only, because `utils/py3.py` is not a
+  notification-modification surface; `urllib.parse.quote` for URL encoding may
+  appear in the channel modules), email through `smtplib`. Do not add
+  `requests`, an async HTTP client or a WebSocket client for notifications.
+- Channel facts (endpoints, limits, error codes, evidence level) are frozen in
+  `docs/_internal/opts/requirements/迭代32-发送信息功能/evidence/channel-facts.json`.
+  Length limits are only enforced where officially confirmed; unconfirmed
+  channels are not truncated.
+- WeChat ClawBot and QQ bot are **session-anchored**: they need an inbound
+  message (a `context_token` / an `openid`) before they can push, so an unbound
+  channel returns `not_bound` and is never retried. Anchor files are written
+  `0600` under `~/.backtrader/notifications/`.
+- Child processes default to `worker_silent` so `cerebro.run(maxcpus>1)` cannot
+  become a message storm; `cerebro.run()` never flushes — long-running processes
+  call `flush_notifications()` themselves. Process *exit* is covered by an `atexit`
+  hook that **sends inline** (CPython freezes daemon workers before `atexit`
+  runs), so queued messages are not lost; that path is best-effort — it may
+  duplicate a message but must not drop one.
 
 ## Code style & constraints
 

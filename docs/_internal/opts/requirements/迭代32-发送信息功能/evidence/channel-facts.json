@@ -1,0 +1,206 @@
+{
+  "iteration": 32,
+  "phase": "M0",
+  "frozen_at": "2026-09-17",
+  "baseline": {
+    "repo": "backtrader",
+    "branch": "dev",
+    "head": "5dcae255",
+    "python": "3.11.8"
+  },
+  "evidence_levels": {
+    "A": "official documentation, fetched during this iteration",
+    "B": "official SDK/terms exist but specific fields unverified offline",
+    "C": "community reverse-engineering / wiki, not an official commitment"
+  },
+  "scope_note": "Only facts verifiable offline (this session's fetches + repository inspection) are marked verified. Everything else is explicitly UNVERIFIED and must be confirmed against official docs or a sandbox before it is used as acceptance evidence. Per design D32-14, conflicts resolve to the re-check and are written back to the docs.",
+  "channels": [
+    {
+      "id": "dingtalk",
+      "status": "PARTIAL",
+      "endpoint": "POST https://oapi.dingtalk.com/robot/send?access_token=<token>",
+      "evidence": "A",
+      "verified": [
+        "custom robot webhook + optional HMAC-SHA256 signed query parameters (timestamp, sign)",
+        "msgtype text / markdown",
+        "group rate limit 20 messages/minute"
+      ],
+      "unverified": [
+        "exact sign algorithm vector (implemented as HMAC-SHA256 over 'timestamp\\nsecret' with secret as key, base64, urlencoded) - needs an official sample vector",
+        "errCode table beyond 310000 (keyword/signature mismatch) and 300001 (invalid token)",
+        "content length limit value and whether it is characters or UTF-8 bytes"
+      ],
+      "implementation_effect": "max_length left None (no truncation) until the limit is confirmed; signing implemented per the documented construction and covered by a self-consistency test, not by an official vector"
+    },
+    {
+      "id": "wecom_bot",
+      "status": "VERIFIED",
+      "endpoint": "POST https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=<key>",
+      "evidence": "A",
+      "verified": [
+        "msgtype text / markdown / markdown_v2 / image / news / file / voice / template_card",
+        "text content maximum 2048 bytes (UTF-8)",
+        "markdown_v2 content maximum 4096 bytes",
+        "text and markdown support <@userid> / mentioned_list including '@all'",
+        "20 messages per minute per robot"
+      ],
+      "unverified": [],
+      "implementation_effect": "max_length=2048 with byte-aware truncation; at_all uses msgtype=text + mentioned_list=['@all'] because markdown msgtype cannot mention"
+    },
+    {
+      "id": "feishu_bot",
+      "status": "PARTIAL",
+      "endpoint": "POST https://open.feishu.cn/open-apis/bot/v2/hook/<token>",
+      "evidence": "A",
+      "verified": [
+        "custom robot webhook",
+        "frequency control: 100 requests/minute and 5 requests/second for a custom robot",
+        "error 11232 signals rate limiting"
+      ],
+      "unverified": [
+        "whether msg_type=text renders markdown for a custom robot",
+        "request body schema for interactive cards and its length limit"
+      ],
+      "implementation_effect": "msg_type=text with plain-text adaptation (markdown=False). The design table's 'markdown supported' entry is corrected to plain text for this iteration; rich cards are deferred to M4. Signing (timestamp + secret) implemented but has no official vector to compare against."
+    },
+    {
+      "id": "telegram",
+      "status": "PARTIAL",
+      "endpoint": "POST https://api.telegram.org/bot<token>/sendMessage",
+      "evidence": "A/C",
+      "verified": [
+        "sendMessage endpoint, chat_id + text + parse_mode",
+        "HTTP 429 carries parameters.retry_after (official)"
+      ],
+      "unverified": [
+        "global 30 messages/second and 20 messages/minute per group are community wiki values, not an official commitment"
+      ],
+      "implementation_effect": "local limiter uses the conservative per-chat 20/minute plus 1/second; only the 429 retry_after contract is asserted as strong"
+    },
+    {
+      "id": "email",
+      "status": "VERIFIED",
+      "endpoint": "SMTP (implicit TLS 465 / STARTTLS 587)",
+      "evidence": "A",
+      "verified": [
+        "stdlib smtplib + email.message.EmailMessage; EmailMessage supports set_content and add_alternative for HTML"
+      ],
+      "unverified": [],
+      "implementation_effect": "no rate limit (provider dependent); requires host/port/user/password/to; sender defaults to user"
+    },
+    {
+      "id": "wecom_app",
+      "status": "VERIFIED",
+      "endpoint": "GET /cgi-bin/gettoken then POST /cgi-bin/message/send?access_token=<token>",
+      "evidence": "A",
+      "verified": [
+        "access_token expiry is honoured (expires_in), msgtype text / markdown, agentid + touser required",
+        "per-member 30 messages/minute, per-app daily quota = account limit x 200"
+      ],
+      "unverified": [
+        "which errcodes mean expired token besides 40014 and 42001"
+      ],
+      "implementation_effect": "token cached until expires_in - 300s, one refresh-and-retry on 40014/42001 (the single documented exception to the no-retry-on-auth rule)"
+    },
+    {
+      "id": "slack",
+      "status": "PARTIAL",
+      "endpoint": "POST https://hooks.slack.com/services/...",
+      "evidence": "A/C",
+      "verified": ["incoming webhook accepts {\"text\": ...}", "response body 'ok' on success"],
+      "unverified": ["documented rate limit (commonly 1 message/second)"],
+      "implementation_effect": "max_length=4000 as a conservative recommendation; rate limit 1/second"
+    },
+    {
+      "id": "discord",
+      "status": "VERIFIED",
+      "endpoint": "POST https://discord.com/api/webhooks/{id}/{token}",
+      "evidence": "A",
+      "verified": [
+        "{\"content\": ...} with a 2000 character content limit",
+        "429 responses carry retry_after"
+      ],
+      "unverified": [],
+      "implementation_effect": "max_length=2000; 429 retry_after parsed from the JSON body or the header"
+    },
+    {
+      "id": "ntfy",
+      "status": "PARTIAL",
+      "endpoint": "POST https://ntfy.sh/ with a JSON publish body",
+      "evidence": "A/C",
+      "verified": ["publish by topic", "self-hosted deployments have no quota"],
+      "unverified": ["hosted quota values"],
+      "implementation_effect": "JSON publish ({\"topic\",\"title\",\"message\",\"priority\"}) instead of header-based publish: HTTP header values cannot carry non-ASCII text, and titles/messages are frequently Chinese. This is a deliberate deviation from the design's path form."
+    },
+    {
+      "id": "gotify",
+      "status": "VERIFIED",
+      "endpoint": "POST {base}/message?token=<token>",
+      "evidence": "A",
+      "verified": ["{\"title\",\"message\",\"priority\"} JSON body", "self-hosted"],
+      "unverified": [],
+      "implementation_effect": "no local rate limit"
+    },
+    {
+      "id": "bark",
+      "status": "PARTIAL",
+      "endpoint": "POST https://api.day.app/push with a JSON body",
+      "evidence": "A/C",
+      "verified": ["device key based push", "JSON response carries a code field"],
+      "unverified": ["exact response code semantics"],
+      "implementation_effect": "JSON push instead of the path form (avoids percent-encoding the title and body)"
+    },
+    {
+      "id": "webhook",
+      "status": "VERIFIED",
+      "endpoint": "user supplied",
+      "evidence": "A",
+      "verified": ["user supplied URL/method/headers/body template with {text}/{title}/{level} placeholders"],
+      "unverified": [],
+      "implementation_effect": "success defaults to 2xx, overridable with success_statuses; {{ and }} escape literal braces"
+    },
+    {
+      "id": "wechat_clawbot",
+      "status": "UNVERIFIED",
+      "endpoint": "POST https://ilinkai.weixin.qq.com/ilink/bot/sendmessage",
+      "evidence": "C (third-party reverse engineering of the official npm package @tencent-weixin/openclaw-weixin; the protocol is not published on the official docs site)",
+      "verified": [],
+      "unverified": [
+        "login endpoints and their exact paths",
+        "required request headers (AuthorizationType, X-WECHAT-UIN, SKRouteTag)",
+        "which request-body fields are mandatory for delivery (from_user_id, client_id, message_type, message_state, base_info.channel_version)",
+        "context_token lifetime (reported ~24h) and the reported need for a fresh inbound message every ~10 sends",
+        "whether one ClawBot can only serve one agent instance at a time",
+        "gray-release status and the iOS 8.0.70+ requirement",
+        "that sendmessage returns HTTP 200 even when the message is silently dropped"
+      ],
+      "implementation_effect": "endpoints and headers are isolated in named constants marked UNVERIFIED; framework-side behaviour (anchor cache, refresh threshold, not_bound classification, credential file permissions) is implemented and unit tested, while real delivery is BLOCKED pending a gray-release account"
+    },
+    {
+      "id": "qq_bot",
+      "status": "PARTIAL",
+      "endpoint": "POST https://bots.qq.com/app/getAppAccessToken then POST https://api.bot.qq.com/v2/users/{user_openid}/messages",
+      "evidence": "A",
+      "verified": [
+        "individual developers can register and create a bot (face verification)",
+        "appid + appsecret exchanged for an access token; header 'Authorization: QQBot <access_token>'",
+        "single chat and group endpoints under /v2/users/{user_openid}/messages and /v2/groups/{group_openid}/messages",
+        "identities are bot-scoped openids obtained from inbound events",
+        "proactive messages: 60/qpm per bot and 20/qpm per relationship for certified individuals, 30/qpm uncertified, 1000 messages/day/group; users can disable proactive messages",
+        "sandbox host does not enforce the IP allowlist and frequency control"
+      ],
+      "unverified": [
+        "which host is authoritative for the v2 API (official docs show both api.sgroup.qq.com and api.bot.qq.com)",
+        "expiry semantics of the access token beyond expires_in"
+      ],
+      "implementation_effect": "single chat and group chat only; the 'channel/guild' scenario is out of scope (sending there requires an online WebSocket). Anchor binding is explicit registration: obtaining an openid needs an event subscription (WebSocket, or a public webhook), and the standard library has no WebSocket client, so automatic binding is deferred rather than adding a dependency. This corrects the design's 'bind_qq_bot() starts an event subscription' wording."
+    }
+  ],
+  "corrections_applied_to_docs": [
+    "feishu_bot: markdown supported -> plain text (msg_type=text) for this iteration",
+    "dependencies: HTTP goes through backtrader.utils.py3.urlopen; urllib is imported locally inside notifications/transport.py only, because backtrader/utils/py3.py is outside the iteration's allowed-modification list",
+    "ntfy and bark: JSON publish bodies instead of path/header forms, for Unicode safety",
+    "qq_bot: automatic event-subscription binding deferred (no WebSocket client in the standard library); explicit anchor registration instead",
+    "channels whose content limit could not be confirmed (dingtalk, feishu, ntfy, gotify, bark, webhook) declare max_length=None rather than guessing a value"
+  ]
+}
