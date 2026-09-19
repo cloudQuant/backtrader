@@ -18,12 +18,12 @@ import threading
 from typing import Any, Dict, Optional, Tuple
 
 from .adapters import ADAPTER_SPECS, build_adapter_driver
-from .channels import ChannelSpec, LEVELS, Notification, normalize_level
+from .channels import LEVELS, ChannelSpec, Notification, normalize_level
 from .core import (
     ERROR_CATEGORIES,
-    Notifier,
     OVERFLOW_DROP_NEWEST,
     OVERFLOW_DROP_OLDEST,
+    Notifier,
     SendResult,
     no_channels_result,
     silent_outcomes,

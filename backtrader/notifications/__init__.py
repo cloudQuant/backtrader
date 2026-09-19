@@ -48,13 +48,9 @@ from .config import (
 )
 from .core import ERROR_CATEGORIES, ChannelOutcome, SendResult
 from .security import mask_text, mask_url
-from .session import (
-    bind_qq_bot as _bind_qq_bot,
-    bind_wechat_clawbot as _bind_wechat_clawbot,
-    default_anchor_path,
-    load_anchor,
-    persist_anchor,
-)
+from .session import bind_qq_bot as _bind_qq_bot
+from .session import bind_wechat_clawbot as _bind_wechat_clawbot
+from .session import default_anchor_path, load_anchor, persist_anchor
 from .transport import (
     HttpRequest,
     HttpResponse,
