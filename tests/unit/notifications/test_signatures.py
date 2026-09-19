@@ -75,3 +75,27 @@ def test_dingtalk_sign_is_url_encoded():
     """Base64 characters that are unsafe in a query string are encoded."""
     _, sign = dingtalk_sign("secret-value", timestamp=1700000000000)
     assert "+" not in sign and "/" not in sign and "=" not in sign
+
+
+# Independent reference vectors (AC32-06): expected digests were produced with
+# OpenSSL (C implementation) following the officially documented formulas -
+# DingTalk signs "timestamp\nsecret" with the secret as the HMAC key, Feishu
+# signs an empty message with "timestamp\nsecret" as the key. The OpenSSL output
+# was cross-checked against a plain ``hmac`` recomputation: byte-identical.
+# Locking the vectors keeps a future refactor from silently swapping key/data.
+OFFICIAL_VECTOR_SECRET = "SECtest-vector-32"
+OFFICIAL_VECTOR_TIMESTAMP = 1700000000000
+DINGTALK_VECTOR_SIGN = "lxxh5wmzo%2FOVoHYWSu4xglJZEOSPnH2i1TnT7pBGYUk%3D"
+FEISHU_VECTOR_SIGN = "ZZJJKUV2+/Qvkz8ctqiNrPc3laBAD5W7vCugsCDmJZU="
+
+
+def test_dingtalk_sign_matches_openssl_reference_vector():
+    """The digest matches a reference value computed with OpenSSL (C)."""
+    _, sign = dingtalk_sign(OFFICIAL_VECTOR_SECRET, timestamp=OFFICIAL_VECTOR_TIMESTAMP)
+    assert sign == DINGTALK_VECTOR_SIGN
+
+
+def test_feishu_sign_matches_openssl_reference_vector():
+    """The digest matches a reference value computed with OpenSSL (C)."""
+    _, sign = feishu_sign(OFFICIAL_VECTOR_SECRET, timestamp=OFFICIAL_VECTOR_TIMESTAMP)
+    assert sign == FEISHU_VECTOR_SIGN

@@ -18,6 +18,7 @@ Priority Markers:
 """
 
 import pytest
+import os
 import sys
 import tempfile
 import shutil
@@ -359,6 +360,38 @@ def clean_test_environment():
     # - Clear global state
     # - Close open files
     # - Reset singleton instances
+
+
+# =============================================================================
+# Proxy Environment Isolation (iteration-32 acceptance, F8)
+# =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def isolate_proxy_environment():
+    """Strip proxy variables before every test (iteration-32 acceptance, F8).
+
+    ``examples/013_1|013_2/ctp_example_support.py`` run ``load_dotenv`` at
+    import time, copying a developer's ``.env`` proxy settings into
+    ``os.environ`` without restoring them. A later test in the same xdist
+    worker that opens a real socket then dials a proxy that is not running
+    (``ConnectionRefusedError [Errno 61]``). Removing the variables before
+    each test keeps every worker on direct connections, matching CI.
+
+    Tests that need a proxy set it themselves with ``monkeypatch.setenv``,
+    which is restored automatically after the test.
+
+    Yields:
+        None: Control is yielded to the test for execution.
+    """
+    stale = [
+        name
+        for name in os.environ
+        if name.lower().endswith("_proxy") or name.lower() == "proxy_host"
+    ]
+    for name in stale:
+        os.environ.pop(name, None)
+    yield
 
 
 # =============================================================================

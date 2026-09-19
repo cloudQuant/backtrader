@@ -146,7 +146,7 @@ bt.bind_qq_bot(user_openid="...")     # 或 group_openid="..."
 
 ## 多进程与长驻进程
 
-- `cerebro.run(maxcpus>1)` 参数优化：子进程默认**不外发**（`error_category="worker_silent"`），避免上千个参数组合变成消息轰炸。确实需要在子进程发送时显式 `workers="send"`，且子进程要自己 `configure_notifications`。
+- `cerebro.run(maxcpus>1)` 参数优化：子进程默认**不外发**（`error_category="worker_silent"`），避免上千个参数组合变成消息轰炸。确实需要在子进程发送时显式 `workers="send"`，且子进程要自己 `configure_notifications`。注意：开启后**每个子进程各自持有独立的本地限流器**（跨进程不聚合），几十个子进程同时外发时合计速率可能超过渠道官方阈值——请自行把各进程的 `rate_limit_scale` 调小分摊额度，或仅让主进程外发。
 - `cerebro.run()` 返回**不保证**消息已送达。长驻进程请在 run 之后调用 `bt.flush_notifications()`。
 - **脚本退出由 `atexit` 兜底**（复核轮补齐）：该钩子在调用线程内**内联发送**剩余消息——CPython 在跑 `atexit` 之前已冻结 daemon worker，只「等 worker 排空」会耗尽超时后照样丢消息。此路径是尽力而为：**宁可重复也不丢**（极小窗口内一条消息可能重发一次）。
 - 子进程按设计默认 `worker_silent`：optimize 子进程里的消息不入队，因此也不存在退出兜底；要在子进程发送必须 `workers="send"` 且由子进程自行 `configure_notifications`。
