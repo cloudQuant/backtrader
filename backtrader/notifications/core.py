@@ -267,7 +267,7 @@ class _ChannelRuntime:
             finally:
                 self.queue.task_done()
 
-    def _process(self, notification):
+    def _process(self, notification, timeout=None):
         """Deliver one message, absorbing every failure.
 
         The notification is published as "in flight" while being sent so the
@@ -284,7 +284,7 @@ class _ChannelRuntime:
         self._inflight = notification
         try:
             try:
-                return self.deliver(notification)
+                return self.deliver(notification, timeout=timeout)
             except Exception as exc:  # a worker must never die on one message
                 self.count("failed")
                 detail = mask_text("{0}: {1}".format(type(exc).__name__, exc))
@@ -769,7 +769,7 @@ class Notifier:
                     )
                 )
                 continue
-            outcomes.append(runtime._process(notification))
+            outcomes.append(runtime._process(notification, timeout=timeout))
         for name in missing:
             outcomes.append(
                 ChannelOutcome(

@@ -560,6 +560,48 @@ Framework code routes through `backtrader.utils.log_message.get_logger` rather
 than the stdlib `logging` directly. See `docs/LOGGING_GUIDELINES.md` for the
 full conventions (hot-path guard, exception-logging rules, print-vs-logging).
 
+### Notification Delivery
+
+Backtrader can deliver opt-in strategy notifications to DingTalk, WeCom, Feishu,
+Telegram, email, Slack, Discord, ntfy, Gotify, Bark, generic webhooks, and
+session-anchored WeChat ClawBot / QQ bots. It is **silent by default** and is a
+best-effort alerting path, not a delivery guarantee.
+
+```python
+import os
+import backtrader as bt
+
+bt.configure_notifications([
+    {"channel": "dingtalk", "access_token": os.environ["BT_DINGTALK_TOKEN"]},
+    {"channel": "telegram", "bot_token": os.environ["BT_TELEGRAM_TOKEN"],
+     "chat_id": os.environ["BT_TELEGRAM_CHAT_ID"]},
+], dedup_cooldown=300.0)
+
+class AlertingStrategy(bt.Strategy):
+    def next(self):
+        if self.signal[0] > 0:
+            # Async by default: safe for next(); it includes strategy, feed, and backtest time.
+            self.send_message("entry signal", level="warning", dedup_key="entry-signal")
+
+    def stop(self):
+        # Use synchronous delivery only in a low-frequency path when you need the result now.
+        result = self.send_message("backtest finished", wait=True, timeout=3.0)
+        print(result.outcomes)
+
+# After cerebro.run(): wait for queued asynchronous messages before a controlled shutdown.
+bt.flush_notifications(timeout=10.0)
+```
+
+Each configured channel has its own bounded queue and worker, so a throttled
+channel does not block another. `wait=True` performs network I/O and should not
+be used in `next()` or a tick loop. `notification_stats()` exposes local
+success/failure/retry/drop counters. WeChat ClawBot and QQ require an inbound
+session anchor before they can send; verify real delivery manually with your own
+credentials. The full channel matrix, environment-variable setup, error
+categories, and security rules are in
+[`docs/NOTIFICATIONS_GUIDELINES.md`](docs/NOTIFICATIONS_GUIDELINES.md) and the
+[Read the Docs notification guide](https://backtrader.readthedocs.io/en/latest/user-guide/notifications.html).
+
 ---
 
 ## 🏗 Project Architecture
@@ -576,6 +618,7 @@ backtrader/
 │   ├── indicators/       # 52 technical indicators
 │   ├── analyzers/        # 17 analyzers
 │   ├── feeds/            # 21 data sources
+│   ├── notifications/    # Opt-in human-facing alert delivery
 │   ├── plot/             # Visualization
 │   └── reports/          # Report generation
 ├── examples/             # Example code
@@ -1145,6 +1188,45 @@ bt.reset_logging()                    # 还原到默认静默状态（测试用�
 框架内部统一通过 `backtrader.utils.log_message.get_logger` 获取 logger，而非
 直接 `import logging`。完整规范（热路径守护、异常日志写法、print 取舍）见
 `docs/LOGGING_GUIDELINES.md`。
+
+### 通知外发
+
+Backtrader 支持向钉钉、企业微信、飞书、Telegram、邮箱、Slack、Discord、ntfy、
+Gotify、Bark、通用 Webhook，以及会话锚定的微信 ClawBot / QQ 机器人发送**显式配置**
+的通知。默认完全静默；通知是尽力而为的告警通道，并不构成送达保证。
+
+```python
+import os
+import backtrader as bt
+
+bt.configure_notifications([
+    {"channel": "dingtalk", "access_token": os.environ["BT_DINGTALK_TOKEN"]},
+    {"channel": "telegram", "bot_token": os.environ["BT_TELEGRAM_TOKEN"],
+     "chat_id": os.environ["BT_TELEGRAM_CHAT_ID"]},
+], dedup_cooldown=300.0)
+
+class AlertingStrategy(bt.Strategy):
+    def next(self):
+        if self.signal[0] > 0:
+            # 默认异步，可在 next() 中使用；自动附加策略、数据源和回测时间。
+            self.send_message("entry signal", level="warning", dedup_key="entry-signal")
+
+    def stop(self):
+        # 只有在 stop() 等低频路径才使用同步发送和每请求 timeout。
+        result = self.send_message("backtest finished", wait=True, timeout=3.0)
+        print(result.outcomes)
+
+# cerebro.run() 后，在受控退出前等待异步队列排空。
+bt.flush_notifications(timeout=10.0)
+```
+
+每个渠道实例各自拥有有界队列和 worker，一个渠道限流不会阻塞另一个渠道；
+`wait=True` 会执行网络 I/O，不能放进 `next()` 或 tick 热路径。可以用
+`notification_stats()` 查看本地成功、失败、重试与丢弃计数。微信 ClawBot 与 QQ
+必须先建立入站会话锚点；真实送达须使用自己的凭据手动验证。完整的渠道配置、
+环境变量、错误分类和安全要求请见
+[`docs/NOTIFICATIONS_GUIDELINES.md`](docs/NOTIFICATIONS_GUIDELINES.md) 与
+[Read the Docs 通知指南](https://backtrader-zh.readthedocs.io/zh-cn/latest/user-guide/notifications_zh.html)。
 
 ---
 

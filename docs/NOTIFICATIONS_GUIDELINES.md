@@ -96,11 +96,11 @@ bt.configure_notifications([
 
 ```python
 self.send_message("...")              # 默认异步：入队即返回（next() 里就该这样）
-self.send_message("...", wait=True)   # 同步：返回逐渠道真实结果
+self.send_message("...", wait=True, timeout=3.0)  # 同步：逐调用覆盖请求超时
 bt.flush_notifications(timeout=5.0)   # 等待队列排空，返回是否排空
 ```
 
-- **`wait=True` 会阻塞网络 I/O，且多渠道串行**：总耗时 ≈ Σ（重试 × 超时 + 退避 + 限流等待）。只在 `stop()` 等低频路径使用，**不要在 `next()`/tick 级路径使用**。
+- **`wait=True` 会阻塞网络 I/O，且多渠道串行**：总耗时 ≈ Σ（重试 × 超时 + 退避 + 限流等待）。`timeout=` 是该次同步 HTTP 请求的覆盖值；省略时使用 `configure_notifications(request_timeout=...)` 的配置值。只在 `stop()` 等低频路径使用，**不要在 `next()`/tick 级路径使用**。
 - 异步模式下 `SendResult.outcomes` 是**入队结果**（`ok=True` 表示已入队，不代表已送达）；确认真实送达要 `wait=True` 或查 `bt.notification_stats()`。
 - 队列满时默认丢最新（`overflow="drop_newest"`），`drop_oldest` 可选；丢弃计入统计并经日志告警，只在**该渠道**生效。
 

@@ -42,6 +42,16 @@ def test_send_delivers_to_every_instance(notifier_env):
     assert topics == {"one", "two"}
 
 
+def test_sync_request_timeout_override_and_configured_default(notifier_env):
+    """Sync sends forward a per-call timeout and fall back to the configured one."""
+    _, transport, _ = notifier_env([{"channel": "ntfy", "topic": "a"}], request_timeout=0.75)
+
+    bt.send_message("per-call timeout", wait=True, timeout=2.5)
+    bt.send_message("configured timeout", wait=True)
+
+    assert [request.timeout for request in transport.requests] == [2.5, 0.75]
+
+
 def test_invalid_reconfigure_keeps_previous_configuration_usable(notifier_env):
     """A rejected reconfigure must not damage the working configuration."""
     _, transport, _ = notifier_env([{"channel": "ntfy", "topic": "keep"}])

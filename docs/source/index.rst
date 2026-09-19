@@ -217,6 +217,7 @@ Backtrader is part of the CloudQuant quantitative-research ecosystem:
    user-guide/analyzers/analyzers
    user-guide/analyzers/observers
    user-guide/brokers/brokers
+   user-guide/notifications
    user-guide/visualization/plotting
    user-guide/optimization/optimization
    user-guide/faq
