@@ -1,0 +1,61 @@
+{
+  "case_id": "M04",
+  "scenario_id": "MONITOR-COUNT-01",
+  "generated_at": "2026-09-18T22:57:08.814723",
+  "expectation": {
+    "order_activity": "required",
+    "trade_activity": "allowed",
+    "account_position_change": "allowed_if_trade",
+    "no_open_orders_after": true
+  },
+  "snapshot_count": 1,
+  "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/M04/state_snapshots.json",
+  "event_counts": {
+    "total_events": 0,
+    "order_events": 0,
+    "trade_events": 0
+  },
+  "event_types": [],
+  "account_delta": {
+    "balance_changed": null,
+    "positions_changed": null,
+    "before_label": "after_action_before_stop",
+    "after_label": ""
+  },
+  "post_action_open_orders": [],
+  "checks": {
+    "required_events": {
+      "expected": [
+        "order_submit_request"
+      ],
+      "missing": [
+        "order_submit_request"
+      ],
+      "passed": false
+    },
+    "order_activity": {
+      "expected": "required",
+      "observed": false,
+      "passed": false
+    },
+    "trade_activity": {
+      "expected": "allowed",
+      "observed": false,
+      "passed": true
+    },
+    "post_action_open_orders": {
+      "expected": "none",
+      "observed_count": 0,
+      "passed": true
+    },
+    "account_position_change": {
+      "expected": "allowed_if_trade",
+      "balance_changed": null,
+      "positions_changed": null,
+      "trade_events": 0,
+      "passed": true
+    }
+  },
+  "strict_reconciliation_pass": false,
+  "notes": ""
+}

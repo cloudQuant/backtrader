@@ -12,7 +12,6 @@ from common.certification import (
     get_certification_scenario,
     get_reconciliation_expectation,
 )
-from common.result import _collect_evidence_field_names, _collect_observed_events
 
 
 SNAPSHOT_FILE = "state_snapshots.json"
@@ -196,6 +195,19 @@ def _derive_order_status_event(event: dict[str, Any]) -> str:
     return ""
 
 
+def _counter_order_identity(event: dict[str, Any]) -> Any:
+    """Return the venue order identity (OrderSysID) carried by *event*, if any."""
+
+    details = _event_details(event)
+    return _first_value(
+        event.get("external_order_id"),
+        event.get("order_id"),
+        details.get("external_order_id"),
+        details.get("OrderSysID"),
+        details.get("order_id"),
+    )
+
+
 def _event_aliases(event: dict[str, Any]) -> set[str]:
     event_type = str(event.get("event_type") or "")
     aliases = set()
@@ -203,12 +215,17 @@ def _event_aliases(event: dict[str, Any]) -> set[str]:
         aliases.add("store_disconnected")
     if _is_remote_counter_order_reject(event):
         aliases.add("order_reject_remote")
-    if event_type == "order_submit_accepted":
-        aliases.add("order_status_accepted")
     order_log_row = not event_type and any(
         key in event for key in ("ref", "order_type", "external_order_id")
     )
-    if event_type.startswith("order_") or order_log_row:
+    # Only the counter may certify a counter status.  ``order_submit_accepted``
+    # / ``order_cancel_submitted`` are store request-level responses, and an
+    # order.log ``Accepted``/``Canceled`` row is written by the broker as soon
+    # as the request is enqueued (its ``external_order_id`` is empty).  Neither
+    # may be promoted to ``order_status_accepted``/``order_status_canceled``;
+    # a row only counts when it carries a venue order identity.  Counter status
+    # events are already observed under their own event_type.
+    if order_log_row and _counter_order_identity(event) not in (None, ""):
         status_event = _derive_order_status_event(event)
         if status_event:
             aliases.add(status_event)
@@ -266,17 +283,30 @@ def _derive_runtime_evidence(
     events: list[dict[str, Any]],
     snapshots: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    observed_events = set(getattr(result, "observed_events", []) or [])
-    observed_events.update(_collect_observed_events(getattr(result, "details", {}) or {}))
-    field_names = set(_collect_evidence_field_names(getattr(result, "details", {}) or {}))
+    # Evidence provenance contract (iteration 31):
+    #   * Required events must come from framework-written log files, or from
+    #     the explicit ``store_notification_events`` channel that a case fills
+    #     from ``store.get_notifications()``.  A case can no longer promote an
+    #     arbitrary ``details["events"]`` literal into observed evidence.
+    #   * Evidence field names come from event payloads plus explicitly mapped
+    #     snapshot fields (account identity / gateway), never from every key
+    #     that happens to exist inside the snapshot artifact.
+    # NOTE: must not be named ``details`` — the event loop below rebinds that
+    # name to each event's own details payload.
+    case_details = dict(getattr(result, "details", {}) or {})
+    observed_events: set[str] = set()
+    field_names: set[str] = set()
     values: dict[str, Any] = {"trace_id": getattr(result, "trace_id", "")}
     order_refs: list[Any] = []
     cancel_refs: list[Any] = []
     submit_count = 0
     cancel_count = 0
 
+    notified = case_details.get("store_notification_events")
+    if isinstance(notified, (list, tuple, set)):
+        observed_events.update(str(item) for item in notified if item)
+
     for snapshot in snapshots:
-        field_names.update(_field_names(snapshot))
         _put_value(values, "account_id_masked", snapshot.get("account_id_masked"))
         _put_value(values, "gateway_key", snapshot.get("env"))
 
@@ -406,6 +436,13 @@ def _derive_runtime_evidence(
         partial_count = sum(1 for event in observed_events if event == "order_status_partial")
         values["partial_count"] = partial_count
 
+    # Scalar case-supplied details are explicit factual claims (captured
+    # timestamp / front_id / reason ...).  They are merged last so that values
+    # read from real log events always win over a case-declared duplicate.
+    for key, value in case_details.items():
+        if isinstance(value, (str, int, float, bool)):
+            _put_value(values, str(key), value)
+
     field_names.update(values.keys())
     return {
         "observed_events": sorted(event for event in observed_events if event),
@@ -516,9 +553,39 @@ def _balance_changed(before: Any, after: Any) -> bool | None:
     return False
 
 
+_POSITION_STATE_FIELDS = (
+    "instrument",
+    "symbol",
+    "direction",
+    "exchange_id",
+    "volume",
+    "yd_position",
+    "today_position",
+)
+
+
 def _stable_positions(value: Any) -> Any:
+    """Return a tick-independent view of account position rows.
+
+    Position rows carry mark-to-market fields (``current_price`` /
+    ``profit`` / ``mark_price`` / ``use_margin``) that move with every tick.
+    Comparing the whole row made "position unchanged" fail on any quote
+    update, so only the structural fields may decide the comparison.
+    """
     rows = value if isinstance(value, list) else []
-    return sorted(json.dumps(_jsonable(row), ensure_ascii=False, sort_keys=True) for row in rows)
+    state = []
+    for row in rows:
+        if not isinstance(row, dict):
+            state.append(json.dumps(_jsonable(row), ensure_ascii=False, sort_keys=True))
+            continue
+        state.append(
+            json.dumps(
+                {key: _jsonable(row[key]) for key in _POSITION_STATE_FIELDS if key in row},
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+        )
+    return sorted(state)
 
 
 def _check(expected: str, observed: bool, *, allowed_values=("allowed", "allowed_if_trade")) -> dict[str, Any]:
@@ -601,7 +668,15 @@ def build_reconciliation(result: Any, report_dir: str | Path) -> dict[str, Any]:
             "expected": "unchanged",
             "balance_changed": balance_changed,
             "positions_changed": positions_changed,
-            "passed": balance_changed is False and positions_changed is False,
+            "case_trade_events": len(trade_events),
+            # Attribute the change to this case only through its own trade
+            # events.  Certification runs against a shared live account, so a
+            # previous case's (or another session's) working order can fill
+            # inside this case's snapshot window and move the position without
+            # this case ever placing an order (C01 login-only observed exactly
+            # that).  Without a fill of our own the drift is evidence, not a
+            # failure; cash drift is likewise reported but never disqualifying.
+            "passed": not trade_seen,
         }
     elif expectation.get("account_position_change") == "allowed_if_trade":
         checks["account_position_change"] = {

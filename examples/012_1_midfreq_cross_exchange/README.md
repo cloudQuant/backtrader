@@ -42,6 +42,11 @@ TTL 的本地缓存；策略在每次盘口事件、开仓确认和每条腿提�
 # 只读 demo 账户预检
 /Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
   examples.012_1_midfreq_cross_exchange.run --mode demo --preflight
+
+# 显式请求一次机械性 demo 开仓 smoke（仅 012_1，不是研究/OOS 证据）
+/Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -m \
+  examples.012_1_midfreq_cross_exchange.run --mode demo \
+  --allow-rejected-demo-simulation --demo-execution-smoke
 ```
 
 复制本目录 `.env.example` 为被忽略的 `.env` 后，在本地填写两所模拟合约 API 凭据。
@@ -57,14 +62,28 @@ WS；不接受跨区混搭。`tr` 当前只支持 production，因缺少已验�
 `examples/demo-approval-trust-root.pem`，签名私钥不进入源码或运行环境。收据同时绑定候选、
 配置、两仓 commit、OOS 数据与报告、G4/G5A 收据和排除 `demo_approval` 指针后的完整
 manifest；临时 manifest、普通 SHA 收据、过期或证据不完整的收据都会在构建 store 和任何
-订单写入前退出。签名验证依赖 `cryptography`，源码安装可使用
-`pip install -e '.[live]'`；依赖缺失时 demo 写路径保持关闭。
+订单写入前退出。该签名收据仍是 `PASS` 候选的 demo 准入路径。当前
+`RESEARCH_REJECTED` 候选另有明确的 operator 模拟账户路径：使用 canonical manifest 并显式传入
+`--mode demo --allow-rejected-demo-simulation`。它创建单次本地 lease，数量受当前 risk 配置约束，
+运行时长受 `run_timeout_seconds` 约束，最多 8 个订单操作且 lease 最长 900 秒。这个 flag 不会
+改变研究状态、经济筛查或盈利结论；paper-live 仍被禁止。两条路径都保留 demo 账户、双向持仓、
+风险账本、资金费、对账与停机检查。签名验证依赖 `cryptography`，源码安装可使用
+`pip install -e '.[live]'`；依赖缺失时 `PASS` 候选的签名 demo 路径保持关闭。
+`012_1` 还提供一个更窄的显式 `--demo-execution-smoke` 请求：它要求上述 rejected-candidate
+operator acknowledgement、`--mode demo`，且不能与 `--preflight` 合用；只在两所盘口均新鲜且健康、
+实时资金费/账户风险/深度与共同数量格点等门全部通过后，先发 OKX short IOC，再仅在第一腿 broker
+状态为 `Completed` 后发 Binance long IOC。开仓最多两笔，之后只走既有 reduce-only 平仓、对账与
+lease 限制；任何未知或非 Completed 状态都不会触发第二腿。报告以
+`mechanical_demo_smoke_requested` 和 `MECHANICAL_DEMO_SMOKE_NOT_RESEARCH` 标记该路径，不使用
+normal alpha 的 `intent_history`，也不作策略盈利声明。该 smoke 仅证明一次受限的真实 demo 模拟
+账户执行链路，不是 paper-live 撮合、样本外验证、策略准入或实盘盈利证据；缺少 event-path models
+的 `012_2` 不受此开关影响，仍会被其独立技术门拒绝。
 账户必须是模拟环境、具有交易权限、使用双向持仓模式，并在开始时无仓位和挂单。
 当前冻结候选为 `RESEARCH_REJECTED`：旧 15 分钟公开 L2 训练窗口产生 149,387 个因果
 可执行往返评估，在每腿 6 bps、四次 taker 成交的乐观成本屏中，费用后为正的样本为 0；
 最佳结果仍为 `-1.14246520` USDT，且尚未加入资金费、网络延迟与失败腿损失。该结果在
-训练期已经否决当前参数，因此不消耗 holdout，也禁止 paper-live 和 demo 订单写入。当前
-只开放 replay/shadow；只读 `demo --preflight` 只检查平台和账户前置条件，不构成策略准入。
+训练期已经否决当前参数，因此不消耗 holdout。只开放 replay/shadow，以及显式 operator 授权的
+demo 模拟账户订单路径；只读 `demo --preflight` 只检查平台和账户前置条件，不构成策略准入。
 
 这些 replay 名称只是历史分支标签。replay 不下单、不模拟成交、不计算 PnL，只检查公式和
 拒绝分支可复现；`FORMULA_CHECK_PASS` 不是交易链路或盈利验收。shadow、paper 与 demo 结果

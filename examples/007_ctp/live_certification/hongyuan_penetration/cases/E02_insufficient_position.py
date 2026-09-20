@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import re
 from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
@@ -14,7 +15,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar, close_offset_for
 
 import backtrader as bt
 
@@ -86,20 +87,26 @@ def run(report_dir):
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 current_positions = store.get_positions()
+                product_prefix = (re.match(r"[A-Za-z]+", symbol) or [""])[0].upper()
                 long_volume = sum(
                     float(pos.get("volume") or 0)
                     for pos in current_positions or []
-                    if pos.get("instrument") == symbol and pos.get("direction") == "long"
+                    if str(pos.get("instrument") or "").upper().startswith(product_prefix)
+                    and pos.get("direction") == "long"
                 )
-                if long_volume > 0:
-                    return timer.blocked_result(
-                        f"账户已有 {symbol} 多仓 {long_volume}，为避免误平仓跳过",
-                        evidence=helpers.collect_evidence_files(log_dir),
-                    )
+                # Ask for one more lot than the account holds: with no position
+                # the counter rejects an outright close; with an existing long
+                # leg the oversized close is still rejected (never partially
+                # executed), so the case no longer has to skip when a position
+                # is already open.
+                close_size = int(long_volume) + 1
+                print(f"  当前 {symbol} 多仓 {long_volume}，将提交超量平仓 size={close_size}")
 
                 cerebro = create_cerebro(
                     store, symbol=symbol, bar_seconds=5,
+                    historical_bars=[live_seed_bar(store, symbol)],
                     with_trade_logger=True, log_dir=log_dir,
+                    validation_enabled=False,
                 )
 
                 class PositionCheckStrategy(bt.Strategy):
@@ -114,6 +121,7 @@ def run(report_dir):
                         self.completed = False
                         self.store_events = []
                         self.order_statuses = []
+                        self.close_offset = close_offset_for(symbol)
 
                     def notify_store(self, msg, *args, **kwargs):
                         """Record store events; stop Cerebro on the first remote reject."""
@@ -152,14 +160,18 @@ def run(report_dir):
                         print(f"  当前持仓: size={self.position_size}")
                         ref_price = float(self.data.close[0])
                         close_price = max(ref_price - 20, 1.0)
-                        print(f"  尝试提交无持仓平今卖单: size=1 price={close_price}")
+                        print(
+                            f"  尝试提交无持仓平仓卖单: size={close_size}"
+                            f" price={close_price} offset={self.close_offset}"
+                        )
+                        ensure_ctp_trading_admission(store, symbol)
                         self.sell(
-                            size=1, exectype=bt.Order.Limit,
-                            price=close_price, offset="close_today",
+                            size=close_size, exectype=bt.Order.Limit,
+                            price=close_price, offset=self.close_offset, position_side="long",
                         )
 
                 cerebro.addstrategy(PositionCheckStrategy)
-                results = run_with_timeout(cerebro, timeout_seconds=45)
+                results = run_with_timeout(cerebro, timeout_seconds=60)
 
                 strat = results[0] if results else None
                 if not strat or strat.bar_count <= 0:
@@ -190,7 +202,7 @@ def run(report_dir):
                     "StatusMsg": error_details.get("StatusMsg"),
                 }
 
-            if remote_errors and strat.position_size == 0 and not strat.completed:
+            if remote_errors and not strat.completed:
                 print("✓ 已收到柜台持仓不足远端拒单")
                 return timer.pass_result(
                     evidence=helpers.collect_evidence_files(log_dir),

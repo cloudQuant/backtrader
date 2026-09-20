@@ -221,6 +221,75 @@ def test_periodic_policy_preserves_existing_forced_remote_refresh():
         broker.stop()
 
 
+def test_sdk_startup_reconcile_uses_position_audit_interval_only():
+    class ReconcileStore:
+        def __init__(self):
+            self.reconcile_calls = 0
+
+        def enqueue_reconcile(self):
+            self.reconcile_calls += 1
+            return {"queued": True}
+
+    store = ReconcileStore()
+    startup = BtApiBroker(
+        position_sync_policy="startup",
+        position_audit_interval=10.0,
+        account_refresh_interval=1.0,
+        positions_refresh_interval=1.0,
+        open_orders_refresh_interval=1.0,
+    )
+    startup.store = store
+    startup._live_started = True
+
+    startup._schedule_sdk_reconcile()
+    scheduled_at = startup._last_position_audit
+    assert store.reconcile_calls == 1
+    assert scheduled_at > 0
+
+    startup._periodic_reconcile_pending = False
+    startup._schedule_sdk_reconcile()
+    assert store.reconcile_calls == 1
+    assert startup._last_position_audit == scheduled_at
+
+    startup._last_position_audit = 0.0
+    startup.orders[1] = SimpleNamespace(alive=lambda: True)
+    startup._schedule_sdk_reconcile()
+    assert store.reconcile_calls == 1
+
+    startup.orders.clear()
+    startup._pending_trade_updates.append({"client_order_id": "pending-trade"})
+    startup._schedule_sdk_reconcile()
+    assert store.reconcile_calls == 1
+    startup._pending_trade_updates.clear()
+
+    startup._periodic_reconcile_pending = False
+    startup.p.position_audit_interval = 0.0
+    startup._schedule_sdk_reconcile()
+    assert store.reconcile_calls == 1
+    assert startup.request_reconcile() == {"queued": True}
+    assert store.reconcile_calls == 2
+
+    periodic_store = ReconcileStore()
+    periodic = BtApiBroker(
+        position_sync_policy="periodic",
+        position_audit_interval=0.0,
+        account_refresh_interval=10.0,
+        positions_refresh_interval=10.0,
+        open_orders_refresh_interval=10.0,
+    )
+    periodic.store = periodic_store
+    periodic._live_started = True
+    periodic._last_account_refresh = float("inf")
+    periodic._last_positions_refresh = float("inf")
+    periodic._last_open_orders_refresh = float("inf")
+
+    periodic._schedule_sdk_reconcile()
+    assert periodic_store.reconcile_calls == 0
+    periodic._last_positions_refresh = 0.0
+    periodic._schedule_sdk_reconcile()
+    assert periodic_store.reconcile_calls == 1
+
+
 def test_unknown_position_sync_policy_is_rejected():
     with pytest.raises(ValueError, match="position_sync_policy"):
         setup_stack(policy="guess")

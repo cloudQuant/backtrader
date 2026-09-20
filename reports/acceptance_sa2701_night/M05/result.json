@@ -1,0 +1,271 @@
+{
+  "case_id": "M05",
+  "case_name": "验证能正常统计撤单笔数",
+  "status": "FAIL",
+  "scenario_id": "MONITOR-COUNT-02",
+  "scenario_name": "正常统计撤单笔数",
+  "category": "报撤单监测",
+  "trace_id": "ctp-cert-20260918-225710-67bb1f19",
+  "started_at": "2026-09-18T22:57:10.695784",
+  "finished_at": "2026-09-18T22:59:13.801476",
+  "duration_seconds": 123.11,
+  "env": "telecom",
+  "required_events": [
+    "order_cancel_request"
+  ],
+  "evidence_fields": [
+    "cancel_order_count"
+  ],
+  "pass_conditions": [
+    "required_events_present",
+    "evidence_fields_present"
+  ],
+  "optional": false,
+  "observed_events": [],
+  "missing_required_events": [
+    "order_cancel_request"
+  ],
+  "required_events_present": false,
+  "missing_evidence_fields": [],
+  "evidence_fields_present": true,
+  "evidence": [
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/M05/state_snapshots.json",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/M05/reconciliation.json",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/M05/audit.jsonl"
+  ],
+  "failure_reason": "CTP market data login did not become ready within 20s",
+  "next_action": "",
+  "details": {
+    "certification_evidence": {
+      "trace_id": "ctp-cert-20260918-225710-67bb1f19",
+      "account_id_masked": "33***16",
+      "gateway_key": "telecom",
+      "submitted_order_count": 0,
+      "cancel_order_count": 0,
+      "partial_count": 0
+    },
+    "reconciliation": {
+      "case_id": "M05",
+      "scenario_id": "MONITOR-COUNT-02",
+      "generated_at": "2026-09-18T22:59:13.805082",
+      "expectation": {
+        "order_activity": "required",
+        "trade_activity": "none",
+        "account_position_change": "none",
+        "no_open_orders_after": true
+      },
+      "snapshot_count": 1,
+      "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/M05/state_snapshots.json",
+      "event_counts": {
+        "total_events": 0,
+        "order_events": 0,
+        "trade_events": 0
+      },
+      "event_types": [],
+      "account_delta": {
+        "balance_changed": null,
+        "positions_changed": null,
+        "before_label": "after_action_before_stop",
+        "after_label": ""
+      },
+      "post_action_open_orders": [],
+      "checks": {
+        "required_events": {
+          "expected": [
+            "order_cancel_request"
+          ],
+          "missing": [
+            "order_cancel_request"
+          ],
+          "passed": false
+        },
+        "order_activity": {
+          "expected": "required",
+          "observed": false,
+          "passed": false
+        },
+        "trade_activity": {
+          "expected": "none",
+          "observed": false,
+          "passed": true
+        },
+        "post_action_open_orders": {
+          "expected": "none",
+          "observed_count": 0,
+          "passed": true
+        },
+        "account_position_unchanged": {
+          "expected": "unchanged",
+          "balance_changed": null,
+          "positions_changed": null,
+          "case_trade_events": 0,
+          "passed": true
+        }
+      },
+      "strict_reconciliation_pass": false,
+      "notes": ""
+    }
+  },
+  "audit_events": [
+    {
+      "event_type": "certification_case_result",
+      "event_id": "76baec1b-0af3-4f43-aa97-c7fa68dc6dd8",
+      "trace_id": "ctp-cert-20260918-225710-67bb1f19",
+      "case_id": "M05",
+      "scenario_id": "MONITOR-COUNT-02",
+      "scenario_name": "正常统计撤单笔数",
+      "category": "报撤单监测",
+      "status": "FAIL",
+      "severity": "ERROR",
+      "timestamp": "2026-09-18T22:59:13.801476",
+      "env": "telecom",
+      "message": "CTP market data login did not become ready within 20s",
+      "required_events": [
+        "order_cancel_request"
+      ],
+      "evidence_fields": [
+        "cancel_order_count"
+      ],
+      "observed_events": [],
+      "missing_required_events": [
+        "order_cancel_request"
+      ],
+      "missing_evidence_fields": [],
+      "required_events_present": false,
+      "evidence_fields_present": true,
+      "evidence": [],
+      "details": {
+        "certification_evidence": {
+          "trace_id": "ctp-cert-20260918-225710-67bb1f19",
+          "account_id_masked": "33***16",
+          "gateway_key": "telecom",
+          "submitted_order_count": 0,
+          "cancel_order_count": 0,
+          "partial_count": 0
+        },
+        "reconciliation": {
+          "case_id": "M05",
+          "scenario_id": "MONITOR-COUNT-02",
+          "generated_at": "2026-09-18T22:59:13.805082",
+          "expectation": {
+            "order_activity": "required",
+            "trade_activity": "none",
+            "account_position_change": "none",
+            "no_open_orders_after": true
+          },
+          "snapshot_count": 1,
+          "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/M05/state_snapshots.json",
+          "event_counts": {
+            "total_events": 0,
+            "order_events": 0,
+            "trade_events": 0
+          },
+          "event_types": [],
+          "account_delta": {
+            "balance_changed": null,
+            "positions_changed": null,
+            "before_label": "after_action_before_stop",
+            "after_label": ""
+          },
+          "post_action_open_orders": [],
+          "checks": {
+            "required_events": {
+              "expected": [
+                "order_cancel_request"
+              ],
+              "missing": [
+                "order_cancel_request"
+              ],
+              "passed": false
+            },
+            "order_activity": {
+              "expected": "required",
+              "observed": false,
+              "passed": false
+            },
+            "trade_activity": {
+              "expected": "none",
+              "observed": false,
+              "passed": true
+            },
+            "post_action_open_orders": {
+              "expected": "none",
+              "observed_count": 0,
+              "passed": true
+            },
+            "account_position_unchanged": {
+              "expected": "unchanged",
+              "balance_changed": null,
+              "positions_changed": null,
+              "case_trade_events": 0,
+              "passed": true
+            }
+          },
+          "strict_reconciliation_pass": false,
+          "notes": ""
+        }
+      },
+      "reconciliation": {
+        "case_id": "M05",
+        "scenario_id": "MONITOR-COUNT-02",
+        "generated_at": "2026-09-18T22:59:13.805082",
+        "expectation": {
+          "order_activity": "required",
+          "trade_activity": "none",
+          "account_position_change": "none",
+          "no_open_orders_after": true
+        },
+        "snapshot_count": 1,
+        "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/M05/state_snapshots.json",
+        "event_counts": {
+          "total_events": 0,
+          "order_events": 0,
+          "trade_events": 0
+        },
+        "event_types": [],
+        "account_delta": {
+          "balance_changed": null,
+          "positions_changed": null,
+          "before_label": "after_action_before_stop",
+          "after_label": ""
+        },
+        "post_action_open_orders": [],
+        "checks": {
+          "required_events": {
+            "expected": [
+              "order_cancel_request"
+            ],
+            "missing": [
+              "order_cancel_request"
+            ],
+            "passed": false
+          },
+          "order_activity": {
+            "expected": "required",
+            "observed": false,
+            "passed": false
+          },
+          "trade_activity": {
+            "expected": "none",
+            "observed": false,
+            "passed": true
+          },
+          "post_action_open_orders": {
+            "expected": "none",
+            "observed_count": 0,
+            "passed": true
+          },
+          "account_position_unchanged": {
+            "expected": "unchanged",
+            "balance_changed": null,
+            "positions_changed": null,
+            "case_trade_events": 0,
+            "passed": true
+          }
+        },
+        "strict_reconciliation_pass": false,
+        "notes": ""
+      }
+    }
+  ]
+}

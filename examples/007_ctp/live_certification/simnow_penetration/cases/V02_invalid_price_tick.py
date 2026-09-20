@@ -14,7 +14,13 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import (
+    create_cerebro,
+    live_seed_bar,
+    refresh_ctp_preflight,
+    run_with_timeout,
+    started_store,
+)
 
 import backtrader as bt
 
@@ -39,6 +45,17 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
+                # The broker refuses new CTP exposure until typed startup-query
+                # evidence is complete, so refresh it before the run; otherwise
+                # the gate (not the price-tick check) rejects the order.
+                try:
+                    refresh_ctp_preflight(store, symbol)
+                except Exception as exc:
+                    return timer.blocked_result(
+                        f"CTP preflight 不可用: {exc}",
+                        next_action="检查 SimNow typed 查询覆盖率与账号状态",
+                    )
+
                 cerebro = create_cerebro(
                     store,
                     symbol=symbol,
@@ -46,6 +63,7 @@ def run(report_dir):
                     with_trade_logger=True,
                     log_dir=log_dir,
                     contract_metadata={symbol: {"min_price_tick": 1.0}},
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
 
                 class InvalidPriceStrategy(bt.Strategy):
@@ -77,6 +95,7 @@ def run(report_dir):
                         ref_price = float(self.data.close[0])
                         invalid_price = max(ref_price - 0.5, 0.5)  # Not aligned to min_price_tick=1.0
                         print(f"  提交价格不合规订单: price={invalid_price}")
+                        refresh_ctp_preflight(store, symbol)
                         self.order = self.buy(size=1, exectype=bt.Order.Limit, price=invalid_price, offset="open")
 
                 cerebro.addstrategy(InvalidPriceStrategy)
@@ -89,7 +108,7 @@ def run(report_dir):
             error_entries = helpers.read_json_lines(Path(log_dir) / "error.log")
             error_codes = {e.get("error_code", "") for e in error_entries}
 
-            if strat.rejected or "invalid_price_tick" in error_codes:
+            if "invalid_price_tick" in error_codes:
                 print("✓ 价格最小变动价位错误订单已被拒绝")
                 return timer.pass_result(
                     evidence=helpers.collect_evidence_files(log_dir),

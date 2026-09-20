@@ -1,18 +1,19 @@
 {
   "schema_version": "iter25.ctp-options-tick-fixture.v1",
-  "description": "Deterministic synthetic C/P/F quote fixture. It proves local channel causality only; it is not market, fill, profitability, or HFT evidence.",
+  "description": "Deterministic synthetic C/P/F quote fixture. Contract metadata is bound to a recorded CZCE instrument query (see metadata_evidence); the quotes remain synthetic and prove local channel causality only. This is not market, fill, profitability, or HFT evidence.",
   "source": "local_synthetic_fixture",
   "trading_day": "20260910",
   "start_epoch": 1788998400.0,
   "bundle": {
     "discount_factor": "1",
-    "strike": "1000",
+    "strike": "970",
     "future": {
       "symbol": "FG701",
       "exchange_id": "CZCE",
       "kind": "future",
       "underlying_id": "FG701",
-      "multiplier": "10",
+      "expiry": "20270114",
+      "multiplier": "20",
       "tick_size": "1",
       "min_lot": 1,
       "exercise_style": "not_applicable",
@@ -23,10 +24,10 @@
       "exchange_id": "CZCE",
       "kind": "call",
       "underlying_id": "FG701",
-      "expiry": "20270115",
-      "strike": "1000",
-      "multiplier": "10",
-      "tick_size": "1",
+      "expiry": "20261211",
+      "strike": "970",
+      "multiplier": "20",
+      "tick_size": "0.5",
       "min_lot": 1,
       "exercise_style": "european",
       "premium_style": "premium"
@@ -36,18 +37,89 @@
       "exchange_id": "CZCE",
       "kind": "put",
       "underlying_id": "FG701",
-      "expiry": "20270115",
-      "strike": "1000",
-      "multiplier": "10",
-      "tick_size": "1",
+      "expiry": "20261211",
+      "strike": "970",
+      "multiplier": "20",
+      "tick_size": "0.5",
       "min_lot": 1,
       "exercise_style": "european",
       "premium_style": "premium"
     }
   },
+  "metadata_evidence": {
+    "schema_version": "iter30.ctp-instrument-evidence.v1",
+    "source": "ctp_instrument_query",
+    "captured_at": "2026-09-16T14:10:00Z",
+    "provider": {
+      "sdk": "bt_api_ctp",
+      "profile_family": "set1"
+    },
+    "query": {
+      "exchange_id": "CZCE",
+      "instrument_ids": [
+        "FG701",
+        "FG701C970",
+        "FG701P970"
+      ]
+    },
+    "legs": {
+      "future": {
+        "instrument_id": "FG701",
+        "exchange_id": "CZCE",
+        "multiplier": "20",
+        "price_tick": "1",
+        "strike_price": null,
+        "expire_date": "20270114",
+        "product_id": "FG",
+        "option_type": null,
+        "underlying": "FG"
+      },
+      "call": {
+        "instrument_id": "FG701C970",
+        "exchange_id": "CZCE",
+        "multiplier": "20",
+        "price_tick": "0.5",
+        "strike_price": "970",
+        "expire_date": "20261211",
+        "product_id": "FGC",
+        "option_type": "1",
+        "underlying": "FG701"
+      },
+      "put": {
+        "instrument_id": "FG701P970",
+        "exchange_id": "CZCE",
+        "multiplier": "20",
+        "price_tick": "0.5",
+        "strike_price": "970",
+        "expire_date": "20261211",
+        "product_id": "FGP",
+        "option_type": "2",
+        "underlying": "FG701"
+      }
+    },
+    "legs_sha256": "669f7c20675d34d0cd910450dd3322101df63217b94f9566509c10f38f8d7653"
+  },
   "base_quotes": {
-    "future": {"bid": "999", "ask": "1001", "last": "1000", "bid_size": 10, "ask_size": 10},
-    "call": {"bid": "16", "ask": "17", "last": "16", "bid_size": 10, "ask_size": 10},
-    "put": {"bid": "9", "ask": "10", "last": "10", "bid_size": 10, "ask_size": 10}
+    "future": {
+      "bid": "971",
+      "ask": "973",
+      "last": "972",
+      "bid_size": 10,
+      "ask_size": 10
+    },
+    "call": {
+      "bid": "16",
+      "ask": "17",
+      "last": "16",
+      "bid_size": 10,
+      "ask_size": 10
+    },
+    "put": {
+      "bid": "9",
+      "ask": "10",
+      "last": "10",
+      "bid_size": 10,
+      "ask_size": 10
+    }
   }
 }

@@ -15,7 +15,13 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import (
+    started_store,
+    run_with_timeout,
+    ensure_ctp_trading_admission,
+    live_seed_bar,
+    resolve_ctp_symbol,
+)
 
 import backtrader as bt
 from backtrader.brokers.btapibroker import BtApiBroker
@@ -42,23 +48,15 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
-                seed_bar = {
-                    "datetime": dt.datetime.now().replace(microsecond=0),
-                    "open": 3000.0,
-                    "high": 3000.0,
-                    "low": 3000.0,
-                    "close": 3000.0,
-                    "volume": 1.0,
-                    "openinterest": 0.0,
-                }
-                broker = BtApiBroker(store=store)
+                symbol = resolve_ctp_symbol(store, symbol)
+                broker = BtApiBroker(store=store, position_mode=cfg.get_position_mode())
                 data = BtApiFeed(
                     store=store,
                     dataname=symbol,
                     timeframe=bt.TimeFrame.Seconds,
                     compression=5,
                     backfill_start=False,
-                    historical_bars=[seed_bar],
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
                 cerebro = bt.Cerebro()
                 cerebro.setbroker(broker)
@@ -80,6 +78,27 @@ def run(report_dir):
                         self.submit_status = ""
                         self.cancel_called = False
                         self.cancel_status = ""
+                        self.counter_accepted = False
+                        self.counter_canceled = False
+
+                    def notify_store(self, msg, *args, **kwargs):
+                        """Stop only on the counter's own cancel confirmation.
+
+                        The broker marks the order ``Canceled`` locally as soon
+                        as the cancel request is enqueued, so that status cannot
+                        certify this test.  ``order_status_canceled`` is the
+                        counter's order-update event; wait for it (the run
+                        timeout is the backstop).
+                        """
+                        event = kwargs.get("event")
+                        if not isinstance(event, dict):
+                            return
+                        event_type = event.get("event_type")
+                        if event_type == "order_status_accepted":
+                            self.counter_accepted = True
+                        elif event_type == "order_status_canceled":
+                            self.counter_canceled = True
+                            self.cerebro.runstop()
 
                     def notify_order(self, order):
                         """Handle order status updates.
@@ -90,18 +109,19 @@ def run(report_dir):
                         status = order.getstatusname()
                         self.order_statuses.append(status)
                         print(f"  order_notify: ref={order.ref} status={status}")
-                        if status in ("Submitted", "Accepted", "Completed", "Canceled", "Rejected"):
-                            self.cerebro.runstop()
 
                     def next(self):
                         """Process bar and submit cancel order."""
                         self.bar_count += 1
                         if self.order is not None:
                             return
-                        limit_price = float(self.data.close[0])
+                        # Passive price: the order must stay pending so the
+                        # cancel path (not a fill) is what this case proves.
+                        limit_price = max(float(self.data.close[0]) - 30, 1.0)
+                        ensure_ctp_trading_admission(store, symbol)
                         self.order = self.buy(
                             size=1, exectype=bt.Order.Limit,
-                            price=limit_price, offset="open",
+                            price=limit_price, offset="open", position_side="long",
                         )
                         if self.order is not None:
                             self.submit_status = self.order.getstatusname()
@@ -118,27 +138,34 @@ def run(report_dir):
                             print(f"  order status after cancel(): {self.cancel_status}")
 
                 cerebro.addstrategy(CancelOrderStrategy)
-                results = run_with_timeout(cerebro, timeout_seconds=25)
+                # The case stops as soon as the counter's cancel confirmation
+                # arrives; the timeout only backstops a missing confirmation.
+                results = run_with_timeout(cerebro, timeout_seconds=120)
 
                 strat = results[0] if results else None
                 if not strat or strat.bar_count <= 0:
                     return timer.blocked_result("未能通过种子 bar 触发撤单流程")
 
-                system_entries = helpers.read_json_lines(Path(log_dir) / "system.log")
-                event_types = {e.get("event_type") for e in system_entries}
-                assert strat.cancel_called, "Cancel path was not executed"
-                assert (
-                    "order_cancel_request" in event_types
-                    or strat.cancel_status == "Canceled"
-                    or "Canceled" in strat.order_statuses
-                ), "Missing cancel evidence"
-                print("✓ 撤单指令已成功下达并确认 order_cancel_request")
-
                 evidence = helpers.collect_evidence_files(log_dir)
+                if not strat.cancel_called:
+                    return timer.fail_result("撤单路径未执行", evidence=evidence)
+                if not strat.counter_canceled:
+                    return timer.fail_result(
+                        "未收到柜台撤单确认 order_status_canceled",
+                        evidence=evidence,
+                        details={
+                            "counter_accepted": strat.counter_accepted,
+                            "submit_status": strat.submit_status,
+                            "cancel_status": strat.cancel_status,
+                            "order_statuses": strat.order_statuses,
+                        },
+                    )
+                print("✓ 撤单指令已成功下达并收到柜台撤单确认")
+
                 return timer.pass_result(
                     evidence=evidence,
                     details={
-                        "events": sorted(event_types),
+                        "counter_accepted": strat.counter_accepted,
                         "submit_status": strat.submit_status,
                         "cancel_status": strat.cancel_status,
                         "order_statuses": strat.order_statuses,

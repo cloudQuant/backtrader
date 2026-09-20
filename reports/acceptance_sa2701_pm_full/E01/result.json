@@ -1,0 +1,1472 @@
+{
+  "case_id": "E01",
+  "case_name": "验证系统能接收并展示柜台返回的资金不足错误码",
+  "status": "PASS",
+  "scenario_id": "ERROR-01",
+  "scenario_name": "资金不足错误展示",
+  "category": "错误提示",
+  "trace_id": "ctp-cert-20260918-140524-733c2919",
+  "started_at": "2026-09-18T14:05:24.775495",
+  "finished_at": "2026-09-18T14:07:37.226470",
+  "duration_seconds": 132.45,
+  "env": "telecom",
+  "required_events": [
+    "order_reject_remote"
+  ],
+  "evidence_fields": [
+    "ErrorID",
+    "ErrorMsg",
+    "StatusMsg"
+  ],
+  "pass_conditions": [
+    "required_events_present",
+    "evidence_fields_present"
+  ],
+  "optional": false,
+  "observed_events": [
+    "bar",
+    "duplicate_order_detected",
+    "market_data_subscribe_request",
+    "monitoring_summary",
+    "open_orders_sync_completed",
+    "order_reject_remote",
+    "order_rejected",
+    "order_status_accepted",
+    "order_submit_accepted",
+    "order_submit_request",
+    "risk_monitor_event",
+    "risk_repeat_order_detected",
+    "session_started",
+    "session_stopped",
+    "store_auth_request",
+    "store_auth_success",
+    "store_connected",
+    "store_connecting",
+    "store_disconnected",
+    "store_login_success",
+    "store_ready"
+  ],
+  "missing_required_events": [],
+  "required_events_present": true,
+  "missing_evidence_fields": [],
+  "evidence_fields_present": true,
+  "evidence": [
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/bar.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/current_position.yaml",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/error.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/indicator.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/monitor.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/order.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/position.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/signal.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/system.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/tick.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/trade.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/value.log",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/state_snapshots.json",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/reconciliation.json",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/audit.jsonl"
+  ],
+  "failure_reason": "",
+  "next_action": "",
+  "details": {
+    "events": [
+      "market_data_subscribe_request",
+      "open_orders_sync_completed",
+      "order_reject_remote",
+      "order_submit_accepted",
+      "order_submit_request",
+      "store_auth_request",
+      "store_auth_success",
+      "store_connected",
+      "store_connecting",
+      "store_login_success",
+      "store_ready"
+    ],
+    "order_statuses": [
+      {
+        "ref": 1,
+        "status": "Accepted"
+      },
+      {
+        "ref": 2,
+        "status": "Accepted"
+      },
+      {
+        "ref": 3,
+        "status": "Accepted"
+      },
+      {
+        "ref": 4,
+        "status": "Accepted"
+      },
+      {
+        "ref": 5,
+        "status": "Accepted"
+      },
+      {
+        "ref": 6,
+        "status": "Accepted"
+      },
+      {
+        "ref": 7,
+        "status": "Accepted"
+      },
+      {
+        "ref": 8,
+        "status": "Accepted"
+      },
+      {
+        "ref": 9,
+        "status": "Accepted"
+      },
+      {
+        "ref": 10,
+        "status": "Accepted"
+      },
+      {
+        "ref": 11,
+        "status": "Accepted"
+      },
+      {
+        "ref": 12,
+        "status": "Accepted"
+      },
+      {
+        "ref": 1,
+        "status": "Rejected"
+      },
+      {
+        "ref": 2,
+        "status": "Rejected"
+      },
+      {
+        "ref": 3,
+        "status": "Rejected"
+      },
+      {
+        "ref": 4,
+        "status": "Rejected"
+      },
+      {
+        "ref": 5,
+        "status": "Rejected"
+      },
+      {
+        "ref": 6,
+        "status": "Rejected"
+      },
+      {
+        "ref": 7,
+        "status": "Rejected"
+      },
+      {
+        "ref": 8,
+        "status": "Rejected"
+      },
+      {
+        "ref": 9,
+        "status": "Rejected"
+      },
+      {
+        "ref": 10,
+        "status": "Rejected"
+      },
+      {
+        "ref": 11,
+        "status": "Rejected"
+      },
+      {
+        "ref": 12,
+        "status": "Rejected"
+      }
+    ],
+    "submitted_orders": 12,
+    "order_reject_remote": true,
+    "remote_errors": [
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 1,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.912+08:00",
+          "event_time": "2026-09-18T14:07:30.912+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 1,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 2,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.913+08:00",
+          "event_time": "2026-09-18T14:07:30.913+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 2,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 3,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.913+08:00",
+          "event_time": "2026-09-18T14:07:30.913+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 3,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 4,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.914+08:00",
+          "event_time": "2026-09-18T14:07:30.914+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 4,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 5,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.914+08:00",
+          "event_time": "2026-09-18T14:07:30.914+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 5,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 6,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.914+08:00",
+          "event_time": "2026-09-18T14:07:30.914+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 6,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 7,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.914+08:00",
+          "event_time": "2026-09-18T14:07:30.914+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 7,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 8,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.915+08:00",
+          "event_time": "2026-09-18T14:07:30.915+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 8,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 9,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.915+08:00",
+          "event_time": "2026-09-18T14:07:30.915+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 9,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 10,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.915+08:00",
+          "event_time": "2026-09-18T14:07:30.915+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 10,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 11,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.915+08:00",
+          "event_time": "2026-09-18T14:07:30.915+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 11,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      },
+      {
+        "event_type": "order_reject_remote",
+        "order_ref": 12,
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "source_event": {
+          "log_time": "2026-09-18T14:07:30.916+08:00",
+          "event_time": "2026-09-18T14:07:30.916+08:00",
+          "event_type": "order_rejected",
+          "level": "ERROR",
+          "run_id": "trade-log-20260918140543-f4fdadac",
+          "session_id": "ctp-20260918060524-7407b08e",
+          "provider": "ctp",
+          "strategy_name": "InsufficientFundsStrategy",
+          "data_name": "sa2701",
+          "order_ref": 12,
+          "error_code": "16",
+          "error_msg": "CTP:找不到合约",
+          "status": "Rejected",
+          "details": {
+            "order_type": "Buy"
+          }
+        }
+      }
+    ],
+    "ErrorID": "16",
+    "ErrorMsg": "CTP:找不到合约",
+    "StatusMsg": "CTP:找不到合约",
+    "certification_evidence": {
+      "trace_id": "ctp-cert-20260918-140524-733c2919",
+      "account_id_masked": "33***16",
+      "gateway_key": "telecom",
+      "timestamp": "2026-09-18T14:07:20.329+08:00",
+      "strategy_id": "InsufficientFundsStrategy",
+      "instrument": "sa2701",
+      "order_ref": 1,
+      "error_msg": "CTP:找不到合约",
+      "error_code": "16",
+      "ErrorID": "16",
+      "ErrorMsg": "CTP:找不到合约",
+      "StatusMsg": "CTP:找不到合约",
+      "price": 2900.0,
+      "size": 500,
+      "metric": "submitted_order_count",
+      "repeat_key": "submit|sa2701|buy|open|500|2900.0|",
+      "repeat_count": 2,
+      "submitted_order_count": 12,
+      "trade_connection": true,
+      "market_connection": true,
+      "cancel_order_count": 0,
+      "order_refs": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        5,
+        5,
+        5,
+        5,
+        5,
+        6,
+        6,
+        6,
+        6,
+        6,
+        7,
+        7,
+        7,
+        7,
+        7,
+        8,
+        8,
+        8,
+        8,
+        8,
+        9,
+        9,
+        9,
+        9,
+        9,
+        10,
+        10,
+        10,
+        10,
+        10,
+        11,
+        11,
+        11,
+        11,
+        11,
+        12,
+        12,
+        12,
+        12,
+        12,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "open_order_count": 94,
+      "partial_count": 0,
+      "submitted_orders": 12,
+      "order_reject_remote": true
+    },
+    "reconciliation": {
+      "case_id": "E01",
+      "scenario_id": "ERROR-01",
+      "generated_at": "2026-09-18T14:07:37.238309",
+      "expectation": {
+        "order_activity": "required",
+        "trade_activity": "none",
+        "account_position_change": "none",
+        "no_open_orders_after": true
+      },
+      "snapshot_count": 2,
+      "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/state_snapshots.json",
+      "event_counts": {
+        "total_events": 122,
+        "order_events": 27,
+        "trade_events": 0
+      },
+      "event_types": [
+        "",
+        "bar",
+        "duplicate_order_detected",
+        "market_data_subscribe_request",
+        "monitoring_summary",
+        "open_orders_sync_completed",
+        "order_reject_remote",
+        "order_rejected",
+        "order_status_accepted",
+        "order_submit_accepted",
+        "order_submit_request",
+        "risk_monitor_event",
+        "risk_repeat_order_detected",
+        "session_started",
+        "session_stopped",
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready"
+      ],
+      "account_delta": {
+        "balance_changed": false,
+        "positions_changed": false,
+        "before_label": "before_action",
+        "after_label": "after_action_before_stop"
+      },
+      "post_action_open_orders": [],
+      "checks": {
+        "required_events": {
+          "expected": [
+            "order_reject_remote"
+          ],
+          "missing": [],
+          "passed": true
+        },
+        "order_activity": {
+          "expected": "required",
+          "observed": true,
+          "passed": true
+        },
+        "trade_activity": {
+          "expected": "none",
+          "observed": false,
+          "passed": true
+        },
+        "post_action_open_orders": {
+          "expected": "none",
+          "observed_count": 0,
+          "passed": true
+        },
+        "account_position_unchanged": {
+          "expected": "unchanged",
+          "balance_changed": false,
+          "positions_changed": false,
+          "case_trade_events": 0,
+          "passed": true
+        }
+      },
+      "strict_reconciliation_pass": true,
+      "notes": ""
+    }
+  },
+  "audit_events": [
+    {
+      "event_type": "certification_case_result",
+      "event_id": "faf0c9ea-dbae-42e8-a6ef-22d05f358633",
+      "trace_id": "ctp-cert-20260918-140524-733c2919",
+      "case_id": "E01",
+      "scenario_id": "ERROR-01",
+      "scenario_name": "资金不足错误展示",
+      "category": "错误提示",
+      "status": "PASS",
+      "severity": "INFO",
+      "timestamp": "2026-09-18T14:07:37.226470",
+      "env": "telecom",
+      "message": "case passed",
+      "required_events": [
+        "order_reject_remote"
+      ],
+      "evidence_fields": [
+        "ErrorID",
+        "ErrorMsg",
+        "StatusMsg"
+      ],
+      "observed_events": [
+        "bar",
+        "duplicate_order_detected",
+        "market_data_subscribe_request",
+        "monitoring_summary",
+        "open_orders_sync_completed",
+        "order_reject_remote",
+        "order_rejected",
+        "order_status_accepted",
+        "order_submit_accepted",
+        "order_submit_request",
+        "risk_monitor_event",
+        "risk_repeat_order_detected",
+        "session_started",
+        "session_stopped",
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready"
+      ],
+      "missing_required_events": [],
+      "missing_evidence_fields": [],
+      "required_events_present": true,
+      "evidence_fields_present": true,
+      "evidence": [
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/bar.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/current_position.yaml",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/error.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/indicator.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/monitor.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/order.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/position.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/signal.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/system.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/tick.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/trade.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/logs/value.log",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/state_snapshots.json",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/reconciliation.json",
+        "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/audit.jsonl"
+      ],
+      "details": {
+        "events": [
+          "market_data_subscribe_request",
+          "open_orders_sync_completed",
+          "order_reject_remote",
+          "order_submit_accepted",
+          "order_submit_request",
+          "store_auth_request",
+          "store_auth_success",
+          "store_connected",
+          "store_connecting",
+          "store_login_success",
+          "store_ready"
+        ],
+        "order_statuses": [
+          {
+            "ref": 1,
+            "status": "Accepted"
+          },
+          {
+            "ref": 2,
+            "status": "Accepted"
+          },
+          {
+            "ref": 3,
+            "status": "Accepted"
+          },
+          {
+            "ref": 4,
+            "status": "Accepted"
+          },
+          {
+            "ref": 5,
+            "status": "Accepted"
+          },
+          {
+            "ref": 6,
+            "status": "Accepted"
+          },
+          {
+            "ref": 7,
+            "status": "Accepted"
+          },
+          {
+            "ref": 8,
+            "status": "Accepted"
+          },
+          {
+            "ref": 9,
+            "status": "Accepted"
+          },
+          {
+            "ref": 10,
+            "status": "Accepted"
+          },
+          {
+            "ref": 11,
+            "status": "Accepted"
+          },
+          {
+            "ref": 12,
+            "status": "Accepted"
+          },
+          {
+            "ref": 1,
+            "status": "Rejected"
+          },
+          {
+            "ref": 2,
+            "status": "Rejected"
+          },
+          {
+            "ref": 3,
+            "status": "Rejected"
+          },
+          {
+            "ref": 4,
+            "status": "Rejected"
+          },
+          {
+            "ref": 5,
+            "status": "Rejected"
+          },
+          {
+            "ref": 6,
+            "status": "Rejected"
+          },
+          {
+            "ref": 7,
+            "status": "Rejected"
+          },
+          {
+            "ref": 8,
+            "status": "Rejected"
+          },
+          {
+            "ref": 9,
+            "status": "Rejected"
+          },
+          {
+            "ref": 10,
+            "status": "Rejected"
+          },
+          {
+            "ref": 11,
+            "status": "Rejected"
+          },
+          {
+            "ref": 12,
+            "status": "Rejected"
+          }
+        ],
+        "submitted_orders": 12,
+        "order_reject_remote": true,
+        "remote_errors": [
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 1,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.912+08:00",
+              "event_time": "2026-09-18T14:07:30.912+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 1,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 2,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.913+08:00",
+              "event_time": "2026-09-18T14:07:30.913+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 2,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 3,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.913+08:00",
+              "event_time": "2026-09-18T14:07:30.913+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 3,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 4,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.914+08:00",
+              "event_time": "2026-09-18T14:07:30.914+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 4,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 5,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.914+08:00",
+              "event_time": "2026-09-18T14:07:30.914+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 5,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 6,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.914+08:00",
+              "event_time": "2026-09-18T14:07:30.914+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 6,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 7,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.914+08:00",
+              "event_time": "2026-09-18T14:07:30.914+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 7,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 8,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.915+08:00",
+              "event_time": "2026-09-18T14:07:30.915+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 8,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 9,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.915+08:00",
+              "event_time": "2026-09-18T14:07:30.915+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 9,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 10,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.915+08:00",
+              "event_time": "2026-09-18T14:07:30.915+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 10,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 11,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.915+08:00",
+              "event_time": "2026-09-18T14:07:30.915+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 11,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          },
+          {
+            "event_type": "order_reject_remote",
+            "order_ref": 12,
+            "ErrorID": "16",
+            "ErrorMsg": "CTP:找不到合约",
+            "StatusMsg": "CTP:找不到合约",
+            "source_event": {
+              "log_time": "2026-09-18T14:07:30.916+08:00",
+              "event_time": "2026-09-18T14:07:30.916+08:00",
+              "event_type": "order_rejected",
+              "level": "ERROR",
+              "run_id": "trade-log-20260918140543-f4fdadac",
+              "session_id": "ctp-20260918060524-7407b08e",
+              "provider": "ctp",
+              "strategy_name": "InsufficientFundsStrategy",
+              "data_name": "sa2701",
+              "order_ref": 12,
+              "error_code": "16",
+              "error_msg": "CTP:找不到合约",
+              "status": "Rejected",
+              "details": {
+                "order_type": "Buy"
+              }
+            }
+          }
+        ],
+        "ErrorID": "16",
+        "ErrorMsg": "CTP:找不到合约",
+        "StatusMsg": "CTP:找不到合约",
+        "certification_evidence": {
+          "trace_id": "ctp-cert-20260918-140524-733c2919",
+          "account_id_masked": "33***16",
+          "gateway_key": "telecom",
+          "timestamp": "2026-09-18T14:07:20.329+08:00",
+          "strategy_id": "InsufficientFundsStrategy",
+          "instrument": "sa2701",
+          "order_ref": 1,
+          "error_msg": "CTP:找不到合约",
+          "error_code": "16",
+          "ErrorID": "16",
+          "ErrorMsg": "CTP:找不到合约",
+          "StatusMsg": "CTP:找不到合约",
+          "price": 2900.0,
+          "size": 500,
+          "metric": "submitted_order_count",
+          "repeat_key": "submit|sa2701|buy|open|500|2900.0|",
+          "repeat_count": 2,
+          "submitted_order_count": 12,
+          "trade_connection": true,
+          "market_connection": true,
+          "cancel_order_count": 0,
+          "order_refs": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            1,
+            1,
+            1,
+            2,
+            2,
+            2,
+            2,
+            2,
+            3,
+            3,
+            3,
+            3,
+            3,
+            4,
+            4,
+            4,
+            4,
+            4,
+            5,
+            5,
+            5,
+            5,
+            5,
+            6,
+            6,
+            6,
+            6,
+            6,
+            7,
+            7,
+            7,
+            7,
+            7,
+            8,
+            8,
+            8,
+            8,
+            8,
+            9,
+            9,
+            9,
+            9,
+            9,
+            10,
+            10,
+            10,
+            10,
+            10,
+            11,
+            11,
+            11,
+            11,
+            11,
+            12,
+            12,
+            12,
+            12,
+            12,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ],
+          "open_order_count": 94,
+          "partial_count": 0,
+          "submitted_orders": 12,
+          "order_reject_remote": true
+        },
+        "reconciliation": {
+          "case_id": "E01",
+          "scenario_id": "ERROR-01",
+          "generated_at": "2026-09-18T14:07:37.238309",
+          "expectation": {
+            "order_activity": "required",
+            "trade_activity": "none",
+            "account_position_change": "none",
+            "no_open_orders_after": true
+          },
+          "snapshot_count": 2,
+          "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/state_snapshots.json",
+          "event_counts": {
+            "total_events": 122,
+            "order_events": 27,
+            "trade_events": 0
+          },
+          "event_types": [
+            "",
+            "bar",
+            "duplicate_order_detected",
+            "market_data_subscribe_request",
+            "monitoring_summary",
+            "open_orders_sync_completed",
+            "order_reject_remote",
+            "order_rejected",
+            "order_status_accepted",
+            "order_submit_accepted",
+            "order_submit_request",
+            "risk_monitor_event",
+            "risk_repeat_order_detected",
+            "session_started",
+            "session_stopped",
+            "store_auth_request",
+            "store_auth_success",
+            "store_connected",
+            "store_connecting",
+            "store_disconnected",
+            "store_login_success",
+            "store_ready"
+          ],
+          "account_delta": {
+            "balance_changed": false,
+            "positions_changed": false,
+            "before_label": "before_action",
+            "after_label": "after_action_before_stop"
+          },
+          "post_action_open_orders": [],
+          "checks": {
+            "required_events": {
+              "expected": [
+                "order_reject_remote"
+              ],
+              "missing": [],
+              "passed": true
+            },
+            "order_activity": {
+              "expected": "required",
+              "observed": true,
+              "passed": true
+            },
+            "trade_activity": {
+              "expected": "none",
+              "observed": false,
+              "passed": true
+            },
+            "post_action_open_orders": {
+              "expected": "none",
+              "observed_count": 0,
+              "passed": true
+            },
+            "account_position_unchanged": {
+              "expected": "unchanged",
+              "balance_changed": false,
+              "positions_changed": false,
+              "case_trade_events": 0,
+              "passed": true
+            }
+          },
+          "strict_reconciliation_pass": true,
+          "notes": ""
+        }
+      },
+      "reconciliation": {
+        "case_id": "E01",
+        "scenario_id": "ERROR-01",
+        "generated_at": "2026-09-18T14:07:37.238309",
+        "expectation": {
+          "order_activity": "required",
+          "trade_activity": "none",
+          "account_position_change": "none",
+          "no_open_orders_after": true
+        },
+        "snapshot_count": 2,
+        "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/E01/state_snapshots.json",
+        "event_counts": {
+          "total_events": 122,
+          "order_events": 27,
+          "trade_events": 0
+        },
+        "event_types": [
+          "",
+          "bar",
+          "duplicate_order_detected",
+          "market_data_subscribe_request",
+          "monitoring_summary",
+          "open_orders_sync_completed",
+          "order_reject_remote",
+          "order_rejected",
+          "order_status_accepted",
+          "order_submit_accepted",
+          "order_submit_request",
+          "risk_monitor_event",
+          "risk_repeat_order_detected",
+          "session_started",
+          "session_stopped",
+          "store_auth_request",
+          "store_auth_success",
+          "store_connected",
+          "store_connecting",
+          "store_disconnected",
+          "store_login_success",
+          "store_ready"
+        ],
+        "account_delta": {
+          "balance_changed": false,
+          "positions_changed": false,
+          "before_label": "before_action",
+          "after_label": "after_action_before_stop"
+        },
+        "post_action_open_orders": [],
+        "checks": {
+          "required_events": {
+            "expected": [
+              "order_reject_remote"
+            ],
+            "missing": [],
+            "passed": true
+          },
+          "order_activity": {
+            "expected": "required",
+            "observed": true,
+            "passed": true
+          },
+          "trade_activity": {
+            "expected": "none",
+            "observed": false,
+            "passed": true
+          },
+          "post_action_open_orders": {
+            "expected": "none",
+            "observed_count": 0,
+            "passed": true
+          },
+          "account_position_unchanged": {
+            "expected": "unchanged",
+            "balance_changed": false,
+            "positions_changed": false,
+            "case_trade_events": 0,
+            "passed": true
+          }
+        },
+        "strict_reconciliation_pass": true,
+        "notes": ""
+      }
+    }
+  ]
+}

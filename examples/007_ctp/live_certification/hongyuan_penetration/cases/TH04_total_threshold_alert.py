@@ -14,7 +14,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar
 
 import backtrader as bt
 
@@ -39,7 +39,10 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
-                cerebro = create_cerebro(store, symbol=symbol, bar_seconds=5)
+                cerebro = create_cerebro(
+                    store, symbol=symbol, bar_seconds=5,
+                    historical_bars=[live_seed_bar(store, symbol)],
+                )
                 # Very low total threshold
                 cerebro.addobserver(
                     bt.observers.TradeLogger,
@@ -71,10 +74,12 @@ def run(report_dir):
                         if self.ops >= 3:
                             return
                         ref_price = float(self.data.close[0])
-                        order = self.buy(size=1, exectype=bt.Order.Limit, price=max(ref_price - 20, 1.0), offset="open")
-                        if order:
-                            self.cancel(order)
-                            self.ops += 1
+                        while self.ops < 3:
+                            ensure_ctp_trading_admission(store, symbol)
+                            order = self.buy(size=1, exectype=bt.Order.Limit, price=max(ref_price - 20, 1.0), offset="open", position_side="long")
+                            if order:
+                                self.cancel(order)
+                                self.ops += 1
 
                 cerebro.addstrategy(MultiOrderCancelStrategy)
                 results = run_with_timeout(cerebro, timeout_seconds=90)

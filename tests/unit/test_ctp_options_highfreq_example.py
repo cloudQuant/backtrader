@@ -228,17 +228,126 @@ def _trusted_now_from_tick(tick, *, monotonic_delta_ns=0, epoch_delta=0.0, domai
     )
 
 
-def test_idle_without_trusted_now_clears_confirmation_and_never_uses_last_tick_time():
+def test_strategy_report_exposes_per_leg_counts_and_qualification_evidence():
+    strategy, events = _strategy_and_events()
+    for event in events[:3]:
+        strategy.notify_tick(event.data)
+
+    report = strategy.replay_report()
+    assert report["tick_counts"] == {"FG701": 1, "FG701C970": 1, "FG701P970": 1}
+    assert report["execution_eligible_tick_count"] == 3
+    assert report["last_quality_flags"] == []
+
+
+def test_strategy_report_keeps_the_last_non_empty_quality_flags():
+    strategy, events = _strategy_and_events()
+    strategy.notify_tick(events[0].data)
+    events[0].data.quality_flags = ("UPSTREAM_EXECUTION_INELIGIBLE",)
+    strategy.notify_tick(events[0].data)
+
+    report = strategy.replay_report()
+    assert report["last_quality_flags"] == ["UPSTREAM_EXECUTION_INELIGIBLE"]
+    assert report["execution_eligible_tick_count"] == 1
+
+
+def test_idle_without_trusted_now_counts_only_and_never_uses_last_tick_time():
+    """Iteration 30: a missing clock *source* is a skip, not a violation."""
+
     strategy, events = _strategy_and_events()
     for event in events[:3]:
         strategy.notify_tick(event.data)
 
     assert strategy._confirmed_cohorts == 1
+    rejection_before = strategy._last_rejection
+
+    strategy.notify_idle()
     strategy.notify_idle()
 
-    assert strategy._confirmed_cohorts == 0
-    assert strategy._ordinary_intents == []
-    assert strategy._last_rejection == "TRUSTED_NOW_REQUIRED"
+    report = strategy.replay_report()
+    assert report["callback_counts"]["idle"] == 2
+    assert report["idle_without_trusted_now_count"] == 2
+    assert report["clock_violation_count"] == 0
+    assert strategy._clock_rejection_latched is False
+    assert strategy._confirmed_cohorts == 1
+    assert strategy._last_rejection == rejection_before
+
+    # The surviving confirmation still completes on the next trusted ticks.
+    for event in events[3:]:
+        strategy.notify_tick(event.data)
+    assert strategy._ordinary_intents
+    assert strategy._ordinary_intents[0]["direction"] == "conversion"
+
+
+def test_idle_uses_an_injected_provider_and_records_no_skip():
+    strategy, events = _strategy_and_events()
+    for event in events[:3]:
+        strategy.notify_tick(event.data)
+
+    calls: list[int] = []
+
+    def provider():
+        calls.append(len(calls) + 1)
+        return _trusted_now_from_tick(events[2].data, monotonic_delta_ns=1_000_000)
+
+    strategy.set_cohort_now_provider(provider)
+    strategy.notify_idle()
+
+    report = strategy.replay_report()
+    assert calls == [1]
+    assert report["idle_without_trusted_now_count"] == 0
+    assert report["clock_violation_count"] == 0
+    assert strategy._confirmed_cohorts == 1
+
+
+def test_idle_provider_violation_still_latches_with_evidence():
+    strategy, events = _strategy_and_events()
+    for event in events[:3]:
+        strategy.notify_tick(event.data)
+
+    strategy.set_cohort_now_provider(
+        lambda: _trusted_now_from_tick(events[2].data, domain="iter30-other-domain")
+    )
+    strategy.notify_idle()
+
+    report = strategy.replay_report()
+    assert strategy._clock_rejection_latched is True
+    assert strategy._last_rejection == "IDLE_CLOCK_DOMAIN_MISMATCH"
+    assert report["clock_violation_count"] == 1
+    assert report["idle_without_trusted_now_count"] == 0
+
+
+def test_idle_provider_failure_latches_instead_of_silently_skipping():
+    """An injected provider that fails is a violation, not a missing source."""
+
+    strategy, events = _strategy_and_events()
+    for event in events[:3]:
+        strategy.notify_tick(event.data)
+
+    def broken():
+        raise RuntimeError("clock mapping expired")
+
+    strategy.set_cohort_now_provider(broken)
+    strategy.notify_idle()
+
+    report = strategy.replay_report()
+    assert strategy._clock_rejection_latched is True
+    assert strategy._last_rejection == "IDLE_CLOCK_PROVIDER_FAILED"
+    assert report["clock_violation_count"] == 1
+    assert report["idle_without_trusted_now_count"] == 0
+
+
+def test_idle_provider_returning_none_counts_a_skip():
+    strategy, events = _strategy_and_events()
+    for event in events[:3]:
+        strategy.notify_tick(event.data)
+
+    strategy.set_cohort_now_provider(lambda: None)
+    strategy.notify_idle()
+
+    report = strategy.replay_report()
+    assert strategy._clock_rejection_latched is False
+    assert report["idle_without_trusted_now_count"] == 1
+    assert report["clock_violation_count"] == 0
 
 
 def test_idle_recheck_expires_cached_cohort_without_creating_or_faking_risk_actions():
@@ -388,9 +497,11 @@ def test_equal_daily_price_limits_fail_closed_during_a_complete_replay(monkeypat
 
 @pytest.mark.parametrize("bound", ("lower_limit", "upper_limit"))
 def test_each_daily_price_limit_must_follow_the_leg_tick_grid(monkeypatch, bound):
+    # Iteration 30 corrected the option tick to the real CZCE 0.5, so the
+    # off-grid probe must be finer than every leg grid (future 1.0 / option 0.5).
     report = _run_with_tick_mutation(
         monkeypatch,
-        lambda tick: setattr(tick, bound, float(getattr(tick, bound)) + 0.5),
+        lambda tick: setattr(tick, bound, float(getattr(tick, bound)) + 0.25),
     )
 
     assert report["confirmed_cohorts"] == 0

@@ -1,7 +1,9 @@
 """Source-containment and frozen replay-report contract tests for both cross-exchange examples."""
+
 import ast
 import copy
 from dataclasses import replace
+from decimal import Decimal
 import importlib
 import json
 from pathlib import Path
@@ -32,10 +34,10 @@ def _runner(strategy_id):
 def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
     """Inject immutable candidate data only for a zero-network formula fixture.
 
-    The real manifest intentionally rejects the current runner's changed source
-    fingerprint.  A separate contract below covers that fail-closed path.  This
-    helper never mutates the manifest or enables a network/approval path; it
-    only lets the formula fixture keep testing its deterministic report shape.
+    The folder-local manifest now matches its own sources (Iteration 30), so
+    this helper only substitutes the candidate data a formula replay needs.  A
+    separate contract below covers the fail-closed source-drift path.  This
+    helper never mutates any manifest or enables a network/approval path.
     """
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -95,7 +97,10 @@ def test_cross_venue_planning_and_candidate_policy_do_not_live_in_backtrader_uti
         runner_source = (directory / "run.py").read_text(encoding="utf-8")
         strategy_source = (directory / "strategy.py").read_text(encoding="utf-8")
         assert "bt_api_py" in runner_source
-        assert "examples.strategy_candidate_approval" in runner_source
+        # Iteration 30: the admission policy is vendored beside the runner so the
+        # folder is self-contained; it still must never live in the framework.
+        assert "strategy_candidate_approval" in runner_source
+        assert (directory / "strategy_candidate_approval.py").is_file()
         assert "bt_api_py" in strategy_source
         assert "backtrader.utils." not in runner_source
         assert "backtrader.utils." not in strategy_source
@@ -115,10 +120,36 @@ def test_event_strategy_neither_imports_nor_inherits_mid_strategy():
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
 @pytest.mark.parametrize("mode", ("shadow", "demo"))
 def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves_manifest(
-    strategy_id, mode, monkeypatch
+    strategy_id, mode, monkeypatch, tmp_path
 ):
+    """A manifest that pins another runner source must fail closed, untouched.
+
+    Iteration 30 re-issued each folder's own manifest, so the drift this test
+    needs is constructed explicitly: the candidate fingerprint stays
+    self-consistent while ``runner_sha256`` pins a different source.
+    """
+
     runner = _runner(strategy_id)
-    manifest_before = MANIFEST.read_bytes()
+    canonical_before = MANIFEST.read_bytes()
+    local_path = Path(runner.MANIFEST_PATH)
+    local_before = local_path.read_bytes()
+    manifest = json.loads(local_before)
+    candidate = manifest["candidates"][0]
+    # The stale copy lives in tmp_path, so it must point back at this example.
+    candidate["resolved_example_path"] = str((EXAMPLES / strategy_id).resolve())
+    candidate["runner_sha256"] = "0" * 64
+    payload = {
+        key: value
+        for key, value in candidate.items()
+        if key not in {"candidate_sha256", "demo_approval"}
+    }
+    candidate["candidate_sha256"] = runner._canonical_hash(payload)
+    stale = tmp_path / "stale-manifest.json"
+    stale.write_text(json.dumps(manifest), encoding="utf-8")
+    monkeypatch.setattr(runner, "MANIFEST_PATH", stale)
+    # Demo additionally requires the canonical manifest; point that at the same
+    # stale copy so this test keeps covering the source-drift rejection.
+    monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", stale)
     interactions = []
 
     def unexpected_store(*_args, **_kwargs):
@@ -132,13 +163,31 @@ def test_frozen_runner_source_rejection_precedes_store_or_approval_and_preserves
     monkeypatch.setattr(runner, "build_store", unexpected_store)
     monkeypatch.setattr(runner, "require_demo_approval", unexpected_approval)
 
+    # ``manifest_path`` is bound as a default argument at import time, so the
+    # stale manifest is passed explicitly.
     with pytest.raises(runner.RunnerSourceBindingError, match="runner source fingerprint mismatch"):
-        runner.run_replay("no_edge")
+        runner.run_replay("no_edge", manifest_path=stale)
     with pytest.raises(runner.RunnerSourceBindingError, match="runner source fingerprint mismatch"):
-        runner.run_network(mode, 1)
+        runner.run_network(mode, 1, manifest_path=stale)
 
     assert interactions == []
-    assert MANIFEST.read_bytes() == manifest_before
+    assert MANIFEST.read_bytes() == canonical_before
+    assert local_path.read_bytes() == local_before
+
+
+@pytest.mark.parametrize("strategy_id", tuple(MODULES))
+def test_demo_requires_the_repository_canonical_manifest(strategy_id, monkeypatch, tmp_path):
+    """The self-contained folder manifest may never satisfy the demo path."""
+
+    runner = _runner(strategy_id)
+    assert Path(runner.MANIFEST_PATH) != Path(runner.REPO_CANONICAL_MANIFEST)
+    calls = []
+    monkeypatch.setattr(runner, "build_store", lambda *_a, **_k: calls.append("store"))
+
+    with pytest.raises(runner.DemoApprovalError, match="repository-canonical manifest"):
+        runner.run_network("demo", 1)
+
+    assert calls == []
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
@@ -168,6 +217,22 @@ def test_runner_binds_account_maximum_loss_threshold_into_sdk_config(strategy_id
     store = runner.build_store("shadow", risk=risk)
 
     assert store["config"]["account_maximum_loss_bps"] == "17.125"
+
+
+def test_012_1_store_coalesces_bounded_orderbook_snapshots(monkeypatch):
+    runner = _runner("012_1_midfreq_cross_exchange")
+    captured = {}
+
+    def fake_store(**kwargs):
+        captured.update(kwargs)
+        return captured
+
+    monkeypatch.setattr(runner, "BtApiStore", fake_store)
+
+    runner.build_store("shadow", risk=runner.MidFrequencyRisk())
+
+    assert captured["config"]["book_queue_size"] == 64
+    assert captured["config"]["coalesce_market_snapshots"] == ("orderbook",)
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))
@@ -234,6 +299,28 @@ def test_replay_business_projection_is_stable_and_excludes_trade_logger_telemetr
     business_changed = copy.deepcopy(telemetry_changed)
     business_changed["final_state"] = "DIFFERENT_BUSINESS_STATE"
     assert runner.business_summary_hash(business_changed) != first["business_summary_hash"]
+
+
+@pytest.mark.parametrize("strategy_id", tuple(MODULES))
+def test_business_summary_hash_serializes_nested_decimal_and_rejects_unknown_types(strategy_id):
+    runner = _runner(strategy_id)
+    report = {
+        "status": "DEMO_CLOSED",
+        "execution": {
+            "fees": [Decimal("0.00010000000000000001"), Decimal("0.0002")],
+            "ledger": {"balance": Decimal("12345678901234567890.12345678901234567890")},
+        },
+    }
+    repeated_report = copy.deepcopy(report)
+
+    runner._attach_business_summary(report)
+    runner._attach_business_summary(repeated_report)
+
+    assert report["business_summary_hash"] == repeated_report["business_summary_hash"]
+    assert report["business_summary"]["execution"]["fees"][0] == Decimal("0.00010000000000000001")
+
+    with pytest.raises(TypeError):
+        runner.business_summary_hash({"nested": {"unsupported": object()}})
 
 
 @pytest.mark.parametrize("strategy_id", tuple(MODULES))

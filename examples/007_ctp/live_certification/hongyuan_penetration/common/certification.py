@@ -168,14 +168,32 @@ def build_certification_coverage(
         for result in results
         if enrich_result_payload(result).get("scenario_id")
     }
+    evidenced_pass_ids = sorted(
+        scenario_id
+        for scenario_id, status in status_by_scenario.items()
+        if status == "PASS"
+    )
+    required_ids = sorted(
+        SCENARIOS_BY_CASE_ID[case_id].scenario_id
+        for case_id in case_order
+        if case_id in SCENARIOS_BY_CASE_ID and not SCENARIOS_BY_CASE_ID[case_id].optional
+    )
+    evidenced_required_pass_ids = sorted(set(evidenced_pass_ids) & set(required_ids))
 
     return {
         "total_scenarios": len(_SCENARIO_ROWS),
         "expected_cases": len(case_order),
+        # ``covered_scenarios`` counts attempted scenarios only; it must never
+        # be read as a pass rate.  Use the ``evidenced_*`` fields for that.
         "covered_scenarios": len(set(covered_ids)),
         "scenario_ids": expected_ids,
         "missing_cases": missing_cases,
         "unmapped_cases": unmapped_cases,
         "duplicate_scenario_ids": duplicate_ids,
         "status_by_scenario": status_by_scenario,
+        "required_scenarios": len(required_ids),
+        "evidenced_pass_scenarios": len(evidenced_pass_ids),
+        "evidenced_pass_ids": evidenced_pass_ids,
+        "evidenced_required_pass_scenarios": len(evidenced_required_pass_ids),
+        "evidenced_required_pass_ids": evidenced_required_pass_ids,
     }

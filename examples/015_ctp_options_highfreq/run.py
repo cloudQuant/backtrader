@@ -15,8 +15,10 @@ import hashlib
 import json
 import math
 import os
+import re
 import threading
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
@@ -39,6 +41,7 @@ HERE = Path(__file__).resolve().parent
 DEFAULT_CONFIG = HERE / "config.yaml"
 FIXTURE_SCHEMA = "iter25.ctp-options-tick-fixture.v1"
 CONFIG_SCHEMA = "ctp-options-candidate.v1"
+_ISO_UTC_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 FROZEN_FEED_UPPER_BOUNDS_MS = {
     "max_quote_age_ms": 250.0,
     "max_cross_leg_skew_ms": 100.0,
@@ -64,6 +67,489 @@ _INJECTED_STORE_WRITE_EVIDENCE_BOUNDARY = (
     "raw external provider writes."
 )
 _BTAPI_STORE_TYPE = BtApiStore
+
+# Frozen SimNow environment table.  Only these three keys may appear in
+# ``config.yaml`` or in the selection env override.  The SDK profile names and
+# their front pairs stay owned by ``bt_api_ctp``; this example never invents an
+# endpoint and never infers a route from geography or the process public IP.
+ENVIRONMENT_SELECTION_ENV = "ITER30_SIMNOW_PROFILE"
+DEFAULT_ENVIRONMENT = "simnow_first_group1"
+ENVIRONMENT_PROFILES: dict[str, dict[str, Any]] = {
+    "simnow_first_group1": {
+        "family": "set1",
+        "market_alignment": "actual_market_hours",
+        "sdk_profile": "set1_group1",
+        "fallback_sdk_profile": "set1_group1_vpn",
+    },
+    "simnow_first_group2": {
+        "family": "set1",
+        "market_alignment": "actual_market_hours",
+        "sdk_profile": "set1_group2",
+        "fallback_sdk_profile": None,
+    },
+    "simnow_second_7x24": {
+        "family": "set2",
+        "market_alignment": "engineering_only",
+        "sdk_profile": "set2_7x24_4000x",
+        "fallback_sdk_profile": None,
+    },
+}
+_SDK_PROFILE_FAMILIES = {
+    "set1_group1": "set1",
+    "set1_group1_vpn": "set1",
+    "set1_group2": "set1",
+    "set2_7x24": "set2",
+    "set2_7x24_4000x": "set2",
+    "set2_7x24_vpn": "set2",
+}
+
+# Iteration 30 artifact governance: record which ``backtrader`` produced a
+# report, and refuse to start a live session against a snapshot this example
+# was not built from.  The hash covers only the dependency files the
+# observation actually relies on, so it stays cheap and reproducible.
+BACKTRADER_ARTIFACT_TARGET = HERE.parent.parent / "backtrader"
+BACKTRADER_DEPENDENCY_FILES = (
+    "version.py",
+    "strategy.py",
+    "channel.py",
+    "feeds/btapifeed.py",
+    "feeds/ctpcohort.py",
+    "stores/btapistore.py",
+)
+
+
+def runtime_artifact_evidence(*, module_path: str | None = None) -> dict[str, Any]:
+    """Describe the loaded ``backtrader`` and hash its observed dependencies.
+
+    ``module_path`` overrides the reported provenance path for diagnostics; the
+    dependency digest always reflects the modules that are actually loaded.
+    """
+
+    loaded_path = str(getattr(bt, "__file__", "") or "")
+    reported_path = str(module_path or loaded_path)
+    install_kind = "unknown"
+    if reported_path:
+        try:
+            Path(reported_path).resolve().relative_to(BACKTRADER_ARTIFACT_TARGET.resolve())
+            install_kind = "workspace_source"
+        except (OSError, ValueError):
+            install_kind = "external_artifact"
+    loaded_root = Path(loaded_path).parent if loaded_path else BACKTRADER_ARTIFACT_TARGET
+    digest = hashlib.sha256()
+    for relative in BACKTRADER_DEPENDENCY_FILES:
+        digest.update(relative.encode("utf-8"))
+        try:
+            digest.update((loaded_root / relative).read_bytes())
+        except OSError:
+            digest.update(b"<missing>")
+    return {
+        "module_path": reported_path,
+        "loaded_module_path": loaded_path,
+        "version": str(getattr(bt, "__version__", "") or ""),
+        "install_kind": install_kind,
+        "target_workspace_root": str(BACKTRADER_ARTIFACT_TARGET),
+        "dependency_files": list(BACKTRADER_DEPENDENCY_FILES),
+        "dependency_sha256": digest.hexdigest(),
+    }
+
+
+def require_target_backtrader_artifact(
+    *, module_path: str | None = None, allow_external: bool = False
+) -> dict[str, Any]:
+    """Fail closed unless the loaded artifact is this workspace's source tree."""
+
+    evidence = runtime_artifact_evidence(module_path=module_path)
+    if evidence["install_kind"] != "workspace_source" and not allow_external:
+        raise RunnerConfigurationError(
+            "BACKTRADER_ARTIFACT_MISMATCH: the loaded backtrader is "
+            f"{evidence['install_kind']} at {evidence['module_path']}; "
+            "install this checkout (pip install -e) or opt into a diagnostic run"
+        )
+    return evidence
+
+
+@dataclass(frozen=True)
+class EnvironmentSelection:
+    """One resolved SimNow environment, including its fallback evidence."""
+
+    requested_profile: str
+    family: str
+    market_alignment: str
+    sdk_profile: str
+    fallback_sdk_profile: str | None
+    attempted_profile: str
+    actual_profile: str
+    td_front: str | None
+    md_front: str | None
+    readiness: str
+    reason: str
+
+    @property
+    def allowed_sdk_profiles(self) -> tuple[str, ...]:
+        names = [self.sdk_profile]
+        if self.fallback_sdk_profile:
+            names.append(self.fallback_sdk_profile)
+        return tuple(names)
+
+    @property
+    def clock_domain_id(self) -> str:
+        """Return the derived clock domain; it never names another environment."""
+
+        return f"iter30-{self.actual_profile}-monotonic-v1"
+
+    @property
+    def mapping_source(self) -> str:
+        """Return the derived clock-mapping source for this actual profile."""
+
+        return f"iter30-{self.actual_profile}-launcher-anchor"
+
+    def as_evidence(self) -> dict[str, Any]:
+        """Return the auditable subset written into reports and bindings."""
+
+        return {
+            "requested_environment_profile": self.requested_profile,
+            "environment_family": self.family,
+            "market_alignment": self.market_alignment,
+            "attempted_profile": self.attempted_profile,
+            "actual_environment_profile": self.actual_profile,
+            "selection_readiness": self.readiness,
+            "selection_reason": self.reason,
+            "clock_domain_id": self.clock_domain_id,
+            "mapping_source": self.mapping_source,
+        }
+
+
+def classify_sdk_profile(profile: Any) -> str:
+    """Classify one SDK profile name into its frozen SimNow family, or ``""``."""
+
+    name = str(profile or "").strip().lower()
+    if name in _SDK_PROFILE_FAMILIES:
+        return _SDK_PROFILE_FAMILIES[name]
+    for family in ("set1", "set2"):
+        if name.startswith(f"{family}_"):
+            return family
+    return ""
+
+
+def _sdk_environment_resolver(
+    *,
+    family: str,
+    sdk_profile: str,
+    fallback_sdk_profile: str | None,
+    timeout: float = 4.0,
+) -> Mapping[str, Any]:
+    """Probe the frozen SDK pairs for one family; never infers a route."""
+
+    from bt_api_ctp.ctp_env_selector import select_reachable_ctp_environment
+
+    selection = select_reachable_ctp_environment(
+        env=family,
+        profile=sdk_profile,
+        front_probe_timeout=timeout,
+    )
+    return {
+        "actual_profile": selection.profile,
+        "td_front": selection.td_front,
+        "md_front": selection.md_front,
+        "readiness": selection.readiness,
+        "reason": selection.reason,
+    }
+
+
+def environment_profile_key(config: Mapping[str, Any], *, override: str | None = None) -> str:
+    """Resolve the requested frozen environment key from config or the override."""
+
+    requested = override if override is not None else os.environ.get(ENVIRONMENT_SELECTION_ENV)
+    if requested is None or not str(requested).strip():
+        key = str(config.get("environment") or DEFAULT_ENVIRONMENT).strip()
+        if key not in ENVIRONMENT_PROFILES:
+            raise RunnerConfigurationError(
+                f"SIMNOW_PROFILE_UNSELECTED: {key!r} is not a frozen environment key"
+            )
+        return key
+    key = str(requested).strip()
+    if key not in ENVIRONMENT_PROFILES:
+        raise RunnerConfigurationError(
+            f"SIMNOW_PROFILE_OVERRIDE_REJECTED: {key!r} is not a frozen environment key"
+        )
+    return key
+
+
+def environment_selection_from_profile(profile_key: str) -> EnvironmentSelection:
+    """Build the offline selection for one frozen key without any probe."""
+
+    key = str(profile_key or "").strip()
+    if key not in ENVIRONMENT_PROFILES:
+        raise RunnerConfigurationError(
+            f"SIMNOW_PROFILE_UNSELECTED: {key!r} is not a frozen environment key"
+        )
+    profile = ENVIRONMENT_PROFILES[key]
+    return EnvironmentSelection(
+        requested_profile=key,
+        family=profile["family"],
+        market_alignment=profile["market_alignment"],
+        sdk_profile=profile["sdk_profile"],
+        fallback_sdk_profile=profile["fallback_sdk_profile"],
+        attempted_profile=profile["sdk_profile"],
+        actual_profile=profile["sdk_profile"],
+        td_front=None,
+        md_front=None,
+        readiness="not_probed",
+        reason="offline_frozen_selection",
+    )
+
+
+def select_environment(
+    config: Mapping[str, Any],
+    *,
+    resolver: Callable[..., Mapping[str, Any]] | None = None,
+    requested: str | None = None,
+    timeout: float = 4.0,
+) -> EnvironmentSelection:
+    """Probe the requested family and freeze exactly one reachable pair."""
+
+    key = environment_profile_key(config, override=requested)
+    profile = ENVIRONMENT_PROFILES[key]
+    if resolver is None:
+
+        def resolve(**kwargs: Any) -> Mapping[str, Any]:
+            return _sdk_environment_resolver(**kwargs, timeout=timeout)
+
+    else:
+        resolve = resolver
+    try:
+        resolved = resolve(
+            family=profile["family"],
+            sdk_profile=profile["sdk_profile"],
+            fallback_sdk_profile=profile["fallback_sdk_profile"],
+        )
+    except RuntimeError as exc:
+        raise RunnerConfigurationError(
+            f"CTP_SESSION_PROFILE_UNAVAILABLE: no reachable CTP front pair for {key}: {exc}"
+        ) from None
+    actual = str(resolved.get("actual_profile") or "").strip()
+    allowed = tuple(
+        name
+        for name in (profile["sdk_profile"], profile["fallback_sdk_profile"])
+        if name is not None
+    )
+    if actual not in allowed or classify_sdk_profile(actual) != profile["family"]:
+        raise RunnerConfigurationError(
+            "CTP_SESSION_PROFILE_REQUIRED: the resolved profile is outside the requested family"
+        )
+    return EnvironmentSelection(
+        requested_profile=key,
+        family=profile["family"],
+        market_alignment=profile["market_alignment"],
+        sdk_profile=profile["sdk_profile"],
+        fallback_sdk_profile=profile["fallback_sdk_profile"],
+        attempted_profile=profile["sdk_profile"],
+        actual_profile=actual,
+        td_front=str(resolved.get("td_front") or "").strip() or None,
+        md_front=str(resolved.get("md_front") or "").strip() or None,
+        readiness=str(resolved.get("readiness") or "").strip() or "unknown",
+        reason=str(resolved.get("reason") or "").strip() or "unknown",
+    )
+
+
+def build_live_evidence_layers(
+    *,
+    binding: Mapping[str, Any],
+    expected_symbols: Iterable[str],
+    accepted_symbols: Iterable[str],
+    tick_counts: Mapping[str, int],
+    callback_counts: Mapping[str, int],
+    idle_without_trusted_now_count: int,
+    clock_violation_count: int,
+    clock_rejection_latched: bool,
+    confirmed_cohorts: int,
+    last_quality_flags: Iterable[str],
+    execution_eligible_ticks: int,
+    forbidden_write_attempts: Mapping[str, int],
+    last_screen: Any,
+    ordinary_intent_count: int,
+) -> dict[str, dict[str, Any]]:
+    """Derive the five live layers from evidence the run actually collected.
+
+    Layers never promote one another: a passing L0/L1 with an unqualified
+    upstream leaves L2-L4 ``BLOCKED_BY_UPSTREAM_QUALIFICATION``.  The blocked
+    status is deliberately distinct from ``NOT_RUN``: the run reached the layer
+    and proved the upstream evidence is missing.
+    """
+
+    expected = [str(symbol) for symbol in expected_symbols]
+    accepted = [str(symbol) for symbol in accepted_symbols]
+    missing = [symbol for symbol in expected if symbol not in accepted]
+    flags = [str(flag) for flag in last_quality_flags]
+
+    l0_status = "PASS" if not dict(forbidden_write_attempts) else "FAIL"
+    l1_status = "PASS" if not missing else "INCOMPLETE"
+    qualified = not flags and int(execution_eligible_ticks) > 0
+    blocked_reason = "UPSTREAM_EXECUTION_NOT_ISSUED"
+
+    def blocked(evidence: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "status": "BLOCKED_BY_UPSTREAM_QUALIFICATION",
+            "reason": blocked_reason,
+            "evidence": evidence,
+        }
+
+    qualification_evidence = {
+        "last_quality_flags": flags,
+        "execution_eligible_ticks": int(execution_eligible_ticks),
+        "required_fields": [
+            "source_clock_quality",
+            "receive_clock_quality",
+            "freshness_verified",
+            "stale",
+            "continuity_status",
+            "quality_flags",
+            "execution_eligible",
+            "volume_complete",
+            "volume_quality",
+        ],
+    }
+    cohort_evidence = {
+        "confirmed_cohorts": int(confirmed_cohorts),
+        "clock_rejection_latched": bool(clock_rejection_latched),
+    }
+    screen_evidence = {
+        "ordinary_intent_count": int(ordinary_intent_count),
+        "last_screen": last_screen,
+    }
+    return {
+        "L0_connection_read_only": {
+            "status": l0_status,
+            "evidence": {
+                "actual_environment_profile": binding.get("actual_environment_profile"),
+                "profile_family_prefix": binding.get("profile_family_prefix"),
+                "connection_generation": binding.get("connection_generation"),
+                "trading_day": binding.get("trading_day"),
+                "account_fingerprint_sha256": binding.get("account_fingerprint_sha256"),
+                "forbidden_write_attempts": dict(forbidden_write_attempts),
+            },
+        },
+        "L1_subscription_and_ticks": {
+            "status": l1_status,
+            "evidence": {
+                "expected_symbols": expected,
+                "accepted_symbols": accepted,
+                "missing_symbols": missing,
+                "tick_counts": {str(k): int(v) for k, v in dict(tick_counts).items()},
+                "callback_counts": {str(k): int(v) for k, v in dict(callback_counts).items()},
+                "idle_without_trusted_now_count": int(idle_without_trusted_now_count),
+                "clock_violation_count": int(clock_violation_count),
+                "clock_rejection_latched": bool(clock_rejection_latched),
+            },
+        },
+        "L2_quote_qualification": (
+            {"status": "PASS", "reason": "", "evidence": qualification_evidence}
+            if qualified
+            else blocked(qualification_evidence)
+        ),
+        "L3_cohort": (
+            {"status": "PASS", "reason": "", "evidence": cohort_evidence}
+            if qualified and int(confirmed_cohorts) > 0
+            else blocked(cohort_evidence)
+        ),
+        "L4_economic_screen": (
+            {"status": "PASS", "reason": "", "evidence": screen_evidence}
+            if qualified and last_screen
+            else blocked(screen_evidence)
+        ),
+    }
+
+
+LIVE_EVIDENCE_LAYER_ORDER = (
+    "L0_connection_read_only",
+    "L1_subscription_and_ticks",
+    "L2_quote_qualification",
+    "L3_cohort",
+    "L4_economic_screen",
+)
+
+
+def require_session_environment(
+    state: Mapping[str, Any],
+    *,
+    selection: EnvironmentSelection,
+    mapping: Any,
+    observation_blocked: type[Exception],
+) -> dict[str, Any]:
+    """Accept any connected session inside the selected family, or fail closed."""
+
+    required_fields = {
+        "environment_profile",
+        "connected",
+        "read_only_ready",
+        "execution_gate_armed",
+        "account_fingerprint",
+        "connection_generation",
+    }
+    if not required_fields.issubset(state):
+        raise observation_blocked(
+            "CTP_SESSION_STATE_REQUIRED",
+            "public CTP session-state evidence is incomplete",
+        )
+
+    actual_profile = state.get("environment_profile")
+    if classify_sdk_profile(actual_profile) != selection.family:
+        raise observation_blocked(
+            "CTP_SESSION_PROFILE_REQUIRED",
+            "connected CTP session is not the required environment family",
+        )
+    if state.get("connected") is not True:
+        raise observation_blocked(
+            "CTP_SESSION_CONNECTED_REQUIRED",
+            "public CTP session-state evidence is not connected",
+        )
+    if state.get("read_only_ready") is not True:
+        raise observation_blocked(
+            "CTP_SESSION_READ_ONLY_REQUIRED",
+            "public CTP session-state evidence is not read-only ready",
+        )
+    if state.get("execution_gate_armed") is not False:
+        raise observation_blocked(
+            "CTP_SESSION_EXECUTION_GATE_REQUIRED",
+            "public CTP session-state evidence reports an armed execution gate",
+        )
+    account_fingerprint = state.get("account_fingerprint")
+    if not isinstance(account_fingerprint, str) or not account_fingerprint.strip():
+        raise observation_blocked(
+            "CTP_SESSION_FINGERPRINT_REQUIRED",
+            "public CTP session-state evidence lacks an account fingerprint",
+        )
+    generation = state.get("connection_generation")
+    if (
+        type(generation) is not int
+        or generation <= 0
+        or generation != mapping.connection_generation
+    ):
+        raise observation_blocked(
+            "CTP_SESSION_GENERATION_REQUIRED",
+            "public CTP session generation does not match the trusted clock mapping",
+        )
+
+    binding = {
+        "source": "BtApiStore.get_ctp_session_state",
+        "exchange_name": "CTP___FUTURE",
+        **selection.as_evidence(),
+        # The session-attested profile wins over the requested/attempted one.
+        "actual_environment_profile": actual_profile,
+        "profile_family_prefix": selection.family,
+        "account_fingerprint_sha256": hashlib.sha256(
+            account_fingerprint.encode("utf-8")
+        ).hexdigest(),
+        "read_only_ready": True,
+        "execution_gate_armed": False,
+        "connection_generation": generation,
+        "clock_mapping_id": mapping.mapping_id,
+        "clock_mapping_generation": mapping.connection_generation,
+    }
+    trading_day = state.get("trading_day")
+    if isinstance(trading_day, str) and trading_day.strip():
+        binding["trading_day"] = trading_day.strip()
+    return binding
 
 
 class RunnerConfigurationError(ValueError):
@@ -172,6 +658,7 @@ def validate_config(config: Mapping[str, Any]) -> None:
             "mode",
             "purpose",
             "production_enabled",
+            "environment",
             "contracts",
             "feed",
             "timing",
@@ -185,6 +672,9 @@ def validate_config(config: Mapping[str, Any]) -> None:
         raise RunnerConfigurationError("unsupported config schema")
     if not isinstance(root["candidate_id"], str) or not root["candidate_id"].strip():
         raise RunnerConfigurationError("candidate_id must be non-empty")
+    environment = root["environment"]
+    if not isinstance(environment, str) or environment not in ENVIRONMENT_PROFILES:
+        raise RunnerConfigurationError("environment must be one frozen SimNow environment key")
     mode = str(root["mode"])
     if mode not in MODES:
         raise RunnerConfigurationError("unsupported mode")
@@ -423,7 +913,105 @@ def validate_bundle(fixture: Mapping[str, Any], config: Mapping[str, Any]) -> di
         raise RunnerConfigurationError("only premium-style options are admitted to the fixture")
     _finite(bundle["discount_factor"], "fixture.discount_factor", positive=True)
     _finite(bundle["strike"], "fixture.strike", positive=True)
-    return bundle
+    evidence = _validate_metadata_evidence(fixture, legs, bundle)
+    return {**bundle, "metadata_evidence": evidence}
+
+
+FIXTURE_EVIDENCE_SCHEMA = "iter30.ctp-instrument-evidence.v1"
+_EVIDENCE_LEG_FIELDS = (
+    ("multiplier", "multiplier"),
+    ("tick_size", "price_tick"),
+    ("strike", "strike_price"),
+    ("expiry", "expire_date"),
+    ("exchange_id", "exchange_id"),
+    ("underlying_id", "underlying"),
+)
+_EVIDENCE_OPTION_TYPES = {"call": "1", "put": "2"}
+_SYMBOL_PATTERN = re.compile(r"^(?P<body>[A-Za-z]+\d{3,4})(?P<side>[CP])(?P<strike>\d+)$")
+
+
+def _symbol_embedded_strike(symbol: Any) -> tuple[str, str]:
+    """Return ``(side, strike)`` encoded in a CZCE option symbol, or ``("", "")``."""
+
+    match = _SYMBOL_PATTERN.match(str(symbol or "").strip())
+    if match is None:
+        return "", ""
+    return match.group("side"), match.group("strike")
+
+
+def _validate_metadata_evidence(
+    fixture: Mapping[str, Any],
+    legs: Mapping[str, Mapping[str, Any]],
+    bundle: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Bind the frozen contract metadata to a recorded instrument query.
+
+    Iteration 30 (solution α): the fixture's metadata must be traceable to a
+    real query, self-consistent, field-identical to the bundle, and part of the
+    bundle identity hash -- a swapped or stale evidence block therefore cannot
+    silently re-price the candidate.
+    """
+
+    evidence = fixture.get("metadata_evidence")
+    if not isinstance(evidence, Mapping):
+        raise RunnerConfigurationError(
+            "FIXTURE_METADATA_EVIDENCE_MISSING: fixture has no metadata evidence block"
+        )
+    evidence = dict(evidence)
+    if evidence.get("schema_version") != FIXTURE_EVIDENCE_SCHEMA:
+        raise RunnerConfigurationError(
+            "FIXTURE_METADATA_EVIDENCE_MISSING: unsupported metadata evidence schema"
+        )
+    source = str(evidence.get("source") or "").strip().lower()
+    if not source or any(marker in source for marker in ("synthetic", "fixture", "replay")):
+        raise RunnerConfigurationError(
+            "FIXTURE_METADATA_EVIDENCE_MISSING: metadata evidence is not a real query record"
+        )
+    captured_at = str(evidence.get("captured_at") or "").strip()
+    if not captured_at or not _ISO_UTC_PATTERN.match(captured_at):
+        raise RunnerConfigurationError(
+            "FIXTURE_METADATA_EVIDENCE_MISSING: metadata evidence lacks a UTC capture time"
+        )
+    evidence_legs = _mapping(evidence.get("legs"), "fixture.metadata_evidence.legs")
+    if set(evidence_legs) != set(legs):
+        raise RunnerConfigurationError(
+            "FIXTURE_METADATA_EVIDENCE_MISSING: metadata evidence legs are incomplete"
+        )
+    recorded = str(evidence.get("legs_sha256") or "").strip()
+    if recorded != _canonical_hash(evidence_legs):
+        raise RunnerConfigurationError(
+            "FIXTURE_METADATA_EVIDENCE_TAMPERED: metadata evidence hash does not match its legs"
+        )
+
+    for role, leg in legs.items():
+        row = _mapping(evidence_legs[role], f"fixture.metadata_evidence.legs.{role}")
+        if str(row.get("instrument_id")) != str(leg.get("symbol")):
+            raise RunnerConfigurationError(f"FIXTURE_METADATA_MISMATCH:{role}:instrument_id")
+        # Self-consistency first: a symbol that encodes a strike must agree with
+        # the recorded strike, and its side must agree with the option type.
+        side, embedded_strike = _symbol_embedded_strike(leg.get("symbol"))
+        if side:
+            if str(row.get("strike_price") or "") != embedded_strike:
+                raise RunnerConfigurationError(
+                    f"FIXTURE_SYMBOL_STRIKE_CONFLICT:{role}:{embedded_strike}"
+                )
+            expected_type = _EVIDENCE_OPTION_TYPES["call" if side == "C" else "put"]
+            if str(row.get("option_type")) != expected_type:
+                raise RunnerConfigurationError(f"FIXTURE_OPTION_TYPE_CONFLICT:{role}")
+        elif row.get("strike_price") is not None:
+            raise RunnerConfigurationError(f"FIXTURE_METADATA_MISMATCH:{role}:strike_price")
+        for bundle_field, evidence_field in _EVIDENCE_LEG_FIELDS:
+            if role == "future" and bundle_field in {"strike", "underlying_id"}:
+                # CTP records the *product* id as UnderlyingInstrID for a
+                # future, and a future has no strike; neither is comparable
+                # with the option contract identity.
+                continue
+            recorded_value = row.get(evidence_field)
+            if recorded_value is None or str(leg.get(bundle_field)) != str(recorded_value):
+                raise RunnerConfigurationError(f"FIXTURE_METADATA_MISMATCH:{role}:{evidence_field}")
+    if str(bundle["strike"]) != str(evidence_legs["call"].get("strike_price")):
+        raise RunnerConfigurationError("FIXTURE_METADATA_MISMATCH:call:strike_price")
+    return evidence
 
 
 def _iso(epoch: float) -> str:
@@ -644,6 +1232,13 @@ def _strategy_params(config: Mapping[str, Any], bundle: Mapping[str, Any]) -> di
     }
 
 
+class _IdleTick:
+    """Minimal tick stand-in for a no-data idle clock poll."""
+
+    recv_monotonic_ns = None
+    symbol = ""
+
+
 class _ObservationTrustedNowProvider:
     """Validate caller-owned CTP time evidence at the Feed dispatch boundary.
 
@@ -757,6 +1352,38 @@ class _ObservationTrustedNowProvider:
             )
         self._initial_coherent_mono_ns = now.now_monotonic_ns
 
+    def idle_now(self) -> CtpCohortNow:
+        """Return trusted time for one no-data idle poll, or fail closed.
+
+        Unlike ``__call__`` there is no delivered quote to cross-check, so the
+        symbol/staleness checks do not apply.  Domain, mapping coverage and
+        window coverage still do; a violation raises and the strategy latches
+        it, while a provider that is simply not ready returns ``None``.
+        """
+
+        now = self._provider(_IdleTick())
+        if now is None:
+            return None
+        if not isinstance(now, CtpCohortNow):
+            self._reject(
+                "TRUSTED_COHORT_NOW_REQUIRED",
+                "live observation requires CtpCohortNow evidence",
+            )
+        if now.clock_domain_id != self._mapping.clock_domain_id:
+            self._reject(
+                "TRUSTED_COHORT_NOW_DOMAIN",
+                "trusted CTP time must use the live mapping clock domain",
+            )
+        try:
+            self._mapping.validate_pair(now.now_epoch, now.now_monotonic_ns / 1_000_000_000.0)
+        except (TypeError, ValueError, OverflowError):
+            self._reject(
+                "TRUSTED_COHORT_NOW_MAPPING",
+                "trusted CTP time is outside the caller-owned live mapping",
+            )
+        self._require_observation_window_coverage(now)
+        return now
+
     def _validate_tick(self, tick: Any) -> None:
         if getattr(tick, "schema_version", None) != "ctp.quote.v2":
             self._reject(
@@ -797,12 +1424,12 @@ class _ObservationLifecycleProbe(bt.Analyzer):
     params = (("on_started", None),)
 
     def start(self) -> None:
-        """Invoke the deadline callback once the strategy lifecycle is active."""
+        """Invoke the lifecycle callback with the live strategy instance."""
 
         on_started = self.p.on_started
         if not callable(on_started):
             raise RuntimeError("engineering observation lifecycle callback is unavailable")
-        on_started()
+        on_started(self.strategy)
 
 
 def _require_engineering_duration(run_seconds: Any, observation_blocked: type[Exception]) -> float:
@@ -1257,6 +1884,7 @@ def _require_ctp_session_binding(
     store: Any,
     mapping: ClockMapping,
     observation_blocked: type[Exception],
+    selection: EnvironmentSelection,
 ) -> dict[str, Any]:
     """Bind this run through the owned Store's public CTP read accessor."""
 
@@ -1289,76 +1917,12 @@ def _require_ctp_session_binding(
             "CTP_SESSION_STATE_REQUIRED",
             "public CTP session-state evidence must be a mapping",
         )
-    required_fields = {
-        "environment_profile",
-        "connected",
-        "read_only_ready",
-        "execution_gate_armed",
-        "account_fingerprint",
-        "connection_generation",
-    }
-    if not required_fields.issubset(state):
-        raise observation_blocked(
-            "CTP_SESSION_STATE_REQUIRED",
-            "public CTP session-state evidence is incomplete",
-        )
-
-    actual_profile = state.get("environment_profile")
-    if not isinstance(actual_profile, str) or not actual_profile.startswith("set2_7x24"):
-        raise observation_blocked(
-            "CTP_SESSION_PROFILE_REQUIRED",
-            "connected CTP session is not the required Set-2 7x24 environment",
-        )
-    if state.get("connected") is not True:
-        raise observation_blocked(
-            "CTP_SESSION_CONNECTED_REQUIRED",
-            "public CTP session-state evidence is not connected",
-        )
-    if state.get("read_only_ready") is not True:
-        raise observation_blocked(
-            "CTP_SESSION_READ_ONLY_REQUIRED",
-            "public CTP session-state evidence is not read-only ready",
-        )
-    if state.get("execution_gate_armed") is not False:
-        raise observation_blocked(
-            "CTP_SESSION_EXECUTION_GATE_REQUIRED",
-            "public CTP session-state evidence reports an armed execution gate",
-        )
-    account_fingerprint = state.get("account_fingerprint")
-    if not isinstance(account_fingerprint, str) or not account_fingerprint.strip():
-        raise observation_blocked(
-            "CTP_SESSION_FINGERPRINT_REQUIRED",
-            "public CTP session-state evidence lacks an account fingerprint",
-        )
-    generation = state.get("connection_generation")
-    if (
-        type(generation) is not int
-        or generation <= 0
-        or generation != mapping.connection_generation
-    ):
-        raise observation_blocked(
-            "CTP_SESSION_GENERATION_REQUIRED",
-            "public CTP session generation does not match the trusted clock mapping",
-        )
-
-    binding = {
-        "source": "BtApiStore.get_ctp_session_state",
-        "exchange_name": "CTP___FUTURE",
-        "actual_environment_profile": actual_profile,
-        "profile_family_prefix": "set2_7x24",
-        "account_fingerprint_sha256": hashlib.sha256(
-            account_fingerprint.encode("utf-8")
-        ).hexdigest(),
-        "read_only_ready": True,
-        "execution_gate_armed": False,
-        "connection_generation": generation,
-        "clock_mapping_id": mapping.mapping_id,
-        "clock_mapping_generation": mapping.connection_generation,
-    }
-    trading_day = state.get("trading_day")
-    if isinstance(trading_day, str) and trading_day.strip():
-        binding["trading_day"] = trading_day.strip()
-    return binding
+    return require_session_environment(
+        state,
+        selection=selection,
+        mapping=mapping,
+        observation_blocked=observation_blocked,
+    )
 
 
 def run_engineering_observation(
@@ -1372,8 +1936,9 @@ def run_engineering_observation(
     feed_clock: Any,
     clock_mapping: ClockMapping,
     live_now_provider: Callable[[Any], CtpCohortNow],
+    environment_selection: EnvironmentSelection | None = None,
 ) -> dict[str, Any]:
-    """Run one bounded, injected, zero-write Set-2 strategy observation.
+    """Run one bounded, injected, zero-write strategy observation.
 
     This is deliberately not a CLI mode and does not load credentials.  A
     separately governed CTP owner injects exactly one lifecycle root: an API,
@@ -1383,13 +1948,19 @@ def run_engineering_observation(
     strategy callback chain observed live-shaped data in a forced
     market-data-only session; it cannot establish G3, G4, profitability, or
     HFT admission.
+
+    ``environment_profile`` names one frozen key of ``ENVIRONMENT_PROFILES``
+    and only constrains the session's *family*: any profile inside that family
+    (for example the reachable ``set1_group1_vpn`` alternate for the nominal
+    ``set1_group1``) is accepted.  A caller that probed reachability may pass
+    the resolved ``environment_selection``; otherwise the frozen offline
+    selection for that key is used and the report records ``not_probed``.
     """
 
     try:
         from .engineering_smoke import (
             ENGINEERING_OBSERVATION_G3_STATUS,
             ENGINEERING_OBSERVATION_MAX_SECONDS,
-            SECOND_SET_ENGINEERING_PROFILE,
             EngineeringObservationBlocked,
             _ObservationReadOnlyApi,
         )
@@ -1397,9 +1968,15 @@ def run_engineering_observation(
         from engineering_smoke import (  # type: ignore[no-redef]
             ENGINEERING_OBSERVATION_G3_STATUS,
             ENGINEERING_OBSERVATION_MAX_SECONDS,
-            SECOND_SET_ENGINEERING_PROFILE,
             EngineeringObservationBlocked,
             _ObservationReadOnlyApi,
+        )
+
+    selection = environment_selection or environment_selection_from_profile(environment_profile)
+    if selection.requested_profile != environment_profile:
+        raise EngineeringObservationBlocked(
+            "CTP_SESSION_PROFILE_REQUIRED",
+            "the injected environment selection does not match environment_profile",
         )
 
     if api is not None and store is not None:
@@ -1415,11 +1992,6 @@ def run_engineering_observation(
         raise EngineeringObservationBlocked(
             "ENGINEERING_STORE_INPUT",
             "store_ownership is valid only when store= is supplied",
-        )
-    if environment_profile != SECOND_SET_ENGINEERING_PROFILE:
-        raise EngineeringObservationBlocked(
-            "SECOND_SET_PROFILE_REQUIRED",
-            "engineering observation is restricted to the second SimNow profile",
         )
     seconds = _require_engineering_duration(run_seconds, EngineeringObservationBlocked)
     if seconds > ENGINEERING_OBSERVATION_MAX_SECONDS:
@@ -1673,14 +2245,20 @@ def run_engineering_observation(
         if lifecycle_budget_exhausted:
             request_lifecycle_deadline_stop()
 
-    def bind_session_then_start_deadline() -> None:
+    def bind_session_then_start_deadline(strategy: Any) -> None:
         session_identity.append(
             _require_ctp_session_binding(
                 store,
                 mapping,
                 EngineeringObservationBlocked,
+                selection,
             )
         )
+        # The observation runner owns the trusted clock, so it hands the same
+        # provider to the strategy for no-data idle polls.  Without this seam
+        # the live path would count every idle callback as a missing source and
+        # never advance its cached cohort evidence.
+        strategy.set_cohort_now_provider(trusted_now.idle_now)
         start_deadline_watchdog()
 
     try:
@@ -1868,6 +2446,8 @@ def run_engineering_observation(
         "mode": "shadow",
         "purpose": "observation",
         "requested_environment_profile": str(environment_profile),
+        "environment_selection": selection.as_evidence(),
+        "runtime_artifact": runtime_artifact_evidence(),
         "store_ownership": (
             "INJECTED_STORE_LIFECYCLE_TRANSFERRED"
             if injected_store is not None
@@ -1904,9 +2484,32 @@ def run_engineering_observation(
         "strategy": {
             "callback_counts": dict(strategy.callback_counts),
             "ordinary_intent_count": len(strategy._ordinary_intents),
+            "idle_without_trusted_now_count": strategy_report["idle_without_trusted_now_count"],
+            "clock_violation_count": strategy_report["clock_violation_count"],
+            "clock_rejection_latched": strategy_report["clock_rejection_latched"],
+            "tick_counts": strategy_report["tick_counts"],
+            "execution_eligible_tick_count": strategy_report["execution_eligible_tick_count"],
+            "last_quality_flags": strategy_report["last_quality_flags"],
+            "confirmed_cohorts": strategy_report["confirmed_cohorts"],
             "hft_status": "NOT_ADMITTED",
             "execution_permission": "NOT_PROVEN",
         },
+        "live_evidence_layers": build_live_evidence_layers(
+            binding=session_identity[0],
+            expected_symbols=symbols,
+            accepted_symbols=trusted_now.accepted_symbols,
+            tick_counts=strategy_report["tick_counts"],
+            callback_counts=strategy.callback_counts,
+            idle_without_trusted_now_count=strategy_report["idle_without_trusted_now_count"],
+            clock_violation_count=strategy_report["clock_violation_count"],
+            clock_rejection_latched=strategy_report["clock_rejection_latched"],
+            confirmed_cohorts=strategy_report["confirmed_cohorts"],
+            last_quality_flags=strategy_report["last_quality_flags"],
+            execution_eligible_ticks=strategy_report["execution_eligible_tick_count"],
+            forbidden_write_attempts=forbidden_write_attempts,
+            last_screen=strategy_report["last_screen"],
+            ordinary_intent_count=len(strategy._ordinary_intents),
+        ),
         "write_guard": write_guard,
         "shutdown": shutdown,
         "adapter_scoped_write_attempts": adapter_scoped_write_attempts,

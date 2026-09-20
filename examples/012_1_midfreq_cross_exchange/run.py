@@ -4,23 +4,73 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import hashlib
+import importlib.util
 import json
 import math
 import os
 from pathlib import Path
+import sys
 import threading
 import time
 from typing import Mapping, Optional
 
-import backtrader as bt
-from backtrader.brokers.hft.exchange import SimpleExchangeModel
-from backtrader.brokers.mixbroker import MixBroker
-from backtrader.comminfo import ComminfoFuturesPercent
-from backtrader.stores.btapistore import BtApiStore
-from bt_api_py import (
+
+def _load_repo_backtrader_package(script_file=None):
+    """Load this checkout's Backtrader package without mixing installations."""
+
+    repo_root = Path(__file__ if script_file is None else script_file).resolve().parents[2]
+    package_root = (repo_root / "backtrader").resolve()
+    package_init = package_root / "__init__.py"
+    existing = sys.modules.get("backtrader")
+    if existing is not None:
+        try:
+            existing_file = Path(existing.__file__).resolve()
+            existing_paths = {
+                Path(location).resolve() for location in getattr(existing, "__path__", ())
+            }
+        except (AttributeError, OSError, RuntimeError, TypeError):
+            existing_file = None
+            existing_paths = set()
+        if existing_file != package_init.resolve() or package_root not in existing_paths:
+            raise ImportError("backtrader is already loaded from a different checkout")
+        return existing
+
+    if any(name.startswith("backtrader.") for name in sys.modules):
+        raise ImportError("backtrader submodules are already loaded without their package")
+    if not package_init.is_file():
+        raise ImportError("the checkout's backtrader package is unavailable")
+    spec = importlib.util.spec_from_file_location(
+        "backtrader",
+        package_init,
+        submodule_search_locations=[str(package_root)],
+    )
+    if spec is None or spec.loader is None:
+        raise ImportError("the checkout's backtrader package cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules["backtrader"] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        for name in tuple(sys.modules):
+            if name == "backtrader" or name.startswith("backtrader."):
+                sys.modules.pop(name, None)
+        raise
+    return module
+
+
+_load_repo_backtrader_package()
+
+# These imports intentionally follow the checkout-local loader so direct-script
+# execution cannot resolve Backtrader modules from an unrelated installation.
+import backtrader as bt  # noqa: E402
+from backtrader.brokers.hft.exchange import SimpleExchangeModel  # noqa: E402
+from backtrader.brokers.mixbroker import MixBroker  # noqa: E402
+from backtrader.comminfo import ComminfoFuturesPercent  # noqa: E402
+from backtrader.stores.btapistore import BtApiStore  # noqa: E402
+from bt_api_py import (  # noqa: E402
     CrossVenueLeg as InstrumentRule,
     FeeSchedule,
     FundingSnapshot,
@@ -28,14 +78,26 @@ from bt_api_py import (
     coerce_funding_snapshot,
     decimal_value,
 )
-from examples.strategy_candidate_approval import (
-    APPROVAL_PUBLIC_KEY_SHA256,
-    DemoApprovalVerificationError,
-    collect_runtime_source_provenance,
-    verify_demo_approval,
-    write_private_json_report,
-)
-import yaml
+
+if __package__:
+    from .strategy_candidate_approval import (
+        APPROVAL_PUBLIC_KEY_SHA256,
+        DemoApprovalVerificationError,
+        collect_runtime_source_provenance,
+        serialize_private_json_report,
+        verify_demo_approval,
+        write_private_json_report,
+    )
+else:
+    from strategy_candidate_approval import (
+        APPROVAL_PUBLIC_KEY_SHA256,
+        DemoApprovalVerificationError,
+        collect_runtime_source_provenance,
+        serialize_private_json_report,
+        verify_demo_approval,
+        write_private_json_report,
+    )
+import yaml  # noqa: E402
 
 if __package__:
     from .strategy import BasisModelQualification, BookState, CrossExchangeArbitrageStrategy
@@ -48,8 +110,12 @@ else:
 
 
 HERE = Path(__file__).resolve().parent
-MANIFEST_PATH = HERE.parent / "strategy-candidate-manifest.json"
-DEMO_APPROVAL_TRUST_ROOT = HERE.parent / "demo-approval-trust-root.pem"
+# Self-contained working copy: the manifest, trust root and admission policy
+# live beside this runner. Demo execution remains bound to the repository
+# canonical manifest, including the explicit rejected-candidate override.
+MANIFEST_PATH = HERE / "strategy-candidate-manifest.json"
+DEMO_APPROVAL_TRUST_ROOT = HERE / "demo-approval-trust-root.pem"
+REPO_CANONICAL_MANIFEST = HERE.parent / "strategy-candidate-manifest.json"
 DEMO_APPROVAL_PUBLIC_KEY_SHA256 = APPROVAL_PUBLIC_KEY_SHA256
 DEFAULT_CONFIG = HERE / "config.yaml"
 QUALIFICATION_PATH = HERE / "qualification-v3.json"
@@ -57,6 +123,31 @@ STRATEGY_ID = "012_1_midfreq_cross_exchange"
 EXCHANGES = {"okx": "OKX___SWAP", "binance": "BINANCE___SWAP"}
 SCENARIOS = ("profitable", "loss", "no_edge", "partial", "unknown", "gap")
 MODES = ("replay", "shadow", "paper-live", "demo")
+MIDFREQ_ORDERBOOK_QUEUE_CAPACITY = 64
+OPERATOR_DEMO_MANIFEST_STATUS = "RESEARCH_REJECTED_OPERATOR_DEMO_SIMULATION_ONLY"
+OPERATOR_DEMO_CONDITION = "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
+OPERATOR_PAPER_LIVE_CONDITION = "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED"
+OPERATOR_DEMO_MAX_ORDER_COUNT = 8
+OPERATOR_DEMO_MAX_LEASE_SECONDS = Decimal("900")
+# Only stable, locally-defined drop codes may appear in a shadow diagnostic.
+# Unknown values are summarized as OTHER so vendor payloads cannot leak.
+SHADOW_SAFE_DROP_REASON_CODES = frozenset(
+    {
+        "causal_provenance_missing_or_invalid",
+        "duplicate_sequence",
+        "invalid_orderbook_snapshot",
+        "orderbook_dispatch_disabled",
+        "orderbook_invalid_top_of_book",
+        "orderbook_missing_top_of_book",
+        "sequence_out_of_order",
+        "store_orderbook_queue_overflow",
+        "strategy_dispatch_failed",
+        "strategy_dispatch_unavailable",
+    }
+)
+# One initial read plus at most two retries; total backoff is capped at 0.2s.
+STARTUP_EVIDENCE_MAX_ATTEMPTS = 3
+STARTUP_EVIDENCE_RETRY_DELAY_SECONDS = 0.1
 OKX_API_REGIONS = frozenset({"global", "eea", "us", "tr"})
 CONSERVATIVE_TAKER_FEE = Decimal("0.0006")
 FORMULA_FIXTURE_WALL_CLOCK = Decimal("2000000000")
@@ -69,13 +160,13 @@ PAPER_RISK_LEDGER_PATH = (
 class RunnerConfigurationError(ValueError):
     """Raised when runner configuration or admission inputs are invalid."""
 
-    pass
+
+class _TransientDemoReadinessEvidence(RunnerConfigurationError):
+    """Internal marker for bounded retries of incomplete startup evidence."""
 
 
 class DemoApprovalError(RunnerConfigurationError):
-    """Raised when the signed demo approval receipt is missing or unverifiable."""
-
-    pass
+    """Raised when demo admission or its bounded approval lease is invalid."""
 
 
 class RunnerSourceBindingError(RunnerConfigurationError):
@@ -104,8 +195,20 @@ def mode_policy(mode):
 
 
 def _canonical_hash(value) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    payload = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=_canonical_json_default,
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _canonical_json_default(value):
+    if isinstance(value, Decimal):
+        return {"$decimal": str(value)}
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 BUSINESS_SUMMARY_VOLATILE_FIELDS = frozenset(
@@ -233,9 +336,15 @@ def load_candidate(manifest_path: Path = MANIFEST_PATH):
     return manifest, candidate, path
 
 
-def _validate_network_admission(manifest, candidate, mode, preflight, config):
+def _validate_network_admission(
+    manifest, candidate, mode, preflight, config, allow_rejected_demo_simulation=False
+):
     """Apply the manifest and config mode contract before any Store is created."""
 
+    if allow_rejected_demo_simulation and mode != "demo":
+        raise RunnerConfigurationError(
+            "rejected-candidate simulation acknowledgement is only valid for demo mode"
+        )
     if preflight and mode != "demo":
         raise RunnerConfigurationError("preflight is only valid for demo mode")
     manifest_status = manifest.get("manifest_status")
@@ -262,12 +371,36 @@ def _validate_network_admission(manifest, candidate, mode, preflight, config):
         return {
             "manifest_status": manifest_status,
             "candidate_mode_status": conditional_modes.get("demo", "NOT_DECLARED"),
+            "research_status": candidate.get("research_status"),
             "execution_admitted": False,
             "preflight_only": True,
+            "operator_override": False,
         }
 
+    operator_override = False
+    if allow_rejected_demo_simulation:
+        operator_override = (
+            mode == "demo"
+            and manifest_status == OPERATOR_DEMO_MANIFEST_STATUS
+            and candidate.get("research_status") == "RESEARCH_REJECTED"
+            and set(allowed_modes) == {"replay", "shadow", "demo"}
+            and conditional_modes
+            == {
+                "paper-live": OPERATOR_PAPER_LIVE_CONDITION,
+                "demo": OPERATOR_DEMO_CONDITION,
+            }
+        )
+        if not operator_override:
+            raise DemoApprovalError(
+                "operator acknowledgement requires the explicit rejected-candidate demo-simulation manifest"
+            )
+
     error_cls = DemoApprovalError if mode == "demo" else RunnerConfigurationError
-    if mode in {"paper-live", "demo"} and candidate.get("research_status") != "PASS":
+    if (
+        mode in {"paper-live", "demo"}
+        and candidate.get("research_status") != "PASS"
+        and not operator_override
+    ):
         raise error_cls(f"{mode} requires a PASS research candidate")
     if mode not in allowed_modes:
         condition = conditional_modes.get(mode, "NOT_ALLOWED")
@@ -280,14 +413,165 @@ def _validate_network_admission(manifest, candidate, mode, preflight, config):
         "DEMO_APPROVED",
     }:
         raise RunnerConfigurationError("manifest_status does not authorize paper-live execution")
-    if mode == "demo" and manifest_status != "DEMO_APPROVED":
+    if mode == "demo" and manifest_status != "DEMO_APPROVED" and not operator_override:
         raise DemoApprovalError("manifest_status does not authorize demo execution")
-    return {
+    admission = {
         "manifest_status": manifest_status,
         "candidate_mode_status": condition or "ALLOWED",
+        "research_status": candidate.get("research_status"),
         "execution_admitted": True,
         "preflight_only": False,
+        "operator_override": operator_override,
     }
+    shadow_diagnostic_manifest = (
+        mode == "shadow"
+        and not preflight
+        and candidate.get("strategy_id") == STRATEGY_ID
+        and manifest_status == OPERATOR_DEMO_MANIFEST_STATUS
+        and candidate.get("research_status") == "RESEARCH_REJECTED"
+        and set(allowed_modes) == {"replay", "shadow", "demo"}
+        and conditional_modes
+        == {
+            "paper-live": OPERATOR_PAPER_LIVE_CONDITION,
+            "demo": OPERATOR_DEMO_CONDITION,
+        }
+    )
+    if shadow_diagnostic_manifest:
+        admission["read_only_calibration_contract_diagnostic"] = {
+            "admission_status": "ADMITTED_READ_ONLY_DIAGNOSTIC",
+            "execution_mode": "shadow",
+            "scope": "ORDERBOOK_HEALTH_ONLY_ZERO_WRITE",
+            "model_admission": "SKIPPED",
+            "calibration_contract_compatibility": "NOT_EVALUATED",
+            "research_status": "RESEARCH_REJECTED",
+            "oos_or_demo_approval": False,
+            "research_qualification": False,
+            "operator_demo_authorization": False,
+            "paper_live_authorization": False,
+            "execution_enabled": False,
+            "sdk_writes_forbidden": True,
+            "fills_forbidden": True,
+            "profitability_claim": "NONE_READ_ONLY_SHADOW_DIAGNOSTIC",
+        }
+    return admission
+
+
+def _operator_demo_calibration_contract_mismatch_enabled(mode, admission):
+    """Allow the calibration mismatch only on the explicitly admitted rejected demo path."""
+
+    return bool(
+        mode == "demo"
+        and isinstance(admission, Mapping)
+        and admission.get("operator_override") is True
+        and admission.get("research_status") == "RESEARCH_REJECTED"
+    )
+
+
+def _shadow_read_only_calibration_contract_diagnostic_enabled(mode, admission):
+    """Recognize only the exact rejected-candidate, zero-write shadow admission."""
+
+    if not isinstance(admission, Mapping):
+        return False
+    evidence = admission.get("read_only_calibration_contract_diagnostic")
+    return bool(
+        mode == "shadow"
+        and admission.get("execution_admitted") is True
+        and admission.get("preflight_only") is False
+        and admission.get("operator_override") is False
+        and admission.get("manifest_status") == OPERATOR_DEMO_MANIFEST_STATUS
+        and admission.get("research_status") == "RESEARCH_REJECTED"
+        and isinstance(evidence, Mapping)
+        and evidence.get("admission_status") == "ADMITTED_READ_ONLY_DIAGNOSTIC"
+        and evidence.get("execution_mode") == "shadow"
+        and evidence.get("scope") == "ORDERBOOK_HEALTH_ONLY_ZERO_WRITE"
+        and evidence.get("model_admission") == "SKIPPED"
+        and evidence.get("calibration_contract_compatibility") == "NOT_EVALUATED"
+        and evidence.get("research_status") == "RESEARCH_REJECTED"
+        and evidence.get("oos_or_demo_approval") is False
+        and evidence.get("research_qualification") is False
+        and evidence.get("operator_demo_authorization") is False
+        and evidence.get("paper_live_authorization") is False
+        and evidence.get("execution_enabled") is False
+        and evidence.get("sdk_writes_forbidden") is True
+        and evidence.get("fills_forbidden") is True
+        and evidence.get("profitability_claim") == "NONE_READ_ONLY_SHADOW_DIAGNOSTIC"
+    )
+
+
+def _read_only_shadow_calibration_diagnostic_evidence():
+    """Describe the deliberately skipped model admission without a research claim."""
+
+    return {
+        "status": "READ_ONLY_SHADOW_CALIBRATION_CONTRACT_DIAGNOSTIC",
+        "artifact_verification": "NOT_RUN",
+        "reason": "MODEL_ADMISSION_SKIPPED_FOR_ORDERBOOK_HEALTH_DIAGNOSTIC",
+        "qualification_scope": "ORDERBOOK_HEALTH_ONLY_ZERO_WRITE",
+        "calibration_contract_compatibility": "NOT_EVALUATED",
+        "oos_or_demo_approval": False,
+        "research_qualification": False,
+        "operator_demo_authorization": False,
+        "paper_live_authorization": False,
+        "sdk_writes_forbidden": True,
+        "fills_forbidden": True,
+        "profitability_claim": "NONE_READ_ONLY_SHADOW_DIAGNOSTIC",
+    }
+
+
+def _shadow_orderbook_stream_health_summary(stream_health):
+    """Project only bounded, non-sensitive Store orderbook counters for shadow reports."""
+
+    def safe_count(value):
+        return value if type(value) is int and value >= 0 else None
+
+    def safe_reason(value):
+        if not isinstance(value, str) or not value:
+            return None
+        return value if value in SHADOW_SAFE_DROP_REASON_CODES else "OTHER"
+
+    if not isinstance(stream_health, Mapping):
+        return {"status": "UNAVAILABLE", "by_symbol": {}}
+
+    by_symbol = {}
+    complete = True
+    for symbol in sorted(VENUE_SYMBOLS.values()):
+        row = stream_health.get(symbol)
+        if not isinstance(row, Mapping):
+            complete = False
+            by_symbol[symbol] = {
+                "orderbook_ingress": None,
+                "orderbook_coalesced": None,
+                "orderbook_dropped": None,
+                "orderbook_delivered": None,
+                "orderbook_inflight": None,
+                "orderbook_queue_depth": None,
+                "stale": None,
+                "orderbook_conservation": None,
+                "latest_drop_reason": None,
+            }
+            continue
+        last_drop_reason = row.get("last_drop_reason")
+        if not last_drop_reason:
+            drop_records = row.get("market_drop_records")
+            if isinstance(drop_records, list) and drop_records:
+                latest = drop_records[-1]
+                if isinstance(latest, Mapping):
+                    last_drop_reason = latest.get("reason")
+        by_symbol[symbol] = {
+            "orderbook_ingress": safe_count(row.get("book_ingress")),
+            "orderbook_coalesced": safe_count(row.get("book_coalesced")),
+            "orderbook_dropped": safe_count(row.get("book_dropped")),
+            "orderbook_delivered": safe_count(row.get("book_strategy_delivered")),
+            "orderbook_inflight": safe_count(row.get("book_feed_inflight")),
+            "orderbook_queue_depth": safe_count(row.get("book_queue_depth")),
+            "stale": row.get("stale") if type(row.get("stale")) is bool else None,
+            "orderbook_conservation": (
+                row.get("book_conservation")
+                if type(row.get("book_conservation")) is bool
+                else None
+            ),
+            "latest_drop_reason": safe_reason(last_drop_reason),
+        }
+    return {"status": "AVAILABLE" if complete else "INCOMPLETE", "by_symbol": by_symbol}
 
 
 def _bounded_requested_duration(duration, config):
@@ -347,6 +631,35 @@ def _approval_lease(receipt, requested_duration, risk, shutdown_seconds, now=Non
     }
 
 
+def _operator_demo_lease(requested_duration, risk, shutdown_seconds, config, now=None):
+    """Create a one-run local lease bounded by config, risk, and a short TTL."""
+
+    requested = decimal_value(requested_duration, "duration")
+    configured = decimal_value(config.get("run_timeout_seconds"), "run_timeout_seconds")
+    shutdown = decimal_value(shutdown_seconds, "shutdown_buffer_seconds")
+    maximum_quantity = decimal_value(risk.quantity_base, "maximum operator demo quantity")
+    if requested <= 0 or configured <= 0 or shutdown <= 0 or maximum_quantity <= 0:
+        raise DemoApprovalError("operator demo lease bounds must be finite and positive")
+    if requested > configured:
+        raise DemoApprovalError("duration exceeds the candidate-bound run timeout")
+    lease_duration = requested + shutdown
+    if lease_duration > OPERATOR_DEMO_MAX_LEASE_SECONDS:
+        raise DemoApprovalError("operator demo lease exceeds the short-lived lease limit")
+    checked_at = now or datetime.now(timezone.utc)
+    if checked_at.tzinfo is None:
+        raise DemoApprovalError("operator demo lease clock must be timezone-aware")
+    expires_at = checked_at.astimezone(timezone.utc) + timedelta(seconds=float(lease_duration))
+    return {
+        "expires_at": expires_at.isoformat(timespec="microseconds").replace("+00:00", "Z"),
+        "maximum_duration_seconds": str(requested),
+        "maximum_order_count": OPERATOR_DEMO_MAX_ORDER_COUNT,
+        "maximum_quantity_base": str(maximum_quantity),
+        "remaining_seconds_at_check": str(lease_duration),
+        "lease_type": "OPERATOR_ACKNOWLEDGED_LOCAL_DEMO_SIMULATION",
+        "signed_receipt_verified": False,
+    }
+
+
 def require_demo_approval(candidate, manifest_path: Path):
     """Verify the signed demo approval receipt against the pinned trust root.
 
@@ -359,7 +672,7 @@ def require_demo_approval(candidate, manifest_path: Path):
         return verify_demo_approval(
             candidate=candidate,
             manifest_path=manifest_path,
-            canonical_manifest_path=MANIFEST_PATH,
+            canonical_manifest_path=REPO_CANONICAL_MANIFEST,
             trust_root_path=DEMO_APPROVAL_TRUST_ROOT,
             expected_strategy_id=STRATEGY_ID,
             runtime_source=runtime_source,
@@ -817,7 +1130,11 @@ def build_store(
             "symbol_routes": {VENUE_SYMBOLS[v]: EXCHANGES[v] for v in VENUE_SYMBOLS},
             **execution,
             "require_account_risk": mode == "demo",
-            "book_queue_size": 1,
+            # Keep a bounded direct-feed backlog and coalesce complete market
+            # snapshots before Store queueing; this is transport handling only,
+            # not local order matching or fill simulation.
+            "book_queue_size": MIDFREQ_ORDERBOOK_QUEUE_CAPACITY,
+            "coalesce_market_snapshots": ("orderbook",),
             "funding_refresh_interval_seconds": str(funding_settings["refresh_interval_seconds"]),
             "funding_max_age_seconds": str(funding_settings["max_age_seconds"]),
         },
@@ -962,9 +1279,22 @@ def _funding_from_one_shot_metadata_probe(metadata):
     return result
 
 
-def _load_model_qualification(candidate, rules, risk, config_path=DEFAULT_CONFIG):
+def _load_model_qualification(
+    candidate,
+    rules,
+    risk,
+    config_path=DEFAULT_CONFIG,
+    allow_operator_demo_calibration_contract_mismatch=False,
+):
     """Load the immutable, direction-bound calibration artifact for live observation."""
 
+    if not isinstance(allow_operator_demo_calibration_contract_mismatch, bool):
+        raise RunnerConfigurationError("operator demo calibration override must be a boolean")
+    if allow_operator_demo_calibration_contract_mismatch and (
+        candidate.get("strategy_id") != STRATEGY_ID
+        or candidate.get("research_status") != "RESEARCH_REJECTED"
+    ):
+        raise RunnerConfigurationError("calibration contract override is rejected-candidate only")
     binding = candidate.get("qualification_artifact")
     if not isinstance(binding, Mapping):
         raise RunnerConfigurationError("candidate qualification artifact binding is missing")
@@ -992,13 +1322,35 @@ def _load_model_qualification(candidate, rules, risk, config_path=DEFAULT_CONFIG
         or payload.get("oos_or_demo_approval") is not False
     ):
         raise RunnerConfigurationError("qualification artifact has an invalid evidence role")
-    if payload.get("config_sha256") != _file_sha256(config_path, "qualification config"):
+    artifact_config_sha256 = payload.get("config_sha256")
+    if not (
+        isinstance(artifact_config_sha256, str)
+        and len(artifact_config_sha256) == 64
+        and all(char in "0123456789abcdef" for char in artifact_config_sha256)
+    ):
+        raise RunnerConfigurationError("qualification artifact config fingerprint is invalid")
+    config_sha256_matches = artifact_config_sha256 == _file_sha256(
+        config_path, "qualification config"
+    )
+    if not config_sha256_matches and not allow_operator_demo_calibration_contract_mismatch:
         raise RunnerConfigurationError("qualification artifact is not bound to this config")
     serialized_rules = {
         venue: {key: str(value) for key, value in asdict(rule).items()}
         for venue, rule in rules.items()
     }
-    if payload.get("rules") != serialized_rules:
+    artifact_rules = payload.get("rules")
+    if not isinstance(artifact_rules, Mapping) or set(artifact_rules) != set(serialized_rules):
+        raise RunnerConfigurationError("qualification artifact venue rules schema is invalid")
+    for venue, expected_rule in serialized_rules.items():
+        artifact_rule = artifact_rules.get(venue)
+        if (
+            not isinstance(artifact_rule, Mapping)
+            or set(artifact_rule) != set(expected_rule)
+            or any(not isinstance(value, str) for value in artifact_rule.values())
+        ):
+            raise RunnerConfigurationError("qualification artifact venue rules schema is invalid")
+    rules_match = artifact_rules == serialized_rules
+    if not rules_match and not allow_operator_demo_calibration_contract_mismatch:
         raise RunnerConfigurationError("qualification artifact is not bound to current venue rules")
     raw_artifacts = payload.get("artifacts")
     if not isinstance(raw_artifacts, Mapping) or set(raw_artifacts) != {
@@ -1007,6 +1359,7 @@ def _load_model_qualification(candidate, rules, risk, config_path=DEFAULT_CONFIG
     }:
         raise RunnerConfigurationError("qualification artifact must bind both directions")
     result = {}
+    contract_mismatch_directions = []
     now_epoch = Decimal(str(time.time()))
     for direction_name, raw_artifact in raw_artifacts.items():
         if not isinstance(raw_artifact, Mapping):
@@ -1022,26 +1375,53 @@ def _load_model_qualification(candidate, rules, risk, config_path=DEFAULT_CONFIG
             buy_venue,
             sell_venue,
         )
+        contract_mismatch = artifact.qualification_contract_sha256 != expected_contract
+        if allow_operator_demo_calibration_contract_mismatch and (
+            artifact.qualification_contract_sha256 is None
+        ):
+            raise RunnerConfigurationError(
+                f"qualification direction {direction_name} has no contract fingerprint"
+            )
         reason = artifact.rejection_at(
             now_epoch,
             minimum_samples=risk.minimum_qualification_samples,
             maximum_half_life_seconds=risk.maximum_half_life_seconds,
             expected_contract_sha256=expected_contract,
             expected_direction=(buy_venue, sell_venue),
+            allow_contract_mismatch=(
+                allow_operator_demo_calibration_contract_mismatch and contract_mismatch
+            ),
         )
         if reason is not None:
             raise RunnerConfigurationError(
                 f"qualification direction {direction_name} rejected: {reason}"
             )
+        if contract_mismatch:
+            contract_mismatch_directions.append(direction_name)
         result[direction_name] = artifact
-    return result, {
+    contract_mismatch_directions.sort()
+    has_contract_mismatch = bool(
+        not config_sha256_matches or not rules_match or contract_mismatch_directions
+    )
+    evidence = {
         "path": str(artifact_path),
         "sha256": expected_hash,
-        "status": payload["status"],
+        "status": (
+            "OPERATOR_DEMO_CALIBRATION_CONTRACT_MISMATCH"
+            if allow_operator_demo_calibration_contract_mismatch and has_contract_mismatch
+            else payload["status"]
+        ),
         "source_data_sha256": payload.get("source_data_sha256"),
         "source_role": payload["source_role"],
         "oos_or_demo_approval": False,
+        "qualification_scope": "CALIBRATION_TRAINING_ONLY",
+        "research_qualification": False,
+        "config_sha256_matches": config_sha256_matches,
+        "rules_match": rules_match,
+        "qualification_contract_mismatch_directions": contract_mismatch_directions,
+        "operator_demo_contract_override": allow_operator_demo_calibration_contract_mismatch,
     }
+    return result, evidence
 
 
 def _funding_from_store(store):
@@ -1084,7 +1464,14 @@ def _cached_funding_provider(store, max_age_seconds):
     return provider
 
 
-def _readiness(store, rules, risk):
+def _readiness_attempt(
+    store,
+    rules,
+    risk,
+    *,
+    initialize_account_risk_baseline,
+    baseline_initialization_state,
+):
     venues = {}
     for venue, symbol in VENUE_SYMBOLS.items():
         environment = store.get_environment_info(symbol)
@@ -1101,7 +1488,15 @@ def _readiness(store, rules, risk):
             )
         if account.get("can_trade") is not True:
             raise RunnerConfigurationError(f"{venue} demo account cannot trade")
-        if readiness.get("ready") is not True:
+        if not isinstance(readiness, Mapping) or readiness.get("ready") is not True:
+            if (
+                isinstance(readiness, Mapping)
+                and readiness.get("ready") is False
+                and readiness.get("definite_failure") is not True
+            ):
+                raise _TransientDemoReadinessEvidence(
+                    f"{venue} order readiness is false"
+                )
             raise RunnerConfigurationError(f"{venue} order readiness is false")
         venues[venue] = {
             "environment": environment,
@@ -1112,6 +1507,8 @@ def _readiness(store, rules, risk):
 
     account_risk = store.get_account_risk_snapshot()
     reconcile = store.get_reconcile_snapshot()
+    if not isinstance(reconcile, Mapping):
+        raise _TransientDemoReadinessEvidence("demo reconciliation evidence is incomplete")
     execution_summary = reconcile.get("execution_summary")
     baseline_initialized = bool(
         isinstance(account_risk, Mapping)
@@ -1120,27 +1517,72 @@ def _readiness(store, rules, risk):
         and "baseline_missing" in (account_risk.get("blocked_reasons") or ())
     )
     if baseline_initialized:
-        if not _reconcile_snapshot_ready_for_baseline(reconcile):
-            raise RunnerConfigurationError("demo reconciliation evidence is incomplete")
-        if reconcile.get("positions") or reconcile.get("open_orders"):
+        if isinstance(reconcile, Mapping) and (
+            reconcile.get("positions") or reconcile.get("open_orders")
+        ):
             raise RunnerConfigurationError("demo account must be flat with no open orders")
-        store.initialize_account_risk_baseline()
-        reconcile = store.get_reconcile_snapshot()
-        execution_summary = reconcile.get("execution_summary")
-        account_risk = store.get_account_risk_snapshot()
+        if not _reconcile_snapshot_ready_for_baseline(reconcile):
+            raise _TransientDemoReadinessEvidence(
+                "demo reconciliation evidence is incomplete"
+            )
+        if initialize_account_risk_baseline:
+            if baseline_initialization_state["attempted"]:
+                raise _TransientDemoReadinessEvidence(
+                    "demo account-risk baseline is not proven"
+                )
+            baseline_initialization_state["attempted"] = True
+            store.initialize_account_risk_baseline()
+            reconcile = store.get_reconcile_snapshot()
+            if not isinstance(reconcile, Mapping):
+                raise _TransientDemoReadinessEvidence(
+                    "post-baseline reconciliation evidence is incomplete"
+                )
+            execution_summary = reconcile.get("execution_summary")
+            account_risk = store.get_account_risk_snapshot()
+        elif baseline_initialization_state["attempted"]:
+            raise _TransientDemoReadinessEvidence(
+                "demo account-risk baseline is not proven"
+            )
+        else:
+            raise RunnerConfigurationError("demo account-risk baseline is not proven")
     else:
         if not _reconcile_snapshot_proven(reconcile):
-            raise RunnerConfigurationError("demo reconciliation evidence is incomplete")
+            if isinstance(reconcile, Mapping) and (
+                reconcile.get("positions") or reconcile.get("open_orders")
+            ):
+                raise RunnerConfigurationError("demo account must be flat with no open orders")
+            raise _TransientDemoReadinessEvidence(
+                "demo reconciliation evidence is incomplete"
+            )
         if not _execution_summary_proven(execution_summary):
-            raise RunnerConfigurationError("demo execution journal is not proven clean")
+            raise _TransientDemoReadinessEvidence(
+                "demo execution journal is not proven clean"
+            )
         if reconcile.get("positions") or reconcile.get("open_orders"):
             raise RunnerConfigurationError("demo account must be flat with no open orders")
     if not _reconcile_snapshot_proven(reconcile):
-        raise RunnerConfigurationError("post-baseline reconciliation evidence is incomplete")
+        if isinstance(reconcile, Mapping) and (
+            reconcile.get("positions") or reconcile.get("open_orders")
+        ):
+            raise RunnerConfigurationError("demo account must be flat with no open orders")
+        raise _TransientDemoReadinessEvidence(
+            "post-baseline reconciliation evidence is incomplete"
+        )
     if not _execution_summary_proven(execution_summary):
-        raise RunnerConfigurationError("post-baseline execution journal is not proven clean")
+        raise _TransientDemoReadinessEvidence(
+            "post-baseline execution journal is not proven clean"
+        )
     if not _account_risk_proven(account_risk, execution_summary):
-        raise RunnerConfigurationError("demo account-risk baseline is not proven")
+        if isinstance(account_risk, Mapping) and (
+            account_risk.get("loss_limit_breached") is True
+            or (
+                account_risk.get("trading_blocked") is True
+                and account_risk.get("evidence_complete") is True
+                and not account_risk.get("evidence_errors")
+            )
+        ):
+            raise RunnerConfigurationError("demo account-risk baseline is not proven")
+        raise _TransientDemoReadinessEvidence("demo account-risk baseline is not proven")
     if reconcile.get("positions") or reconcile.get("open_orders"):
         raise RunnerConfigurationError("demo account must be flat with no open orders")
     return {
@@ -1153,10 +1595,36 @@ def _readiness(store, rules, risk):
         "account_risk_snapshot": account_risk,
         "exchange_operations": "READ_ONLY",
         "local_persistence": {
-            "account_risk_baseline_initialized": baseline_initialized,
-            "may_write_local_execution_ledger": baseline_initialized,
+            "account_risk_baseline_initialized": (
+                baseline_initialized or baseline_initialization_state["attempted"]
+            ),
+            "may_write_local_execution_ledger": (
+                baseline_initialized or baseline_initialization_state["attempted"]
+            ),
         },
     }
+
+
+def _readiness(store, rules, risk, *, initialize_account_risk_baseline=True):
+    """Retry only incomplete startup evidence, with no more than one baseline write."""
+    baseline_initialization_state = {"attempted": False}
+    last_transient_error = None
+    for attempt in range(STARTUP_EVIDENCE_MAX_ATTEMPTS):
+        try:
+            return _readiness_attempt(
+                store,
+                rules,
+                risk,
+                initialize_account_risk_baseline=initialize_account_risk_baseline,
+                baseline_initialization_state=baseline_initialization_state,
+            )
+        except _TransientDemoReadinessEvidence as exc:
+            last_transient_error = exc
+            if attempt + 1 < STARTUP_EVIDENCE_MAX_ATTEMPTS:
+                time.sleep(STARTUP_EVIDENCE_RETRY_DELAY_SECONDS)
+    if last_transient_error is not None:
+        raise RunnerConfigurationError(str(last_transient_error)) from None
+    raise RunnerConfigurationError("demo readiness evidence is incomplete")
 
 
 def _store_shutdown_proven(health):
@@ -1551,6 +2019,7 @@ def _demo_broker_kwargs(approval_lease, shutdown_seconds):
     return {
         "position_mode": "dual_side",
         "position_sync_policy": "startup",
+        "position_audit_interval": 10.0,
         "shutdown_timeout": float(shutdown_seconds),
         "approval_expires_at_utc": expires_at,
         "approval_max_order_count": maximum_order_count,
@@ -1736,6 +2205,7 @@ def _shadow_failure_report(
     exc,
     observed_execution=None,
     execution_started=False,
+    read_only_calibration_diagnostic=False,
 ):
     """Return a minimal terminal shadow report with no vendor payloads."""
 
@@ -1755,7 +2225,11 @@ def _shadow_failure_report(
             "exchange_error_code": _safe_exchange_error_code(exc),
             "detail": "REDACTED",
         },
-        "profitability_claim": "NONE_SHADOW_FAILURE",
+        "profitability_claim": (
+            "NONE_READ_ONLY_SHADOW_DIAGNOSTIC"
+            if read_only_calibration_diagnostic
+            else "NONE_SHADOW_FAILURE"
+        ),
     }
     report.update(
         _shadow_observed_execution_fields(
@@ -1769,6 +2243,11 @@ def _shadow_failure_report(
             "capability": BOUNDED_ONE_SHOT_PROBE_CAPABILITY,
             "lifecycle": "SDK_OWNED",
         }
+    if read_only_calibration_diagnostic:
+        report["read_only_calibration_contract_diagnostic"] = admission.get(
+            "read_only_calibration_contract_diagnostic"
+        )
+        report["qualification"] = _read_only_shadow_calibration_diagnostic_evidence()
     return report
 
 
@@ -1872,12 +2351,15 @@ def run_network(
     env_file=HERE / ".env",
     preflight=False,
     manifest_path=MANIFEST_PATH,
+    allow_rejected_demo_simulation=False,
+    demo_execution_smoke=False,
 ):
     """Run a shadow, paper-live or demo session against the live venues.
 
     Applies manifest and config admission governance before any Store
-    exists, and for demo verifies the signed approval lease against the
-    requested duration, quantity and shutdown window.  Duration 0 admits
+    exists. Demo either verifies the signed approval lease or creates a
+    bounded local lease after explicit rejected-candidate acknowledgement.
+    Duration 0 admits
     only a bounded read-only shadow metadata probe.  Execution modes
     require the qualification artifact (and, for paper-live/demo, the
     account risk ledger); any missing prerequisite fails closed into the
@@ -1885,13 +2367,45 @@ def run_network(
     """
     if mode not in {"shadow", "paper-live", "demo"}:
         raise RunnerConfigurationError("network mode is invalid")
-    if mode == "demo" and Path(manifest_path).resolve() != MANIFEST_PATH.resolve():
-        raise DemoApprovalError("demo requires the canonical manifest path")
+    if demo_execution_smoke:
+        if mode != "demo":
+            raise RunnerConfigurationError("demo execution smoke is only valid with demo mode")
+        if preflight:
+            raise RunnerConfigurationError("demo execution smoke is not valid during preflight")
+        if not allow_rejected_demo_simulation:
+            raise DemoApprovalError(
+                "demo execution smoke requires --allow-rejected-demo-simulation"
+            )
+    # Demo stays repository-bound: only the canonical manifest satisfies the
+    # signed receipt contract, so a copied folder fails closed here.
+    if mode == "demo":
+        canonical = REPO_CANONICAL_MANIFEST.resolve()
+        if not canonical.is_file() or Path(manifest_path).resolve() != canonical:
+            raise DemoApprovalError("demo requires the repository-canonical manifest path")
     config = load_config(config_path)
     manifest, candidate, resolved_manifest_path = load_candidate(manifest_path)
     if _file_sha256(config_path, "run config") != candidate["config_sha256"]:
         raise RunnerConfigurationError("run config is not bound to the selected candidate")
-    admission = _validate_network_admission(manifest, candidate, mode, preflight, config)
+    admission = _validate_network_admission(
+        manifest,
+        candidate,
+        mode,
+        preflight,
+        config,
+        allow_rejected_demo_simulation=allow_rejected_demo_simulation,
+    )
+    if demo_execution_smoke:
+        if candidate.get("strategy_id") != STRATEGY_ID:
+            raise DemoApprovalError("demo execution smoke is limited to this 012_1 candidate")
+        if admission.get("operator_override") is not True:
+            raise DemoApprovalError(
+                "demo execution smoke requires the rejected-candidate operator override"
+            )
+        admission["mechanical_demo_smoke_requested"] = True
+        admission["execution_scope"] = "MECHANICAL_DEMO_SMOKE_NOT_RESEARCH"
+    operator_demo_contract_mismatch = _operator_demo_calibration_contract_mismatch_enabled(
+        mode, admission
+    )
     risk = risk_from_config(config)
     funding_settings = funding_settings_from_config(config)
     mode_policy(mode)
@@ -1912,15 +2426,29 @@ def run_network(
     active_seconds = Decimal(0) if one_shot else requested_duration - shutdown_seconds
     if not one_shot and active_seconds <= 0:
         raise RunnerConfigurationError("duration does not leave a positive active window")
+    shadow_calibration_diagnostic_admitted = (
+        _shadow_read_only_calibration_contract_diagnostic_enabled(mode, admission)
+    )
+    shadow_calibration_diagnostic_active = (
+        shadow_calibration_diagnostic_admitted and not one_shot
+    )
+    if shadow_calibration_diagnostic_admitted:
+        diagnostic_admission = admission["read_only_calibration_contract_diagnostic"]
+        diagnostic_admission["application_status"] = (
+            "MODEL_ADMISSION_SKIPPED_FOR_ORDERBOOK_HEALTH_ONLY"
+            if shadow_calibration_diagnostic_active
+            else "NOT_APPLIED_METADATA_ONLY_ONE_SHOT"
+        )
     approval_lease = None
     if mode == "demo" and not preflight:
-        receipt = require_demo_approval(candidate, resolved_manifest_path)
-        approval_lease = _approval_lease(
-            receipt,
-            requested_duration,
-            risk,
-            shutdown_seconds,
-        )
+        if not admission["operator_override"]:
+            receipt = require_demo_approval(candidate, resolved_manifest_path)
+            approval_lease = _approval_lease(
+                receipt,
+                requested_duration,
+                risk,
+                shutdown_seconds,
+            )
     store = None
     report = None
     store_health = None
@@ -1977,8 +2505,15 @@ def run_network(
                 active_observation_seconds=str(active_seconds),
                 shutdown_buffer_seconds=str(shutdown_seconds),
             )
-        preflight_stage = "readiness"
-        preflight_report = _readiness(store, rules, risk) if mode == "demo" else None
+        preflight_report = None
+        if mode == "demo" and preflight:
+            preflight_stage = "readiness"
+            preflight_report = _readiness(
+                store,
+                rules,
+                risk,
+                initialize_account_risk_baseline=False,
+            )
         preflight_stage = "complete"
         if preflight:
             report = {
@@ -2030,13 +2565,50 @@ def run_network(
                 "profitability_claim": "NONE_ONE_SHOT_READ_ONLY",
             }
         else:
-            qualifications, qualification_evidence = _load_model_qualification(
-                candidate,
-                rules,
-                risk,
-                config_path,
-            )
+            if shadow_calibration_diagnostic_active:
+                # Shadow diagnostics observe the existing Store/Feed/Strategy
+                # path but deliberately do not consume a research artifact.
+                qualifications = {}
+                qualification_evidence = (
+                    _read_only_shadow_calibration_diagnostic_evidence()
+                )
+            else:
+                qualifications, qualification_evidence = _load_model_qualification(
+                    candidate,
+                    rules,
+                    risk,
+                    config_path,
+                    allow_operator_demo_calibration_contract_mismatch=(
+                        operator_demo_contract_mismatch
+                    ),
+                )
+            if operator_demo_contract_mismatch:
+                admission["calibration_contract_override"] = {
+                    key: qualification_evidence[key]
+                    for key in (
+                        "status",
+                        "qualification_scope",
+                        "oos_or_demo_approval",
+                        "research_qualification",
+                        "config_sha256_matches",
+                        "rules_match",
+                        "qualification_contract_mismatch_directions",
+                    )
+                }
             if mode == "demo":
+                preflight_stage = "readiness"
+                # This verifies dual-side demo readiness, flatness and the
+                # authoritative risk baseline only after admission and
+                # qualification.  A missing baseline is initialized once by
+                # the Store before the broker can expose callback-safe cache.
+                _readiness(store, rules, risk)
+                if operator_demo_contract_mismatch:
+                    approval_lease = _operator_demo_lease(
+                        requested_duration,
+                        risk,
+                        shutdown_seconds,
+                        config,
+                    )
                 broker = store.getbroker(**_demo_broker_kwargs(approval_lease, shutdown_seconds))
             else:
                 broker_kwargs = {
@@ -2095,6 +2667,12 @@ def run_network(
                 funding_exit_window_seconds=funding_settings["exit_window_seconds"],
                 execution_enabled=mode != "shadow",
                 shadow=mode == "shadow",
+                demo_execution_smoke=bool(demo_execution_smoke),
+                **(
+                    {"allow_operator_demo_calibration_contract_mismatch": True}
+                    if operator_demo_contract_mismatch
+                    else {}
+                ),
             )
             if approval_lease is not None:
                 expires_at = datetime.fromisoformat(approval_lease["expires_at"][:-1] + "+00:00")
@@ -2208,9 +2786,44 @@ def run_network(
                 "account_risk_snapshot": account_risk_snapshot,
                 "approval_lease_status": approval_lease_status,
                 "paper_flatness": paper_flatness,
-                "profitability_claim": "NONE_OBSERVATIONAL_ONLY",
+                "profitability_claim": (
+                    "NONE_MECHANICAL_DEMO_SMOKE_NOT_RESEARCH"
+                    if demo_execution_smoke
+                    else (
+                        "NONE_READ_ONLY_SHADOW_DIAGNOSTIC"
+                        if shadow_calibration_diagnostic_active
+                        else "NONE_OBSERVATIONAL_ONLY"
+                    )
+                ),
             }
+            if shadow_calibration_diagnostic_active:
+                report["read_only_calibration_contract_diagnostic"] = admission.get(
+                    "read_only_calibration_contract_diagnostic"
+                )
             report.update(metrics)
+            if demo_execution_smoke:
+                report["mechanical_demo_smoke_requested"] = True
+                report["execution_claim_scope"] = "MECHANICAL_DEMO_SMOKE_NOT_RESEARCH"
+                report["mechanical_demo_smoke"] = {
+                    "semantics": "MECHANICAL_DEMO_SMOKE_NOT_RESEARCH",
+                    "state": effective_strategy_report.get(
+                        "mechanical_demo_smoke_state", "UNKNOWN"
+                    ),
+                    "opening_order_count": int(
+                        effective_strategy_report.get(
+                            "mechanical_demo_smoke_opening_order_count", 0
+                        )
+                        or 0
+                    ),
+                    "opening_orders": effective_strategy_report.get(
+                        "mechanical_demo_smoke_opening_orders", []
+                    ),
+                    "quantity_base": effective_strategy_report.get(
+                        "mechanical_demo_smoke_quantity_base"
+                    ),
+                    "alpha_intent_history_used": False,
+                    "profitability_claim": "NONE_MECHANICAL_DEMO_SMOKE_NOT_RESEARCH",
+                }
     except Exception as exc:
         if preflight:
             report = _preflight_failure_report(candidate, config, admission, preflight_stage, exc)
@@ -2223,10 +2836,19 @@ def run_network(
                 exc,
                 observed_execution=shadow_observed_execution,
                 execution_started=shadow_execution_started,
+                read_only_calibration_diagnostic=shadow_calibration_diagnostic_active,
             )
         else:
             raise
     finally:
+        if shadow_calibration_diagnostic_active and store is not None and report is not None:
+            try:
+                stream_health = store.get_stream_health()
+            except Exception:
+                stream_health = None
+            report["shadow_orderbook_stream_health"] = (
+                _shadow_orderbook_stream_health_summary(stream_health)
+            )
         if one_shot_sdk_shutdown_proven:
             if store_health is None:
                 store_health = {"shutdown_state": "UNKNOWN"}
@@ -2308,11 +2930,18 @@ def run_network(
             and risk_snapshot.get("durable") is True
             and lease_safe
         )
-        report["status"] = (
-            "DEMO_EXECUTION_PASS"
-            if demo_safe
-            else ("INCOMPLETE_INSUFFICIENT_SAMPLE" if report["fills"] == 0 else "INCOMPLETE")
-        )
+        if demo_execution_smoke:
+            report["status"] = (
+                "MECHANICAL_DEMO_SMOKE_PASS"
+                if demo_safe
+                else "MECHANICAL_DEMO_SMOKE_INCOMPLETE"
+            )
+        else:
+            report["status"] = (
+                "DEMO_EXECUTION_PASS"
+                if demo_safe
+                else ("INCOMPLETE_INSUFFICIENT_SAMPLE" if report["fills"] == 0 else "INCOMPLETE")
+            )
     _attach_business_summary(report)
     return report
 
@@ -2323,7 +2952,7 @@ def build_parser():
     parser.add_argument("--mode", choices=MODES, default="replay")
     parser.add_argument("--scenario", choices=SCENARIOS, default="profitable")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
+    parser.add_argument("--manifest", type=Path, default=None)
     parser.add_argument(
         "--duration",
         type=float,
@@ -2331,6 +2960,19 @@ def build_parser():
     )
     parser.add_argument("--env-file", type=Path, default=HERE / ".env")
     parser.add_argument("--preflight", action="store_true")
+    parser.add_argument(
+        "--allow-rejected-demo-simulation",
+        action="store_true",
+        help="explicitly authorize the bounded demo-only path for this rejected candidate",
+    )
+    parser.add_argument(
+        "--demo-execution-smoke",
+        action="store_true",
+        help=(
+            "request one risk-bounded, mechanical 012_1 demo pair; requires demo mode and "
+            "--allow-rejected-demo-simulation and is not research evidence"
+        ),
+    )
     parser.add_argument("--output", type=Path)
     return parser
 
@@ -2355,8 +2997,27 @@ def main(argv=None):
             raise RunnerConfigurationError("duration must be finite and non-negative")
         if args.preflight and args.mode != "demo":
             raise RunnerConfigurationError("--preflight is only valid with --mode demo")
+        if args.allow_rejected_demo_simulation and args.mode != "demo":
+            raise RunnerConfigurationError(
+                "--allow-rejected-demo-simulation is only valid with --mode demo"
+            )
+        if args.demo_execution_smoke and args.mode != "demo":
+            raise RunnerConfigurationError("--demo-execution-smoke is only valid with --mode demo")
+        if args.demo_execution_smoke and args.preflight:
+            raise RunnerConfigurationError("--demo-execution-smoke cannot be combined with --preflight")
+        if args.demo_execution_smoke and not args.allow_rejected_demo_simulation:
+            raise DemoApprovalError(
+                "--demo-execution-smoke requires --allow-rejected-demo-simulation"
+            )
+        # Demo must use the repository-canonical manifest; the other modes use
+        # this folder's self-contained copy unless the operator overrides it.
+        manifest_path = (
+            args.manifest
+            if args.manifest is not None
+            else (REPO_CANONICAL_MANIFEST if args.mode == "demo" else MANIFEST_PATH)
+        )
         report = (
-            run_replay(args.scenario, args.config, args.manifest)
+            run_replay(args.scenario, args.config, manifest_path)
             if args.mode == "replay"
             else run_network(
                 args.mode,
@@ -2364,7 +3025,9 @@ def main(argv=None):
                 args.config,
                 args.env_file,
                 args.preflight,
-                args.manifest,
+                manifest_path,
+                args.allow_rejected_demo_simulation,
+                args.demo_execution_smoke,
             )
         )
     except Exception as exc:
@@ -2373,7 +3036,7 @@ def main(argv=None):
         report = _shadow_cli_failure_report(config, exc)
     output = args.output or HERE / "reports" / f"{args.mode}-{args.scenario}.json"
     write_private_json_report(output, report)
-    print(json.dumps(report, indent=2, ensure_ascii=False))
+    print(serialize_private_json_report(report))
     return (
         0
         if report["status"]
@@ -2382,6 +3045,7 @@ def main(argv=None):
             "SHADOW_PASS",
             "PAPER_OBSERVATION_PASS",
             "DEMO_EXECUTION_PASS",
+            "MECHANICAL_DEMO_SMOKE_PASS",
             "PREFLIGHT_PASS",
         }
         else 2

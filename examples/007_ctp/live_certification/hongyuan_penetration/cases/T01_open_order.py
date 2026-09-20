@@ -15,7 +15,13 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, run_with_timeout
+from common.runtime import (
+    started_store,
+    run_with_timeout,
+    ensure_ctp_trading_admission,
+    live_seed_bar,
+    resolve_ctp_symbol,
+)
 
 import backtrader as bt
 from backtrader.brokers.btapibroker import BtApiBroker
@@ -42,23 +48,15 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
-                seed_bar = {
-                    "datetime": dt.datetime.now().replace(microsecond=0),
-                    "open": 3000.0,
-                    "high": 3000.0,
-                    "low": 3000.0,
-                    "close": 3000.0,
-                    "volume": 1.0,
-                    "openinterest": 0.0,
-                }
-                broker = BtApiBroker(store=store)
+                symbol = resolve_ctp_symbol(store, symbol)
+                broker = BtApiBroker(store=store, position_mode=cfg.get_position_mode())
                 data = BtApiFeed(
                     store=store,
                     dataname=symbol,
                     timeframe=bt.TimeFrame.Seconds,
                     compression=5,
                     backfill_start=False,
-                    historical_bars=[seed_bar],
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
                 cerebro = bt.Cerebro()
                 cerebro.setbroker(broker)
@@ -75,19 +73,31 @@ def run(report_dir):
                     def __init__(self):
                         """Initialize open order strategy."""
                         self.order = None
+                        self.order_ref = None
                         self.bar_count = 0
                         self.order_statuses = []
                         self.submit_status = ""
+                        self.cleanup_sent = False
+                        self.cancel_status = ""
+                        self.counter_accepted = False
 
                     def notify_store(self, msg, *args, **kwargs):
                         """Handle store notification events.
 
-                        Args:
-                            msg: Store message.
-                            *args: Additional positional arguments.
-                            **kwargs: Additional keyword arguments.
+                        The broker accepts the order into its own book as soon as
+                        the submit request is enqueued; only the counter's
+                        ``order_status_accepted`` event certifies this test.  The
+                        cleanup cancel therefore waits for it.
                         """
-                        pass
+                        event = kwargs.get("event")
+                        if not isinstance(event, dict):
+                            return
+                        if event.get("event_type") == "order_status_accepted":
+                            self.counter_accepted = True
+                            if self.order is not None and not self.cleanup_sent:
+                                self.cleanup_sent = True
+                                print("  收到柜台受理后撤单，避免残留挂单")
+                                self.cancel(self.order)
 
                     def notify_order(self, order):
                         """Handle order status updates.
@@ -98,7 +108,16 @@ def run(report_dir):
                         status = order.getstatusname()
                         self.order_statuses.append(status)
                         print(f"  order_notify: ref={order.ref} status={status}")
-                        if status in ("Submitted", "Accepted", "Completed", "Canceled", "Rejected"):
+                        # The engine notifies with an order instance that is not
+                        # the one returned by buy(), so match on ref.
+                        if order.ref != self.order_ref:
+                            return
+                        if status in ("Submitted", "Accepted"):
+                            # Counter acceptance triggers the cleanup cancel in
+                            # ``notify_store``; do not cancel before then.
+                            return
+                        if status in ("Completed", "Canceled", "Rejected", "Expired", "Margin"):
+                            self.cancel_status = status
                             self.cerebro.runstop()
 
                     def next(self):
@@ -106,13 +125,17 @@ def run(report_dir):
                         self.bar_count += 1
                         if self.order is not None:
                             return
-                        limit_price = float(self.data.close[0])
+                        # Passive price: the case proves a valid open order is
+                        # accepted; it must not fill and leave a live position.
+                        limit_price = max(float(self.data.close[0]) - 20, 1.0)
                         print(f"  下达开仓买单: symbol={symbol} price={limit_price:.2f}")
+                        ensure_ctp_trading_admission(store, symbol)
                         self.order = self.buy(
                             size=1, exectype=bt.Order.Limit,
-                            price=limit_price, offset="open",
+                            price=limit_price, offset="open", position_side="long",
                         )
                         if self.order is not None:
+                            self.order_ref = self.order.ref
                             print(
                                 "  buy() returned:"
                                 f" status={self.order.getstatusname()}"
@@ -122,7 +145,7 @@ def run(report_dir):
                             self.submit_status = self.order.getstatusname()
 
                 cerebro.addstrategy(OpenOrderStrategy)
-                results = run_with_timeout(cerebro, timeout_seconds=25)
+                results = run_with_timeout(cerebro, timeout_seconds=60)
 
                 strat = results[0] if results else None
                 if not strat or strat.bar_count <= 0:

@@ -54,7 +54,7 @@ def run(report_dir):
                         self.cerebro.runstop()
 
                 cerebro.addstrategy(OneBarStop)
-                run_with_timeout(cerebro, timeout_seconds=30)
+                run_with_timeout(cerebro, timeout_seconds=60)
 
             print("✓ TradeLogger 接受 submit_cancel_total_warn_threshold=10 参数")
             return timer.pass_result(

@@ -1,0 +1,52 @@
+{
+  "rows": 13459,
+  "bar_num": 13459,
+  "buy_count": 0,
+  "sell_count": 0,
+  "win_count": 0,
+  "loss_count": 0,
+  "sum_profit": 0.0,
+  "trade_num": 0,
+  "stop_count": 0,
+  "take_count": 0,
+  "final_value": 100000.0,
+  "sharpe_ratio": NaN,
+  "annual_return": 0.0,
+  "max_drawdown": 0.0,
+  "return_rate": 0.0,
+  "signal_count": 13459,
+  "signal_skip_count": 13459,
+  "position_open_bars": 0,
+  "avg_top_sim": 0.9862603847529849,
+  "avg_holding_bars": 0.0,
+  "forced_liquidation_count": 0,
+  "avg_selected_matches": 27.63266509433962,
+  "lib_size": 12055,
+  "retrain_count": 0,
+  "neighborhood_retention_mean": 0.3750155357198701,
+  "encoder_versions_used": [
+    "step000"
+  ],
+  "trial_count": 1,
+  "params": {
+    "window_bars": 75,
+    "horizon_bars": 15,
+    "top_n": 30,
+    "sim_threshold": 0.8,
+    "prob_threshold": 0.75,
+    "min_matches": 10,
+    "k_cost": 1.5,
+    "exit_multiple": 3.0,
+    "sim_neutral": 0.5,
+    "atr_floor": 1.0,
+    "spread_floor": 1.5
+  },
+  "data": {
+    "file": "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M1.csv",
+    "fromdate": "2021-09-01 00:00:00",
+    "todate": "2021-09-15 00:00:00",
+    "rows": 13459,
+    "first_dt": "2021-09-01 01:05:00",
+    "last_dt": "2021-09-14 23:54:00"
+  }
+}

@@ -55,7 +55,9 @@ def run(report_dir):
                     return timer.pass_result(
                         details={
                             "connected_after_logout": connected_after,
-                            "events": sorted(events),
+                            # Provenance: event types observed through
+                            # store.get_notifications().
+                            "store_notification_events": sorted(events),
                             "reason": reason,
                         },
                     )

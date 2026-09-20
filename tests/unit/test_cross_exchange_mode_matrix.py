@@ -1,4 +1,5 @@
 """Mode-policy, admission, and shadow-failure contract tests for both cross-exchange examples."""
+
 import importlib
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -8,6 +9,7 @@ import os
 from pathlib import Path
 import stat
 import time
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -108,6 +110,330 @@ def _passing_store_health():
     }
 
 
+def _operator_demo_live_rules(runner):
+    """Return demo-like metadata that differs from the frozen calibration rules."""
+    rules = dict(runner.replay_rules())
+    rules["okx"] = replace(
+        rules["okx"],
+        price_tick=Decimal("0.01"),
+        taker_fee=Decimal("0.0005"),
+    )
+    rules["binance"] = replace(
+        rules["binance"],
+        quantity_step=Decimal("0.0001"),
+        minimum_quantity=Decimal("0.0001"),
+        taker_fee=Decimal("0.0005"),
+    )
+    return rules
+
+
+def test_012_1_calibration_loader_remains_strict_without_operator_demo_override():
+    runner = RUNNERS[0]
+    _manifest, candidate = _candidate_for(runner)
+
+    with pytest.raises(runner.RunnerConfigurationError, match="not bound to this config"):
+        runner._load_model_qualification(
+            candidate,
+            _operator_demo_live_rules(runner),
+            runner.risk_from_config(runner.load_config()),
+            runner.DEFAULT_CONFIG,
+        )
+
+
+def test_012_1_operator_demo_override_loads_original_training_artifact_with_mismatch_evidence():
+    runner = RUNNERS[0]
+    _manifest, candidate = _candidate_for(runner)
+    rules = _operator_demo_live_rules(runner)
+    risk = runner.risk_from_config(runner.load_config())
+    artifact_path = runner.HERE / candidate["qualification_artifact"]["path"]
+    artifact_sha256 = runner._file_sha256(artifact_path, "qualification artifact")
+
+    qualifications, evidence = runner._load_model_qualification(
+        candidate,
+        rules,
+        risk,
+        runner.DEFAULT_CONFIG,
+        allow_operator_demo_calibration_contract_mismatch=True,
+    )
+
+    assert artifact_sha256 == candidate["qualification_artifact"]["sha256"]
+    assert set(qualifications) == {"okx->binance", "binance->okx"}
+    assert evidence["status"] == "OPERATOR_DEMO_CALIBRATION_CONTRACT_MISMATCH"
+    assert evidence["config_sha256_matches"] is False
+    assert evidence["rules_match"] is False
+    assert evidence["qualification_contract_mismatch_directions"] == [
+        "binance->okx",
+        "okx->binance",
+    ]
+    assert evidence["qualification_scope"] == "CALIBRATION_TRAINING_ONLY"
+    assert evidence["oos_or_demo_approval"] is False
+    assert evidence["research_qualification"] is False
+    assert runner._file_sha256(artifact_path, "qualification artifact") == artifact_sha256
+
+
+def test_012_1_operator_demo_override_still_requires_the_bound_artifact_hash():
+    runner = RUNNERS[0]
+    _manifest, candidate = _candidate_for(runner)
+    tampered_candidate = {
+        **candidate,
+        "qualification_artifact": {
+            **candidate["qualification_artifact"],
+            "sha256": "0" * 64,
+        },
+    }
+
+    with pytest.raises(runner.RunnerConfigurationError, match="fingerprint mismatch"):
+        runner._load_model_qualification(
+            tampered_candidate,
+            _operator_demo_live_rules(runner),
+            runner.risk_from_config(runner.load_config()),
+            runner.DEFAULT_CONFIG,
+            allow_operator_demo_calibration_contract_mismatch=True,
+        )
+
+
+def test_012_1_shadow_calibration_diagnostic_requires_exact_read_only_admission():
+    runner = RUNNERS[0]
+    manifest = {"manifest_status": runner.OPERATOR_DEMO_MANIFEST_STATUS}
+    candidate = {
+        "strategy_id": runner.STRATEGY_ID,
+        "research_status": "RESEARCH_REJECTED",
+        "allowed_modes": ["replay", "shadow", "demo"],
+        "conditional_modes": {
+            "paper-live": runner.OPERATOR_PAPER_LIVE_CONDITION,
+            "demo": runner.OPERATOR_DEMO_CONDITION,
+        },
+    }
+
+    admission = runner._validate_network_admission(
+        manifest, candidate, "shadow", False, runner.load_config()
+    )
+
+    assert admission["execution_admitted"] is True
+    assert admission["operator_override"] is False
+    assert admission["read_only_calibration_contract_diagnostic"]["scope"] == (
+        "ORDERBOOK_HEALTH_ONLY_ZERO_WRITE"
+    )
+    assert runner._shadow_read_only_calibration_contract_diagnostic_enabled(
+        "shadow", admission
+    ) is True
+    assert runner._operator_demo_calibration_contract_mismatch_enabled(
+        "shadow", admission
+    ) is False
+    policy = runner.mode_policy("shadow")
+    assert policy["sdk_writes"] is False
+    assert policy["fills_forbidden"] is True
+
+    invalid_admissions = [
+        ("demo", admission),
+        ("paper-live", admission),
+        (
+            "shadow",
+            {
+                **admission,
+                "manifest_status": "DEMO_APPROVED",
+            },
+        ),
+        (
+            "shadow",
+            {
+                **admission,
+                "research_status": "PASS",
+            },
+        ),
+        (
+            "shadow",
+            {
+                key: value
+                for key, value in admission.items()
+                if key != "read_only_calibration_contract_diagnostic"
+            },
+        ),
+    ]
+    for mode, rejected_admission in invalid_admissions:
+        assert runner._shadow_read_only_calibration_contract_diagnostic_enabled(
+            mode, rejected_admission
+        ) is False
+
+
+def test_012_1_shadow_calibration_diagnostic_skips_model_admission_and_reports_stream_health(
+    monkeypatch,
+):
+    runner = RUNNERS[0]
+    config = runner.load_config()
+    manifest, candidate = _candidate_for(runner)
+    manifest = {
+        **manifest,
+        "manifest_status": runner.OPERATOR_DEMO_MANIFEST_STATUS,
+    }
+    manifest_path = Path(runner.MANIFEST_PATH).resolve()
+    monkeypatch.setattr(
+        runner,
+        "load_candidate",
+        lambda _path: (manifest, candidate, manifest_path),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_file_sha256",
+        lambda *_args, **_kwargs: candidate["config_sha256"],
+    )
+    monkeypatch.setattr(runner, "validate_duration", lambda *_args, **_kwargs: {"status": "PASS"})
+    rules = runner.replay_rules()
+    monkeypatch.setattr(
+        runner,
+        "_rules_from_store",
+        lambda *_args, **_kwargs: (rules, dict.fromkeys(runner.VENUE_SYMBOLS, "mock")),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_funding_from_store",
+        lambda *_args, **_kwargs: {
+            venue: (Decimal("0"), Decimal("4102444800"), Decimal("28800"), "mock")
+            for venue in runner.VENUE_SYMBOLS
+        },
+    )
+    monkeypatch.setattr(
+        runner,
+        "_load_model_qualification",
+        lambda *_args, **_kwargs: pytest.fail(
+            "read-only shadow diagnostic must not consume model qualification"
+        ),
+    )
+
+    events = []
+    raw_stream_health = {
+        symbol: {
+            "book_ingress": 7,
+            "book_coalesced": 2,
+            "book_dropped": 1,
+            "book_strategy_delivered": 3,
+            "book_feed_inflight": 1,
+            "book_queue_depth": 0,
+            "stale": False,
+            "book_conservation": True,
+            "last_drop_reason": "credential-like-secret-do-not-report",
+            "api_key": "credential-like-secret-do-not-report",
+            "market_drop_records": [
+                {"reason": "credential-like-secret-do-not-report", "payload": "private"}
+            ],
+        }
+        for symbol in runner.VENUE_SYMBOLS.values()
+    }
+
+    class Store:
+        def start(self):
+            events.append("store_start")
+
+        def getdata(self, **_kwargs):
+            return object()
+
+        def get_stream_health(self):
+            events.append("stream_health")
+            return raw_stream_health
+
+        def stop(self, timeout):
+            events.append("store_stop")
+            return _passing_store_health()
+
+    class Broker:
+        def __init__(self, **_kwargs):
+            pass
+
+        def addcommissioninfo(self, *_args, **_kwargs):
+            return None
+
+        def getvalue(self):
+            return Decimal("2000")
+
+    broker = Broker()
+    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: Store())
+    monkeypatch.setattr(runner, "MixBroker", lambda **_kwargs: broker)
+    strategy_parameters = {}
+    strategy = SimpleNamespace()
+
+    class Cerebro:
+        def setbroker(self, *_args):
+            return None
+
+        def addobserver(self, *_args, **_kwargs):
+            return None
+
+        def adddata(self, *_args, **_kwargs):
+            return None
+
+        def addstrategy(self, _strategy_class, **kwargs):
+            strategy_parameters.update(kwargs)
+
+        def runstop(self):
+            return None
+
+        def run(self):
+            return [strategy]
+
+    monkeypatch.setattr(runner.bt, "Cerebro", lambda *_args, **_kwargs: Cerebro())
+    strategy_report = {
+        "submitted_order_count": 0,
+        "confirmed_fill_events": 0,
+        "execution_economics": [],
+        "cost_breakdowns": [],
+        "reject_reasons": {},
+    }
+    monkeypatch.setattr(runner, "_trade_logger_report", lambda _strategy: ({}, strategy_report))
+
+    report = runner.run_network("shadow", config["run_timeout_seconds"])
+
+    assert strategy_parameters["execution_enabled"] is False
+    assert strategy_parameters["shadow"] is True
+    assert strategy_parameters["model_qualification"] == {}
+    assert "allow_operator_demo_calibration_contract_mismatch" not in strategy_parameters
+    assert report["admission"]["operator_override"] is False
+    assert report["admission"]["read_only_calibration_contract_diagnostic"][
+        "application_status"
+    ] == "MODEL_ADMISSION_SKIPPED_FOR_ORDERBOOK_HEALTH_ONLY"
+    assert report["read_only_calibration_contract_diagnostic"]["scope"] == (
+        "ORDERBOOK_HEALTH_ONLY_ZERO_WRITE"
+    )
+    assert report["qualification"]["status"] == (
+        "READ_ONLY_SHADOW_CALIBRATION_CONTRACT_DIAGNOSTIC"
+    )
+    assert report["qualification"]["research_qualification"] is False
+    assert report["orders_submitted"] == report["fills"] == 0
+    assert report["profitability_claim"] == "NONE_READ_ONLY_SHADOW_DIAGNOSTIC"
+    assert report["shadow_orderbook_stream_health"]["status"] == "AVAILABLE"
+    first_symbol = sorted(runner.VENUE_SYMBOLS.values())[0]
+    health = report["shadow_orderbook_stream_health"]["by_symbol"][first_symbol]
+    assert health == {
+        "orderbook_ingress": 7,
+        "orderbook_coalesced": 2,
+        "orderbook_dropped": 1,
+        "orderbook_delivered": 3,
+        "orderbook_inflight": 1,
+        "orderbook_queue_depth": 0,
+        "stale": False,
+        "orderbook_conservation": True,
+        "latest_drop_reason": "OTHER",
+    }
+    assert "credential-like-secret-do-not-report" not in json.dumps(report)
+    assert events.index("stream_health") < events.index("store_stop")
+
+
+@pytest.mark.parametrize(
+    ("mode", "admission", "expected"),
+    [
+        ("demo", {"operator_override": True, "research_status": "RESEARCH_REJECTED"}, True),
+        ("demo", {"operator_override": False, "research_status": "DEMO_APPROVED"}, False),
+        ("paper-live", {"operator_override": True, "research_status": "RESEARCH_REJECTED"}, False),
+        ("demo", {"operator_override": True, "research_status": "PASS"}, False),
+    ],
+)
+def test_012_1_calibration_contract_override_is_rejected_candidate_demo_only(
+    mode, admission, expected
+):
+    runner = RUNNERS[0]
+
+    assert runner._operator_demo_calibration_contract_mismatch_enabled(mode, admission) is expected
+
+
 @pytest.mark.parametrize("runner", RUNNERS)
 def test_ac_cfg_001_mode_policy_is_unique_and_invalid_modes_fail(runner):
     policies = {mode: runner.mode_policy(mode) for mode in runner.MODES}
@@ -145,6 +471,40 @@ def test_network_admission_enforces_manifest_modes_status_and_config(runner):
         runner._validate_network_admission(rejected_manifest, rejected, "shadow", True, config)
     with pytest.raises(runner.DemoApprovalError, match="PASS research candidate"):
         runner._validate_network_admission(rejected_manifest, rejected, "demo", False, config)
+
+    operator_manifest = {"manifest_status": runner.OPERATOR_DEMO_MANIFEST_STATUS}
+    operator_candidate = {
+        "research_status": "RESEARCH_REJECTED",
+        "allowed_modes": ["replay", "shadow", "demo"],
+        "conditional_modes": {
+            "paper-live": runner.OPERATOR_PAPER_LIVE_CONDITION,
+            "demo": runner.OPERATOR_DEMO_CONDITION,
+        },
+    }
+    with pytest.raises(runner.DemoApprovalError, match="PASS research candidate"):
+        runner._validate_network_admission(
+            operator_manifest, operator_candidate, "demo", False, config
+        )
+    operator_admission = runner._validate_network_admission(
+        operator_manifest,
+        operator_candidate,
+        "demo",
+        False,
+        config,
+        allow_rejected_demo_simulation=True,
+    )
+    assert operator_admission["execution_admitted"] is True
+    assert operator_admission["operator_override"] is True
+    assert operator_admission["research_status"] == "RESEARCH_REJECTED"
+    with pytest.raises(runner.DemoApprovalError, match="explicit rejected-candidate"):
+        runner._validate_network_admission(
+            {"manifest_status": "UNKNOWN_OPERATOR_SIMULATION"},
+            operator_candidate,
+            "demo",
+            False,
+            config,
+            allow_rejected_demo_simulation=True,
+        )
 
     approved = {
         "research_status": "PASS",
@@ -203,12 +563,44 @@ def test_network_duration_is_bounded_by_candidate_config_and_signed_lease(runner
 
 
 @pytest.mark.parametrize("runner", RUNNERS)
+def test_operator_demo_lease_is_short_and_reuses_broker_expiry_and_count_bounds(runner):
+    config = runner.load_config()
+    risk = runner.risk_from_config(config)
+    configured = Decimal(str(config["run_timeout_seconds"]))
+    duration = Decimal("30")
+    shutdown = Decimal(str(config["observation"]["shutdown_buffer_seconds"]))
+    now = datetime(2026, 9, 8, 4, 0, tzinfo=timezone.utc)
+
+    lease = runner._operator_demo_lease(duration, risk, shutdown, config, now=now)
+    expires_at = datetime.fromisoformat(lease["expires_at"].replace("Z", "+00:00"))
+
+    assert lease["lease_type"] == "OPERATOR_ACKNOWLEDGED_LOCAL_DEMO_SIMULATION"
+    assert lease["signed_receipt_verified"] is False
+    assert lease["maximum_duration_seconds"] == str(duration)
+    assert lease["maximum_quantity_base"] == str(risk.quantity_base)
+    assert lease["maximum_order_count"] == runner.OPERATOR_DEMO_MAX_ORDER_COUNT == 8
+    assert expires_at - now == timedelta(seconds=float(duration + shutdown))
+    assert duration <= configured
+    broker_kwargs = runner._demo_broker_kwargs(lease, shutdown)
+    assert broker_kwargs["approval_expires_at_utc"] == lease["expires_at"]
+    assert broker_kwargs["approval_max_order_count"] == lease["maximum_order_count"]
+
+    with pytest.raises(runner.DemoApprovalError, match="candidate-bound"):
+        runner._operator_demo_lease(configured + 1, risk, shutdown, config, now=now)
+    with pytest.raises(runner.DemoApprovalError, match="short-lived"):
+        runner._operator_demo_lease(
+            Decimal("900"), risk, shutdown, {"run_timeout_seconds": "1000"}, now=now
+        )
+
+
+@pytest.mark.parametrize("runner", RUNNERS)
 def test_cli_preserves_explicit_zero_duration_as_a_shadow_one_shot(runner, monkeypatch, tmp_path):
     captured = {}
 
     def run_network(mode, duration, *args):
         captured["mode"] = mode
         captured["duration"] = duration
+        captured["allow_rejected_demo_simulation"] = args[-1]
         return {"status": "SHADOW_ONE_SHOT_COMPLETE"}
 
     monkeypatch.setattr(runner, "run_network", run_network)
@@ -227,8 +619,124 @@ def test_cli_preserves_explicit_zero_duration_as_a_shadow_one_shot(runner, monke
         )
         == 2
     )
-    assert captured == {"mode": "shadow", "duration": 0.0}
+    assert captured == {
+        "mode": "shadow",
+        "duration": 0.0,
+        "allow_rejected_demo_simulation": False,
+    }
     assert json.loads(output.read_text(encoding="utf-8")) == {"status": "SHADOW_ONE_SHOT_COMPLETE"}
+
+
+@pytest.mark.parametrize("runner", RUNNERS)
+def test_cli_forwards_explicit_rejected_demo_simulation_acknowledgement(
+    runner, monkeypatch, tmp_path
+):
+    captured = {}
+
+    def run_network(mode, duration, *args):
+        captured["mode"] = mode
+        captured["duration"] = duration
+        if runner.STRATEGY_ID == "012_1_midfreq_cross_exchange":
+            captured["manifest_path"] = args[-3]
+            captured["allow_rejected_demo_simulation"] = args[-2]
+            captured["demo_execution_smoke"] = args[-1]
+        else:
+            captured["manifest_path"] = args[-2]
+            captured["allow_rejected_demo_simulation"] = args[-1]
+            captured["demo_execution_smoke"] = False
+        return {"status": "INCOMPLETE"}
+
+    monkeypatch.setattr(runner, "run_network", run_network)
+    output = tmp_path / f"{runner.STRATEGY_ID}-operator-demo.json"
+
+    assert (
+        runner.main(
+            [
+                "--mode",
+                "demo",
+                "--duration",
+                "30",
+                "--allow-rejected-demo-simulation",
+                "--output",
+                str(output),
+            ]
+        )
+        == 2
+    )
+    assert captured == {
+        "mode": "demo",
+        "duration": 30.0,
+        "manifest_path": runner.REPO_CANONICAL_MANIFEST,
+        "allow_rejected_demo_simulation": True,
+        "demo_execution_smoke": False,
+    }
+
+
+def test_012_1_demo_smoke_rejects_non_demo_preflight_and_missing_operator_ack_before_store(
+    monkeypatch,
+):
+    runner = RUNNERS[0]
+    store_calls = []
+    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store_calls.append(True))
+
+    with pytest.raises(runner.RunnerConfigurationError, match="only valid with demo mode"):
+        runner.run_network("paper-live", 30, demo_execution_smoke=True)
+    with pytest.raises(runner.RunnerConfigurationError, match="not valid during preflight"):
+        runner.run_network(
+            "demo",
+            30,
+            preflight=True,
+            allow_rejected_demo_simulation=True,
+            demo_execution_smoke=True,
+        )
+    with pytest.raises(runner.DemoApprovalError, match="requires --allow-rejected"):
+        runner.run_network("demo", 30, demo_execution_smoke=True)
+
+    assert store_calls == []
+
+
+def test_012_1_cli_demo_smoke_requires_acknowledgement_and_forwards_both_flags(
+    monkeypatch, tmp_path
+):
+    runner = RUNNERS[0]
+    calls = []
+    output = tmp_path / "012_1-demo-smoke.json"
+
+    def run_network(mode, duration, *args):
+        calls.append((mode, duration, args[-2], args[-1]))
+        return {"status": "MECHANICAL_DEMO_SMOKE_INCOMPLETE"}
+
+    monkeypatch.setattr(runner, "run_network", run_network)
+    with pytest.raises(runner.DemoApprovalError, match="requires --allow-rejected"):
+        runner.main(
+            [
+                "--mode",
+                "demo",
+                "--duration",
+                "30",
+                "--demo-execution-smoke",
+                "--output",
+                str(output),
+            ]
+        )
+    assert calls == []
+
+    assert (
+        runner.main(
+            [
+                "--mode",
+                "demo",
+                "--duration",
+                "30",
+                "--allow-rejected-demo-simulation",
+                "--demo-execution-smoke",
+                "--output",
+                str(output),
+            ]
+        )
+        == 2
+    )
+    assert calls == [("demo", 30.0, True, True)]
 
 
 @pytest.mark.parametrize("runner", RUNNERS)
@@ -1075,13 +1583,17 @@ def test_demo_broker_receives_the_signed_expiry_and_operation_budget(runner):
 
     kwargs = runner._demo_broker_kwargs(lease, Decimal("15"))
 
-    assert kwargs == {
+    expected = {
         "position_mode": "dual_side",
         "position_sync_policy": "startup",
         "shutdown_timeout": 15.0,
         "approval_expires_at_utc": lease["expires_at"],
         "approval_max_order_count": 8,
     }
+    if runner.STRATEGY_ID == "012_1_midfreq_cross_exchange":
+        expected["position_audit_interval"] = 10.0
+
+    assert kwargs == expected
 
 
 @pytest.mark.parametrize("runner", RUNNERS)
@@ -1839,12 +2351,247 @@ def test_ac_gate_incomplete_candidate_blocks_paper_and_demo_before_store(runner,
     )
     calls = []
     monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: calls.append("store"))
+    # Demo first requires the repository-canonical manifest (Iteration 30); bind
+    # that to the same manifest so the admission gate is the rule under test.
+    monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", Path(runner.MANIFEST_PATH))
 
     with pytest.raises(runner.RunnerConfigurationError, match="research candidate"):
         runner.run_network("paper-live", 1000)
     with pytest.raises(runner.DemoApprovalError, match="research candidate"):
         runner.run_network("demo", 1000)
     assert calls == []
+
+
+@pytest.mark.parametrize("runner", RUNNERS)
+def test_rejected_demo_override_uses_operator_lease_without_signed_receipt(
+    runner, monkeypatch
+):
+    config = runner.load_config()
+    manifest_path = Path(runner.MANIFEST_PATH).resolve()
+    manifest = {"manifest_status": runner.OPERATOR_DEMO_MANIFEST_STATUS}
+    candidate = {
+        "research_status": "RESEARCH_REJECTED",
+        "allowed_modes": ["replay", "shadow", "demo"],
+        "conditional_modes": {
+            "paper-live": runner.OPERATOR_PAPER_LIVE_CONDITION,
+            "demo": runner.OPERATOR_DEMO_CONDITION,
+        },
+        "candidate_sha256": "a" * 64,
+        "config_sha256": runner._file_sha256(runner.DEFAULT_CONFIG, "run config"),
+        "strategy_sha256": "b" * 64,
+    }
+    monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", manifest_path)
+    monkeypatch.setattr(
+        runner, "load_candidate", lambda _path: (manifest, candidate, manifest_path)
+    )
+    if hasattr(runner, "event_path_models_from_candidate"):
+        # This test-only sentinel isolates the acknowledgement-to-lease branch.
+        # A separate test preserves the production event-model admission gate.
+        monkeypatch.setattr(runner, "event_path_models_from_candidate", lambda *_args: (object(),))
+
+    def unexpected_signed_approval(*_args, **_kwargs):
+        raise AssertionError("operator simulation must not request a signed receipt")
+
+    monkeypatch.setattr(runner, "require_demo_approval", unexpected_signed_approval)
+    generated_leases = []
+    make_lease = runner._operator_demo_lease
+
+    def capture_operator_lease(*args, **kwargs):
+        lease = make_lease(*args, **kwargs)
+        generated_leases.append(lease)
+        return lease
+
+    monkeypatch.setattr(runner, "_operator_demo_lease", capture_operator_lease)
+    store_modes = []
+
+    def stop_before_network(mode, *_args, **_kwargs):
+        store_modes.append(mode)
+        raise RuntimeError("test stopped before store startup")
+
+    monkeypatch.setattr(runner, "build_store", stop_before_network)
+
+    with pytest.raises(RuntimeError, match="stopped before store startup"):
+        runner.run_network(
+            "demo",
+            config["run_timeout_seconds"],
+            manifest_path=manifest_path,
+            allow_rejected_demo_simulation=True,
+        )
+
+    assert store_modes == ["demo"]
+    if runner.STRATEGY_ID == "012_1_midfreq_cross_exchange":
+        assert generated_leases == []
+    else:
+        assert len(generated_leases) == 1
+        assert generated_leases[0]["maximum_quantity_base"] == str(
+            runner.risk_from_config(config).quantity_base
+        )
+        assert generated_leases[0]["maximum_order_count"] == 8
+
+
+def test_operator_demo_lease_starts_after_store_readiness_setup(monkeypatch):
+    runner = RUNNERS[0]
+    config = runner.load_config()
+    manifest_path = Path(runner.MANIFEST_PATH).resolve()
+    manifest = {"manifest_status": runner.OPERATOR_DEMO_MANIFEST_STATUS}
+    candidate = {
+        "strategy_id": runner.STRATEGY_ID,
+        "research_status": "RESEARCH_REJECTED",
+        "allowed_modes": ["replay", "shadow", "demo"],
+        "conditional_modes": {
+            "paper-live": runner.OPERATOR_PAPER_LIVE_CONDITION,
+            "demo": runner.OPERATOR_DEMO_CONDITION,
+        },
+        "candidate_sha256": "a" * 64,
+        "config_sha256": runner._file_sha256(runner.DEFAULT_CONFIG, "run config"),
+        "strategy_sha256": "b" * 64,
+    }
+    monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", manifest_path)
+    monkeypatch.setattr(
+        runner, "load_candidate", lambda _path: (manifest, candidate, manifest_path)
+    )
+
+    class SimulatedDateTime(datetime):
+        current = datetime(2026, 9, 8, 4, 0, tzinfo=timezone.utc)
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.current if tz is None else cls.current.astimezone(tz)
+
+    monkeypatch.setattr(runner, "datetime", SimulatedDateTime)
+    setup = {"ready": False, "qualified": False}
+    stages = []
+    generated_leases = []
+    broker_kwargs = {}
+    strategy_kwargs = {}
+    broker = SimpleNamespace(
+        addcommissioninfo=lambda *_args, **_kwargs: None,
+        getvalue=lambda: Decimal("2000"),
+    )
+
+    class Store:
+        def start(self):
+            stages.append("store_start")
+            SimulatedDateTime.current += timedelta(seconds=30)
+
+        def getbroker(self, **kwargs):
+            stages.append("getbroker")
+            broker_kwargs.update(kwargs)
+            return broker
+
+        def getdata(self, **_kwargs):
+            return object()
+
+        def stop(self, timeout):
+            stages.append("store_stop")
+            return {
+                "shutdown_state": "PASS",
+                "queue_depth": 0,
+                "inflight": [],
+                "worker_alive": False,
+                "close_thread_alive": False,
+                "broker_update_conservation": True,
+            }
+
+    store = Store()
+    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store)
+    rules = runner.replay_rules()
+    monkeypatch.setattr(runner, "_rules_from_store", lambda *_args: (rules, {}))
+    monkeypatch.setattr(
+        runner,
+        "_funding_from_store",
+        lambda *_args: {
+            venue: (Decimal("0"), Decimal("4102444800"), Decimal("28800"), "test")
+            for venue in runner.VENUE_SYMBOLS
+        },
+    )
+
+    def readiness(*_args):
+        setup["ready"] = True
+        stages.append("readiness")
+        return {"status": "PASS"}
+
+    monkeypatch.setattr(runner, "_readiness", readiness)
+    monkeypatch.setattr(runner, "validate_duration", lambda *_args, **_kwargs: {"status": "PASS"})
+    qualification_evidence = {
+        "status": "OPERATOR_DEMO_CALIBRATION_CONTRACT_MISMATCH",
+        "qualification_scope": "CALIBRATION_TRAINING_ONLY",
+        "oos_or_demo_approval": False,
+        "research_qualification": False,
+        "config_sha256_matches": False,
+        "rules_match": False,
+        "qualification_contract_mismatch_directions": ["binance->okx", "okx->binance"],
+    }
+
+    def load_qualification(*_args, **_kwargs):
+        setup["qualified"] = True
+        stages.append("qualification")
+        return {}, qualification_evidence
+
+    monkeypatch.setattr(runner, "_load_model_qualification", load_qualification)
+    create_lease = runner._operator_demo_lease
+
+    def record_lease(*args, **kwargs):
+        assert setup == {"ready": True, "qualified": True}
+        assert SimulatedDateTime.current - datetime(2026, 9, 8, 4, 0, tzinfo=timezone.utc) == timedelta(
+            seconds=30
+        )
+        lease = create_lease(*args, **kwargs)
+        generated_leases.append(lease)
+        stages.append("operator_lease")
+        return lease
+
+    monkeypatch.setattr(runner, "_operator_demo_lease", record_lease)
+
+    def stop_after_active_window_check():
+        stages.append("cerebro_run")
+        raise RuntimeError("test stopped after active-window validation")
+
+    cerebro = SimpleNamespace(
+        setbroker=lambda *_args: None,
+        addobserver=lambda *_args, **_kwargs: None,
+        adddata=lambda *_args, **_kwargs: None,
+        addstrategy=lambda *_args, **kwargs: strategy_kwargs.update(kwargs),
+        runstop=lambda: None,
+        run=stop_after_active_window_check,
+    )
+    monkeypatch.setattr(runner.bt, "Cerebro", lambda *_args, **_kwargs: cerebro)
+
+    with pytest.raises(RuntimeError, match="active-window validation"):
+        runner.run_network(
+            "demo",
+            config["run_timeout_seconds"],
+            manifest_path=manifest_path,
+            allow_rejected_demo_simulation=True,
+            demo_execution_smoke=True,
+        )
+
+    assert stages.index("operator_lease") > stages.index("readiness")
+    assert stages.index("operator_lease") > stages.index("qualification")
+    assert stages.index("getbroker") > stages.index("operator_lease")
+    assert "cerebro_run" in stages
+    assert len(generated_leases) == 1
+    assert broker_kwargs["approval_expires_at_utc"] == generated_leases[0]["expires_at"]
+    assert broker_kwargs["approval_max_order_count"] == 8
+    assert strategy_kwargs["demo_execution_smoke"] is True
+
+
+def test_rejected_event_demo_keeps_candidate_bound_model_gate(monkeypatch):
+    runner = next(row for row in RUNNERS if row.STRATEGY_ID == "012_2_event_driven_cross_exchange")
+    manifest_path = Path(runner.MANIFEST_PATH).resolve()
+    monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", manifest_path)
+    store_calls = []
+    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store_calls.append("store"))
+
+    with pytest.raises(runner.RunnerConfigurationError, match="immutable.*path models"):
+        runner.run_network(
+            "demo",
+            runner.load_config()["run_timeout_seconds"],
+            manifest_path=manifest_path,
+            allow_rejected_demo_simulation=True,
+        )
+
+    assert store_calls == []
 
 
 @pytest.mark.parametrize("runner", RUNNERS)

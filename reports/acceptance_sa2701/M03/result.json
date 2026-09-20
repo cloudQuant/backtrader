@@ -1,0 +1,345 @@
+{
+  "case_id": "M03",
+  "case_name": "验证连接断开后能正常显示重连成功",
+  "status": "PASS",
+  "scenario_id": "MONITOR-CONN-03",
+  "scenario_name": "断线后显示重连成功",
+  "category": "连接异常监测",
+  "trace_id": "ctp-cert-20260918-094406-d0a15659",
+  "started_at": "2026-09-18T09:44:06.029184",
+  "finished_at": "2026-09-18T09:44:20.565249",
+  "duration_seconds": 14.54,
+  "env": "telecom",
+  "required_events": [
+    "store_reconnect_success"
+  ],
+  "evidence_fields": [
+    "gateway_key",
+    "timestamp"
+  ],
+  "pass_conditions": [
+    "required_events_present",
+    "evidence_fields_present"
+  ],
+  "optional": false,
+  "observed_events": [
+    "store_auth_request",
+    "store_auth_success",
+    "store_connected",
+    "store_connecting",
+    "store_disconnect_requested",
+    "store_disconnected",
+    "store_login_success",
+    "store_ready",
+    "store_reconnect_success"
+  ],
+  "missing_required_events": [],
+  "required_events_present": true,
+  "missing_evidence_fields": [],
+  "evidence_fields_present": true,
+  "evidence": [
+    "reports/acceptance_sa2701/M03/state_snapshots.json",
+    "reports/acceptance_sa2701/M03/reconciliation.json",
+    "reports/acceptance_sa2701/M03/audit.jsonl"
+  ],
+  "failure_reason": "",
+  "next_action": "",
+  "details": {
+    "store_notification_events": [
+      "store_auth_request",
+      "store_auth_success",
+      "store_connected",
+      "store_connecting",
+      "store_disconnect_requested",
+      "store_disconnected",
+      "store_login_success",
+      "store_ready",
+      "store_reconnect_success"
+    ],
+    "first_connect": true,
+    "reconnect": true,
+    "gateway_key": "telecom",
+    "timestamp": "2026-09-18T01:44:18.356+00:00",
+    "certification_evidence": {
+      "trace_id": "ctp-cert-20260918-094406-d0a15659",
+      "account_id_masked": "33***16",
+      "gateway_key": "telecom",
+      "trade_connection": true,
+      "submitted_order_count": 0,
+      "cancel_order_count": 0,
+      "partial_count": 0,
+      "first_connect": true,
+      "reconnect": true,
+      "timestamp": "2026-09-18T01:44:18.356+00:00"
+    },
+    "reconciliation": {
+      "case_id": "M03",
+      "scenario_id": "MONITOR-CONN-03",
+      "generated_at": "2026-09-18T09:44:20.566956",
+      "expectation": {
+        "order_activity": "none",
+        "trade_activity": "none",
+        "account_position_change": "none"
+      },
+      "snapshot_count": 2,
+      "snapshots_file": "reports/acceptance_sa2701/M03/state_snapshots.json",
+      "event_counts": {
+        "total_events": 0,
+        "order_events": 0,
+        "trade_events": 0
+      },
+      "event_types": [
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnect_requested",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready",
+        "store_reconnect_success"
+      ],
+      "account_delta": {
+        "balance_changed": false,
+        "positions_changed": false,
+        "before_label": "before_action",
+        "after_label": "after_action_before_stop"
+      },
+      "post_action_open_orders": [],
+      "checks": {
+        "required_events": {
+          "expected": [
+            "store_reconnect_success"
+          ],
+          "missing": [],
+          "passed": true
+        },
+        "order_activity": {
+          "expected": "none",
+          "observed": false,
+          "passed": true
+        },
+        "trade_activity": {
+          "expected": "none",
+          "observed": false,
+          "passed": true
+        },
+        "post_action_open_orders": {
+          "expected": "not_specified",
+          "observed_count": 0,
+          "passed": true
+        },
+        "account_position_unchanged": {
+          "expected": "unchanged",
+          "balance_changed": false,
+          "positions_changed": false,
+          "passed": true
+        }
+      },
+      "strict_reconciliation_pass": true,
+      "notes": ""
+    }
+  },
+  "audit_events": [
+    {
+      "event_type": "certification_case_result",
+      "event_id": "f70c0574-735d-48bb-82c4-9038c5646265",
+      "trace_id": "ctp-cert-20260918-094406-d0a15659",
+      "case_id": "M03",
+      "scenario_id": "MONITOR-CONN-03",
+      "scenario_name": "断线后显示重连成功",
+      "category": "连接异常监测",
+      "status": "PASS",
+      "severity": "INFO",
+      "timestamp": "2026-09-18T09:44:20.565249",
+      "env": "telecom",
+      "message": "case passed",
+      "required_events": [
+        "store_reconnect_success"
+      ],
+      "evidence_fields": [
+        "gateway_key",
+        "timestamp"
+      ],
+      "observed_events": [
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnect_requested",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready",
+        "store_reconnect_success"
+      ],
+      "missing_required_events": [],
+      "missing_evidence_fields": [],
+      "required_events_present": true,
+      "evidence_fields_present": true,
+      "evidence": [],
+      "details": {
+        "store_notification_events": [
+          "store_auth_request",
+          "store_auth_success",
+          "store_connected",
+          "store_connecting",
+          "store_disconnect_requested",
+          "store_disconnected",
+          "store_login_success",
+          "store_ready",
+          "store_reconnect_success"
+        ],
+        "first_connect": true,
+        "reconnect": true,
+        "gateway_key": "telecom",
+        "timestamp": "2026-09-18T01:44:18.356+00:00",
+        "certification_evidence": {
+          "trace_id": "ctp-cert-20260918-094406-d0a15659",
+          "account_id_masked": "33***16",
+          "gateway_key": "telecom",
+          "trade_connection": true,
+          "submitted_order_count": 0,
+          "cancel_order_count": 0,
+          "partial_count": 0,
+          "first_connect": true,
+          "reconnect": true,
+          "timestamp": "2026-09-18T01:44:18.356+00:00"
+        },
+        "reconciliation": {
+          "case_id": "M03",
+          "scenario_id": "MONITOR-CONN-03",
+          "generated_at": "2026-09-18T09:44:20.566956",
+          "expectation": {
+            "order_activity": "none",
+            "trade_activity": "none",
+            "account_position_change": "none"
+          },
+          "snapshot_count": 2,
+          "snapshots_file": "reports/acceptance_sa2701/M03/state_snapshots.json",
+          "event_counts": {
+            "total_events": 0,
+            "order_events": 0,
+            "trade_events": 0
+          },
+          "event_types": [
+            "store_auth_request",
+            "store_auth_success",
+            "store_connected",
+            "store_connecting",
+            "store_disconnect_requested",
+            "store_disconnected",
+            "store_login_success",
+            "store_ready",
+            "store_reconnect_success"
+          ],
+          "account_delta": {
+            "balance_changed": false,
+            "positions_changed": false,
+            "before_label": "before_action",
+            "after_label": "after_action_before_stop"
+          },
+          "post_action_open_orders": [],
+          "checks": {
+            "required_events": {
+              "expected": [
+                "store_reconnect_success"
+              ],
+              "missing": [],
+              "passed": true
+            },
+            "order_activity": {
+              "expected": "none",
+              "observed": false,
+              "passed": true
+            },
+            "trade_activity": {
+              "expected": "none",
+              "observed": false,
+              "passed": true
+            },
+            "post_action_open_orders": {
+              "expected": "not_specified",
+              "observed_count": 0,
+              "passed": true
+            },
+            "account_position_unchanged": {
+              "expected": "unchanged",
+              "balance_changed": false,
+              "positions_changed": false,
+              "passed": true
+            }
+          },
+          "strict_reconciliation_pass": true,
+          "notes": ""
+        }
+      },
+      "reconciliation": {
+        "case_id": "M03",
+        "scenario_id": "MONITOR-CONN-03",
+        "generated_at": "2026-09-18T09:44:20.566956",
+        "expectation": {
+          "order_activity": "none",
+          "trade_activity": "none",
+          "account_position_change": "none"
+        },
+        "snapshot_count": 2,
+        "snapshots_file": "reports/acceptance_sa2701/M03/state_snapshots.json",
+        "event_counts": {
+          "total_events": 0,
+          "order_events": 0,
+          "trade_events": 0
+        },
+        "event_types": [
+          "store_auth_request",
+          "store_auth_success",
+          "store_connected",
+          "store_connecting",
+          "store_disconnect_requested",
+          "store_disconnected",
+          "store_login_success",
+          "store_ready",
+          "store_reconnect_success"
+        ],
+        "account_delta": {
+          "balance_changed": false,
+          "positions_changed": false,
+          "before_label": "before_action",
+          "after_label": "after_action_before_stop"
+        },
+        "post_action_open_orders": [],
+        "checks": {
+          "required_events": {
+            "expected": [
+              "store_reconnect_success"
+            ],
+            "missing": [],
+            "passed": true
+          },
+          "order_activity": {
+            "expected": "none",
+            "observed": false,
+            "passed": true
+          },
+          "trade_activity": {
+            "expected": "none",
+            "observed": false,
+            "passed": true
+          },
+          "post_action_open_orders": {
+            "expected": "not_specified",
+            "observed_count": 0,
+            "passed": true
+          },
+          "account_position_unchanged": {
+            "expected": "unchanged",
+            "balance_changed": false,
+            "positions_changed": false,
+            "passed": true
+          }
+        },
+        "strict_reconciliation_pass": true,
+        "notes": ""
+      }
+    }
+  ]
+}

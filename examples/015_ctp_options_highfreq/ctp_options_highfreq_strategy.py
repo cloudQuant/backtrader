@@ -191,6 +191,11 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         # remains unavailable because this standalone replay has no SDK
         # execution-fact read model or live clock provider.
         ("timing_provider", None),
+        # Optional caller-owned same-domain clock provider used by the no-arg
+        # ``notify_idle`` hook.  It returns a ``CtpCohortNow``; when it is
+        # absent the idle callback counts a skip instead of inventing a clock
+        # or latching a violation.
+        ("cohort_now_provider", None),
     )
 
     def __init__(self) -> None:
@@ -266,6 +271,16 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         )
         if provider is not None and self._timing_provider is None:
             self._timing_provider_status = "BLOCKED_SOURCE_UNSUPPORTED_PROVIDER"
+        cohort_now_provider = self.p.cohort_now_provider
+        self._cohort_now_provider = cohort_now_provider if callable(cohort_now_provider) else None
+        # Separate "no clock source was supplied" (a skip) from "a supplied
+        # clock violated the contract" (a latched safety failure).
+        self._idle_without_trusted_now_count = 0
+        self._clock_violation_count = 0
+        # Per-leg arrival and qualification evidence for the live layers.
+        self._tick_counts: dict[str, int] = dict.fromkeys(self._symbols, 0)
+        self._execution_eligible_tick_count = 0
+        self._last_quality_flags: tuple[str, ...] = ()
         self._ordinary_position_exit_proposals: list[dict[str, Any]] = []
         self.callback_counts = {"tick": 0, "bar": 0, "idle": 0, "next": 0}
 
@@ -321,6 +336,16 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         """Consume one tick and, only here, possibly create an ordinary intent."""
 
         self.callback_counts["tick"] += 1
+        # L1/L2 evidence is recorded before any admission decision so a rejected
+        # quote still proves arrival and its qualification state.
+        symbol = str(getattr(tick, "symbol", "") or "")
+        if symbol:
+            self._tick_counts[symbol] = self._tick_counts.get(symbol, 0) + 1
+        flags = tuple(str(flag) for flag in (getattr(tick, "quality_flags", None) or ()))
+        if flags:
+            self._last_quality_flags = flags
+        if getattr(tick, "execution_eligible", None) is True and not flags:
+            self._execution_eligible_tick_count += 1
         try:
             now = self._now_from_tick(tick)
         except (TypeError, ValueError):
@@ -350,13 +375,27 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
         self.callback_counts["bar"] += 1
         self._advance_synthetic_timing("bar")
 
-    def notify_idle(self, now: Any = None) -> None:
-        """Recheck cached evidence with trusted time without creating intent.
+    def set_cohort_now_provider(self, provider: Any) -> None:
+        """Install the caller-owned same-domain clock used by no-arg ``notify_idle``.
 
-        Cerebro's compatibility hook has no time argument.  The absence of a
-        provider is therefore a fail-closed clock failure; the last tick's
-        receive time is never reused as ``now``.  A real SDK risk projection is
-        intentionally not emulated by this offline example.
+        Iteration 30 seam: the observation runner owns the trusted clock, so it
+        injects it here after construction.  A non-callable value removes the
+        provider, which turns idle into a counted skip again.
+        """
+
+        self._cohort_now_provider = provider if callable(provider) else None
+
+    def notify_idle(self, now: Any = None) -> None:
+        """Recheck cached evidence with a *provided* trusted clock.
+
+        Three states, per the Iteration 30 decision:
+
+        - a trusted clock is available and valid: revalidate the cached cohort;
+        - a trusted clock is available but violates the contract: latch the
+          safety failure (fail closed, as before);
+        - no trusted clock source exists at all: count the skip and change
+          nothing.  The last tick's receive time is never reused as ``now``,
+          and a missing source is not a violation, so no latch is armed.
         """
 
         self.callback_counts["idle"] += 1
@@ -366,6 +405,21 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
             # ``now`` from the last tick or the process wall clock.
             self._advance_synthetic_timing("idle")
             return
+        if now is None:
+            provider = self._cohort_now_provider
+            if provider is None:
+                self._idle_without_trusted_now_count += 1
+                return
+            try:
+                now = provider()
+            except Exception:
+                # A supplied provider that fails is a violated contract, not a
+                # missing source: keep the previous fail-closed behaviour.
+                self._latch_clock_rejection("IDLE_CLOCK_PROVIDER_FAILED")
+                return
+            if now is None:
+                self._idle_without_trusted_now_count += 1
+                return
         try:
             trusted_now = self._cohort_now_from_value(now)
         except (TypeError, ValueError):
@@ -462,6 +516,7 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
 
         self._clock_rejection_latched = True
         self._clock_rejection_reason = reason
+        self._clock_violation_count += 1
         self._reject(reason, reset_confirmation=True)
 
     def _record_cohort_rejection(self, reason: str | None) -> None:
@@ -629,6 +684,11 @@ class CtpOptionsHighfreqStrategy(bt.Strategy):
             "ordinary_position_exit_proposals": list(self._ordinary_position_exit_proposals),
             "clock_rejection_latched": self._clock_rejection_latched,
             "clock_rejection_reason": self._clock_rejection_reason or None,
+            "idle_without_trusted_now_count": self._idle_without_trusted_now_count,
+            "clock_violation_count": self._clock_violation_count,
+            "tick_counts": dict(self._tick_counts),
+            "execution_eligible_tick_count": self._execution_eligible_tick_count,
+            "last_quality_flags": list(self._last_quality_flags),
             "normal_order_submissions": 0,
             "risk_reduction_requests": 0,
             "actual_fills": 0,

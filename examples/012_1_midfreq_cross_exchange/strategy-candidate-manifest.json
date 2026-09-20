@@ -1,0 +1,82 @@
+{
+  "schema_version": 3,
+  "manifest_status": "RESEARCH_REJECTED_OPERATOR_DEMO_SIMULATION_ONLY",
+  "generated_at": "2026-09-10T10:34:00+08:00",
+  "candidates": [
+    {
+      "strategy_id": "012_1_midfreq_cross_exchange",
+      "resolved_example_path": ".",
+      "entrypoint": "run.py",
+      "strategy_module": "strategy.py",
+      "strategy_class": "CrossExchangeArbitrageStrategy",
+      "candidate_type": "robust_executable_basis_mean_reversion",
+      "hft_label": "not_applicable",
+      "research_status": "RESEARCH_REJECTED",
+      "evidence_level": "CALIBRATION_ECONOMIC_SCREEN_REJECTED_HOLDOUT_NOT_CONSUMED",
+      "calibration": {
+        "status": "RESEARCH_REJECTED_AT_ECONOMIC_SCREEN",
+        "data_sha256": "5d1a0b2e902acc23dcf6461eb1bcda855c4a4e1356d27dd917908c2a2bde8add",
+        "sample_count": 721,
+        "role": "training_only",
+        "permits_oos_or_demo_claim": false
+      },
+      "qualification_artifact": {
+        "path": "qualification-v3.json",
+        "sha256": "d0d0c8e8cf22eb8f1be670930cc1497de6b2e2863c525ba598cdfcc8fcc0a97e",
+        "role": "calibration_training_only"
+      },
+      "economic_screen": {
+        "status": "RESEARCH_REJECTED",
+        "path": "../docs/_internal/opts/requirements/迭代21-跨所永续套利原生能力重构与策略重审/evidence/strategy-economic-screen-v3.json",
+        "sha256": "306a701b33493c1f4c39ff91a2e4abcf3b6f863e4a1c2183b5a4ea70d321cff3",
+        "source_role": "calibration_training_only",
+        "evaluated_round_trips": 149387,
+        "positive_after_four_taker_fees": 0
+      },
+      "oos": {
+        "status": "NOT_CONSUMED_TRAINING_SCREEN_FAILED",
+        "protocol": "research-preregistration-v2",
+        "capture_status": "NOT_CONSUMED_TRAINING_SCREEN_FAILED",
+        "data_sha256": null,
+        "report_sha256": null,
+        "rows": 0,
+        "causal_paired_states": 0,
+        "entry_intents": 0,
+        "closed_pairs": 0,
+        "minimum_required_closed_pairs": 10,
+        "demo_pair_eligible": false
+      },
+      "selection_adr": {
+        "selected": "robust_basis_mean_reversion",
+        "reason": "Entry requires direction-bound model qualification, executable L2 deviation and complete confirmed-fill round-trip economics"
+      },
+      "frozen_parameters": {
+        "quantity_base": "0.01",
+        "zscore_window": 120,
+        "entry_zscore": "3.0",
+        "confirmations": 3,
+        "exit_zscore": "0.5",
+        "maximum_holding_seconds": "300.0",
+        "minimum_net_edge_bps_exclusive": "1.0"
+      },
+      "allowed_modes": [
+        "replay",
+        "shadow",
+        "demo"
+      ],
+      "conditional_modes": {
+        "paper-live": "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED",
+        "demo": "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
+      },
+      "runner_sha256": "fedd8e09246190bb6555bb6f3ed896567ff4291193a0bbbaf6f69b34489e8f72",
+      "strategy_sha256": "e6546c426aeebfa3668ff37f09c9379d7fc8e43ff1267a163211d4fd91207895",
+      "config_sha256": "efd7c84c0df9ec86b5f31bd41b1d3c2f9d41c7a046b72737b723feadd89812ca",
+      "candidate_sha256": "ce25e8f9421f516b8556e19153800417698c8667cd9a5a4d2cc98c7f1614d9eb",
+      "demo_approval": {
+        "status": "NOT_APPROVED",
+        "receipt_path": null,
+        "receipt_sha256": null
+      }
+    }
+  ]
+}

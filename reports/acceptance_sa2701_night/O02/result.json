@@ -1,0 +1,279 @@
+{
+  "case_id": "O02",
+  "case_name": "验证能统计重复平仓单报单笔数",
+  "status": "FAIL",
+  "scenario_id": "RISK-REPEAT-02",
+  "scenario_name": "重复平仓报单统计",
+  "category": "重复报单监测",
+  "trace_id": "ctp-cert-20260918-230120-aa117e5d",
+  "started_at": "2026-09-18T23:01:20.670760",
+  "finished_at": "2026-09-18T23:03:24.551810",
+  "duration_seconds": 123.88,
+  "env": "telecom",
+  "required_events": [
+    "risk_repeat_order_detected"
+  ],
+  "evidence_fields": [
+    "repeat_key",
+    "repeat_count"
+  ],
+  "pass_conditions": [
+    "required_events_present",
+    "evidence_fields_present"
+  ],
+  "optional": true,
+  "observed_events": [],
+  "missing_required_events": [
+    "risk_repeat_order_detected"
+  ],
+  "required_events_present": false,
+  "missing_evidence_fields": [
+    "repeat_key",
+    "repeat_count"
+  ],
+  "evidence_fields_present": false,
+  "evidence": [
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/O02/state_snapshots.json",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/O02/reconciliation.json",
+    "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/O02/audit.jsonl"
+  ],
+  "failure_reason": "CTP market data login did not become ready within 20s",
+  "next_action": "",
+  "details": {
+    "certification_evidence": {
+      "trace_id": "ctp-cert-20260918-230120-aa117e5d",
+      "account_id_masked": "33***16",
+      "gateway_key": "telecom",
+      "submitted_order_count": 0,
+      "cancel_order_count": 0,
+      "partial_count": 0
+    },
+    "reconciliation": {
+      "case_id": "O02",
+      "scenario_id": "RISK-REPEAT-02",
+      "generated_at": "2026-09-18T23:03:24.555309",
+      "expectation": {
+        "order_activity": "required",
+        "trade_activity": "allowed",
+        "account_position_change": "allowed_if_trade",
+        "no_open_orders_after": true
+      },
+      "snapshot_count": 1,
+      "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/O02/state_snapshots.json",
+      "event_counts": {
+        "total_events": 0,
+        "order_events": 0,
+        "trade_events": 0
+      },
+      "event_types": [],
+      "account_delta": {
+        "balance_changed": null,
+        "positions_changed": null,
+        "before_label": "after_action_before_stop",
+        "after_label": ""
+      },
+      "post_action_open_orders": [],
+      "checks": {
+        "required_events": {
+          "expected": [
+            "risk_repeat_order_detected"
+          ],
+          "missing": [
+            "risk_repeat_order_detected"
+          ],
+          "passed": false
+        },
+        "order_activity": {
+          "expected": "required",
+          "observed": false,
+          "passed": false
+        },
+        "trade_activity": {
+          "expected": "allowed",
+          "observed": false,
+          "passed": true
+        },
+        "post_action_open_orders": {
+          "expected": "none",
+          "observed_count": 0,
+          "passed": true
+        },
+        "account_position_change": {
+          "expected": "allowed_if_trade",
+          "balance_changed": null,
+          "positions_changed": null,
+          "trade_events": 0,
+          "passed": true
+        }
+      },
+      "strict_reconciliation_pass": false,
+      "notes": ""
+    }
+  },
+  "audit_events": [
+    {
+      "event_type": "certification_case_result",
+      "event_id": "fb2af6d8-4705-46c4-bf36-18272b05a586",
+      "trace_id": "ctp-cert-20260918-230120-aa117e5d",
+      "case_id": "O02",
+      "scenario_id": "RISK-REPEAT-02",
+      "scenario_name": "重复平仓报单统计",
+      "category": "重复报单监测",
+      "status": "FAIL",
+      "severity": "ERROR",
+      "timestamp": "2026-09-18T23:03:24.551810",
+      "env": "telecom",
+      "message": "CTP market data login did not become ready within 20s",
+      "required_events": [
+        "risk_repeat_order_detected"
+      ],
+      "evidence_fields": [
+        "repeat_key",
+        "repeat_count"
+      ],
+      "observed_events": [],
+      "missing_required_events": [
+        "risk_repeat_order_detected"
+      ],
+      "missing_evidence_fields": [
+        "repeat_key",
+        "repeat_count"
+      ],
+      "required_events_present": false,
+      "evidence_fields_present": false,
+      "evidence": [],
+      "details": {
+        "certification_evidence": {
+          "trace_id": "ctp-cert-20260918-230120-aa117e5d",
+          "account_id_masked": "33***16",
+          "gateway_key": "telecom",
+          "submitted_order_count": 0,
+          "cancel_order_count": 0,
+          "partial_count": 0
+        },
+        "reconciliation": {
+          "case_id": "O02",
+          "scenario_id": "RISK-REPEAT-02",
+          "generated_at": "2026-09-18T23:03:24.555309",
+          "expectation": {
+            "order_activity": "required",
+            "trade_activity": "allowed",
+            "account_position_change": "allowed_if_trade",
+            "no_open_orders_after": true
+          },
+          "snapshot_count": 1,
+          "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/O02/state_snapshots.json",
+          "event_counts": {
+            "total_events": 0,
+            "order_events": 0,
+            "trade_events": 0
+          },
+          "event_types": [],
+          "account_delta": {
+            "balance_changed": null,
+            "positions_changed": null,
+            "before_label": "after_action_before_stop",
+            "after_label": ""
+          },
+          "post_action_open_orders": [],
+          "checks": {
+            "required_events": {
+              "expected": [
+                "risk_repeat_order_detected"
+              ],
+              "missing": [
+                "risk_repeat_order_detected"
+              ],
+              "passed": false
+            },
+            "order_activity": {
+              "expected": "required",
+              "observed": false,
+              "passed": false
+            },
+            "trade_activity": {
+              "expected": "allowed",
+              "observed": false,
+              "passed": true
+            },
+            "post_action_open_orders": {
+              "expected": "none",
+              "observed_count": 0,
+              "passed": true
+            },
+            "account_position_change": {
+              "expected": "allowed_if_trade",
+              "balance_changed": null,
+              "positions_changed": null,
+              "trade_events": 0,
+              "passed": true
+            }
+          },
+          "strict_reconciliation_pass": false,
+          "notes": ""
+        }
+      },
+      "reconciliation": {
+        "case_id": "O02",
+        "scenario_id": "RISK-REPEAT-02",
+        "generated_at": "2026-09-18T23:03:24.555309",
+        "expectation": {
+          "order_activity": "required",
+          "trade_activity": "allowed",
+          "account_position_change": "allowed_if_trade",
+          "no_open_orders_after": true
+        },
+        "snapshot_count": 1,
+        "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_night/O02/state_snapshots.json",
+        "event_counts": {
+          "total_events": 0,
+          "order_events": 0,
+          "trade_events": 0
+        },
+        "event_types": [],
+        "account_delta": {
+          "balance_changed": null,
+          "positions_changed": null,
+          "before_label": "after_action_before_stop",
+          "after_label": ""
+        },
+        "post_action_open_orders": [],
+        "checks": {
+          "required_events": {
+            "expected": [
+              "risk_repeat_order_detected"
+            ],
+            "missing": [
+              "risk_repeat_order_detected"
+            ],
+            "passed": false
+          },
+          "order_activity": {
+            "expected": "required",
+            "observed": false,
+            "passed": false
+          },
+          "trade_activity": {
+            "expected": "allowed",
+            "observed": false,
+            "passed": true
+          },
+          "post_action_open_orders": {
+            "expected": "none",
+            "observed_count": 0,
+            "passed": true
+          },
+          "account_position_change": {
+            "expected": "allowed_if_trade",
+            "balance_changed": null,
+            "positions_changed": null,
+            "trade_events": 0,
+            "passed": true
+          }
+        },
+        "strict_reconciliation_pass": false,
+        "notes": ""
+      }
+    }
+  ]
+}

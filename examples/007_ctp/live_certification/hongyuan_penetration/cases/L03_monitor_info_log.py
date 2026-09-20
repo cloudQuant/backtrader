@@ -14,7 +14,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar
 
 import backtrader as bt
 
@@ -41,6 +41,7 @@ def run(report_dir):
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 cerebro = create_cerebro(
                     store, symbol=symbol, bar_seconds=5,
+                    historical_bars=[live_seed_bar(store, symbol)],
                     with_trade_logger=True, log_dir=log_dir,
                 )
 
@@ -65,9 +66,10 @@ def run(report_dir):
                         if self.done:
                             return
                         ref_price = float(self.data.close[0])
+                        ensure_ctp_trading_admission(store, symbol)
                         order = self.buy(
                             size=1, exectype=bt.Order.Limit,
-                            price=max(ref_price - 20, 1.0), offset="open",
+                            price=max(ref_price - 20, 1.0), offset="open", position_side="long",
                         )
                         if order:
                             self.cancel(order)
@@ -79,21 +81,30 @@ def run(report_dir):
             monitor_entries = helpers.read_json_lines(Path(log_dir) / "monitor.log")
             events = helpers.extract_event_type_set(monitor_entries)
 
-            if monitor_entries:
-                print(f"  monitor.log 条目数: {len(monitor_entries)}")
-                print(f"  monitor 事件类型: {sorted(events)}")
-                has_monitoring = bool(
-                    events & {"order_submit_request", "order_cancel_request", "monitoring_summary"}
+            print(f"  monitor.log 条目数: {len(monitor_entries)}")
+            print(f"  monitor 事件类型: {sorted(events)}")
+
+            # The certification scenario requires ``risk_monitor_event`` with a
+            # ``metric``.  ``monitoring_summary`` alone is emitted even for a
+            # run with zero orders, so it must not satisfy this case.
+            risk_entries = [
+                entry
+                for entry in monitor_entries
+                if entry.get("event_type") == "risk_monitor_event"
+                and isinstance(entry.get("details"), dict)
+                and entry["details"].get("metric")
+            ]
+            if risk_entries:
+                metric = risk_entries[-1]["details"]["metric"]
+                print(f"✓ monitor.log 包含 risk_monitor_event（metric={metric}）")
+                return timer.pass_result(
+                    evidence=helpers.collect_evidence_files(log_dir),
+                    details={"monitor_events": sorted(events), "metric": metric},
                 )
-                if has_monitoring:
-                    print("✓ monitor.log 包含监测信息")
-                    return timer.pass_result(
-                        evidence=helpers.collect_evidence_files(log_dir),
-                        details={"monitor_events": sorted(events)},
-                    )
 
             return timer.blocked_result(
-                "monitor.log 为空或未包含监测事件",
+                "monitor.log 未包含 risk_monitor_event，监测信息不足以取证",
+                next_action="确认本用例已完成真实报单/撤单，使 TradeLogger 输出 risk_monitor_event",
                 evidence=helpers.collect_evidence_files(log_dir),
             )
 

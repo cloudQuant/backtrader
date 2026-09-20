@@ -1,0 +1,7 @@
+logs/
+signals.jsonl
+backtest_result.json
+optimize_results.csv
+optimize_results.json
+reports/*.json
+__pycache__/

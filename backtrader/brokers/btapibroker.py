@@ -1065,6 +1065,25 @@ class BtApiBroker(BrokerBase):
         net_pos.adjbase = long_pos.adjbase if long_pos.size else short_pos.adjbase
         return net_pos
 
+    @staticmethod
+    def _store_shutdown_reserve(store, shutdown_timeout):
+        """Return a bounded Store shutdown reserve when its bound is verifiable."""
+        configured_timeout = getattr(store, "_command_shutdown_timeout", None)
+        if isinstance(configured_timeout, bool) or not isinstance(configured_timeout, (int, float)):
+            return None
+        try:
+            configured_timeout = float(configured_timeout)
+        except (OverflowError, ValueError):
+            return None
+        if (
+            not math.isfinite(configured_timeout)
+            or configured_timeout <= 0
+            or not math.isfinite(shutdown_timeout)
+            or shutdown_timeout <= 0
+        ):
+            return None
+        return min(configured_timeout, shutdown_timeout / 2.0)
+
     def stop(self):
         """Freeze exposure, reduce known risk, reconcile, and stop within a deadline."""
         self._startup_ready = False
@@ -1086,7 +1105,16 @@ class BtApiBroker(BrokerBase):
             return None
 
         timeout = max(float(self.p.shutdown_timeout or 0.0), 0.0)
-        deadline = time.monotonic() + timeout
+        if not math.isfinite(timeout):
+            timeout = 0.0
+        shutdown_deadline = time.monotonic() + timeout
+        store_reserve = self._store_shutdown_reserve(self.store, timeout)
+        # The Broker and Store share one total deadline. Reserve at most half
+        # of it (and never more than the Store's configured shutdown bound) so
+        # both shutdown phases retain time without extending the caller budget.
+        deadline = (
+            shutdown_deadline - store_reserve if store_reserve is not None else shutdown_deadline
+        )
         self._trading_enabled = False
         freeze = getattr(self.store, "freeze_openings", None)
         if callable(freeze):
@@ -1210,7 +1238,9 @@ class BtApiBroker(BrokerBase):
             and getattr(self.store, "_cerebro_managed_lifecycle", True) is not False
         ):
             try:
-                store_health = self.store.stop(timeout=max(deadline - time.monotonic(), 0.0))
+                store_health = self.store.stop(
+                    timeout=max(shutdown_deadline - time.monotonic(), 0.0)
+                )
             except Exception as exc:
                 _safe_log("warning", "btapibroker:1203 fallback on Exception")
                 self._sanitize_exception(exc)
@@ -2428,11 +2458,35 @@ class BtApiBroker(BrokerBase):
             }
         return deepcopy(self._redact_runtime_value(summary))
 
+    @staticmethod
+    def _account_risk_snapshot_incomplete(snapshot, error_code):
+        """Return a non-loss fail-closed view while retaining existing risk values."""
+
+        result = deepcopy(snapshot)
+        errors = result.get("evidence_errors")
+        if isinstance(errors, Mapping):
+            existing = [item for item in errors if isinstance(item, str)]
+        elif isinstance(errors, (list, tuple, set, frozenset)):
+            existing = [item for item in errors if isinstance(item, str)]
+        elif isinstance(errors, str) and errors:
+            existing = [errors]
+        else:
+            existing = []
+        if error_code not in existing:
+            existing.append(error_code)
+        result["evidence_complete"] = False
+        result["evidence_errors"] = existing
+        result["error_code"] = error_code
+        return result
+
     def get_account_risk_snapshot(self):
         """Return durable SDK account-loss evidence without local synthesis."""
+        use_callback_cache = self._uses_async_commands() and bool(
+            getattr(self.store, "_started", False)
+        )
         method_name = (
             "get_cached_account_risk_snapshot"
-            if self._uses_async_commands() and bool(getattr(self.store, "_started", False))
+            if use_callback_cache
             else "get_account_risk_snapshot"
         )
         method = getattr(self.store, method_name, None)
@@ -2444,7 +2498,52 @@ class BtApiBroker(BrokerBase):
                 self._sanitize_exception(exc)
                 snapshot = None
             if isinstance(snapshot, dict):
-                return deepcopy(self._redact_runtime_value(snapshot))
+                safe_snapshot = deepcopy(self._redact_runtime_value(snapshot))
+                if not use_callback_cache:
+                    return safe_snapshot
+
+                summary_method = getattr(self.store, "get_execution_summary", None)
+                if not callable(summary_method):
+                    return self._account_risk_snapshot_incomplete(
+                        safe_snapshot, "execution_summary_unavailable"
+                    )
+                try:
+                    summary = self._redact_runtime_value(summary_method())
+                except Exception as exc:
+                    _safe_log("warning", "btapibroker:2473 fallback on Exception")
+                    self._sanitize_exception(exc)
+                    return self._account_risk_snapshot_incomplete(
+                        safe_snapshot, "execution_summary_read_failed"
+                    )
+                if not isinstance(summary, Mapping) or "evidence_errors" not in summary:
+                    return self._account_risk_snapshot_incomplete(
+                        safe_snapshot, "execution_summary_invalid"
+                    )
+
+                error_values = summary["evidence_errors"]
+                refresh_marker = "account_risk_refresh_in_progress"
+                if isinstance(error_values, Mapping):
+                    has_refresh_marker = refresh_marker in error_values or any(
+                        value == refresh_marker for value in error_values.values()
+                    )
+                elif isinstance(error_values, str):
+                    has_refresh_marker = error_values == refresh_marker
+                elif isinstance(error_values, (list, tuple, set, frozenset)):
+                    if any(not isinstance(value, str) for value in error_values):
+                        return self._account_risk_snapshot_incomplete(
+                            safe_snapshot, "execution_summary_invalid"
+                        )
+                    has_refresh_marker = refresh_marker in error_values
+                else:
+                    return self._account_risk_snapshot_incomplete(
+                        safe_snapshot, "execution_summary_invalid"
+                    )
+
+                if has_refresh_marker:
+                    return self._account_risk_snapshot_incomplete(
+                        safe_snapshot, refresh_marker
+                    )
+                return safe_snapshot
 
         routes_method = getattr(self.store, "get_symbol_routes", None)
         routes = routes_method() if callable(routes_method) else {}
@@ -2851,6 +2950,26 @@ class BtApiBroker(BrokerBase):
             self.notify(order)
             if self._uses_async_commands():
                 self._request_order_reconcile(order)
+            return order
+
+        if (
+            isinstance(response, dict)
+            and response.get("local_cancelled_before_send") is True
+            and response.get("remote_write_attempted") is False
+        ):
+            # The Store atomically removed this exact opening from its unsent
+            # queue and publishes the original submit's local terminal update.
+            # Do not enqueue a remote cancel or reconcile a nonexistent order.
+            order.addinfo(
+                cancel_requested_remote=False,
+                cancel_intent_active=False,
+                cancel_deadline_monotonic_ns=None,
+                cancel_deadline_unknown_marked=False,
+                cancel_retry_due_monotonic_ns=None,
+                cancel_retry_exhausted=False,
+                local_cancelled_before_send=True,
+            )
+            self.notify(order)
             return order
 
         if (
@@ -3322,16 +3441,27 @@ class BtApiBroker(BrokerBase):
         self.cancel(order)
 
     def _schedule_sdk_reconcile(self):
-        """Schedule periodic SDK reads without issuing network I/O on this thread."""
+        """Schedule throttled SDK reads without network I/O on this thread."""
         if self._periodic_reconcile_pending or not self._live_started:
             return
-        intervals = (
-            (self._last_account_refresh, float(self.p.account_refresh_interval or 0.0)),
-            (self._last_positions_refresh, float(self.p.positions_refresh_interval or 0.0)),
-            (self._last_open_orders_refresh, float(self.p.open_orders_refresh_interval or 0.0)),
-        )
-        if not any(self._should_refresh(last, interval) for last, interval in intervals):
-            return
+        startup_policy = self.p.position_sync_policy == "startup"
+        if startup_policy:
+            if self.get_orders_open() or self._pending_trade_updates:
+                return
+            interval = float(self.p.position_audit_interval or 0.0)
+            if interval <= 0 or not self._should_refresh(self._last_position_audit, interval):
+                return
+        else:
+            intervals = (
+                (self._last_account_refresh, float(self.p.account_refresh_interval or 0.0)),
+                (self._last_positions_refresh, float(self.p.positions_refresh_interval or 0.0)),
+                (
+                    self._last_open_orders_refresh,
+                    float(self.p.open_orders_refresh_interval or 0.0),
+                ),
+            )
+            if not any(self._should_refresh(last, interval) for last, interval in intervals):
+                return
         method = getattr(self.store, "enqueue_reconcile", None)
         if not callable(method):
             return
@@ -3339,6 +3469,8 @@ class BtApiBroker(BrokerBase):
         self._periodic_reconcile_pending = bool(
             isinstance(receipt, dict) and receipt.get("queued") is True
         )
+        if startup_policy and self._periodic_reconcile_pending:
+            self._last_position_audit = time.monotonic()
 
     def _maybe_audit_positions(self):
         """Compare remote positions with the local ledger without importing.
@@ -6295,6 +6427,23 @@ class BtApiBroker(BrokerBase):
             return
 
         if command != "submit":
+            return
+        if (
+            isinstance(response, dict)
+            and response.get("local_terminal") is True
+            and response.get("remote_write_attempted") is False
+            and response.get("terminal_confirmed") is True
+        ):
+            local_update = dict(response)
+            for key in (
+                "bt_order_ref",
+                "client_order_id",
+                "data_name",
+                "exchange_name",
+            ):
+                if update.get(key) not in (None, ""):
+                    local_update.setdefault(key, update[key])
+            self._apply_order_update(local_update)
             return
         if isinstance(response, dict) and response.get("execution_unknown") is True:
             self._abort_recovery_dispatch(order, "execution_recovery_dispatch_unknown")

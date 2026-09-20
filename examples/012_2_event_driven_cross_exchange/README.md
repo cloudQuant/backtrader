@@ -40,21 +40,28 @@ replay、shadow 和 paper 研究在 G5A 前固定使用每笔 6 bps 的 `conserv
 按 `config.yaml` 的非敏感 `okx_api_region` 选择 OKX 站点：`www.okx.com`/Global 用
 `global`，`my.okx.com` 用 `eea`，`app.okx.com` 用 `us`。SDK 会原子选择并验证该区域的
 REST 与三类 WebSocket；`tr` 因缺少已验证的 demo 端点组，仅允许 production。
-真正的 demo 写入必须先
-通过 canonical 候选 manifest 和固定信任根的 Ed25519 收据校验，并要求两所模拟合约账户
-均为双向模式、可交易、初始无仓位和挂单。收据绑定候选、配置、两仓 commit、OOS 数据与
+`PASS` 候选的 demo 写入必须先通过 canonical 候选 manifest 和固定信任根的 Ed25519 收据校验。
+当前 `RESEARCH_REJECTED` 候选只允许显式使用
+`--mode demo --allow-rejected-demo-simulation` 进入模拟账户路径；它创建单次本地 lease，数量受
+当前 risk 配置约束，运行时长受 `run_timeout_seconds` 约束，最多 8 个订单操作且 lease 最长 900 秒。
+此 flag 不改变研究状态、经济筛查、HFT 资格或盈利结论；paper-live 仍被禁止。两所模拟合约账户
+仍必须均为双向模式、可交易、初始无仓位和挂单。签名收据绑定候选、配置、两仓 commit、OOS 数据与
 报告、G4/G5A 收据和排除 `demo_approval` 指针后的完整 manifest。运行时只加载
 `examples/demo-approval-trust-root.pem`，不加载离线私钥；临时 manifest、普通 SHA、过期或
 证据不完整的收据在 store 构造前失败。签名依赖通过 `pip install -e '.[live]'` 安装；缺少
-`cryptography` 时 demo 写路径保持关闭。maker-taker 在缺少排队与撤单延迟证据前延期；
+`cryptography` 时 `PASS` 候选的签名 demo 路径保持关闭。operator override 不跳过 demo 技术预检、
+风险账本、资金费、对账或停机检查。maker-taker 在缺少排队与撤单延迟证据前延期；
 lead-lag 未通过预注册 OOS 前不准入。
+此外，当前事件驱动候选没有可准入的 candidate-bound event path models；由于研究状态仍为
+`RESEARCH_REJECTED`，显式 flag 不会越过该模型门，demo 会在 Store 构造前失败。只有候选重新
+达到相应研究准入并绑定通过验证的模型后，才会继续进入该执行路径。
 账户身份、订单 journal 与账户级风险账本由 `bt_api_py` 按 provider、environment 和非秘密
 credential fingerprint 统一维护，runner 不自行生成账户 ID。当前冻结候选为
 `RESEARCH_REJECTED`：旧 15 分钟公开 L2 训练窗口的 149,387 个因果可执行往返评估中，
 没有一次在四笔、每笔 6 bps 的 taker 费用后为正，最佳结果仍为 `-1.14246520` USDT。
 该乐观屏还未加入资金费、网络延迟和失败腿损失，因此当前假设在训练期已被否决，不消耗
-holdout，并禁止 paper-live 和 demo 订单写入。只读 `demo --preflight` 只验证平台与账户
-前置条件，不改变研究结论。
+holdout。paper-live 仍被禁止；只读 `demo --preflight` 只验证平台与账户前置条件，不改变研究
+结论。operator override 也不改变 `RESEARCH_REJECTED` 或任何盈利结论。
 
 当前候选只命名为“事件驱动”。本地回调基准不能覆盖公网 REST、交易所限频、真实排队位置、
 跨所成交不确定性和端到端延迟，因此 HFT 资格门保持 `FAIL/NOT_ADMITTED`。replay 名称只是

@@ -15,7 +15,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar
 
 import backtrader as bt
 
@@ -40,20 +40,11 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
-                seed_bar = {
-                    "datetime": dt.datetime.now().replace(microsecond=0),
-                    "open": 3000.0,
-                    "high": 3000.0,
-                    "low": 3000.0,
-                    "close": 3000.0,
-                    "volume": 1.0,
-                    "openinterest": 0.0,
-                }
                 cerebro = create_cerebro(
                     store,
                     symbol=symbol,
                     bar_seconds=5,
-                    historical_bars=[seed_bar],
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
                 cerebro.addobserver(
                     bt.observers.TradeLogger,
@@ -88,10 +79,14 @@ def run(report_dir):
                         ref_price = float(self.data.close[0])
                         if self.limit_price is None:
                             self.limit_price = max(ref_price - 20, 1.0)
-                        order = self.buy(size=1, exectype=bt.Order.Limit, price=self.limit_price, offset="open")
-                        if order:
-                            self.orders_placed += 1
-                            self.cancel(order)
+                        # Same symbol/side/offset/size/price in one bar is the
+                        # exact duplicate key the monitor is expected to catch.
+                        while self.orders_placed < 3:
+                            ensure_ctp_trading_admission(store, symbol)
+                            order = self.buy(size=1, exectype=bt.Order.Limit, price=self.limit_price, offset="open", position_side="long")
+                            if order:
+                                self.orders_placed += 1
+                                self.cancel(order)
 
                 cerebro.addstrategy(RepeatOrderStrategy)
                 results = run_with_timeout(cerebro, timeout_seconds=90)

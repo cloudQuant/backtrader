@@ -171,8 +171,15 @@ def print_summary(results: list[dict], report_root: Path):
         results=results,
     )
     print(
-        "  Scenarios: "
-        f"{certification['covered_scenarios']}/{certification['total_scenarios']} covered"
+        "  Scenarios attempted: "
+        f"{certification['covered_scenarios']}/{certification['total_scenarios']}"
+    )
+    print(
+        "  Scenarios with PASS evidence: "
+        f"{certification['evidenced_pass_scenarios']}/{certification['total_scenarios']}"
+        "  (required: "
+        f"{certification['evidenced_required_pass_scenarios']}"
+        f"/{certification['required_scenarios']})"
     )
 
     # Save summary JSON
@@ -236,7 +243,7 @@ def main():
         return
 
     report_root = (
-        Path(args.report_root) if args.report_root
+        Path(args.report_root).resolve() if args.report_root
         else _SUITE_DIR / "reports" / "latest"
     )
     report_root.mkdir(parents=True, exist_ok=True)

@@ -36,11 +36,9 @@ class EngineeringObservationBlocked(EngineeringSmokeError):
         self.code = code
 
 
-# This module intentionally names the only Set-2 profile accepted by the
-# injected observation seam.  It neither discovers profiles nor reads an
-# environment file, so caller-owned CTP session construction remains outside
-# this example.
-SECOND_SET_ENGINEERING_PROFILE = "simnow_second_7x24"
+# This module neither discovers profiles nor reads an environment file:
+# caller-owned CTP session construction stays outside this example, and the
+# injected observation seam accepts any frozen ``ENVIRONMENT_PROFILES`` key.
 ENGINEERING_OBSERVATION_MAX_SECONDS = 3600.0
 ENGINEERING_OBSERVATION_G3_STATUS = "NOT_RUN_ENGINEERING_STRATEGY_OBSERVATION"
 
@@ -861,6 +859,5 @@ __all__ = [
     "EngineeringSmokeError",
     "EngineeringObservationBlocked",
     "NativeAssociation",
-    "SECOND_SET_ENGINEERING_PROFILE",
     "SessionIdentity",
 ]

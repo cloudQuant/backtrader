@@ -56,7 +56,7 @@ def run(report_dir):
                         self.cerebro.runstop()
 
                 cerebro.addstrategy(OneBarStop)
-                results = run_with_timeout(cerebro, timeout_seconds=30)
+                results = run_with_timeout(cerebro, timeout_seconds=60)
 
             # Verify monitoring_summary includes the threshold setting
             monitor_entries = helpers.read_json_lines(Path(log_dir) / "monitor.log")

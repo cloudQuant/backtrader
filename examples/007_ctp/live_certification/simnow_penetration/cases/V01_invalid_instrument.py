@@ -14,7 +14,13 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import (
+    create_cerebro,
+    live_seed_bar,
+    refresh_ctp_preflight,
+    run_with_timeout,
+    started_store,
+)
 
 import backtrader as bt
 
@@ -39,6 +45,17 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
+                # The broker refuses new CTP exposure until typed startup-query
+                # evidence is complete, so refresh it before the run; otherwise
+                # the gate (not the local check) is what rejects the order.
+                try:
+                    refresh_ctp_preflight(store, symbol)
+                except Exception as exc:
+                    return timer.blocked_result(
+                        f"CTP preflight 不可用: {exc}",
+                        next_action="检查 SimNow typed 查询覆盖率与账号状态",
+                    )
+
                 # Mark the symbol as invalid via contract_metadata to prove
                 # the local validation mechanism rejects invalid instruments.
                 cerebro = create_cerebro(
@@ -48,6 +65,7 @@ def run(report_dir):
                     with_trade_logger=True,
                     log_dir=log_dir,
                     contract_metadata={symbol: {"valid": False}},
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
 
                 class InvalidInstrumentStrategy(bt.Strategy):
@@ -58,19 +76,6 @@ def run(report_dir):
                         self.bar_count = 0
                         self.order = None
                         self.rejected = False
-                        self.store_events = []
-
-                    def notify_store(self, msg, *args, **kwargs):
-                        """Handle store notification events.
-
-                        Args:
-                            msg: Store message.
-                            *args: Additional positional arguments.
-                            **kwargs: Additional keyword arguments.
-                        """
-                        event = kwargs.get("event")
-                        if isinstance(event, dict):
-                            self.store_events.append(event)
 
                     def notify_order(self, order):
                         """Handle order status updates.
@@ -90,6 +95,7 @@ def run(report_dir):
                             self.cerebro.runstop()
                             return
                         ref_price = float(self.data.close[0])
+                        refresh_ctp_preflight(store, symbol)
                         self.order = self.buy(size=1, exectype=bt.Order.Limit, price=ref_price)
 
                 cerebro.addstrategy(InvalidInstrumentStrategy)
@@ -99,20 +105,21 @@ def run(report_dir):
                 if not strat or strat.bar_count <= 0:
                     return timer.blocked_result("未收到行情数据")
 
-                event_types = {e.get("event_type") for e in strat.store_events}
+            error_entries = helpers.read_json_lines(Path(log_dir) / "error.log")
+            error_codes = {e.get("error_code", "") for e in error_entries}
 
-                if strat.rejected or "order_reject_local" in event_types:
-                    print("✓ 合约代码错误订单已被本地拒绝 (invalid_contract)")
-                    return timer.pass_result(
-                        evidence=helpers.collect_evidence_files(log_dir),
-                        details={"rejected": True, "events": sorted(event_types)},
-                    )
-
-                return timer.blocked_result(
-                    "未观察到拒单事件",
-                    next_action="检查 BtApiBroker._validate_order 的 valid 标志校验",
+            if "invalid_contract" in error_codes:
+                print("✓ 合约代码错误订单已被本地拒绝 (invalid_contract)")
+                return timer.pass_result(
                     evidence=helpers.collect_evidence_files(log_dir),
+                    details={"error_codes": sorted(error_codes)},
                 )
+
+            return timer.blocked_result(
+                "未检测到 invalid_contract 本地拒单",
+                next_action="检查 BtApiBroker._validate_order 的 valid 标志校验",
+                evidence=helpers.collect_evidence_files(log_dir),
+            )
 
         except Exception as exc:
             return timer.fail_result(str(exc), evidence=helpers.collect_evidence_files(log_dir))

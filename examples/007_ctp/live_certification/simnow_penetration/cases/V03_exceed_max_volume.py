@@ -14,7 +14,13 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import (
+    create_cerebro,
+    live_seed_bar,
+    refresh_ctp_preflight,
+    run_with_timeout,
+    started_store,
+)
 
 import backtrader as bt
 
@@ -39,6 +45,17 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
+                # The broker refuses new CTP exposure until typed startup-query
+                # evidence is complete, so refresh it before the run; otherwise
+                # the gate (not the max-size check) rejects the order.
+                try:
+                    refresh_ctp_preflight(store, symbol)
+                except Exception as exc:
+                    return timer.blocked_result(
+                        f"CTP preflight 不可用: {exc}",
+                        next_action="检查 SimNow typed 查询覆盖率与账号状态",
+                    )
+
                 cerebro = create_cerebro(
                     store,
                     symbol=symbol,
@@ -46,6 +63,7 @@ def run(report_dir):
                     with_trade_logger=True,
                     log_dir=log_dir,
                     contract_metadata={symbol: {"max_order_size": 10}},
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
 
                 class ExceedVolumeStrategy(bt.Strategy):
@@ -76,6 +94,7 @@ def run(report_dir):
                             return
                         ref_price = float(self.data.close[0])
                         print(f"  提交超量订单: size=9999")
+                        refresh_ctp_preflight(store, symbol)
                         self.order = self.buy(
                             size=9999, exectype=bt.Order.Limit,
                             price=max(ref_price - 20, 1.0), offset="open",
@@ -91,7 +110,7 @@ def run(report_dir):
             error_entries = helpers.read_json_lines(Path(log_dir) / "error.log")
             error_codes = {e.get("error_code", "") for e in error_entries}
 
-            if strat.rejected or "max_order_size_exceeded" in error_codes:
+            if "max_order_size_exceeded" in error_codes:
                 print("✓ 超量订单已被拒绝")
                 return timer.pass_result(
                     evidence=helpers.collect_evidence_files(log_dir),
@@ -99,7 +118,7 @@ def run(report_dir):
                 )
 
             return timer.blocked_result(
-                "未检测到超量拒单",
+                "未检测到 max_order_size_exceeded 拒单",
                 next_action="确认 BtApiBroker max_order_volume 校验路径",
                 evidence=helpers.collect_evidence_files(log_dir),
             )

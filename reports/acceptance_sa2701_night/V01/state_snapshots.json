@@ -1,0 +1,18 @@
+[
+  {
+    "case_id": "V01",
+    "label": "after_action_before_stop",
+    "timestamp": "2026-09-18T23:20:09.241411",
+    "env": "telecom",
+    "connected": false,
+    "account_id_masked": "33***16",
+    "balance": null,
+    "positions": [],
+    "open_orders": [],
+    "errors": [
+      "balance: BtApiStoreError: CTP market data login did not become ready within 20s",
+      "positions: BtApiStoreError: CTP market data login did not become ready within 20s",
+      "open_orders: BtApiStoreError: CTP market data login did not become ready within 20s"
+    ]
+  }
+]

@@ -1,6 +1,13 @@
 schema_version: ctp-options-candidate.v1
 candidate_id: iter25-options-replay-v1
 
+# Frozen SimNow environment family.  The default is the first set, which is the
+# environment the Iteration 25 G3 gate requires.  Only the keys of the example's
+# ENVIRONMENT_PROFILES table are accepted; the SDK owns the front pairs, and the
+# runtime may fall back to the frozen alternate pair of the *same* family when
+# the nominal pair is unreachable.  Override with ITER30_SIMNOW_PROFILE.
+environment: simnow_first_group1
+
 # This directory is directly runnable on its own.  Its default is therefore
 # the deterministic, zero-network/zero-write formula replay.  Explicit
 # shadow/simnow/production requests still fail closed before a session can be

@@ -14,7 +14,12 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import (
+    create_cerebro,
+    live_seed_bar,
+    run_with_timeout,
+    started_store,
+)
 
 import backtrader as bt
 
@@ -47,6 +52,7 @@ def run(report_dir):
                     with_trade_logger=True,
                     log_dir=log_dir,
                     contract_metadata={symbol: {"min_price_tick": 1.0}},
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
 
                 class ErrorTriggerStrategy(bt.Strategy):

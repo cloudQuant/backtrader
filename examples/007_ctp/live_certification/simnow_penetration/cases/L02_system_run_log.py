@@ -14,7 +14,12 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import (
+    create_cerebro,
+    live_seed_bar,
+    run_with_timeout,
+    started_store,
+)
 
 import backtrader as bt
 
@@ -42,6 +47,7 @@ def run(report_dir):
                 cerebro = create_cerebro(
                     store, symbol=symbol, bar_seconds=5,
                     with_trade_logger=True, log_dir=log_dir,
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
 
                 class OneBarStop(bt.Strategy):

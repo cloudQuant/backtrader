@@ -214,7 +214,7 @@ def reconcile_snapshot(positions=None, summary_changes=None, **changes):
         "reconciled_venues": ["okx", "binance"],
         "generation": 1,
         "fencing_epoch": 1,
-        "as_of_monotonic_ns": 10_000_000_000,
+        "as_of_monotonic_ns": mid.time.monotonic_ns(),
         "unknown_ids": [],
         "trading_blocked": False,
         "evidence_complete": True,
@@ -225,7 +225,7 @@ def reconcile_snapshot(positions=None, summary_changes=None, **changes):
     return snapshot
 
 
-def strategy_stub(risk_config=None):
+def strategy_stub(risk_config=None, *, demo_execution_smoke=False):
     strategy = object.__new__(mid.CrossExchangeArbitrageStrategy)
     strategy.rules = rules()
     strategy.risk = risk_config or risk()
@@ -237,12 +237,198 @@ def strategy_stub(risk_config=None):
         funding_exchange_routes=None,
         funding_max_age_seconds=D("30"),
         account_risk_ledger=None,
+        execution_enabled=True,
+        shadow=False,
+        demo_execution_smoke=demo_execution_smoke,
     )
     strategy.broker = SimpleNamespace(getvalue=lambda: 100)
     strategy.unhedged_started = None
     strategy.unhedged_durations = []
     strategy._ensure_runtime_state()
     return strategy
+
+
+class SmokeOrder:
+    def __init__(self, ref, data, side, size):
+        self.ref = ref
+        self.data = data
+        self.info = {}
+        self.status = mid.bt.Order.Accepted
+        self.size = D(str(size))
+        self.executed = SimpleNamespace(
+            size=D("0"), price=D("0"), comm=D("0"), exbits=()
+        )
+        self._side = side
+        self.alive = lambda: True
+
+    def isbuy(self):
+        return self._side == "buy"
+
+    def getstatusname(self):
+        names = {
+            mid.bt.Order.Accepted: "Accepted",
+            mid.bt.Order.Completed: "Completed",
+            mid.bt.Order.Canceled: "Canceled",
+        }
+        return names.get(self.status, str(self.status))
+
+
+def _demo_smoke_harness():
+    strategy = strategy_stub(demo_execution_smoke=True)
+    strategy._now = lambda: D("10.000000001")
+    strategy._wall_now = lambda: D("1000")
+    strategy._check_deadlines = lambda: None
+    strategy._account_loss_allows_entry = lambda: True
+
+    def fresh_funding(*, opening):
+        strategy._apply_funding_states(strategy._static_funding_states(D("1000")))
+        return True
+
+    strategy._refresh_funding_gate = fresh_funding
+    strategy.feeds = {
+        venue: SimpleNamespace(_name=symbol) for venue, symbol in mid.VENUE_SYMBOLS.items()
+    }
+    strategy.pending_order = None
+    strategy.pair_state = None
+    strategy.order_records = {}
+    strategy.known_order_refs = set()
+    strategy.processed_order_refs = set()
+    strategy.unknown = False
+    strategy.awaiting_reconciliation = False
+    strategy.cancel_requested = False
+    strategy.leg_deadline = None
+    strategy.cancel_deadline = None
+    strategy.pair_deadline = None
+    submitted = []
+    next_ref = iter(range(1, 20))
+
+    def submit(side, **kwargs):
+        order = SmokeOrder(next(next_ref), kwargs["data"], side, kwargs["size"])
+        submitted.append(order)
+        return order
+
+    strategy.buy = lambda **kwargs: submit("buy", **kwargs)
+    strategy.sell = lambda **kwargs: submit("sell", **kwargs)
+    return strategy, submitted
+
+
+def _finish_smoke_order(order, status, executed_size, price):
+    order.status = status
+    order.executed.size = D(str(executed_size))
+    order.executed.price = D(str(price))
+    order.executed.comm = D("0.001")
+    order.alive = lambda: False
+
+
+def test_mechanical_demo_smoke_waits_for_healthy_books_and_completed_first_leg():
+    strategy, submitted = _demo_smoke_harness()
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", 10, 1))
+    assert submitted == []
+
+    strategy.notify_orderbook(orderbook_event("binance", "101", "101.1", 10, 1))
+    assert len(submitted) == 1
+    first = submitted[0]
+    assert first.data._name == mid.VENUE_SYMBOLS["okx"]
+    assert first.isbuy() is False
+    assert strategy._mechanical_demo_smoke_opening_order_count == 1
+    assert strategy._mechanical_demo_smoke_quantity_base <= strategy.risk.quantity_base
+    assert not strategy.engine.intent_history
+
+    # An Accepted update is not the confirmation barrier for the second leg.
+    strategy.notify_order(first)
+    assert len(submitted) == 1
+
+    first_native = strategy.rules["okx"].base_to_native(
+        strategy._mechanical_demo_smoke_quantity_base
+    )
+    _finish_smoke_order(first, mid.bt.Order.Completed, -first_native, "99.9")
+    strategy.notify_order(first)
+
+    assert len(submitted) == 2
+    second = submitted[1]
+    assert second.data._name == mid.VENUE_SYMBOLS["binance"]
+    assert second.isbuy() is True
+    assert strategy._mechanical_demo_smoke_opening_order_count == 2
+    assert [row["venue"] for row in strategy._mechanical_demo_smoke_opening_orders] == [
+        "okx",
+        "binance",
+    ]
+    assert {
+        D(row["quantity_base"]) for row in strategy._mechanical_demo_smoke_opening_orders
+    } == {strategy.risk.quantity_base}
+    assert strategy.pair_state["phase"] == "open_long"
+    assert strategy.mechanical_demo_smoke_state == "SECOND_LEG_SUBMITTED"
+    assert strategy.engine.active_pair is None
+    assert not strategy.engine.intent_history
+
+    # A duplicate Completed callback cannot submit another opening order.
+    strategy.notify_order(first)
+    assert len(submitted) == 2
+
+    second_native = strategy.rules["binance"].base_to_native(
+        strategy._mechanical_demo_smoke_quantity_base
+    )
+    _finish_smoke_order(second, mid.bt.Order.Completed, second_native, "101")
+    strategy.notify_order(second)
+    assert strategy.pair_state["phase"] == "flatten"
+    assert strategy.pair_state["reason"] == "mechanical_demo_smoke_round_trip"
+    assert strategy.engine.active_pair is None
+    assert not strategy.engine.intent_history
+
+    report = strategy.trade_logger_context()
+    assert report["mechanical_demo_smoke_requested"] is True
+    assert report["mechanical_demo_smoke_semantics"] == "MECHANICAL_DEMO_SMOKE_NOT_RESEARCH"
+    assert report["mechanical_demo_smoke_opening_order_count"] == 2
+    assert report["profitability_claim"] == "NONE_MECHANICAL_DEMO_SMOKE_NOT_RESEARCH"
+    assert report["intents"] == []
+
+
+def test_mechanical_demo_smoke_never_hedges_a_non_completed_first_leg():
+    strategy, submitted = _demo_smoke_harness()
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", 10, 1))
+    strategy.notify_orderbook(orderbook_event("binance", "101", "101.1", 10, 1))
+    first = submitted[0]
+    first_native = strategy.rules["okx"].base_to_native(
+        strategy._mechanical_demo_smoke_quantity_base
+    )
+
+    # Even a terminal update with executed quantity is not the explicit
+    # Completed confirmation required to open the Binance hedge.
+    _finish_smoke_order(first, mid.bt.Order.Canceled, -first_native, "99.9")
+    strategy.notify_order(first)
+
+    assert strategy._mechanical_demo_smoke_opening_order_count == 1
+    assert [row["venue"] for row in strategy._mechanical_demo_smoke_opening_orders] == ["okx"]
+    assert len(submitted) == 2  # the second order is reduce-only closeout, not an opening hedge
+    assert submitted[1].data._name == mid.VENUE_SYMBOLS["okx"]
+    assert submitted[1].isbuy() is True
+    assert strategy.pair_state["phase"] == "flatten"
+    assert strategy.mechanical_demo_smoke_state == "CLOSING_WITH_RISK_REDUCTION"
+    assert not strategy.engine.intent_history
+
+
+def test_normal_strategy_path_does_not_trigger_mechanical_demo_smoke():
+    strategy = strategy_stub(demo_execution_smoke=False)
+    strategy.pending_order = None
+    strategy.pair_state = None
+    strategy.unknown = False
+    strategy.awaiting_reconciliation = False
+    strategy.remote_flat_proven = False
+    strategy._check_deadlines = lambda: None
+    strategy._refresh_funding_gate = lambda **_kwargs: True
+    strategy._funding_states = strategy._static_funding_states(D("1000"))
+    evaluations = []
+    strategy.engine.evaluate = lambda now: evaluations.append(now) or None
+    strategy._submit = lambda *_args, **_kwargs: pytest.fail(
+        "no alpha intent means the normal path submits no order"
+    )
+
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", 10, 1))
+    strategy.notify_orderbook(orderbook_event("binance", "101", "101.1", 10, 1))
+
+    assert evaluations == [D("10.000000001"), D("10.000000001")]
+    assert strategy.mechanical_demo_smoke_state == "NOT_REQUESTED"
+    assert not strategy.engine.intent_history
 
 
 def test_mid_trade_logger_context_is_published_live_from_cached_broker_state():
@@ -606,6 +792,21 @@ def test_mid_unknown_transition_advances_fence_and_requests_new_snapshot():
     assert requests == [True]
 
 
+def test_demo_smoke_confirms_flat_reconcile_when_pair_state_is_none():
+    strategy = strategy_stub(demo_execution_smoke=True)
+    strategy.awaiting_reconciliation = True
+    strategy.pair_state = None
+
+    assert strategy.confirm_remote_flat(
+        reconcile_snapshot(as_of_monotonic_ns=10_000_000_000)
+    ) is True
+
+    assert strategy.remote_flat_proven is True
+    assert strategy.awaiting_reconciliation is False
+    assert strategy.pair_state is None
+    assert strategy.mechanical_demo_smoke_state == "WAITING_FOR_HEALTHY_BOOKS"
+
+
 def test_mid_repeated_stale_reconcile_snapshot_keeps_fence_and_fresh_snapshot_recovers():
     strategy = strategy_stub()
     now = {"value": D("10")}
@@ -870,6 +1071,27 @@ def test_model_qualification_is_bound_to_exact_strategy_contract():
 
     assert engine.evaluate(D("1")) is None
     assert engine.reject_reasons["model_contract_binding"] == 1
+
+    operator_engine = mid.MidFrequencyEngine(
+        venue_rules,
+        risk_config,
+        tampered,
+        wall_clock=lambda: D("10"),
+        allow_operator_demo_calibration_contract_mismatch=True,
+    )
+    assert operator_engine._qualification_allows_entry(("okx", "binance")) is True
+
+    broken = replace(tampered, structural_break_detected=True)
+    rejected_engine = mid.MidFrequencyEngine(
+        venue_rules,
+        risk_config,
+        broken,
+        wall_clock=lambda: D("10"),
+        allow_operator_demo_calibration_contract_mismatch=True,
+    )
+    assert rejected_engine._qualification_allows_entry(("okx", "binance")) is False
+    assert rejected_engine.reject_reasons["model_structural_break"] == 1
+
     changed_risk = replace(risk_config, cancel_deadline_seconds=D(".5"))
     assert mid.qualification_contract_sha256(
         venue_rules, risk_config, "okx", "binance"
@@ -1337,6 +1559,115 @@ def test_mid_strategy_consumes_sdk_loss_latch_and_never_unlocks_on_rebound():
     assert strategy.account_risk_status == "loss_limit"
 
 
+def test_mid_strategy_retries_stale_account_risk_until_fresh_before_opening(monkeypatch):
+    strategy = strategy_stub()
+    now_ns = 10_000_000_000
+    monkeypatch.setattr(mid.time, "monotonic_ns", lambda: now_ns)
+    strategy._now = lambda: D("10.000000001")
+    strategy.p.account_risk_ledger = account_risk_snapshot(
+        as_of_monotonic_ns=now_ns - 3_000_000_000
+    )
+    strategy._check_deadlines = lambda: None
+    strategy._refresh_funding_gate = lambda **_kwargs: True
+    strategy._funding_states = strategy._static_funding_states(D("1000"))
+    strategy.feeds = {
+        venue: SimpleNamespace(_name=symbol) for venue, symbol in mid.VENUE_SYMBOLS.items()
+    }
+    strategy.pending_order = None
+    strategy.pair_state = None
+    strategy.unknown = False
+    strategy.awaiting_reconciliation = False
+    intent = SimpleNamespace(
+        long_venue="binance",
+        short_venue="okx",
+        quantity_base=D(".01"),
+        entry_sell=SimpleNamespace(marginal_price=D("100")),
+    )
+    strategy.engine.evaluate = lambda _now: intent
+    submitted = []
+    strategy._submit = lambda *args, **kwargs: submitted.append((args, kwargs))
+
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", "10.000000001", 1))
+    strategy.notify_orderbook(
+        orderbook_event("binance", "101", "101.1", "10.000000001", 1)
+    )
+
+    assert submitted == []
+    assert strategy.pair_state is None
+    assert strategy.account_loss_kill_switch is False
+    assert strategy.account_risk_status == "waiting_for_fresh_snapshot"
+
+    strategy.p.account_risk_ledger = account_risk_snapshot(
+        as_of_monotonic_ns=now_ns - 1_000_000_000
+    )
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", "10.000000001", 2))
+
+    assert len(submitted) == 1
+    assert strategy.account_risk_status == "pass"
+    assert strategy.account_loss_kill_switch is False
+
+
+def test_mechanical_demo_smoke_keeps_retryable_risk_waiting():
+    strategy, submitted = _demo_smoke_harness()
+    strategy._account_loss_allows_entry = lambda: False
+    strategy.account_risk_status = "waiting_for_fresh_snapshot"
+
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", 10, 1))
+    strategy.notify_orderbook(orderbook_event("binance", "101", "101.1", 10, 1))
+
+    assert submitted == []
+    assert strategy.account_loss_kill_switch is False
+    assert strategy.mechanical_demo_smoke_state == "WAITING_FOR_HEALTHY_BOOKS"
+
+
+def test_mechanical_demo_smoke_waits_for_sdk_risk_refresh_then_allows_first_leg(monkeypatch):
+    strategy, submitted = _demo_smoke_harness()
+    del strategy._account_loss_allows_entry
+    strategy.p.account_risk_ledger = None
+    now_ns = 10_000_000_000
+    monkeypatch.setattr(mid.time, "monotonic_ns", lambda: now_ns)
+
+    class LocalSummaryStore:
+        uses_async_commands = True
+        _started = True
+
+        def __init__(self):
+            self.evidence_errors = ["account_risk_refresh_in_progress"]
+
+        def get_cached_account_risk_snapshot(self):
+            return account_risk_snapshot(as_of_monotonic_ns=now_ns)
+
+        def get_execution_summary(self):
+            return {"evidence_errors": list(self.evidence_errors)}
+
+        def redact_runtime_value(self, value):
+            return value
+
+    store = LocalSummaryStore()
+    strategy.broker = mid.bt.brokers.BtApiBroker(
+        store=store,
+        sdk_preflight=False,
+        validation_enabled=False,
+        force_refresh_queries=False,
+    )
+
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", 10, 1))
+    strategy.notify_orderbook(orderbook_event("binance", "101", "101.1", 10, 1))
+
+    assert submitted == []
+    assert strategy.account_risk_status == "waiting_for_fresh_snapshot"
+    assert strategy.account_loss_kill_switch is False
+    assert strategy.mechanical_demo_smoke_state == "WAITING_FOR_HEALTHY_BOOKS"
+
+    store.evidence_errors.clear()
+    strategy.notify_orderbook(orderbook_event("okx", "99.9", "100", 10, 2))
+
+    assert len(submitted) == 1
+    assert strategy.account_risk_status == "pass"
+    assert strategy.account_loss_kill_switch is False
+    assert strategy.mechanical_demo_smoke_state == "FIRST_LEG_SUBMITTED"
+
+
 def test_mid_strategy_requires_exact_sdk_loss_limit_binding():
     strategy = strategy_stub()
     strategy.p.account_risk_ledger = account_risk_snapshot(loss_limit_bps="50.0001")
@@ -1345,6 +1676,26 @@ def test_mid_strategy_requires_exact_sdk_loss_limit_binding():
     assert strategy.account_loss_kill_switch is True
     assert strategy.account_risk_status == "invalid_contract"
     assert strategy.engine.reject_reasons["account_risk_loss_limit_mismatch"] == 1
+
+
+@pytest.mark.parametrize(
+    ("evidence_errors", "expected_allowed", "expected_status", "expected_latch"),
+    [
+        ({}, True, "pass", False),
+        ({"account_risk": "snapshot_incomplete"}, False, "waiting_for_fresh_snapshot", False),
+    ],
+    ids=("empty-mapping-is-no-errors", "nonempty-mapping-stays-incomplete"),
+)
+def test_mid_strategy_handles_mapping_account_risk_evidence_errors(
+    evidence_errors, expected_allowed, expected_status, expected_latch, monkeypatch
+):
+    strategy = strategy_stub()
+    monkeypatch.setattr(mid.time, "monotonic_ns", lambda: 10_000_000_000)
+    strategy.p.account_risk_ledger = account_risk_snapshot(evidence_errors=evidence_errors)
+
+    assert strategy._account_loss_allows_entry() is expected_allowed
+    assert strategy.account_risk_status == expected_status
+    assert strategy.account_loss_kill_switch is expected_latch
 
 
 def test_mid_strategy_cancel_retry_deadline_is_capped_to_pair_deadline():

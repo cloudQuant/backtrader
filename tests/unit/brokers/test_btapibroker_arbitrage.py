@@ -1,7 +1,9 @@
 """Native futures IOC reconciliation, including ambiguous submissions."""
 
 import asyncio
+from copy import deepcopy
 import datetime as dt
+import os
 import time
 
 import backtrader as bt
@@ -41,6 +43,99 @@ def update(stack, order, **fields):
     """Push an order update for order and drain the broker."""
     stack[0].broker_updates.append({"kind": "order", "bt_order_ref": order.ref, **fields})
     stack[3].next()
+
+
+def _account_risk_read_model_broker(summary):
+    owner_pid = os.getpid()
+    snapshot = {
+        "baseline_equity": "100",
+        "current_equity": "99.9",
+        "realized_net": "-.1",
+        "configured_venues": ["okx", "binance"],
+        "generation": 1,
+        "fencing_epoch": 1,
+        "as_of_monotonic_ns": time.monotonic_ns(),
+        "owner_pid": owner_pid,
+        "clock_domain_id": f"process:{owner_pid}:monotonic",
+        "identity_binding_sha256": "a" * 64,
+        "durable": True,
+        "trading_blocked": False,
+        "evidence_complete": True,
+        "evidence_errors": {},
+        "loss_limit_bps": "50",
+        "loss_limit_breached": False,
+        "error_code": None,
+    }
+
+    class LocalSummaryStore:
+        uses_async_commands = True
+        _started = True
+
+        def __init__(self):
+            self.redaction_calls = 0
+
+        def get_cached_account_risk_snapshot(self):
+            return deepcopy(snapshot)
+
+        def get_account_risk_snapshot(self):
+            pytest.fail("started async brokers must use the callback-safe risk cache")
+
+        def get_execution_summary(self):
+            return summary
+
+        def redact_runtime_value(self, value):
+            self.redaction_calls += 1
+            return deepcopy(value)
+
+    store = LocalSummaryStore()
+    broker = bt.brokers.BtApiBroker(
+        store=store,
+        sdk_preflight=False,
+        validation_enabled=False,
+        force_refresh_queries=False,
+    )
+    return broker, store, snapshot
+
+
+def test_broker_account_risk_snapshot_marks_active_refresh_as_incomplete_without_loss_latch():
+    broker, store, original = _account_risk_read_model_broker(
+        {"evidence_errors": ["account_risk_refresh_in_progress"]}
+    )
+
+    result = broker.get_account_risk_snapshot()
+
+    assert result["evidence_complete"] is False
+    assert result["evidence_errors"] == ["account_risk_refresh_in_progress"]
+    assert result["error_code"] == "account_risk_refresh_in_progress"
+    assert result["trading_blocked"] is False
+    assert result["loss_limit_breached"] is False
+    assert original["evidence_complete"] is True
+    assert original["evidence_errors"] == {}
+    assert store.redaction_calls == 2
+
+
+def test_broker_account_risk_snapshot_without_refresh_marker_is_unchanged():
+    broker, store, original = _account_risk_read_model_broker(
+        {"evidence_errors": ["unrelated_diagnostic"]}
+    )
+
+    result = broker.get_account_risk_snapshot()
+
+    assert result == original
+    assert store.redaction_calls == 2
+
+
+def test_broker_account_risk_snapshot_malformed_execution_summary_fails_closed():
+    broker, store, _original = _account_risk_read_model_broker(["malformed"])
+
+    result = broker.get_account_risk_snapshot()
+
+    assert result["evidence_complete"] is False
+    assert result["evidence_errors"] == ["execution_summary_invalid"]
+    assert result["error_code"] == "execution_summary_invalid"
+    assert result["trading_blocked"] is False
+    assert result["loss_limit_breached"] is False
+    assert store.redaction_calls == 2
 
 
 def leased_stack(expires_at, maximum_orders):

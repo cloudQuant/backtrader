@@ -1,0 +1,96 @@
+{
+  "rows": [
+    {
+      "params": {
+        "sim_threshold": 0.3,
+        "top_n": 20
+      },
+      "final_value": 99135.85776361299,
+      "trade_num": 1206,
+      "win_count": 177,
+      "loss_count": 1029,
+      "sharpe_ratio": -137.4352216613176,
+      "annual_return": -0.20326132728466484,
+      "max_drawdown": 0.00864142236387011,
+      "signal_count": 6044,
+      "avg_selected_matches": 19.104307894161384,
+      "avg_top_sim": 0.9927177076628556,
+      "forced_liquidation_count": 0,
+      "net_profit": -864.1422363870079,
+      "win_rate": 0.14676616915422885,
+      "params_hash": "{\"sim_threshold\": 0.3, \"top_n\": 20}"
+    },
+    {
+      "params": {
+        "sim_threshold": 0.3,
+        "top_n": 30
+      },
+      "final_value": 99159.35635217615,
+      "trade_num": 1175,
+      "win_count": 151,
+      "loss_count": 1024,
+      "sharpe_ratio": -138.6043599007031,
+      "annual_return": -0.19830205479783103,
+      "max_drawdown": 0.008406436478238466,
+      "signal_count": 6554,
+      "avg_selected_matches": 28.351330049261083,
+      "avg_top_sim": 0.990117934889394,
+      "forced_liquidation_count": 0,
+      "net_profit": -840.6436478238465,
+      "win_rate": 0.12851063829787235,
+      "params_hash": "{\"sim_threshold\": 0.3, \"top_n\": 30}"
+    },
+    {
+      "params": {
+        "sim_threshold": 0.5,
+        "top_n": 20
+      },
+      "final_value": 99135.85776361299,
+      "trade_num": 1206,
+      "win_count": 177,
+      "loss_count": 1029,
+      "sharpe_ratio": -137.4352216613176,
+      "annual_return": -0.20326132728466484,
+      "max_drawdown": 0.00864142236387011,
+      "signal_count": 6044,
+      "avg_selected_matches": 19.104307894161384,
+      "avg_top_sim": 0.9927177076628556,
+      "forced_liquidation_count": 0,
+      "net_profit": -864.1422363870079,
+      "win_rate": 0.14676616915422885,
+      "params_hash": "{\"sim_threshold\": 0.5, \"top_n\": 20}"
+    },
+    {
+      "params": {
+        "sim_threshold": 0.5,
+        "top_n": 30
+      },
+      "final_value": 99159.35635217615,
+      "trade_num": 1175,
+      "win_count": 151,
+      "loss_count": 1024,
+      "sharpe_ratio": -138.6043599007031,
+      "annual_return": -0.19830205479783103,
+      "max_drawdown": 0.008406436478238466,
+      "signal_count": 6554,
+      "avg_selected_matches": 28.351330049261083,
+      "avg_top_sim": 0.990117934889394,
+      "forced_liquidation_count": 0,
+      "net_profit": -840.6436478238465,
+      "win_rate": 0.12851063829787235,
+      "params_hash": "{\"sim_threshold\": 0.5, \"top_n\": 30}"
+    }
+  ],
+  "grid": {
+    "top_n": [
+      20,
+      30
+    ],
+    "sim_threshold": [
+      0.3,
+      0.5
+    ]
+  },
+  "workers": 4,
+  "elapsed_seconds": 158.99698795797303
+}

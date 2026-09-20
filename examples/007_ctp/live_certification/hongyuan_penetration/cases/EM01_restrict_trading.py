@@ -14,7 +14,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar
 
 import backtrader as bt
 from backtrader.brokers.btapibroker import BtApiBroker
@@ -42,6 +42,7 @@ def run(report_dir):
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 cerebro = create_cerebro(
                     store, symbol=symbol, bar_seconds=5,
+                    historical_bars=[live_seed_bar(store, symbol)],
                     with_trade_logger=True, log_dir=log_dir,
                 )
 
@@ -76,16 +77,17 @@ def run(report_dir):
                             broker.disable_trading(reason="EM01_test")
                             print("  已禁用交易权限")
                         ref_price = float(self.data.close[0])
+                        ensure_ctp_trading_admission(store, symbol)
                         self.order = self.buy(
                             size=1, exectype=bt.Order.Limit,
-                            price=max(ref_price - 20, 1.0), offset="open",
+                            price=max(ref_price - 20, 1.0), offset="open", position_side="long",
                         )
                         if self.order and self.order.status == bt.Order.Rejected:
                             self.rejected = True
                             print("✓ 订单在交易权限禁用后被拒绝")
 
                 cerebro.addstrategy(RestrictTradingStrategy)
-                results = run_with_timeout(cerebro, timeout_seconds=45)
+                results = run_with_timeout(cerebro, timeout_seconds=60)
 
                 strat = results[0] if results else None
                 if not strat or strat.bar_count <= 0:

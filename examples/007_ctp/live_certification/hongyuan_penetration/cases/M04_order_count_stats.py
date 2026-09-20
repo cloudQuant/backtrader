@@ -14,7 +14,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar
 
 import backtrader as bt
 
@@ -41,6 +41,7 @@ def run(report_dir):
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 cerebro = create_cerebro(
                     store, symbol=symbol, bar_seconds=5,
+                    historical_bars=[live_seed_bar(store, symbol)],
                     with_trade_logger=True, log_dir=log_dir,
                 )
 
@@ -68,11 +69,16 @@ def run(report_dir):
                         if self.orders_placed >= 3:
                             return
                         ref_price = float(self.data.close[0])
-                        limit_price = max(ref_price - 20 - self.orders_placed, 1.0)
-                        order = self.buy(size=1, exectype=bt.Order.Limit, price=limit_price, offset="open")
-                        if order:
-                            self.orders_placed += 1
-                            self.cancel(order)
+                        # Place all three in one bar: the live feed only forms
+                        # a bar every few seconds, so one-order-per-bar cannot
+                        # reliably reach the monitoring threshold.
+                        while self.orders_placed < 3:
+                            ensure_ctp_trading_admission(store, symbol)
+                            limit_price = max(ref_price - 20 - self.orders_placed, 1.0)
+                            order = self.buy(size=1, exectype=bt.Order.Limit, price=limit_price, offset="open", position_side="long")
+                            if order:
+                                self.orders_placed += 1
+                                self.cancel(order)
 
                 cerebro.addstrategy(MultiOrderStrategy)
                 results = run_with_timeout(cerebro, timeout_seconds=90)

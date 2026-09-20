@@ -1,0 +1,74 @@
+{
+  "case_id": "M02",
+  "scenario_id": "MONITOR-CONN-02",
+  "generated_at": "2026-09-18T09:44:04.162017",
+  "expectation": {
+    "order_activity": "none",
+    "trade_activity": "none",
+    "account_position_change": "none"
+  },
+  "snapshot_count": 2,
+  "snapshots_file": "reports/acceptance_sa2701/M02/state_snapshots.json",
+  "event_counts": {
+    "total_events": 32,
+    "order_events": 0,
+    "trade_events": 0
+  },
+  "event_types": [
+    "",
+    "bar",
+    "data_status",
+    "market_data_subscribe_request",
+    "monitoring_summary",
+    "open_orders_sync_completed",
+    "session_started",
+    "session_stopped",
+    "store_auth_request",
+    "store_auth_success",
+    "store_connected",
+    "store_connecting",
+    "store_disconnected",
+    "store_login_success",
+    "store_ready",
+    "tick"
+  ],
+  "account_delta": {
+    "balance_changed": true,
+    "positions_changed": false,
+    "before_label": "before_action",
+    "after_label": "after_action_before_stop"
+  },
+  "post_action_open_orders": [],
+  "checks": {
+    "required_events": {
+      "expected": [
+        "store_disconnected"
+      ],
+      "missing": [],
+      "passed": true
+    },
+    "order_activity": {
+      "expected": "none",
+      "observed": false,
+      "passed": true
+    },
+    "trade_activity": {
+      "expected": "none",
+      "observed": false,
+      "passed": true
+    },
+    "post_action_open_orders": {
+      "expected": "not_specified",
+      "observed_count": 0,
+      "passed": true
+    },
+    "account_position_unchanged": {
+      "expected": "unchanged",
+      "balance_changed": true,
+      "positions_changed": false,
+      "passed": true
+    }
+  },
+  "strict_reconciliation_pass": true,
+  "notes": ""
+}

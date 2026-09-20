@@ -1,0 +1,51 @@
+schema_version: 1
+strategy_id: self_similarity_016
+mode: backtest                # backtest | optimize
+
+data:
+  file: "{repo}/tests/datas/XAUUSD_M1.csv"
+  fromdate: null              # "YYYY-MM-DD" or null for full history
+  todate: null
+
+params:
+  window_bars: 75             # intraday return window (bars -> window-1 returns)
+  horizon_bars: 15            # holding period (bars == minutes)
+  lookback_days: 60           # most recent valid candidate trading days
+  corr_threshold: 0.6         # |pearson| selection threshold
+  prob_threshold: 0.75        # directional probability gate
+  exit_multiple: 3.0          # stop/take distance = multiple * expected log return
+  min_matches: 5              # minimum selected candidates to trade
+
+backtest:
+  initial_cash: 100000.0
+  size: 1.0
+  commission_pct: 0.0002
+  slippage_pct: 0.0
+
+logging:
+  trade_logger: true          # single backtest only; forced off in optimize
+  log_dir: logs
+  log_orders: true
+  log_trades: true
+  log_signals: true
+  log_value: false            # per-bar value stream: ~300MB on full M1 history
+  log_positions: false        # per-bar streams disabled by default (M1 volume)
+  log_indicators: false
+  log_ticks: false
+  log_bars: false
+  signals_jsonl: signals.jsonl
+
+optimize:
+  grid:                       # keys must be a subset of params
+    window_bars: [60, 75, 90]
+    corr_threshold: [0.3, 0.4, 0.5]   # 0.6 has ~zero hits on real XAUUSD (see design D35-09)
+    prob_threshold: [0.70, 0.75, 0.80]
+  workers: 8
+  fromdate: "2021-08-12"      # optimisation runs on the training segment only
+  todate: "2023-12-31"
+
+outputs:
+  result_json: backtest_result.json
+  optimize_csv: optimize_results.csv
+  optimize_json: optimize_results.json
+  reports_dir: reports

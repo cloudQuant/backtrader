@@ -1,0 +1,76 @@
+{
+  "case_id": "EM02",
+  "scenario_id": "EMERGENCY-02",
+  "generated_at": "2026-09-18T14:10:40.347011",
+  "expectation": {
+    "order_activity": "none",
+    "trade_activity": "none",
+    "account_position_change": "none",
+    "no_open_orders_after": true
+  },
+  "snapshot_count": 2,
+  "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_full/EM02/state_snapshots.json",
+  "event_counts": {
+    "total_events": 15,
+    "order_events": 0,
+    "trade_events": 0
+  },
+  "event_types": [
+    "",
+    "bar",
+    "market_data_subscribe_request",
+    "monitoring_summary",
+    "open_orders_sync_completed",
+    "session_started",
+    "session_stopped",
+    "store_auth_request",
+    "store_auth_success",
+    "store_connected",
+    "store_connecting",
+    "store_disconnected",
+    "store_login_success",
+    "store_ready"
+  ],
+  "account_delta": {
+    "balance_changed": false,
+    "positions_changed": false,
+    "before_label": "before_action",
+    "after_label": "after_action_before_stop"
+  },
+  "post_action_open_orders": [],
+  "checks": {
+    "required_events": {
+      "expected": [
+        "strategy_trading_paused"
+      ],
+      "missing": [
+        "strategy_trading_paused"
+      ],
+      "passed": false
+    },
+    "order_activity": {
+      "expected": "none",
+      "observed": false,
+      "passed": true
+    },
+    "trade_activity": {
+      "expected": "none",
+      "observed": false,
+      "passed": true
+    },
+    "post_action_open_orders": {
+      "expected": "none",
+      "observed_count": 0,
+      "passed": true
+    },
+    "account_position_unchanged": {
+      "expected": "unchanged",
+      "balance_changed": false,
+      "positions_changed": false,
+      "case_trade_events": 0,
+      "passed": true
+    }
+  },
+  "strict_reconciliation_pass": false,
+  "notes": ""
+}

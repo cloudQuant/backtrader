@@ -1,6 +1,8 @@
+import contextlib
 import importlib
 import json
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -10,11 +12,54 @@ LIVE_CERTIFICATION_ROOT = REPO_ROOT / "examples" / "007_ctp" / "live_certificati
 SUITE_NAMES = ("simnow_penetration", "hongyuan_penetration")
 
 
+def _is_suite_module(module_name):
+    return (
+        module_name == "run_case"
+        or module_name == "common"
+        or module_name.startswith("common.")
+    )
+
+
+def _clear_suite_modules():
+    for module_name in list(sys.modules):
+        if _is_suite_module(module_name):
+            sys.modules.pop(module_name, None)
+
+
+@contextlib.contextmanager
+def _preserve_suite_import_state():
+    previous_modules = {
+        name: module for name, module in sys.modules.items() if _is_suite_module(name)
+    }
+    previous_path = sys.path[:]
+    try:
+        yield
+    finally:
+        _clear_suite_modules()
+        sys.modules.update(previous_modules)
+        sys.path[:] = previous_path
+
+
+def _no_op_load_dotenv(*args, **kwargs):
+    return None
+
+
+@pytest.fixture(autouse=True)
+def restore_suite_import_state(monkeypatch):
+    try:
+        dotenv = importlib.import_module("dotenv")
+    except ImportError:
+        pass
+    else:
+        monkeypatch.setattr(dotenv, "load_dotenv", _no_op_load_dotenv)
+
+    with _preserve_suite_import_state():
+        yield
+
+
 def load_suite(suite_name):
     suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
-    for module_name in list(sys.modules):
-        if module_name == "run_case" or module_name == "common" or module_name.startswith("common."):
-            sys.modules.pop(module_name, None)
+    _clear_suite_modules()
     sys.path.insert(0, str(suite_dir))
     try:
         run_case = importlib.import_module("run_case")
@@ -23,6 +68,37 @@ def load_suite(suite_name):
     finally:
         sys.path.remove(str(suite_dir))
     return run_case, certification, result_mod
+
+
+def test_loading_each_suite_restores_preexisting_module_objects(monkeypatch):
+    previous_common = types.ModuleType("common")
+    previous_common.__path__ = []
+    previous_modules = {
+        "run_case": types.ModuleType("run_case"),
+        "common": previous_common,
+        "common.evidence": types.ModuleType("common.evidence"),
+        "common.runtime": types.ModuleType("common.runtime"),
+    }
+    for module_name, module in previous_modules.items():
+        monkeypatch.setitem(sys.modules, module_name, module)
+
+    with _preserve_suite_import_state():
+        for suite_name in SUITE_NAMES:
+            suite_dir = LIVE_CERTIFICATION_ROOT / suite_name
+            run_case, _, _ = load_suite(suite_name)
+            evidence = importlib.import_module("common.evidence")
+            runtime = importlib.import_module("common.runtime")
+
+            assert Path(run_case.__file__).resolve().parent == suite_dir.resolve()
+            assert Path(evidence.__file__).resolve().parent == (
+                suite_dir / "common"
+            ).resolve()
+            assert Path(runtime.__file__).resolve().parent == (
+                suite_dir / "common"
+            ).resolve()
+
+    for module_name, module in previous_modules.items():
+        assert sys.modules[module_name] is module
 
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
@@ -760,7 +836,9 @@ def test_trade_log_case_waits_for_real_trade_before_passing(suite_name):
     )
 
     assert "trade_execution" in source
-    assert "close_today" in source
+    # A same-day close must exist; CZCE uses the generic ``close`` offset
+    # (via close_offset_for) while SHFE/DCE use ``close_today``.
+    assert "close_today" in source or "close_offset_for" in source
     assert "self.cancel(self.order)" not in source
     assert "order is self.open_order" not in source
     assert "order is self.close_order" not in source

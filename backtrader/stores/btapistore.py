@@ -1854,6 +1854,73 @@ def _create_ctp_wrapper_class():
             self._pending_orders = {}
             self._pending_orders_by_sys_id = {}
             self._order_ref_seq = int(time.time()) % 1000000
+            # Opaque capability returned by the typed registered-sim
+            # admission entry; required by submit_order_insert/action.
+            self._execution_gate_capability = None
+            # EXCHANGE.INSTRUMENT identity resolved during admission, reused
+            # so order fields carry the exchange the gate authorized.
+            self._execution_instrument_exchanges = {}
+
+        def _resolve_gate_exchange(self, instrument, exchange_id):
+            """Reuse the exchange resolved during registered-sim admission."""
+            if exchange_id or not instrument:
+                return exchange_id
+            return self._execution_instrument_exchanges.get(str(instrument).upper(), "")
+
+        def arm_registered_sim_execution(
+            self,
+            instrument_id,
+            exchange_id="",
+            md_front="",
+            *,
+            strategy_identity_sha256,
+            execution_cycle_id,
+            preflight_sha256,
+        ):
+            """Arm typed native writes on a registered broker simulation front.
+
+            Delegates to the SDK's ``arm_execution_for_registered_sim`` typed
+            admission entry, which only arms when the session's TD front
+            matches a frozen registered simulation endpoint pair.
+            """
+            entry = getattr(self.trader_client, "arm_execution_for_registered_sim", None)
+            if not callable(entry):
+                raise BtApiStoreError(
+                    "SDK does not expose registered-sim execution admission"
+                )
+            capability, state = entry(
+                instrument_id=instrument_id,
+                exchange_id=exchange_id,
+                md_front=md_front,
+                strategy_identity_sha256=strategy_identity_sha256,
+                execution_cycle_id=execution_cycle_id,
+                preflight_sha256=preflight_sha256,
+            )
+            self._execution_gate_capability = capability
+            instrument, _ = _split_ctp_symbol(str(instrument_id))
+            if instrument and exchange_id:
+                # The execution gate binds writes to EXCHANGE.INSTRUMENT, so
+                # remember the resolved exchange for the order fields.
+                self._execution_instrument_exchanges[instrument.upper()] = str(exchange_id)
+            return state
+
+        def _send_native_order_insert(self, field, req_id):
+            """Route one order insert through the typed execution gate."""
+            typed = getattr(self.trader_client, "submit_order_insert", None)
+            capability = self._execution_gate_capability
+            if callable(typed) and capability is not None:
+                return typed(field, req_id, execution_capability=capability)
+            # SDK builds without the execution gate keep the raw path; on
+            # gated builds an unarmed fallback fails closed inside the SDK.
+            return self.trader_client.api.ReqOrderInsert(field, req_id)
+
+        def _send_native_order_action(self, field, req_id):
+            """Route one order action (cancel) through the typed gate."""
+            typed = getattr(self.trader_client, "submit_order_action", None)
+            capability = self._execution_gate_capability
+            if callable(typed) and capability is not None:
+                return typed(field, req_id, execution_capability=capability)
+            return self.trader_client.api.ReqOrderAction(field, req_id)
 
         def connect(self):
             """Connect to CTP servers."""
@@ -2450,6 +2517,7 @@ def _create_ctp_wrapper_class():
 
             data_name = str(payload.get("data_name") or payload.get("symbol") or "").strip()
             instrument, exchange_id = _split_ctp_symbol(data_name)
+            exchange_id = self._resolve_gate_exchange(instrument, exchange_id)
             if not instrument:
                 raise BtApiStoreError("CTP order payload requires a valid symbol")
 
@@ -2511,7 +2579,7 @@ def _create_ctp_wrapper_class():
             field.VolumeCondition = "1"
             field.LimitPrice = price
 
-            ret = self.trader_client.api.ReqOrderInsert(field, req_id)
+            ret = self._send_native_order_insert(field, req_id)
             if ret != 0:
                 raise BtApiStoreError(f"CTP order send failed: ret={ret}")
 
@@ -2551,6 +2619,7 @@ def _create_ctp_wrapper_class():
             pending = self._pending_orders.get(ref) or self._pending_orders_by_sys_id.get(ref, {})
             data_name = str(dataname or pending.get("data_name") or "").strip()
             instrument, exchange_id = _split_ctp_symbol(data_name)
+            exchange_id = self._resolve_gate_exchange(instrument, exchange_id)
             instrument = instrument or pending.get("instrument") or ""
             exchange_id = exchange_id or pending.get("exchange_id") or ""
             if not instrument:
@@ -2578,7 +2647,7 @@ def _create_ctp_wrapper_class():
             )
 
             req_id = self._next_request_id()
-            ret = self.trader_client.api.ReqOrderAction(field, req_id)
+            ret = self._send_native_order_action(field, req_id)
             if ret != 0:
                 raise BtApiStoreError(f"CTP cancel send failed: ret={ret}")
 
@@ -6540,23 +6609,28 @@ class BtApiStore(LiveStoreBase):
 
         if summary.get("evidence_complete") is False:
             errors.append("sdk_execution_evidence_incomplete")
-        execution_is_armed = self._sdk_execution_config.get("market_data_only") is False
+        execution_enabled = self._sdk_execution_config.get("market_data_only") is False
+        arm_managed = summary.get("arm_managed") is True
+        ctp_managed_arm_required = execution_enabled and self._is_ctp_session_provider()
         sdk_evidence_errors = summary.get("evidence_errors")
         arm_error_codes = {
             str(value)
             for value in (sdk_evidence_errors if isinstance(sdk_evidence_errors, list) else ())
             if str(value).startswith("execution_arm_")
         }
-        if execution_is_armed:
-            if summary.get("armed") is not True:
-                errors.append("execution_arm_not_armed")
+        if execution_enabled:
             if summary.get("market_data_only") is not False:
                 errors.append("execution_arm_market_data_only")
-            if summary.get("arm_revoked") is not False:
-                errors.append(str(summary.get("revocation_reason") or "execution_arm_revoked"))
-            if arm_error_codes:
-                errors.extend(sorted(arm_error_codes))
-        if execution_is_armed and any(str(error).startswith("execution_arm_") for error in errors):
+            if ctp_managed_arm_required and not arm_managed:
+                errors.append("execution_arm_management_unproven")
+            if arm_managed:
+                if summary.get("armed") is not True:
+                    errors.append("execution_arm_not_armed")
+                if summary.get("arm_revoked") is not False:
+                    errors.append(str(summary.get("revocation_reason") or "execution_arm_revoked"))
+                if arm_error_codes:
+                    errors.extend(sorted(arm_error_codes))
+        if execution_enabled and any(str(error).startswith("execution_arm_") for error in errors):
             self._force_sdk_market_data_only(
                 "execution_arm_evidence_lost", clear_authorization=False
             )
@@ -6848,6 +6922,11 @@ class BtApiStore(LiveStoreBase):
         self._start_command_worker()
         venue, request = self._sdk_cancel_request(order_ref, dataname)
         binding = self._sdk_local_refs.get(str(order_ref), {})
+        if not binding and request.client_order_id not in (None, ""):
+            binding = self._sdk_client_refs.get((venue, str(request.client_order_id)), {})
+        local_receipt = self._cancel_queued_opening_before_send(venue, request, binding)
+        if local_receipt is not None:
+            return local_receipt
         return self._enqueue_sdk_command(
             {
                 "operation": "cancel",
@@ -6859,6 +6938,94 @@ class BtApiStore(LiveStoreBase):
             },
             priority_name="cancel",
         )
+
+    def _cancel_queued_opening_before_send(
+        self,
+        venue: str,
+        request: Any,
+        binding: Mapping[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Locally terminalize an exact opening still queued but not dispatched."""
+        client_order_id = str(getattr(request, "client_order_id", None) or "")
+        bt_order_ref = binding.get("bt_order_ref")
+        if not client_order_id or bt_order_ref is None:
+            return None
+        if any(
+            getattr(request, key, None) not in (None, "")
+            for key in ("order_id", "order_ref", "front_id", "session_id")
+        ):
+            return None
+
+        completion = None
+        with self._command_condition:
+            matching_indices = []
+            for index, (_, _, command) in enumerate(self._command_heap):
+                queued_request = command.get("request")
+                offset = getattr(queued_request, "offset", "open")
+                offset = str(getattr(offset, "value", offset)).strip().lower()
+                if (
+                    command.get("operation") == "submit"
+                    and command.get("priority") == "open"
+                    and command.get("session_generation") == self._command_generation
+                    and command.get("venue") == venue
+                    and command.get("symbol") == getattr(request, "symbol", None)
+                    and str(command.get("client_order_id") or "") == client_order_id
+                    and str(command.get("bt_order_ref")) == str(bt_order_ref)
+                    and offset == "open"
+                    and getattr(queued_request, "reduce_only", False) is False
+                ):
+                    matching_indices.append(index)
+            if len(matching_indices) != 1:
+                return None
+
+            index = matching_indices[0]
+            _, _, opening = self._command_heap.pop(index)
+            heapq.heapify(self._command_heap)
+            self._record_command_drop_locked(opening, "cancelled_before_send")
+            self._command_health["dequeued"] += 1
+            self._command_health["cancelled_opening_before_send"] += 1
+            self._command_publications_pending += 1
+            completion = self._unsent_command_completion(opening, "cancelled_before_send")
+            completion["status"] = "canceled"
+            completion["response"] = {
+                "kind": "order",
+                "status": "canceled",
+                "execution_unknown": False,
+                "terminal_confirmed": True,
+                "local_terminal": True,
+                "remote_write_attempted": False,
+                "error_code": "opening_cancelled_before_send",
+                "error_msg": "Opening command was cancelled before remote transport",
+            }
+            self._command_condition.notify_all()
+            receipt = {
+                "kind": "command_receipt",
+                "command": "cancel",
+                "receipt_id": uuid.uuid4().hex,
+                "bt_order_ref": bt_order_ref,
+                "client_order_id": client_order_id,
+                "status": "cancelled_before_send",
+                "queued": False,
+                "priority": "cancel",
+                "queue_depth": len(self._command_heap),
+                "local_cancelled_before_send": True,
+                "remote_write_attempted": False,
+                "submit_receipt_id": opening.get("receipt_id"),
+            }
+
+        try:
+            self._append_sdk_update(completion)
+        finally:
+            with self._command_condition:
+                self._command_publications_pending -= 1
+                self._command_condition.notify_all()
+        self.emit_runtime_event(
+            "sdk_opening_cancelled_before_send",
+            status="canceled",
+            order_ref=bt_order_ref,
+            details={"client_order_id": client_order_id},
+        )
+        return receipt
 
     def enqueue_query(self, order_ref, dataname: Optional[str] = None) -> Dict[str, Any]:
         """Queue an order reconciliation query at the highest priority."""
@@ -7173,6 +7340,53 @@ class BtApiStore(LiveStoreBase):
         )
         dataname = self._extract_dataname(order.data)
         return self.cancel_order_ref(order_ref, dataname=dataname)
+
+    def arm_registered_sim_execution(
+        self,
+        instrument_id: str,
+        exchange_id: str = "",
+        *,
+        strategy_identity_sha256: str,
+        execution_cycle_id: str,
+        preflight_sha256: str,
+    ) -> Dict[str, Any]:
+        """Arm typed CTP order writes on a registered broker simulation front.
+
+        Only the legacy direct CTP adapter exposes this entry, and the SDK
+        arms only when the session's TD front matches a frozen registered
+        simulation endpoint pair (see ``bt_api_ctp.ctp_env_selector``).
+
+        The execution gate binds writes to exchange-qualified instrument
+        identities, so a bare symbol such as ``rb2701`` is resolved to its
+        exchange here (the adapter then reuses it for order fields).
+        """
+        api = self._ensure_api_ready()
+        arm = getattr(api, "arm_registered_sim_execution", None)
+        if not callable(arm):
+            raise BtApiStoreError(
+                "CTP adapter does not support registered-sim execution admission"
+            )
+        if not exchange_id:
+            _, exchange_id = _split_ctp_symbol(str(instrument_id))
+        if not exchange_id:
+            getter = getattr(self, "get_symbol_info", None)
+            info: Dict[str, Any] = {}
+            if callable(getter):
+                try:
+                    info = getter(instrument_id) or {}
+                except Exception as exc:
+                    _safe_log("warning", "btapistore:arm_registered_sim_exchange_lookup")
+                    _safe_log("debug", "symbol exchange lookup failed: %s", exc)
+                    info = {}
+            exchange_id = str(info.get("exchange_id") or info.get("exchange") or "")
+        return arm(
+            instrument_id,
+            exchange_id,
+            md_front=getattr(api, "md_front", "") or "",
+            strategy_identity_sha256=strategy_identity_sha256,
+            execution_cycle_id=execution_cycle_id,
+            preflight_sha256=preflight_sha256,
+        )
 
     def cancel_order_ref(self, order_ref, dataname: Optional[str] = None):
         """Cancel a provider order by reference without requiring a local Order."""
@@ -14945,6 +15159,45 @@ class BtApiStore(LiveStoreBase):
         ]:
             self._historical_query_cache.pop(key, None)
 
+    def _recover_reservation_only_cancel_unknowns(self) -> None:
+        """Run the SDK's local journal recovery hook before Store transport startup."""
+        recover = getattr(self._api, "recover_reservation_only_cancel_unknowns", None)
+        if not callable(recover):
+            return
+        try:
+            result = recover()
+        except Exception as exc:
+            _safe_log("warning", "btapistore:reservation_cancel_recovery_failed")
+            self.sanitize_exception(exc)
+            raise BtApiStoreError("SDK local reservation-cancel journal recovery failed") from None
+        if (
+            not isinstance(result, Mapping)
+            or result.get("completed") is not True
+            or not isinstance(result.get("recovered_client_order_ids"), list)
+        ):
+            raise BtApiStoreError("SDK local reservation-cancel journal recovery is unproven")
+
+    def _recover_historical_documented_definite_rejections(self) -> None:
+        """Run the SDK's proven local rejection recovery before transport startup."""
+        recover = getattr(self._api, "recover_historical_documented_definite_rejections", None)
+        if not callable(recover):
+            # This hook is optional for older SDKs. Without it, unresolved
+            # journal entries remain unresolved and normal reconciliation
+            # gates continue to fail closed.
+            return
+        try:
+            result = recover()
+        except Exception as exc:
+            _safe_log("warning", "btapistore:documented_rejection_recovery_failed")
+            self.sanitize_exception(exc)
+            raise BtApiStoreError("SDK local documented-rejection recovery failed") from None
+        if (
+            not isinstance(result, Mapping)
+            or result.get("completed") is not True
+            or not isinstance(result.get("recovered_client_order_ids"), list)
+        ):
+            raise BtApiStoreError("SDK local documented-rejection recovery is unproven")
+
     def _ensure_api_ready(self):
         """Instantiate and connect the underlying bt_api_py client on demand."""
         metadata_probe_requires_market_data_only = bool(
@@ -15003,6 +15256,17 @@ class BtApiStore(LiveStoreBase):
                 kwargs = dict(self._config)
                 kwargs.update(self._api_kwargs)
                 self._api = api_cls(**kwargs)
+
+        if (
+            self._sdk_mode
+            and not metadata_probe_requires_market_data_only
+            and not self._is_sdk_market_data_only()
+        ):
+            # The SDK hook only inspects its durable local journal and can
+            # append a terminal event for the exact reservation-only pattern.
+            # Run it before connecting providers or starting the command worker.
+            self._recover_reservation_only_cancel_unknowns()
+            self._recover_historical_documented_definite_rejections()
 
         ctp_session_provider = self._is_ctp_session_provider()
         self.emit_runtime_event("store_connecting", status="connecting")

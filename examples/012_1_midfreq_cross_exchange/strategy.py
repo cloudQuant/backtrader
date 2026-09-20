@@ -18,6 +18,7 @@ import os
 import random
 from statistics import median
 import time
+from types import SimpleNamespace
 from typing import Callable, Deque, Dict, Mapping, Optional, Sequence, Tuple
 
 import backtrader as bt
@@ -168,6 +169,7 @@ class BasisModelQualification:
         maximum_half_life_seconds,
         expected_contract_sha256: Optional[str] = None,
         expected_direction: Optional[Tuple[str, str]] = None,
+        allow_contract_mismatch: bool = False,
     ) -> Optional[str]:
         """Return the rejection reason for trading under this artifact now.
 
@@ -177,6 +179,8 @@ class BasisModelQualification:
         """
         now = decimal_value(now_epoch, "qualification_now_epoch")
         maximum = decimal_value(maximum_half_life_seconds, "maximum_half_life_seconds")
+        if not isinstance(allow_contract_mismatch, bool):
+            raise ValueError("allow_contract_mismatch must be a boolean")
         if now < self.valid_from_epoch:
             return "model_not_yet_valid"
         if now >= self.valid_until_epoch:
@@ -195,9 +199,11 @@ class BasisModelQualification:
             return "model_direction_binding"
         if self.venue_symbols_sha256 != _venue_symbols_sha256():
             return "model_venue_binding"
+        if expected_contract_sha256 is None or self.qualification_contract_sha256 is None:
+            return "model_contract_binding"
         if (
-            expected_contract_sha256 is None
-            or self.qualification_contract_sha256 != expected_contract_sha256
+            self.qualification_contract_sha256 != expected_contract_sha256
+            and not allow_contract_mismatch
         ):
             return "model_contract_binding"
         if self.structural_break_detected:
@@ -700,6 +706,7 @@ class MidFrequencyEngine:
         risk: MidFrequencyRisk,
         model_qualification: Optional[object] = None,
         wall_clock: Callable[[], object] = time.time,
+        allow_operator_demo_calibration_contract_mismatch: bool = False,
     ):
         """Bind rules, risk and qualifications, then reset all pairing state."""
 
@@ -707,6 +714,11 @@ class MidFrequencyEngine:
             raise ValueError("rules must contain okx and binance")
         self.rules = dict(rules)
         self.risk = risk
+        if not isinstance(allow_operator_demo_calibration_contract_mismatch, bool):
+            raise ValueError("operator demo contract mismatch permission must be a boolean")
+        self.allow_operator_demo_calibration_contract_mismatch = (
+            allow_operator_demo_calibration_contract_mismatch
+        )
         self.qualification_contract_sha256 = {
             direction: qualification_contract_sha256(self.rules, risk, *direction)
             for direction in (("okx", "binance"), ("binance", "okx"))
@@ -768,6 +780,7 @@ class MidFrequencyEngine:
             maximum_half_life_seconds=self.risk.maximum_half_life_seconds,
             expected_contract_sha256=self.qualification_contract_sha256[direction],
             expected_direction=direction,
+            allow_contract_mismatch=self.allow_operator_demo_calibration_contract_mismatch,
         )
         if reason is not None:
             self.reject(reason)
@@ -1201,6 +1214,9 @@ class MidFrequencyEngine:
             "cost_breakdowns": [cost.as_dict() for cost in self.cost_history],
             "reject_reasons": dict(self.reject_reasons),
             "active_pair": self.active_pair is not None,
+            "operator_demo_calibration_contract_mismatch_allowed": (
+                self.allow_operator_demo_calibration_contract_mismatch
+            ),
             "last_exit_economics": self.last_exit_economics,
             "model_qualifications": {
                 "->".join(direction): artifact.as_dict()
@@ -1265,6 +1281,7 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         ("rules", None),
         ("risk", None),
         ("model_qualification", None),
+        ("allow_operator_demo_calibration_contract_mismatch", False),
         ("funding", None),
         ("funding_snapshot_provider", None),
         ("funding_exchange_routes", None),
@@ -1273,6 +1290,7 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         ("account_risk_ledger", None),
         ("execution_enabled", True),
         ("shadow", False),
+        ("demo_execution_smoke", False),
     )
 
     def __init__(self):
@@ -1285,7 +1303,14 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             else MidFrequencyRisk(**(self.p.risk or {}))
         )
         qualification = self.p.model_qualification
-        self.engine = MidFrequencyEngine(self.rules, self.risk, qualification)
+        self.engine = MidFrequencyEngine(
+            self.rules,
+            self.risk,
+            qualification,
+            allow_operator_demo_calibration_contract_mismatch=(
+                getattr(self.p, "allow_operator_demo_calibration_contract_mismatch", False)
+            ),
+        )
         self.feeds = {
             SYMBOL_VENUES[data._name]: data for data in self.datas if data._name in SYMBOL_VENUES
         }
@@ -1331,6 +1356,13 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         )
         self._funding_states: Dict[str, FundingState] = {}
         self._funding_history = deque(maxlen=256)
+        self._mechanical_demo_smoke_opening_order_count = 0
+        self._mechanical_demo_smoke_opening_orders = []
+        self._mechanical_demo_smoke_quantity_base = None
+        self._mechanical_demo_smoke_failure_reason = None
+        self.mechanical_demo_smoke_state = (
+            "WAITING_FOR_HEALTHY_BOOKS" if self._demo_smoke_active() else "NOT_REQUESTED"
+        )
         self._trade_logger_last_context_signature = None
         self._trade_logger_context_published_at = Decimal("-Infinity")
 
@@ -1367,8 +1399,101 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         state.setdefault("_funding_states", {})
         state.setdefault("_funding_history", deque(maxlen=256))
         state.setdefault("_last_idle_funding_check", Decimal("-Infinity"))
+        state.setdefault("_mechanical_demo_smoke_opening_order_count", 0)
+        state.setdefault("_mechanical_demo_smoke_opening_orders", [])
+        state.setdefault("_mechanical_demo_smoke_quantity_base", None)
+        state.setdefault("_mechanical_demo_smoke_failure_reason", None)
+        state.setdefault(
+            "mechanical_demo_smoke_state",
+            "WAITING_FOR_HEALTHY_BOOKS" if self._demo_smoke_active() else "NOT_REQUESTED",
+        )
         state.setdefault("_trade_logger_last_context_signature", None)
         state.setdefault("_trade_logger_context_published_at", Decimal("-Infinity"))
+
+    def _demo_smoke_active(self) -> bool:
+        """Return whether this strategy was explicitly enabled for demo smoke execution."""
+
+        params = getattr(self, "p", None)
+        return bool(
+            getattr(params, "demo_execution_smoke", False) is True
+            and getattr(params, "execution_enabled", True) is True
+            and getattr(params, "shadow", False) is not True
+        )
+
+    def _set_demo_smoke_state(self, state: str, reason: Optional[str] = None) -> None:
+        """Update the non-research mechanical smoke lifecycle evidence."""
+
+        self.mechanical_demo_smoke_state = state
+        if reason is not None:
+            self._mechanical_demo_smoke_failure_reason = reason
+
+    def _start_mechanical_demo_smoke(self, now: Decimal) -> None:
+        """Submit one risk-bounded OKX short leg after both books pass freshness gates."""
+
+        if self.mechanical_demo_smoke_state != "WAITING_FOR_HEALTHY_BOOKS":
+            return
+        if self.engine.active_pair is not None or not self.engine._fresh(now):
+            return
+        if not self._account_loss_allows_entry():
+            if self.account_risk_status != "waiting_for_fresh_snapshot":
+                self._set_demo_smoke_state("BLOCKED_ACCOUNT_RISK", "account_risk_gate")
+            return
+        if not self._refresh_funding_gate(opening=True):
+            self._set_demo_smoke_state("BLOCKED_FUNDING", "funding_entry_gate")
+            return
+        try:
+            quantity = self.engine._depth_quantity("binance", "okx")
+            entry_buy = executable_vwap(
+                self.engine.books["binance"].asks, quantity, "buy"
+            )
+            entry_sell = executable_vwap(self.engine.books["okx"].bids, quantity, "sell")
+            if (
+                entry_buy.notional < self.rules["binance"].minimum_notional
+                or entry_sell.notional < self.rules["okx"].minimum_notional
+            ):
+                raise InsufficientDepth("venue minimum notional is not satisfied")
+        except CrossExchangeValueError:
+            self.engine.reject("mechanical_demo_smoke_depth_or_lattice")
+            self._set_demo_smoke_state("BLOCKED_DEPTH_OR_LATTICE", "depth_or_lattice")
+            return
+        if quantity <= 0 or quantity > self.risk.quantity_base:
+            self.engine.reject("mechanical_demo_smoke_quantity_bound")
+            self._set_demo_smoke_state("BLOCKED_QUANTITY_BOUND", "quantity_bound")
+            return
+
+        intent = SimpleNamespace(
+            long_venue="binance",
+            short_venue="okx",
+            quantity_base=quantity,
+            buy_price=entry_buy.marginal_price,
+            sell_price=entry_sell.marginal_price,
+        )
+        self._mechanical_demo_smoke_quantity_base = quantity
+        self._cycle_id += 1
+        self.remote_flat_proven = False
+        self.pair_state = {
+            "intent": intent,
+            "phase": "open_short",
+            "fills": {},
+            "exposures": {},
+            "funding_snapshot": {
+                "captured_at_epoch": self._wall_now(),
+                "venues": dict(self._funding_states),
+            },
+            "mechanical_demo_smoke": True,
+        }
+        self.pair_deadline = self._now() + self.risk.pair_deadline_seconds
+        self._set_demo_smoke_state("FIRST_LEG_SUBMITTING")
+        self._submit(
+            "okx",
+            "sell",
+            quantity,
+            entry_sell.marginal_price,
+            "open_short",
+            position_side="short",
+        )
+        if self.pending_order is None and self.pair_state is None:
+            self._set_demo_smoke_state("FIRST_LEG_SUBMIT_BLOCKED", "local_submit_gate")
 
     @staticmethod
     def _wall_now() -> Decimal:
@@ -1606,62 +1731,98 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         source = getattr(getattr(self, "p", None), "account_risk_ledger", None)
         if source is None:
             source = getattr(getattr(self, "broker", None), "get_account_risk_snapshot", None)
-        try:
-            snapshot = source() if callable(source) else source
-        except Exception:
-            self.engine.reject("account_risk_ledger_error")
-            return None
-        return snapshot if isinstance(snapshot, Mapping) else None
+        if source is None:
+            raise RuntimeError("account risk evidence provider is unavailable")
+        return source() if callable(source) else source
+
+    def _account_risk_can_retry(self) -> bool:
+        """Allow a later cache read only while the strategy is provably flat."""
+
+        if self.account_loss_kill_switch:
+            return False
+        if getattr(self, "pending_order", None) is not None:
+            return False
+        pair_state = getattr(self, "pair_state", None)
+        if pair_state is not None:
+            if not isinstance(pair_state, Mapping) or pair_state.get("exposures"):
+                return False
+        if getattr(self, "unknown", False) or getattr(self, "awaiting_reconciliation", False):
+            return False
+        if getattr(self, "cancel_requested", False):
+            return False
+        return getattr(self.engine, "active_pair", None) is None
+
+    def _account_risk_wait_or_latch(self, reason: str) -> bool:
+        """Reject this entry and make incomplete cache evidence retryable only while flat."""
+
+        self.engine.reject(reason)
+        if self._account_risk_can_retry():
+            self.account_risk_status = "waiting_for_fresh_snapshot"
+        else:
+            self.account_risk_status = "incomplete_or_stale"
+            self.account_loss_kill_switch = True
+        return False
+
+    def _latch_account_risk_failure(self, status: str, reason: str) -> bool:
+        """Persist a non-retryable account-risk failure for the run."""
+
+        self.account_risk_status = status
+        self.account_loss_kill_switch = True
+        self.engine.reject(reason)
+        return False
 
     def _account_loss_allows_entry(self) -> bool:
         """Require a fresh durable account-level loss snapshot before opening."""
 
         self._ensure_runtime_state()
-        snapshot = self._account_risk_snapshot()
-        required = {
-            "baseline_equity",
-            "current_equity",
+        if self.account_loss_kill_switch:
+            return False
+        try:
+            snapshot = self._account_risk_snapshot()
+        except Exception:
+            return self._latch_account_risk_failure("read_error", "account_risk_ledger_error")
+        if snapshot is None:
+            return self._account_risk_wait_or_latch("account_risk_ledger_incomplete")
+        if not isinstance(snapshot, Mapping):
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
+
+        identity_required = {
             "configured_venues",
             "generation",
             "fencing_epoch",
-            "as_of_monotonic_ns",
             "owner_pid",
             "clock_domain_id",
             "identity_binding_sha256",
-            "durable",
-            "trading_blocked",
-            "evidence_complete",
             "loss_limit_bps",
-            "loss_limit_breached",
         }
-        if snapshot is None or not required.issubset(snapshot):
-            self.account_risk_status = "missing_or_incomplete"
-            self.account_loss_kill_switch = True
-            self.engine.reject("account_risk_ledger_missing")
-            return False
+        if not identity_required.issubset(snapshot):
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
         try:
             raw_venues = snapshot["configured_venues"]
             if not isinstance(raw_venues, (list, tuple, set, frozenset)):
                 raise TypeError("configured_venues must be a collection")
             venues = {str(item).lower() for item in raw_venues}
-            now_ns = self._deadline_ns(self._now())
-            raw_as_of = snapshot["as_of_monotonic_ns"]
             raw_generation = snapshot["generation"]
             raw_fencing_epoch = snapshot["fencing_epoch"]
             raw_owner_pid = snapshot["owner_pid"]
             if any(
                 isinstance(value, bool) or not isinstance(value, int)
-                for value in (raw_as_of, raw_generation, raw_fencing_epoch, raw_owner_pid)
+                for value in (raw_generation, raw_fencing_epoch, raw_owner_pid)
             ):
                 raise TypeError("risk ledger fences must be integers")
-            as_of = raw_as_of
             generation = raw_generation
             fencing_epoch = raw_fencing_epoch
             owner_pid = raw_owner_pid
             clock_domain_id = snapshot["clock_domain_id"]
             if owner_pid != os.getpid() or clock_domain_id != f"process:{owner_pid}:monotonic":
                 raise ValueError("risk ledger clock domain is not local monotonic")
-            identity_binding = str(snapshot["identity_binding_sha256"])
+            identity_binding = snapshot["identity_binding_sha256"]
+            if not isinstance(identity_binding, str):
+                raise TypeError("risk ledger identity binding must be a string")
             if len(identity_binding) != 64 or any(
                 character not in "0123456789abcdef" for character in identity_binding
             ):
@@ -1669,73 +1830,140 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             if isinstance(snapshot["loss_limit_bps"], bool):
                 raise TypeError("loss_limit_bps must be numeric")
             sdk_loss_limit = decimal_value(snapshot["loss_limit_bps"], "loss_limit_bps")
-            loss_limit_breached = snapshot["loss_limit_breached"]
-            if type(loss_limit_breached) is not bool:
-                raise TypeError("loss_limit_breached must be boolean")
         except (TypeError, ValueError, OverflowError):
-            self.account_risk_status = "invalid_contract"
-            self.account_loss_kill_switch = True
-            self.engine.reject("account_risk_ledger_invalid")
-            return False
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
         if sdk_loss_limit != self.risk.account_maximum_loss_bps:
-            self.account_risk_status = "invalid_contract"
-            self.account_loss_kill_switch = True
-            self.engine.reject("account_risk_loss_limit_mismatch")
-            return False
-        fresh_after = max(
-            0,
-            now_ns - int(self.risk.maximum_quote_age_seconds * Decimal("1000000000")),
-        )
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_loss_limit_mismatch"
+            )
         if (
             venues != set(VENUE_SYMBOLS)
-            or snapshot["durable"] is not True
-            or type(snapshot["trading_blocked"]) is not bool
-            or snapshot["trading_blocked"] is not loss_limit_breached
-            or snapshot["evidence_complete"] is not True
-            or snapshot.get("evidence_errors")
-            or snapshot.get("error_code")
             or generation <= 0
             or generation < self._last_risk_generation
             or fencing_epoch <= 0
             or fencing_epoch < self._last_risk_fencing_epoch
-            or as_of < fresh_after
-            or as_of > now_ns
         ):
-            self.account_risk_status = "stale_or_unbound"
-            self.account_loss_kill_switch = True
-            self.engine.reject("account_risk_ledger_stale")
-            return False
-        try:
-            baseline = decimal_value(snapshot["baseline_equity"], "baseline_equity")
-            current = decimal_value(snapshot["current_equity"], "current_equity")
-            realized = (
-                decimal_value(snapshot["realized_net"], "account_realized_net")
-                if snapshot.get("realized_net") is not None
-                else None
+            return self._latch_account_risk_failure(
+                "invalid_or_rolled_back", "account_risk_ledger_stale_or_rolled_back"
             )
-        except CrossExchangeValueError:
-            self.account_risk_status = "invalid_contract"
-            self.account_loss_kill_switch = True
-            self.engine.reject("account_risk_ledger_invalid")
-            return False
-        if baseline <= 0:
-            self.account_risk_status = "invalid_baseline"
-            self.account_loss_kill_switch = True
-            self.engine.reject("account_risk_ledger_invalid")
-            return False
+
+        # Preserve the highest bound fences even when this cache snapshot is stale or
+        # incomplete, so a later callback cannot hide a generation/fence rollback.
         self._last_risk_generation = generation
         self._last_risk_fencing_epoch = fencing_epoch
-        limit = baseline * self.risk.account_maximum_loss_bps / Decimal("10000")
-        loss = max(Decimal(0), baseline - current)
-        if realized is not None:
-            loss = max(loss, -realized)
-        blocked = bool(self.account_loss_kill_switch or loss_limit_breached or loss >= limit)
-        if blocked:
-            self.account_loss_kill_switch = True
-        self.account_risk_status = "loss_limit" if blocked else "pass"
-        if blocked:
-            self.engine.reject("account_loss_kill_switch")
-        return not blocked
+
+        for field in ("trading_blocked", "loss_limit_breached"):
+            if snapshot.get(field) is True:
+                return self._latch_account_risk_failure(
+                    "loss_limit", "account_loss_kill_switch"
+                )
+            if field in snapshot and type(snapshot[field]) is not bool:
+                return self._latch_account_risk_failure(
+                    "invalid_contract", "account_risk_ledger_invalid"
+                )
+        if (
+            "trading_blocked" in snapshot
+            and "loss_limit_breached" in snapshot
+            and snapshot["trading_blocked"] is not snapshot["loss_limit_breached"]
+        ):
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
+
+        if "durable" in snapshot and type(snapshot["durable"]) is not bool:
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
+        if "evidence_complete" in snapshot and type(snapshot["evidence_complete"]) is not bool:
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
+
+        baseline = None
+        current = None
+        realized = None
+        try:
+            if "baseline_equity" in snapshot:
+                baseline = decimal_value(snapshot["baseline_equity"], "baseline_equity")
+                if baseline <= 0:
+                    return self._latch_account_risk_failure(
+                        "invalid_baseline", "account_risk_ledger_invalid"
+                    )
+            if "current_equity" in snapshot:
+                current = decimal_value(snapshot["current_equity"], "current_equity")
+            if snapshot.get("realized_net") is not None:
+                realized = decimal_value(snapshot["realized_net"], "account_realized_net")
+        except CrossExchangeValueError:
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
+        if baseline is not None:
+            limit = baseline * self.risk.account_maximum_loss_bps / Decimal("10000")
+            loss = max(Decimal(0), baseline - current) if current is not None else Decimal(0)
+            if realized is not None:
+                loss = max(loss, -realized)
+            if loss >= limit:
+                return self._latch_account_risk_failure(
+                    "loss_limit", "account_loss_kill_switch"
+                )
+
+        required_fresh = {
+            "baseline_equity",
+            "current_equity",
+            "as_of_monotonic_ns",
+            "durable",
+            "trading_blocked",
+            "evidence_complete",
+            "loss_limit_breached",
+        }
+        for field in ("evidence_errors",):
+            if field in snapshot and snapshot[field] is not None and not isinstance(
+                snapshot[field], (Mapping, list, tuple, set, frozenset)
+            ):
+                return self._latch_account_risk_failure(
+                    "invalid_contract", "account_risk_ledger_invalid"
+                )
+        if (
+            "error_code" in snapshot
+            and snapshot["error_code"] is not None
+            and not isinstance(snapshot["error_code"], str)
+        ):
+            return self._latch_account_risk_failure(
+                "invalid_contract", "account_risk_ledger_invalid"
+            )
+
+        raw_as_of = snapshot.get("as_of_monotonic_ns")
+        if raw_as_of is not None:
+            if isinstance(raw_as_of, bool) or not isinstance(raw_as_of, int):
+                return self._latch_account_risk_failure(
+                    "invalid_contract", "account_risk_ledger_invalid"
+                )
+            now_ns = time.monotonic_ns()
+            if isinstance(now_ns, bool) or not isinstance(now_ns, int):
+                return self._latch_account_risk_failure(
+                    "invalid_clock", "account_risk_clock_invalid"
+                )
+            if raw_as_of > now_ns:
+                return self._latch_account_risk_failure(
+                    "invalid_or_rolled_back", "account_risk_ledger_future_timestamp"
+                )
+            age_ns = int(self.risk.maximum_quote_age_seconds * Decimal("1000000000"))
+            if now_ns - raw_as_of > age_ns:
+                return self._account_risk_wait_or_latch("account_risk_ledger_stale")
+
+        if (
+            not required_fresh.issubset(snapshot)
+            or snapshot["durable"] is not True
+            or snapshot["evidence_complete"] is not True
+            or snapshot.get("evidence_errors")
+            or snapshot.get("error_code") not in (None, "")
+        ):
+            return self._account_risk_wait_or_latch("account_risk_ledger_incomplete")
+
+        self.account_risk_status = "pass"
+        return True
 
     def _capture_fill_delta(self, order, phase, venue):
         """Convert cumulative Backtrader execution state to unique fill deltas."""
@@ -1873,6 +2101,8 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         self.unknown = True
         self.awaiting_reconciliation = True
         self.remote_flat_proven = False
+        if self._demo_smoke_active():
+            self._set_demo_smoke_state("UNKNOWN_RECONCILIATION_REQUIRED", reason)
         if self._last_reconcile_request_fence_ns < self._reconcile_min_as_of_ns:
             self._request_remote_reconcile()
 
@@ -2013,6 +2243,9 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
                     },
                     "close_" + reason,
                 )
+            return
+        if self._demo_smoke_active():
+            self._start_mechanical_demo_smoke(now)
             return
         intent = self.engine.evaluate(now)
         if intent is None or not self.p.execution_enabled or self.p.shadow:
@@ -2158,6 +2391,19 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         if self.pair_deadline is None or now >= self.pair_deadline:
             self._handle_local_submit_failure("pair_deadline", phase, reduce_only)
             return
+        smoke_opening = (
+            self._demo_smoke_active()
+            and not reduce_only
+            and phase in {"open_short", "open_long"}
+        )
+        if (
+            smoke_opening
+            and self._mechanical_demo_smoke_opening_order_count >= 2
+        ):
+            self.engine.reject("mechanical_demo_smoke_opening_order_cap")
+            self._set_demo_smoke_state("BLOCKED_OPENING_ORDER_CAP", "opening_order_cap")
+            self._handle_local_submit_failure("mechanical_demo_smoke_opening_order_cap", phase, False)
+            return
         rule = self.rules[venue]
         native = rule.quantize_native_down(rule.base_to_native(quantity_base))
         if native <= 0:
@@ -2200,16 +2446,34 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         self.pending_order = self.buy(**kwargs) if side == "buy" else self.sell(**kwargs)
         self.submitted_order_count += 1
         self.known_order_refs.add(self.pending_order.ref)
+        if smoke_opening:
+            self._mechanical_demo_smoke_opening_order_count += 1
+            self._mechanical_demo_smoke_opening_orders.append(
+                {
+                    "phase": phase,
+                    "venue": venue,
+                    "side": side,
+                    "quantity_base": str(quantity_base),
+                    "order_ref": self.pending_order.ref,
+                }
+            )
+            self._set_demo_smoke_state(
+                "FIRST_LEG_SUBMITTED" if phase == "open_short" else "SECOND_LEG_SUBMITTED"
+            )
 
     def _handle_local_submit_failure(self, reason, phase, reduce_only):
         opening_phase = phase in {"open_short", "open_long"} and not reduce_only
         exposures = (self.pair_state or {}).get("exposures", {})
         if opening_phase and exposures:
             self.engine.reject(reason)
+            if self._demo_smoke_active():
+                self._set_demo_smoke_state("OPENING_SUBMIT_FAILED_RISK_REDUCTION", reason)
             self._begin_flatten(exposures, reason)
             return
         if opening_phase:
             self.engine.reject(reason)
+            if self._demo_smoke_active():
+                self._set_demo_smoke_state("OPENING_SUBMIT_FAILED", reason)
             self.pair_state = None
             self.pair_deadline = None
             self.leg_deadline = None
@@ -2247,6 +2511,10 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         return executable_vwap(levels, quantity_base, side).marginal_price
 
     def _begin_flatten(self, exposures, reason):
+        smoke_pair = bool(
+            self.pair_state
+            and self.pair_state.get("mechanical_demo_smoke") is True
+        )
         funding_snapshot = (
             self.pair_state.get("funding_snapshot") if self.pair_state is not None else None
         )
@@ -2280,6 +2548,10 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             "reason": reason,
             "funding_snapshot": funding_snapshot,
         }
+        if smoke_pair:
+            self.pair_state["mechanical_demo_smoke"] = True
+        if smoke_pair and self._demo_smoke_active():
+            self._set_demo_smoke_state("CLOSING_WITH_RISK_REDUCTION", reason)
         self._submit_flatten_head()
 
     def _submit_flatten_head(self):
@@ -2603,6 +2875,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         self._last_reconcile_fencing_epoch = snapshot_fence
         self.remote_flat_proven = True
         self.engine.mark_closed()
+        if (
+            self._demo_smoke_active()
+            and isinstance(self.pair_state, Mapping)
+            and self.pair_state.get("mechanical_demo_smoke") is True
+        ):
+            self._set_demo_smoke_state("FLAT_RECONCILED")
         self.pair_state = None
         self.pending_order = None
         self.pair_deadline = None
@@ -2726,9 +3004,17 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             self._submit_flatten_head()
             return
         intent = self.pair_state["intent"]
+        smoke_pair = self.pair_state.get("mechanical_demo_smoke") is True
         if filled_base <= 0:
             if phase == "open_short":
                 self.engine.reject("first_leg_unfilled")
+                if smoke_pair:
+                    self._set_demo_smoke_state(
+                        "FIRST_LEG_COMPLETED_WITHOUT_FILL"
+                        if order.status == bt.Order.Completed
+                        else "FIRST_LEG_NOT_COMPLETED",
+                        "first_leg_unfilled",
+                    )
                 if self.pair_state.get("risk_exit_reason"):
                     self.pair_state = None
                 else:
@@ -2755,10 +3041,40 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         self.pair_state["exposures"][venue] = (position_side, filled_base)
         if self.unhedged_started is None:
             self.unhedged_started = self._now()
+        if smoke_pair and phase == "open_short":
+            if order.status != bt.Order.Completed:
+                self.engine.reject("mechanical_demo_smoke_first_leg_not_completed")
+                self._set_demo_smoke_state(
+                    "FIRST_LEG_NOT_COMPLETED_RISK_REDUCTION", "first_leg_not_completed"
+                )
+                self._begin_flatten(self.pair_state["exposures"], "first_leg_not_completed")
+                return
+            if filled_base != intent.quantity_base:
+                self.engine.reject("mechanical_demo_smoke_first_leg_quantity_mismatch")
+                self._set_demo_smoke_state(
+                    "FIRST_LEG_QUANTITY_MISMATCH_RISK_REDUCTION",
+                    "first_leg_quantity_mismatch",
+                )
+                self._begin_flatten(
+                    self.pair_state["exposures"], "first_leg_quantity_mismatch"
+                )
+                return
+            self._set_demo_smoke_state("FIRST_LEG_COMPLETED")
+        if smoke_pair and phase == "open_long" and order.status != bt.Order.Completed:
+            self.engine.reject("mechanical_demo_smoke_second_leg_not_completed")
+            self._set_demo_smoke_state(
+                "SECOND_LEG_NOT_COMPLETED_RISK_REDUCTION", "second_leg_not_completed"
+            )
+            self._begin_flatten(self.pair_state["exposures"], "second_leg_not_completed")
+            return
         if self.pair_state.get("risk_exit_reason"):
+            if smoke_pair:
+                self._set_demo_smoke_state("RISK_REDUCTION_REQUIRED", "risk_exit_reason")
             self._begin_flatten(self.pair_state["exposures"], self.pair_state["risk_exit_reason"])
             return
         if phase == "open_short":
+            if smoke_pair:
+                self._set_demo_smoke_state("FIRST_LEG_COMPLETED")
             hedge_lattice = quantity_lattice(filled_base, self.rules.values())
             if not hedge_lattice.tradable:
                 self.engine.reject("partial_below_common_lattice")
@@ -2782,6 +3098,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
         long_fill = self.pair_state["fills"]["open_long"]
         if not self._refresh_funding_gate(opening=True):
             self._begin_flatten(self.pair_state["exposures"], "funding_stale_after_hedge")
+            return
+        if smoke_pair:
+            self._set_demo_smoke_state("BOTH_OPEN_LEGS_COMPLETED_RISK_REDUCTION")
+            self._begin_flatten(
+                self.pair_state["exposures"], "mechanical_demo_smoke_round_trip"
+            )
             return
         entry_buy = self.engine._confirmed_fill("buy", filled_base, long_fill["price"])
         entry_sell = self.engine._confirmed_fill("sell", filled_base, short_fill["price"])
@@ -2850,6 +3172,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             self.account_loss_kill_switch,
             self.account_risk_status,
             self.funding_evidence_status,
+            self.mechanical_demo_smoke_state,
+            self._mechanical_demo_smoke_opening_order_count,
+            tuple(
+                (row.get("phase"), row.get("order_ref"))
+                for row in self._mechanical_demo_smoke_opening_orders
+            ),
         )
 
     def trade_logger_context(self) -> Mapping[str, object]:
@@ -2892,6 +3220,27 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
             unhedged_duration_max=str(max(self.unhedged_durations, default=Decimal(0))),
             broker_value=self._cached_broker_value_for_report(),
         )
+        if self._demo_smoke_active():
+            base.update(
+                mechanical_demo_smoke_requested=True,
+                mechanical_demo_smoke_semantics="MECHANICAL_DEMO_SMOKE_NOT_RESEARCH",
+                mechanical_demo_smoke_state=self.mechanical_demo_smoke_state,
+                mechanical_demo_smoke_opening_order_count=(
+                    self._mechanical_demo_smoke_opening_order_count
+                ),
+                mechanical_demo_smoke_opening_orders=list(
+                    self._mechanical_demo_smoke_opening_orders
+                ),
+                mechanical_demo_smoke_quantity_base=(
+                    None
+                    if self._mechanical_demo_smoke_quantity_base is None
+                    else str(self._mechanical_demo_smoke_quantity_base)
+                ),
+                mechanical_demo_smoke_failure_reason=(
+                    self._mechanical_demo_smoke_failure_reason
+                ),
+                profitability_claim="NONE_MECHANICAL_DEMO_SMOKE_NOT_RESEARCH",
+            )
         return base
 
     def _publish_trade_logger_context(self, *, force: bool = False) -> bool:

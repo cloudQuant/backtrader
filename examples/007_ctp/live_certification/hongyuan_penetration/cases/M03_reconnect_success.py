@@ -47,22 +47,33 @@ def run(report_dir):
                 reconnect_events = store.get_notifications()
                 print("✓ 重连成功")
 
-            events = [
-                event.get("event_type")
+            raw_events = [
+                kwargs.get("event")
                 for _msg, _args, kwargs in (
                     first_events + disconnected_events + reconnect_events
                 )
-                for event in [kwargs.get("event")]
-                if isinstance(event, dict)
+                if isinstance(kwargs.get("event"), dict)
+            ]
+            event_types = sorted(
+                {str(event.get("event_type")) for event in raw_events if event.get("event_type")}
+            )
+            reconnect_timestamps = [
+                event.get("timestamp")
+                for event in raw_events
+                if event.get("event_type") == "store_reconnect_success" and event.get("timestamp")
             ]
 
             return timer.pass_result(
                 details={
-                    "events": sorted(set(events)),
+                    # Provenance: these event types come from
+                    # store.get_notifications(), not from a literal.
+                    "store_notification_events": event_types,
                     "first_connect": True,
                     "reconnect": True,
                     "gateway_key": env_key,
-                    "timestamp": datetime.now().isoformat(),
+                    # The reconnect event's own timestamp, not a wall-clock
+                    # stamp taken at reporting time.
+                    "timestamp": reconnect_timestamps[-1] if reconnect_timestamps else "",
                 },
             )
 

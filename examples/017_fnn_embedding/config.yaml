@@ -1,0 +1,73 @@
+schema_version: 1
+strategy_id: fnn_embedding_017
+mode: backtest                # backtest | optimize | diagnose
+
+data:
+  file: "{repo}/tests/datas/XAUUSD_M1.csv"
+  fromdate: null              # "YYYY-MM-DD" or null for full history
+  todate: null
+
+params:
+  window_bars: 75             # feature window (bars); features are 12-dim regardless
+  horizon_bars: 15            # holding period / label horizon (bars == minutes)
+  top_n: 30                   # decorrelated Top-N retrieved neighbours
+  sim_threshold: 0.8          # cosine similarity gate (calibrate via --mode diagnose)
+  prob_threshold: 0.75        # Wilson lower-bound directional gate
+  min_matches: 10             # minimum selected neighbours to trade
+  k_cost: 1.5                 # expected-return gate = k_cost * round-trip cost
+  exit_multiple: 3.0          # OCO distance = multiple * expected return
+  sim_neutral: 0.5            # cosine neutral band: sign(sim - neutral) flips fr
+  atr_floor: 1.0              # stop floor in ATR(14, M1) units
+  spread_floor: 1.5           # stop floor in spread multiples
+
+training:
+  embed_dim: 4                # latent dimension (conservative start)
+  retrain_freq: 20            # retrain every N trading days (walk-forward)
+  stride: 1                   # library sliding stride (bars)
+  norm_window: 2000           # rolling z-score lookback (samples)
+  norm_min: 500               # minimum history before normalisation is valid
+  epochs: 100
+  lr: 0.001
+  batch: 512
+  patience: 10                # early-stop patience (epochs)
+  seed: 42
+  max_train_samples: 50000    # cap per retrain (oldest-trimmed random sample)
+
+backtest:
+  initial_cash: 100000.0
+  size: 1.0
+  commission_pct: 0.0002
+  slippage_pct: 0.0
+  spread_cost_pct: 0.00015    # XAUUSD conservative midpoint spread estimate
+
+logging:
+  trade_logger: true          # single backtest only; forced off in optimize
+  log_dir: logs
+  log_orders: true
+  log_trades: true
+  log_signals: true
+  log_value: false
+  log_positions: false
+  log_indicators: false
+  log_ticks: false
+  log_bars: false
+  log_system: true
+  signals_jsonl: signals.jsonl
+
+optimize:
+  grid:                       # trading-layer params only; FNN hyperparams stay fixed
+    window_bars: [60, 75, 90]
+    sim_threshold: [0.75, 0.80, 0.85]
+    prob_threshold: [0.70, 0.75]
+  workers: 8
+  budget: 24                  # hard trial budget per run (design D351-11)
+  fromdate: "2021-08-12"      # optimisation runs on the training segment only
+  todate: "2023-12-31"
+
+outputs:
+  result_json: backtest_result.json
+  optimize_csv: optimize_results.csv
+  optimize_json: optimize_results.json
+  models_dir: models
+  features_dir: features_cache
+  reports_dir: reports

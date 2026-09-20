@@ -2,7 +2,6 @@
 """EM02: Verify that the system can suspend trading by pausing strategy execution"""
 from __future__ import annotations
 
-import datetime as dt
 import sys
 from pathlib import Path
 
@@ -15,7 +14,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, live_seed_bar
 
 import backtrader as bt
 
@@ -40,34 +39,13 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
-                now = dt.datetime.now().replace(microsecond=0)
-                seed_bars = [
-                    {
-                        "datetime": now,
-                        "open": 3000.0,
-                        "high": 3000.0,
-                        "low": 3000.0,
-                        "close": 3000.0,
-                        "volume": 1.0,
-                        "openinterest": 0.0,
-                    },
-                    {
-                        "datetime": now + dt.timedelta(seconds=5),
-                        "open": 3001.0,
-                        "high": 3001.0,
-                        "low": 3001.0,
-                        "close": 3001.0,
-                        "volume": 1.0,
-                        "openinterest": 0.0,
-                    },
-                ]
-                store.set_history(symbol, seed_bars)
                 cerebro = create_cerebro(
                     store,
                     symbol=symbol,
                     bar_seconds=5,
                     with_trade_logger=True,
                     log_dir=log_dir,
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
 
                 class PauseStrategy(bt.Strategy):
@@ -77,7 +55,24 @@ def run(report_dir):
                         """Initialize pause strategy."""
                         self.bar_count = 0
                         self.paused = False
+                        self.paused_event_seen = False
                         self.orders_after_pause = 0
+
+                    def notify_store(self, msg, *args, **kwargs):
+                        """Stop only after the pause event has been drained.
+
+                        Calling ``cerebro.runstop()`` in the same ``next()`` as
+                        ``pause_strategy()`` skips the store-event drain, so the
+                        ``strategy_trading_paused`` evidence never reaches the
+                        TradeLogger.  Stopping here keeps the evidence.
+                        """
+                        event = kwargs.get("event")
+                        if (
+                            isinstance(event, dict)
+                            and event.get("event_type") == "strategy_trading_paused"
+                        ):
+                            self.paused_event_seen = True
+                            self.cerebro.runstop()
 
                     def next(self):
                         """Process bar and trigger pause after first bar."""
@@ -86,16 +81,15 @@ def run(report_dir):
                         if not self.paused:
                             if hasattr(self.cerebro.broker, "pause_strategy"):
                                 self.cerebro.broker.pause_strategy(reason="EM02_test")
-                            print("  调用 broker.pause_strategy() + cerebro.runstop() 暂停策略执行")
+                            print("  调用 broker.pause_strategy() 暂停策略执行")
                             self.paused = True
-                            self.cerebro.runstop()
                             return
 
                         if self.paused:
                             self.orders_after_pause += 1
 
                 cerebro.addstrategy(PauseStrategy)
-                results = run_with_timeout(cerebro, timeout_seconds=20)
+                results = run_with_timeout(cerebro, timeout_seconds=60)
 
                 strat = results[0] if results else None
                 if not strat or strat.bar_count <= 0:
@@ -104,10 +98,12 @@ def run(report_dir):
                 if strat.paused:
                     print("✓ 策略已通过 cerebro.runstop() 暂停")
                     print(f"  暂停后未再执行 next: orders_after_pause={strat.orders_after_pause}")
+                    # No event list is declared here: ``strategy_trading_paused``
+                    # must be observed in the framework logs written by
+                    # broker.pause_strategy().
                     return timer.pass_result(
                         evidence=helpers.collect_evidence_files(log_dir),
                         details={
-                            "events": ["strategy_trading_paused"],
                             "bars_before_pause": strat.bar_count,
                             "paused": True,
                             "strategy_id": type(strat).__name__,

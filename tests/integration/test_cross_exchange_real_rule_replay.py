@@ -185,18 +185,42 @@ def test_selected_record_loader_rejects_unknown_or_tampered_snapshot_fields(tmp_
         load_selected_public_rules(changed_schema)
 
 
+def _stale_manifest(runner, tmp_path: Path) -> Path:
+    """Write a self-consistent manifest whose runner source hash is different."""
+
+    manifest = json.loads(Path(runner.MANIFEST_PATH).read_text(encoding="utf-8"))
+    candidate = manifest["candidates"][0]
+    example = Path(runner.__file__).resolve().parent
+    candidate["resolved_example_path"] = str(example)
+    candidate["runner_sha256"] = "0" * 64
+    payload = {
+        key: value
+        for key, value in candidate.items()
+        if key not in {"candidate_sha256", "demo_approval"}
+    }
+    candidate["candidate_sha256"] = runner._canonical_hash(payload)
+    target = tmp_path / "stale-manifest.json"
+    target.write_text(json.dumps(manifest), encoding="utf-8")
+    return target
+
+
 @pytest.mark.integration
 @pytest.mark.parametrize("runner", RUNNERS)
-def test_real_rule_projection_can_drive_formula_replay_without_execution(monkeypatch, runner):
+def test_real_rule_projection_can_drive_formula_replay_without_execution(
+    monkeypatch, runner, tmp_path
+):
     manifest_before = MANIFEST.read_bytes()
+    local_manifest_before = Path(runner.MANIFEST_PATH).read_bytes()
     synthetic_rules = runner.replay_rules()
     actual_rules = load_selected_public_rules(SNAPSHOT)
     network_calls, execution_calls = _install_zero_network_and_execution_guards(monkeypatch, runner)
 
-    # The frozen candidate's source binding remains authoritative outside this
-    # test.  The following failure must occur before test-only injection.
+    # The source binding stays authoritative: a manifest that pins another
+    # runner source must be rejected before any test-only injection.  Iteration
+    # 30 re-issued the folder manifest, so the drift is constructed explicitly.
+    stale = _stale_manifest(runner, tmp_path)
     with pytest.raises(runner.RunnerSourceBindingError, match="runner source fingerprint mismatch"):
-        runner.run_replay("no_edge")
+        runner.run_replay("no_edge", manifest_path=stale)
 
     # The production fixture remains its own source.  The selected public-rule
     # projection is injected only after the binding check and is not candidate
@@ -219,3 +243,4 @@ def test_real_rule_projection_can_drive_formula_replay_without_execution(monkeyp
     assert network_calls == []
     assert execution_calls == []
     assert MANIFEST.read_bytes() == manifest_before
+    assert Path(runner.MANIFEST_PATH).read_bytes() == local_manifest_before

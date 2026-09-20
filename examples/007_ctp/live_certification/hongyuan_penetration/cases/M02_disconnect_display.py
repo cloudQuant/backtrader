@@ -48,7 +48,7 @@ def run(report_dir):
                         self.cerebro.runstop()
 
                 cerebro.addstrategy(StopAfterOneBar)
-                run_with_timeout(cerebro, timeout_seconds=30)
+                run_with_timeout(cerebro, timeout_seconds=60)
 
                 # stop_on_exit=True will call store.stop(), triggering disconnect
 

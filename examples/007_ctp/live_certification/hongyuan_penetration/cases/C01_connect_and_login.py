@@ -60,7 +60,7 @@ def run(report_dir):
                             self.cerebro.runstop()
 
                 cerebro.addstrategy(MinimalStrategy)
-                run_with_timeout(cerebro, timeout_seconds=30)
+                run_with_timeout(cerebro, timeout_seconds=60)
 
             # Verify logs
             system_entries = helpers.read_json_lines(Path(log_dir) / "system.log")

@@ -1,0 +1,466 @@
+{
+  "case_id": "M04",
+  "case_name": "验证能正常统计报单笔数",
+  "status": "BLOCKED",
+  "scenario_id": "MONITOR-COUNT-01",
+  "scenario_name": "正常统计报单笔数",
+  "category": "报撤单监测",
+  "trace_id": "ctp-cert-20260918-094422-67551d26",
+  "started_at": "2026-09-18T09:44:22.187097",
+  "finished_at": "2026-09-18T09:46:05.285710",
+  "duration_seconds": 103.1,
+  "env": "telecom",
+  "required_events": [
+    "order_submit_request"
+  ],
+  "evidence_fields": [
+    "submitted_order_count"
+  ],
+  "pass_conditions": [
+    "required_events_present",
+    "evidence_fields_present"
+  ],
+  "optional": false,
+  "observed_events": [
+    "bar",
+    "data_status",
+    "market_data_subscribe_request",
+    "monitoring_summary",
+    "open_orders_sync_completed",
+    "order_cancel_request",
+    "order_cancel_submitted",
+    "order_status_accepted",
+    "order_status_canceled",
+    "order_status_submitted",
+    "order_submit_accepted",
+    "order_submit_request",
+    "risk_monitor_event",
+    "session_started",
+    "session_stopped",
+    "store_auth_request",
+    "store_auth_success",
+    "store_connected",
+    "store_connecting",
+    "store_disconnected",
+    "store_login_success",
+    "store_ready",
+    "tick"
+  ],
+  "missing_required_events": [],
+  "required_events_present": true,
+  "missing_evidence_fields": [],
+  "evidence_fields_present": true,
+  "evidence": [
+    "reports/acceptance_sa2701/M04/logs/bar.log",
+    "reports/acceptance_sa2701/M04/logs/current_position.yaml",
+    "reports/acceptance_sa2701/M04/logs/error.log",
+    "reports/acceptance_sa2701/M04/logs/indicator.log",
+    "reports/acceptance_sa2701/M04/logs/monitor.log",
+    "reports/acceptance_sa2701/M04/logs/order.log",
+    "reports/acceptance_sa2701/M04/logs/position.log",
+    "reports/acceptance_sa2701/M04/logs/signal.log",
+    "reports/acceptance_sa2701/M04/logs/system.log",
+    "reports/acceptance_sa2701/M04/logs/tick.log",
+    "reports/acceptance_sa2701/M04/logs/trade.log",
+    "reports/acceptance_sa2701/M04/logs/value.log",
+    "reports/acceptance_sa2701/M04/state_snapshots.json",
+    "reports/acceptance_sa2701/M04/reconciliation.json",
+    "reports/acceptance_sa2701/M04/audit.jsonl"
+  ],
+  "failure_reason": "报单笔数不足: expected>=3 got=1",
+  "next_action": "",
+  "details": {
+    "certification_evidence": {
+      "trace_id": "ctp-cert-20260918-094422-67551d26",
+      "account_id_masked": "33***16",
+      "gateway_key": "telecom",
+      "timestamp": "2026-09-18T09:44:45.444+08:00",
+      "strategy_id": "MultiOrderStrategy",
+      "instrument": "SA2701",
+      "order_ref": "1",
+      "price": 996.0,
+      "size": 1,
+      "error_msg": "报单已提交",
+      "ErrorMsg": "报单已提交",
+      "StatusMsg": "报单已提交",
+      "external_order_id": "284105",
+      "metric": "submitted_order_count",
+      "submitted_order_count": 1,
+      "cancel_order_count": 1,
+      "trade_connection": true,
+      "market_connection": true,
+      "trade_id": "SA701-09:44:43-0-15855",
+      "order_refs": [
+        "1",
+        "284105",
+        1,
+        1,
+        1,
+        "1",
+        "1",
+        "1",
+        1,
+        1
+      ],
+      "open_order_count": 10,
+      "partial_count": 0
+    },
+    "reconciliation": {
+      "case_id": "M04",
+      "scenario_id": "MONITOR-COUNT-01",
+      "generated_at": "2026-09-18T09:46:05.290416",
+      "expectation": {
+        "order_activity": "required",
+        "trade_activity": "allowed",
+        "account_position_change": "allowed_if_trade",
+        "no_open_orders_after": true
+      },
+      "snapshot_count": 2,
+      "snapshots_file": "reports/acceptance_sa2701/M04/state_snapshots.json",
+      "event_counts": {
+        "total_events": 63,
+        "order_events": 13,
+        "trade_events": 0
+      },
+      "event_types": [
+        "",
+        "bar",
+        "data_status",
+        "market_data_subscribe_request",
+        "monitoring_summary",
+        "open_orders_sync_completed",
+        "order_cancel_request",
+        "order_cancel_submitted",
+        "order_status_accepted",
+        "order_status_canceled",
+        "order_status_submitted",
+        "order_submit_accepted",
+        "order_submit_request",
+        "risk_monitor_event",
+        "session_started",
+        "session_stopped",
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready",
+        "tick"
+      ],
+      "account_delta": {
+        "balance_changed": true,
+        "positions_changed": false,
+        "before_label": "before_action",
+        "after_label": "after_action_before_stop"
+      },
+      "post_action_open_orders": [],
+      "checks": {
+        "required_events": {
+          "expected": [
+            "order_submit_request"
+          ],
+          "missing": [],
+          "passed": true
+        },
+        "order_activity": {
+          "expected": "required",
+          "observed": true,
+          "passed": true
+        },
+        "trade_activity": {
+          "expected": "allowed",
+          "observed": false,
+          "passed": true
+        },
+        "post_action_open_orders": {
+          "expected": "none",
+          "observed_count": 0,
+          "passed": true
+        },
+        "account_position_change": {
+          "expected": "allowed_if_trade",
+          "balance_changed": true,
+          "positions_changed": false,
+          "trade_events": 0,
+          "passed": true
+        }
+      },
+      "strict_reconciliation_pass": true,
+      "notes": ""
+    }
+  },
+  "audit_events": [
+    {
+      "event_type": "certification_case_result",
+      "event_id": "78d6a988-e039-4a4b-b5c2-e4e6ceb7ea1d",
+      "trace_id": "ctp-cert-20260918-094422-67551d26",
+      "case_id": "M04",
+      "scenario_id": "MONITOR-COUNT-01",
+      "scenario_name": "正常统计报单笔数",
+      "category": "报撤单监测",
+      "status": "BLOCKED",
+      "severity": "INFO",
+      "timestamp": "2026-09-18T09:46:05.285710",
+      "env": "telecom",
+      "message": "报单笔数不足: expected>=3 got=1",
+      "required_events": [
+        "order_submit_request"
+      ],
+      "evidence_fields": [
+        "submitted_order_count"
+      ],
+      "observed_events": [
+        "bar",
+        "data_status",
+        "market_data_subscribe_request",
+        "monitoring_summary",
+        "open_orders_sync_completed",
+        "order_cancel_request",
+        "order_cancel_submitted",
+        "order_status_accepted",
+        "order_status_canceled",
+        "order_status_submitted",
+        "order_submit_accepted",
+        "order_submit_request",
+        "risk_monitor_event",
+        "session_started",
+        "session_stopped",
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready",
+        "tick"
+      ],
+      "missing_required_events": [],
+      "missing_evidence_fields": [],
+      "required_events_present": true,
+      "evidence_fields_present": true,
+      "evidence": [
+        "reports/acceptance_sa2701/M04/logs/bar.log",
+        "reports/acceptance_sa2701/M04/logs/current_position.yaml",
+        "reports/acceptance_sa2701/M04/logs/error.log",
+        "reports/acceptance_sa2701/M04/logs/indicator.log",
+        "reports/acceptance_sa2701/M04/logs/monitor.log",
+        "reports/acceptance_sa2701/M04/logs/order.log",
+        "reports/acceptance_sa2701/M04/logs/position.log",
+        "reports/acceptance_sa2701/M04/logs/signal.log",
+        "reports/acceptance_sa2701/M04/logs/system.log",
+        "reports/acceptance_sa2701/M04/logs/tick.log",
+        "reports/acceptance_sa2701/M04/logs/trade.log",
+        "reports/acceptance_sa2701/M04/logs/value.log",
+        "reports/acceptance_sa2701/M04/state_snapshots.json",
+        "reports/acceptance_sa2701/M04/reconciliation.json",
+        "reports/acceptance_sa2701/M04/audit.jsonl"
+      ],
+      "details": {
+        "certification_evidence": {
+          "trace_id": "ctp-cert-20260918-094422-67551d26",
+          "account_id_masked": "33***16",
+          "gateway_key": "telecom",
+          "timestamp": "2026-09-18T09:44:45.444+08:00",
+          "strategy_id": "MultiOrderStrategy",
+          "instrument": "SA2701",
+          "order_ref": "1",
+          "price": 996.0,
+          "size": 1,
+          "error_msg": "报单已提交",
+          "ErrorMsg": "报单已提交",
+          "StatusMsg": "报单已提交",
+          "external_order_id": "284105",
+          "metric": "submitted_order_count",
+          "submitted_order_count": 1,
+          "cancel_order_count": 1,
+          "trade_connection": true,
+          "market_connection": true,
+          "trade_id": "SA701-09:44:43-0-15855",
+          "order_refs": [
+            "1",
+            "284105",
+            1,
+            1,
+            1,
+            "1",
+            "1",
+            "1",
+            1,
+            1
+          ],
+          "open_order_count": 10,
+          "partial_count": 0
+        },
+        "reconciliation": {
+          "case_id": "M04",
+          "scenario_id": "MONITOR-COUNT-01",
+          "generated_at": "2026-09-18T09:46:05.290416",
+          "expectation": {
+            "order_activity": "required",
+            "trade_activity": "allowed",
+            "account_position_change": "allowed_if_trade",
+            "no_open_orders_after": true
+          },
+          "snapshot_count": 2,
+          "snapshots_file": "reports/acceptance_sa2701/M04/state_snapshots.json",
+          "event_counts": {
+            "total_events": 63,
+            "order_events": 13,
+            "trade_events": 0
+          },
+          "event_types": [
+            "",
+            "bar",
+            "data_status",
+            "market_data_subscribe_request",
+            "monitoring_summary",
+            "open_orders_sync_completed",
+            "order_cancel_request",
+            "order_cancel_submitted",
+            "order_status_accepted",
+            "order_status_canceled",
+            "order_status_submitted",
+            "order_submit_accepted",
+            "order_submit_request",
+            "risk_monitor_event",
+            "session_started",
+            "session_stopped",
+            "store_auth_request",
+            "store_auth_success",
+            "store_connected",
+            "store_connecting",
+            "store_disconnected",
+            "store_login_success",
+            "store_ready",
+            "tick"
+          ],
+          "account_delta": {
+            "balance_changed": true,
+            "positions_changed": false,
+            "before_label": "before_action",
+            "after_label": "after_action_before_stop"
+          },
+          "post_action_open_orders": [],
+          "checks": {
+            "required_events": {
+              "expected": [
+                "order_submit_request"
+              ],
+              "missing": [],
+              "passed": true
+            },
+            "order_activity": {
+              "expected": "required",
+              "observed": true,
+              "passed": true
+            },
+            "trade_activity": {
+              "expected": "allowed",
+              "observed": false,
+              "passed": true
+            },
+            "post_action_open_orders": {
+              "expected": "none",
+              "observed_count": 0,
+              "passed": true
+            },
+            "account_position_change": {
+              "expected": "allowed_if_trade",
+              "balance_changed": true,
+              "positions_changed": false,
+              "trade_events": 0,
+              "passed": true
+            }
+          },
+          "strict_reconciliation_pass": true,
+          "notes": ""
+        }
+      },
+      "reconciliation": {
+        "case_id": "M04",
+        "scenario_id": "MONITOR-COUNT-01",
+        "generated_at": "2026-09-18T09:46:05.290416",
+        "expectation": {
+          "order_activity": "required",
+          "trade_activity": "allowed",
+          "account_position_change": "allowed_if_trade",
+          "no_open_orders_after": true
+        },
+        "snapshot_count": 2,
+        "snapshots_file": "reports/acceptance_sa2701/M04/state_snapshots.json",
+        "event_counts": {
+          "total_events": 63,
+          "order_events": 13,
+          "trade_events": 0
+        },
+        "event_types": [
+          "",
+          "bar",
+          "data_status",
+          "market_data_subscribe_request",
+          "monitoring_summary",
+          "open_orders_sync_completed",
+          "order_cancel_request",
+          "order_cancel_submitted",
+          "order_status_accepted",
+          "order_status_canceled",
+          "order_status_submitted",
+          "order_submit_accepted",
+          "order_submit_request",
+          "risk_monitor_event",
+          "session_started",
+          "session_stopped",
+          "store_auth_request",
+          "store_auth_success",
+          "store_connected",
+          "store_connecting",
+          "store_disconnected",
+          "store_login_success",
+          "store_ready",
+          "tick"
+        ],
+        "account_delta": {
+          "balance_changed": true,
+          "positions_changed": false,
+          "before_label": "before_action",
+          "after_label": "after_action_before_stop"
+        },
+        "post_action_open_orders": [],
+        "checks": {
+          "required_events": {
+            "expected": [
+              "order_submit_request"
+            ],
+            "missing": [],
+            "passed": true
+          },
+          "order_activity": {
+            "expected": "required",
+            "observed": true,
+            "passed": true
+          },
+          "trade_activity": {
+            "expected": "allowed",
+            "observed": false,
+            "passed": true
+          },
+          "post_action_open_orders": {
+            "expected": "none",
+            "observed_count": 0,
+            "passed": true
+          },
+          "account_position_change": {
+            "expected": "allowed_if_trade",
+            "balance_changed": true,
+            "positions_changed": false,
+            "trade_events": 0,
+            "passed": true
+          }
+        },
+        "strict_reconciliation_pass": true,
+        "notes": ""
+      }
+    }
+  ]
+}

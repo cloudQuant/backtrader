@@ -1,0 +1,88 @@
+{
+  "case_id": "L01",
+  "scenario_id": "LOG-TRADE-01",
+  "generated_at": "2026-09-18T14:26:00.567727",
+  "expectation": {
+    "order_activity": "required",
+    "trade_activity": "required",
+    "account_position_change": "allowed_if_trade",
+    "no_open_orders_after": true
+  },
+  "snapshot_count": 2,
+  "snapshots_file": "/Users/yunjinqi/Documents/new_projects/backtrader/reports/acceptance_sa2701_pm_fix/L01/state_snapshots.json",
+  "event_counts": {
+    "total_events": 47,
+    "order_events": 11,
+    "trade_events": 4
+  },
+  "event_types": [
+    "",
+    "bar",
+    "data_status",
+    "market_data_subscribe_request",
+    "monitoring_summary",
+    "open_orders_sync_completed",
+    "order_reject_local",
+    "order_rejected",
+    "order_status_accepted",
+    "order_status_completed",
+    "order_status_submitted",
+    "order_submit_accepted",
+    "order_submit_request",
+    "order_validation_rejected",
+    "risk_monitor_event",
+    "session_started",
+    "session_stopped",
+    "store_auth_request",
+    "store_auth_success",
+    "store_connected",
+    "store_connecting",
+    "store_disconnected",
+    "store_login_success",
+    "store_ready",
+    "tick",
+    "trade_execution",
+    "trade_update_ignored"
+  ],
+  "account_delta": {
+    "balance_changed": true,
+    "positions_changed": true,
+    "before_label": "before_action",
+    "after_label": "after_action_before_stop"
+  },
+  "post_action_open_orders": [],
+  "checks": {
+    "required_events": {
+      "expected": [
+        "order_submit_request",
+        "trade_execution"
+      ],
+      "missing": [],
+      "passed": true
+    },
+    "order_activity": {
+      "expected": "required",
+      "observed": true,
+      "passed": true
+    },
+    "trade_activity": {
+      "expected": "required",
+      "observed": true,
+      "passed": true
+    },
+    "post_action_open_orders": {
+      "expected": "none",
+      "observed_count": 0,
+      "passed": true
+    },
+    "account_position_change": {
+      "expected": "allowed_if_trade",
+      "balance_changed": true,
+      "positions_changed": true,
+      "trade_events": 4,
+      "passed": true
+    }
+  },
+  "strict_reconciliation_pass": true,
+  "notes": ""
+}

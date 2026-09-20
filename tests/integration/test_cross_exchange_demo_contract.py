@@ -1,13 +1,17 @@
 """Ed25519 demo-approval receipt contract tests for both cross-exchange examples."""
+
 import base64
 import builtins
 import copy
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 import hashlib
 import importlib
 import json
+import os
 from pathlib import Path
 import subprocess
+import time
 from types import SimpleNamespace
 
 from cryptography.hazmat.primitives import serialization
@@ -17,6 +21,9 @@ import pytest
 from tests.test_utils.optional_sdk import optional_sdk
 
 import examples.strategy_candidate_approval as demo_approval
+midfreq_demo_approval = importlib.import_module(
+    "examples.012_1_midfreq_cross_exchange.strategy_candidate_approval"
+)
 from examples.strategy_candidate_approval import (
     APPROVAL_ALGORITHM,
     APPROVAL_KEY_ID,
@@ -43,9 +50,57 @@ def _runtime_runner(runner):
     return importlib.import_module(f"examples.{runner.STRATEGY_ID}.run")
 
 
+def test_012_1_backtrader_bootstrap_reuses_checkout_and_rejects_foreign_module(monkeypatch):
+    runner = _runtime_runner(RUNNERS[0])
+    expected_init = Path(runner.__file__).resolve().parents[2] / "backtrader" / "__init__.py"
+    checkout_module = runner._load_repo_backtrader_package(runner.__file__)
+
+    assert checkout_module is runner.bt
+    assert Path(checkout_module.__file__).resolve() == expected_init.resolve()
+
+    foreign_module = SimpleNamespace(
+        __file__="/synthetic/site-packages/backtrader/__init__.py",
+        __path__=["/synthetic/site-packages/backtrader"],
+    )
+    monkeypatch.setitem(runner.sys.modules, "backtrader", foreign_module)
+    with pytest.raises(ImportError, match="different checkout"):
+        runner._load_repo_backtrader_package(runner.__file__)
+
+
 def _zulu(value):
     """Format an aware datetime as a UTC Zulu string."""
     return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def test_private_json_report_serializes_nested_decimal_exactly_and_stays_private(tmp_path):
+    payload = {
+        "account": {"equity": Decimal("123.4500000000000000001")},
+        "orders": [{"quantity": Decimal("0.00010000")}],
+        "history": (Decimal("1E-18"), 2),
+    }
+    expected = {
+        "account": {"equity": "123.4500000000000000001"},
+        "orders": [{"quantity": "0.00010000"}],
+        "history": ["1E-18", 2],
+    }
+    path = tmp_path / "private" / "report.json"
+
+    midfreq_demo_approval.write_private_json_report(path, payload)
+
+    assert json.loads(path.read_text(encoding="utf-8")) == expected
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert json.loads(midfreq_demo_approval.serialize_private_json_report(payload)) == expected
+
+
+def test_private_json_report_rejects_unknown_values_without_stringifying(tmp_path):
+    path = tmp_path / "report.json"
+
+    with pytest.raises(TypeError, match="UnsupportedReportValue.*not JSON serializable"):
+        midfreq_demo_approval.write_private_json_report(
+            path, {"unknown": type("UnsupportedReportValue", (), {})()}
+        )
+
+    assert not path.exists()
 
 
 def _public_key(private_key, path):
@@ -213,6 +268,23 @@ def _rewrite_receipt(artifact):
     )
 
 
+def _bind_demo_artifact(runner, monkeypatch, artifact, *, runtime_source=None):
+    """Bind one synthetic approval artifact as the runner's demo contract.
+
+    Iteration 30 keeps the demo path bound to the repository-canonical manifest
+    (``REPO_CANONICAL_MANIFEST``), so a synthetic artifact must patch that
+    constant too; the self-contained folder manifest is only used by the
+    replay/shadow/paper-live modes.
+    """
+
+    monkeypatch.setattr(runner, "MANIFEST_PATH", artifact["manifest_path"])
+    monkeypatch.setattr(runner, "REPO_CANONICAL_MANIFEST", artifact["manifest_path"])
+    monkeypatch.setattr(runner, "DEMO_APPROVAL_TRUST_ROOT", artifact["trust_path"])
+    monkeypatch.setattr(runner, "DEMO_APPROVAL_PUBLIC_KEY_SHA256", artifact["trust_sha256"])
+    if runtime_source is not None:
+        monkeypatch.setattr(runner, "collect_runtime_source_provenance", runtime_source)
+
+
 def _verify(runner, artifact):
     """Verify the artifact's demo approval as the given runner."""
     return verify_demo_approval(
@@ -318,13 +390,11 @@ def test_runner_uses_fixed_trust_root_and_canonical_manifest(runner, monkeypatch
         issued_at=current - timedelta(hours=1),
         expires_at=current + timedelta(hours=1),
     )
-    monkeypatch.setattr(runner, "MANIFEST_PATH", artifact["manifest_path"])
-    monkeypatch.setattr(runner, "DEMO_APPROVAL_TRUST_ROOT", artifact["trust_path"])
-    monkeypatch.setattr(runner, "DEMO_APPROVAL_PUBLIC_KEY_SHA256", artifact["trust_sha256"])
-    monkeypatch.setattr(
+    _bind_demo_artifact(
         runner,
-        "collect_runtime_source_provenance",
-        lambda: copy.deepcopy(artifact["runtime_source"]),
+        monkeypatch,
+        artifact,
+        runtime_source=lambda: copy.deepcopy(artifact["runtime_source"]),
     )
 
     receipt = runner.require_demo_approval(artifact["candidate"], artifact["manifest_path"])
@@ -415,6 +485,7 @@ def test_missing_cryptography_dependency_fails_closed(monkeypatch, tmp_path):
 
 def _set_candidate_value(path, value):
     """Return a mutator that sets a nested candidate field to value."""
+
     def mutate(candidate):
         target = candidate
         for key in path[:-1]:
@@ -706,13 +777,11 @@ def test_invalid_signature_stops_before_store_or_write(runner, monkeypatch, tmp_
     )
     artifact["receipt"]["issued_at"] = _zulu(current - timedelta(minutes=30))
     _rewrite_receipt(artifact)
-    monkeypatch.setattr(runner, "MANIFEST_PATH", artifact["manifest_path"])
-    monkeypatch.setattr(runner, "DEMO_APPROVAL_TRUST_ROOT", artifact["trust_path"])
-    monkeypatch.setattr(runner, "DEMO_APPROVAL_PUBLIC_KEY_SHA256", artifact["trust_sha256"])
-    monkeypatch.setattr(
+    _bind_demo_artifact(
         runner,
-        "collect_runtime_source_provenance",
-        lambda: copy.deepcopy(artifact["runtime_source"]),
+        monkeypatch,
+        artifact,
+        runtime_source=lambda: copy.deepcopy(artifact["runtime_source"]),
     )
     monkeypatch.setattr(
         runner,
@@ -745,10 +814,7 @@ def test_runtime_source_change_stops_before_store_or_write(runner, monkeypatch, 
     changed["fingerprint_sha256"] = canonical_sha256(
         {key: value for key, value in changed.items() if key != "fingerprint_sha256"}
     )
-    monkeypatch.setattr(runner, "MANIFEST_PATH", artifact["manifest_path"])
-    monkeypatch.setattr(runner, "DEMO_APPROVAL_TRUST_ROOT", artifact["trust_path"])
-    monkeypatch.setattr(runner, "DEMO_APPROVAL_PUBLIC_KEY_SHA256", artifact["trust_sha256"])
-    monkeypatch.setattr(runner, "collect_runtime_source_provenance", lambda: changed)
+    _bind_demo_artifact(runner, monkeypatch, artifact, runtime_source=lambda: changed)
     monkeypatch.setattr(
         runner,
         "load_candidate",
@@ -823,3 +889,341 @@ def test_repository_trust_root_has_expected_fingerprint():
         demo_approval._public_key_fingerprint(raw.replace(b"\n", b"\r\r\n"))
         == demo_approval.APPROVAL_PUBLIC_KEY_SHA256
     )
+
+
+def _mock_demo_run_inputs(runner, monkeypatch, store, events):
+    config = runner.load_config()
+    candidate = {
+        "strategy_id": runner.STRATEGY_ID,
+        "research_status": "RESEARCH_REJECTED",
+        "candidate_sha256": "a" * 64,
+        "config_sha256": "b" * 64,
+        "strategy_sha256": "c" * 64,
+    }
+    manifest_path = runner.REPO_CANONICAL_MANIFEST.resolve()
+    admission = {
+        "operator_override": True,
+        "research_status": "RESEARCH_REJECTED",
+        "execution_admitted": True,
+    }
+    monkeypatch.setattr(runner, "load_config", lambda *_args, **_kwargs: config)
+    monkeypatch.setattr(
+        runner,
+        "load_candidate",
+        lambda _path: ({}, candidate, manifest_path),
+    )
+    monkeypatch.setattr(runner, "_file_sha256", lambda *_args, **_kwargs: "b" * 64)
+    monkeypatch.setattr(
+        runner,
+        "_validate_network_admission",
+        lambda *_args, **_kwargs: dict(admission),
+    )
+    monkeypatch.setattr(
+        runner,
+        "_operator_demo_calibration_contract_mismatch_enabled",
+        lambda *_args: False,
+    )
+    monkeypatch.setattr(runner, "build_store", lambda *_args, **_kwargs: store)
+    monkeypatch.setattr(runner, "_demo_broker_kwargs", lambda *_args: {})
+    monkeypatch.setattr(
+        runner,
+        "_rules_from_store",
+        lambda *_args: (runner.replay_rules(), {venue: "mock" for venue in runner.VENUE_SYMBOLS}),
+    )
+    funding_time = datetime.now(timezone.utc) + timedelta(hours=1)
+    monkeypatch.setattr(
+        runner,
+        "_funding_from_store",
+        lambda *_args: {
+            venue: (Decimal("0"), funding_time, Decimal("28800"), "mock")
+            for venue in runner.VENUE_SYMBOLS
+        },
+    )
+    monkeypatch.setattr(
+        runner,
+        "_bounded_requested_duration",
+        lambda duration, _config: runner.decimal_value(duration, "duration"),
+    )
+    monkeypatch.setattr(runner, "validate_duration", lambda *_args, **_kwargs: {"status": "PASS"})
+
+    def load_qualification(*_args, **_kwargs):
+        events.append("qualification")
+        return {}, {"status": "MOCKED"}
+
+    monkeypatch.setattr(runner, "_load_model_qualification", load_qualification)
+    return config, candidate, manifest_path
+
+
+@pytest.mark.parametrize(
+    "transient_stage",
+    ("readiness", "reconciliation", "post_initialization_reconciliation"),
+)
+def test_012_1_active_demo_retries_transient_evidence_and_initializes_before_broker(
+    monkeypatch, transient_stage
+):
+    runner = _runtime_runner(RUNNERS[0])
+    monkeypatch.setattr(runner.time, "sleep", lambda _seconds: None)
+    events = []
+    identity = "d" * 64
+    pid = os.getpid()
+
+    def execution_summary(generation, *, baseline_required=False):
+        return {
+            "active_orders": 0,
+            "generation": generation,
+            "fencing_epoch": generation,
+            "as_of_monotonic_ns": time.monotonic_ns(),
+            "session_enabled": True,
+            "identity_binding_sha256": identity,
+            "evidence_complete": True,
+            "trading_blocked": baseline_required,
+            "unknown_ids": [],
+            "fee_unresolved_orders": [],
+            "funding_unresolved_orders": [],
+            "evidence_errors": ["account_risk_baseline_required"] if baseline_required else [],
+            "error_code": None,
+        }
+
+    account_risk = {
+        "generation": 2,
+        "fencing_epoch": 2,
+        "as_of_monotonic_ns": time.monotonic_ns(),
+        "owner_pid": pid,
+        "clock_domain_id": f"process:{pid}:monotonic",
+        "baseline_equity": "1000",
+        "current_equity": "1000",
+        "configured_venues": list(runner.VENUE_SYMBOLS),
+        "durable": True,
+        "trading_blocked": False,
+        "evidence_complete": True,
+        "evidence_errors": [],
+        "error_code": None,
+        "identity_binding_sha256": identity,
+        "loss_limit_breached": False,
+    }
+
+    class StopBeforeBroker(Exception):
+        pass
+
+    class Store:
+        initialized = False
+        readiness_calls = 0
+        reconcile_calls = 0
+        post_initialization_reconcile_calls = 0
+
+        def start(self):
+            events.append("store_start")
+
+        def stop(self, timeout):
+            events.append("store_stop")
+            return {
+                "shutdown_state": "PASS",
+                "queue_depth": 0,
+                "inflight": [],
+                "worker_alive": False,
+                "close_thread_alive": False,
+                "broker_update_conservation": True,
+                "last_error_code": None,
+            }
+
+        def get_environment_info(self, _symbol):
+            return {"environment": "demo"}
+
+        def get_account_config(self, _symbol):
+            return {"position_mode": "dual_side", "can_trade": True}
+
+        def get_order_readiness(self, _symbol, _quantity, position_mode):
+            assert position_mode == "dual_side"
+            self.readiness_calls += 1
+            if transient_stage == "readiness" and self.readiness_calls == 1:
+                return {"ready": False, "definite_failure": False}
+            return {"ready": True}
+
+        def get_account_risk_snapshot(self):
+            events.append("account_risk_read")
+            if self.initialized:
+                return account_risk
+            return {
+                "baseline_equity": None,
+                "loss_limit_breached": False,
+                "blocked_reasons": ["baseline_missing"],
+            }
+
+        def get_reconcile_snapshot(self):
+            events.append("reconcile_read")
+            self.reconcile_calls += 1
+            if transient_stage == "reconciliation" and self.reconcile_calls == 1:
+                return {
+                    "configured_venues": list(runner.VENUE_SYMBOLS),
+                    "reconciled_venues": list(runner.VENUE_SYMBOLS),
+                    "positions": [],
+                    "open_orders": [],
+                    "execution_summary": {},
+                    "identity_binding_sha256": identity,
+                    "evidence_complete": False,
+                    "evidence_errors": ["startup_evidence_pending"],
+                }
+            if self.initialized:
+                self.post_initialization_reconcile_calls += 1
+                if (
+                    transient_stage == "post_initialization_reconciliation"
+                    and self.post_initialization_reconcile_calls == 1
+                ):
+                    return {
+                        "configured_venues": list(runner.VENUE_SYMBOLS),
+                        "reconciled_venues": list(runner.VENUE_SYMBOLS),
+                        "positions": [],
+                        "open_orders": [],
+                        "execution_summary": {},
+                        "identity_binding_sha256": identity,
+                        "evidence_complete": False,
+                        "evidence_errors": ["startup_evidence_pending"],
+                    }
+            summary = execution_summary(
+                2 if self.initialized else 1,
+                baseline_required=not self.initialized,
+            )
+            return {
+                "configured_venues": list(runner.VENUE_SYMBOLS),
+                "reconciled_venues": list(runner.VENUE_SYMBOLS),
+                "positions": [],
+                "open_orders": [],
+                "execution_summary": summary,
+                "identity_binding_sha256": identity,
+                "evidence_complete": True,
+                "evidence_errors": [],
+            }
+
+        def initialize_account_risk_baseline(self):
+            events.append("initialize_account_risk_baseline")
+            self.initialized = True
+            return account_risk
+
+        def getbroker(self, **_kwargs):
+            events.append("getbroker")
+            raise StopBeforeBroker
+
+    store = Store()
+    _config, _candidate, manifest_path = _mock_demo_run_inputs(
+        runner, monkeypatch, store, events
+    )
+
+    with pytest.raises(StopBeforeBroker):
+        runner.run_network("demo", 100, manifest_path=manifest_path)
+
+    assert events.count("initialize_account_risk_baseline") == 1
+    assert events.index("qualification") < events.index("initialize_account_risk_baseline")
+    assert events.index("initialize_account_risk_baseline") < events.index("getbroker")
+    if transient_stage == "readiness":
+        assert store.readiness_calls >= 3
+    elif transient_stage == "reconciliation":
+        assert store.reconcile_calls >= 3
+    else:
+        assert store.post_initialization_reconcile_calls == 2
+
+
+@pytest.mark.parametrize(
+    ("transient_stage", "expected_message"),
+    (
+        ("readiness", "okx order readiness is false"),
+        ("reconciliation", "demo reconciliation evidence is incomplete"),
+    ),
+)
+def test_012_1_startup_evidence_retry_exhaustion_fails_closed(
+    monkeypatch, transient_stage, expected_message
+):
+    runner = _runtime_runner(RUNNERS[0])
+    monkeypatch.setattr(runner.time, "sleep", lambda _seconds: None)
+
+    class Store:
+        readiness_calls = 0
+        reconcile_calls = 0
+
+        def get_environment_info(self, _symbol):
+            return {"environment": "demo"}
+
+        def get_account_config(self, _symbol):
+            return {"position_mode": "dual_side", "can_trade": True}
+
+        def get_order_readiness(self, _symbol, _quantity, position_mode):
+            assert position_mode == "dual_side"
+            self.readiness_calls += 1
+            if transient_stage == "readiness":
+                return {"ready": False, "definite_failure": False}
+            return {"ready": True}
+
+        def get_account_risk_snapshot(self):
+            return {
+                "baseline_equity": None,
+                "loss_limit_breached": False,
+                "blocked_reasons": ["baseline_missing"],
+            }
+
+        def get_reconcile_snapshot(self):
+            self.reconcile_calls += 1
+            return {"positions": [], "open_orders": [], "evidence_complete": False}
+
+        def initialize_account_risk_baseline(self):
+            raise AssertionError("incomplete startup evidence must not initialize risk baseline")
+
+    store = Store()
+
+    with pytest.raises(runner.RunnerConfigurationError, match=expected_message):
+        runner._readiness(
+            store,
+            runner.replay_rules(),
+            runner.risk_from_config(runner.load_config()),
+        )
+
+    expected_readiness_calls_per_attempt = (
+        1 if transient_stage == "readiness" else len(runner.VENUE_SYMBOLS)
+    )
+    assert store.readiness_calls == (
+        runner.STARTUP_EVIDENCE_MAX_ATTEMPTS * expected_readiness_calls_per_attempt
+    )
+    if transient_stage == "reconciliation":
+        assert store.reconcile_calls == runner.STARTUP_EVIDENCE_MAX_ATTEMPTS
+
+
+def test_012_1_demo_preflight_does_not_initialize_account_risk_baseline(monkeypatch):
+    runner = _runtime_runner(RUNNERS[0])
+    events = []
+
+    class Store:
+        def start(self):
+            events.append("store_start")
+
+        def stop(self, timeout):
+            events.append("store_stop")
+            return {
+                "shutdown_state": "PASS",
+                "queue_depth": 0,
+                "inflight": [],
+                "worker_alive": False,
+                "close_thread_alive": False,
+                "broker_update_conservation": True,
+                "last_error_code": None,
+            }
+
+        def initialize_account_risk_baseline(self):
+            events.append("initialize_account_risk_baseline")
+            raise AssertionError("preflight must not initialize the account-risk baseline")
+
+    store = Store()
+    _config, _candidate, manifest_path = _mock_demo_run_inputs(
+        runner, monkeypatch, store, events
+    )
+
+    def readiness(_store, _rules, _risk, *, initialize_account_risk_baseline=True):
+        events.append(("readiness", initialize_account_risk_baseline))
+        assert initialize_account_risk_baseline is False
+        return {"status": "PASS", "venues": {venue: {} for venue in runner.VENUE_SYMBOLS}}
+
+    monkeypatch.setattr(runner, "_readiness", readiness)
+
+    report = runner.run_network("demo", 100, preflight=True, manifest_path=manifest_path)
+
+    assert report["status"] == "PREFLIGHT_PASS"
+    assert ("readiness", False) in events
+    assert "initialize_account_risk_baseline" not in events
+    assert "qualification" not in events

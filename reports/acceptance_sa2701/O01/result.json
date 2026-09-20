@@ -1,0 +1,484 @@
+{
+  "case_id": "O01",
+  "case_name": "验证能统计重复开仓单报单笔数",
+  "status": "FAIL",
+  "scenario_id": "RISK-REPEAT-01",
+  "scenario_name": "重复开仓报单统计",
+  "category": "重复报单监测",
+  "trace_id": "ctp-cert-20260918-094754-0ceec7c1",
+  "started_at": "2026-09-18T09:47:54.736527",
+  "finished_at": "2026-09-18T09:49:34.089901",
+  "duration_seconds": 99.35,
+  "env": "telecom",
+  "required_events": [
+    "risk_repeat_order_detected"
+  ],
+  "evidence_fields": [
+    "repeat_key",
+    "repeat_count"
+  ],
+  "pass_conditions": [
+    "required_events_present",
+    "evidence_fields_present"
+  ],
+  "optional": true,
+  "observed_events": [
+    "bar",
+    "data_status",
+    "market_data_subscribe_request",
+    "monitoring_summary",
+    "open_orders_sync_completed",
+    "order_cancel_request",
+    "order_cancel_submitted",
+    "order_status_accepted",
+    "order_status_canceled",
+    "order_status_submitted",
+    "order_submit_accepted",
+    "order_submit_request",
+    "risk_monitor_event",
+    "session_started",
+    "session_stopped",
+    "store_auth_request",
+    "store_auth_success",
+    "store_connected",
+    "store_connecting",
+    "store_disconnected",
+    "store_login_success",
+    "store_ready",
+    "tick"
+  ],
+  "missing_required_events": [
+    "risk_repeat_order_detected"
+  ],
+  "required_events_present": false,
+  "missing_evidence_fields": [
+    "repeat_key",
+    "repeat_count"
+  ],
+  "evidence_fields_present": false,
+  "evidence": [
+    "reports/acceptance_sa2701/O01/logs/bar.log",
+    "reports/acceptance_sa2701/O01/logs/current_position.yaml",
+    "reports/acceptance_sa2701/O01/logs/error.log",
+    "reports/acceptance_sa2701/O01/logs/indicator.log",
+    "reports/acceptance_sa2701/O01/logs/monitor.log",
+    "reports/acceptance_sa2701/O01/logs/order.log",
+    "reports/acceptance_sa2701/O01/logs/position.log",
+    "reports/acceptance_sa2701/O01/logs/signal.log",
+    "reports/acceptance_sa2701/O01/logs/system.log",
+    "reports/acceptance_sa2701/O01/logs/tick.log",
+    "reports/acceptance_sa2701/O01/logs/trade.log",
+    "reports/acceptance_sa2701/O01/logs/value.log",
+    "reports/acceptance_sa2701/O01/state_snapshots.json",
+    "reports/acceptance_sa2701/O01/reconciliation.json",
+    "reports/acceptance_sa2701/O01/audit.jsonl"
+  ],
+  "failure_reason": "CTP admission preflight incomplete: ['account_query_incomplete', 'orders_query_incomplete', 'positions_query_incomplete', 'trades_query_incomplete']",
+  "next_action": "",
+  "details": {
+    "certification_evidence": {
+      "trace_id": "ctp-cert-20260918-094754-0ceec7c1",
+      "account_id_masked": "33***16",
+      "gateway_key": "telecom",
+      "timestamp": "2026-09-18T09:48:20.636+08:00",
+      "strategy_id": "RepeatOpenStrategy",
+      "instrument": "SA2701",
+      "order_ref": "1",
+      "price": 995.0,
+      "size": 1,
+      "error_msg": "报单已提交",
+      "ErrorMsg": "报单已提交",
+      "StatusMsg": "报单已提交",
+      "external_order_id": "303043",
+      "metric": "submitted_order_count",
+      "submitted_order_count": 1,
+      "cancel_order_count": 1,
+      "trade_connection": true,
+      "market_connection": true,
+      "trade_id": "SA701-09:48:17-0-16180",
+      "order_refs": [
+        "1",
+        "303043",
+        1,
+        1,
+        1,
+        "1",
+        "1",
+        "1",
+        1,
+        1
+      ],
+      "open_order_count": 10,
+      "partial_count": 0
+    },
+    "reconciliation": {
+      "case_id": "O01",
+      "scenario_id": "RISK-REPEAT-01",
+      "generated_at": "2026-09-18T09:49:34.094523",
+      "expectation": {
+        "order_activity": "required",
+        "trade_activity": "allowed",
+        "account_position_change": "allowed_if_trade",
+        "no_open_orders_after": true
+      },
+      "snapshot_count": 2,
+      "snapshots_file": "reports/acceptance_sa2701/O01/state_snapshots.json",
+      "event_counts": {
+        "total_events": 54,
+        "order_events": 13,
+        "trade_events": 0
+      },
+      "event_types": [
+        "",
+        "bar",
+        "data_status",
+        "market_data_subscribe_request",
+        "monitoring_summary",
+        "open_orders_sync_completed",
+        "order_cancel_request",
+        "order_cancel_submitted",
+        "order_status_accepted",
+        "order_status_canceled",
+        "order_status_submitted",
+        "order_submit_accepted",
+        "order_submit_request",
+        "risk_monitor_event",
+        "session_started",
+        "session_stopped",
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready",
+        "tick"
+      ],
+      "account_delta": {
+        "balance_changed": true,
+        "positions_changed": false,
+        "before_label": "before_action",
+        "after_label": "after_action_before_stop"
+      },
+      "post_action_open_orders": [],
+      "checks": {
+        "required_events": {
+          "expected": [
+            "risk_repeat_order_detected"
+          ],
+          "missing": [
+            "risk_repeat_order_detected"
+          ],
+          "passed": false
+        },
+        "order_activity": {
+          "expected": "required",
+          "observed": true,
+          "passed": true
+        },
+        "trade_activity": {
+          "expected": "allowed",
+          "observed": false,
+          "passed": true
+        },
+        "post_action_open_orders": {
+          "expected": "none",
+          "observed_count": 0,
+          "passed": true
+        },
+        "account_position_change": {
+          "expected": "allowed_if_trade",
+          "balance_changed": true,
+          "positions_changed": false,
+          "trade_events": 0,
+          "passed": true
+        }
+      },
+      "strict_reconciliation_pass": false,
+      "notes": ""
+    }
+  },
+  "audit_events": [
+    {
+      "event_type": "certification_case_result",
+      "event_id": "c8e9525e-de04-45b1-a11b-f1785ad2761f",
+      "trace_id": "ctp-cert-20260918-094754-0ceec7c1",
+      "case_id": "O01",
+      "scenario_id": "RISK-REPEAT-01",
+      "scenario_name": "重复开仓报单统计",
+      "category": "重复报单监测",
+      "status": "FAIL",
+      "severity": "ERROR",
+      "timestamp": "2026-09-18T09:49:34.089901",
+      "env": "telecom",
+      "message": "CTP admission preflight incomplete: ['account_query_incomplete', 'orders_query_incomplete', 'positions_query_incomplete', 'trades_query_incomplete']",
+      "required_events": [
+        "risk_repeat_order_detected"
+      ],
+      "evidence_fields": [
+        "repeat_key",
+        "repeat_count"
+      ],
+      "observed_events": [
+        "bar",
+        "data_status",
+        "market_data_subscribe_request",
+        "monitoring_summary",
+        "open_orders_sync_completed",
+        "order_cancel_request",
+        "order_cancel_submitted",
+        "order_status_accepted",
+        "order_status_canceled",
+        "order_status_submitted",
+        "order_submit_accepted",
+        "order_submit_request",
+        "risk_monitor_event",
+        "session_started",
+        "session_stopped",
+        "store_auth_request",
+        "store_auth_success",
+        "store_connected",
+        "store_connecting",
+        "store_disconnected",
+        "store_login_success",
+        "store_ready",
+        "tick"
+      ],
+      "missing_required_events": [
+        "risk_repeat_order_detected"
+      ],
+      "missing_evidence_fields": [
+        "repeat_key",
+        "repeat_count"
+      ],
+      "required_events_present": false,
+      "evidence_fields_present": false,
+      "evidence": [
+        "reports/acceptance_sa2701/O01/logs/bar.log",
+        "reports/acceptance_sa2701/O01/logs/current_position.yaml",
+        "reports/acceptance_sa2701/O01/logs/error.log",
+        "reports/acceptance_sa2701/O01/logs/indicator.log",
+        "reports/acceptance_sa2701/O01/logs/monitor.log",
+        "reports/acceptance_sa2701/O01/logs/order.log",
+        "reports/acceptance_sa2701/O01/logs/position.log",
+        "reports/acceptance_sa2701/O01/logs/signal.log",
+        "reports/acceptance_sa2701/O01/logs/system.log",
+        "reports/acceptance_sa2701/O01/logs/tick.log",
+        "reports/acceptance_sa2701/O01/logs/trade.log",
+        "reports/acceptance_sa2701/O01/logs/value.log",
+        "reports/acceptance_sa2701/O01/state_snapshots.json",
+        "reports/acceptance_sa2701/O01/reconciliation.json",
+        "reports/acceptance_sa2701/O01/audit.jsonl"
+      ],
+      "details": {
+        "certification_evidence": {
+          "trace_id": "ctp-cert-20260918-094754-0ceec7c1",
+          "account_id_masked": "33***16",
+          "gateway_key": "telecom",
+          "timestamp": "2026-09-18T09:48:20.636+08:00",
+          "strategy_id": "RepeatOpenStrategy",
+          "instrument": "SA2701",
+          "order_ref": "1",
+          "price": 995.0,
+          "size": 1,
+          "error_msg": "报单已提交",
+          "ErrorMsg": "报单已提交",
+          "StatusMsg": "报单已提交",
+          "external_order_id": "303043",
+          "metric": "submitted_order_count",
+          "submitted_order_count": 1,
+          "cancel_order_count": 1,
+          "trade_connection": true,
+          "market_connection": true,
+          "trade_id": "SA701-09:48:17-0-16180",
+          "order_refs": [
+            "1",
+            "303043",
+            1,
+            1,
+            1,
+            "1",
+            "1",
+            "1",
+            1,
+            1
+          ],
+          "open_order_count": 10,
+          "partial_count": 0
+        },
+        "reconciliation": {
+          "case_id": "O01",
+          "scenario_id": "RISK-REPEAT-01",
+          "generated_at": "2026-09-18T09:49:34.094523",
+          "expectation": {
+            "order_activity": "required",
+            "trade_activity": "allowed",
+            "account_position_change": "allowed_if_trade",
+            "no_open_orders_after": true
+          },
+          "snapshot_count": 2,
+          "snapshots_file": "reports/acceptance_sa2701/O01/state_snapshots.json",
+          "event_counts": {
+            "total_events": 54,
+            "order_events": 13,
+            "trade_events": 0
+          },
+          "event_types": [
+            "",
+            "bar",
+            "data_status",
+            "market_data_subscribe_request",
+            "monitoring_summary",
+            "open_orders_sync_completed",
+            "order_cancel_request",
+            "order_cancel_submitted",
+            "order_status_accepted",
+            "order_status_canceled",
+            "order_status_submitted",
+            "order_submit_accepted",
+            "order_submit_request",
+            "risk_monitor_event",
+            "session_started",
+            "session_stopped",
+            "store_auth_request",
+            "store_auth_success",
+            "store_connected",
+            "store_connecting",
+            "store_disconnected",
+            "store_login_success",
+            "store_ready",
+            "tick"
+          ],
+          "account_delta": {
+            "balance_changed": true,
+            "positions_changed": false,
+            "before_label": "before_action",
+            "after_label": "after_action_before_stop"
+          },
+          "post_action_open_orders": [],
+          "checks": {
+            "required_events": {
+              "expected": [
+                "risk_repeat_order_detected"
+              ],
+              "missing": [
+                "risk_repeat_order_detected"
+              ],
+              "passed": false
+            },
+            "order_activity": {
+              "expected": "required",
+              "observed": true,
+              "passed": true
+            },
+            "trade_activity": {
+              "expected": "allowed",
+              "observed": false,
+              "passed": true
+            },
+            "post_action_open_orders": {
+              "expected": "none",
+              "observed_count": 0,
+              "passed": true
+            },
+            "account_position_change": {
+              "expected": "allowed_if_trade",
+              "balance_changed": true,
+              "positions_changed": false,
+              "trade_events": 0,
+              "passed": true
+            }
+          },
+          "strict_reconciliation_pass": false,
+          "notes": ""
+        }
+      },
+      "reconciliation": {
+        "case_id": "O01",
+        "scenario_id": "RISK-REPEAT-01",
+        "generated_at": "2026-09-18T09:49:34.094523",
+        "expectation": {
+          "order_activity": "required",
+          "trade_activity": "allowed",
+          "account_position_change": "allowed_if_trade",
+          "no_open_orders_after": true
+        },
+        "snapshot_count": 2,
+        "snapshots_file": "reports/acceptance_sa2701/O01/state_snapshots.json",
+        "event_counts": {
+          "total_events": 54,
+          "order_events": 13,
+          "trade_events": 0
+        },
+        "event_types": [
+          "",
+          "bar",
+          "data_status",
+          "market_data_subscribe_request",
+          "monitoring_summary",
+          "open_orders_sync_completed",
+          "order_cancel_request",
+          "order_cancel_submitted",
+          "order_status_accepted",
+          "order_status_canceled",
+          "order_status_submitted",
+          "order_submit_accepted",
+          "order_submit_request",
+          "risk_monitor_event",
+          "session_started",
+          "session_stopped",
+          "store_auth_request",
+          "store_auth_success",
+          "store_connected",
+          "store_connecting",
+          "store_disconnected",
+          "store_login_success",
+          "store_ready",
+          "tick"
+        ],
+        "account_delta": {
+          "balance_changed": true,
+          "positions_changed": false,
+          "before_label": "before_action",
+          "after_label": "after_action_before_stop"
+        },
+        "post_action_open_orders": [],
+        "checks": {
+          "required_events": {
+            "expected": [
+              "risk_repeat_order_detected"
+            ],
+            "missing": [
+              "risk_repeat_order_detected"
+            ],
+            "passed": false
+          },
+          "order_activity": {
+            "expected": "required",
+            "observed": true,
+            "passed": true
+          },
+          "trade_activity": {
+            "expected": "allowed",
+            "observed": false,
+            "passed": true
+          },
+          "post_action_open_orders": {
+            "expected": "none",
+            "observed_count": 0,
+            "passed": true
+          },
+          "account_position_change": {
+            "expected": "allowed_if_trade",
+            "balance_changed": true,
+            "positions_changed": false,
+            "trade_events": 0,
+            "passed": true
+          }
+        },
+        "strict_reconciliation_pass": false,
+        "notes": ""
+      }
+    }
+  ]
+}

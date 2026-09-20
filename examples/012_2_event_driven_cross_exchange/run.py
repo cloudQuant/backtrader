@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import hashlib
 import json
@@ -28,13 +28,23 @@ from bt_api_py import (
     coerce_funding_snapshot,
     decimal_value,
 )
-from examples.strategy_candidate_approval import (
-    APPROVAL_PUBLIC_KEY_SHA256,
-    DemoApprovalVerificationError,
-    collect_runtime_source_provenance,
-    verify_demo_approval,
-    write_private_json_report,
-)
+
+if __package__:
+    from .strategy_candidate_approval import (
+        APPROVAL_PUBLIC_KEY_SHA256,
+        DemoApprovalVerificationError,
+        collect_runtime_source_provenance,
+        verify_demo_approval,
+        write_private_json_report,
+    )
+else:
+    from strategy_candidate_approval import (
+        APPROVAL_PUBLIC_KEY_SHA256,
+        DemoApprovalVerificationError,
+        collect_runtime_source_provenance,
+        verify_demo_approval,
+        write_private_json_report,
+    )
 import yaml
 
 if __package__:
@@ -48,14 +58,23 @@ else:
 
 
 HERE = Path(__file__).resolve().parent
-MANIFEST_PATH = HERE.parent / "strategy-candidate-manifest.json"
-DEMO_APPROVAL_TRUST_ROOT = HERE.parent / "demo-approval-trust-root.pem"
+# Self-contained working copy: the manifest, trust root and admission policy
+# live beside this runner. Demo execution remains bound to the repository
+# canonical manifest, including the explicit rejected-candidate override.
+MANIFEST_PATH = HERE / "strategy-candidate-manifest.json"
+DEMO_APPROVAL_TRUST_ROOT = HERE / "demo-approval-trust-root.pem"
+REPO_CANONICAL_MANIFEST = HERE.parent / "strategy-candidate-manifest.json"
 DEMO_APPROVAL_PUBLIC_KEY_SHA256 = APPROVAL_PUBLIC_KEY_SHA256
 DEFAULT_CONFIG = HERE / "config.yaml"
 STRATEGY_ID = "012_2_event_driven_cross_exchange"
 EXCHANGES = {"okx": "OKX___SWAP", "binance": "BINANCE___SWAP"}
 SCENARIOS = ("profitable", "loss", "no_edge", "partial", "unknown", "gap")
 MODES = ("replay", "shadow", "paper-live", "demo")
+OPERATOR_DEMO_MANIFEST_STATUS = "RESEARCH_REJECTED_OPERATOR_DEMO_SIMULATION_ONLY"
+OPERATOR_DEMO_CONDITION = "OPERATOR_ACK_REQUIRED_DEMO_SIMULATION_ONLY"
+OPERATOR_PAPER_LIVE_CONDITION = "PROHIBITED_RESEARCH_REJECTED_NEW_CANDIDATE_REQUIRED"
+OPERATOR_DEMO_MAX_ORDER_COUNT = 8
+OPERATOR_DEMO_MAX_LEASE_SECONDS = Decimal("900")
 OKX_API_REGIONS = frozenset({"global", "eea", "us", "tr"})
 CONSERVATIVE_TAKER_FEE = Decimal("0.0006")
 BOUNDED_ONE_SHOT_PROBE_CAPABILITY = "run_bounded_read_only_metadata_probe"
@@ -71,7 +90,7 @@ class RunnerConfigurationError(ValueError):
 
 
 class DemoApprovalError(RunnerConfigurationError):
-    """Raised when the signed demo approval receipt is missing or unverifiable."""
+    """Raised when demo admission or its bounded approval lease is invalid."""
 
     pass
 
@@ -102,8 +121,20 @@ def mode_policy(mode):
 
 
 def _canonical_hash(value) -> str:
-    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    payload = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        default=_canonical_json_default,
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _canonical_json_default(value):
+    if isinstance(value, Decimal):
+        return {"$decimal": str(value)}
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 BUSINESS_SUMMARY_VOLATILE_FIELDS = frozenset(
@@ -231,9 +262,15 @@ def load_candidate(manifest_path: Path = MANIFEST_PATH):
     return manifest, candidate, path
 
 
-def _validate_network_admission(manifest, candidate, mode, preflight, config):
+def _validate_network_admission(
+    manifest, candidate, mode, preflight, config, allow_rejected_demo_simulation=False
+):
     """Apply the manifest and config mode contract before any Store is created."""
 
+    if allow_rejected_demo_simulation and mode != "demo":
+        raise RunnerConfigurationError(
+            "rejected-candidate simulation acknowledgement is only valid for demo mode"
+        )
     if preflight and mode != "demo":
         raise RunnerConfigurationError("preflight is only valid for demo mode")
     manifest_status = manifest.get("manifest_status")
@@ -260,12 +297,36 @@ def _validate_network_admission(manifest, candidate, mode, preflight, config):
         return {
             "manifest_status": manifest_status,
             "candidate_mode_status": conditional_modes.get("demo", "NOT_DECLARED"),
+            "research_status": candidate.get("research_status"),
             "execution_admitted": False,
             "preflight_only": True,
+            "operator_override": False,
         }
 
+    operator_override = False
+    if allow_rejected_demo_simulation:
+        operator_override = (
+            mode == "demo"
+            and manifest_status == OPERATOR_DEMO_MANIFEST_STATUS
+            and candidate.get("research_status") == "RESEARCH_REJECTED"
+            and set(allowed_modes) == {"replay", "shadow", "demo"}
+            and conditional_modes
+            == {
+                "paper-live": OPERATOR_PAPER_LIVE_CONDITION,
+                "demo": OPERATOR_DEMO_CONDITION,
+            }
+        )
+        if not operator_override:
+            raise DemoApprovalError(
+                "operator acknowledgement requires the explicit rejected-candidate demo-simulation manifest"
+            )
+
     error_cls = DemoApprovalError if mode == "demo" else RunnerConfigurationError
-    if mode in {"paper-live", "demo"} and candidate.get("research_status") != "PASS":
+    if (
+        mode in {"paper-live", "demo"}
+        and candidate.get("research_status") != "PASS"
+        and not operator_override
+    ):
         raise error_cls(f"{mode} requires a PASS research candidate")
     if mode not in allowed_modes:
         condition = conditional_modes.get(mode, "NOT_ALLOWED")
@@ -278,13 +339,15 @@ def _validate_network_admission(manifest, candidate, mode, preflight, config):
         "DEMO_APPROVED",
     }:
         raise RunnerConfigurationError("manifest_status does not authorize paper-live execution")
-    if mode == "demo" and manifest_status != "DEMO_APPROVED":
+    if mode == "demo" and manifest_status != "DEMO_APPROVED" and not operator_override:
         raise DemoApprovalError("manifest_status does not authorize demo execution")
     return {
         "manifest_status": manifest_status,
         "candidate_mode_status": condition or "ALLOWED",
+        "research_status": candidate.get("research_status"),
         "execution_admitted": True,
         "preflight_only": False,
+        "operator_override": operator_override,
     }
 
 
@@ -345,6 +408,35 @@ def _approval_lease(receipt, requested_duration, risk, shutdown_seconds, now=Non
     }
 
 
+def _operator_demo_lease(requested_duration, risk, shutdown_seconds, config, now=None):
+    """Create a one-run local lease bounded by config, risk, and a short TTL."""
+
+    requested = decimal_value(requested_duration, "duration")
+    configured = decimal_value(config.get("run_timeout_seconds"), "run_timeout_seconds")
+    shutdown = decimal_value(shutdown_seconds, "shutdown_buffer_seconds")
+    maximum_quantity = decimal_value(risk.quantity_base, "maximum operator demo quantity")
+    if requested <= 0 or configured <= 0 or shutdown <= 0 or maximum_quantity <= 0:
+        raise DemoApprovalError("operator demo lease bounds must be finite and positive")
+    if requested > configured:
+        raise DemoApprovalError("duration exceeds the candidate-bound run timeout")
+    lease_duration = requested + shutdown
+    if lease_duration > OPERATOR_DEMO_MAX_LEASE_SECONDS:
+        raise DemoApprovalError("operator demo lease exceeds the short-lived lease limit")
+    checked_at = now or datetime.now(timezone.utc)
+    if checked_at.tzinfo is None:
+        raise DemoApprovalError("operator demo lease clock must be timezone-aware")
+    expires_at = checked_at.astimezone(timezone.utc) + timedelta(seconds=float(lease_duration))
+    return {
+        "expires_at": expires_at.isoformat(timespec="microseconds").replace("+00:00", "Z"),
+        "maximum_duration_seconds": str(requested),
+        "maximum_order_count": OPERATOR_DEMO_MAX_ORDER_COUNT,
+        "maximum_quantity_base": str(maximum_quantity),
+        "remaining_seconds_at_check": str(lease_duration),
+        "lease_type": "OPERATOR_ACKNOWLEDGED_LOCAL_DEMO_SIMULATION",
+        "signed_receipt_verified": False,
+    }
+
+
 def require_demo_approval(candidate, manifest_path: Path):
     """Verify the signed demo approval receipt against the pinned trust root.
 
@@ -357,7 +449,7 @@ def require_demo_approval(candidate, manifest_path: Path):
         return verify_demo_approval(
             candidate=candidate,
             manifest_path=manifest_path,
-            canonical_manifest_path=MANIFEST_PATH,
+            canonical_manifest_path=REPO_CANONICAL_MANIFEST,
             trust_root_path=DEMO_APPROVAL_TRUST_ROOT,
             expected_strategy_id=STRATEGY_ID,
             runtime_source=runtime_source,
@@ -1763,12 +1855,14 @@ def run_network(
     env_file=HERE / ".env",
     preflight=False,
     manifest_path=MANIFEST_PATH,
+    allow_rejected_demo_simulation=False,
 ):
     """Run a shadow, paper-live or demo session against the live venues.
 
     Applies manifest and config admission governance before any Store
-    exists, and for demo verifies the signed approval lease against the
-    requested duration, quantity and shutdown window.  Duration 0 admits
+    exists. Demo either verifies the signed approval lease or creates a
+    bounded local lease after explicit rejected-candidate acknowledgement.
+    Duration 0 admits
     only a bounded read-only shadow metadata probe.  Execution modes
     additionally require the immutable candidate-bound event path models
     (plus, for paper-live/demo, the account risk ledger); any missing
@@ -1776,13 +1870,24 @@ def run_network(
     """
     if mode not in {"shadow", "paper-live", "demo"}:
         raise RunnerConfigurationError("network mode is invalid")
-    if mode == "demo" and Path(manifest_path).resolve() != MANIFEST_PATH.resolve():
-        raise DemoApprovalError("demo requires the canonical manifest path")
+    # Demo stays repository-bound: only the canonical manifest satisfies the
+    # signed receipt contract, so a copied folder fails closed here.
+    if mode == "demo":
+        canonical = REPO_CANONICAL_MANIFEST.resolve()
+        if not canonical.is_file() or Path(manifest_path).resolve() != canonical:
+            raise DemoApprovalError("demo requires the repository-canonical manifest path")
     config = load_config(config_path)
     manifest, candidate, resolved_manifest_path = load_candidate(manifest_path)
     if _file_sha256(config_path, "run config") != candidate["config_sha256"]:
         raise RunnerConfigurationError("run config is not bound to the selected candidate")
-    admission = _validate_network_admission(manifest, candidate, mode, preflight, config)
+    admission = _validate_network_admission(
+        manifest,
+        candidate,
+        mode,
+        preflight,
+        config,
+        allow_rejected_demo_simulation=allow_rejected_demo_simulation,
+    )
     risk = risk_from_config(config)
     funding_settings = funding_settings_from_config(config)
     mode_policy(mode)
@@ -1806,13 +1911,21 @@ def run_network(
         raise RunnerConfigurationError("duration does not leave a positive active window")
     approval_lease = None
     if mode == "demo" and not preflight:
-        receipt = require_demo_approval(candidate, resolved_manifest_path)
-        approval_lease = _approval_lease(
-            receipt,
-            requested_duration,
-            risk,
-            shutdown_seconds,
-        )
+        if admission["operator_override"]:
+            approval_lease = _operator_demo_lease(
+                requested_duration,
+                risk,
+                shutdown_seconds,
+                config,
+            )
+        else:
+            receipt = require_demo_approval(candidate, resolved_manifest_path)
+            approval_lease = _approval_lease(
+                receipt,
+                requested_duration,
+                risk,
+                shutdown_seconds,
+            )
     if mode in {"paper-live", "demo"} and not preflight and not admission_models:
         raise RunnerConfigurationError(
             "execution requires immutable direction/first-venue/fee/depth/latency path models"
@@ -2213,7 +2326,7 @@ def build_parser():
     parser.add_argument("--mode", choices=MODES, default="replay")
     parser.add_argument("--scenario", choices=SCENARIOS, default="profitable")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
-    parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
+    parser.add_argument("--manifest", type=Path, default=None)
     parser.add_argument(
         "--duration",
         type=float,
@@ -2221,6 +2334,11 @@ def build_parser():
     )
     parser.add_argument("--env-file", type=Path, default=HERE / ".env")
     parser.add_argument("--preflight", action="store_true")
+    parser.add_argument(
+        "--allow-rejected-demo-simulation",
+        action="store_true",
+        help="explicitly authorize the bounded demo-only path for this rejected candidate",
+    )
     parser.add_argument("--output", type=Path)
     return parser
 
@@ -2245,8 +2363,19 @@ def main(argv=None):
             raise RunnerConfigurationError("duration must be finite and non-negative")
         if args.preflight and args.mode != "demo":
             raise RunnerConfigurationError("--preflight is only valid with --mode demo")
+        if args.allow_rejected_demo_simulation and args.mode != "demo":
+            raise RunnerConfigurationError(
+                "--allow-rejected-demo-simulation is only valid with --mode demo"
+            )
+        # Demo must use the repository-canonical manifest; the other modes use
+        # this folder's self-contained copy unless the operator overrides it.
+        manifest_path = (
+            args.manifest
+            if args.manifest is not None
+            else (REPO_CANONICAL_MANIFEST if args.mode == "demo" else MANIFEST_PATH)
+        )
         report = (
-            run_replay(args.scenario, args.config, args.manifest)
+            run_replay(args.scenario, args.config, manifest_path)
             if args.mode == "replay"
             else run_network(
                 args.mode,
@@ -2254,7 +2383,8 @@ def main(argv=None):
                 args.config,
                 args.env_file,
                 args.preflight,
-                args.manifest,
+                manifest_path,
+                args.allow_rejected_demo_simulation,
             )
         )
     except Exception as exc:

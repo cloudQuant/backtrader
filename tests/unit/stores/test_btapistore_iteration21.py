@@ -77,6 +77,9 @@ class AsyncSdk:
             "reconciliation_errors": {},
         }
 
+    def recover_historical_documented_definite_rejections(self):
+        return {"completed": True, "recovered_client_order_ids": []}
+
     def get_position(self, venue, symbol, *, normalized=False):
         assert normalized
         return deepcopy(self.positions)
@@ -581,6 +584,165 @@ def test_async_submit_returns_receipt_without_waiting_for_transport():
     finally:
         api.release = True
         store.stop()
+
+
+def test_cancel_supersedes_an_unsent_opening_without_remote_cancel_or_unknown():
+    optional_sdk()
+    api = AsyncSdk(block_first=True)
+    store, broker, data = _started_broker(api)
+    try:
+        broker.buy(
+            None,
+            data,
+            size=1,
+            price=100,
+            exectype=bt.Order.Limit,
+            position_side="long",
+            offset="open",
+        )
+        deadline = time.monotonic() + 1
+        while not any(row[0] == "submit" for row in api.calls) and time.monotonic() < deadline:
+            time.sleep(0.001)
+        assert any(row[0] == "submit" for row in api.calls)
+
+        second = broker.buy(
+            None,
+            data,
+            size=1,
+            price=100,
+            exectype=bt.Order.Limit,
+            position_side="long",
+            offset="open",
+        )
+        client_id = second.info["client_order_id"]
+        broker.cancel(second)
+
+        assert second.info["local_cancelled_before_send"] is True
+        assert second.info["cancel_requested_remote"] is False
+        assert not [row for row in api.calls if row[0] == "cancel"]
+
+        api.release = True
+        assert store.wait_for_commands(1)
+        broker.next()
+
+        assert second.status == bt.Order.Canceled
+        assert len([row for row in api.calls if row[0] == "submit"]) == 1
+        assert not [row for row in api.calls if row[0] in {"cancel", "query"}]
+        assert store.get_command_health()["risk_state_latched"] is False
+        completions = []
+        while True:
+            update = store.poll_broker_update()
+            if update is None:
+                break
+            if update.get("client_order_id") == client_id:
+                completions.append(update)
+        assert completions == []  # Cerebro already consumed the local terminal result.
+    finally:
+        api.release = True
+        broker.stop()
+
+
+def test_store_runs_local_reserved_cancel_recovery_before_starting_command_worker(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    optional_sdk()
+
+    class RecoverySdk(AsyncSdk):
+        def __init__(self):
+            super().__init__()
+            self.recovery_calls = 0
+            self.documented_recovery_calls = 0
+            self.recovery_events = []
+            self.execution_configurations = []
+
+        def configure_execution(self, config):
+            self.execution_configurations.append(dict(config))
+
+        def recover_reservation_only_cancel_unknowns(self):
+            self.recovery_calls += 1
+            self.recovery_events.append("reservation")
+            return {"completed": True, "recovered_client_order_ids": []}
+
+        def recover_historical_documented_definite_rejections(self):
+            self.documented_recovery_calls += 1
+            self.recovery_events.append("documented_rejection")
+            return {"completed": True, "recovered_client_order_ids": []}
+
+    api = RecoverySdk()
+    store = make_store(api)
+    call_order = []
+    start_worker = store._start_command_worker
+
+    def checked_worker_start():
+        call_order.append("worker")
+        assert api.recovery_calls == 1
+        assert api.documented_recovery_calls == 1
+        assert api.recovery_events == ["reservation", "documented_rejection"]
+        start_worker()
+
+    monkeypatch.setattr(store, "_start_command_worker", checked_worker_start)
+    try:
+        store.start()
+        assert call_order == ["worker"]
+    finally:
+        store.stop()
+
+    readonly_api = RecoverySdk()
+    readonly_store = make_store(readonly_api, market_data_only=True)
+    try:
+        readonly_store.start()
+        assert readonly_api.recovery_calls == 0
+        assert readonly_api.documented_recovery_calls == 0
+    finally:
+        readonly_store.stop()
+
+    legacy_api = RecoverySdk()
+    legacy_api.recover_historical_documented_definite_rejections = None
+    legacy_api.get_execution_summary = lambda: {
+        "session_enabled": True,
+        "unknown_ids": ["legacy-unknown"],
+        "active_orders": 1,
+        "fee_unresolved_orders": [],
+        "funding_unresolved_orders": [],
+        "trading_blocked": True,
+        "reconciliation_errors": {},
+    }
+    legacy_store = make_store(legacy_api)
+    try:
+        legacy_store.start()
+        assert legacy_api.documented_recovery_calls == 0
+        assert legacy_api.get_execution_summary()["unknown_ids"] == ["legacy-unknown"]
+    finally:
+        legacy_store.stop()
+
+    class IncompleteSdk(RecoverySdk):
+        def __init__(self):
+            super().__init__()
+            self.connected = False
+
+        def recover_historical_documented_definite_rejections(self):
+            self.documented_recovery_calls += 1
+            return {"completed": False, "recovered_client_order_ids": []}
+
+        def connect(self):
+            self.connected = True
+
+    incomplete_api = IncompleteSdk()
+    incomplete_store = make_store(incomplete_api)
+    worker_started = []
+    monkeypatch.setattr(
+        incomplete_store,
+        "_start_command_worker",
+        lambda: worker_started.append(True),
+    )
+    try:
+        with pytest.raises(BtApiStoreError, match="documented-rejection recovery is unproven"):
+            incomplete_store.start()
+        assert incomplete_api.connected is False
+        assert incomplete_api.documented_recovery_calls == 1
+        assert worker_started == []
+    finally:
+        incomplete_store.stop()
 
 
 def test_market_data_only_store_rejects_direct_submit_and_cancel_without_transport():
@@ -1750,6 +1912,88 @@ def test_shutdown_flattens_only_known_leg_and_requires_remote_flat_proof():
     assert close_calls[0][3:] == ("close", "long")
     assert summary["status"] == "PASS"
     assert summary["reason"] == "remote_flat_proven"
+
+
+@pytest.mark.parametrize(
+    (
+        "shutdown_timeout",
+        "store_reserve",
+        "expected_winddown_budget",
+        "expected_store_timeout",
+        "store_shutdown_state",
+    ),
+    [
+        pytest.param(2.0, 2.0, 1.0, 1.0, "PASS", id="default-timeout-split"),
+        pytest.param(15.0, 2.0, 13.0, 2.0, "PASS", id="store-configured-reserve"),
+        pytest.param(2.0, None, 2.0, 0.0, "INCOMPLETE", id="unverified-reserve"),
+    ],
+)
+def test_broker_stop_reserves_store_shutdown_budget_without_extending_deadline(
+    monkeypatch,
+    shutdown_timeout,
+    store_reserve,
+    expected_winddown_budget,
+    expected_store_timeout,
+    store_shutdown_state,
+):
+    optional_sdk()
+    store, broker, _ = _started_broker(AsyncSdk())
+    original_store_stop = store.stop
+    configured_store_reserve = store._command_shutdown_timeout
+    broker.p.shutdown_timeout = shutdown_timeout
+    if store_reserve is None:
+        monkeypatch.delattr(store, "_command_shutdown_timeout")
+    else:
+        store._command_shutdown_timeout = store_reserve
+
+    clock = [100.0]
+    real_time = broker_module.time
+
+    class FakeTime:
+        def monotonic(self):
+            return clock[0]
+
+        def __getattr__(self, name):
+            return getattr(real_time, name)
+
+    monkeypatch.setattr(broker_module, "time", FakeTime())
+    winddown_deadlines = []
+    store_stop_timeouts = []
+
+    def consume_winddown_budget(deadline):
+        winddown_deadlines.append(deadline)
+        clock[0] = deadline
+        return False
+
+    def stop_store(timeout=None):
+        store_stop_timeouts.append(timeout)
+        return {"shutdown_state": store_shutdown_state}
+
+    monkeypatch.setattr(broker, "_wait_and_drain", consume_winddown_budget)
+    monkeypatch.setattr(store, "stop", stop_store)
+    try:
+        summary = broker.stop()
+
+        assert winddown_deadlines == pytest.approx([100.0 + expected_winddown_budget] * 2)
+        assert store_stop_timeouts == pytest.approx([expected_store_timeout])
+        assert clock[0] - 100.0 + store_stop_timeouts[0] == pytest.approx(shutdown_timeout)
+        assert summary["status"] == "INCOMPLETE"
+        assert summary["store_shutdown_state"] == store_shutdown_state
+        assert summary["remote_flat_proven"] is False
+        if store_reserve is not None:
+            assert summary["reason"] == "shutdown_timeout"
+        else:
+            assert summary["reason"] == "store_shutdown_incomplete"
+    finally:
+        monkeypatch.setattr(store, "stop", original_store_stop)
+        if store_reserve is None:
+            monkeypatch.setattr(
+                store,
+                "_command_shutdown_timeout",
+                configured_store_reserve,
+                raising=False,
+            )
+        original_store_stop()
 
 
 @pytest.mark.parametrize(

@@ -14,7 +14,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar
 
 import backtrader as bt
 
@@ -87,6 +87,7 @@ def run(report_dir):
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 cerebro = create_cerebro(
                     store,
+                    historical_bars=[live_seed_bar(store, symbol)],
                     symbol=symbol,
                     bar_seconds=5,
                     with_trade_logger=True,
@@ -154,11 +155,12 @@ def run(report_dir):
                                 f"symbol={symbol} size=500 price={self.limit_price:.2f}"
                             )
                             for _ in range(12):
+                                ensure_ctp_trading_admission(store, symbol)
                                 order = self.buy(
                                     size=500,
                                     exectype=bt.Order.Limit,
                                     price=self.limit_price,
-                                    offset="open",
+                                    offset="open", position_side="long",
                                 )
                                 if order is not None:
                                     self.orders.append(order)

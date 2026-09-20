@@ -14,7 +14,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar, close_offset_for
 
 import backtrader as bt
 
@@ -41,7 +41,14 @@ def run(report_dir):
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
                 cerebro = create_cerebro(
                     store, symbol=symbol, bar_seconds=5,
+                    historical_bars=[live_seed_bar(store, symbol)],
                     with_trade_logger=True, log_dir=log_dir,
+                    # The close-today leg is submitted from notify_order right
+                    # after the open fills; the broker's cached account position
+                    # can still be one refresh behind, which made a legitimate
+                    # close fail as "exceeds the available leg position".  Let
+                    # the counter decide the close (same posture as O02/E02).
+                    validation_enabled=False,
                 )
 
                 class TradeLogStrategy(bt.Strategy):
@@ -60,6 +67,7 @@ def run(report_dir):
                         self.trade_notifications = []
                         self.open_completed = False
                         self.close_completed = False
+                        self.close_offset = close_offset_for(symbol)
 
                     def notify_store(self, msg, *args, **kwargs):
                         """Collect runtime events emitted by the live store."""
@@ -100,14 +108,16 @@ def run(report_dir):
                             ref_price = float(self.data.close[0])
                             close_price = max(ref_price - 20, 1.0)
                             print(
-                                "  开仓成交，立即下达平今卖单: "
+                                "  开仓成交，立即下达平仓卖单: "
                                 f"symbol={symbol} size={fill_size} price={close_price:.2f}"
+                                f" offset={self.close_offset}"
                             )
+                            ensure_ctp_trading_admission(store, symbol)
                             self.close_order = self.sell(
                                 size=fill_size,
                                 exectype=bt.Order.Limit,
                                 price=close_price,
-                                offset="close_today",
+                                offset=self.close_offset, position_side="long",
                             )
                             self.close_order_ref = (
                                 self.close_order.ref if self.close_order is not None else None
@@ -136,9 +146,10 @@ def run(report_dir):
                             "  下达真实开仓买单等待成交: "
                             f"symbol={symbol} price={limit_price:.2f}"
                         )
+                        ensure_ctp_trading_admission(store, symbol)
                         self.open_order = self.buy(
                             size=1, exectype=bt.Order.Limit,
-                            price=limit_price, offset="open",
+                            price=limit_price, offset="open", position_side="long",
                         )
                         self.open_order_ref = (
                             self.open_order.ref if self.open_order is not None else None
@@ -184,7 +195,7 @@ def run(report_dir):
                 "order_ref": order_refs[0] if order_refs else "",
                 "open_completed": strat.open_completed,
                 "close_completed": strat.close_completed,
-                "cleanup_offset": "close_today",
+                "cleanup_offset": strat.close_offset,
             }
 
             if "trade_execution" in event_types and trade_entries and strat.close_completed:

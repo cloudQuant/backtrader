@@ -22,8 +22,12 @@ DEFAULT_ENV = "telecom"
 DEFAULT_BROKER_ID = "3070"
 DEFAULT_APP_ID = "client_wtyj_1.0.9.9"
 DEFAULT_AUTH_CODE = "VCSX4A2S43I4RN25"
-DEFAULT_ORDER_SYMBOL = "rb2605"
-DEFAULT_TICK_SYMBOL = "rb2605"
+# rb2605/rb2610 are no longer the active rebar contract; rb2701 is.
+DEFAULT_ORDER_SYMBOL = "rb2701"
+DEFAULT_TICK_SYMBOL = "rb2701"
+# The Hongyuan simulation account holds both long and short legs on SHFE, so
+# the certification suite must run the broker in dual-side position mode.
+DEFAULT_POSITION_MODE = "dual_side"
 
 
 def get_credentials():
@@ -56,6 +60,11 @@ def get_tick_symbol():
     return os.getenv("HONGYUAN_TICK_SYMBOL", DEFAULT_TICK_SYMBOL)
 
 
+def get_position_mode():
+    """Get the broker position mode from env var or default."""
+    return os.getenv("HONGYUAN_POSITION_MODE", DEFAULT_POSITION_MODE)
+
+
 def create_config(env_key=None):
     """Create Hongyuan connection configuration dict."""
     env_key = env_key or get_env_key()
@@ -74,4 +83,5 @@ def create_config(env_key=None):
         "password": password,
         "app_id": DEFAULT_APP_ID,
         "auth_code": DEFAULT_AUTH_CODE,
+        "position_mode": get_position_mode(),
     }

@@ -11,18 +11,15 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import sys
 import tempfile
 import time
 from pathlib import Path
 
-# Ensure the project root is on sys.path so ``tests.fixtures`` resolves.
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
 import pytest
-from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
+
+# Self-contained: this example directory carries its own fake SDK client so it
+# can be copied out of the repository and still be collected.
+from fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
 
 if os.name == "nt":
     import msvcrt
@@ -89,7 +86,9 @@ def pytest_collection_modifyitems(config, items):
 
     total = len(ordered_simnow_items)
     for index, item in enumerate(ordered_simnow_items):
-        item.add_marker(pytest.mark.simnow_serial(index=index, total=total, group=_SIMNOW_SERIAL_GROUP))
+        item.add_marker(
+            pytest.mark.simnow_serial(index=index, total=total, group=_SIMNOW_SERIAL_GROUP)
+        )
         item.add_marker(pytest.mark.xdist_group(name=_SIMNOW_SERIAL_GROUP))
 
 
@@ -158,7 +157,9 @@ def _serialize_simnow_ctp_cases(request):
     order_index = int(marker.kwargs["index"])
     total = int(marker.kwargs["total"])
     group_name = str(marker.kwargs.get("group") or _SIMNOW_SERIAL_GROUP)
-    lock_path, state_path = _serial_state_paths(request.config, _get_testrun_uid(request), group_name)
+    lock_path, state_path = _serial_state_paths(
+        request.config, _get_testrun_uid(request), group_name
+    )
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     deadline = time.monotonic() + max(_SERIAL_TIMEOUT_SECONDS, total * 600)

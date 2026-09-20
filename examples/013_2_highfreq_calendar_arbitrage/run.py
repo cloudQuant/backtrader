@@ -1,7 +1,7 @@
 """Runner for the high-frequency calendar pair arbitrage example.
 
 Reuses the SimNow wiring and config loading from
-``examples/007_ctp/ctp_example_support``; ``--replay`` validates the strategy
+``ctp_example_support`` (vendored beside this file); ``--replay`` validates the strategy
 state machine on a local MixBroker with synthetic ticks.
 """
 
@@ -19,8 +19,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
-SUPPORT_ROOT = REPO_ROOT / "examples" / "007_ctp"
-for path in (str(HERE), str(SUPPORT_ROOT), str(REPO_ROOT)):
+# Self-contained: the shared live/replay support is vendored beside this file.
+for path in (str(HERE), str(REPO_ROOT)):
     if path not in sys.path:
         sys.path.insert(0, path)
 

@@ -15,7 +15,7 @@ for _p in (_SUITE, _REPO):
 
 from common import config as cfg, helpers
 from common.result import CaseTimer
-from common.runtime import started_store, create_cerebro, run_with_timeout
+from common.runtime import started_store, create_cerebro, run_with_timeout, ensure_ctp_trading_admission, live_seed_bar
 
 import backtrader as bt
 
@@ -40,19 +40,10 @@ def run(report_dir):
     with CaseTimer(CASE_META["case_id"], CASE_META["case_name"], env_key) as timer:
         try:
             with started_store(env_key, stop_on_exit=False) as (store, config, ek):
-                seed_bar = {
-                    "datetime": dt.datetime.now().replace(microsecond=0),
-                    "open": 3000.0,
-                    "high": 3000.0,
-                    "low": 3000.0,
-                    "close": 3000.0,
-                    "volume": 1.0,
-                    "openinterest": 0.0,
-                }
                 cerebro = create_cerebro(
                     store, symbol=symbol, bar_seconds=5,
                     with_trade_logger=True, log_dir=log_dir,
-                    historical_bars=[seed_bar],
+                    historical_bars=[live_seed_bar(store, symbol)],
                 )
 
                 class MultiCancelStrategy(bt.Strategy):
@@ -79,11 +70,15 @@ def run(report_dir):
                         if self.cancels_issued >= 3:
                             return
                         ref_price = float(self.data.close[0])
-                        limit_price = max(ref_price - 20 - self.cancels_issued, 1.0)
-                        order = self.buy(size=1, exectype=bt.Order.Limit, price=limit_price, offset="open")
-                        if order:
-                            self.cancel(order)
-                            self.cancels_issued += 1
+                        # All three order/cancel pairs go out in one bar so the
+                        # count does not depend on how many live bars form.
+                        while self.cancels_issued < 3:
+                            ensure_ctp_trading_admission(store, symbol)
+                            limit_price = max(ref_price - 20 - self.cancels_issued, 1.0)
+                            order = self.buy(size=1, exectype=bt.Order.Limit, price=limit_price, offset="open", position_side="long")
+                            if order:
+                                self.cancel(order)
+                                self.cancels_issued += 1
 
                 cerebro.addstrategy(MultiCancelStrategy)
                 results = run_with_timeout(cerebro, timeout_seconds=90)

@@ -38,9 +38,11 @@
 
 | `HONGYUAN_ENV` | `telecom` | 环境键名（telecom/unicom） |
 
-| `HONGYUAN_ORDER_SYMBOL` | `rb2605` | 委托测试合约 |
+| `HONGYUAN_ORDER_SYMBOL` | `rb2701` | 委托测试合约（rb2605/rb2610 已不活跃；rb2701 行情稀疏，认证建议 `SA2701`） |
 
-| `HONGYUAN_TICK_SYMBOL` | `rb2605` | 行情测试合约 |
+| `HONGYUAN_TICK_SYMBOL` | `rb2701` | 行情测试合约（建议 `SA2701`） |
+
+| `HONGYUAN_POSITION_MODE` | `dual_side` | 持仓模式；宏源仿真账户在 SHFE 同时持有多空两腿，net 模式会在 `broker.start()` 直接失败 |
 
 ## 运行方式
 
