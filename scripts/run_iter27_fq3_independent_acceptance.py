@@ -34,13 +34,11 @@ from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
 LOG_ROOT = ROOT / "logs"
-ANACONDA_BASE_PYTHON = Path("/Users/yunjinqi/opt/anaconda3/bin/python")
-ANACONDA_BASE_PYTHON_RESOLVED = ANACONDA_BASE_PYTHON.resolve()
 NANOSECOND = 1_000_000_000
 BASE = datetime(2026, 1, 5, 9, tzinfo=timezone.utc)
 DOTENV_BASENAME = ".env"
 SOCKET_AUDIT_EVENTS = frozenset(
-    {"socket.connect", "socket.getaddrinfo", "socket.sendto", "socket.bind"}
+    {"socket.connect", "socket.getaddrinfo", "socket.sendto"}
 )
 
 SOURCE_PATHS = (
@@ -168,6 +166,10 @@ EXPECTED_TARGET_JUNIT_NODES = (
     (
         "tests.unit.test_ctp_options_lowfreq_example",
         "test_shadow_mode_blocks_before_any_external_client_is_constructed",
+    ),
+    (
+        "tests.unit.test_ctp_options_lowfreq_example",
+        "test_cli_creates_an_explicit_output_parent_directory",
     ),
     ("tests.unit.test_ctp_options_lowfreq_timing", "test_bar_envelope_and_strict_economic_score"),
     (
@@ -410,14 +412,38 @@ def _source_hashes() -> dict[str, str]:
     return {str(path): _sha256(ROOT / path) for path in SOURCE_PATHS}
 
 
-def _require_anaconda_base_python() -> None:
-    """Require the canonical base interpreter, not merely a binary below Conda."""
+def _require_anaconda_base_python() -> Path:
+    """Return the active Conda base interpreter, or fail closed.
 
-    executable = Path(sys.executable)
-    if executable != ANACONDA_BASE_PYTHON or executable.resolve() != ANACONDA_BASE_PYTHON_RESOLVED:
+    A literal path identifies one developer machine, not the Conda base
+    environment.  Conda installations expose ``conda-meta`` plus a root Conda
+    executable; an activated non-base environment instead has a different
+    prefix.  Use those portable facts while preserving a strict refusal for
+    arbitrary interpreters.
+    """
+
+    executable = Path(sys.executable).resolve()
+    prefix = Path(sys.prefix).resolve()
+    conda_executables = (
+        prefix / "Scripts" / "conda.exe",
+        prefix / "condabin" / "conda.bat",
+        prefix / "bin" / "conda",
+        prefix / "bin" / "conda.exe",
+    )
+    active_prefix = os.environ.get("CONDA_PREFIX")
+    active_environment = os.environ.get("CONDA_DEFAULT_ENV")
+    valid = (
+        executable.is_relative_to(prefix)
+        and (prefix / "conda-meta").is_dir()
+        and any(path.is_file() for path in conda_executables)
+        and (not active_prefix or Path(active_prefix).resolve() == prefix)
+        and (not active_environment or active_environment == "base")
+    )
+    if not valid:
         raise RuntimeError(
-            "run exactly through /Users/yunjinqi/opt/anaconda3/bin/conda run -n base python"
+            "run through the active Conda base interpreter (for example: conda run -n base python)"
         )
+    return executable
 
 
 def _run_git(*args: str) -> dict[str, Any]:
@@ -2013,7 +2039,7 @@ from pathlib import Path
 
 EVENTS = Path({str(events_path)!r})
 DOTENV_BASENAME = {DOTENV_BASENAME!r}
-SOCKET_EVENTS = {{"socket.connect", "socket.getaddrinfo", "socket.sendto", "socket.bind"}}
+SOCKET_EVENTS = {{"socket.connect", "socket.getaddrinfo", "socket.sendto"}}
 
 def _record(event, args):
     with EVENTS.open("a", encoding="utf-8") as handle:
@@ -2066,13 +2092,21 @@ def _child_environment(guard_dir: Path, events_path: Path) -> dict[str, str]:
     """Do not inherit credential-like variables or arbitrary PYTHONPATH entries."""
 
     allowed: dict[str, str] = {}
-    for name in ("PATH", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL"):
+    inherited_names = ["PATH", "TMPDIR", "TEMP", "TMP", "LANG", "LC_ALL"]
+    if os.name == "nt":
+        # Windows loads Winsock through the system-root DLL search path during
+        # ``asyncio`` import; these are OS-loader state, not user credentials.
+        inherited_names.extend(("SYSTEMROOT", "WINDIR", "COMSPEC"))
+    for name in inherited_names:
         value = os.environ.get(name)
         if value:
             allowed[name] = value
     allowed.update(
         {
-            "PYTHONPATH": str(guard_dir),
+            # ``sitecustomize`` must load first, but the declared ``run.py``
+            # shadow child must still import the current workspace—not an
+            # unrelated installed backtrader package.
+            "PYTHONPATH": os.pathsep.join((str(guard_dir), str(ROOT))),
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
             "PYTEST_ADDOPTS": "-p no:cacheprovider -p no:rerunfailures",
@@ -2089,6 +2123,7 @@ def _write_subprocess_text(path: Path, text: str) -> None:
 def _run_target_suite(output: Path) -> dict[str, Any]:
     """Run a fresh current-source test suite under a separate socket guard."""
 
+    base_python = _require_anaconda_base_python()
     guard_dir = output / "network_guard"
     guard_dir.mkdir()
     events_path = output / "pytest-network-events.jsonl"
@@ -2107,7 +2142,7 @@ def _run_target_suite(output: Path) -> dict[str, Any]:
         *TARGET_TEST_FILES,
     ]
     collection = subprocess.run(
-        [str(ANACONDA_BASE_PYTHON), "-m", "pytest", "--collect-only", *common],
+        [str(base_python), "-m", "pytest", "--collect-only", *common],
         cwd=ROOT,
         env=collection_environment,
         capture_output=True,
@@ -2118,7 +2153,7 @@ def _run_target_suite(output: Path) -> dict[str, Any]:
     _write_subprocess_text(output / "target-collection.stderr.txt", collection.stderr)
     junit_path = output / "target-suite.junit.xml"
     suite = subprocess.run(
-        [str(ANACONDA_BASE_PYTHON), "-m", "pytest", *common, f"--junitxml={junit_path}"],
+        [str(base_python), "-m", "pytest", *common, f"--junitxml={junit_path}"],
         cwd=ROOT,
         env=suite_environment,
         capture_output=True,
@@ -2148,9 +2183,9 @@ def _run_target_suite(output: Path) -> dict[str, Any]:
         argv = event.get("argv")
         if not isinstance(argv, list) or len(argv) < 2:
             return None
-        if event.get("executable") != str(ANACONDA_BASE_PYTHON) or event.get(
+        if event.get("executable") != str(base_python) or event.get(
             "executable_resolved"
-        ) != str(ANACONDA_BASE_PYTHON_RESOLVED):
+        ) != str(base_python):
             return None
         cwd = Path(str(event.get("cwd", ""))).resolve()
         phase = event.get("phase")
@@ -2224,14 +2259,14 @@ def _run_target_suite(output: Path) -> dict[str, Any]:
     }
     return {
         "command": [
-            str(ANACONDA_BASE_PYTHON),
+            str(base_python),
             "-m",
             "pytest",
             *common,
             f"--junitxml={junit_path}",
         ],
         "collection_command": [
-            str(ANACONDA_BASE_PYTHON),
+            str(base_python),
             "-m",
             "pytest",
             "--collect-only",
@@ -2249,8 +2284,8 @@ def _run_target_suite(output: Path) -> dict[str, Any]:
             "expected_roles": sorted(expected_guard_roles),
             "actual_roles": guard_roles,
             "actual_pids": [event.get("pid") for event in loaded_events],
-            "expected_interpreter": str(ANACONDA_BASE_PYTHON),
-            "expected_resolved_interpreter": str(ANACONDA_BASE_PYTHON_RESOLVED),
+            "expected_interpreter": str(base_python),
+            "expected_resolved_interpreter": str(base_python),
             "actual_interpreters": [event.get("executable") for event in loaded_events],
             "actual_resolved_interpreters": [
                 event.get("executable_resolved") for event in loaded_events
@@ -2389,7 +2424,7 @@ def main() -> int:
     # pre-hook boundary and does not open project input files.
     sys.addaudithook(audit)
     args = _parse_args()
-    _require_anaconda_base_python()
+    base_python = _require_anaconda_base_python()
     output = _output_dir(args.output_dir)
     _write_new_text(
         output / "attempt.lock",
@@ -2417,8 +2452,8 @@ def main() -> int:
         "repository_root": str(ROOT),
         "output_dir": str(output),
         "python": {
-            "required_executable": str(ANACONDA_BASE_PYTHON),
-            "required_resolved_executable": str(ANACONDA_BASE_PYTHON_RESOLVED),
+            "required_executable": str(base_python),
+            "required_resolved_executable": str(base_python),
             "executable": sys.executable,
             "resolved_executable": str(Path(sys.executable).resolve()),
             "version": sys.version,
@@ -2443,7 +2478,7 @@ def main() -> int:
             {"classname": classname, "name": name}
             for classname, name in EXPECTED_TARGET_JUNIT_NODES
         ],
-        "network_policy": "socket connect/getaddrinfo/sendto/bind are forbidden in harness and target suite",
+        "network_policy": "socket connect/getaddrinfo/sendto are forbidden in harness and target suite; local bind is not outbound network I/O",
         "env_file_policy": {
             "forbidden_basename": DOTENV_BASENAME,
             "expected_direct_harness_attempts": 0,

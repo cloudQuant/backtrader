@@ -291,6 +291,12 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _frozen_fixture_sha256(path: Path) -> str:
+    """Hash frozen text fixtures as Git's LF representation across platforms."""
+
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _json_dump(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
 
@@ -405,7 +411,7 @@ def _copy_frozen_inputs_to_receipt(output: Path) -> dict[str, str]:
     for name, (source, expected_digest) in FROZEN_INPUTS.items():
         target = destination / source.name
         shutil.copyfile(source, target)
-        actual_digest = _sha256(target)
+        actual_digest = _frozen_fixture_sha256(target)
         _assert(actual_digest == expected_digest, f"receipt copy hash mismatch for {name}")
         copied[_relative(target)] = actual_digest
     return dict(sorted(copied.items()))
@@ -456,7 +462,7 @@ def _load_frozen_inputs() -> tuple[dict[str, Any], dict[str, str]]:
     payloads: dict[str, Any] = {}
     hashes: dict[str, str] = {}
     for name, (path, expected_hash) in FROZEN_INPUTS.items():
-        actual_hash = _sha256(path)
+        actual_hash = _frozen_fixture_sha256(path)
         _assert(
             actual_hash == expected_hash,
             f"frozen {name} hash mismatch: expected {expected_hash}, got {actual_hash}",
@@ -1251,7 +1257,7 @@ def _probe_root07(
 
     def blocked_guarded_local_read() -> None:
         started_ns = time.monotonic_ns()
-        digest = _sha256(frozen_query_path)
+        digest = _frozen_fixture_sha256(frozen_query_path)
         guard.record_guarded_local_read(
             event="tracked_fixture_sha256_read_started",
             path=_relative(frozen_query_path),

@@ -49,6 +49,52 @@ TTL 的本地缓存；策略在每次盘口事件、开仓确认和每条腿提�
   --allow-rejected-demo-simulation --demo-execution-smoke
 ```
 
+## Windows 验收与长期只读运行
+
+当前冻结候选是 `RESEARCH_REJECTED`，因此这里可持续运行的只有 `replay` 与 **只读**
+`shadow`。`shadow` 连接两所生产公共盘口，但 SDK 被强制为 `market_data_only`：不会提交订单、
+不会生成成交或 PnL。`paper-live` 与 demo 下单不应用于这个被否决的候选，也不能用短期观测
+恢复策略准入或宣称盈利。
+
+首次在 Windows 上使用时，从两个源码目录安装并确认本地 manifest 与源码绑定一致：
+
+```powershell
+Set-Location D:\bt_api_py
+python -m pip install -e .
+Set-Location D:\source_code\backtrader
+python -m pip install -e .
+python scripts/refresh_cross_exchange_local_manifests.py --check
+```
+
+`replay` 是无网络、零订单的公式/拒绝分支检查：
+
+```powershell
+python -m examples.012_1_midfreq_cross_exchange.run --mode replay --scenario profitable `
+  --output .\examples\012_1_midfreq_cross_exchange\reports\replay-profitable.json
+```
+
+先用 `--duration 0` 做 SDK/公共行情元数据探针；它成功时报告为
+`SHADOW_ONE_SHOT_COMPLETE`，但命令退出码为 `2`，因为尚未达到持续观测窗口。正式 shadow
+至少需要 435 秒（120 秒统计窗口 + 300 秒最大持仓 + 15 秒停机缓冲）。下面是可直接运行
+一天的安全观察命令；每次生成独立报告，且不需要 `.env` 或任何 API 凭据：
+
+```powershell
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$report = ".\examples\012_1_midfreq_cross_exchange\reports\shadow-$stamp.json"
+python -m examples.012_1_midfreq_cross_exchange.run --mode shadow --duration 86400 --output $report
+```
+
+运行成功须同时看到报告中的 `status: SHADOW_PASS`、`orders_submitted: 0`、`fills: 0`、
+`execution_status: NOT_RUN` 与 `store_stop_proven: true`。报告记录盘口健康度、可执行边际、
+资金费快照、拒绝原因及关机守恒；它不是交易结果、模拟收益或实盘表现。若失败，优先查看
+`shadow_failure.stage` 和 `shadow_failure.exception_type`，不要在命令行、配置或报告中加入凭据。
+
+策略的完整决策链是：接收两所 L2 盘口 → sequence/时钟/陈旧度对齐 → 同数量格点的多档
+可执行 VWAP → 仅历史样本的 median/MAD z-score → 连续三次确认 → 扣除四次 taker fee、深度、
+延迟、失败腿、模型与资金费预留后的净边际门 → 风险/资金费/保证金门。若任何数据或风控门
+不完整就不产生意图；如果未来重新研究并获准执行，逐腿 IOC 也只会按已确认成交量对冲，拒单、
+部分成交或未知远端状态都会停止开新仓并进入 reduce-only 补偿/对账。
+
 复制本目录 `.env.example` 为被忽略的 `.env` 后，在本地填写两所模拟合约 API 凭据。
 `config.yaml` 的 `okx_api_region` 是非敏感站点配置：在 `www.okx.com`/Global 创建的
 账户使用 `global`，在 `my.okx.com` 创建的 EEA 账户使用 `eea`，在 `app.okx.com`

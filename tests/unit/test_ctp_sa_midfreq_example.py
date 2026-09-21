@@ -4317,7 +4317,7 @@ def test_native_replay_is_deterministic_real_cerebro_path_without_pnl(tmp_path):
     assert manifest["exit_status"] == "PASS_REPLAY_PATH"
     assert manifest["execution_basis"] == "none"
     assert manifest["evidence_dropped_counts"] == dict.fromkeys(reporting.EvidenceWriter.STREAMS, 0)
-    assert manifest["source_components"]["backtrader"]["path"].startswith(str(REPO))
+    assert manifest["source_components"]["backtrader"]["path"].startswith(REPO.as_posix())
     assert manifest["source_components"]["backtrader_trade_logger"]["path"].endswith(
         "backtrader/observers/trade_logger.py"
     )

@@ -1288,6 +1288,49 @@ def test_bounded_read_only_metadata_probe_owns_lifecycle_and_returns_typed_contr
     assert not {call[0] for call in api.calls if call[0] in {"submit", "cancel", "query"}}
 
 
+def test_bounded_metadata_probe_preserves_required_environment_contract(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The read-only override must not erase SDK venue identity settings."""
+
+    class RequiredEnvironmentSdk(MetadataProbeTypedSdk):
+        def configure_execution(self, config):
+            self.execution_configurations.append(deepcopy(config))
+            self.execution_events.append(("configure_execution", deepcopy(config)))
+            assert config["market_data_only"] is True
+            assert config["required_environments"] == {VENUE: "demo"}
+            assert config["strategy_id"] == "metadata_probe_contract"
+            self.market_data_only = True
+            self.execution_armed = False
+
+    bt_api_py = optional_sdk()
+    MetadataProbeTypedSdk.instances.clear()
+    monkeypatch.setattr(bt_api_py, "BtApi", RequiredEnvironmentSdk)
+    store = BtApiStore(
+        provider="btapi",
+        config={
+            "exchange_kwargs": {VENUE: {"environment": "demo"}},
+            "symbol_routes": {SYMBOL: VENUE},
+            "required_environments": {VENUE: "demo"},
+            "strategy_id": "metadata_probe_contract",
+        },
+    )
+
+    result = store.run_bounded_read_only_metadata_probe(
+        datanames=(SYMBOL,), timeout_seconds=0.5
+    )
+
+    api = MetadataProbeTypedSdk.instances[-1]
+    assert api.execution_configurations == [
+        {
+            "market_data_only": True,
+            "required_environments": {VENUE: "demo"},
+            "strategy_id": "metadata_probe_contract",
+        }
+    ]
+    assert result["store_health"]["shutdown_state"] == "PASS"
+
+
 def test_bounded_read_only_metadata_probe_rejects_caller_supplied_sdk_without_trusted_binding():
     api = TypedSdk()
     store = make_store(api)

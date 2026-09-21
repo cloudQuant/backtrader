@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter, deque
 from dataclasses import asdict, dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, ROUND_CEILING
 import hashlib
 import json
@@ -45,6 +45,15 @@ SYMBOL_VENUES = {symbol: venue for venue, symbol in VENUE_SYMBOLS.items()}
 MARKOUT_HORIZONS_MS = (10, 50, 100, 500)
 EVENT_PATH_LATENCY_SCOPE = "signal_to_hedge_terminal"
 EVENT_PATH_EVIDENCE_ROLE = "walk_forward_oos"
+
+
+def _utc_datetime_from_epoch(epoch: Decimal) -> datetime:
+    """Convert an epoch without relying on platform-limited C timestamps."""
+
+    try:
+        return datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=float(epoch))
+    except (OverflowError, ValueError) as exc:
+        raise CrossExchangeValueError("funding_timestamp_out_of_range") from exc
 
 
 def _decimal_token(value) -> str:
@@ -1259,12 +1268,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
                 exchange_name=venue,
                 symbol=VENUE_SYMBOLS[venue],
                 rate=decimal_value(value[0], "funding_rate"),
-                next_funding_time=datetime.fromtimestamp(float(next_epoch), tz=timezone.utc),
+                next_funding_time=_utc_datetime_from_epoch(next_epoch),
                 settlement_interval_seconds=int(self.rules[venue].funding_interval_seconds),
                 source="explicit_static_replay",
                 freshness=Freshness(
                     source="explicit_static_replay",
-                    observed_at=datetime.fromtimestamp(float(now_epoch), tz=timezone.utc),
+                    observed_at=_utc_datetime_from_epoch(now_epoch),
                 ),
             )
         return states

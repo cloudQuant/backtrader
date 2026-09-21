@@ -106,3 +106,34 @@ instrument 查询（`metadata_evidence`，含 `legs_sha256` 自校验，并纳�
 只输出 1s/3s/60s 的离线期限投影，不生成撤单、减险或第二账本。`config.yaml` 和 fixture 均不含
 凭据；若未来需要本地秘密，只能保存在本目录已忽略的 `.env` 中。
 
+## 策略逻辑与参数
+
+普通候选只能由 `notify_tick` 形成：每腿 tick 必须具有同一 TradingDay、connection generation、
+subscription epoch、规则哈希和时钟域，并满足 250ms 新鲜度、100ms 三腿 skew 与元数据 tick-size
+校验。每个完整 cohort 分别计算 conversion/reversal 的 gross，再扣 `entry_buffer_cny` 和
+`total_reserve_cny`；同方向合格 cohort 连续两次才创建一个 `NOT_SUBMITTED_REPLAY` intent。
+bar、`next` 与无可信时钟的 idle 回调均不能创建普通意图。任何重复 payload、混合交易日、
+过期来源或 scope 变化都会清空确认。
+
+| 配置组 | 当前默认值 | 说明 |
+| --- | --- | --- |
+| `contracts` | CZCE FG701 / FG701C970 / FG701P970 | fixture 中有哈希绑定的元数据证据；报价仍是合成输入。 |
+| `feed` | tick、`max_quote_age_ms=250`、`max_cross_leg_skew_ms=100`、确认 2 次 | 完整 cohort 的时间质量和连续性门。 |
+| `signal` | buffer 20 CNY、reserve 20 CNY | 两种套利方向的净边际阈值。 |
+| `risk` | 10,000/8,000/2,000 CNY、单腿 1 手、最多 1 cycle | 本地风险边界；不是 SDK 账户预算或执行许可。 |
+| `timing` | 单腿 1s、未对冲 3s、最大持仓 60s、idle 50ms | 缺失 SDK 只读风险 provider 时状态为 `OFFLINE_SIGNAL_ONLY`。 |
+| `execution` | 限价、2 次/s、每日普通/应急 80/20 | replay 不会调用该写入通道。 |
+
+## 启动、输出与结论阅读
+
+```bash
+python examples/015_ctp_options_highfreq/run.py --mode replay --purpose formula \
+  --scenario valid_cohort --output-dir examples/015_ctp_options_highfreq/reports/local-replay
+```
+
+输出 `run_manifest.json` 和 `report.json`。应检查 `external_network_requests=0`、
+`external_write_requests=0`、`actual_fills=0`、`execution_basis=none` 与
+`hft_status=NOT_ADMITTED`。`valid_cohort` 仅展示一个本地 conversion intent；其它场景用于负例。
+`simnow_launcher.py` 只做有界、只读分层观测，且当前 L2 受上游资格签发阻断；它不能被用来
+宣称下单、成交、PnL、队列延迟或 HFT 通过。
+

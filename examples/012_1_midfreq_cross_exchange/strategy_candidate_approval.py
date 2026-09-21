@@ -192,6 +192,36 @@ def serialize_private_json_report(payload: Mapping[str, Any]) -> str:
     return json.dumps(normalized, indent=2, ensure_ascii=False, allow_nan=False)
 
 
+def _set_private_report_permissions(path: Path) -> None:
+    """Apply the platform's owner-only report policy after an atomic replace."""
+
+    if os.name != "nt":
+        os.chmod(path, 0o600)
+        return
+
+    username = os.environ.get("USERNAME")
+    if not username:
+        raise OSError("cannot determine the Windows report owner")
+    completed = subprocess.run(
+        [
+            "icacls",
+            str(path),
+            "/inheritance:r",
+            "/grant:r",
+            f"{username}:(R,W)",
+            "/grant:r",
+            "SYSTEM:(F)",
+            "/grant:r",
+            "Administrators:(F)",
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if completed.returncode:
+        raise OSError("failed to restrict the Windows report ACL")
+
+
 def write_private_json_report(path: Path, payload: Mapping[str, Any]) -> Path:
     """Atomically persist a runtime report with owner-only permissions."""
 
@@ -200,14 +230,18 @@ def write_private_json_report(path: Path, payload: Mapping[str, Any]) -> Path:
     serialized = serialize_private_json_report(payload) + "\n"
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
     try:
-        os.fchmod(descriptor, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            descriptor = None
             stream.write(serialized)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary_name, target)
-        os.chmod(target, 0o600)
+        _set_private_report_permissions(target)
     finally:
+        if descriptor is not None:
+            os.close(descriptor)
         if os.path.exists(temporary_name):
             os.unlink(temporary_name)
     return target

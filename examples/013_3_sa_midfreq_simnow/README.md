@@ -12,7 +12,35 @@ bundle；不得接入独立 OpenCTP 客户端、服务或 framework。
 不能证明真实行情、成交、收益或 G3/G4。未在本机运行的 SimNow 项均应判为 `NOT_RUN`；
 缺少权威交易日历或上一完整 TradingDay 的全市场排名证据时应判为 `BLOCKED`。
 
-当前第一套的受控外部验证已完成认证/登录、显式结算确认及只读回查、产品范围合约查询和深度行情连接。2026-09-10 曾以冻结的本地 CZCE 日历和手工冻结的 SA 合约通过一次只读 preflight，但该次运行未留存结构化收据；2026-09-12（迭代26 T2 整改）已将日历 artifact 接线进 `config.yaml`（SHA-256 与 `state/iter22-sa610-manual-firstset-20260910.yaml` 的证据 hash 一致），`BLOCKED_CTP_TRADING_CALENDAR` 就地解除。G3 仍为 `NOT_RUN`：需在第一套实际交易时段用接线后配置复跑 `shadow --preflight-only` 留存收据，并完成 60 分钟/60 bar/60 秒观察后方可回写。另一次独立受控 API 验证将一手非市价限价单撤单至 `CANCELED`，零成交且进程退出码为 0。这些都是 `PASS_CONTROLLED_CTP_MECHANICS` 子证据，不构成 G3 的 60 分钟观察，也不构成 G4 的策略开平闭环、归零对账、收益或经济性证据。
+## 本机 SimNow 前置状态
+
+本目录的忽略文件 `.env` 已可保存 SimNow 的公开连接默认值（`CTP_BROKER_ID=9999`、
+`CTP_APP_ID=simnow_client_test`、`CTP_AUTH_CODE=0000000000000000` 和第一套 profile），但
+`CTP_USER_ID` 与 `CTP_PASSWORD` 仍为空。它们只能由已在 SimNow 注册、激活后的账户提供；不能
+从仓库根目录的交易所 API `.env` 推断或复制。新机器可从 `.env.example` 建立本地 `.env`，
+该文件同样不应提交。
+
+当前 checkout 的 `config.yaml` 引用了忽略的
+`state/iter22-czce-2026-calendar-20260910.json`，但该 artifact 并不随仓库分发且本机不存在。
+因此，在补入**当前、可追溯、SHA-256 一致**的 CZCE 交易日历（以及自动选约所需的上一完整
+TradingDay 排名证据，或重新审核的手工冻结合约配置）之前，网络预检会按设计失败关闭。不得
+用过期文件、自然日推算或手工修改 hash 绕过此门槛。
+
+自动选约的日历必须覆盖**全部 eligible SA 合约的 `ExpireDate`**，而不是只覆盖启动当月或
+2026 年；当前候选范围可能延伸到 2027。因此即使取得一份完整的 2026 日历，它也不一定足以
+解除 auto 模式。没有交易所或期货公司提供的可审计逐日原件时，不能用“周一至周五减节假日”自行
+合成 artifact；可改走经审核的手工冻结合约路径，但该 artifact 仍须覆盖该合约的到期日。
+
+即使凭据和日历已齐全，`natural_signal` 目前仍不能写入订单：候选研究状态是
+`RESEARCH_NOT_ESTABLISHED`，尚没有其所需的研究准入、G1/G2/G3 通过事实、短时有效且身份绑定的
+admission receipt。下面的流程可以完成 replay、只读预检和影子观察；它不会伪造这些外部证据，
+也不会把策略变成无条件下单程序。
+
+历史受控验证仅作背景，不可复用为当前运行授权：2026-09-10 曾以冻结的本地 CZCE 日历和手工
+冻结的 SA 合约完成一次只读 preflight，但未留存结构化收据。另一次独立受控 API 验证曾将一手
+非市价限价单撤单至 `CANCELED`、零成交。这些都是
+`PASS_CONTROLLED_CTP_MECHANICS` 子证据，不构成当前 G3 的 60 分钟观察，也不构成 G4 的策略
+开平闭环、归零对账、收益或经济性证据。
 
 第二套 7×24 的受限 `shadow --api-diagnostic` 已实际通过 `PASS_API_DIAGNOSTIC`：五类只读查询完整、三类状态变更请求计数增量为零，且受管 Store 停止健康为 `PASS`。该诊断以冻结候选的产品和交易所仅作为参考数据范围，不选择具体月份合约、不订阅行情、不运行策略；其 `strategy_status=NOT_RUN`，G3/G4 均为 `NOT_RUN_API_DIAGNOSTIC`。
 
@@ -44,6 +72,19 @@ SimNow 模式、非 preflight、非 prepare、且 receipt 已通过校验时，r
 （只允许 API 或上述无写策略工程证据）、
 缺失费用/保证金/账户身份、成功但空或多行账户查询都会失败关闭。
 
+## SimNow 与期货公司生产 CTP 的隔离
+
+`ctp-deployment-profiles.example.yaml` 和
+`env.broker-production.NOT-SUPPORTED.example` 是未来生产接入的**分隔模板**，不是可执行配置。
+当前 runner 只识别 `config.yaml` 中冻结的 SimNow profiles；生产前置、生产 front 或把生产字段写进
+SimNow `.env` 都会在建连/下单前失败关闭。换成期货公司的账号将来可以复用策略逻辑和 CTP 抽象，
+但不能复用 SimNow 的账号、state、evidence、approval key 或 receipt，也不能把“改几个环境变量”
+视为生产准入。
+
+未来生产实现至少需要单独评审并验收：期货公司签发的 TD/MD front、broker/native 身份，独立的
+账户风险上限和 durable journal，生产专用 approval trust root，以及预检、恢复和两轮对账。
+在这些实现和证据存在之前，请只按本 README 的 SimNow pilot 流程操作。
+
 ## 快速运行
 
 所有 Python 命令使用 Anaconda base 环境：
@@ -52,6 +93,15 @@ SimNow 模式、非 preflight、非 prepare、且 receipt 已通过校验时，r
 /Users/yunjinqi/opt/anaconda3/bin/conda run -n base python \
   examples/013_3_sa_midfreq_simnow/run.py --mode replay --scenario no_signal \
   --output-dir /tmp/iter22-sa-replay
+```
+
+Windows PowerShell（从仓库根目录；若 `python` 不在当前环境中，将它替换为
+`conda run -n base python`）：
+
+```powershell
+Set-Location D:\source_code\backtrader
+python .\examples\013_3_sa_midfreq_simnow\run.py --mode replay --scenario no_signal `
+  --output-dir .\examples\013_3_sa_midfreq_simnow\reports\local-replay
 ```
 
 replay 使用 `fixtures/sa_v0_replay.json`，经过真实 `BtApiFeed` 的 tick 到一分钟 bar
@@ -68,6 +118,95 @@ replay 使用 `fixtures/sa_v0_replay.json`，经过真实 `BtApiFeed` 的 tick �
 config hash、身份校验和 Store 运行时；不能用任意前置地址替代它。若仍设置
 `CTP_TD_FRONT`/`CTP_MD_FRONT`，二者必须同时存在、精确匹配冻结 pair，并且与所选 profile
 相同。
+
+在 Windows 上建立或检查本地 SimNow 凭据时，先只复制公开默认值模板；随后用自己的 SimNow
+投资者号和密码替换两个占位符。不要覆盖已有 `.env`，也不要把期货公司生产字段填入此文件：
+
+```powershell
+Set-Location D:\source_code\backtrader
+$envFile = '.\examples\013_3_sa_midfreq_simnow\.env'
+if (-not (Test-Path -LiteralPath $envFile)) {
+  Copy-Item '.\examples\013_3_sa_midfreq_simnow\.env.example' $envFile
+}
+notepad $envFile
+```
+
+填写后应只看到以下含义明确的值：`CTP_BROKER_ID=9999`、公开的 AppID/AuthCode、自己的
+`CTP_USER_ID`/`CTP_PASSWORD`，以及 `ITER22_SIMNOW_PROFILE=simnow_first_group1`。approval
+key 保持空白，直到外部研究和证据审查真正签发 receipt；它不是为了让普通 shadow 命令“能下单”而
+设置的开关。
+
+### Pilot 前置检查与首个受控会话
+
+先运行 `operator_readiness.py`。它只读取本地 config/`.env`，不会导入 CTP SDK、建连、发起网络
+请求或暴露凭据值；`--strict` 仅表示“静态 SimNow 配置齐备”，从不表示策略已获交易准入：
+
+```powershell
+Set-Location D:\source_code\backtrader
+python .\examples\013_3_sa_midfreq_simnow\operator_readiness.py `
+  --output .\examples\013_3_sa_midfreq_simnow\reports\operator-readiness.json --strict
+```
+
+当前 checkout 预计会以退出码 `2` 报出 `simnow_credentials_missing` 和/或
+`calendar_artifact_unavailable`；这是有用的本地前置清单，不是程序故障。修正后再运行一次，直到
+`simnow_static.ready=true`。报告中的 `simnow_natural_signal.ready` 将始终为 `false`，因为离线工具
+不能替代 live G1/G2/G3、账户绑定和签名 receipt 的验收。
+
+静态检查通过后，按顺序执行以下受控步骤，并为每一步使用新的输出目录：
+
+```powershell
+# 1. 第一套、只读预检；不设置 --run-seconds，不确认结算，不写订单。
+python .\examples\013_3_sa_midfreq_simnow\run.py --mode shadow --purpose observation `
+  --preflight-only --output-dir .\examples\013_3_sa_midfreq_simnow\reports\preflight-YYYYMMDD
+
+# 2. 仅在第一套实际交易时段运行有界 shadow 观察。
+# 3600 秒只是观察目标的最短有效时长；预留 drain 时间并检查最终报告，而非把退出码当作 G3/G4 通过。
+python .\examples\013_3_sa_midfreq_simnow\run.py --mode shadow --purpose observation `
+  --run-seconds 3900 --output-dir .\examples\013_3_sa_midfreq_simnow\reports\shadow-YYYYMMDD
+```
+
+第二步只能在最终 `daily_report.json`、`manifest.json` 和相关证据均完整时，才可能形成 G3 的一部分；
+没有一个固定时长本身会自动产生交易或 G4。收到 `MANUAL_INTERVENTION`、恢复类状态或非零退出码时，
+停止重启并按本 README 的“启动恢复与人工接管”处理。
+
+### 长时间运行的 supervisor 约束
+
+`pilot_supervisor.py` 用于把长期试运行拆成一系列**有界会话**，而不是让一个无限制的 CTP 子进程
+在无人检查的情况下永久运行。其默认行为是 dry-run：只解析计划和本地前置，不会启动 runner。先查看
+当前版本支持的参数和 dry-run 输出：
+
+```powershell
+python .\examples\013_3_sa_midfreq_simnow\pilot_supervisor.py --help
+```
+
+supervisor 只能编排第一套 SimNow profile 的会话；每一段都必须独立落盘 output、检查退出码和最终
+报告，并在非成功、恢复、身份变化、证据不完整或手工接管时停止后续段。它不会把第二套 7×24
+工程观察升级为交易，也不会重试未知订单结果。
+
+任何可能写入订单的子会话都必须显式给出 `--mode simnow`、`--purpose natural_signal` 和
+`--admission-receipt`，并仍由 runner 重新校验 receipt、账户、TradingDay、connection generation
+和运行时证据；默认计划、shadow 或缺少其中任一条件时保持只读。生产 CTP 不属于 supervisor 的可选
+目标，当前仍按上一节失败关闭。
+
+### 审批收据：仅在真实验收完成后使用
+
+`admission_receipt_tool.py` 是离线的两阶段审批文件工具，不是把策略切换成可下单状态的开关：先用
+完整、非秘密的运行时事实生成待审核 request，只有审核方在**已有**的进程级
+`ITER22_APPROVAL_KEY_ID` / `ITER22_APPROVAL_HMAC_KEY` 信任根下显式附加 `--sign`，才会生成 receipt。
+它不读取 `.env`、不创建 CTP/Store、不联网、不生成密钥，也不会把任何凭据写入 request 或 receipt。
+
+每次生成或签发都会重新验证本地 hash 绑定的交易日历、当前源码/依赖/config、账户/TradingDay/
+connection generation、G1/G2/G3 事实和研究状态；`natural_signal` 仅接受
+`RESEARCH_ADMITTED`，收据必须已经生效、未过期，且整个有效期最多两小时。最终文件还会先由
+`run.py` 验签，验证失败绝不发布。因此当前候选的 `RESEARCH_NOT_ESTABLISHED` 状态下不能、也不应
+创建自然信号的收据。接口说明可离线查看：
+
+```powershell
+python .\examples\013_3_sa_midfreq_simnow\admission_receipt_tool.py --help
+```
+
+只有在独立研究准入、当日 G1/G2/G3 证据和指定审核人都已完成后，才由负责审批的人准备事实文件并
+执行该流程；不要把 approval key 写入 `.env` 或提交到仓库。
 
 第二套 API 连通性诊断（以冻结候选的产品/交易所作有界参考数据查询；不选择具体 SA 合约、不订阅行情、不运行策略）：
 
@@ -180,20 +319,19 @@ macOS arm64 随包 CTP framework 的 shutdown 在 native `Join()` 仍存活时�
 CTP `InstrumentField` 提供 `ExpireDate`，但不提供“剩余交易日”或上一完整 TradingDay
 全市场 OI/Volume 排名。runner 不用自然日、工作日或当日累计行情代替这些证据。
 历史上（2026-09-10）第一套 `shadow --preflight-only` 在会话和受控查询完成后明确返回
-`BLOCKED_CTP_TRADING_CALENDAR`，不会静默降级到手工月份。2026-09-12（迭代26 T2）已将
-受控日历 artifact 接线进 `config.yaml`（见上"当前状态"），该门就地解除；日历补齐后，
-如仍缺上一完整 TradingDay 的全市场排名证据，自动选择将继续以
+`BLOCKED_CTP_TRADING_CALENDAR`，不会静默降级到手工月份。2026-09-12（迭代26 T2）已把
+受控日历 artifact 的路径和预期 hash 接线进 `config.yaml`；但 artifact 本身是忽略的本地
+证据文件，本 checkout 当前没有它，因此门禁仍处于 fail-closed 状态。日历补齐后，如仍缺上一完整
+TradingDay 的全市场排名证据，自动选择将继续以
 `BLOCKED_CTP_PRIOR_DAY_RANKING_EVIDENCE` 失败关闭。
 
-当前受控 artifact `state/iter22-czce-2026-calendar-20260910.json` 的 SHA-256 为
-`2b5168ef5b1f92290879dc5d8d3f1c16eefd823d9441d130d284263a34b46dc7`，覆盖
-20260105～20261231。当前第二套只读合约查询的 eligible SA 集合已经延伸到 2027；自动选择要求
-日历覆盖**每一个** eligible SA 的到期日，因此在现有 artifact 下必须以
-`BLOCKED_CTP_TRADING_CALENDAR: calendar does not cover every eligible SA expiry` 失败关闭。这不是把
-日历门放宽的理由。相反，已覆盖的手工目标（例如到期日为 20261021 的 SA610）可以使用同一 hash 的
-日历，但必须按当前 CTP `TradingDay` 重新计算并冻结 `manual_trading_days_to_expiry`、来源和审阅时间；
-旧手工配置中的数值不能因合约相同而直接复用。该手工例外只解决已选目标的覆盖，不使自动选择接受
-2027 合约，也不改变第一套 G3/G4 的门禁。
+配置当前期望 `state/iter22-czce-2026-calendar-20260910.json` 的 SHA-256 为
+`2b5168ef5b1f92290879dc5d8d3f1c16eefd823d9441d130d284263a34b46dc7`；该值不是让操作者
+伪造历史 artifact 的指令。应提供适用于本次 TradingDay 的权威日历，并同时更新审核过的 config
+和 hash。自动选择要求日历覆盖**每一个** eligible SA 的到期日；若当期 eligible 集合延伸到日历
+覆盖范围外，必须继续以 `BLOCKED_CTP_TRADING_CALENDAR` 失败关闭。已覆盖的手工目标也必须按当前
+CTP `TradingDay` 重新计算并冻结 `manual_trading_days_to_expiry`、来源和审阅时间；旧手工配置的
+数值不能因合约相同而直接复用。该手工例外不改变第一套 G3/G4 的门禁。
 
 要运行 shadow/G3，可准备一个冻结的 CZCE 交易日历。示例 schema：
 
@@ -212,6 +350,12 @@ CTP `InstrumentField` 提供 `ExpireDate`，但不提供“剩余交易日”或
 ```bash
 /Users/yunjinqi/opt/anaconda3/bin/conda run -n base python -c \
   'import hashlib,pathlib; p=pathlib.Path("/absolute/path/czce-calendar.json"); print(hashlib.sha256(p.read_bytes()).hexdigest())'
+```
+
+Windows PowerShell：
+
+```powershell
+python -c "import hashlib,pathlib; p=pathlib.Path(r'C:\absolute\path\czce-calendar.json'); print(hashlib.sha256(p.read_bytes()).hexdigest())"
 ```
 
 把 artifact 的相对或绝对路径及 hash 写入 `trading_calendar`，然后显式冻结月份：
@@ -368,3 +512,29 @@ G3 的 `observation_evidence` 可直接机判：第一套真实时段连续有�
 
 拆分属于结构性改动，必须走迭代22 的候选身份失效纪律（FR-24）：拆分后稳定身份变化，
 既有 receipt/proof 失效需重新预检。
+
+## 参数与启动速查
+
+所有可调项都在本目录的 `config.yaml`，加载时进行严格校验；不要把凭据、账户号或手工
+修改的交易日历提交到仓库。下表列出当前冻结默认值和它们对策略的作用。
+
+| 配置组 | 关键参数（默认值） | 作用 |
+| --- | --- | --- |
+| `contract_selection` | `product=SA`、`exchange=CZCE`、`minimum_trading_days_to_expiry=5` | 自动选约必须满足剩余交易日；手工月份还需日期、来源和 SHA-256 证据。 |
+| `feed` / `warmup` | 1 分钟、`qcheck=0.20`、60 根 bar、60 秒盘口 | 只在完成 bar 与连续合格盘口均满足后解除预热。 |
+| `signal` | 入场/退出分数 `0.35/0.10`、确认 2 秒且至少 3 个 quote | 融合盘口不平衡、micro-price 偏离、OFI 与分钟趋势；权重由 `weights` 固定。 |
+| `execution` | 限价 GFD、3 秒入场超时、5 秒撤单超时、保护 1 tick | 控制拟议订单与撤单的时限；不绕过审批或 SDK 执行门。 |
+| `risk` | 1 手、最多 1 手、60–900 秒持仓、日损 `min(500 CNY, 0.5% equity)` | 连亏 3 次后冷却 60 秒；普通/应急写入预算为 100/20。 |
+| `quality` / `metadata_expectation` | 行情年龄 2 秒、价差最多 2 tick、深度至少 5 手、watermark 500ms | 拒绝陈旧、过宽、浅盘口或与已验证 tick/multiplier 不符的输入。 |
+
+从仓库根目录运行可避免加载过期的已安装包：
+
+```bash
+python examples/013_3_sa_midfreq_simnow/run.py --mode replay --scenario no_signal \
+  --output-dir examples/013_3_sa_midfreq_simnow/reports/local-replay
+```
+
+`trend` 与 `reverse` 仅是冻结 fixture 场景。`shadow --preflight-only` 是只读预检；只有
+经过单独审批、receipt 和真实时段资格验证的 `simnow` 入口才可能请求写入。每次运行应保存
+`manifest.json`、`daily_report.json`、TradeLogger 输出和配置/组件哈希；`LOCAL_REPLAY_PASS`
+仅证明本地回放，不证明实际成交、PnL、经济性或 G3/G4 通过。

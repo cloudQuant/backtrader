@@ -1,0 +1,44 @@
+# Operator-owned deployment boundary for the Iteration 22 SA candidate.
+#
+# This is deliberately a non-executable template.  `run.py` consumes only the
+# frozen SimNow profiles in config.yaml and rejects broker-production.  Keeping
+# the two records together documents the fields that must never be inherited
+# when a future production CTP adapter is reviewed and implemented.
+schema_version: iter22.ctp-deployment-profiles.v1
+
+profiles:
+  simnow_pilot:
+    environment_kind: simnow
+    execution_support: supported_with_admission_receipt
+    runner_config: config.yaml
+    ctp_profile: simnow_first_group1
+    credential_file: .env
+    state_directory: state/simnow
+    evidence_directory: reports/simnow
+    approval_key_reference: env:ITER22_APPROVAL_HMAC_KEY
+    approval_key_id_reference: env:ITER22_APPROVAL_KEY_ID
+    account_fingerprint_scope: simnow_only
+    notes:
+      - Use the official frozen first-set profile during actual market hours.
+      - A receipt is bound to one account, TradingDay, connection generation,
+        instrument, config/source/native identities and a short validity period.
+      - Do not reuse this state, evidence, credential file or approval key for a broker account.
+
+  broker_production:
+    environment_kind: production
+    execution_support: NOT_IMPLEMENTED_FAIL_CLOSED
+    credential_file: .env.broker-production
+    state_directory: state/broker-production
+    evidence_directory: reports/broker-production
+    approval_key_reference: env:BROKER_CTP_APPROVAL_HMAC_KEY
+    approval_key_id_reference: env:BROKER_CTP_APPROVAL_KEY_ID
+    account_fingerprint_scope: broker_production_only
+    required_before_implementation:
+      - signed_broker_front_profile_with_exact_td_md_broker_and_native_identity
+      - separately_reviewed_production_trust_root_and_one_time_approval_policy
+      - independent_account_risk_limits_and_durable_journal
+      - production_preflight_recovery_and_two_round_reconciliation_acceptance
+    notes:
+      - This is not a switch for config.yaml or the SimNow .env.
+      - Current Backtrader and bt_api_py CTP execution reject production profiles by design.
+      - Never copy an approved SimNow receipt, state directory or credentials into this profile.

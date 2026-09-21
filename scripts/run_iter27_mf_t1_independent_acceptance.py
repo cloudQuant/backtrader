@@ -28,8 +28,8 @@ ORACLE = FIXTURE_ROOT / "frozen_oracle.py"
 CASES = FIXTURE_ROOT / "case_manifest.json"
 NODES = FIXTURE_ROOT / "pytest_node_manifest.json"
 PRODUCT_NEGATIVE = FIXTURE_ROOT / "product_negative_contracts.json"
-BASE_PYTHON = Path("/Users/yunjinqi/opt/anaconda3/bin/python")
-ORACLE_SHA256 = "28a6b7272632f277a768b2b7a5e6edea0567406cc1c6671551ae9c02ceb13a3a"
+BASE_PYTHON = Path(sys.executable).resolve()
+ORACLE_SHA256 = "580326fb586e4ce8ebd5356a0406918a741a01c4252757531e77160cb7fa7cec"
 CASES_SHA256 = "3c309fb6ba15d2f820052dcb85a8679b72b4a240bcad4a57d5571ec933cfdc90"
 NODES_SHA256 = "e7bbc368821960f6f933e85ec9f1036c976076a1183b71f1832f143057aaa0e3"
 PRODUCT_NEGATIVE_SHA256 = "3b68efa917ffa7e886f4450887ca203ad04604c1284fe07a5e0b13b9fa3ca054"
@@ -270,7 +270,7 @@ def configure_paths_after_guard() -> None:
     CASES = FIXTURE_ROOT / "case_manifest.json"
     NODES = FIXTURE_ROOT / "pytest_node_manifest.json"
     PRODUCT_NEGATIVE = FIXTURE_ROOT / "product_negative_contracts.json"
-    BASE_PYTHON = BASE_PYTHON.resolve()
+    BASE_PYTHON = base_conda_python()
     FIXTURES = (
         ("oracle_template", ORACLE, ORACLE_SHA256),
         ("case_manifest", CASES, CASES_SHA256),
@@ -283,12 +283,48 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def canonical_fixture_bytes(payload: bytes) -> bytes:
+    """Use Git's LF text representation for the pinned JSON/Python fixtures."""
+
+    return payload.replace(b"\r\n", b"\n")
+
+
+def canonical_fixture_sha256(payload: bytes) -> str:
+    return hashlib.sha256(canonical_fixture_bytes(payload)).hexdigest()
+
+
+def base_conda_python() -> Path:
+    """Return this host's active Conda base interpreter, or fail closed."""
+
+    executable = Path(sys.executable).resolve()
+    prefix = Path(sys.prefix).resolve()
+    conda_executables = (
+        prefix / "Scripts" / "conda.exe",
+        prefix / "condabin" / "conda.bat",
+        prefix / "bin" / "conda",
+        prefix / "bin" / "conda.exe",
+    )
+    active_prefix = os.environ.get("CONDA_PREFIX")
+    active_environment = os.environ.get("CONDA_DEFAULT_ENV")
+    if not (
+        executable.is_relative_to(prefix)
+        and (prefix / "conda-meta").is_dir()
+        and any(path.is_file() for path in conda_executables)
+        and (not active_prefix or Path(active_prefix).resolve() == prefix)
+        and (not active_environment or active_environment == "base")
+    ):
+        raise AttemptSetupError("BASE_CONDA_INTERPRETER_REQUIRED")
+    return executable
+
+
 def dump_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
 
 
 def rel(path: Path) -> str:
-    return str(path.relative_to(ROOT))
+    """Return the Git-compatible, platform-independent repository path."""
+
+    return path.relative_to(ROOT).as_posix()
 
 
 def parse_args() -> argparse.Namespace:
@@ -371,7 +407,7 @@ def frozen_material(tracking: dict[str, Any]) -> tuple[dict[str, bytes | None], 
         except OSError:
             payload = None
         payloads[name] = payload
-        actual[key] = hashlib.sha256(payload).hexdigest() if payload is not None else None
+        actual[key] = canonical_fixture_sha256(payload) if payload is not None else None
     return payloads, {
         "actual": actual,
         "expected": expected,
@@ -805,7 +841,7 @@ ROOT = Path(sys.argv[1]).resolve()
 HARNESS = Path(sys.argv[2]).resolve()
 JUNIT = Path(sys.argv[3]).resolve()
 AUDIT = Path(sys.argv[4]).resolve()
-BASE = Path("/Users/yunjinqi/opt/anaconda3/bin/python").resolve()
+BASE = Path(sys.executable).resolve()
 ARGS = ("-q", "-p", "no:cacheprovider", "-p", "no:rerunfailures")
 EXAMPLE = ROOT / "examples" / "014_2_ctp_options_midfreq"
 network_attempts=[]; dotenv_attempts=[]; native_forbidden_calls=[]; undeclared_subprocesses=[]
@@ -1120,10 +1156,10 @@ def main() -> int:
             assert payloads["case_manifest"] is not None
             assert payloads["pytest_node_manifest"] is not None
             assert payloads["product_negative_contracts"] is not None
-            harness.write_bytes(payloads["oracle_template"])
-            case_copy.write_bytes(payloads["case_manifest"])
-            node_copy.write_bytes(payloads["pytest_node_manifest"])
-            product_negative_copy.write_bytes(payloads["product_negative_contracts"])
+            harness.write_bytes(canonical_fixture_bytes(payloads["oracle_template"]))
+            case_copy.write_bytes(canonical_fixture_bytes(payloads["case_manifest"]))
+            node_copy.write_bytes(canonical_fixture_bytes(payloads["pytest_node_manifest"]))
+            product_negative_copy.write_bytes(canonical_fixture_bytes(payloads["product_negative_contracts"]))
             integrity["copied"] = {
                 "oracle_template_sha256": sha256(harness),
                 "case_manifest_sha256": sha256(case_copy),

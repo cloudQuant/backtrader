@@ -88,7 +88,14 @@ def test_private_json_report_serializes_nested_decimal_exactly_and_stays_private
     midfreq_demo_approval.write_private_json_report(path, payload)
 
     assert json.loads(path.read_text(encoding="utf-8")) == expected
-    assert path.stat().st_mode & 0o777 == 0o600
+    if os.name == "nt":
+        acl = subprocess.run(
+            ["icacls", str(path)], capture_output=True, check=True, text=True
+        ).stdout
+        assert f"{os.environ['USERNAME']}:(R,W)" in acl
+        assert "BUILTIN\\Users:" not in acl
+    else:
+        assert path.stat().st_mode & 0o777 == 0o600
     assert json.loads(midfreq_demo_approval.serialize_private_json_report(payload)) == expected
 
 

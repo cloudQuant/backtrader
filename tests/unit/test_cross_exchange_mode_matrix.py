@@ -2335,7 +2335,10 @@ def test_runner_report_writer_is_atomic_owner_only_json(runner, tmp_path):
 
     assert returned == output
     assert json.loads(output.read_text(encoding="utf-8")) == {"status": "PASS"}
-    assert stat.S_IMODE(output.stat().st_mode) & 0o077 == 0
+    # Windows exposes ACLs rather than POSIX mode bits.  The writer explicitly
+    # removes inherited ACLs there, while POSIX keeps the stronger 0600 check.
+    if os.name != "nt":
+        assert stat.S_IMODE(output.stat().st_mode) & 0o077 == 0
 
 
 @pytest.mark.parametrize("runner", RUNNERS)

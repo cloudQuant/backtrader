@@ -509,6 +509,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(text + "\n", encoding="utf-8")
     print(text)
     return 0 if mode == "replay" else 2

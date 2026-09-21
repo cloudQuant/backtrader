@@ -80,3 +80,32 @@ account-wide reconciliation。任一条件缺失即 `BLOCKED`。
 当前验收中 `ITER22_APPROVAL_KEY_ID` 与 `ITER22_APPROVAL_HMAC_KEY` 均缺失，因此本路径
 不会解除 `market_data_only`、不会接受空授权、不会生成或写入密钥；执行权限固定为
 `NOT_PROVEN`，缺信任根时返回 `TRUST_ROOT_UNAVAILABLE`。
+
+## 策略逻辑与参数
+
+该策略以 C/P/F 三腿的一分钟闭合 bar 作为唯一普通决策入口。每分钟的 `MinuteDecisionInput`
+必须由同一 candidate、TradingDay、generation、规则哈希和 session segment 的 barrier 冻结；
+tick 仅用于冻结 FQ2 特征，不能在 `notify_tick` 创建订单。FQ2 对 5 秒与 60 秒窗口做时间积分，
+要求每个片段不超过 2 秒，三腿 source/receive skew 不超过 500ms；第 61 分钟才用前 60 分钟的
+median/MAD 得到 residual z-score。符合 edge 时，也只生成一次性本地 token；replay 永远不提交。
+
+| 配置组 | 当前默认值 | 说明 |
+| --- | --- | --- |
+| `candidate` | F/C/P local 三腿、1:1:1、multiplier 10 | 冻结的本地身份与 tick size；不表示已核验的 CTP 合约。 |
+| `signal` | 1 分钟、60 根历史、`z_entry=2.5`、净边际至少 20 CNY | FQ2 合格后才可发出局部 edge 决策。 |
+| `features` | 5s/60s、片段 ≤2s、skew ≤500ms、至少 3 次新快照、持久度 0.8 | 保证三腿行情的因果、时间质量与方向稳定性。 |
+| `budget` | 10,000 / 8,000 / 2,000 CNY，路径需求 7,600 | 总预算、工作预算、恢复预留与单路径上限。 |
+| `timing` | 决策 30s、单腿 5s、整篮子 15s、撤单 5s、恢复 60s | `notify_idle()` 只投影风险截止点，不能产生普通开仓。 |
+
+## 启动与验收边界
+
+```bash
+python examples/014_2_ctp_options_midfreq/run.py --mode replay --scenario no_edge
+python examples/014_2_ctp_options_midfreq/run.py --timing
+python examples/014_2_ctp_options_midfreq/run.py --timing-normal-exit
+```
+
+这些命令必须分别执行；`--timing` 不能和 FQ2 replay 参数混用。`edge`、cutoff-tick 注入和
+timing fixture 都是确定性测试输入。它们输出的 `LOCAL_REPLAY_PASS` 或
+`LOCAL_TIMING_REPLAY_PASS` 不证明真实 CTP 行情、账户、成交、费用、PnL 或 G1–G4；非 replay
+模式在无受治理 API 注入时应失败关闭，缺失审批信任根时执行权限保持 `NOT_PROVEN`。

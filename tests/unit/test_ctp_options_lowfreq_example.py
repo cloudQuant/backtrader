@@ -423,3 +423,12 @@ def test_shadow_mode_blocks_before_any_external_client_is_constructed():
     report = json.loads(completed.stdout)
     assert report["status"] == "BLOCKED"
     assert report["external_request_counts"] == {"network": 0, "order_write": 0}
+
+
+def test_cli_creates_an_explicit_output_parent_directory(tmp_path, runner):
+    output = tmp_path / "reports" / "lowfreq-replay.json"
+
+    assert runner.main(["--mode", "replay", "--output", str(output)]) == 0
+
+    report = json.loads(output.read_text(encoding="utf-8"))
+    assert report["status"] == "LOCAL_REPLAY_PASS"

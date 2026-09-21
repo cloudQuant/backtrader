@@ -682,7 +682,10 @@ def module_identity(module_name: str, distribution_name: str | None = None) -> d
     """Identify one installed/importable component without importing native code."""
 
     spec = importlib.util.find_spec(module_name)
-    origin = str(Path(spec.origin).resolve()) if spec and spec.origin else ""
+    # Manifests are exchanged between Windows and POSIX acceptance hosts, so
+    # serialize provenance paths deterministically while retaining normal Path
+    # behavior for the hash and existence checks below.
+    origin = Path(spec.origin).resolve().as_posix() if spec and spec.origin else ""
     try:
         version = importlib.metadata.version(distribution_name or module_name)
     except importlib.metadata.PackageNotFoundError:

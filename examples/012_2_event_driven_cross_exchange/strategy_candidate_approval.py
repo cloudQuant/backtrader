@@ -16,6 +16,7 @@ import hashlib
 import importlib.metadata
 import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -150,22 +151,97 @@ RUNTIME_SOURCE_MODULES = (
 )
 
 
+def _normalize_private_report_value(value: Any, active_containers=None) -> Any:
+    """Convert supported runtime-report values to strict JSON-compatible data."""
+
+    if isinstance(value, Decimal):
+        return str(value)
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise TypeError("private report floats must be finite")
+        return value
+    if isinstance(value, (Mapping, list, tuple)):
+        if active_containers is None:
+            active_containers = set()
+        identity = id(value)
+        if identity in active_containers:
+            raise ValueError("private report contains a circular reference")
+        active_containers.add(identity)
+        try:
+            if isinstance(value, Mapping):
+                normalized = {}
+                for key, item in value.items():
+                    if not isinstance(key, str):
+                        raise TypeError("private report object keys must be strings")
+                    normalized[key] = _normalize_private_report_value(item, active_containers)
+                return normalized
+            return [
+                _normalize_private_report_value(item, active_containers) for item in value
+            ]
+        finally:
+            active_containers.remove(identity)
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
+def serialize_private_json_report(payload: Mapping[str, Any]) -> str:
+    """Serialize a runtime report once for both private storage and CLI output."""
+
+    normalized = _normalize_private_report_value(payload)
+    return json.dumps(normalized, indent=2, ensure_ascii=False, allow_nan=False)
+
+
+def _set_private_report_permissions(path: Path) -> None:
+    """Apply the platform's owner-only report policy after an atomic replace."""
+
+    if os.name != "nt":
+        os.chmod(path, 0o600)
+        return
+
+    username = os.environ.get("USERNAME")
+    if not username:
+        raise OSError("cannot determine the Windows report owner")
+    completed = subprocess.run(
+        [
+            "icacls",
+            str(path),
+            "/inheritance:r",
+            "/grant:r",
+            f"{username}:(R,W)",
+            "/grant:r",
+            "SYSTEM:(F)",
+            "/grant:r",
+            "Administrators:(F)",
+        ],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    if completed.returncode:
+        raise OSError("failed to restrict the Windows report ACL")
+
+
 def write_private_json_report(path: Path, payload: Mapping[str, Any]) -> Path:
     """Atomically persist a runtime report with owner-only permissions."""
 
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    serialized = json.dumps(payload, indent=2, ensure_ascii=False) + "\n"
+    serialized = serialize_private_json_report(payload) + "\n"
     descriptor, temporary_name = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
     try:
-        os.fchmod(descriptor, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            descriptor = None
             stream.write(serialized)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary_name, target)
-        os.chmod(target, 0o600)
+        _set_private_report_permissions(target)
     finally:
+        if descriptor is not None:
+            os.close(descriptor)
         if os.path.exists(temporary_name):
             os.unlink(temporary_name)
     return target
@@ -929,6 +1005,7 @@ __all__ = [
     "canonical_sha256",
     "collect_runtime_source_provenance",
     "manifest_binding_sha256",
+    "serialize_private_json_report",
     "verify_demo_approval",
     "write_private_json_report",
 ]

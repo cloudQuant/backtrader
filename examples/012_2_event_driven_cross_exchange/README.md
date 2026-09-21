@@ -36,6 +36,51 @@ replay、shadow 和 paper 研究在 G5A 前固定使用每笔 6 bps 的 `conserv
   examples.012_2_event_driven_cross_exchange.run --mode demo --preflight
 ```
 
+## Windows 验收与长期只读运行
+
+当前候选为 `RESEARCH_REJECTED`，并且端到端 HFT 资格是 `FAIL/NOT_ADMITTED`。因此只可用
+`replay` 与 **只读** `shadow` 观察公共盘口；`shadow` 强制 SDK 的 `market_data_only`，不会下单、
+不会成交、不会产生 PnL。`paper-live`、demo 下单及任何“跑几天后即可交易”的解释均不适用。
+
+首次在 Windows 上运行：
+
+```powershell
+Set-Location D:\bt_api_py
+python -m pip install -e .
+Set-Location D:\source_code\backtrader
+python -m pip install -e .
+python scripts/refresh_cross_exchange_local_manifests.py --check
+```
+
+确定性 replay 不联网也不交易：
+
+```powershell
+python -m examples.012_2_event_driven_cross_exchange.run --mode replay --scenario profitable `
+  --output .\examples\012_2_event_driven_cross_exchange\reports\replay-profitable.json
+```
+
+`--duration 0` 仅为 SDK/元数据探针：成功报告为 `SHADOW_ONE_SHOT_COMPLETE`，CLI 退出码仍为
+`2`，因为没有持续观测。正式观测至少需要 77.5 秒（60 秒统计窗口 + 2.5 秒最大持仓 +
+15 秒停机缓冲）；以下命令可连续安全观察一天，不需要 `.env` 或 API 凭据：
+
+```powershell
+$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$report = ".\examples\012_2_event_driven_cross_exchange\reports\shadow-$stamp.json"
+python -m examples.012_2_event_driven_cross_exchange.run --mode shadow --duration 86400 --output $report
+```
+
+合格的只读报告应有 `status: SHADOW_PASS`、`orders_submitted: 0`、`fills: 0`、
+`execution_status: NOT_RUN` 与 `store_stop_proven: true`。它仅记录盘口、机会、markout、
+资金费、拒绝原因和安全退出证据，不能推导收益、成交概率或未来盈利；失败时检查
+`shadow_failure.stage` / `shadow_failure.exception_type`，不要记录凭据。
+
+该策略的决策链是：连续 L2 事件 → sequence/恢复快照/500 ms 陈旧度与 250 ms 跨所 skew 检查
+→ 共同数量格点及可执行深度 → 至少 500 ms 的机会寿命 → 四次 taker fee、退出、延迟、失败腿、
+模型和资金费预留后的严格净边际 → 必须匹配“方向 + 首腿交易所 + fee/depth bucket + 端到端 p99”
+的候选绑定路径模型 → 上尾 CVaR markout 风险门。任何缺失的路径模型都会 fail-closed，不会产生
+`EventIntent`；若未来通过独立研究准入，逐腿成交仍只按确认量对冲，超时、部分成交或未知状态均走
+reduce-only 补偿和 SDK 对账。
+
 模拟凭据只放在本目录被忽略的 `.env`，变量名见 `.env.example`。
 按 `config.yaml` 的非敏感 `okx_api_region` 选择 OKX 站点：`www.okx.com`/Global 用
 `global`，`my.okx.com` 用 `eea`，`app.okx.com` 用 `us`。SDK 会原子选择并验证该区域的

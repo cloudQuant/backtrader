@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter, deque
 from dataclasses import asdict, dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 import hashlib
 import json
@@ -52,6 +52,20 @@ BASIS_DEFINITION = "sell_mid_minus_buy_mid_time_aligned_l2_v3"
 QUALIFICATION_CONFIDENCE_Z = Decimal("3")
 QUALIFICATION_PVALUE_LIMIT = Decimal("0.005")
 QUALIFICATION_BOOTSTRAP_REPLICATIONS = 999
+
+
+def _utc_datetime_from_epoch(epoch: Decimal) -> datetime:
+    """Convert an epoch without the platform-specific ``fromtimestamp`` range.
+
+    Static replay funding may deliberately use a far-future expiry.  Windows
+    delegates ``datetime.fromtimestamp`` to a C runtime with a much narrower
+    range than ``datetime`` itself, so construct the UTC value arithmetically.
+    """
+
+    try:
+        return datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=float(epoch))
+    except (OverflowError, ValueError) as exc:
+        raise CrossExchangeValueError("funding_timestamp_out_of_range") from exc
 
 
 def _sha256_payload(payload: Mapping[str, object]) -> str:
@@ -1515,12 +1529,12 @@ class CrossExchangeArbitrageStrategy(bt.Strategy):
                 exchange_name=venue,
                 symbol=VENUE_SYMBOLS[venue],
                 rate=decimal_value(value[0], "funding_rate"),
-                next_funding_time=datetime.fromtimestamp(float(next_epoch), tz=timezone.utc),
+                next_funding_time=_utc_datetime_from_epoch(next_epoch),
                 settlement_interval_seconds=int(self.rules[venue].funding_interval_seconds),
                 source="explicit_static_replay",
                 freshness=Freshness(
                     source="explicit_static_replay",
-                    observed_at=datetime.fromtimestamp(float(now_epoch), tz=timezone.utc),
+                    observed_at=_utc_datetime_from_epoch(now_epoch),
                 ),
             )
         return states

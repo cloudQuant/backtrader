@@ -62,3 +62,33 @@ read_only=True)`，收口账户范围的公共 Store 证据；退出时调用两
 ```
 
 未注入 API 时该命令必然 `BLOCKED`，这是预期的安全结果。
+
+## 策略逻辑与参数
+
+策略只使用三腿（Put、Future、Call）同步闭合的 15 分钟 OHLCV。先用**当前 bar 之前**的
+`window=40` 个残差计算均值和标准差，避免当前 bar 自我影响；随后以 put/call/future 的
+可执行价格包络计算 conversion 或 reversal 的指示分数。只有 `|z| >= 2.5`、分数不少于
+`20 CNY`、净边际覆盖 `round_trip_cost=20 CNY`，并连续 `confirmation_bars=2` 根均同向时才
+产生一个本地决策。顺序是 Put 买入 → Future 买入 → Call 卖出；任一腿的 callback scope、
+时钟域、generation 或期限不匹配都会停止后续腿并进入恢复，而不是猜测成交。
+
+| 配置组 | 当前默认值 | 说明 |
+| --- | --- | --- |
+| `candidate` | SA701 / SA701C1080 / SA701P1080，1:1:1 | 本地 C/P/F fixture 身份；不是可直接用于交易的合约选择。 |
+| `strategy_params` | 40 bar、`entry_z=2.5`、`exit_z=0.5`、`bar_minutes=15` | 残差统计、入/退出阈值和确认规则；`projected_entry_capital=6500` 必须在普通预算内。 |
+| `budget` | 10,000 / 8,000 / 2,000 CNY | 总额 / 普通路径 / 恢复预留；replay 是投影，不是 O2 预算能力。 |
+| `timing` | 首腿 1 秒、整篮子 60 秒、持仓 30–120 分钟 | 使用显式单调时钟；空闲回调只推进风险投影。 |
+
+## 启动与输出
+
+从仓库根目录运行，`--output` 会自动创建其父目录：
+
+```bash
+python examples/014_1_ctp_options_lowfreq/run.py --mode replay --scenario eligible \
+  --output examples/014_1_ctp_options_lowfreq/reports/eligible.json
+```
+
+`eligible`、`no_edge`、`budget_reject` 与 `misaligned` 是离线验证场景；它们均不会联网或写单。
+报告中的 `LOCAL_REPLAY_PASS`、BackBroker 假设成交和 `LOCAL_BASKET_FLAT_UNVERIFIED` 只能说明
+回放分支和本地顺序逻辑。`shadow`/`production` 会在建客户端前拒绝；`simnow engineering_smoke`
+必须由受治理上层显式注入已认证 API，且仍以 `market_data_only` 运行。

@@ -1,0 +1,88 @@
+# Copy this file to <strategy-runtime-dir>/config.yaml before configuring plugins.
+# Required <strategy-runtime-dir>/.gitignore entry: /config.yaml
+# This tracked template must never contain real credentials. Replace REPLACE_* only in local config.yaml.
+# No config.yaml, no plugins block, or all enabled:false with all required:false preserves direct_provider and starts no runtime plugin.
+# Schema v3 separates the middleware-neutral account gateway from its ZMQ transport adapter.
+# This Iteration 41 schema is a configuration contract, not trading authorization.
+
+config_schema_version: 3
+
+strategy:
+  id: "example.strategy-id"
+  candidate_id: "example.candidate"
+
+runtime:
+  mode: "shadow"                     # replay | shadow | test | simnow | production
+  order_route: "legacy_direct"       # legacy_direct | managed_execution
+  account_access: "direct_provider"  # direct_provider | gateway_client
+  lifecycle_profile: "ctp-trading-day-v1"
+
+connection:
+  # Used only with runtime.account_access=direct_provider. A gateway client selects
+  # an authenticated gateway endpoint/profile below and must not carry provider credentials.
+  provider_profile: "ctp-simnow-v1"
+  credentials:
+    source: "inline"                 # inline | env | secret_provider
+    inline:                           # Exact keys are constrained by provider_profile.
+      broker_id: "REPLACE_BROKER_ID"
+      user_id: "REPLACE_USER_ID"
+      investor_id: "REPLACE_INVESTOR_ID"
+      password: "REPLACE_PASSWORD"
+      app_id: "REPLACE_APP_ID"
+      auth_code: "REPLACE_AUTH_CODE"
+
+plugins:
+  execution:
+    # true requires order_route=managed_execution; it owns aggregation/journal/recovery.
+    enabled: false
+    # true means the selected deployment profile mandates this plugin; it is invalid when enabled is false.
+    required: false
+    config:
+      profile: "managed-execution-v1"
+      execution_policy: "immediate"
+      aggregation:
+        enabled: false
+        max_intents_per_parent: 1
+
+  risk:
+    # true makes this a real pre-submit/pre-cancel gate on direct and managed routes.
+    enabled: false
+    required: false
+    config:
+      profile: "account-risk-v1"
+      enforcement: "hard"
+      strategy_limits:                # May only tighten the approved account policy.
+        max_new_entries_per_epoch: 0
+        max_cancel_requests_per_epoch: 0
+        max_notional: 0
+      unknown_order_action: "freeze"
+
+  monitor:
+    # true observes runtime events and may request Broker-gated freeze/drain; never normal entry.
+    enabled: false
+    required: false
+    config:
+      profile: "runtime-monitor-v1"
+      heartbeat_interval_seconds: 30
+      market_data_stale_after_seconds: 60
+      checkpoint_interval_seconds: 60
+      alert_profile: "operator-alerts-v1"
+      on_unhealthy: "freeze_new_entries"
+
+  gateway:
+    # Optional middleware-neutral shared-account gateway client; it never itself authorizes writes.
+    enabled: false
+    required: false
+    config:
+      role: "strategy_client"        # strategy config supports strategy_client only
+      gateway_profile: "REPLACE_GATEWAY_PROFILE"
+
+  transport_zmq:
+    # First GatewayTransport adapter. It requires gateway.enabled=true and account_access=gateway_client.
+    enabled: false
+    required: false
+    config:
+      security_profile: "local-ipc-v1"
+      market_endpoint: "ipc:///REPLACE_MARKET_ENDPOINT"
+      command_endpoint: "ipc:///REPLACE_COMMAND_ENDPOINT"
+      private_endpoint: "ipc:///REPLACE_PRIVATE_ENDPOINT"

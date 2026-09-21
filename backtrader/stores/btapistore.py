@@ -4242,10 +4242,11 @@ class BtApiStore(LiveStoreBase):
                 "bounded read-only metadata probe requires SDK market-data-only configuration"
             )
         try:
-            # Keep this raw public-SDK call intentionally narrow.  A one-shot
-            # metadata probe must not inherit any caller-provided execution
-            # capability, approval, or authorization setting.
-            configure_execution({"market_data_only": True})
+            # Reapply the same identity contract used to create the owned
+            # client.  The probe has already forced ``market_data_only`` in
+            # that mapping; dropping required environments here would make a
+            # second idempotency check fail before public metadata is read.
+            configure_execution(dict(self._sdk_execution_config))
         except Exception as exc:
             _safe_log("error", "btapistore:4070 exception before re-raise (Exception)")
             self.sanitize_exception(exc)
@@ -4356,7 +4357,14 @@ class BtApiStore(LiveStoreBase):
                 # A one-shot probe never inherits a caller's write setting.
                 # ``start`` makes the raw public-SDK configuration call before
                 # any connection or metadata query is issued.
-                self._sdk_execution_config = {"market_data_only": True}
+                # Preserve the configured venue environments and strategy
+                # identity.  Replacing the mapping makes the SDK reject the
+                # owned read-only probe because its required-environment
+                # contract disappears before the client is constructed.
+                self._sdk_execution_config = {
+                    **self._sdk_execution_config,
+                    "market_data_only": True,
+                }
                 self._bounded_metadata_probe_requires_sdk_market_data_only = True
                 with self._command_condition:
                     self._command_accept_openings = False

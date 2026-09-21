@@ -125,8 +125,11 @@ def runtime_artifact_evidence(*, module_path: str | None = None) -> dict[str, An
     dependency digest always reflects the modules that are actually loaded.
     """
 
-    loaded_path = str(getattr(bt, "__file__", "") or "")
-    reported_path = str(module_path or loaded_path)
+    # Evidence is consumed across Windows and POSIX validation hosts.  Keep
+    # filesystem operations on native ``Path`` instances below, but serialize
+    # paths in one stable, platform-neutral representation.
+    loaded_path = Path(str(getattr(bt, "__file__", "") or "")).as_posix()
+    reported_path = Path(str(module_path or loaded_path)).as_posix()
     install_kind = "unknown"
     if reported_path:
         try:
@@ -147,7 +150,7 @@ def runtime_artifact_evidence(*, module_path: str | None = None) -> dict[str, An
         "loaded_module_path": loaded_path,
         "version": str(getattr(bt, "__version__", "") or ""),
         "install_kind": install_kind,
-        "target_workspace_root": str(BACKTRADER_ARTIFACT_TARGET),
+        "target_workspace_root": BACKTRADER_ARTIFACT_TARGET.as_posix(),
         "dependency_files": list(BACKTRADER_DEPENDENCY_FILES),
         "dependency_sha256": digest.hexdigest(),
     }
