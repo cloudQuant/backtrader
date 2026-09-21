@@ -78,8 +78,7 @@ Quick Start
 
       .. code-block:: bash
 
-         git clone https://github.com/cloudQuant/backtrader.git
-         cd backtrader && pip install -U .
+         pip install back-trader-python
 
    .. tab-item:: Strategy Example
 

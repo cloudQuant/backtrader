@@ -150,9 +150,9 @@ pip uninstall backtrader
 cd /path/to/this/fork
 pip install -e .
 
-# Or from PyPI (when published)
+# Or from PyPI
 
-# pip install backtrader-enhanced
+pip install back-trader-python
 
 ```bash
 

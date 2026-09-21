@@ -44,10 +44,18 @@
 安装方法
 --------
 
-从 GitHub 安装（推荐）
+从 PyPI 安装（推荐）
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-这是获取最新优化版本的推荐方法：
+```bash
+# 一行安装（发行名 back-trader-python，导入名仍为 backtrader）
+pip install back-trader-python
+```
+
+从 GitHub 安装（开发者）
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+适合需要修改源码或跟踪最新提交的用户：
 
 .. code-block:: bash
 

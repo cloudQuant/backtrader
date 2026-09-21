@@ -149,9 +149,9 @@ pip uninstall backtrader
 cd /path/to/this/fork
 pip install -e .
 
-# 或者从 PyPI 安装（发布后）
+# 或者从 PyPI 安装
 
-# pip install backtrader-enhanced
+pip install back-trader-python
 
 ```bash
 

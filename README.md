@@ -24,17 +24,23 @@
 
 ## Installation
 
-I have published the pybind11-based Python wheel to PyPI:
+Install the pure-Python package directly from PyPI:
 
-https://pypi.org/project/back-trader-cpp/
+```bash
+pip install back-trader-python
+```
 
-You can install it directly:
+> **Note**: `back-trader-python` is the PyPI distribution name; the import name remains `backtrader` (`import backtrader as bt`).
+
+For the pybind11-accelerated C++ wheel (order-of-magnitude faster backtests):
 
 ```bash
 pip install back-trader-cpp
 ```
 
-It currently supports Python 3.8-3.14 and covers macOS, Windows, Linux, and other systems.
+https://pypi.org/project/back-trader-python/ · https://pypi.org/project/back-trader-cpp/
+
+Both support Python 3.8+ (the C++ wheel covers 3.8-3.14) on macOS, Windows, and Linux.
 
 ## C++ and pybind11 Performance Highlights
 
@@ -247,22 +253,20 @@ CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, CTP future
 - **OS**: Windows / macOS / Linux
 - **RAM**: 4GB+ recommended
 
-### From GitHub (Primary)
+### From PyPI (Primary)
 
-> **Note**: The pure-Python `cloudQuant/backtrader` package is installed from source.
-> For the pybind11 wheel, use `pip install back-trader-cpp`.
+```bash
+pip install back-trader-python
+```
+
+Then `import backtrader as bt` — the distribution name is `back-trader-python`, the import name stays `backtrader`.
+
+For the C++/pybind11-accelerated wheel: `pip install back-trader-cpp`.
+
+### From Source (Developers)
 
 ```bash
 git clone https://github.com/cloudQuant/backtrader.git
-cd backtrader
-pip install -r requirements.txt
-pip install -U .
-```
-
-### From Gitee (Mirror)
-
-```bash
-git clone https://gitee.com/yunjinqi/backtrader.git
 cd backtrader
 pip install -r requirements.txt
 pip install -U .
