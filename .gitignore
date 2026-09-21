@@ -187,6 +187,7 @@ examples/007_ctp/live_certification/hongyuan_penetration/*.docx
 .vscode/
 _bmad/
 assets/
+promotion/
 .readthedocs-zh.yaml
 bandit-report.json
 fix_readme.py
