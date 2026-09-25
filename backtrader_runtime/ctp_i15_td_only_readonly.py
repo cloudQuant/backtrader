@@ -629,6 +629,26 @@ def _expired(deadline_monotonic: float) -> bool:
         return True
 
 
+def _resolve_i15_source_digest(source_digest: object) -> Optional[str]:
+    """Accept only a source digest fixed by the reviewed code-owned pin."""
+
+    pinned = _I15_PINNED_SOURCE_DIGEST
+    if (
+        type(pinned) is not str
+        or len(pinned) != 64
+        or any(character not in "0123456789abcdef" for character in pinned)
+    ):
+        return None
+    if (
+        type(source_digest) is not str
+        or len(source_digest) != 64
+        or any(character not in "0123456789abcdef" for character in source_digest)
+        or not hmac.compare_digest(source_digest, pinned)
+    ):
+        return None
+    return pinned
+
+
 def _fixed_i15_child_command(
     binding: i12.I12FrontPrecheckBinding,
     *,
@@ -636,7 +656,7 @@ def _fixed_i15_child_command(
 ) -> Optional[FixedChildCommand]:
     """Bind the exact I12 pair and source digest into I15's fixed worker."""
 
-    digest = source_digest or _I15_PINNED_SOURCE_DIGEST
+    digest = _resolve_i15_source_digest(source_digest)
     if type(binding) is not i12.I12FrontPrecheckBinding or digest is None:
         return None
     if not i12._is_concrete_path(_I15_FIXED_SITE_PACKAGES, directory=True):
@@ -745,7 +765,7 @@ def _fixed_i15_artifact_preflight_command(
 ) -> Optional[FixedChildCommand]:
     """Verify the I15 source set and I12 wheel metadata in the same Job."""
 
-    digest = source_digest or _I15_PINNED_SOURCE_DIGEST
+    digest = _resolve_i15_source_digest(source_digest)
     if digest is None or type(worker_command) is not FixedChildCommand:
         return None
     if not i12._is_concrete_path(_I15_FIXED_SITE_PACKAGES, directory=True):
