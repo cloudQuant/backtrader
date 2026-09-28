@@ -1,6 +1,7 @@
 """Tests for the runnable CTP certification suites."""
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -19,8 +20,8 @@ CERTIFICATION_RUNNERS = (
 
 
 @pytest.mark.parametrize("runner_path", CERTIFICATION_RUNNERS)
-def test_certification_suite_lists_all_cases_offline(runner_path):
-    """Each suite exposes its 33 cases through the offline ``--list`` entry point."""
+def test_certification_suite_direct_cli_is_fail_closed(runner_path):
+    """A historical case selector cannot start a direct provider child process."""
     completed = subprocess.run(
         [sys.executable, str(runner_path), "--list"],
         cwd=REPO_ROOT,
@@ -30,16 +31,27 @@ def test_certification_suite_lists_all_cases_offline(runner_path):
         timeout=30,
     )
 
-    assert completed.returncode == 0, completed.stderr
-    assert "Available cases:" in completed.stdout
-    assert completed.stdout.count(" -> ") == 33
+    assert completed.returncode == 2, completed.stderr
+    error = json.loads(completed.stderr)
+    assert error["error_code"] == "PRESET_POLICY_VIOLATION"
+    assert error["reason"] == "legacy_cli_arguments_not_supported"
 
 
 @pytest.mark.parametrize(
     "report_path",
     (
-        CTP_ROOT / "live_certification" / "simnow_penetration" / "reports" / "latest" / "summary.json",
-        CTP_ROOT / "live_certification" / "hongyuan_penetration" / "reports" / "latest" / "summary.json",
+        CTP_ROOT
+        / "live_certification"
+        / "simnow_penetration"
+        / "reports"
+        / "latest"
+        / "summary.json",
+        CTP_ROOT
+        / "live_certification"
+        / "hongyuan_penetration"
+        / "reports"
+        / "latest"
+        / "summary.json",
     ),
 )
 def test_live_certification_reports_are_ignored(report_path):

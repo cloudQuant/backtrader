@@ -17,6 +17,33 @@ Usage
 """
 from __future__ import annotations
 
+# This fence must remain before every legacy framework, CTP, or provider import.
+import sys as _iteration41_sys
+from pathlib import Path as _Iteration41Path
+
+_ITERATION41_RUNTIME_DIR = _Iteration41Path(__file__).resolve().parents[2] / "runtime"
+_ITERATION41_REPOSITORY_ROOT = _ITERATION41_RUNTIME_DIR.parents[2]
+if str(_ITERATION41_REPOSITORY_ROOT) not in _iteration41_sys.path:
+    _iteration41_sys.path.insert(0, str(_ITERATION41_REPOSITORY_ROOT))
+
+from backtrader_runtime.legacy import (  # noqa: E402
+    legacy_direct_execution_error as _iteration41_legacy_direct_execution_error,
+    run_legacy_config_first_cli as _iteration41_run_legacy_config_first_cli,
+)
+
+
+def _run_config_first_cli(argv=None) -> int:
+    return _iteration41_run_legacy_config_first_cli(_ITERATION41_RUNTIME_DIR, argv)
+
+
+def main(*args, **kwargs):
+    del args, kwargs
+    raise _iteration41_legacy_direct_execution_error("examples/007_ctp/live_certification/hongyuan_penetration/run_case.py")
+
+
+if __name__ == "__main__":
+    raise SystemExit(_run_config_first_cli())
+
 import argparse
 import json
 import os
@@ -76,6 +103,10 @@ DEFAULT_TIMEOUT = 180
 
 
 def run_case(case_id: str, report_root: Path, timeout: int = DEFAULT_TIMEOUT) -> dict:
+    raise _iteration41_legacy_direct_execution_error(
+        "examples/007_ctp/live_certification/hongyuan_penetration/run_case.py"
+    )
+
     """Run a single case in an isolated subprocess, return result dict."""
     case_file = CASE_REGISTRY.get(case_id)
     if case_file is None:
@@ -203,8 +234,12 @@ def print_summary(results: list[dict], report_root: Path):
 # ---------------------------------------------------------------------------
 
 
-def main():
+def _legacy_main():
     """Main entry point for running Hongyuan certification cases."""
+    raise _iteration41_legacy_direct_execution_error(
+        "examples/007_ctp/live_certification/hongyuan_penetration/run_case.py"
+    )
+
     parser = argparse.ArgumentParser(
         description="Run Hongyuan penetration certification cases",
     )
@@ -261,5 +296,7 @@ def main():
     print_summary(results, report_root)
 
 
-if __name__ == "__main__":
+# Iteration 41 retains this historical body for review only; direct execution is disabled.
+if False:  # pragma: no cover - retired direct entrypoint
+
     main()
