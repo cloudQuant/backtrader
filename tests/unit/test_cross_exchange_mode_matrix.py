@@ -97,6 +97,19 @@ def _candidate_for(runner):
     return manifest, candidate
 
 
+def _candidate_with_current_qualification_artifact_hash(runner, candidate):
+    """Return a test-only candidate copy bound to the current artifact bytes."""
+    binding = candidate["qualification_artifact"]
+    artifact_path = runner.HERE / binding["path"]
+    return {
+        **candidate,
+        "qualification_artifact": {
+            **binding,
+            "sha256": runner._file_sha256(artifact_path, "qualification artifact"),
+        },
+    }
+
+
 def _passing_store_health():
     """Return a store-health payload reporting a clean shutdown."""
     return {
@@ -130,6 +143,7 @@ def _operator_demo_live_rules(runner):
 def test_012_1_calibration_loader_remains_strict_without_operator_demo_override():
     runner = RUNNERS[0]
     _manifest, candidate = _candidate_for(runner)
+    candidate = _candidate_with_current_qualification_artifact_hash(runner, candidate)
 
     with pytest.raises(runner.RunnerConfigurationError, match="not bound to this config"):
         runner._load_model_qualification(
@@ -140,9 +154,28 @@ def test_012_1_calibration_loader_remains_strict_without_operator_demo_override(
         )
 
 
+def test_012_1_canonical_stale_qualification_artifact_hash_fails_closed():
+    runner = RUNNERS[0]
+    _manifest, candidate = _candidate_for(runner)
+    artifact_path = runner.HERE / candidate["qualification_artifact"]["path"]
+
+    assert (
+        runner._file_sha256(artifact_path, "qualification artifact")
+        != candidate["qualification_artifact"]["sha256"]
+    )
+    with pytest.raises(runner.RunnerConfigurationError, match="fingerprint mismatch"):
+        runner._load_model_qualification(
+            candidate,
+            runner.replay_rules(),
+            runner.risk_from_config(runner.load_config()),
+            runner.DEFAULT_CONFIG,
+        )
+
+
 def test_012_1_operator_demo_override_loads_original_training_artifact_with_mismatch_evidence():
     runner = RUNNERS[0]
     _manifest, candidate = _candidate_for(runner)
+    candidate = _candidate_with_current_qualification_artifact_hash(runner, candidate)
     rules = _operator_demo_live_rules(runner)
     risk = runner.risk_from_config(runner.load_config())
     artifact_path = runner.HERE / candidate["qualification_artifact"]["path"]
@@ -174,6 +207,7 @@ def test_012_1_operator_demo_override_loads_original_training_artifact_with_mism
 def test_012_1_operator_demo_override_still_requires_the_bound_artifact_hash():
     runner = RUNNERS[0]
     _manifest, candidate = _candidate_for(runner)
+    candidate = _candidate_with_current_qualification_artifact_hash(runner, candidate)
     tampered_candidate = {
         **candidate,
         "qualification_artifact": {
