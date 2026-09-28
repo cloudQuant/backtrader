@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
-import os
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -16,6 +15,9 @@ EXIT_FAIL = 1
 EXIT_BLOCKED = 2
 
 VALID_STATUSES = ("PASS", "FAIL", "BLOCKED")
+PASS_UNAVAILABLE_REASON = (
+    "Certification PASS unavailable: trusted post-reconciliation evidence adapter is not configured"
+)
 
 
 def _collect_observed_events(value: Any, parent_key: str = "") -> set[str]:
@@ -81,8 +83,9 @@ class CaseResult:
         """Convert case result to dictionary.
 
         Returns:
-            Dictionary representation of the case result.
+            Fail-closed dictionary representation of the case result.
         """
+        _fail_unverified_pass(self)
         return asdict(self)
 
     def exit_code(self) -> int:
@@ -91,6 +94,7 @@ class CaseResult:
         Returns:
             Exit code: 0 for PASS, 1 for FAIL, 2 for BLOCKED.
         """
+        _fail_unverified_pass(self)
         return {"PASS": EXIT_PASS, "FAIL": EXIT_FAIL, "BLOCKED": EXIT_BLOCKED}.get(
             self.status, EXIT_FAIL
         )
@@ -98,6 +102,7 @@ class CaseResult:
 
 def save_result(result: CaseResult, report_dir: str | Path) -> Path:
     """Persist *result* as ``report_dir/result.json``."""
+    _fail_unverified_pass(result)
     report_dir = Path(report_dir)
     report_dir.mkdir(parents=True, exist_ok=True)
     if result.audit_events:
@@ -143,17 +148,20 @@ class CaseTimer:
 
     def __exit__(self, *exc):
         """Exit the context manager."""
-        pass
 
     def pass_result(self, evidence=None, details=None) -> CaseResult:
-        """Create a PASS result.
+        """Request a PASS result.
+
+        The legacy SimNow path has no trusted post-reconciliation evidence
+        adapter, so this request is returned as FAIL. Caller-provided
+        details are retained for diagnostics and cannot authorize PASS.
 
         Args:
             evidence: Evidence files or data.
             details: Additional details dictionary.
 
         Returns:
-            CaseResult with PASS status.
+            CaseResult with FAIL status until a trusted adapter is wired.
         """
         return self._build("PASS", evidence=evidence, details=details)
 
@@ -204,29 +212,26 @@ class CaseTimer:
         elapsed = (
             round((now - self._start).total_seconds(), 2) if self._start else 0.0
         )
-        details = details or {}
+        details = dict(details or {})
         scenario = get_certification_scenario(self.case_id)
-        observed_events = sorted(_collect_observed_events(details))
-        evidence_field_names = _collect_evidence_field_names(details)
+        pass_requested = status == "PASS"
+        if pass_requested:
+            # Legacy details are caller-controlled and cannot establish
+            # provider/runtime/validator evidence.
+            details.pop("certification_evidence", None)
+            observed_events = []
+            evidence_field_names = set()
+        else:
+            observed_events = sorted(_collect_observed_events(details))
+            evidence_field_names = _collect_evidence_field_names(details)
         missing_required_events = [
             event for event in scenario.required_events if event not in observed_events
         ]
         missing_evidence_fields = [
             field for field in scenario.evidence_fields if field not in evidence_field_names
         ]
-        final_status = status
-        final_reason = reason
-        if status == "PASS" and (missing_required_events or missing_evidence_fields):
-            final_status = "FAIL"
-            missing_parts = []
-            if missing_required_events:
-                missing_parts.append("events=" + ",".join(missing_required_events))
-            if missing_evidence_fields:
-                missing_parts.append("fields=" + ",".join(missing_evidence_fields))
-            final_reason = (
-                reason
-                or "Missing required certification evidence: " + "; ".join(missing_parts)
-            )
+        final_status = "FAIL" if pass_requested else status
+        final_reason = PASS_UNAVAILABLE_REASON if pass_requested else reason
         audit_event = {
             "event_type": "certification_case_result",
             "event_id": str(uuid.uuid4()),
@@ -284,3 +289,35 @@ class CaseTimer:
     def _new_trace_id() -> str:
         timestamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         return f"ctp-cert-{timestamp}-{uuid.uuid4().hex[:8]}"
+
+
+def _fail_unverified_pass(result: CaseResult) -> None:
+    """Prevent unauthenticated or hand-built PASS results from being persisted."""
+    if result.status != "PASS":
+        return
+
+    scenario = get_certification_scenario(result.case_id)
+    result.status = "FAIL"
+    result.failure_reason = PASS_UNAVAILABLE_REASON
+    result.observed_events = []
+    result.missing_required_events = list(scenario.required_events)
+    result.required_events_present = False
+    result.missing_evidence_fields = list(scenario.evidence_fields)
+    result.evidence_fields_present = False
+    result.details = dict(result.details or {})
+    result.details.pop("certification_evidence", None)
+
+    for audit_event in result.audit_events:
+        audit_event.update(
+            {
+                "status": "FAIL",
+                "severity": "ERROR",
+                "message": PASS_UNAVAILABLE_REASON,
+                "observed_events": [],
+                "missing_required_events": list(scenario.required_events),
+                "missing_evidence_fields": list(scenario.evidence_fields),
+                "required_events_present": False,
+                "evidence_fields_present": False,
+                "details": result.details,
+            }
+        )

@@ -70,6 +70,38 @@ def load_suite(suite_name):
     return run_case, certification, result_mod
 
 
+def test_simnow_admission_rejects_missing_typed_interfaces():
+    load_suite("simnow_penetration")
+    runtime = importlib.import_module("common.runtime")
+
+    class MissingPreflight:
+        def __getattr__(self, name):
+            if name == "get_ctp_preflight_snapshot":
+                raise AttributeError(name)
+            raise AssertionError(f"unexpected store access: {name}")
+
+    denied = runtime.ensure_ctp_trading_admission(MissingPreflight(), "SA701")
+    assert denied.ok is False
+    assert "preflight interface unavailable" in denied.reason
+
+    class MissingArm:
+        def get_ctp_preflight_snapshot(self, symbol, *, timeout):
+            assert (symbol, timeout) == ("SA701", 15.0)
+            return {"snapshot_sha256": "a" * 64}
+
+        def get_ctp_query_health(self):
+            return {"evidence_complete": True}
+
+        def __getattr__(self, name):
+            if name == "arm_registered_sim_execution":
+                raise AttributeError(name)
+            raise AssertionError(f"unexpected store access: {name}")
+
+    denied = runtime.ensure_ctp_trading_admission(MissingArm(), "SA701")
+    assert denied.ok is False
+    assert "execution admission interface unavailable" in denied.reason
+
+
 def test_loading_each_suite_restores_preexisting_module_objects(monkeypatch):
     previous_common = types.ModuleType("common")
     previous_common.__path__ = []
@@ -155,8 +187,17 @@ def test_case_result_contains_canonical_trace_and_audit_event(suite_name, tmp_pa
     ]
     assert payload["audit_events"][0]["scenario_id"] == "AUTH-01"
     assert payload["audit_events"][0]["trace_id"] == payload["trace_id"]
-    assert payload["required_events_present"] is True
-    assert payload["missing_required_events"] == []
+    if suite_name == "simnow_penetration":
+        assert payload["status"] == "FAIL"
+        assert payload["required_events_present"] is False
+        assert payload["observed_events"] == []
+        assert payload["missing_required_events"] == payload["required_events"]
+        assert payload["evidence_fields_present"] is False
+        assert payload["missing_evidence_fields"] == payload["evidence_fields"]
+        assert result_mod.PASS_UNAVAILABLE_REASON in payload["failure_reason"]
+    else:
+        assert payload["required_events_present"] is True
+        assert payload["missing_required_events"] == []
 
     result_mod.save_result(result, tmp_path)
 
@@ -165,7 +206,11 @@ def test_case_result_contains_canonical_trace_and_audit_event(suite_name, tmp_pa
 
     assert str(tmp_path / "audit.jsonl") in saved["evidence"]
     assert len(audit_lines) == 1
-    assert json.loads(audit_lines[0])["scenario_id"] == "AUTH-01"
+    saved_audit = json.loads(audit_lines[0])
+    assert saved_audit["scenario_id"] == "AUTH-01"
+    if suite_name == "simnow_penetration":
+        assert saved["status"] == "FAIL"
+        assert saved_audit["status"] == "FAIL"
 
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
@@ -180,13 +225,117 @@ def test_case_result_surfaces_missing_required_events(suite_name):
     payload = result.to_dict()
 
     assert payload["scenario_id"] == "TRADE-OPEN-01"
+    if suite_name == "simnow_penetration":
+        assert payload["status"] == "FAIL"
+        assert payload["required_events_present"] is False
+        assert payload["missing_required_events"] == [
+            "order_submit_request",
+            "order_status_accepted",
+        ]
+        assert payload["audit_events"][0]["missing_required_events"] == [
+            "order_submit_request",
+            "order_status_accepted",
+        ]
+        assert result_mod.PASS_UNAVAILABLE_REASON in payload["failure_reason"]
+    else:
+        assert payload["status"] == "FAIL"
+        assert payload["required_events_present"] is False
+        assert payload["missing_required_events"] == ["order_status_accepted"]
+        assert payload["audit_events"][0]["missing_required_events"] == [
+            "order_status_accepted"
+        ]
+        assert "Missing required certification evidence" in payload["failure_reason"]
+
+
+def test_simnow_bare_pass_result_and_save_are_fail_closed(tmp_path):
+    _, certification, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    scenario = certification.get_certification_scenario("C01")
+    details = {
+        "events": list(scenario.required_events),
+        **dict.fromkeys(scenario.evidence_fields, "caller-claimed"),
+        "certification_evidence": {"claimed": True},
+    }
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "events.log").write_text(
+        "\n".join(
+            json.dumps(
+                {
+                    "event_type": event,
+                    "source": "runtime_provider_validator_receipt",
+                    "event_id": f"claimed-{index}",
+                    "evidence_sha256": "a" * 64,
+                    "trace_id": "claimed-trace",
+                }
+            )
+            for index, event in enumerate(scenario.required_events)
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with result_mod.CaseTimer("C01", scenario.name, "new_7x24") as timer:
+        result = timer.pass_result(details=details)
+
+    assert result.status == "FAIL"
+    assert result.failure_reason == result_mod.PASS_UNAVAILABLE_REASON
+    assert result.observed_events == []
+    assert result.missing_required_events == list(scenario.required_events)
+    assert result.missing_evidence_fields == list(scenario.evidence_fields)
+    assert "certification_evidence" not in result.details
+
+    result = evidence.attach_reconciliation(result, tmp_path)
+    assert result.status == "FAIL"
+    assert result.observed_events == []
+    assert result.missing_required_events == list(scenario.required_events)
+    assert result.missing_evidence_fields == list(scenario.evidence_fields)
+    assert result.details["certification_evidence"] == {}
+
+    def forge_pass_result():
+        result.status = "PASS"
+        result.observed_events = list(scenario.required_events)
+        result.required_events_present = True
+        result.missing_required_events = []
+        result.missing_evidence_fields = []
+        result.evidence_fields_present = True
+        result.details["certification_evidence"] = {"claimed": True}
+        result.audit_events[0]["status"] = "PASS"
+
+    # Public result accessors must fail-close even before persistence.
+    forge_pass_result()
+    assert result.exit_code() == result_mod.EXIT_FAIL
+    assert result.status == "FAIL"
+    assert result.failure_reason == result_mod.PASS_UNAVAILABLE_REASON
+    assert result.observed_events == []
+    assert result.required_events_present is False
+
+    forge_pass_result()
+    payload = result.to_dict()
     assert payload["status"] == "FAIL"
+    assert payload["failure_reason"] == result_mod.PASS_UNAVAILABLE_REASON
+    assert payload["observed_events"] == []
     assert payload["required_events_present"] is False
-    assert payload["missing_required_events"] == ["order_status_accepted"]
-    assert payload["audit_events"][0]["missing_required_events"] == [
-        "order_status_accepted"
-    ]
-    assert "Missing required certification evidence" in payload["failure_reason"]
+    assert "certification_evidence" not in payload["details"]
+    assert payload["audit_events"][0]["status"] == "FAIL"
+
+    # The persistence guard is independent of the public accessors.
+    forge_pass_result()
+    result_mod.save_result(result, tmp_path)
+
+    saved = json.loads((tmp_path / "result.json").read_text(encoding="utf-8"))
+    saved_audit = json.loads(
+        (tmp_path / "audit.jsonl").read_text(encoding="utf-8").splitlines()[0]
+    )
+    assert saved["status"] == "FAIL"
+    assert saved["failure_reason"] == result_mod.PASS_UNAVAILABLE_REASON
+    assert saved["observed_events"] == []
+    assert saved["missing_required_events"] == list(scenario.required_events)
+    assert saved["missing_evidence_fields"] == list(scenario.evidence_fields)
+    assert "certification_evidence" not in saved["details"]
+    assert saved_audit["status"] == "FAIL"
+    assert saved_audit["observed_events"] == []
+    assert saved_audit["required_events_present"] is False
 
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
@@ -246,11 +395,8 @@ def test_reconciliation_compares_account_positions_orders_and_trades(
     assert str(tmp_path / "reconciliation.json") in result.evidence
 
 
-@pytest.mark.parametrize("suite_name", SUITE_NAMES)
-def test_reconciliation_revalidates_required_evidence_from_log_files(
-    suite_name, tmp_path
-):
-    _, _, result_mod = load_suite(suite_name)
+def test_untrusted_jsonl_does_not_revalidate_required_order_evidence(tmp_path):
+    _, _, result_mod = load_suite("simnow_penetration")
     evidence = importlib.import_module("common.evidence")
 
     snapshots = [
@@ -295,23 +441,22 @@ def test_reconciliation_revalidates_required_evidence_from_log_files(
         result = timer.pass_result(details={"events": ["order_submit_request"]})
 
     assert result.status == "FAIL"
-    assert result.missing_required_events == ["order_status_accepted"]
+    assert result.missing_required_events == [
+        "order_submit_request",
+        "order_status_accepted",
+    ]
 
     result = evidence.attach_reconciliation(result, tmp_path)
 
-    assert result.status == "PASS"
-    assert result.missing_required_events == []
-    assert result.missing_evidence_fields == []
-    assert "order_status_accepted" in result.observed_events
-    assert result.details["certification_evidence"]["external_order_id"] == "sys-1"
-    assert result.details["reconciliation"]["strict_reconciliation_pass"] is True
+    assert result.status == "FAIL"
+    assert result.missing_required_events == ["order_submit_request", "order_status_accepted"]
+    assert "order_status_accepted" not in result.observed_events
+    assert result.details["certification_evidence"] == {}
+    assert result.details["reconciliation"]["strict_reconciliation_pass"] is False
 
 
-@pytest.mark.parametrize("suite_name", SUITE_NAMES)
-def test_reconciliation_derives_threshold_fields_from_runtime_logs(
-    suite_name, tmp_path
-):
-    _, _, result_mod = load_suite(suite_name)
+def test_source_less_threshold_log_does_not_revalidate_threshold_case(tmp_path):
+    _, _, result_mod = load_suite("simnow_penetration")
     evidence = importlib.import_module("common.evidence")
 
     snapshots = [
@@ -344,6 +489,12 @@ def test_reconciliation_derives_threshold_fields_from_runtime_logs(
         + json.dumps(
             {
                 "event_type": "risk_threshold_triggered",
+                "source": "runtime_monitor_receipt",
+                "event_id": "claimed-threshold-event",
+                "evidence_sha256": "a" * 64,
+                "monitor_digest": "b" * 64,
+                "timestamp": "2026-09-28T00:00:01Z",
+                "trace_id": "claimed-trace",
                 "details": {"counter": "submit_count", "value": 2, "threshold": 2},
             }
         )
@@ -352,24 +503,168 @@ def test_reconciliation_derives_threshold_fields_from_runtime_logs(
     )
 
     with result_mod.CaseTimer("TH02", "报单笔数达到阈值预警", "new_7x24") as timer:
-        result = timer.pass_result(details={})
-
-    assert result.status == "FAIL"
+        result = timer.pass_result(
+            details={
+                "events": ["risk_threshold_triggered"],
+                "order_threshold": 2,
+                "submitted_order_count": 2,
+            }
+        )
 
     result = evidence.attach_reconciliation(result, tmp_path)
 
-    assert result.status == "PASS"
-    assert result.missing_required_events == []
-    assert result.missing_evidence_fields == []
-    assert result.details["certification_evidence"]["order_threshold"] == 2
-    assert result.details["certification_evidence"]["submitted_order_count"] == 2
+    cert = result.details["certification_evidence"]
+    assert result.status == "FAIL"
+    assert "risk_threshold_triggered" in result.missing_required_events
+    assert "risk_threshold_triggered" not in result.observed_events
+    assert "order_threshold" not in cert
+    assert cert == {}
 
 
-@pytest.mark.parametrize("suite_name", SUITE_NAMES)
-def test_disconnect_session_stop_revalidates_as_store_disconnected(
-    suite_name, tmp_path
+@pytest.mark.parametrize(
+    ("case_id", "event_type", "activity_types", "untrusted_field", "details"),
+    [
+        (
+            "TH01",
+            "risk_threshold_configured",
+            (),
+            "order_threshold",
+            {"thresholds": {"submit_count": 5}},
+        ),
+        (
+            "TH03",
+            "risk_threshold_configured",
+            (),
+            "cancel_threshold",
+            {"thresholds": {"submit_cancel_total": 10}},
+        ),
+        (
+            "TH04",
+            "risk_threshold_triggered",
+            ("order_submit_request", "order_cancel_request"),
+            "cancel_threshold",
+            {"counter": "submit_cancel_total", "threshold": 10, "value": 10},
+        ),
+        (
+            "TH05",
+            "risk_threshold_configured",
+            (),
+            "repeat_threshold",
+            {"thresholds": {"duplicate_order": 3}, "repeat_window_sec": 60},
+        ),
+        (
+            "TH06",
+            "risk_threshold_triggered",
+            ("order_submit_request",),
+            "repeat_threshold",
+            {"counter": "duplicate_order", "threshold": 3, "value": 3},
+        ),
+        (
+            "L03",
+            "risk_monitor_event",
+            (),
+            "metric",
+            {"metric": "order_rejection_rate"},
+        ),
+    ],
+)
+def test_legacy_monitor_receipt_claims_do_not_satisfy_th_or_l03(
+    case_id, event_type, activity_types, untrusted_field, details, tmp_path
 ):
-    _, _, result_mod = load_suite(suite_name)
+    _, certification, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    scenario = certification.get_certification_scenario(case_id)
+
+    snapshots = [
+        {
+            "label": "before_action",
+            "balance": {"cash": 1000.0, "value": 1000.0},
+            "positions": [],
+            "open_orders": [],
+        },
+        {
+            "label": "after_action_before_stop",
+            "balance": {"cash": 1000.0, "value": 1000.0},
+            "positions": [],
+            "open_orders": [],
+        },
+    ]
+    (tmp_path / "state_snapshots.json").write_text(
+        json.dumps(snapshots), encoding="utf-8"
+    )
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    rows = [
+        {"event_type": activity_type, "order_ref": f"local-{index}"}
+        for index, activity_type in enumerate(activity_types, start=1)
+    ]
+    rows.append(
+        {
+            "event_type": event_type,
+            "source": "runtime_monitor_receipt",
+            "event_id": f"claimed-{case_id}",
+            "evidence_sha256": "a" * 64,
+            "monitor_digest": "b" * 64,
+            "timestamp": "2026-09-28T00:00:01Z",
+            "trace_id": "claimed-trace",
+            "details": details,
+        }
+    )
+    (logs / "monitor.log").write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n", encoding="utf-8"
+    )
+
+    with result_mod.CaseTimer(case_id, scenario.name, "new_7x24") as timer:
+        result = timer.pass_result(
+            details={
+                "events": [event_type],
+                **dict.fromkeys(scenario.evidence_fields, "caller-claimed"),
+            }
+        )
+
+    result = evidence.attach_reconciliation(result, tmp_path)
+
+    cert = result.details["certification_evidence"]
+    assert result.status == "FAIL"
+    assert scenario.required_events[0] in result.missing_required_events
+    assert scenario.required_events[0] not in result.observed_events
+    assert untrusted_field not in cert
+
+
+def test_legacy_monitoring_summary_cannot_override_request_derived_counts():
+    _, _, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    result = result_mod.CaseTimer("M04", "正常统计报单笔数").blocked_result(
+        "offline monitor receipt negative probe",
+        details={"submitted_order_count": 99},
+    )
+
+    derived = evidence._derive_runtime_evidence(
+        result,
+        [
+            {"event_type": "order_submit_request", "order_ref": "actual-request-1"},
+            {
+                "event_type": "monitoring_summary",
+                "source": "runtime_monitor_receipt",
+                "event_id": "claimed-summary",
+                "evidence_sha256": "a" * 64,
+                "monitor_digest": "b" * 64,
+                "timestamp": "2026-09-28T00:00:01Z",
+                "details": {
+                    "submit_count": 99,
+                    "submit_threshold": 5,
+                    "thresholds": {"submit_count": 5},
+                },
+            },
+        ],
+        [],
+    )
+
+    assert derived == {"observed_events": [], "field_names": set(), "values": {}}
+
+
+def test_local_session_stop_does_not_revalidate_as_provider_disconnect(tmp_path):
+    _, _, result_mod = load_suite("simnow_penetration")
     evidence = importlib.import_module("common.evidence")
 
     snapshots = [
@@ -398,6 +693,14 @@ def test_disconnect_session_stop_revalidates_as_store_disconnected(
                 "event_time": "2026-06-18T12:00:00",
             }
         )
+        + "\n"
+        + json.dumps(
+            {
+                "event_type": "store_disconnected",
+                "status": "disconnected",
+                "timestamp": "2026-06-18T12:00:00Z",
+            }
+        )
         + "\n",
         encoding="utf-8",
     )
@@ -411,15 +714,145 @@ def test_disconnect_session_stop_revalidates_as_store_disconnected(
 
     result = evidence.attach_reconciliation(result, tmp_path)
 
-    assert result.status == "PASS"
-    assert "store_disconnected" in result.observed_events
+    assert result.status == "FAIL"
+    assert "store_disconnected" in result.missing_required_events
 
 
-@pytest.mark.parametrize("suite_name", SUITE_NAMES)
-def test_local_validation_rejects_do_not_count_as_real_order_activity(
-    suite_name, tmp_path
-):
-    _, _, result_mod = load_suite(suite_name)
+def test_result_details_cannot_claim_provider_reconnect_without_log_evidence(tmp_path):
+    _, _, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    snapshots = [
+        {
+            "label": "before_action",
+            "balance": {"cash": 1000.0},
+            "positions": [],
+            "open_orders": [],
+        },
+        {
+            "label": "after_action_before_stop",
+            "env": "gateway",
+            "balance": {"cash": 1000.0},
+            "positions": [],
+            "open_orders": [],
+        },
+    ]
+    (tmp_path / "state_snapshots.json").write_text(
+        json.dumps(snapshots), encoding="utf-8"
+    )
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "system.log").write_text(
+        json.dumps(
+            {
+                "event_type": "store_reconnect_success",
+                "timestamp": "2026-09-28T00:00:00Z",
+                "gateway_key": "gateway",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with result_mod.CaseTimer("M03", "断线后显示重连成功", "gateway") as timer:
+        result = timer.pass_result(
+            details={
+                "events": ["store_reconnect_success"],
+                "gateway_key": "gateway",
+                "timestamp": "2026-09-28T00:00:00Z",
+                "previous_session_id": "session-a",
+                "new_session_id": "session-b",
+            }
+        )
+
+    assert result.status == "FAIL"
+    assert result.failure_reason == result_mod.PASS_UNAVAILABLE_REASON
+    result = evidence.attach_reconciliation(result, tmp_path)
+
+    assert result.status == "FAIL"
+    assert "store_reconnect_success" in result.missing_required_events
+    assert set(result.missing_evidence_fields) == {"gateway_key", "timestamp"}
+
+
+def test_no_open_order_expectation_requires_a_post_action_snapshot(tmp_path):
+    _, _, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "order.log").write_text(
+        json.dumps({"event_type": "order_submit_request", "order_ref": "bt-1"})
+        + "\n"
+        + json.dumps(
+            {
+                "event_type": "order_submit_accepted",
+                "order_ref": "bt-1",
+                "external_order_id": "provider-1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with result_mod.CaseTimer("T01", "正常下达开仓指令", "gateway") as timer:
+        result = timer.pass_result(details={})
+
+    result = evidence.attach_reconciliation(result, tmp_path)
+
+    assert result.status == "FAIL"
+    check = result.details["reconciliation"]["checks"]["post_action_open_orders"]
+    assert check["passed"] is False
+
+
+def test_account_change_without_trade_fails_allowed_if_trade_reconciliation(tmp_path):
+    _, _, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    snapshots = [
+        {
+            "label": "before_action",
+            "balance": {"cash": 1000.0, "value": 1000.0},
+            "positions": [],
+            "open_orders": [],
+        },
+        {
+            "label": "after_action_before_stop",
+            "balance": {"cash": 900.0, "value": 900.0},
+            "positions": [{"instrument": "rb2610", "direction": "long", "volume": 1}],
+            "open_orders": [],
+        },
+    ]
+    (tmp_path / "state_snapshots.json").write_text(
+        json.dumps(snapshots), encoding="utf-8"
+    )
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "order.log").write_text(
+        json.dumps(
+            {"event_type": "order_submit_request", "order_ref": "bt-1"}
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "event_type": "order_submit_accepted",
+                "order_ref": "bt-1",
+                "external_order_id": "provider-1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with result_mod.CaseTimer("T01", "正常下达开仓指令", "gateway") as timer:
+        result = timer.pass_result(details={})
+
+    result = evidence.attach_reconciliation(result, tmp_path)
+
+    assert result.status == "FAIL"
+    check = result.details["reconciliation"]["checks"]["account_position_change"]
+    assert check["trade_events"] == 0
+    assert check["passed"] is False
+
+
+def test_local_validation_rejects_do_not_count_as_real_order_activity(tmp_path):
+    _, _, result_mod = load_suite("simnow_penetration")
     evidence = importlib.import_module("common.evidence")
 
     snapshots = [
@@ -476,12 +909,13 @@ def test_local_validation_rejects_do_not_count_as_real_order_activity(
 
     result = evidence.attach_reconciliation(result, tmp_path)
 
-    assert result.status == "PASS"
+    assert result.status == "FAIL"
+    assert "order_validation_rejected" in result.missing_required_events
+    assert "order_validation_rejected" not in result.observed_events
     assert result.details["reconciliation"]["checks"]["order_activity"]["passed"] is True
     assert result.details["reconciliation"]["event_counts"]["order_events"] == 0
 
 
-@pytest.mark.parametrize("suite_name", SUITE_NAMES)
 @pytest.mark.parametrize(
     ("case_id", "error_code", "error_msg"),
     [
@@ -489,10 +923,10 @@ def test_local_validation_rejects_do_not_count_as_real_order_activity(
         ("E02", "50", "CTP:平今仓位不足"),
     ],
 )
-def test_remote_ctp_order_rejection_revalidates_error_cases(
-    suite_name, case_id, error_code, error_msg, tmp_path
+def test_source_less_remote_ctp_order_rejection_does_not_revalidate_error_cases(
+    case_id, error_code, error_msg, tmp_path
 ):
-    _, _, result_mod = load_suite(suite_name)
+    _, _, result_mod = load_suite("simnow_penetration")
     evidence = importlib.import_module("common.evidence")
 
     snapshots = [
@@ -548,23 +982,164 @@ def test_remote_ctp_order_rejection_revalidates_error_cases(
     cert = result.details["certification_evidence"]
     reconciliation = result.details["reconciliation"]
 
-    assert result.status == "PASS"
-    assert "order_reject_remote" in result.observed_events
-    assert cert["ErrorID"] == error_code
-    assert cert["ErrorMsg"] == error_msg
-    assert cert["StatusMsg"] == error_msg
+    assert result.status == "FAIL"
+    assert "order_reject_remote" in result.missing_required_events
+    assert "order_reject_remote" not in result.observed_events
+    assert "ErrorID" not in cert
+    assert "ErrorMsg" not in cert
+    assert "StatusMsg" not in cert
     assert reconciliation["checks"]["order_activity"]["expected"] == "required"
     assert reconciliation["checks"]["order_activity"]["passed"] is True
     assert reconciliation["checks"]["trade_activity"]["passed"] is True
     assert reconciliation["checks"]["account_position_unchanged"]["passed"] is True
 
 
-@pytest.mark.parametrize("suite_name", SUITE_NAMES)
-def test_error_log_case_accepts_validation_error_log_event(suite_name):
-    _, certification, result_mod = load_suite(suite_name)
+@pytest.mark.parametrize(
+    ("case_id", "event_type", "activity_type"),
+    [
+        ("E01", "order_rejected", "order_submit_request"),
+        ("E02", "order_rejected", "order_submit_request"),
+        ("E03", "order_rejected", "order_submit_request"),
+        ("EM01", "account_trading_disabled", "order_submit_request"),
+        ("EM02", "strategy_trading_paused", "strategy_run"),
+        ("EM03", "gateway_force_logout_requested", "gateway_stop"),
+        ("O01", "risk_repeat_order_detected", "order_submit_request"),
+        ("O02", "risk_repeat_order_detected", "order_submit_request"),
+        ("O03", "risk_repeat_cancel_detected", "order_cancel_request"),
+    ],
+)
+def test_legacy_high_risk_receipt_claims_are_not_trusted_from_jsonl(
+    case_id, event_type, activity_type, tmp_path
+):
+    _, certification, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    scenario = certification.get_certification_scenario(case_id)
+
+    snapshots = [
+        {
+            "label": "before_action",
+            "balance": {"cash": 1000.0, "value": 1000.0},
+            "positions": [],
+            "open_orders": [],
+        },
+        {
+            "label": "after_action_before_stop",
+            "balance": {"cash": 1000.0, "value": 1000.0},
+            "positions": [],
+            "open_orders": [],
+        },
+    ]
+    (tmp_path / "state_snapshots.json").write_text(
+        json.dumps(snapshots), encoding="utf-8"
+    )
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    activity = {"event_type": activity_type, "order_ref": "local-order-1"}
+    if activity_type == "order_cancel_request":
+        activity["cancel_ref"] = "local-cancel-1"
+    receipt_source = "ctp_provider_callback"
+    callback_name = "OnRspOrderInsert"
+    if event_type.startswith("risk_repeat_"):
+        receipt_source = "runtime_monitor_receipt"
+        callback_name = ""
+    elif event_type in {
+        "account_trading_disabled",
+        "strategy_trading_paused",
+        "gateway_force_logout_requested",
+    }:
+        receipt_source = "control_plane_receipt"
+        if event_type == "gateway_force_logout_requested":
+            callback_name = "OnFrontDisconnected"
+    receipt_claim = {
+        "event_type": event_type,
+        "source": receipt_source,
+        "event_id": f"claimed-{case_id}",
+        "evidence_sha256": "a" * 64,
+        "timestamp": "2026-09-28T00:00:01Z",
+        "provider": "ctp",
+        "callback_name": callback_name,
+        "session_id": "claimed-session",
+        "trading_day": "20260928",
+        "sequence": 1,
+        "order_ref": "local-order-1",
+        "ErrorID": 31,
+        "ErrorMsg": "CTP: claimed remote rejection",
+        "StatusMsg": "claimed status",
+        "verified_rejection_class": {
+            "E01": "insufficient_funds",
+            "E02": "insufficient_position",
+            "E03": "market_state",
+        }.get(case_id, "account_permission_denied"),
+        "error_mapping_evidence_ref": "claimed-mapping",
+        "market_state_evidence_ref": "claimed-market-state",
+        "market_state_source_event_id": "claimed-market-event",
+        "account_id_masked": "masked-account",
+        "reason": "claimed reason",
+        "authorization_ref": "claimed-authorization",
+        "independent_account_permission_evidence_ref": "claimed-permission",
+        "blocked_order_ref": "local-order-1",
+        "permission_restored_ref": "claimed-restoration",
+        "strategy_id": "local-strategy",
+        "gateway_key": "local-gateway",
+        "operator_termination_evidence_ref": "claimed-termination",
+        "post_disconnect_write_guard_evidence_ref": "claimed-write-guard",
+        "gateway_released": True,
+        "actor_id_hash": "claimed-actor",
+        "signature_sha256": "b" * 64,
+        "monitor_digest": "c" * 64,
+        "trace_id": "claimed-trace",
+        "repeat_key": "claimed-repeat-key",
+        "repeat_count": 2,
+    }
+    (logs / "events.log").write_text(
+        json.dumps(activity)
+        + "\n"
+        + json.dumps(receipt_claim)
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with result_mod.CaseTimer(case_id, scenario.name, "new_7x24") as timer:
+        result = timer.pass_result(
+            details={
+                "events": [event_type],
+                **dict.fromkeys(scenario.evidence_fields, "caller-claimed"),
+            }
+        )
+
+    result = evidence.attach_reconciliation(result, tmp_path)
+
+    cert = result.details["certification_evidence"]
+    assert result.status == "FAIL"
+    assert scenario.required_events[0] in result.missing_required_events
+    assert scenario.required_events[0] not in result.observed_events
+    assert not set(scenario.evidence_fields).intersection(cert)
+
+
+def test_untrusted_validation_log_does_not_pass_l04(tmp_path):
+    _, certification, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
 
     scenario = certification.get_certification_scenario("L04")
     assert scenario.required_events == ("order_validation_rejected",)
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "error.log").write_text(
+        json.dumps(
+            {
+                "event_type": "order_validation_rejected",
+                "source": "local_validator_receipt",
+                "validator_digest": "a" * 64,
+                "reference_data_digest": "b" * 64,
+                "dispatch_absent": True,
+                "trace_id": "claimed-trace",
+                "error_code": "invalid_price_tick",
+                "error_msg": "invalid tick",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     with result_mod.CaseTimer("L04", "错误提示信息记录", "new_7x24") as timer:
         result = timer.pass_result(
@@ -576,7 +1151,160 @@ def test_error_log_case_accepts_validation_error_log_event(suite_name):
             }
         )
 
-    assert result.status == "PASS"
+    result = evidence.attach_reconciliation(result, tmp_path)
+
+    assert result.status == "FAIL"
+    assert result.missing_required_events == ["order_validation_rejected"]
+    assert set(scenario.evidence_fields).issubset(result.missing_evidence_fields)
+    assert result.details["certification_evidence"] == {}
+
+
+def test_all_33_source_less_legacy_certification_scenarios_fail_closed(tmp_path):
+    _, certification, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    scenarios = certification.all_certification_scenarios()
+    assert len(scenarios) == 33
+
+    required_event_types = sorted(
+        {event for scenario in scenarios for event in scenario.required_events}
+    )
+    required_fields = sorted(
+        {field for scenario in scenarios for field in scenario.evidence_fields}
+    )
+    source_by_event = {
+        "store_auth_success": "ctp_provider_callback",
+        "store_login_success": "ctp_provider_callback",
+        "store_connected": "ctp_provider_callback",
+        "store_disconnected": "ctp_provider_callback",
+        "store_reconnect_success": "ctp_provider_callback",
+        "order_submit_request": "managed_runtime_receipt",
+        "order_cancel_request": "managed_runtime_receipt",
+        "order_status_accepted": "ctp_provider_callback",
+        "order_status_canceled": "ctp_provider_callback",
+        "trade_execution": "ctp_provider_callback",
+        "risk_repeat_order_detected": "runtime_monitor_receipt",
+        "risk_repeat_cancel_detected": "runtime_monitor_receipt",
+        "risk_threshold_configured": "runtime_monitor_receipt",
+        "risk_threshold_triggered": "runtime_monitor_receipt",
+        "risk_monitor_event": "runtime_monitor_receipt",
+        "order_validation_rejected": "local_validator_receipt",
+        "order_reject_remote": "ctp_provider_callback",
+        "account_trading_disabled": "control_plane_receipt",
+        "strategy_trading_paused": "control_plane_receipt",
+        "gateway_force_logout_requested": "control_plane_receipt",
+        "batch_cancel_requested": "managed_runtime_receipt",
+        "store_ready": "ctp_provider_callback",
+    }
+    claimed_fields = dict.fromkeys(required_fields, "claimed-value")
+    event_rows = []
+    for sequence, event_type in enumerate(required_event_types, start=1):
+        event_rows.append(
+            {
+                "event_type": event_type,
+                "source": source_by_event[event_type],
+                "event_id": f"claimed-{sequence}",
+                "evidence_sha256": "a" * 64,
+                "monitor_digest": "b" * 64,
+                "signature_sha256": "c" * 64,
+                "actor_id_hash": "claimed-actor",
+                "callback_names": [
+                    "OnRspOrderInsert",
+                    "OnErrRtnOrderInsert",
+                    "OnRtnOrder",
+                    "OnRtnTrade",
+                    "OnFrontConnected",
+                    "OnFrontDisconnected",
+                    "OnRspUserLogin",
+                ],
+                "callback_name": "OnRspOrderInsert",
+                "provider": "ctp",
+                "session_id": "claimed-session",
+                "provider_session_id": "claimed-session",
+                "trading_day": "20260928",
+                "sequence": sequence,
+                "source_sequence": sequence,
+                "timestamp": "2026-09-28T00:00:01Z",
+                "observed_at_utc": "2026-09-28T00:00:01Z",
+                "order_ref": "claimed-order-ref",
+                "external_order_id": "claimed-provider-order",
+                "trade_id": "claimed-trade-id",
+                "ErrorID": 31,
+                "ErrorMsg": "claimed error",
+                "StatusMsg": "claimed status",
+                "verified_rejection_class": "insufficient_funds",
+                "error_mapping_evidence_ref": "claimed-error-map",
+                "authorization_ref": "claimed-authorization",
+                "independent_account_permission_evidence_ref": "claimed-permission",
+                "permission_restored_ref": "claimed-restoration",
+                "operator_termination_evidence_ref": "claimed-termination",
+                "post_disconnect_write_guard_evidence_ref": "claimed-write-guard",
+                "gateway_released": True,
+                "dispatch_absent": True,
+                "validator_digest": "d" * 64,
+                "reference_data_digest": "e" * 64,
+                "trace_id": "claimed-trace",
+                "metric": "claimed-metric",
+                "repeat_key": "claimed-repeat-key",
+                "repeat_count": 2,
+                "details": claimed_fields,
+                **claimed_fields,
+            }
+        )
+    # These source-less rows produce the old accepted/canceled/trade aliases.
+    event_rows.extend(
+        [
+            {"event_type": "order_submit_accepted", "status": "Accepted"},
+            {"event_type": "order_status_probe", "status": "Accepted"},
+            {"event_type": "order_cancel_probe", "status": "Canceled"},
+            {"event_type": "order_partial_probe", "status": "Partial"},
+            {"event_type": "", "trade_id": "claimed-trade", "status": "Completed"},
+        ]
+    )
+
+    for scenario in scenarios:
+        report_dir = tmp_path / scenario.case_id
+        logs = report_dir / "logs"
+        logs.mkdir(parents=True)
+        (report_dir / "state_snapshots.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "label": "before_action",
+                        "balance": {"cash": 1000.0},
+                        "positions": [],
+                        "open_orders": [],
+                    },
+                    {
+                        "label": "after_action_before_stop",
+                        "balance": {"cash": 1000.0},
+                        "positions": [],
+                        "open_orders": [],
+                    },
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (logs / "all-events.log").write_text(
+            "\n".join(json.dumps(row) for row in event_rows) + "\n",
+            encoding="utf-8",
+        )
+
+        with result_mod.CaseTimer(
+            scenario.case_id, scenario.name, "new_7x24"
+        ) as timer:
+            result = timer.pass_result(
+                details={
+                    "events": list(scenario.required_events),
+                    **dict.fromkeys(scenario.evidence_fields, "caller-claimed"),
+                }
+            )
+        result = evidence.attach_reconciliation(result, report_dir)
+
+        assert result.status == "FAIL", scenario.case_id
+        assert result.missing_required_events == list(scenario.required_events)
+        assert not set(scenario.required_events).intersection(result.observed_events)
+        assert set(scenario.evidence_fields).issubset(result.missing_evidence_fields)
+        assert result.details["certification_evidence"] == {}
 
 
 @pytest.mark.parametrize("suite_name", SUITE_NAMES)
@@ -844,3 +1572,97 @@ def test_trade_log_case_waits_for_real_trade_before_passing(suite_name):
     assert "order is self.close_order" not in source
     assert "self.open_order_ref == order.ref" in source
     assert "self.close_order_ref == order.ref" in source
+
+
+def test_b01_partial_count_ignores_local_partial_labels():
+    _, _, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+
+    local_partial_events = [
+        {
+            "event_type": "order_status_partial",
+            "provider": "ctp",
+            "status": "partial",
+            "order_ref": "local-1",
+            "filled": 1,
+            "remaining": 1,
+        },
+        {
+            "event_type": "order_status_partial",
+            "provider": "ctp",
+            "status": "partial",
+            "order_ref": "local-2",
+            "filled": 1,
+            "remaining": 1,
+        },
+    ]
+    result = result_mod.CaseTimer("B01", "batch partial cancel").blocked_result(
+        "offline negative probe",
+        details={
+            "events": ["order_status_partial", "order_status_partial"],
+            "partial_count": 2,
+        },
+    )
+
+    derived = evidence._derive_runtime_evidence(result, local_partial_events, [])
+
+    assert "partial_count" not in derived["values"]
+    assert "partial_count" not in derived["field_names"]
+
+
+def test_b01_partial_count_does_not_trust_callback_shaped_jsonl():
+    _, _, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+
+    def callback(order_ref, sequence):
+        return {
+            "event_type": "order_status_partial",
+            "provider": "ctp",
+            "source": "ctp_provider_callback",
+            "callback_name": "OnRtnOrder",
+            "event_id": f"callback-{sequence}",
+            "session_id": "offline-contract-session",
+            "trading_day": "20260928",
+            "sequence": sequence,
+            "observed_at_utc": f"2026-09-28T00:00:{sequence:02d}Z",
+            "evidence_sha256": "a" * 64,
+            "status": "partial",
+            "order_ref": order_ref,
+            "traded_quantity": 1,
+            "remaining_quantity": 1,
+        }
+
+    result = result_mod.CaseTimer("B01", "batch partial cancel").blocked_result(
+        "offline contract probe", details={"partial_count": 99}
+    )
+    derived = evidence._derive_runtime_evidence(
+        result,
+        [callback("provider-1", 1), callback("provider-1", 2), callback("provider-2", 3)],
+        [],
+    )
+
+    assert derived == {"observed_events": [], "field_names": set(), "values": {}}
+
+
+def test_b01_partial_count_does_not_trust_raw_callback_shaped_jsonl():
+    _, _, result_mod = load_suite("simnow_penetration")
+    evidence = importlib.import_module("common.evidence")
+    result = result_mod.CaseTimer("B01", "batch partial cancel").blocked_result(
+        "offline raw callback contract probe"
+    )
+    event = {
+        "source": "ctp_provider_callback",
+        "callback_name": "OnRtnOrder",
+        "event_id": "raw-callback-1",
+        "session_id": "offline-contract-session",
+        "trading_day": "20260928",
+        "sequence": 1,
+        "observed_at_utc": "2026-09-28T00:00:01Z",
+        "evidence_sha256": "b" * 64,
+        "order_ref": "provider-raw-1",
+        "details": {"OrderStatus": "1", "VolumeTraded": 1, "VolumeTotal": 1},
+    }
+
+    derived = evidence._derive_runtime_evidence(result, [event], [])
+
+    assert derived == {"observed_events": [], "field_names": set(), "values": {}}

@@ -118,8 +118,25 @@ def _json_bytes(payload):
     return json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
 
+def _restrict_anchor_permissions(path, directory=False):
+    """Apply POSIX mode bits to an anchor path."""
+
+    if os.name == "nt":
+        raise OSError("Windows anchor permissions require handle-based persistence")
+    try:
+        os.chmod(path, 0o700 if directory else 0o600)
+    except OSError:  # nosec B110 - best effort on platforms without POSIX modes
+        pass
+
+
 def persist_anchor(path, data):
     """Persist anchor credentials with owner-only permissions.
+
+    Windows accepts only a drive-letter fixed local volume that advertises
+    FILE_PERSISTENT_ACLS. UNC, network, removable, non-fixed, and non-ACL
+    volumes fail closed. Existing Windows anchors are updated in place
+    through one verified handle; interruption can leave partial JSON. POSIX
+    keeps its existing path and permission behavior.
 
     Args:
         path: Destination file path.
@@ -131,19 +148,18 @@ def persist_anchor(path, data):
     Raises:
         OSError: If the file cannot be written.
     """
+    if os.name == "nt":
+        from ._windows_anchor import persist_anchor as persist_windows_anchor
+
+        return persist_windows_anchor(path, data)
+
     directory = os.path.dirname(os.path.abspath(path))
     os.makedirs(directory, mode=0o700, exist_ok=True)
-    try:
-        os.chmod(directory, 0o700)
-    except OSError:  # nosec B110 - best effort on platforms without POSIX modes
-        pass
+    _restrict_anchor_permissions(directory, directory=True)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         json.dump(data, handle, ensure_ascii=False, indent=2)
-    try:
-        os.chmod(path, 0o600)
-    except OSError:  # nosec B110 - best effort on platforms without POSIX modes
-        pass
+    _restrict_anchor_permissions(path)
     return path
 
 

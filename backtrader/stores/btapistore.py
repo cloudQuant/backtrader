@@ -1885,9 +1885,7 @@ def _create_ctp_wrapper_class():
             """
             entry = getattr(self.trader_client, "arm_execution_for_registered_sim", None)
             if not callable(entry):
-                raise BtApiStoreError(
-                    "SDK does not expose registered-sim execution admission"
-                )
+                raise BtApiStoreError("SDK does not expose registered-sim execution admission")
             capability, state = entry(
                 instrument_id=instrument_id,
                 exchange_id=exchange_id,
@@ -7371,9 +7369,7 @@ class BtApiStore(LiveStoreBase):
         api = self._ensure_api_ready()
         arm = getattr(api, "arm_registered_sim_execution", None)
         if not callable(arm):
-            raise BtApiStoreError(
-                "CTP adapter does not support registered-sim execution admission"
-            )
+            raise BtApiStoreError("CTP adapter does not support registered-sim execution admission")
         if not exchange_id:
             _, exchange_id = _split_ctp_symbol(str(instrument_id))
         if not exchange_id:

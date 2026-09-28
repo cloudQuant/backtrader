@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import asdict, is_dataclass
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +11,6 @@ from common.certification import (
     get_certification_scenario,
     get_reconciliation_expectation,
 )
-from common.result import _collect_evidence_field_names, _collect_observed_events
 
 
 SNAPSHOT_FILE = "state_snapshots.json"
@@ -75,7 +73,7 @@ def capture_store_snapshot(
     positions, positions_error = _safe_call("positions", store.get_positions)
     open_orders, open_orders_error = _safe_call(
         "open_orders",
-        getattr(store, "get_open_orders", lambda: []),
+        getattr(store, "get_open_orders", list),
     )
     snapshot = {
         "case_id": case_id,
@@ -126,292 +124,18 @@ def _collect_log_events(report_dir: Path) -> list[dict[str, Any]]:
     return events
 
 
-def _field_names(value: Any) -> set[str]:
-    fields: set[str] = set()
-    if isinstance(value, dict):
-        for key, item in value.items():
-            fields.add(str(key))
-            fields.update(_field_names(item))
-    elif isinstance(value, (list, tuple, set)):
-        for item in value:
-            fields.update(_field_names(item))
-    return fields
-
-
-def _put_value(values: dict[str, Any], key: str, value: Any) -> None:
-    if key in values:
-        return
-    if value in (None, ""):
-        return
-    values[key] = _jsonable(value)
-
-
-def _first_value(*values: Any) -> Any:
-    for value in values:
-        if value not in (None, ""):
-            return value
-    return None
-
-
-def _event_details(event: dict[str, Any]) -> dict[str, Any]:
-    details = event.get("details")
-    return dict(details) if isinstance(details, dict) else {}
-
-
-def _is_remote_counter_order_reject(event: dict[str, Any]) -> bool:
-    """Return whether an order rejection carries counter-side CTP evidence."""
-
-    event_type = str(event.get("event_type") or "")
-    if event_type == "order_reject_remote":
-        return True
-    if event_type != "order_rejected":
-        return False
-
-    details = _event_details(event)
-    error_code = str(
-        _first_value(event.get("error_code"), details.get("ErrorID"), details.get("ErrorId"))
-        or ""
-    ).strip()
-    error_msg = str(
-        _first_value(event.get("error_msg"), details.get("ErrorMsg"), details.get("StatusMsg"))
-        or ""
-    )
-    provider = str(event.get("provider") or details.get("provider") or "").lower()
-
-    if error_code.isdigit():
-        return True
-    return provider == "ctp" and ("CTP:" in error_msg or "CTP" in error_msg)
-
-
-def _derive_order_status_event(event: dict[str, Any]) -> str:
-    status = str(event.get("status") or "").strip().lower()
-    if status in {"accepted"}:
-        return "order_status_accepted"
-    if status in {"canceled", "cancelled"}:
-        return "order_status_canceled"
-    if status in {"partial", "partialfilled", "partial_filled"}:
-        return "order_status_partial"
-    if status in {"completed", "filled"}:
-        return "order_status_completed"
-    return ""
-
-
-def _event_aliases(event: dict[str, Any]) -> set[str]:
-    event_type = str(event.get("event_type") or "")
-    aliases = set()
-    if event_type == "session_stopped":
-        aliases.add("store_disconnected")
-    if _is_remote_counter_order_reject(event):
-        aliases.add("order_reject_remote")
-    if event_type == "order_submit_accepted":
-        aliases.add("order_status_accepted")
-    order_log_row = not event_type and any(
-        key in event for key in ("ref", "order_type", "external_order_id")
-    )
-    if event_type.startswith("order_") or order_log_row:
-        status_event = _derive_order_status_event(event)
-        if status_event:
-            aliases.add(status_event)
-    if not event_type and ("trade_id" in event or "tradeid" in event) and event.get("status") in {
-        "Completed",
-        "completed",
-        "Filled",
-        "filled",
-    }:
-        aliases.add("trade_execution")
-    return aliases
-
-
-def _parse_numeric(pattern: str, text: str) -> float | None:
-    match = re.search(pattern, text)
-    if not match:
-        return None
-    try:
-        value = float(match.group(1))
-    except ValueError:
-        return None
-    return int(value) if value.is_integer() else value
-
-
-def _derive_threshold_values(details: dict[str, Any], values: dict[str, Any]) -> None:
-    thresholds = details.get("thresholds")
-    if isinstance(thresholds, dict):
-        if "submit_count" in thresholds:
-            _put_value(values, "order_threshold", thresholds.get("submit_count"))
-        if "cancel_count" in thresholds:
-            _put_value(values, "cancel_threshold", thresholds.get("cancel_count"))
-        if "submit_cancel_total" in thresholds:
-            _put_value(values, "cancel_threshold", thresholds.get("submit_cancel_total"))
-        if "duplicate_order" in thresholds:
-            _put_value(values, "repeat_threshold", thresholds.get("duplicate_order"))
-
-    counter = str(details.get("counter") or "")
-    threshold = details.get("threshold")
-    value = details.get("value")
-    if counter == "submit_count":
-        _put_value(values, "order_threshold", threshold)
-        _put_value(values, "submitted_order_count", value)
-    elif counter in {"cancel_count", "submit_cancel_total"}:
-        _put_value(values, "cancel_threshold", threshold)
-        _put_value(values, "cancel_order_count", value)
-    elif counter == "duplicate_order":
-        _put_value(values, "repeat_threshold", threshold)
-        _put_value(values, "repeat_count", value)
-
-    _put_value(values, "repeat_window_sec", details.get("repeat_window_sec"))
-
-
 def _derive_runtime_evidence(
     result: Any,
     events: list[dict[str, Any]],
     snapshots: list[dict[str, Any]],
 ) -> dict[str, Any]:
-    observed_events = set(getattr(result, "observed_events", []) or [])
-    observed_events.update(_collect_observed_events(getattr(result, "details", {}) or {}))
-    field_names = set(_collect_evidence_field_names(getattr(result, "details", {}) or {}))
-    values: dict[str, Any] = {"trace_id": getattr(result, "trace_id", "")}
-    order_refs: list[Any] = []
-    cancel_refs: list[Any] = []
-    submit_count = 0
-    cancel_count = 0
+    """Return no certification claims from the unauthenticated legacy path.
 
-    for snapshot in snapshots:
-        field_names.update(_field_names(snapshot))
-        _put_value(values, "account_id_masked", snapshot.get("account_id_masked"))
-        _put_value(values, "gateway_key", snapshot.get("env"))
-
-    for event in events:
-        event_type = str(event.get("event_type") or "")
-        details = _event_details(event)
-        if event_type:
-            observed_events.add(event_type)
-        observed_events.update(_event_aliases(event))
-        field_names.update(_field_names(event))
-
-        timestamp = _first_value(event.get("event_time"), event.get("log_time"), event.get("timestamp"))
-        _put_value(values, "timestamp", timestamp)
-        _put_value(values, "gateway_key", _first_value(event.get("gateway_key"), event.get("provider")))
-        _put_value(values, "account_id_masked", event.get("account_id_masked"))
-        _put_value(values, "strategy_id", event.get("strategy_name"))
-        _put_value(values, "reason", details.get("reason"))
-        _put_value(values, "metric", details.get("metric"))
-
-        order_ref = _first_value(
-            event.get("order_ref"),
-            event.get("ref"),
-            details.get("order_ref"),
-            details.get("bt_order_ref"),
-            details.get("OrderRef"),
-        )
-        if order_ref not in (None, ""):
-            order_refs.append(order_ref)
-            if event_type.startswith("order_cancel"):
-                cancel_refs.append(order_ref)
-        _put_value(values, "order_ref", order_ref)
-        _put_value(
-            values,
-            "external_order_id",
-            _first_value(
-                event.get("external_order_id"),
-                details.get("external_order_id"),
-                details.get("OrderSysID"),
-            ),
-        )
-        _put_value(values, "trade_id", _first_value(event.get("trade_id"), details.get("trade_id")))
-        _put_value(
-            values,
-            "instrument",
-            _first_value(
-                event.get("data_name"),
-                event.get("symbol"),
-                details.get("data_name"),
-                details.get("symbol"),
-                details.get("InstrumentID"),
-            ),
-        )
-        _put_value(values, "price", _first_value(event.get("price"), details.get("price")))
-        _put_value(values, "size", _first_value(event.get("size"), details.get("size")))
-        error_id = _first_value(
-            details.get("ErrorID"),
-            details.get("ErrorId"),
-            event.get("error_code"),
-        )
-        error_msg_value = _first_value(
-            details.get("ErrorMsg"),
-            event.get("error_msg"),
-        )
-        status_msg = _first_value(
-            details.get("StatusMsg"),
-            event.get("status_msg"),
-            event.get("status_message"),
-            error_msg_value if _is_remote_counter_order_reject(event) else None,
-        )
-        _put_value(values, "error_msg", error_msg_value)
-        _put_value(values, "error_code", error_id)
-        _put_value(values, "ErrorID", error_id)
-        _put_value(values, "ErrorMsg", error_msg_value)
-        _put_value(values, "StatusMsg", status_msg)
-
-        if event_type == "order_submit_request":
-            submit_count += 1
-        elif event_type.startswith("order_cancel"):
-            cancel_count += 1
-        if event_type == "market_data_subscribe_request":
-            _put_value(values, "market_connection", True)
-        if event_type in {"store_login_success", "store_ready", "store_connected"}:
-            _put_value(values, "trade_connection", True)
-
-        if event_type == "monitoring_summary":
-            _put_value(values, "submitted_order_count", details.get("submit_count"))
-            _put_value(values, "cancel_order_count", details.get("cancel_count"))
-            _put_value(values, "open_order_count", details.get("open_order_count"))
-        if event_type in {"risk_threshold_configured", "risk_threshold_triggered"}:
-            _derive_threshold_values(details, values)
-        if event_type in {"risk_repeat_order_detected", "risk_repeat_cancel_detected"}:
-            _put_value(values, "repeat_key", details.get("repeat_key"))
-            _put_value(values, "repeat_count", details.get("repeat_count"))
-        if event_type == "batch_cancel_requested":
-            requested = details.get("orders")
-            if isinstance(requested, list):
-                refs = [
-                    item.get("external_order_id") or item.get("order_ref")
-                    for item in requested
-                    if isinstance(item, dict)
-                ]
-                refs = [ref for ref in refs if ref not in (None, "")]
-                _put_value(values, "order_refs", refs)
-                _put_value(values, "open_order_count", len(refs))
-
-        error_msg = str(_first_value(event.get("error_msg"), details.get("error_msg")) or "")
-        if "tick size" in error_msg:
-            _put_value(values, "price_tick", _parse_numeric(r"tick size ([0-9.]+)", error_msg))
-        if "max allowed size" in error_msg:
-            _put_value(values, "max_order_size", _parse_numeric(r"max allowed size ([0-9.]+)", error_msg))
-
-    if "market_connection" not in values and any(
-        event in observed_events for event in ("data_status", "tick")
-    ):
-        values["market_connection"] = True
-    if "trade_connection" not in values and any(
-        event in observed_events for event in ("store_login_success", "store_ready")
-    ):
-        values["trade_connection"] = True
-    _put_value(values, "submitted_order_count", submit_count)
-    _put_value(values, "cancel_order_count", cancel_count)
-    if "order_refs" not in values and order_refs:
-        values["order_refs"] = [_jsonable(ref) for ref in order_refs]
-    if "open_order_count" not in values and order_refs:
-        values["open_order_count"] = len(order_refs)
-    if "partial_count" not in values:
-        partial_count = sum(1 for event in observed_events if event == "order_status_partial")
-        values["partial_count"] = partial_count
-
-    field_names.update(values.keys())
-    return {
-        "observed_events": sorted(event for event in observed_events if event),
-        "field_names": field_names,
-        "values": values,
-    }
+    JSONL rows and result details are caller-forgeable.  Reconciliation still
+    reads logs for diagnostics, but no provider/runtime/validator/control-plane
+    adapter is wired into this path to authenticate required events or fields.
+    """
+    return {"observed_events": [], "field_names": set(), "values": {}}
 
 
 def _missing_evidence_reason(missing_events: list[str], missing_fields: list[str]) -> str:
@@ -559,8 +283,9 @@ def build_reconciliation(result: Any, report_dir: str | Path) -> dict[str, Any]:
     events = _collect_log_events(report_dir)
     event_types = [str(event.get("event_type") or "") for event in events]
     details = getattr(result, "details", {}) or {}
-    observed_events = list(getattr(result, "observed_events", []) or [])
-    all_event_types = event_types + observed_events
+    # Reconciliation activity must come from persisted event rows, never the
+    # result's locally assembled observed-event list.
+    all_event_types = event_types
     order_events = [
         event for event in all_event_types
         if _is_real_order_activity_event(event)
@@ -580,8 +305,6 @@ def build_reconciliation(result: Any, report_dir: str | Path) -> dict[str, Any]:
     expectation = get_reconciliation_expectation(case_id)
     order_seen = bool(order_events)
     trade_seen = bool(trade_events)
-    account_or_position_changed = bool(balance_changed) or bool(positions_changed)
-
     checks = {
         "required_events": {
             "expected": list(getattr(result, "required_events", []) or []),
@@ -593,7 +316,16 @@ def build_reconciliation(result: Any, report_dir: str | Path) -> dict[str, Any]:
         "post_action_open_orders": {
             "expected": "none" if expectation.get("no_open_orders_after") else "not_specified",
             "observed_count": len(post_open_orders or []),
-            "passed": (len(post_open_orders or []) == 0) if expectation.get("no_open_orders_after") else True,
+            "passed": (
+                len(snapshots) >= 2
+                and isinstance(after, dict)
+                and isinstance(after.get("open_orders"), list)
+                and not any(
+                    str(error).startswith("open_orders:")
+                    for error in (after.get("errors") or [])
+                )
+                and len(post_open_orders or []) == 0
+            ) if expectation.get("no_open_orders_after") else True,
         },
     }
     if expectation.get("account_position_change") == "none":
@@ -604,12 +336,15 @@ def build_reconciliation(result: Any, report_dir: str | Path) -> dict[str, Any]:
             "passed": balance_changed is False and positions_changed is False,
         }
     elif expectation.get("account_position_change") == "allowed_if_trade":
+        unchanged_without_trade = (
+            balance_changed is False and positions_changed is False
+        )
         checks["account_position_change"] = {
             "expected": "allowed_if_trade",
             "balance_changed": balance_changed,
             "positions_changed": positions_changed,
             "trade_events": len(trade_events),
-            "passed": True,
+            "passed": trade_seen or unchanged_without_trade,
         }
 
     strict_pass = all(item.get("passed") is True for item in checks.values())

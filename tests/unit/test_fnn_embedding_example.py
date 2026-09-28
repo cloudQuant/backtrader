@@ -18,7 +18,6 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 
 strategy_mod = importlib.import_module("examples.017_fnn_embedding.fnn_embedding_strategy")
-autoenc_mod = importlib.import_module("examples.017_fnn_embedding.fnn_autoencoder")
 
 DECISION_LONG = strategy_mod.DECISION_LONG
 DECISION_SHORT = strategy_mod.DECISION_SHORT
@@ -34,9 +33,6 @@ build_decision = strategy_mod.build_decision
 stop_take_prices_floored = strategy_mod.stop_take_prices_floored
 EmbeddingLibrary = strategy_mod.EmbeddingLibrary
 validate_ohlcv = strategy_mod.DataValidationError
-
-train_autoencoder = autoenc_mod.train_autoencoder
-
 
 # ---------------------------------------------------------------------------
 # Synthetic frame helpers (load_mt5_csv compatible)
@@ -181,20 +177,25 @@ class TestRollingNormalize:
 
 
 class TestAutoencoder:
-    def test_training_deterministic(self):
+    @pytest.fixture(scope="class")
+    def autoenc_mod(self):
+        pytest.importorskip("torch", reason="PyTorch is optional for FNN example tests")
+        return importlib.import_module("examples.017_fnn_embedding.fnn_autoencoder")
+
+    def test_training_deterministic(self, autoenc_mod):
         rng = np.random.default_rng(3)
         X = rng.normal(0.0, 1.0, size=(500, 12)).astype(np.float32)
-        state1, meta1 = train_autoencoder(
+        state1, meta1 = autoenc_mod.train_autoencoder(
             X, embed_dim=4, epochs=15, lr=1e-3, batch=64, patience=5, seed=42
         )
-        state2, meta2 = train_autoencoder(
+        state2, meta2 = autoenc_mod.train_autoencoder(
             X, embed_dim=4, epochs=15, lr=1e-3, batch=64, patience=5, seed=42
         )
         for key in state1:
             assert np.array_equal(state1[key].numpy(), state2[key].numpy())
         assert meta1["final_loss"] == pytest.approx(meta2["final_loss"], abs=0.0)
 
-    def test_forward_consistent(self):
+    def test_forward_consistent(self, autoenc_mod):
         autoenc_mod.make_deterministic(42)
         model = autoenc_mod.Autoencoder(embed_dim=4)
         x = np.random.default_rng(1).normal(size=(3, 12)).astype(np.float32)

@@ -20,6 +20,7 @@ REPO = Path(__file__).resolve().parents[4]
 
 @pytest.fixture(scope="module")
 def result():
+    pytest.importorskip("torch", reason="PyTorch is optional for FNN example tests")
     run_mod = importlib.import_module("examples.017_fnn_embedding.run")
     cfg = run_mod.load_yaml_config(REPO / "examples" / "017_fnn_embedding" / "config.yaml")
     cfg["data"]["fromdate"] = "2021-09-01"
