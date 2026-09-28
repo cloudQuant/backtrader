@@ -40,15 +40,19 @@ def _install_test_only_trusted_formula_candidate_binding(monkeypatch, runner):
     helper never mutates any manifest or enables a network/approval path.
     """
 
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    local_path = Path(runner.MANIFEST_PATH).resolve()
+    assert local_path != Path(runner.REPO_CANONICAL_MANIFEST).resolve()
+    manifest = json.loads(local_path.read_text(encoding="utf-8"))
+    assert manifest["manifest_status"] == "RESEARCH_REJECTED_OPERATOR_DEMO_SIMULATION_ONLY"
     candidate = next(
         row for row in manifest["candidates"] if row["strategy_id"] == runner.STRATEGY_ID
     )
-    canonical_path = Path(runner.MANIFEST_PATH).resolve()
+    assert candidate["research_status"] == "RESEARCH_REJECTED"
+    assert candidate["demo_approval"]["status"] == "NOT_APPROVED"
 
     def load_test_only_candidate(path=runner.MANIFEST_PATH):
-        assert Path(path).resolve() == canonical_path
-        return manifest, candidate, canonical_path
+        assert Path(path).resolve() == local_path
+        return manifest, candidate, local_path
 
     def unexpected_store(*_args, **_kwargs):
         pytest.fail("formula fixture must never construct a Store")

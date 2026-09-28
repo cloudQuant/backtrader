@@ -14,7 +14,6 @@ from pathlib import Path
 import pytest
 import yaml
 
-
 REPO = Path(__file__).resolve().parents[2]
 EXAMPLE = REPO / "examples" / "013_3_sa_midfreq_simnow"
 PACKAGE = "iter22_admission_receipt_tool_example"
@@ -114,9 +113,25 @@ def _facts(config: dict, *, purpose: str = "natural_signal") -> dict:
     }
 
 
+def _install_offline_test_identity(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Use a stable, explicitly test-only identity without an installed SDK.
+
+    The receipt tool must bind the dependency identity it is given. These
+    offline tests do not claim that a real CTP SDK is installed or verified;
+    production keeps the real identity collector and its fail-closed behavior.
+    """
+    test_identity = {
+        "offline_test_fixture": tool._sha256_json(
+            {"identity_kind": "test-only", "sdk_provenance": "not-present"}
+        )
+    }
+    monkeypatch.setattr(runner, "dependency_identity_hashes", lambda: dict(test_identity))
+
+
 def test_build_request_is_offline_and_binds_full_runtime_evidence(tmp_path, monkeypatch):
     config = tool.load_config(_write_admitted_config(tmp_path))
     facts = _facts(config)
+    _install_offline_test_identity(monkeypatch)
     monkeypatch.setattr(
         runner,
         "BtApiStore",
@@ -137,6 +152,17 @@ def test_build_request_is_offline_and_binds_full_runtime_evidence(tmp_path, monk
     assert binding["config_hash"] == runner.config_hash(config)
     assert binding["code_hash"] == runner.code_hash()
     assert binding["facts_sha256"] == tool._sha256_json(request["facts"])
+
+
+def test_build_request_fails_closed_when_current_identity_is_unavailable(tmp_path, monkeypatch):
+    config = tool.load_config(_write_admitted_config(tmp_path))
+
+    def unavailable_identity():
+        raise RuntimeError("test identity source unavailable")
+
+    monkeypatch.setattr(runner, "dependency_identity_hashes", unavailable_identity)
+    with pytest.raises(tool.ReceiptToolError, match="current_source_identity_unavailable"):
+        tool.build_request(_facts(config), config)
 
 
 def test_natural_signal_request_rejects_non_admitted_config():
@@ -173,6 +199,7 @@ def test_request_rejects_stale_calendar_artifact_and_long_or_future_validity(tmp
 def test_cli_requires_explicit_signing_trust_root_and_validates_runner_contract(
     tmp_path, monkeypatch, capsys
 ):
+    _install_offline_test_identity(monkeypatch)
     config_path = _write_admitted_config(tmp_path)
     config = tool.load_config(config_path)
     facts_path = tmp_path / "facts.json"
@@ -250,6 +277,7 @@ def test_cli_requires_explicit_signing_trust_root_and_validates_runner_contract(
 def test_signing_without_existing_trust_root_does_not_publish_receipt(
     tmp_path, monkeypatch, capsys
 ):
+    _install_offline_test_identity(monkeypatch)
     config_path = _write_admitted_config(tmp_path)
     config = tool.load_config(config_path)
     facts_path = tmp_path / "facts.json"

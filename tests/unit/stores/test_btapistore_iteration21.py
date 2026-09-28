@@ -1316,9 +1316,7 @@ def test_bounded_metadata_probe_preserves_required_environment_contract(
         },
     )
 
-    result = store.run_bounded_read_only_metadata_probe(
-        datanames=(SYMBOL,), timeout_seconds=0.5
-    )
+    result = store.run_bounded_read_only_metadata_probe(datanames=(SYMBOL,), timeout_seconds=0.5)
 
     api = MetadataProbeTypedSdk.instances[-1]
     assert api.execution_configurations == [
@@ -3400,6 +3398,11 @@ def test_live_broker_account_risk_read_uses_cache_and_refreshes_off_callback_thr
             if not initialize_baseline:
                 time.sleep(0.08)
             return account_risk_payload(self)
+
+        def get_execution_summary(self):
+            summary = super().get_execution_summary()
+            summary["evidence_errors"] = []
+            return summary
 
     api = SlowRiskSdk()
     store = make_store(

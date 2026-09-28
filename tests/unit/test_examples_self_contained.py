@@ -22,16 +22,55 @@ from __future__ import annotations
 
 import ast
 import importlib.util
+import pkgutil
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 EXAMPLES = ROOT / "examples"
-STDLIB = set(sys.stdlib_module_names)
 NON_EXAMPLE_DIRS = frozenset({"logs", "output", "state"})
+# ``sys.stdlib_module_names`` lists names for every supported platform. The
+# fallback scan only sees the current platform, while examples import these
+# process-lock modules conditionally for Windows and POSIX respectively.
+PLATFORM_STDLIB_MODULES = frozenset({"fcntl", "msvcrt"})
+
+
+def _stdlib_module_names() -> set[str]:
+    """Return top-level stdlib modules on Python versions 3.8 and newer.
+
+    ``sys.stdlib_module_names`` was added in Python 3.10.  On 3.8/3.9, scan
+    the interpreter's standard-library and extension-module directories
+    without traversing site-packages.
+    """
+
+    names = getattr(sys, "stdlib_module_names", None)
+    if names is not None:
+        return set(names)
+
+    discovered = set(sys.builtin_module_names)
+    paths = {
+        sysconfig.get_path("stdlib"),
+        sysconfig.get_path("platstdlib"),
+        sysconfig.get_config_var("DESTSHARED"),
+    }
+    for path in sorted(path for path in paths if path):
+        discovered.update(name for _finder, name, _ispkg in pkgutil.iter_modules([path]))
+    return discovered | PLATFORM_STDLIB_MODULES
+
+
+STDLIB = _stdlib_module_names()
+
+# These runtime dependencies are optional for the repository's ordinary CI
+# environment and documented by their owning example folders. Keep exceptions
+# folder-scoped so they cannot hide undeclared imports in other examples.
+OPTIONAL_EXAMPLE_MODULES = {
+    "010_live_examples": frozenset({"ccxt"}),
+    "017_fnn_embedding": frozenset({"torch"}),
+}
 
 # Byte-identical copies of shared support code, keyed by the canonical source.
 VENDORED_COPIES = {
@@ -109,10 +148,11 @@ def _is_installed(name: str) -> bool:
 @pytest.mark.parametrize("folder", _example_folders(), ids=lambda path: path.name)
 def test_example_folder_is_self_contained(folder: Path) -> None:
     local = _local_modules(folder)
+    optional = OPTIONAL_EXAMPLE_MODULES.get(folder.name, frozenset())
     violations = []
     for path in sorted(folder.rglob("*.py")):
         for name in sorted(_imported_top_levels(path)):
-            if name in local or _is_installed(name):
+            if name in local or name in optional or _is_installed(name):
                 continue
             violations.append(f"{path.relative_to(EXAMPLES)} imports {name!r}")
     assert violations == []
