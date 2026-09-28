@@ -227,6 +227,10 @@ make help                       # list all make targets
 make clean                      # clean build artifacts
 ```
 
+Git LFS tracks the three Iteration 41 copies of
+`unified-offline-wheelhouse-settlement-evidence-r1.zip`. Install Git LFS before
+checkout so these archives are materialized instead of left as pointer files.
+
 ## Architecture
 
 ### Construction pipeline (replaces the old metaclass)
