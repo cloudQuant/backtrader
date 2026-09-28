@@ -2138,3 +2138,28 @@ C01 r3 的 17 个目标已主树集成。冻结候选完整套件为 482 passed�
 G4 parent/gateway source pin provenance 审计与独立 QA 均为 `HOLD_PROVENANCE`：兼容 gateway 实现来自本地未跟踪快照，而记录的 upstream gitlink 树不含该实现。独立 QA 确认候选 wheel、安装 RECORD 与 fake consumer 结果内部一致；这不能认证上游来源，也不构成 G4 精确来源/制品准入、native lifecycle、provider 行为或写入授权。
 
 以上为离线或 source-only 证据；保持 `NO_WRITE / LIVE_NO_GO`。
+
+#### G1 request-level offline contracts and Gateway source drafts (2026-09-28)
+
+The owner no longer requires a 0.8-second hard limit for the entire CTP CLI
+command. The proposed replacement is a code-bounded request accepted by a
+pre-started protected guardian, with a separate client wait and an UNKNOWN
+result on missing or late evidence. No such guardian is deployed or registered.
+`backtrader_runtime/ctp_guardian_service.py` and
+`ctp_guardian_request_journal.py` are unregistered offline contracts for the
+fixed read-only `ctp_readonly_preflight` operation and a 300-second server
+request budget. They do not provide a Windows service, protected named pipe,
+trusted peer identity, bounded native runner, Job supervision, terminal journal
+wiring, or CTP provider evidence. Independent local verification passed 39
+fake/contract tests with Ruff and Black clean; the ordinary private CTP
+`preflight` CLI, all 33 real case entries, and every trading write route remain
+closed. G1 remains `NO_GO` until the complete deployed request path and Windows
+failure injection are independently accepted.
+
+The Gateway source and MIT license are now on the draft
+`cloudQuant/bt_api_gateway` PR #1, and the draft `cloudQuant/bt_api_py` PR #13
+pins reviewed base, CTP, and Gateway source commits. These unmerged source
+branches resolve the earlier README-only Gateway pointer for review, but do
+not establish an authenticated account Actor, native binary provenance,
+provider reconciliation, a trusted writer fence, or a managed CTP route.
+G4/G6-P and real SimNow certification remain `NO_GO`.

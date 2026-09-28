@@ -931,3 +931,20 @@ r3 未产生 production patch。隔离设计报告
 跨 native `Req*` 持锁或等待 active-dispatch lease 均需证明不会与 inline/异线程
 callback、reconnect、stop/Release 自等待；缺少精确 pinned native 阻塞语义时
 结论为 `HOLD_DESIGN / NO_PATCH / NO_MERGE`。真实会话和 33 案例状态不变。
+
+## Additional credential-free TCP snapshot (2026-09-28 12:05 UTC)
+
+From the local D: working tree, root ran `python -m backtrader_runtime.cli
+check-ctp-fronts --strategy-dir` once for each protected 013_3 and 007
+runtime. Both commands exited 0. For both configs, candidate indexes 0–3 each
+returned MD 3/3 and TD 3/3 TCP connections; index 4 returned MD 0/3 and TD
+0/3. The 013_3 command selected index 0 and the 007 command selected index 2.
+The selector uses the lower configured-pair latency score among eligible pairs
+(with config index as a tie breaker), so the selected index is an observation,
+not a permanent preferred front. Both receipts reported
+`tcp_probe_only=true`, `authentication_attempted=false`,
+`credential_resolver_invoked=false`, `sdk_imported=false`,
+`provider_login_started=false`, and zero settlement/trading writes. The
+private addresses and credentials are omitted. This later transport snapshot
+does not supersede the zero real-PASS case result or certify MD/TD login,
+subscription, orders, or cancels.
