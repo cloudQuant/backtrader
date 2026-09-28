@@ -11,6 +11,17 @@
 adapter 使用这五个包；不得把它们复制、vendor 或混入 `bt_api_py` 的单体源码包。本目录是跨仓契约，不授权
 混合修改或真实交易写入。
 
+## 代码分支与提交规则
+
+本规则适用于 `backtrader`、`bt_api_py`、`bt_api_base`、`bt_api_ctp`、`bt_api_risk`、
+`bt_api_monitor`、`bt_api_execution` 和 `bt_api_gateway`。各包的源码变更必须在所属 Git 仓库中
+分别归档；不得把一个仓库的源码变动混入另一个仓库提交。
+
+在继续新增功能前，先盘点并整理上述仓库当前属于迭代 41 的代码变更，通过目标为各仓 `dev` 分支的
+PR 提交，经审查后进入对应 `dev`。此后迭代 41 的日常开发均以各仓 `dev` 为基线；需要短期工作分支时，
+从对应 `dev` 创建，并以 PR 返回该仓 `dev`。这遵循[Backtrader 分支治理规则](../../../../source/developer-guide/branch-governance.md)：
+`dev` 是日常开发入口，分支合入通过审查完成。
+
 当前 `bt_api_execution` 固定在空仓 pin `2700cb5`。在其具备 `pyproject.toml`、`src/`、`tests/` 和通过
 包级验收前，`.gitmodules` 必须标为 `installable=false`：父安装器默认明确显示 `NOT_PACKAGED`，strict
 显式选择 execution 必须非零退出，且绝不从 PyPI 或 ambient editable 安装回退。
