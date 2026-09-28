@@ -18,7 +18,6 @@ import os
 from ctypes import wintypes
 from typing import Any, Optional, Tuple
 
-
 _ERROR = "cannot safely persist Windows notification anchor"
 _STATUS_NOT_FOUND = {0xC0000034, 0xC000003A}  # NAME_NOT_FOUND, PATH_NOT_FOUND
 _STATUS_COLLISION = 0xC0000035
